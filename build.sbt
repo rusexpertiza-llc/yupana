@@ -4,13 +4,26 @@ lazy val yupana = (project in file("."))
 
 lazy val api = (project in file("yupana-api"))
   .settings(
+    name := "yupana-api",
     commonSettings,
-    publishSettings
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "joda-time"              %  "joda-time"            % versions.joda,
+      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
+      "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
+    )
   )
+
+lazy val versions = new {
+  val joda = "2.10.1"
+
+  val scalaTest = "3.0.5"
+  val scalaCheck = "1.14.0"
+}
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.11.12",
+  scalaVersion := "2.12.8",
   crossScalaVersions := Seq("2.11.12", "2.12.8")
 )
 
@@ -31,6 +44,6 @@ val publishSettings = Seq(
   licenses += ("Apache 2.0 License", url("http://www.apache.org/licenses/LICENSE-2.0")),
   homepage := Some(url("https://www.yupana.org")),
   developers := List(
-    Developer("rusexpertiza", "Rusexpertiza LLC", url("https://www.1-ofd.ru"))
+    Developer("rusexpertiza", "Rusexpertiza LLC", "info@1-ofd.ru", url("https://www.1-ofd.ru"))
   )
 )
