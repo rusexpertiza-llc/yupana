@@ -33,6 +33,7 @@ val noPublishSettings = Seq(
 
 val publishSettings = Seq(
   publishMavenStyle := true,
+  credentials += Credentials(Path.userHome / ".ivy2" / ".credentials_nexus"),
   publishTo := {
     if (isSnapshot.value)
       Some("nexus ru snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/ru-snapshots/")
