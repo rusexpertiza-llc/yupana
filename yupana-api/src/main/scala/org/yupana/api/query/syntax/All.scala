@@ -5,5 +5,6 @@ trait All
     with ConditionSyntax
     with DataTypeConverterSyntax
     with AggregationSyntax
+    with UnaryOperationSyntax
 
 object All extends All

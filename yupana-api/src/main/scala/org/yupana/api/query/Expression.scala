@@ -159,7 +159,7 @@ class DimensionExpr(val dimName: String) extends Expression {
 }
 
 object DimensionExpr {
-  def apply(tagName: String): DimensionExpr = new DimensionExpr(tagName)
+  def apply(dimName: String): DimensionExpr = new DimensionExpr(dimName)
   def unapply(expr: DimensionExpr): Option[String] = Some(expr.dimName)
 }
 
@@ -185,7 +185,7 @@ class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression
 }
 
 object LinkExpr {
-  def apply(catalog: ExternalLink, field: String): Expression.Aux[String] = new LinkExpr(catalog, field)
+  def apply(link: ExternalLink, field: String): Expression.Aux[String] = new LinkExpr(link, field)
   def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
 }
 

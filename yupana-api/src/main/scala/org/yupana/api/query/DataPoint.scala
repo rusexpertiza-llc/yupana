@@ -4,6 +4,6 @@ import org.yupana.api.schema.MeasureValue
 
 case class DataPoint(
   time: Long,
-  tags: Map[String, String],
-  value: Seq[MeasureValue]
+  dimensions: Map[String, String],
+  measures: Seq[MeasureValue]
 )

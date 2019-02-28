@@ -14,40 +14,32 @@ class Rollup(
   val toTable: Table
 ) extends Serializable {
 
-  lazy val timeExpr = downsamplingInterval match {
+  lazy val timeExpr: Expression = downsamplingInterval match {
     case Some(d) =>
       FunctionExpr(UnaryOperation.trunc(d), TimeExpr)
     case None =>
       TimeExpr
   }
 
-  lazy val timeField = timeExpr as Table.TIME_FIELD_NAME
-  lazy val allFields = QueryFieldToTime(timeField) +: fields
-  lazy val allGroupBy = if (downsamplingInterval.isDefined) timeExpr +: groupBy else groupBy
+  lazy val timeField: QueryField = timeExpr as Table.TIME_FIELD_NAME
+  lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields
+  lazy val allGroupBy: Seq[Expression] = if (downsamplingInterval.isDefined) timeExpr +: groupBy else groupBy
 
   lazy val tagResultNameMap: Map[String, String] = allFields.collect {
-    case QueryFieldToTag(queryField, tagName) =>
+    case QueryFieldToDimension(queryField, tagName) =>
       tagName -> queryField.name
   }.toMap
 
   lazy val fieldNamesMap: Map[String, String] = allFields.collect {
-    case QueryFieldToValue(queryField, field) =>
+    case QueryFieldToMeasure(queryField, field) =>
       field.name -> queryField.name
   }.toMap
 
-  def getResultFieldForTagName(tagName:String): String = {
-    tagResultNameMap.getOrElse(tagName, throw new Exception(s"Can't find result field for tag name: $tagName"))
+  def getResultFieldForDimName(dimName: String): String = {
+    tagResultNameMap.getOrElse(dimName, throw new Exception(s"Can't find result field for tag name: $dimName"))
   }
 
-  def getResultFieldForFieldName(fieldName:String): String = {
+  def getResultFieldForMeasureName(fieldName: String): String = {
     fieldNamesMap.getOrElse(fieldName, throw new Exception(s"Can't find result field for field name: $fieldName"))
   }
 }
-
-sealed trait QueryFieldProjection {
-  val queryField: QueryField
-}
-
-case class QueryFieldToTime(override val queryField: QueryField) extends QueryFieldProjection
-case class QueryFieldToTag(override val queryField: QueryField, tagName: String) extends QueryFieldProjection
-case class QueryFieldToValue(override val queryField: QueryField, field: Measure) extends QueryFieldProjection

@@ -73,8 +73,10 @@ object UnaryOperation {
     override def apply(t: T): U = fun(t)
   }
 
+  val length: UnaryOperation.Aux[String, Int] = UnaryOperation(_.length, LENGTH, DataType[Int])
+
   def stringOperations: Map[String, UnaryOperation[String]] = Map(
-    LENGTH -> UnaryOperation(_.length, LENGTH, DataType[Int])
+    LENGTH -> length
   )
 
   def numericOperations[T : Numeric](dt: DataType.Aux[T]): Map[String, UnaryOperation[T]] = Map(

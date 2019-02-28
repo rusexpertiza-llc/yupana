@@ -141,19 +141,19 @@ object NotIn {
   def unapply(nin: NotIn): Option[(Expression.Aux[nin.T], Set[nin.T])] = Some((nin.e, nin.vs))
 }
 
-case class TagIdIn(expr: DimensionExpr, tagIds: Set[Int]) extends Condition {
+case class DimIdIn(expr: DimensionExpr, dimIds: Set[Int]) extends Condition {
   override def exprs: Set[Expression] = Set(expr)
-  override def encode: String = tagIds.mkString(s"idIn(${expr.encode}, (", ",","))")
+  override def encode: String = dimIds.mkString(s"idIn(${expr.encode}, (", ",","))")
   override def toString: String = {
-    expr.toString + CollectionUtils.mkStringWithLimit(tagIds, 10, " ID IN (", ", ", ")")
+    expr.toString + CollectionUtils.mkStringWithLimit(dimIds, 10, " ID IN (", ", ", ")")
   }
 }
 
-case class TagIdNotIn(expr: DimensionExpr, tagIds: Set[Int]) extends Condition {
+case class DimIdNotIn(expr: DimensionExpr, dimIds: Set[Int]) extends Condition {
   override def exprs: Set[Expression] = Set(expr)
-  override def encode: String = tagIds.mkString(s"idNotIn(${expr.encode}, (", ",","))")
+  override def encode: String = dimIds.mkString(s"idNotIn(${expr.encode}, (", ",","))")
   override def toString: String = {
-    expr.toString + CollectionUtils.mkStringWithLimit(tagIds, 10, " ID NOT IN (", ", ", ")")
+    expr.toString + CollectionUtils.mkStringWithLimit(dimIds, 10, " ID NOT IN (", ", ", ")")
   }
 }
 
