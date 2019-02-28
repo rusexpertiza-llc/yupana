@@ -1,5 +1,7 @@
+import scalapb.compiler.Version.scalapbVersion
+
 lazy val yupana = (project in file("."))
-  .aggregate(api)
+  .aggregate(api, proto, jdbc)
   .settings(noPublishSettings, commonSettings)
 
 lazy val api = (project in file("yupana-api"))
@@ -7,18 +9,67 @@ lazy val api = (project in file("yupana-api"))
     name := "yupana-api",
     commonSettings,
     publishSettings,
+    buildInfoKeys := {
+      val vn = VersionNumber(version.value)
+      Seq[BuildInfoKey](
+        version,
+        "majorVersion" -> vn.numbers(0).toInt,
+        "minorVersion" -> vn.numbers(1).toInt,
+        "buildVersion" -> vn.numbers(2).toInt
+      )
+    },
+    buildInfoPackage := "org.yupana.build",
     libraryDependencies ++= Seq(
       "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
     )
   )
+  .enablePlugins(BuildInfoPlugin)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val proto = (project in file("yupana-proto"))
+  .settings(
+    name := "yupana-proto",
+    commonSettings,
+    publishSettings,
+    PB.protocVersion := "-v261",
+    Compile / PB.targets := Seq (
+      scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
+    ),
+    libraryDependencies ++= Seq(
+      "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
+      "com.google.protobuf"    %  "protobuf-java"        % versions.protobufJava force()
+    )
+  )
+  .disablePlugins(AssemblyPlugin)
+
+lazy val jdbc = (project in file("yupana-jdbc"))
+  .settings(
+    name := "yupana-jdbc",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
+      "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
+    ),
+    Compile / assembly / artifact := {
+      val art = (Compile / assembly / artifact).value
+      art.withClassifier(Some("driver"))
+    },
+    addArtifact(Compile / assembly / artifact, assembly)
+  )
+  .enablePlugins(AssemblyPlugin)
+  .dependsOn(api, proto)
 
 lazy val versions = new {
   val joda = "2.10.1"
 
+  val protobufJava = "2.6.1"
+
   val scalaTest = "3.0.5"
   val scalaCheck = "1.14.0"
+  val scalaMock = "4.1.0"
 }
 
 val commonSettings = Seq(

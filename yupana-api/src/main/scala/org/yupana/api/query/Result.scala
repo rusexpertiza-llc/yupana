@@ -32,9 +32,9 @@ object Result {
   }
 }
 
-case class TsdbResult(fieldNames: Seq[String],
-                      dataTypes: Seq[DataType],
-                      rows: Iterator[Array[Option[Any]]]) extends Result {
+case class SimpleResult(fieldNames: Seq[String],
+                        dataTypes: Seq[DataType],
+                        rows: Iterator[Array[Option[Any]]]) extends Result {
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap
 
