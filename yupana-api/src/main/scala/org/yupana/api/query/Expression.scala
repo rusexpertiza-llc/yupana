@@ -1,7 +1,7 @@
 package org.yupana.api.query
 
 import org.yupana.api.Time
-import org.yupana.api.schema.{ExternalLink, Measure}
+import org.yupana.api.schema.{ExternalLink, Metric}
 import org.yupana.api.types._
 
 sealed trait ExprKind
@@ -17,7 +17,7 @@ sealed trait Expression extends Serializable {
 
   def requiredDimensions: Set[String]
   def requiredLinks: Set[LinkExpr]
-  def requiredMeasures: Set[Measure]
+  def requiredMetrics: Set[Metric]
 
   def kind: ExprKind = Simple
 
@@ -63,7 +63,7 @@ trait WindowFunctionExpr extends Expression {
 
   override def requiredDimensions: Set[String] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
-  override def requiredMeasures: Set[Measure] = expr.requiredMeasures
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
 
   override def kind: ExprKind = Window
 
@@ -91,7 +91,7 @@ trait AggregateExpr extends Expression {
 
   override def requiredDimensions: Set[String] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
-  override def requiredMeasures: Set[Measure] = expr.requiredMeasures
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
 
   override def kind: ExprKind = Aggregate
 
@@ -123,7 +123,7 @@ trait ConstantExpr extends Expression {
   override def kind: ExprKind = Const
   override def requiredDimensions: Set[String] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
-  override def requiredMeasures: Set[Measure] = Set.empty
+  override def requiredMetrics: Set[Metric] = Set.empty
 }
 
 object ConstantExpr {
@@ -143,7 +143,7 @@ case object TimeExpr extends Expression {
   override val dataType: DataType.Aux[Time] = DataType[Time]
   override def requiredDimensions: Set[String] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
-  override def requiredMeasures: Set[Measure] = Set.empty
+  override def requiredMetrics: Set[Metric] = Set.empty
   override def encode: String = s"time()"
   def toField = QueryField("time", this)
 }
@@ -153,7 +153,7 @@ class DimensionExpr(val dimName: String) extends Expression {
   override val dataType: DataType.Aux[String] = DataType[String]
   override def requiredDimensions: Set[String] = Set(dimName)
   override def requiredLinks: Set[LinkExpr] = Set.empty
-  override def requiredMeasures: Set[Measure] = Set.empty
+  override def requiredMetrics: Set[Metric] = Set.empty
   override def encode: String = s"dim($dimName)"
   def toField = QueryField(dimName, this)
 }
@@ -163,14 +163,14 @@ object DimensionExpr {
   def unapply(expr: DimensionExpr): Option[String] = Some(expr.dimName)
 }
 
-case class MeasureExpr[T](measure: Measure.Aux[T]) extends Expression {
+case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override type Out = T
-  override def dataType: DataType.Aux[measure.T] = measure.dataType
-  override def requiredMeasures: Set[Measure] = Set(measure)
+  override def dataType: DataType.Aux[metric.T] = metric.dataType
+  override def requiredMetrics: Set[Metric] = Set(metric)
   override def requiredDimensions: Set[String] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
-  override def encode: String = s"measure(${measure.name})"
-  def toField = QueryField(measure.name, this)
+  override def encode: String = s"metric(${metric.name})"
+  def toField = QueryField(metric.name, this)
 }
 
 class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression {
@@ -178,7 +178,7 @@ class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression
   override val dataType: DataType.Aux[String] = DataType[String]
   override def requiredDimensions: Set[String] = Set(link.dimensionName)
   override def requiredLinks: Set[LinkExpr] = Set(this)
-  override def requiredMeasures: Set[Measure] = Set.empty
+  override def requiredMetrics: Set[Metric] = Set.empty
   override def encode: String = s"link(${link.linkName}, $linkField)"
   def queryFieldName: String = link.linkName + "_" + linkField
   def toField = QueryField(queryFieldName, this)
@@ -194,7 +194,7 @@ case class FunctionExpr[T, U](f: T => U,
                               fun: String,
                               expr: Expression.Aux[T]) extends Expression {
   override type Out = U
-  override def requiredMeasures: Set[Measure] = expr.requiredMeasures
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
   override def requiredDimensions: Set[String] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
   override def encode: String =  s"$fun($expr)"
@@ -217,7 +217,7 @@ case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
                                         b: Expression.Aux[U]) extends Expression {
   override type Out = O
   override def dataType: DataType.Aux[Out] = function.dataType
-  override def requiredMeasures: Set[Measure] = a.requiredMeasures union b.requiredMeasures
+  override def requiredMetrics: Set[Metric] = a.requiredMetrics union b.requiredMetrics
   override def requiredDimensions: Set[String] = a.requiredDimensions union b.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = a.requiredLinks union b.requiredLinks
 
@@ -248,7 +248,7 @@ case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implici
 
   override def requiredDimensions: Set[String] = e1.requiredDimensions ++ e2.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = e1.requiredLinks ++ e2.requiredLinks
-  override def requiredMeasures: Set[Measure] = Set.empty
+  override def requiredMetrics: Set[Metric] = Set.empty
 }
 
 case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], negative: Expression.Aux[T]) extends Expression {
@@ -259,8 +259,8 @@ case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], n
     positive.requiredDimensions ++ negative.requiredDimensions ++ condition.exprs.flatMap(_.requiredDimensions)
   override def requiredLinks: Set[LinkExpr] =
     positive.requiredLinks ++ negative.requiredLinks ++ condition.exprs.flatMap(_.requiredLinks)
-  override def requiredMeasures: Set[Measure] =
-    positive.requiredMeasures ++ negative.requiredMeasures ++ condition.exprs.flatMap(_.requiredMeasures)
+  override def requiredMetrics: Set[Metric] =
+    positive.requiredMetrics ++ negative.requiredMetrics ++ condition.exprs.flatMap(_.requiredMetrics)
 
   override def toString: String = s"IF ($condition) THEN $positive ELSE $negative"
 

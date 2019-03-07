@@ -4,7 +4,7 @@ trait Table extends Serializable {
   val name: String
   val rowTimeSpan: Long
   val dimensionSeq: Seq[String]
-  val measures: Seq[Measure]
+  val metrics: Seq[Metric]
   var externalLinks: Seq[ExternalLink]
   val rollups: Seq[Rollup]
 
@@ -12,7 +12,7 @@ trait Table extends Serializable {
     s"Table($name)"
   }
 
-  lazy val fieldGroups: Set[Int] = measures.map(_.group).toSet
+  lazy val fieldGroups: Set[Int] = metrics.map(_.group).toSet
 }
 
 object Table {

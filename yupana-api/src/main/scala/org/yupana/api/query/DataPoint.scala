@@ -1,9 +1,9 @@
 package org.yupana.api.query
 
-import org.yupana.api.schema.MeasureValue
+import org.yupana.api.schema.MetricValue
 
 case class DataPoint(
   time: Long,
   dimensions: Map[String, String],
-  measures: Seq[MeasureValue]
+  metrics: Seq[MetricValue]
 )

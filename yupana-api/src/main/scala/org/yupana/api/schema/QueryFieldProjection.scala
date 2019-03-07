@@ -8,4 +8,4 @@ sealed trait QueryFieldProjection {
 
 case class QueryFieldToTime(override val queryField: QueryField) extends QueryFieldProjection
 case class QueryFieldToDimension(override val queryField: QueryField, dimensionName: String) extends QueryFieldProjection
-case class QueryFieldToMeasure(override val queryField: QueryField, measure: Measure) extends QueryFieldProjection
+case class QueryFieldToMetric(override val queryField: QueryField, metric: Metric) extends QueryFieldProjection

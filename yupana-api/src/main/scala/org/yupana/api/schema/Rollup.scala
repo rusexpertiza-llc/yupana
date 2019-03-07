@@ -31,7 +31,7 @@ class Rollup(
   }.toMap
 
   lazy val fieldNamesMap: Map[String, String] = allFields.collect {
-    case QueryFieldToMeasure(queryField, field) =>
+    case QueryFieldToMetric(queryField, field) =>
       field.name -> queryField.name
   }.toMap
 
