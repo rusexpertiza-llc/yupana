@@ -1,8 +1,8 @@
 package org.yupana.api.query
 
 import org.yupana.api.Time
+import org.yupana.api.types.BinaryOperation
 import org.yupana.api.utils.CollectionUtils
-import org.yupana.api.types.Comparison
 
 sealed trait Condition extends Serializable {
   def exprs: Set[Expression]
@@ -45,8 +45,8 @@ object Condition {
 
   def timeAndCondition(from: Expression.Aux[Time], to: Expression.Aux[Time], condition: Option[Condition]): Condition = {
     And(Seq(
-      Compare(Comparison.ge[Time], TimeExpr, from),
-      Compare(Comparison.lt[Time], TimeExpr, to)
+      SimpleCondition(BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, from)),
+      SimpleCondition(BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, to))
     ) ++ condition)
   }
 }
@@ -56,39 +56,10 @@ case object EmptyCondition extends Condition {
   override def encode: String = "empty"
 }
 
-trait Compare extends Condition {
-  type T
-  def c: Comparison[T]
-  def a: Expression.Aux[T]
-  def b: Expression.Aux[T]
-}
-
-object Compare {
-  def apply[A](comparison: Comparison[A], left: Expression.Aux[A], right: Expression.Aux[A]): Compare  = new Compare() {
-    override type T = A
-    override lazy val c: Comparison[T] = comparison
-    override lazy val a: Expression.Aux[T] = left
-    override lazy val b: Expression.Aux[T] = right
-
-    override def exprs: Set[Expression] = Set(left, right)
-
-    override def toString: String = s"$a $c $b"
-    override def encode: String = s"$c(${a.encode}, ${b.encode})"
-  }
-
-  def unapply(c: Compare): Option[(Comparison[c.T], Expression.Aux[c.T], Expression.Aux[c.T])] = Some((c.c, c.a, c.b))
-}
-
-case class IsNull(e: Expression) extends Condition {
-    override def exprs: Set[Expression] = Set(e) // todo add Expr::exprs and use e.exprs here
-    override def encode: String = s"isNull(${e.encode})"
-    override def toString: String = s"$e IS NULL"
-}
-
-case class IsNotNull(e: Expression) extends Condition {
-  override def exprs: Set[Expression] = Set(e) // todo add Expr::exprs and use e.exprs here
-  override def encode: String = s"isNotNull(${e.encode})"
-  override def toString: String = s"$e  IS NOT NULL"
+case class SimpleCondition(e: Expression.Aux[Boolean]) extends Condition {
+  override def exprs: Set[Expression] = Set(e)
+  override def encode: String = e.encode
+  override def toString: String = e.toString
 }
 
 trait In extends Condition {

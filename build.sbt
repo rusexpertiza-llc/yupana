@@ -67,7 +67,7 @@ lazy val versions = new {
 
   val protobufJava = "2.6.1"
 
-  val scalaTest = "3.0.5"
+  val scalaTest = "3.0.7"
   val scalaCheck = "1.14.0"
   val scalaMock = "4.1.0"
 }

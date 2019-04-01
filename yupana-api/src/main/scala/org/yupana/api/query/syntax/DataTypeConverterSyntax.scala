@@ -1,6 +1,6 @@
 package org.yupana.api.query.syntax
 
-import org.yupana.api.query.{Expression, FunctionExpr}
+import org.yupana.api.query.{Expression, TypeConvertExpr}
 import org.yupana.api.types.TypeConverter
 
 trait DataTypeConverterSyntax {
@@ -10,7 +10,8 @@ trait DataTypeConverterSyntax {
   def int2Long(e: Expression.Aux[Int]): Expression.Aux[Long] = convert[Int, Long](e, TypeConverter.int2Long)
   def int2bigDecimal(e: Expression.Aux[Int]): Expression.Aux[BigDecimal] = convert[Int, BigDecimal](e, TypeConverter.int2BigDecimal)
 
-  private def convert[T, U](e: Expression.Aux[T], typeConverter: TypeConverter[T, U]): FunctionExpr[T, U] = FunctionExpr(typeConverter, e)
+  private def convert[T, U](e: Expression.Aux[T], typeConverter: TypeConverter[T, U]): TypeConvertExpr[T, U] =
+    TypeConvertExpr(typeConverter, e)
 }
 
 object DataTypeConverterSyntax extends DataTypeConverterSyntax

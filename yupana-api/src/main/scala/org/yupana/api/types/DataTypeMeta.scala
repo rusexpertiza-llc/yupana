@@ -18,6 +18,7 @@ case class DataTypeMeta[T](
 object DataTypeMeta {
   private val SIGNED_TYPES = Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL)
 
+  implicit val boolMeta: DataTypeMeta[Boolean] = DataTypeMeta(Types.BOOLEAN, 5, "BOOLEAN", classOf[java.lang.Boolean], 0, 0)
   implicit val stringMeta: DataTypeMeta[String] = DataTypeMeta(Types.VARCHAR, Integer.MAX_VALUE, "VARCHAR", classOf[java.lang.String], Integer.MAX_VALUE, 0)
   implicit val intMeta: DataTypeMeta[Int] = DataTypeMeta(Types.INTEGER, 10, "INTEGER", classOf[java.lang.Integer], 10, 0)
   implicit val doubleMeta: DataTypeMeta[Double] = DataTypeMeta(Types.DOUBLE, 25, "DOUBLE", classOf[java.lang.Double], 17, 17)
@@ -26,8 +27,13 @@ object DataTypeMeta {
   implicit val timestampMeta: DataTypeMeta[Time] = DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
   implicit val periodMeta: DataTypeMeta[Period] = DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
 
-  implicit def optionMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Option[T]] =
+  implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
+    DataTypeMeta(Types.ARRAY, Integer.MAX_VALUE, s"ARRAY[${meta.sqlTypeName}]", classOf[java.lang.Object], Integer.MAX_VALUE, 0)
+  }
+
+  implicit def optionMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Option[T]] = {
     DataTypeMeta(meta.sqlType, meta.displaySize, meta.sqlTypeName, meta.javaTypeName, meta.precision, meta.isSigned, meta.scale)
+  }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =
     DataTypeMeta(t, ds, tn, jt.getCanonicalName, p, SIGNED_TYPES.contains(t), s)

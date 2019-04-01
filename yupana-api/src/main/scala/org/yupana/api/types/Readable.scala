@@ -9,14 +9,16 @@ import org.joda.time.format.ISOPeriodFormat
 import org.yupana.api.Time
 
 import scala.annotation.implicitNotFound
+import scala.reflect.ClassTag
 
-@implicitNotFound("No member of type class TSDReadable for class ${T} is found")
+@implicitNotFound("No member of type class Readable for class ${T} is found")
 trait Readable[T] extends Serializable {
   def read(a: Array[Byte]): T
   def read(b: ByteBuffer): T
 }
 
 object Readable {
+  implicit val booleanReadable: Readable[Boolean] = of(_.get() != 0)
   implicit val doubleReadable: Readable[Double] = of(_.getDouble)
   implicit val intReadable: Readable[Int] = of(readVInt)
   implicit val bigDecimalReadable: Readable[BigDecimal] = of(readBigDecimal)
@@ -24,6 +26,8 @@ object Readable {
   implicit val stringReadable: Readable[String] = of(readString)
   implicit val timestampReadable: Readable[Time] = of(bb => Time(longReadable.read(bb)))
   implicit val periodReadable: Readable[Period] = of(bb => ISOPeriodFormat.standard().parsePeriod(stringReadable.read(bb)))
+
+  implicit def arrayReadable[T](implicit rt: Readable[T], ct: ClassTag[T]): Readable[Array[T]] = of(readArray(rt))
 
   def of[T](f: ByteBuffer => T): Readable[T] = new Readable[T] {
     override def read(a: Array[Byte]): T = f(ByteBuffer.wrap(a))
@@ -80,5 +84,16 @@ object Readable {
 
       if (first >= -120) result else result ^ -1L
     }
+  }
+
+  private def readArray[T: ClassTag](readable: Readable[T])(bb: ByteBuffer): Array[T] = {
+    val size = readVInt(bb)
+    val result = new Array[T](size)
+
+    for (i <- 0 until size) {
+      result(i) = readable.read(bb)
+    }
+
+    result
   }
 }

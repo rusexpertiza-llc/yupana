@@ -3,13 +3,14 @@ package org.yupana.api.types
 import org.joda.time.Period
 import org.yupana.api.Time
 
+import scala.reflect.ClassTag
+
 case class TypeOperations[T](
-  comparisons: Map[String, Comparison[T]],
   binaryOperations: Map[(String, String), BinaryOperation[T]],
   unaryOperations: Map[String, UnaryOperation[T]],
-  aggregations: Map[String, Aggregation[T]]
+  aggregations: Map[String, Aggregation[T]],
+  arrayOperations: Map[String, UnaryOperation[Array[T]]]
 ) {
-  def comparision(name: String): Option[Comparison[T]] = comparisons.get(name)
   def biOperation[U](name: String, argType: DataType.Aux[U]): Option[BinaryOperation.Aux[T, U, _]] = {
     binaryOperations.get((name, argType.meta.sqlTypeName))
       .map(op => op.asInstanceOf[BinaryOperation.Aux[T, U, op.Out]])
@@ -20,36 +21,43 @@ case class TypeOperations[T](
 
 object TypeOperations {
   def intOperations[T : Integral](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
-    Comparison.ordComparisons,
     BinaryOperation.integralOperations(dt),
     UnaryOperation.numericOperations(dt),
-    Aggregation.intAggregations(dt)
+    Aggregation.intAggregations(dt),
+    Map.empty
   )
 
   def fracOperations[T : Fractional](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
-    Comparison.ordComparisons,
     BinaryOperation.fractionalOperations(dt),
     UnaryOperation.numericOperations(dt),
-    Aggregation.fracAggregations(dt)
+    Aggregation.fracAggregations(dt),
+    Map.empty
   )
 
   def stringOperations(dt: DataType.Aux[String]): TypeOperations[String] = TypeOperations(
-    Comparison.ordComparisons,
     BinaryOperation.stringOperations,
     UnaryOperation.stringOperations,
-    Aggregation.stringAggregations
+    Aggregation.stringAggregations,
+    UnaryOperation.stringArrayOperations
+  )
+
+  def boolOperations(dt: DataType.Aux[Boolean]): TypeOperations[Boolean] = TypeOperations(
+    Map.empty,
+    Map.empty,
+    Map.empty,
+    Map.empty
   )
 
   def timeOperations(dt: DataType.Aux[Time]): TypeOperations[Time] = TypeOperations(
-    Comparison.ordComparisons,
     BinaryOperation.timeOperations,
     UnaryOperation.timeOperations,
-    Aggregation.timeAggregations
+    Aggregation.timeAggregations,
+    Map.empty
   )
 
   def periodOperations(dt: DataType.Aux[Period]): TypeOperations[Period] = TypeOperations(
-    Map.empty,
     BinaryOperation.periodOperations,
+    Map.empty,
     Map.empty,
     Map.empty
   )
@@ -57,8 +65,17 @@ object TypeOperations {
   def tupleOperations[T, U](dtt: DataType.Aux[T], dtu: DataType.Aux[U]): TypeOperations[(T, U)] = {
 
     TypeOperations(
-      Comparison.tupleComparisons(dtt.operations.comparisons, dtu.operations.comparisons),
+      BinaryOperation.tupleOperations(dtt.operations.binaryOperations, dtu.operations.binaryOperations),
+      UnaryOperation.tupleOperations(dtt.operations.unaryOperations, dtu.operations.unaryOperations),
       Map.empty,
+      Map.empty
+    )
+  }
+
+  def arrayOperations[T](dtt: DataType.Aux[T])(implicit ct: ClassTag[T]): TypeOperations[Array[T]] = {
+    TypeOperations(
+      BinaryOperation.arrayOperations[T](dtt, ct),
+      UnaryOperation.arrayOperations[T] ++ dtt.operations.arrayOperations,
       Map.empty,
       Map.empty
     )

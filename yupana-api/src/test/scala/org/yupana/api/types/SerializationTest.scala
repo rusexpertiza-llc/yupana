@@ -1,65 +1,35 @@
 package org.yupana.api.types
 
 import org.scalacheck.Arbitrary
-import org.scalatest.prop.{GeneratorDrivenPropertyChecks, TableDrivenPropertyChecks}
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.Time
 
 class SerializationTest extends FlatSpec
   with Matchers
-  with GeneratorDrivenPropertyChecks
+  with ScalaCheckDrivenPropertyChecks
   with TableDrivenPropertyChecks {
 
-  private val genTime = Arbitrary.arbitrary[Long].suchThat(_ >= 0).map(Time(_))
+  implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
-  "Serialization" should "preserve doubles on write read cycle" in {
-    val readable = implicitly[Readable[Double]]
-    val writable = implicitly[Writable[Double]]
-    forAll { value: Double =>
-      readable.read(writable.write(value)) shouldEqual value
-    }
-  }
+  "Serialization" should "preserve doubles on write read cycle" in readWriteTest[Double]
 
-  it should "preserve ints on write read cycle" in {
-    val readable = implicitly[Readable[Int]]
-    val writable = implicitly[Writable[Int]]
-    forAll { value: Int =>
-      readable.read(writable.write(value)) shouldEqual value
-    }
-  }
+  it should "preserve Ints on write read cycle" in readWriteTest[Int]
 
-  it should "preserve longs on write read cycle" in {
-    val readable = implicitly[Readable[Long]]
-    val writable = implicitly[Writable[Long]]
+  it should "preserve Longs on write read cycle" in readWriteTest[Long]
 
-    forAll { value: Long =>
-      readable.read(writable.write(value)) shouldEqual value
-    }
-  }
+  it should "preserve BigDecimals on read write cycle" in readWriteTest[BigDecimal]
 
-  it should "preserve BigDecimals on read write cycle" in {
-    val readable = implicitly[Readable[BigDecimal]]
-    val writable = implicitly[Writable[BigDecimal]]
-    forAll { value: BigDecimal =>
-      readable.read(writable.write(value)) shouldEqual value
-    }
-  }
+  it should "preserve Strings on read write cycle" in readWriteTest[String]
 
-  it should "preserve Strings on read write cycle" in {
-    val readable = implicitly[Readable[String]]
-    val writable = implicitly[Writable[String]]
-    forAll { value: String =>
-      readable.read(writable.write(value)) shouldEqual value
-    }
-  }
+  it should "preserve Time on read write cycle" in readWriteTest[Time]
 
-  it should "preserve Time on read write cycle" in {
-    val readable = implicitly[Readable[Time]]
-    val writable = implicitly[Writable[Time]]
-    forAll(genTime) { value: Time =>
-      readable.read(writable.write(value)) shouldEqual value
-    }
-  }
+  it should "preserve Booleans on readwrite cycle" in readWriteTest[Boolean]
+
+  it should "preserve Arrays of Int on read write cycle" in readWriteTest[Array[Int]]
+
+  it should "preserve Arrays of String on read write cycle" in readWriteTest[Array[String]]
 
   it should "compact numbers" in {
     val writable = implicitly[Writable[Long]]
@@ -93,5 +63,14 @@ class SerializationTest extends FlatSpec
     val readable = implicitly[Readable[Int]]
 
     an[IllegalArgumentException] should be thrownBy readable.read(writable.write(3000000000l))
+  }
+
+  private def readWriteTest[T: Readable : Writable : Arbitrary] = {
+    val readable = implicitly[Readable[T]]
+    val writable = implicitly[Writable[T]]
+
+    forAll { t: T =>
+      readable.read(writable.write(t)) shouldEqual t
+    }
   }
 }

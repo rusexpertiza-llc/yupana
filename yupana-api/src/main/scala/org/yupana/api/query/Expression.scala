@@ -3,6 +3,7 @@ package org.yupana.api.query
 import org.yupana.api.Time
 import org.yupana.api.schema.{ExternalLink, Metric}
 import org.yupana.api.types._
+import org.yupana.api.utils.CollectionUtils
 
 sealed trait ExprKind
 case object Const extends ExprKind
@@ -25,7 +26,9 @@ sealed trait Expression extends Serializable {
 
   def encode: String
 
-  lazy val flatten: Set[Expression] = Set(this)
+  def aux: Expression.Aux[Out] = this.asInstanceOf[Expression.Aux[Out]]
+
+  lazy val flatten: Set[Expression]  = Set(this)
 
   def containsAggregates: Boolean = flatten.exists {
     case _: AggregateExpr => true
@@ -56,7 +59,7 @@ object Expression {
   type Aux[T] = Expression { type Out = T }
 }
 
-trait WindowFunctionExpr extends Expression {
+sealed trait WindowFunctionExpr extends Expression {
   type In
   val operation: WindowOperation[In]
   val expr: Expression.Aux[In]
@@ -84,7 +87,7 @@ object WindowFunctionExpr {
   }
 }
 
-trait AggregateExpr extends Expression {
+sealed trait AggregateExpr extends Expression {
   type In
   val aggregation: Aggregation[In]
   val expr: Expression.Aux[In]
@@ -117,7 +120,7 @@ object AggregateExpr {
   }
 }
 
-trait ConstantExpr extends Expression {
+sealed trait ConstantExpr extends Expression {
   def v: Out
   override def encode: String = s"const($v)"
   override def kind: ExprKind = Const
@@ -189,27 +192,33 @@ object LinkExpr {
   def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
 }
 
-case class FunctionExpr[T, U](f: T => U,
-                              override val dataType: DataType.Aux[U],
-                              fun: String,
-                              expr: Expression.Aux[T]) extends Expression {
+case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U],
+                                    expr: Expression.Aux[T]
+                          ) extends Expression {
   override type Out = U
-  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override def dataType: DataType.Aux[U] = function.dataType
   override def requiredDimensions: Set[String] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
-  override def encode: String =  s"$fun($expr)"
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override def encode: String = s"${function.name}($expr)"
 
   override def kind: ExprKind = expr.kind
-
   override lazy val flatten: Set[Expression] = Set(this) ++ expr.flatten
 }
 
-object FunctionExpr {
-  def apply[T, U](tc: TypeConverter[T, U], expr: Expression.Aux[T]): FunctionExpr[T, U] =
-    FunctionExpr(tc.direct, tc.dataType, tc.functionName, expr)
+case class TypeConvertExpr[T, U](tc: TypeConverter[T, U],
+                                 expr: Expression.Aux[T]
+                                ) extends Expression {
+  override type Out = U
 
-  def apply[T, U](unary: UnaryOperation.Aux[T, U], expr: Expression.Aux[T]): FunctionExpr[T, U] =
-    FunctionExpr(unary.apply, unary.dataType, unary.name, expr)
+  override def dataType: DataType.Aux[U] = tc.dataType
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override def requiredDimensions: Set[String] = expr.requiredDimensions
+  override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
+  override def encode: String =  s"${tc.functionName}($expr)"
+
+  override def kind: ExprKind = expr.kind
+  override lazy val flatten: Set[Expression] = Set(this) ++ expr.flatten
 }
 
 case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
@@ -221,7 +230,7 @@ case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
   override def requiredDimensions: Set[String] = a.requiredDimensions union b.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = a.requiredLinks union b.requiredLinks
 
-  override def toString: String = s"$a $function $b"
+  override def toString: String = if (function.infix) s"$a $function $b" else s"$function($a, $b)"
   override def encode: String = s"$function(${a.encode}, ${b.encode})"
 
   override def kind: ExprKind = (a.kind, b.kind) match {
@@ -237,7 +246,7 @@ case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
   override lazy val flatten: Set[Expression] = Set(this) ++ a.flatten ++ b.flatten
 }
 
-case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) extends Expression {
+class TupleExpr[T, U](val e1: Expression.Aux[T], val e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) extends Expression {
   override type Out = (T, U)
 
   override def dataType: DataType.Aux[(T, U)] = DataType[(T, U)]
@@ -249,6 +258,24 @@ case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implici
   override def requiredDimensions: Set[String] = e1.requiredDimensions ++ e2.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = e1.requiredLinks ++ e2.requiredLinks
   override def requiredMetrics: Set[Metric] = Set.empty
+}
+
+object TupleExpr {
+  def apply[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]): TupleExpr[T, U] = new TupleExpr(e1, e2)
+  def unapply(arg: TupleExpr[_, _]): Option[(Expression.Aux[arg.e1.Out], Expression.Aux[arg.e2.Out])] = Some((arg.e1, arg.e2))
+}
+
+case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit dtt: DataType.Aux[T]) extends Expression {
+  override type Out = Array[T]
+
+  override val dataType: DataType.Aux[Array[T]] = DataType[Array[T]]
+
+  override def requiredDimensions: Set[String] = exprs.foldLeft(Set.empty[String])(_ ++ _.requiredDimensions)
+  override def requiredLinks: Set[LinkExpr] = exprs.foldLeft(Set.empty[LinkExpr])(_ ++ _.requiredLinks)
+  override def requiredMetrics: Set[Metric] = exprs.foldLeft(Set.empty[Metric])(_ ++ _.requiredMetrics)
+
+  override def encode: String = exprs.mkString("[", ", ", "]")
+  override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
 }
 
 case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], negative: Expression.Aux[T]) extends Expression {

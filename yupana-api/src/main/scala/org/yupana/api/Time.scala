@@ -6,7 +6,7 @@ case class Time(millis: Long) {
   def toLocalDateTime: LocalDateTime = new LocalDateTime(millis, DateTimeZone.UTC)
   def toDateTime: DateTime = new DateTime(millis, DateTimeZone.UTC)
 
-  override def toString: String = s"Time(${toLocalDateTime.toString})"
+  override def toString: String = s"Time(${toDateTime.toString})"
 }
 
 object Time {

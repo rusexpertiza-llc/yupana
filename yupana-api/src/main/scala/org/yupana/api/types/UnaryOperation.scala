@@ -8,7 +8,7 @@ trait UnaryOperation[T] extends Serializable {
   val name: String
   def dataType: DataType.Aux[Out]
 
-  def apply(t: T): Out
+  def apply(t: Option[T])(implicit unaryOperations: UnaryOperations): Option[Out]
 
   override def toString: String = name
 }
@@ -16,6 +16,10 @@ trait UnaryOperation[T] extends Serializable {
 object UnaryOperation {
 
   val LENGTH = "length"
+  val STEM = "stem"
+
+  val IS_NULL = "is_null"
+  val IS_NOT_NULL = "is_not_null"
 
   val ABS = "abs"
 
@@ -42,45 +46,52 @@ object UnaryOperation {
   val EXTRACT_MINUTE = "extract_minute"
   val EXTRACT_SECOND = "extract_second"
 
+  val ARRAY_TO_STRING = "array_to_string"
+
   type Aux[T, U] = UnaryOperation[T] { type Out = U }
 
-  def abs[T](dt: DataType.Aux[T])(implicit numeric: Numeric[T]): UnaryOperation.Aux[T, T] = UnaryOperation(numeric.abs, ABS, dt)
+  def abs[T : Numeric](implicit dt: DataType.Aux[T]): UnaryOperation.Aux[T, T] = create(_.abs[T], ABS, dt)
 
-  val extractYear: UnaryOperation.Aux[Time, Int] = UnaryOperation(_.toLocalDateTime.getYear, EXTRACT_YEAR, DataType[Int])
-  val extractMonth: UnaryOperation.Aux[Time, Int] = UnaryOperation(_.toLocalDateTime.getMonthOfYear, EXTRACT_MONTH, DataType[Int])
-  val extractDay: UnaryOperation.Aux[Time, Int] = UnaryOperation(_.toLocalDateTime.getDayOfMonth, EXTRACT_DAY, DataType[Int])
-  val extractHour: UnaryOperation.Aux[Time, Int] = UnaryOperation(_.toLocalDateTime.getHourOfDay, EXTRACT_HOUR, DataType[Int])
-  val extractMinute: UnaryOperation.Aux[Time, Int] = UnaryOperation(_.toLocalDateTime.getMinuteOfHour, EXTRACT_MINUTE, DataType[Int])
-  val extractSecond: UnaryOperation.Aux[Time, Int] = UnaryOperation(_.toLocalDateTime.getSecondOfMinute, EXTRACT_SECOND, DataType[Int])
+  def isNull[T]: UnaryOperation.Aux[T, Boolean] = create(_.isNull[T], IS_NULL, DataType[Boolean])
+  def isNotNull[T]: UnaryOperation.Aux[T, Boolean] = create(_.isNotNull[T], IS_NOT_NULL, DataType[Boolean])
 
-  def trunc(interval: DateTimeFieldType): UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, interval), TRUNC, DataType[Time])
-  val truncYear: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.year()), TRUNC_YEAR, DataType[Time])
-  val truncMonth: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.monthOfYear()), TRUNC_MONTH, DataType[Time])
-  val truncDay: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.dayOfYear()), TRUNC_DAY, DataType[Time])
-  val truncHour: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.hourOfDay()), TRUNC_HOUR, DataType[Time])
-  val truncMinute: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.minuteOfHour()), TRUNC_MINUTE, DataType[Time])
-  val truncSecond: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.secondOfDay()), TRUNC_SECOND, DataType[Time])
-  val truncWeek: UnaryOperation.Aux[Time, Time] = UnaryOperation(truncateTime(_, DateTimeFieldType.weekOfWeekyear()), TRUNC_WEEK, DataType[Time])
+  val extractYear: UnaryOperation.Aux[Time, Int] = create(_.extractYear, EXTRACT_YEAR, DataType[Int])
+  val extractMonth: UnaryOperation.Aux[Time, Int] = create(_.extractMonth, EXTRACT_MONTH, DataType[Int])
+  val extractDay: UnaryOperation.Aux[Time, Int] = create(_.extractDay, EXTRACT_DAY, DataType[Int])
+  val extractHour: UnaryOperation.Aux[Time, Int] = create(_.extractHour, EXTRACT_HOUR, DataType[Int])
+  val extractMinute: UnaryOperation.Aux[Time, Int] = create(_.extractMinute, EXTRACT_MINUTE, DataType[Int])
+  val extractSecond: UnaryOperation.Aux[Time, Int] = create(_.extractSecond, EXTRACT_SECOND, DataType[Int])
 
-  private def truncateTime(time: Time, interval: DateTimeFieldType): Time = {
-    Time(time.toDateTime.property(interval).roundFloorCopy().getMillis)
-  }
+  def trunc(interval: DateTimeFieldType): UnaryOperation.Aux[Time, Time] = create(_.trunc(interval), TRUNC, DataType[Time])
+  val truncYear: UnaryOperation.Aux[Time, Time] = create(_.truncYear, TRUNC_YEAR, DataType[Time])
+  val truncMonth: UnaryOperation.Aux[Time, Time] = create(_.truncMonth, TRUNC_MONTH, DataType[Time])
+  val truncDay: UnaryOperation.Aux[Time, Time] = create(_.truncDay, TRUNC_DAY, DataType[Time])
+  val truncHour: UnaryOperation.Aux[Time, Time] = create(_.truncHour, TRUNC_HOUR, DataType[Time])
+  val truncMinute: UnaryOperation.Aux[Time, Time] = create(_.truncMinute, TRUNC_MINUTE, DataType[Time])
+  val truncSecond: UnaryOperation.Aux[Time, Time] = create(_.truncSecond, TRUNC_SECOND, DataType[Time])
+  val truncWeek: UnaryOperation.Aux[Time, Time] = create(_.truncWeek, TRUNC_WEEK, DataType[Time])
 
-  def apply[T, U](fun: T => U, n: String, dt: DataType.Aux[U]): UnaryOperation.Aux[T, U] = new UnaryOperation[T] {
+  val length: UnaryOperation.Aux[String, Int] = create(_.stringLength, LENGTH, DataType[Int])
+  val stem: UnaryOperation.Aux[String, Array[String]] = create(_.stemString, STEM, DataType[Array[String]])
+
+  def arrayToString[T]: UnaryOperation.Aux[Array[T], String] = create(_.arrayToString[T], ARRAY_TO_STRING, DataType[String])
+  def arrayLength[T]: UnaryOperation.Aux[Array[T], Int] = create(_.arrayLength[T], LENGTH, DataType[Int])
+  val stemArray: UnaryOperation.Aux[Array[String], Array[String]] = create(_.stemArray, STEM, DataType[Array[String]])
+
+  def create[T, U](fun: UnaryOperations => Option[T] => Option[U], n: String, dt: DataType.Aux[U]): UnaryOperation.Aux[T, U] = new UnaryOperation[T] {
     override type Out = U
     override val name: String = n
     override def dataType: DataType.Aux[U] = dt
-    override def apply(t: T): U = fun(t)
+    override def apply(t: Option[T])(implicit unaryOperations: UnaryOperations): Option[U] = fun(unaryOperations)(t)
   }
 
-  val length: UnaryOperation.Aux[String, Int] = UnaryOperation(_.length, LENGTH, DataType[Int])
-
   def stringOperations: Map[String, UnaryOperation[String]] = Map(
-    LENGTH -> length
+    LENGTH -> length,
+    STEM -> stem
   )
 
-  def numericOperations[T : Numeric](dt: DataType.Aux[T]): Map[String, UnaryOperation[T]] = Map(
-    ABS -> abs(dt)
+  def numericOperations[T](dt: DataType.Aux[T])(implicit n: Numeric[T]): Map[String, UnaryOperation[T]] = Map(
+    ABS -> abs(n, dt)
   )
 
   def timeOperations: Map[String, UnaryOperation[Time]] = Map(
@@ -103,4 +114,71 @@ object UnaryOperation {
     EXTRACT_MINUTE -> extractMinute,
     EXTRACT_SECOND -> extractSecond
   )
+
+  def arrayOperations[T]: Map[String, UnaryOperation[Array[T]]] = Map(
+    ARRAY_TO_STRING -> arrayToString[T],
+    LENGTH -> arrayLength[T]
+  )
+
+  val stringArrayOperations: Map[String, UnaryOperation[Array[String]]] = Map(
+    STEM -> stemArray
+  )
+
+  def tupleOperations[A, B](aOps: Map[String, UnaryOperation[A]],
+                            bOps: Map[String, UnaryOperation[B]]
+                           ): Map[String, UnaryOperation[(A, B)]] = {
+    val commonOps = aOps.keySet intersect bOps.keySet
+    commonOps.map { c =>
+      val ao = aOps(c)
+      val bo = bOps(c)
+      c -> new UnaryOperation[(A, B)] {
+        override type Out = (ao.Out, bo.Out)
+        override val name: String = ao.name
+
+        override def dataType: DataType.Aux[(ao.Out, bo.Out)] = DataType.tupleDt(ao.dataType, bo.dataType)
+
+        override def apply(t: Option[(A, B)])(implicit unaryOperations: UnaryOperations): Option[(ao.Out, bo.Out)] = {
+          for {
+            a <- ao(t.map(_._1))
+            b <- bo(t.map(_._2))
+          } yield (a, b)
+        }
+      }
+    }.toMap
+  }
+}
+
+trait UnaryOperations {
+  def unaryMinus[N: Numeric](n: Option[N]): Option[N]
+  def abs[N: Numeric](n: Option[N]): Option[N]
+
+  def isNull[T](t: Option[T]): Option[Boolean]
+  def isNotNull[T](t: Option[T]): Option[Boolean]
+
+  def extractYear(t: Option[Time]): Option[Int]
+  def extractMonth(t: Option[Time]): Option[Int]
+  def extractDay(t: Option[Time]): Option[Int]
+  def extractHour(t: Option[Time]): Option[Int]
+  def extractMinute(t: Option[Time]): Option[Int]
+  def extractSecond(t: Option[Time]): Option[Int]
+
+  def trunc(fieldType: DateTimeFieldType)(time: Option[Time]): Option[Time]
+  def truncYear(t: Option[Time]): Option[Time]
+  def truncMonth(t: Option[Time]): Option[Time]
+  def truncWeek(t: Option[Time]): Option[Time]
+  def truncDay(t: Option[Time]): Option[Time]
+  def truncHour(t: Option[Time]): Option[Time]
+  def truncMinute(t: Option[Time]): Option[Time]
+  def truncSecond(t: Option[Time]): Option[Time]
+
+  def stringLength(s: Option[String]): Option[Int]
+  def stemString(s: Option[String]): Option[Array[String]]
+
+  def arrayToString[T](a: Option[Array[T]]): Option[String]
+  def arrayLength[T](a: Option[Array[T]]): Option[Int]
+  def stemArray(a: Option[Array[String]]): Option[Array[String]]
+}
+
+trait Operations {
+  def apply[T](dt: DataType.Aux[T]): TypeOperations[T]
 }

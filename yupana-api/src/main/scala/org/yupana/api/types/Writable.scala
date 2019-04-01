@@ -10,7 +10,7 @@ import org.yupana.api.Time
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("No member of type class TSDWritable for class ${T} is found")
+@implicitNotFound("No member of type class Writable for class ${T} is found")
 trait Writable[T] extends Serializable {
   def write(t: T): Array[Byte]
 }
@@ -18,6 +18,7 @@ trait Writable[T] extends Serializable {
 object Writable {
   private val periodFormat: PeriodFormatter = ISOPeriodFormat.standard()
 
+  implicit val booleanWritable: Writable[Boolean] = of(x => Array[Byte](if (x) 1 else 0))
   implicit val doubleWritable: Writable[Double] = of(d => ByteBuffer.allocate(8).putDouble(d).array())
   implicit val intWritable: Writable[Int] = of(i => vLongToBytes(i))
   implicit val bigDecimalWritable: Writable[BigDecimal] = of(x => bigDecimalToBytes(x.underlying()))
@@ -25,6 +26,8 @@ object Writable {
   implicit val stringWritable: Writable[String] = of(stringToBytes)
   implicit val timeWritable: Writable[Time] = of(t => longWritable.write(t.millis))
   implicit val periodWritable: Writable[Period] = of(p => stringWritable.write(periodFormat.print(p)))
+
+  implicit def arrayWritable[T](implicit wt: Writable[T]): Writable[Array[T]] = of(arrayToBytes(wt))
 
   def of[T](f: T => Array[Byte]): Writable[T] = new Writable[T] {
     override def write(t: T): Array[Byte] = f(t)
@@ -91,5 +94,15 @@ object Writable {
       bb.get(res)
       res
     }
+  }
+
+  private def arrayToBytes[T](writable: Writable[T])(array: Array[T]): Array[Byte] = {
+    val bytes = array.map(writable.write)
+    val arraySize = vLongToBytes(array.length)
+    val resultSize = bytes.foldLeft(arraySize.length)((a, i) => a + i.length)
+    val bb = ByteBuffer.allocate(resultSize)
+    bb.put(arraySize)
+    bytes.foreach(bb.put)
+    bb.array()
   }
 }

@@ -5,7 +5,7 @@ import scala.annotation.implicitNotFound
 trait WindowOperation[T] extends Serializable {
   type Out
   val name: String
-  val func: (Array[Option[T]], Int) => Option[Out]
+  def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[Out]
   val dataType: DataType.Aux[Out]
 }
 
@@ -15,13 +15,12 @@ object WindowOperation {
   val LAG = "lag"
   val functions = Set(LAG)
 
-  def lag[T](implicit dt: DataType.Aux[T]): WindowOperation.Aux[T, T] =
-    WindowOperation[T, T](LAG, (g, i) => if (i > 0) g(i - 1) else None, dt)
+  def lag[T](implicit dt: DataType.Aux[T]): WindowOperation.Aux[T, T] = create(LAG, _.lag, dt)
 
-  def apply[T, V](n: String, f: (Array[Option[T]], Int) => Option[V], dt: DataType.Aux[V]): Aux[T, V] = new WindowOperation[T] {
+  def create[T, V](n: String, f: WindowOperations => (Array[Option[T]], Int) => Option[V], dt: DataType.Aux[V]): Aux[T, V] = new WindowOperation[T] {
     override type Out = V
     override val name: String = n
-    override val func: (Array[Option[T]], Int) => Option[V] = f
+    override def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[V] = f(wo)(values, index)
     override val dataType: DataType.Aux[V] = dt
   }
 
@@ -47,5 +46,8 @@ object TypeWindowOperations {
   implicit def typeIndependence[T : DataType.Aux]: TypeWindowOperations[T] = TypeWindowOperations(
     LAG -> WindowOperation.lag
   )
+}
 
+trait WindowOperations {
+  def lag[T](values: Array[Option[T]], index: Int): Option[T]
 }

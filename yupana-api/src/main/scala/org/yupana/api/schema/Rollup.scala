@@ -15,8 +15,8 @@ class Rollup(
 ) extends Serializable {
 
   lazy val timeExpr: Expression = downsamplingInterval match {
-    case Some(d) =>
-      FunctionExpr(UnaryOperation.trunc(d), TimeExpr)
+    case Some(f) =>
+      UnaryOperationExpr(UnaryOperation.trunc(f), TimeExpr)
     case None =>
       TimeExpr
   }
