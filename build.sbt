@@ -1,7 +1,7 @@
 import scalapb.compiler.Version.scalapbVersion
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc)
+  .aggregate(api, proto, jdbc, utils, core)
   .settings(noPublishSettings, commonSettings)
 
 lazy val api = (project in file("yupana-api"))
@@ -61,10 +61,46 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   .enablePlugins(AssemblyPlugin)
   .dependsOn(api, proto)
 
+lazy val utils = (project in file ("yupana-utils"))
+  .settings(
+    name := "yupana-utils",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.lucene"           %  "lucene-analyzers-common"       % versions.lucene,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest
+    )
+  )
+
+lazy val core = (project in file ("yupana-core"))
+  .settings(
+    name := "yupana-core",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
+      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse,
+      "org.apache.ignite"           %  "ignite-core"                  % versions.ignite,
+      "org.apache.ignite"           %  "ignite-slf4j"                 % versions.ignite,
+      "org.ehcache"                 %  "ehcache"                      % versions.ehcache,
+
+      "org.scalatest"               %% "scalatest"                    % versions.scalaTest          % Test,
+      "org.scalamock"               %% "scalamock"                    % versions.scalaMock          % Test
+    )
+  )
+  .dependsOn(api, utils)
+
 lazy val versions = new {
-  val joda = "2.10.1"
+  val joda = "2.10.2"
 
   val protobufJava = "2.6.1"
+
+  val scalaLogging = "3.9.2"
+  val fastparse = "1.0.0"
+
+  val lucene = "6.6.0"
+  val ignite = "2.7.0"
+  val ehcache = "3.3.2"
 
   val scalaTest = "3.0.7"
   val scalaCheck = "1.14.0"
