@@ -1,7 +1,7 @@
 import scalapb.compiler.Version.scalapbVersion
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark)
   .settings(noPublishSettings, commonSettings)
 
 lazy val api = (project in file("yupana-api"))
@@ -124,6 +124,22 @@ lazy val akka = (project in file("yupana-akka"))
     )
   )
   .dependsOn(proto, core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val spark = (project in file("yupana-spark"))
+  .settings(
+    name := "yupana-spark",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
+      "org.apache.hbase"            % "hbase-server"                    % versions.hbase,
+      "org.apache.hbase"            % "hbase-hadoop-compat"             % versions.hbase
+    )
+  )
+  .dependsOn(core, hbase)
   .disablePlugins(AssemblyPlugin)
 
 lazy val versions = new {
