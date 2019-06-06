@@ -9,23 +9,12 @@ lazy val api = (project in file("yupana-api"))
     name := "yupana-api",
     commonSettings,
     publishSettings,
-    buildInfoKeys := {
-      val vn = VersionNumber(version.value)
-      Seq[BuildInfoKey](
-        version,
-        "majorVersion" -> vn.numbers(0).toInt,
-        "minorVersion" -> vn.numbers(1).toInt,
-        "buildVersion" -> vn.numbers(2).toInt
-      )
-    },
-    buildInfoPackage := "org.yupana.build",
     libraryDependencies ++= Seq(
       "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
     )
   )
-  .enablePlugins(BuildInfoPlugin)
   .disablePlugins(AssemblyPlugin)
 
 lazy val proto = (project in file("yupana-proto"))
@@ -53,12 +42,22 @@ lazy val jdbc = (project in file("yupana-jdbc"))
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
     ),
+    buildInfoKeys := {
+      val vn = VersionNumber(version.value)
+      Seq[BuildInfoKey](
+        version,
+        "majorVersion" -> vn.numbers(0).toInt,
+        "minorVersion" -> vn.numbers(1).toInt
+      )
+    },
+    buildInfoPackage := "org.yupana.jdbc.build",
     Compile / assembly / artifact := {
       val art = (Compile / assembly / artifact).value
       art.withClassifier(Some("driver"))
     },
     addArtifact(Compile / assembly / artifact, assembly)
   )
+  .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
   .dependsOn(api, proto)
 

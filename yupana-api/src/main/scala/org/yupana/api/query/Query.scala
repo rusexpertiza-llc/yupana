@@ -3,6 +3,16 @@ package org.yupana.api.query
 import org.yupana.api.Time
 import org.yupana.api.schema.Table
 
+/**
+  * Query to TSDB
+  *
+  * @param table table to query data
+  * @param fields set of fields to be calculated
+  * @param filter primary data filter
+  * @param groupBy groupings
+  * @param limit a number of records to be extracted
+  * @param postFilter filter applied after aggregation stage (HAVING statement in SQL).
+  */
 case class Query(
   table: Table,
   fields: Seq[QueryField],

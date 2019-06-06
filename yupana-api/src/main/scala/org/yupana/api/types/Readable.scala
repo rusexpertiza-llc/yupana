@@ -11,9 +11,24 @@ import org.yupana.api.Time
 import scala.annotation.implicitNotFound
 import scala.reflect.ClassTag
 
+/**
+  * Byte array deserialization type class
+  * @tparam T type to be deserialized
+  */
 @implicitNotFound("No member of type class Readable for class ${T} is found")
 trait Readable[T] extends Serializable {
+  /**
+    * Reads an object from array of bytes
+    * @param a bytes to be read
+    * @return deserialized object
+    */
   def read(a: Array[Byte]): T
+
+  /**
+    * Reads an object from byte buffer
+    * @param b byte buffer to read bytes
+    * @return deserialized object
+    */
   def read(b: ByteBuffer): T
 }
 

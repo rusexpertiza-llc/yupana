@@ -2,13 +2,52 @@ package org.yupana.api.types
 
 import org.yupana.api.Time
 
+/**
+  * Aggregation definition
+  *
+  * Aggregation performs in three steps: map-reduce-postMap. For example, we'd like to count all letters in a bunch of strings
+  * and return value as a string. Then the steps will be:
+  *
+  * 1. map: {{{ (s: String) => BigInt(s.length) }}}
+  * 2. reduce {{{ (a: BigInt, b: BigInt) = a + b }}}
+  * 3. postMap {{{ (i: BigInt) => i.toString }}}
+  *
+  * @tparam T input type of aggregation
+  */
 trait Aggregation[T] extends Serializable {
+  /** Type after first map operation */
   type Interim
+  /** Output type */
   type Out
+  /** This aggregation name */
   val name: String
+
+  /**
+    * Map input value of type `T` to `Interim` type
+    * @param t value to be mapped
+    * @param a instance of aggregations implementation
+    * @return mapped value
+    */
   def map(t: T)(implicit a: Aggregations): Interim
+
+  /**
+    * Reduces two mapped values into one value
+    * @param x first value
+    * @param y second value
+    * @param a instance of aggregations implementation
+    * @return reduced value
+    */
   def reduce(x: Interim, y: Interim)(implicit a: Aggregations): Interim
+
+  /**
+    * Converts reduced value of type [[Interim]] to output type
+    * @param x value to be converted
+    * @param a instance of aggregations implementation
+    * @return converted value
+    */
   def postMap(x: Interim)(implicit a: Aggregations): Out
+
+  /** Output data type */
   val dataType: DataType.Aux[Out]
 }
 

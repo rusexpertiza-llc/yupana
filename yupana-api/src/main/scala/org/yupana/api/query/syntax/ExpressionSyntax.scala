@@ -1,18 +1,18 @@
 package org.yupana.api.query.syntax
 
 import org.yupana.api.query._
-import org.yupana.api.schema.{ExternalLink, Metric}
+import org.yupana.api.schema.{Dimension, ExternalLink, Metric}
 import org.yupana.api.types._
 
 trait ExpressionSyntax {
-  def time: TimeExpr.type = TimeExpr
+  val time: TimeExpr.type = TimeExpr
 
   def function[T, U](f: UnaryOperation.Aux[T, U], e: Expression.Aux[T]) = UnaryOperationExpr(f, e)
   def convert[T, U](tc: TypeConverter[T, U], e: Expression.Aux[T]) = TypeConvertExpr(tc, e)
 
   def tuple[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) = TupleExpr(e1, e2)
   def array[T](es: Expression.Aux[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Array(es:_*))
-  def dimension(dimName: String) = new DimensionExpr(dimName)
+  def dimension(dim: Dimension) = new DimensionExpr(dim)
   def link(link: ExternalLink, fieldName: String) = new LinkExpr(link, fieldName)
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
   def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression.Aux[T] = ConstantExpr[T](c)

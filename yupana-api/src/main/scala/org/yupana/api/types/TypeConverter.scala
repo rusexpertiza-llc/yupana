@@ -1,14 +1,31 @@
 package org.yupana.api.types
 
+/**
+  * Converter from type `In` to `Out`. Usually works with numeric types, increasing precision.
+  * @param dataType output data type
+  * @param functionName name of this converter
+  * @param direct conversion function from `In` to `Out`
+  * @param reverse conversion from `Out` to `In`. This might loose precision.
+  * @tparam In input type
+  * @tparam Out output type
+  */
 class TypeConverter[In, Out](
   val dataType: DataType.Aux[Out],
   val functionName: String,
   val direct: In => Out,
   val reverse: Out => Option[In]
-)
+) extends Serializable
 
 object TypeConverter {
 
+  /**
+    * Look up for converter from `T` to `U`
+    * @param a input data type
+    * @param b output data type
+    * @tparam T input type
+    * @tparam U output type
+    * @return a converter instance if available
+    */
   def apply[T, U](implicit a: DataType.Aux[T], b: DataType.Aux[U]): Option[TypeConverter[T, U]] = {
     converters.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[TypeConverter[T, U]]]
   }

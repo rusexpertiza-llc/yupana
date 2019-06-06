@@ -112,7 +112,7 @@ object NotIn {
   def unapply(nin: NotIn): Option[(Expression.Aux[nin.T], Set[nin.T])] = Some((nin.e, nin.vs))
 }
 
-case class DimIdIn(expr: DimensionExpr, dimIds: Set[Int]) extends Condition {
+case class DimIdIn(expr: DimensionExpr, dimIds: Set[Long]) extends Condition {
   override def exprs: Set[Expression] = Set(expr)
   override def encode: String = dimIds.mkString(s"idIn(${expr.encode}, (", ",","))")
   override def toString: String = {
@@ -120,7 +120,7 @@ case class DimIdIn(expr: DimensionExpr, dimIds: Set[Int]) extends Condition {
   }
 }
 
-case class DimIdNotIn(expr: DimensionExpr, dimIds: Set[Int]) extends Condition {
+case class DimIdNotIn(expr: DimensionExpr, dimIds: Set[Long]) extends Condition {
   override def exprs: Set[Expression] = Set(expr)
   override def encode: String = dimIds.mkString(s"idNotIn(${expr.encode}, (", ",","))")
   override def toString: String = {

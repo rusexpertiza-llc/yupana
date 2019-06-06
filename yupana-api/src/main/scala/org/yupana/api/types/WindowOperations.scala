@@ -2,9 +2,23 @@ package org.yupana.api.types
 
 import scala.annotation.implicitNotFound
 
+/**
+  * Window function definition
+  * @tparam T input type
+  */
 trait WindowOperation[T] extends Serializable {
+  /** result type */
   type Out
+  /** This operation name */
   val name: String
+
+  /**
+    * Applies window operation
+    * @param values array of optional input values
+    * @param index current index
+    * @param wo instance of window operations implementation
+    * @return result value
+    */
   def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[Out]
   val dataType: DataType.Aux[Out]
 }

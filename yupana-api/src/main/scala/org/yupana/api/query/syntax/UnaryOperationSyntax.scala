@@ -21,8 +21,13 @@ trait UnaryOperationSyntax {
   def extractSecond(e: Expression.Aux[Time]) = UnaryOperationExpr(UnaryOperation.extractSecond, e)
 
   def length(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.length, e)
+  def stem(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.stem, e)
+  def split(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.splitString, e)
+
+  def not(e: Expression.Aux[Boolean]) = UnaryOperationExpr(UnaryOperation.not, e)
 
   def abs[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = UnaryOperationExpr(UnaryOperation.abs, e)
+  def minus[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = UnaryOperationExpr(UnaryOperation.minus, e)
 }
 
 object UnaryOperationSyntax extends UnaryOperationSyntax

@@ -7,9 +7,9 @@ import java.util.logging.Logger
 
 import org.yupana.api.query.{Result, SimpleResult}
 import org.yupana.api.types.DataType
-import org.yupana.build.BuildInfo
+import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto._
-import org.yupana.proto.util.VersionUtils
+import org.yupana.proto.util.ProtocolVersion
 
 class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
@@ -18,8 +18,6 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   private val CHUNK_SIZE = 1024 * 100
 
   private var channel: SocketChannel = _
-
-  private val minVersionCompatible = Version(2, 0, 0, "")
 
   private def ensureConnected(): Unit = {
     if (channel == null || !channel.isConnected) {
@@ -51,11 +49,10 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
     pong.resp match {
       case Response.Resp.Pong(r) =>
-        if (VersionUtils.order.gt(minVersionCompatible, r.getVersion)){
-          error(s"Incompatible versions: min server version $minVersionCompatible")
+        if (r.getVersion.protocol != ProtocolVersion.value) {
+          error(s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver")
           null
         } else {
-          println(s"Got pong: $r")
           r
         }
 
@@ -146,8 +143,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def error(e: String): String = {
-    logger.info(s"Got error message: $e")
-    println(s"Got error message: $e")
+    logger.warning(s"Got error message: $e")
     e
   }
 
@@ -155,7 +151,6 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   private def heartbeat(time: String) = {
     val msg = s"Heartbeat($time)"
     logger.info(msg)
-    println(msg)
     None
   }
 
@@ -221,7 +216,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   private def createProtoPing(reqTime: Long): Request = {
     Request(Request.Req.Ping(Ping(
       reqTime,
-      Some(Version(BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.buildVersion, BuildInfo.version))
+      Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
     )))
   }
 

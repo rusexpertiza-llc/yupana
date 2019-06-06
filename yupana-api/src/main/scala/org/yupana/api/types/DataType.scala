@@ -5,6 +5,10 @@ import org.yupana.api.Time
 
 import scala.reflect.ClassTag
 
+/**
+  * Data type definition. Contains information about processing data type: type metadata, serialization, available operations
+  * on this type.
+  */
 trait DataType extends Serializable {
   type T
   val meta: DataTypeMeta[T]

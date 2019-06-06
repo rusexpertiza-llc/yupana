@@ -6,5 +6,6 @@ trait All
     with DataTypeConverterSyntax
     with AggregationSyntax
     with UnaryOperationSyntax
+    with BinaryOperationSyntax
 
 object All extends All

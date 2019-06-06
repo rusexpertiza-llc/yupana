@@ -5,13 +5,32 @@ import org.yupana.api.Time
 
 import scala.reflect.ClassTag
 
+/**
+  * Binary operation definition
+  * @tparam T first argument type
+  */
 trait BinaryOperation[T] extends Serializable {
+  /** Second argument type */
   type U
+  /** Result type */
   type Out
 
+  /** Result data type */
   def dataType: DataType.Aux[Out]
+
+  /** Function name */
   val name: String
+
+  /** Specifies if this function should be displayed in infix notation */
   val infix: Boolean
+
+  /**
+    * Applies this function to arguments
+    * @param x first argument
+    * @param y second argument
+    * @param binaryOperations binary operations implementation instance
+    * @return calculated result
+    */
   def apply(x: T, y: U)(implicit binaryOperations: BinaryOperations): Out
 
   override def toString: String = name

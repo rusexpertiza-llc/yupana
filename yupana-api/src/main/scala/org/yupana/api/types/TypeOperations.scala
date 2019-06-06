@@ -5,6 +5,14 @@ import org.yupana.api.Time
 
 import scala.reflect.ClassTag
 
+/**
+  * Operations registry for a type `T`.
+  *
+  * @param binaryOperations binary operations by name and the second binary operations argument type name.
+  * @param unaryOperations unary operations by name
+  * @param aggregations aggregations by name
+  * @param arrayOperations operations on array of `T` (in addition to common operations like array length)
+  */
 case class TypeOperations[T](
   binaryOperations: Map[(String, String), BinaryOperation[T]],
   unaryOperations: Map[String, UnaryOperation[T]],
@@ -43,7 +51,7 @@ object TypeOperations {
 
   def boolOperations(dt: DataType.Aux[Boolean]): TypeOperations[Boolean] = TypeOperations(
     Map.empty,
-    Map.empty,
+    UnaryOperation.boolOperations,
     Map.empty,
     Map.empty
   )

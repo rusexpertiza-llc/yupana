@@ -1,26 +1,20 @@
 package org.yupana.api.query
 
 import org.yupana.api.Time
-import org.yupana.api.schema.{ExternalLink, Metric}
+import org.yupana.api.schema.{Dimension, ExternalLink, Metric}
 import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
-
-sealed trait ExprKind
-case object Const extends ExprKind
-case object Simple extends ExprKind
-case object Aggregate extends ExprKind
-case object Window extends ExprKind
 
 sealed trait Expression extends Serializable {
   type Out
 
   def dataType: DataType.Aux[Out]
 
-  def requiredDimensions: Set[String]
+  def requiredDimensions: Set[Dimension]
   def requiredLinks: Set[LinkExpr]
   def requiredMetrics: Set[Metric]
 
-  def kind: ExprKind = Simple
+  def kind: ExprKind
 
   def as(name: String) = QueryField(name, this)
 
@@ -64,11 +58,11 @@ sealed trait WindowFunctionExpr extends Expression {
   val operation: WindowOperation[In]
   val expr: Expression.Aux[In]
 
-  override def requiredDimensions: Set[String] = expr.requiredDimensions
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
   override def requiredMetrics: Set[Metric] = expr.requiredMetrics
 
-  override def kind: ExprKind = Window
+  override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
 
   override def toString: String = s"${operation.name}($expr)"
 }
@@ -92,11 +86,11 @@ sealed trait AggregateExpr extends Expression {
   val aggregation: Aggregation[In]
   val expr: Expression.Aux[In]
 
-  override def requiredDimensions: Set[String] = expr.requiredDimensions
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
   override def requiredMetrics: Set[Metric] = expr.requiredMetrics
 
-  override def kind: ExprKind = Aggregate
+  override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
 
   override def toString: String = s"${aggregation.name}($expr)"
 
@@ -124,7 +118,7 @@ sealed trait ConstantExpr extends Expression {
   def v: Out
   override def encode: String = s"const($v)"
   override def kind: ExprKind = Const
-  override def requiredDimensions: Set[String] = Set.empty
+  override def requiredDimensions: Set[Dimension] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def requiredMetrics: Set[Metric] = Set.empty
 }
@@ -144,33 +138,36 @@ object ConstantExpr {
 case object TimeExpr extends Expression {
   override type Out = Time
   override val dataType: DataType.Aux[Time] = DataType[Time]
-  override def requiredDimensions: Set[String] = Set.empty
+  override def kind: ExprKind = Simple
+  override def requiredDimensions: Set[Dimension] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def requiredMetrics: Set[Metric] = Set.empty
   override def encode: String = s"time()"
   def toField = QueryField("time", this)
 }
 
-class DimensionExpr(val dimName: String) extends Expression {
+class DimensionExpr(val dimension: Dimension) extends Expression {
   override type Out = String
   override val dataType: DataType.Aux[String] = DataType[String]
-  override def requiredDimensions: Set[String] = Set(dimName)
+  override def kind: ExprKind = Simple
+  override def requiredDimensions: Set[Dimension] = Set(dimension)
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def requiredMetrics: Set[Metric] = Set.empty
-  override def encode: String = s"dim($dimName)"
-  def toField = QueryField(dimName, this)
+  override def encode: String = s"dim(${dimension.name})"
+  def toField = QueryField(dimension.name, this)
 }
 
 object DimensionExpr {
-  def apply(dimName: String): DimensionExpr = new DimensionExpr(dimName)
-  def unapply(expr: DimensionExpr): Option[String] = Some(expr.dimName)
+  def apply(dimension: Dimension): DimensionExpr = new DimensionExpr(dimension)
+  def unapply(expr: DimensionExpr): Option[Dimension] = Some(expr.dimension)
 }
 
 case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[metric.T] = metric.dataType
+  override def kind: ExprKind = Simple
   override def requiredMetrics: Set[Metric] = Set(metric)
-  override def requiredDimensions: Set[String] = Set.empty
+  override def requiredDimensions: Set[Dimension] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def encode: String = s"metric(${metric.name})"
   def toField = QueryField(metric.name, this)
@@ -179,7 +176,8 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
 class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression {
   override type Out = String
   override val dataType: DataType.Aux[String] = DataType[String]
-  override def requiredDimensions: Set[String] = Set(link.dimensionName)
+  override def kind: ExprKind = Simple
+  override def requiredDimensions: Set[Dimension] = Set(link.dimension)
   override def requiredLinks: Set[LinkExpr] = Set(this)
   override def requiredMetrics: Set[Metric] = Set.empty
   override def encode: String = s"link(${link.linkName}, $linkField)"
@@ -197,7 +195,7 @@ case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U],
                           ) extends Expression {
   override type Out = U
   override def dataType: DataType.Aux[U] = function.dataType
-  override def requiredDimensions: Set[String] = expr.requiredDimensions
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
   override def requiredMetrics: Set[Metric] = expr.requiredMetrics
   override def encode: String = s"${function.name}($expr)"
@@ -213,7 +211,7 @@ case class TypeConvertExpr[T, U](tc: TypeConverter[T, U],
 
   override def dataType: DataType.Aux[U] = tc.dataType
   override def requiredMetrics: Set[Metric] = expr.requiredMetrics
-  override def requiredDimensions: Set[String] = expr.requiredDimensions
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
   override def encode: String =  s"${tc.functionName}($expr)"
 
@@ -227,50 +225,42 @@ case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
   override type Out = O
   override def dataType: DataType.Aux[Out] = function.dataType
   override def requiredMetrics: Set[Metric] = a.requiredMetrics union b.requiredMetrics
-  override def requiredDimensions: Set[String] = a.requiredDimensions union b.requiredDimensions
+  override def requiredDimensions: Set[Dimension] = a.requiredDimensions union b.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = a.requiredLinks union b.requiredLinks
 
   override def toString: String = if (function.infix) s"$a $function $b" else s"$function($a, $b)"
   override def encode: String = s"$function(${a.encode}, ${b.encode})"
 
-  override def kind: ExprKind = (a.kind, b.kind) match {
-    case (Const, Const) => Const
-    case (Simple, _) => Simple
-    case (_, Simple) => Simple
-    case (Aggregate, _) => Aggregate
-    case (_, Aggregate) => Aggregate
-    case (Window, _) => Window
-    case (_, Window) => Window
-  }
+  override def kind: ExprKind = ExprKind.combine(a.kind, b.kind)
 
   override lazy val flatten: Set[Expression] = Set(this) ++ a.flatten ++ b.flatten
 }
 
-class TupleExpr[T, U](val e1: Expression.Aux[T], val e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) extends Expression {
+case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) extends Expression {
   override type Out = (T, U)
 
   override def dataType: DataType.Aux[(T, U)] = DataType[(T, U)]
+
+  override def kind: ExprKind = ExprKind.combine(e1.kind, e2.kind)
 
   override def encode: String = s"($e1, $e2)"
 
   override lazy val flatten: Set[Expression] = e1.flatten ++ e2.flatten + this
 
-  override def requiredDimensions: Set[String] = e1.requiredDimensions ++ e2.requiredDimensions
+  override def requiredDimensions: Set[Dimension] = e1.requiredDimensions ++ e2.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = e1.requiredLinks ++ e2.requiredLinks
   override def requiredMetrics: Set[Metric] = Set.empty
 }
 
-object TupleExpr {
-  def apply[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]): TupleExpr[T, U] = new TupleExpr(e1, e2)
-  def unapply(arg: TupleExpr[_, _]): Option[(Expression.Aux[arg.e1.Out], Expression.Aux[arg.e2.Out])] = Some((arg.e1, arg.e2))
-}
 
-case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit dtt: DataType.Aux[T]) extends Expression {
+case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDataType: DataType.Aux[T]) extends Expression {
   override type Out = Array[T]
 
   override val dataType: DataType.Aux[Array[T]] = DataType[Array[T]]
 
-  override def requiredDimensions: Set[String] = exprs.foldLeft(Set.empty[String])(_ ++ _.requiredDimensions)
+  override def kind: ExprKind = exprs.foldLeft(Const: ExprKind)((a, e) => ExprKind.combine(a, e.kind))
+
+  override def requiredDimensions: Set[Dimension] = exprs.foldLeft(Set.empty[Dimension])(_ ++ _.requiredDimensions)
   override def requiredLinks: Set[LinkExpr] = exprs.foldLeft(Set.empty[LinkExpr])(_ ++ _.requiredLinks)
   override def requiredMetrics: Set[Metric] = exprs.foldLeft(Set.empty[Metric])(_ ++ _.requiredMetrics)
 
@@ -282,7 +272,9 @@ case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], n
   override type Out = T
   override def dataType: DataType.Aux[T] = positive.dataType
 
-  override def requiredDimensions: Set[String] =
+  override def kind: ExprKind = ExprKind.combine(positive.kind, negative.kind)
+
+  override def requiredDimensions: Set[Dimension] =
     positive.requiredDimensions ++ negative.requiredDimensions ++ condition.exprs.flatMap(_.requiredDimensions)
   override def requiredLinks: Set[LinkExpr] =
     positive.requiredLinks ++ negative.requiredLinks ++ condition.exprs.flatMap(_.requiredLinks)

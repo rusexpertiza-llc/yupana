@@ -10,8 +10,17 @@ import org.yupana.api.Time
 
 import scala.annotation.implicitNotFound
 
+/**
+  * Byte array serialization type class
+  * @tparam T type to be serialized
+  */
 @implicitNotFound("No member of type class Writable for class ${T} is found")
 trait Writable[T] extends Serializable {
+  /**
+    * Serialize instance of T into array of bytes
+    * @param t value to be serialized
+    * @return serialized bytes
+    */
   def write(t: T): Array[Byte]
 }
 

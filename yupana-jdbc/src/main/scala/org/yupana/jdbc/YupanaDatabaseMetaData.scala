@@ -4,7 +4,7 @@ import java.sql.{Connection, DatabaseMetaData, ResultSet, RowIdLifetime, SQLExce
 
 import org.yupana.api.query.{Result, SimpleResult}
 import org.yupana.api.types.{DataType, UnaryOperation}
-import org.yupana.build.BuildInfo
+import org.yupana.jdbc.build.BuildInfo
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 

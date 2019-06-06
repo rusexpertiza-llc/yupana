@@ -1,5 +1,8 @@
 package org.yupana.api.schema
 
+/**
+  * Metric and it's value
+  */
 trait MetricValue {
   val metric: Metric
   val value: metric.T
@@ -8,8 +11,8 @@ trait MetricValue {
 }
 
 object MetricValue {
-  def apply[T](fld: Metric.Aux[T], v: T): MetricValue = new MetricValue {
-    val metric: Metric.Aux[T] = fld
+  def apply[T](m: Metric.Aux[T], v: T): MetricValue = new MetricValue {
+    val metric: Metric.Aux[T] = m
     val value: T = v
   }
 }

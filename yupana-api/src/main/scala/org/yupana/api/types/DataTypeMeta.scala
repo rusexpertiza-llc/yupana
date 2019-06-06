@@ -5,6 +5,18 @@ import java.sql.Types
 import org.joda.time.Period
 import org.yupana.api.Time
 
+
+/**
+  * Contains different meta information for type `T`
+  * @param sqlType SQL type from `java.sql.Types`
+  * @param displaySize fiels of this type size in characters
+  * @param sqlTypeName SQL type name (like VARCHAR, INTEGER)
+  * @param javaTypeName Java type of this data type
+  * @param precision field precision for numeric types
+  * @param isSigned specifies if the numeric type signed
+  * @param scale scale for numeric types
+  * @tparam T real scala type
+  */
 case class DataTypeMeta[T](
   sqlType: Int,
   displaySize: Int,
@@ -29,10 +41,6 @@ object DataTypeMeta {
 
   implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
     DataTypeMeta(Types.ARRAY, Integer.MAX_VALUE, s"ARRAY[${meta.sqlTypeName}]", classOf[java.lang.Object], Integer.MAX_VALUE, 0)
-  }
-
-  implicit def optionMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Option[T]] = {
-    DataTypeMeta(meta.sqlType, meta.displaySize, meta.sqlTypeName, meta.javaTypeName, meta.precision, meta.isSigned, meta.scale)
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =

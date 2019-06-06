@@ -1,28 +1,37 @@
 package org.yupana.api.schema
 
-trait Schema {
+/**
+  * Database schema
+  * @param tables all tables defined in this schema and their names
+  * @param rollups list of rollups available for this schema
+  */
+class Schema(val tables: Map[String, Table], val rollups: Seq[Rollup]) extends Serializable {
+  /** Get table by name */
+  def getTable(name: String): Option[Table] = tables.get(name)
 
-  def check(expectedSchema: Array[Byte]): SchemaCheckResult
-  val tables: Map[String, Table]
-  def get(name: String): Option[Table]
+  /**
+    * Modifies table in this schema and returns updated schema
+    * @param name table name
+    * @param f function to change table
+    * @return schema with updated table
+    */
+  def withTableUpdated(name: String)(f: Table => Table): Schema = {
+    if (tables.contains(name)) {
+      val newTables = tables.updated(name, f(tables(name)))
+      new Schema(newTables, rollups)
+    } else this
+  }
 
-  def toBytes: Array[Byte]
-}
-
-sealed trait SchemaCheckResult
-
-object SchemaCheckResult {
-    def empty: SchemaCheckResult = Success
-    def combine(a: SchemaCheckResult, b: SchemaCheckResult): SchemaCheckResult = (a, b) match {
-      case (Error(msg1), Error(msg2)) => Error(msg1 + "\n" + msg2)
-      case (Error(msg1), Warning(msg2)) => Error(msg1 + "\n" + msg2)
-      case (Warning(msg1), Error(msg2)) => Error(msg1 + "\n" + msg2)
-      case (Warning(msg1), Warning(msg2)) => Warning(msg1 + "\n" + msg2)
-      case (Success, Success) => Success
-      case (Success, notSuccess) => notSuccess
-      case (notSuccess, Success) => notSuccess
+  def withRollup(r: Rollup): Schema = {
+    new Schema(tables, rollups :+ r)
   }
 }
-case object Success extends SchemaCheckResult
-case class Warning(message: String) extends SchemaCheckResult
-case class Error(message: String) extends SchemaCheckResult
+
+object Schema {
+  /**
+    * Creates table for sequence of tables.
+    * @param tables tables in this schema
+    * @return schema instance
+    */
+  def apply(tables: Seq[Table], rollups: Seq[Rollup]): Schema = new Schema(tables.map(t => t.name -> t).toMap, rollups)
+}
