@@ -1,7 +1,7 @@
 import scalapb.compiler.Version.scalapbVersion
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core)
+  .aggregate(api, proto, jdbc, utils, core, hbase)
   .settings(noPublishSettings, commonSettings)
 
 lazy val api = (project in file("yupana-api"))
@@ -22,10 +22,7 @@ lazy val proto = (project in file("yupana-proto"))
     name := "yupana-proto",
     commonSettings,
     publishSettings,
-    PB.protocVersion := "-v261",
-    Compile / PB.targets := Seq (
-      scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
-    ),
+    pbSettings,
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"    %  "protobuf-java"        % versions.protobufJava force()
@@ -90,6 +87,26 @@ lazy val core = (project in file ("yupana-core"))
   )
   .dependsOn(api, utils)
 
+lazy val hbase = (project in file("yupana-hbase"))
+  .settings(
+    name := "yupana-hbase",
+    commonSettings,
+    publishSettings,
+    pbSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
+      "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
+      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
+      "org.apache.hadoop"           %  "hadoop-hdfs-client"           % versions.hadoop,
+      "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
+      "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
+      "org.scalatest"               %% "scalatest"                    % versions.scalaTest                % Test,
+      "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test,
+      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test
+    )
+  )
+  .dependsOn(core % "compile->compile ; test->test")
+
 lazy val versions = new {
   val joda = "2.10.2"
 
@@ -97,6 +114,10 @@ lazy val versions = new {
 
   val scalaLogging = "3.9.2"
   val fastparse = "1.0.0"
+
+  val hbase = "1.3.1"
+  val hadoop = "2.8.3"
+  val spark = "2.4.3"
 
   val lucene = "6.6.0"
   val ignite = "2.7.0"
@@ -110,7 +131,8 @@ lazy val versions = new {
 val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8")
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  parallelExecution in Test := false
 )
 
 val noPublishSettings = Seq(
@@ -132,5 +154,12 @@ val publishSettings = Seq(
   homepage := Some(url("https://www.yupana.org")),
   developers := List(
     Developer("rusexpertiza", "Rusexpertiza LLC", "info@1-ofd.ru", url("https://www.1-ofd.ru"))
+  )
+)
+
+val pbSettings = Seq(
+  PB.protocVersion := "-v261",
+  Compile / PB.targets := Seq (
+    scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )
 )
