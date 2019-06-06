@@ -1,7 +1,7 @@
 import scalapb.compiler.Version.scalapbVersion
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka)
   .settings(noPublishSettings, commonSettings)
 
 lazy val api = (project in file("yupana-api"))
@@ -86,6 +86,7 @@ lazy val core = (project in file ("yupana-core"))
     )
   )
   .dependsOn(api, utils)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val hbase = (project in file("yupana-hbase"))
   .settings(
@@ -106,6 +107,24 @@ lazy val hbase = (project in file("yupana-hbase"))
     )
   )
   .dependsOn(core % "compile->compile ; test->test")
+  .disablePlugins(AssemblyPlugin)
+
+lazy val akka = (project in file("yupana-akka"))
+  .settings(
+    name := "yupana-akka",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.akka"             %% "akka-actor"                 % versions.akka,
+      "com.typesafe.akka"             %% "akka-stream"                % versions.akka,
+      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
+      "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
+      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
+      "com.typesafe.akka"             %% "akka-stream-testkit"        % versions.akka                     % Test
+    )
+  )
+  .dependsOn(proto, core)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val versions = new {
   val joda = "2.10.2"
@@ -118,6 +137,7 @@ lazy val versions = new {
   val hbase = "1.3.1"
   val hadoop = "2.8.3"
   val spark = "2.4.3"
+  val akka = "2.5.23"
 
   val lucene = "6.6.0"
   val ignite = "2.7.0"
