@@ -45,8 +45,12 @@ object ItemsInvertedIndexImpl {
 
     val filtered = new mutable.ListBuffer[String]()
     words.foreach { word =>
-      if (excluded.contains(word)) excluded -= word
-      else filtered += word
+      if (excluded.contains(word)) {
+        excluded -= word
+      } else {
+        filtered += word
+      }
+      ()
     }
 
     filtered
