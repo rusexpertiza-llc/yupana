@@ -204,7 +204,6 @@ object HBaseUtils extends StrictLogging {
   private def checkSchemaDefinition(connection: Connection,
                                     namespace: String,
                                     schema: Schema): SchemaCheckResult = {
-
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
     if (connection.getAdmin.tableExists(metaTableName)) {
       ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
@@ -235,9 +234,14 @@ object HBaseUtils extends StrictLogging {
 
   def initStorage(connection: Connection, namespace: String, schema: Schema): Unit = {
     checkNamespaceExistsElseCreate(connection, namespace)
-    schema.tables.values.foreach(s => {
-      checkTableExistsElseCreate(connection, namespace, s)
-    })
+
+    val dictDao = new DictionaryDaoHBase(connection, namespace)
+
+    schema.tables.values.foreach { t =>
+      checkTableExistsElseCreate(connection, namespace, t)
+      checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
+      t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
+    }
     checkSchemaDefinition(connection, namespace, schema) match {
       case Success => logger.info("TSDB table definition checked successfully")
       case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)

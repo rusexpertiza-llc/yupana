@@ -1,31 +1,69 @@
 package org.yupana.core.model
 
-import org.yupana.api.query.Expression
+import java.io.{ObjectInputStream, ObjectOutputStream}
+
 import org.yupana.core.QueryContext
 
-class KeyData(queryContext: QueryContext, val valueData: Array[Option[Any]]) extends Serializable {
+class KeyData(@transient val queryContext: QueryContext, @transient val row: InternalRow) extends Serializable {
+
+  private var data: Array[Option[Any]] = _
 
   override def hashCode(): Int = {
     import scala.util.hashing.MurmurHash3._
 
-    val h = queryContext.groupByArray.foldLeft(0xe73b8c13){ (h, e) =>
-      mix(h, valueData(queryContext.exprsIndex(e)).##)
+    if (queryContext != null) {
+      val h = queryContext.groupByExprs.foldLeft(0xe73b8c13) { (h, e) =>
+        mix(h, row.get(queryContext, e).##)
+      }
+      finalizeHash(h, queryContext.groupByExprs.length)
+    } else {
+      arrayHash(data)
     }
-    finalizeHash(h, queryContext.groupByArray.length)
   }
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
       case that: KeyData =>
-        queryContext.groupByArray.foldLeft(true){ (a, e) =>
-          val i = queryContext.exprsIndex(e)
-          a && this.valueData(i) == that.valueData(i)
+        if (this eq that) {
+          true
+        } else if (this.queryContext != null && that.queryContext != null) {
+          queryContext.groupByExprs.foldLeft(true) { (a, e) =>
+            val i = queryContext.exprsIndex(e)
+            a && this.row.get(i) == that.row.get(i)
+          }
+        } else if (this.queryContext != null) {
+          queryContext.groupByExprs.indices.forall(idx =>
+            this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx)
+          )
+        } else if (that.queryContext != null) {
+          that.queryContext.groupByExprs.indices.forall(idx =>
+            that.row.get(queryContext, queryContext.groupByExprs(idx)) == this.data(idx)
+          )
+        } else {
+          this.data sameElements that.data
         }
+
       case _ => false
     }
   }
 
-  def get[T](expr: Expression): Option[T] = {
-    valueData(queryContext.exprsIndex(expr)).asInstanceOf[Option[T]]
+  private def calcData: Array[Option[Any]] = {
+    val keyData = Array.ofDim[Option[Any]](queryContext.groupByExprs.length)
+
+    keyData.indices foreach { i =>
+      keyData(i) = row.get(queryContext, queryContext.groupByExprs(i))
+    }
+
+    keyData
+  }
+
+  // Overriding Java serialization
+  private def writeObject(oos: ObjectOutputStream): Unit = {
+    if (data == null) data = calcData
+    oos.writeObject(data)
+  }
+
+  private def readObject(ois: ObjectInputStream): Unit = {
+    data = ois.readObject().asInstanceOf[Array[Option[Any]]]
   }
 }

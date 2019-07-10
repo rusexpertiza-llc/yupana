@@ -21,8 +21,18 @@ class BTreeIndexDaoHBase[K, V](
 
   def put(key: K, value: V): Unit = {
     val table = connection.getTable(tableName)
-    val put = new Put(keySerializer(key)).addColumn(FAMILY, QUALIFIER, valueSerializer(value))
+    val put = createPutOperation(key, value)
     table.put(put)
+  }
+
+  private def createPutOperation(key: K, value: V) = {
+    new Put(keySerializer(key)).addColumn(FAMILY, QUALIFIER, valueSerializer(value))
+  }
+
+  def batchPut(batch: Seq[(K,V)]) = {
+    val puts = batch.map { case (key, value) => createPutOperation(key, value) }
+    val table = connection.getTable(tableName)
+    table.put(puts.asJava)
   }
 
   def get(key: K): Option[V] = {

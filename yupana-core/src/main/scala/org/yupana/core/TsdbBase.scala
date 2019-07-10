@@ -24,7 +24,6 @@ trait TsdbBase extends StrictLogging {
     */
   type Collection[_]
 
-  /** MapReducible instance for Collection type */
   def mr: MapReducible[Collection]
 
   // TODO: it should work with different DAO Id types
@@ -116,13 +115,15 @@ trait TsdbBase extends StrictLogging {
       readExternalLinks(queryContext, values)
     })
 
-    val valuesEvaluated = mr.map(withExternalFields)(values => evaluateExpressions(queryContext, values, metricCollector))
+    val filterValuesEvaluated = mr.map(withExternalFields)(values => evaluateFilterExprs(queryContext, values, metricCollector))
 
-    val keysAndValues = mr.map(valuesEvaluated)(valueData => new KeyData(queryContext, valueData.data) -> valueData)
+    val valuesFiltered = queryContext.postCondition.map(c =>
+      mr.filter(filterValuesEvaluated)(values => ExpressionCalculator.evaluateCondition(c, queryContext, values).getOrElse(false))
+    ).getOrElse(filterValuesEvaluated)
 
-    val keysAndValuesFiltered = queryContext.postCondition.map(c =>
-      mr.filter(keysAndValues)(kv => ExpressionCalculator.evaluateCondition(c, queryContext, kv._2).getOrElse(false))
-    ).getOrElse(keysAndValues)
+    val valuesEvaluated = mr.map(valuesFiltered)(values => evaluateExpressions(queryContext, values, metricCollector))
+
+    val keysAndValues = mr.map(valuesEvaluated)(row => new KeyData(queryContext, row) -> row)
 
     val isWindowFunctionPresent = metricCollector.windowFunctionsCheck.measure {
       queryContext.query.fields.exists(_.expr.isInstanceOf[WindowFunctionExpr])
@@ -130,10 +131,10 @@ trait TsdbBase extends StrictLogging {
 
     val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
       metricCollector.windowFunctions.measure {
-        applyWindowFunctions(queryContext, keysAndValuesFiltered)
+        applyWindowFunctions(queryContext, keysAndValues)
       }
     } else {
-      keysAndValuesFiltered
+      keysAndValues
     }
 
     val reduced = if (queryContext.query.groupBy.nonEmpty && !isWindowFunctionPresent) {
@@ -195,26 +196,41 @@ trait TsdbBase extends StrictLogging {
     rows
   }
 
-  def evaluateExpressions(queryContext: QueryContext,
-                          valueData: InternalRow,
+  def evaluateFilterExprs(queryContext: QueryContext,
+                          row: InternalRow,
                           metricCollector: MetricQueryCollector): InternalRow = {
     metricCollector.extractDataComputation.measure {
-      queryContext.bottomExprs.foreach { expr =>
-        valueData.set(
+      queryContext.postConditionExprs.foreach { expr =>
+        row.set(
           queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, valueData)
-        )
-      }
-
-      queryContext.topRowExprs.foreach { expr =>
-        valueData.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, valueData)
+          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
         )
       }
     }
 
-    valueData
+    row
+  }
+
+  def evaluateExpressions(queryContext: QueryContext,
+                          row: InternalRow,
+                          metricCollector: MetricQueryCollector): InternalRow = {
+    metricCollector.extractDataComputation.measure {
+      queryContext.bottomExprs.foreach { expr =>
+        row.set(
+          queryContext.exprsIndex(expr),
+          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        )
+      }
+
+      queryContext.topRowExprs.foreach { expr =>
+        row.set(
+          queryContext.exprsIndex(expr),
+          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        )
+      }
+    }
+
+    row
   }
 
   def applyMapOperation(queryContext: QueryContext, values: InternalRow): InternalRow = {

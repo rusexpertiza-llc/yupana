@@ -41,7 +41,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
   HBaseUtils.checkNamespaceExistsElseCreate(connection, namespace)
 
   override def getValueById(dimension: Dimension, id: Long): Option[String] = {
-    checkTablesExistsElseCreate(dimension.name)
+    checkTablesExistsElseCreate(dimension)
     val table = getTable(dimension.name)
     val get = new Get(Bytes.toBytes(id)).addFamily(directFamily)
     val result = table.get(get)
@@ -54,7 +54,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
   override def getValuesByIds(dimension: Dimension, ids: Set[Long]): Map[Long, String] = {
     logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
-    checkTablesExistsElseCreate(dimension.name)
+    checkTablesExistsElseCreate(dimension)
     val table = getTable(dimension.name)
     val idsSeq = ids.toSeq
     val gets = idsSeq.map(id => new Get(Bytes.toBytes(id)).addFamily(directFamily))
@@ -73,7 +73,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
   }
 
   override def getIdByValue(dimension: Dimension, value: String): Option[Long] = {
-    checkTablesExistsElseCreate(dimension.name)
+    checkTablesExistsElseCreate(dimension)
     if (value != null) {
       val trimmed = value.trim
       if (trimmed.nonEmpty) {
@@ -99,7 +99,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     } else {
       val nonEmptyValues = values.filter(_ != null).map(_.trim).filter(_.nonEmpty).toSeq
       logger.trace(s"Get dictionary ids by values for ${dimension.name}. Size of values: ${nonEmptyValues.size}")
-      checkTablesExistsElseCreate(dimension.name)
+      checkTablesExistsElseCreate(dimension)
       val table = getTable(dimension.name)
       val gets = nonEmptyValues.map(value => new Get(Bytes.toBytes(value)).addFamily(reverseFamily))
       logger.trace(s"--- Send request to HBase")
@@ -118,7 +118,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
   }
 
   override def checkAndPut(dimension: Dimension, id: Long, value: String): Boolean = {
-    checkTablesExistsElseCreate(dimension.name)
+    checkTablesExistsElseCreate(dimension)
     val idBytes = Bytes.toBytes(id)
     val valueBytes = Bytes.toBytes(value)
 
@@ -134,7 +134,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
   }
 
   override def createSeqId(dimension: Dimension): Int = {
-    checkTablesExistsElseCreate(dimension.name)
+    checkTablesExistsElseCreate(dimension)
     getTable(dimension.name).incrementColumnValue(seqIdRowKey, directFamily, column, 1).toInt
   }
 
@@ -142,10 +142,10 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     connection.getTable(getTableName(namespace, name))
   }
 
-  private def checkTablesExistsElseCreate(name: String): Unit = {
-    if (!existsTables.contains(name)) {
+  def checkTablesExistsElseCreate(dimension: Dimension): Unit = {
+    if (!existsTables.contains(dimension.name)) {
       try {
-        val tableName = getTableName(namespace, name)
+        val tableName = getTableName(namespace, dimension.name)
         if (!connection.getAdmin.tableExists(tableName)) {
           val desc = new HTableDescriptor(tableName)
             .addFamily(new HColumnDescriptor(directFamily))
@@ -155,7 +155,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       } catch {
         case _: TableExistsException =>
       }
-      existsTables += name
+      existsTables += dimension.name
     }
   }
 }

@@ -57,7 +57,7 @@ object DataRowRDD {
     Types.INTEGER -> IntegerType,
     Types.DOUBLE -> DoubleType,
     Types.BIGINT -> LongType,
-    Types.DECIMAL -> DecimalType.USER_DEFAULT, // ?? OR SYSTEM DEFAULT ??
+    Types.DECIMAL -> DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2),
     Types.TIMESTAMP -> TimestampType
   )
 }

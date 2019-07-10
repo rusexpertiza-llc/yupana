@@ -588,4 +588,35 @@ class TsdbDataFilterTest extends FlatSpec
     r1.fieldValueByName[Time]("d").value shouldBe Time(from.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("quantity").value shouldBe 1011d
   }
+
+  it should "filter before calculation if possible" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+
+    val sql = "SELECT time, testField3 / testField2 as div FROM test_table_2 WHERE testField2 <> 0" + timeBounds()
+    val query = createQuery(sql)
+
+    val pointTime = from.getMillis + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable2,
+          Set[Expression](time, metric(TestTable2Fields.TEST_FIELD2), metric(TestTable2Fields.TEST_FIELD3)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            neq(double2bigDecimal(metric(TestTable2Fields.TEST_FIELD2)), const(BigDecimal(0)))
+          )
+        ),
+        *,
+        *
+      ).onCall((_, b, _) => Iterator(
+      b.set(time, Some(Time(pointTime)))
+        .set(metric(TestTable2Fields.TEST_FIELD2), Some(0d))
+        .set(metric(TestTable2Fields.TEST_FIELD3), Some(BigDecimal(5)))
+        .buildAndReset()
+    ))
+
+    val results = tsdb.query(query).toList
+    results should have size 0
+  }
 }

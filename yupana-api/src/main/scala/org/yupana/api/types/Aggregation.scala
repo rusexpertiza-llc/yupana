@@ -52,6 +52,7 @@ trait Aggregation[T] extends Serializable {
 }
 
 object Aggregation {
+
   type Aux[T, U, V] = Aggregation[T] { type Interim = U; type Out = V }
 
   val SUM = "sum"
@@ -59,6 +60,7 @@ object Aggregation {
   val MIN = "min"
   val COUNT = "count"
   val DISTINCT_COUNT = "distinct_count"
+  val DISTINCT_RANDOM = "distinct_random"
 
   type Reducer[T] = (T, T) => T
 
@@ -71,6 +73,8 @@ object Aggregation {
   def count[T]: Aggregation.Aux[T, Long, Long] = create(COUNT, _.count, DataType[Long])
 
   def distinctCount[T]: Aggregation.Aux[T, Set[T], Int] = create(DISTINCT_COUNT, _.distinctCount, DataType[Int])
+
+  def distinctRandom[T](implicit dt: DataType.Aux[T]): Aggregation.Aux[T, Set[T], T] = create(DISTINCT_RANDOM, _.distinctRandom, dt)
 
   def create[T, U, V](n: String, f: Aggregations => AggregationImpl[T, U, V], dt: DataType.Aux[V]): Aux[T, U, V] = new Aggregation[T] {
     override type Out = V
@@ -87,14 +91,16 @@ object Aggregation {
     MAX -> Aggregation.max[String](Ordering[String], DataType[String]),
     MIN -> Aggregation.min[String](Ordering[String], DataType[String]),
     COUNT -> Aggregation.count[String],
-    DISTINCT_COUNT -> Aggregation.distinctCount[String]
+    DISTINCT_COUNT -> Aggregation.distinctCount[String],
+    DISTINCT_RANDOM -> Aggregation.distinctRandom[String]
   )
 
   lazy val timeAggregations: Map[String, Aggregation[Time]] = Map(
     MAX -> Aggregation.max[Time](Ordering[Time], DataType[Time]),
     MIN -> Aggregation.min[Time](Ordering[Time], DataType[Time]),
     COUNT -> Aggregation.count[Time],
-    DISTINCT_COUNT -> Aggregation.distinctCount[Time]
+    DISTINCT_COUNT -> Aggregation.distinctCount[Time],
+    DISTINCT_RANDOM -> Aggregation.distinctRandom[Time]
   )
 
   def intAggregations[T](dt: DataType.Aux[T])(implicit i: Integral[T]): Map[String, Aggregation[T]]  = Map(
@@ -102,7 +108,8 @@ object Aggregation {
     MAX -> Aggregation.max[T](i, dt),
     MIN -> Aggregation.min[T](i, dt),
     COUNT -> Aggregation.count[T],
-    DISTINCT_COUNT -> Aggregation.distinctCount[T]
+    DISTINCT_COUNT -> Aggregation.distinctCount[T],
+    DISTINCT_RANDOM -> Aggregation.distinctRandom[T](dt)
   )
 
   def fracAggregations[T](dt: DataType.Aux[T])(implicit f: Fractional[T]): Map[String, Aggregation[T]]  = Map(
@@ -110,7 +117,8 @@ object Aggregation {
     MAX -> Aggregation.max[T](f, dt),
     MIN -> Aggregation.min[T](f, dt),
     COUNT -> Aggregation.count[T],
-    DISTINCT_COUNT -> Aggregation.distinctCount[T]
+    DISTINCT_COUNT -> Aggregation.distinctCount[T],
+    DISTINCT_RANDOM -> Aggregation.distinctRandom[T](dt)
   )
 }
 
@@ -122,4 +130,5 @@ trait Aggregations {
   def max[T: Ordering]: AggregationImpl[T, T, T]
   def count[T]: AggregationImpl[T, Long, Long]
   def distinctCount[T]: AggregationImpl[T, Set[T], Int]
+  def distinctRandom[T]: AggregationImpl[T, Set[T], T]
 }

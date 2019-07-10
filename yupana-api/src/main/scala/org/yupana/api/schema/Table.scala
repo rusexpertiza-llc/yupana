@@ -20,6 +20,24 @@ class Table(val name: String,
     new Table(name, rowTimeSpan, dimensionSeq, metrics, externalLinks ++ extraLinks)
   }
 
+  def withExternalLinkReplaced[O <: ExternalLink, N <: O](oldExternalLink: O, newExternalLink: N): Table = {
+    if (!externalLinks.contains(oldExternalLink)) {
+      throw new IllegalArgumentException(s"Unsupported external link ${oldExternalLink.linkName} for table $name")
+    }
+
+    if (newExternalLink.linkName != oldExternalLink.linkName) {
+      throw new IllegalArgumentException(s"Replacing link ${oldExternalLink.linkName} and replacement ${newExternalLink.linkName} must have same names")
+    }
+
+    val unsupportedFields = oldExternalLink.fieldsNames -- newExternalLink.fieldsNames
+
+    if (unsupportedFields.nonEmpty) {
+      throw new IllegalArgumentException(s"Fields ${unsupportedFields.mkString(",")} are not supported in new catalog ${newExternalLink.linkName}")
+    }
+
+    new Table(name, rowTimeSpan, dimensionSeq, metrics, externalLinks.filter(_ != oldExternalLink) :+ newExternalLink)
+  }
+
   def withMetrics(extraMetrics: Seq[Metric]): Table = {
     new Table(name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks)
   }

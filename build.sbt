@@ -1,8 +1,8 @@
 import scalapb.compiler.Version.scalapbVersion
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark)
-  .settings(noPublishSettings, commonSettings)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks)
+  .settings(noPublishSettings, commonSettings, crossScalaVersions := Nil)
 
 lazy val api = (project in file("yupana-api"))
   .settings(
@@ -139,7 +139,34 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            % "hbase-hadoop-compat"             % versions.hbase
     )
   )
-  .dependsOn(core, hbase)
+  .dependsOn(core, hbase, externalLinks)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val schema = (project in file("yupana-schema"))
+  .settings(
+    name := "yupana-schema",
+    commonSettings,
+    publishSettings
+  )
+  .dependsOn(api, utils)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val externalLinks = (project in file("yupana-external-links"))
+  .settings(
+    name := "yupana-external-links",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "com.zaxxer"                  %  "HikariCP"                   % versions.hikariCP,
+      "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
+      "org.springframework"         %  "spring-jdbc"                % versions.spring,
+      "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
+      "com.h2database"              %  "h2"                         % "1.4.199"                 % Test,
+      "org.flywaydb"                %  "flyway-core"                % "4.2.0"                   % Test,
+      "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
+    )
+  )
+  .dependsOn(schema, core)
   .disablePlugins(AssemblyPlugin)
 
 lazy val versions = new {
@@ -158,6 +185,11 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.7.0"
   val ehcache = "3.3.2"
+
+  val hikariCP = "3.3.1"
+  val json4s = "3.5.3"
+  val spring = "5.0.8.RELEASE"
+  val logback = "1.2.3"
 
   val scalaTest = "3.0.7"
   val scalaCheck = "1.14.0"

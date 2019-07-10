@@ -35,7 +35,7 @@ class TSDaoHBase(connection: Connection,
         val it = new AbstractIterator[TSDOutputRow[Long]] {
           override def hasNext: Boolean = metricCollector.getResult.measure {
             val hasNext = scannerIterator.hasNext
-            if (!hasNext) {
+            if (!hasNext && scan.isScanMetricsEnabled) {
               logger.info(s"query_uuid: ${metricCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}")
             }
             hasNext

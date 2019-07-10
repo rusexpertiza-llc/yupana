@@ -28,7 +28,7 @@ class TsDaoHBaseSpark(@transient val sparkContext: SparkContext,
   override def executeScans(table: Table, scans: Seq[Scan], metricCollector: MetricQueryCollector): RDD[TSDOutputRow[Long]] = {
     if (scans.nonEmpty) {
       val tableName = Bytes.toBytes(HBaseUtils.tableNameString(config.hbaseNamespace, table))
-      val rdds = scans.sliding(50000, 50000).map { qs =>
+      val rdds = scans.sliding(config.rowKeyBatchSize, config.rowKeyBatchSize).map { qs =>
         val s = scans.map(_.setAttribute(Scan.SCAN_ATTRIBUTES_TABLE_NAME, tableName))
         executeScans(table, s)
       }

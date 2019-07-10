@@ -7,12 +7,13 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{Schema, Table}
 import org.yupana.core.TSDB
 import org.yupana.hbase.HBaseUtils
+import org.yupana.schema.Dimensions
 
 import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(tsdb: TSDB,
+  def processTransactions(context: EtlContext,
                           schema: Schema,
                           dataPoints: RDD[DataPoint]): Unit = {
 
@@ -21,13 +22,18 @@ object ETLFunctions extends StrictLogging {
         val dps = batch.toList
 
         logger.trace(s"Put ${dps.size} datapoints")
-        tsdb.put(dps)
+        context.tsdb.put(dps)
+
+        if (context.cfg.loadInvertedIndex) {
+          val names = dps.flatMap(_.dimensions.get(Dimensions.ITEM_TAG)).toSet
+          context.itemsInvertedIndex.putItemNames(names)
+        }
 
         val byTable = dps.groupBy(_.table)
 
         byTable.foreach { case (t, ps) =>
           if (schema.rollups.exists(_.fromTable.name == t.name)) {
-            invalidateRollups(tsdb, ps, t)
+            invalidateRollups(context.tsdb, ps, t)
           }
         }
       }
@@ -58,9 +64,9 @@ object ETLFunctions extends StrictLogging {
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
-  def saveDataPoints(tsdb: TSDB, schema: Schema): DStream[DataPoint] = {
+  def saveDataPoints(context: EtlContext, schema: Schema): DStream[DataPoint] = {
     stream.foreachRDD { rdd =>
-      ETLFunctions.processTransactions(tsdb, schema, rdd)
+      ETLFunctions.processTransactions(context, schema, rdd)
     }
 
     stream
@@ -68,7 +74,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 }
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
-  def saveDataPoints(tsdb: TSDB, schema: Schema): Unit = {
-    ETLFunctions.processTransactions(tsdb, schema, rdd)
+  def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
+    ETLFunctions.processTransactions(context, schema, rdd)
   }
 }

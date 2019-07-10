@@ -8,13 +8,14 @@ import scala.collection.mutable
 case class QueryContext(query: Query,
                         condition: Condition,
                         postCondition: Option[Condition],
+                        postConditionExprs: Array[Expression],
                         exprsIndex: mutable.HashMap[Expression, Int],
                         aggregateExprs: Array[AggregateExpr],
                         topRowExprs: Array[Expression],
                         exprsOnAggregatesAndWindows: Array[Expression],
                         bottomExprs: Array[Expression],
                         linkExprs: Seq[LinkExpr],
-                        groupByArray: Array[Expression]
+                        groupByExprs: Array[Expression]
 )
 
 object QueryContext extends StrictLogging {
@@ -68,6 +69,7 @@ object QueryContext extends StrictLogging {
       query,
       condition,
       optionPost,
+      postCondition.exprs.toArray,
       exprsIndex,
       aggregateExprs.toArray,
       (topRowExprs -- bottomExprs).toArray,
