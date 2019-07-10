@@ -1,7 +1,7 @@
 import scalapb.compiler.Version.scalapbVersion
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
   .settings(noPublishSettings, commonSettings, crossScalaVersions := Nil)
 
 lazy val api = (project in file("yupana-api"))
@@ -157,17 +157,33 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     commonSettings,
     publishSettings,
     libraryDependencies ++= Seq(
-      "com.zaxxer"                  %  "HikariCP"                   % versions.hikariCP,
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
       "org.springframework"         %  "spring-jdbc"                % versions.spring,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
-      "com.h2database"              %  "h2"                         % "1.4.199"                 % Test,
-      "org.flywaydb"                %  "flyway-core"                % "4.2.0"                   % Test,
+      "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
+      "org.flywaydb"                %  "flyway-core"                % versions.flyway           % Test,
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
   .dependsOn(schema, core)
   .disablePlugins(AssemblyPlugin)
+
+lazy val examples = (project in file("yupana-examples"))
+  .settings(
+    name := "yupana-examples",
+    commonSettings,
+    publishSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
+      "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
+      "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc % Runtime,
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
+    )
+  )
+  .dependsOn(spark, akka, hbase, schema, externalLinks)
+  .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
   val joda = "2.10.2"
@@ -186,10 +202,14 @@ lazy val versions = new {
   val ignite = "2.7.0"
   val ehcache = "3.3.2"
 
-  val hikariCP = "3.3.1"
   val json4s = "3.5.3"
   val spring = "5.0.8.RELEASE"
+
+  val flyway = "5.2.4"
+  val hikariCP = "3.3.1"
   val logback = "1.2.3"
+  val h2Jdbc = "1.4.199"
+  val postgresqlJdbc = "42.2.6"
 
   val scalaTest = "3.0.7"
   val scalaCheck = "1.14.0"

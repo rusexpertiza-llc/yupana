@@ -1,0 +1,3 @@
+CREATE DATABASE yupana_example;
+CREATE USER yupana WITH ENCRYPTED PASSWORD 'yupana';
+GRANT CONNECT ON DATABASE yupana_example TO yupana;
