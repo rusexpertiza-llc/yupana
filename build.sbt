@@ -180,7 +180,15 @@ lazy val examples = (project in file("yupana-examples"))
       "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
       "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc % Runtime,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
-    )
+    ),
+    assembly / assemblyMergeStrategy := {
+      case PathList("org", "apache", "jasper", _*) => MergeStrategy.last
+      case PathList("org", "apache", "commons", _*) => MergeStrategy.last
+      case PathList("javax", "servlet", _*) => MergeStrategy.last
+      case PathList("javax", "el", _*) => MergeStrategy.last
+      case PathList("org", "slf4j", "impl", _*) => MergeStrategy.first
+      case x => (assembly / assemblyMergeStrategy).value(x)
+    }
   )
   .dependsOn(spark, akka, hbase, schema, externalLinks)
   .enablePlugins(FlywayPlugin)
