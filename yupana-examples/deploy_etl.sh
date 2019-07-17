@@ -2,7 +2,7 @@
 
 SCRIPT_HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-source "${SCRIPT_HOME}/target/scala-2.11/assemblyname.sh"
+source "${SCRIPT_HOME}/target/scala-2.12/assemblyname.sh"
 
 SPARK_HOME="${SPARK_HOME:-/opt/spark}"
 

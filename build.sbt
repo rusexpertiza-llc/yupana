@@ -168,6 +168,8 @@ lazy val externalLinks = (project in file("yupana-external-links"))
   .dependsOn(schema, core)
   .disablePlugins(AssemblyPlugin)
 
+val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
+
 lazy val examples = (project in file("yupana-examples"))
   .settings(
     name := "yupana-examples",
@@ -188,7 +190,15 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("javax", "el", _*) => MergeStrategy.last
       case PathList("org", "slf4j", "impl", _*) => MergeStrategy.first
       case x => (assembly / assemblyMergeStrategy).value(x)
-    }
+    },
+    writeAssemblyName := {
+      val path = (assembly / target).value
+      val outputFile = path / "assemblyname.sh"
+      val assemblyName = (path / (assembly / assemblyJarName).value).getCanonicalPath
+      streams.value.log.info("Assembly into: " + assemblyName)
+      IO.write(outputFile, s"JARFILE=$assemblyName\n")
+    },
+    assembly := assembly.dependsOn(writeAssemblyName).value
   )
   .dependsOn(spark, akka, hbase, schema, externalLinks)
   .enablePlugins(FlywayPlugin)
