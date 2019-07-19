@@ -72,7 +72,7 @@ HBase. Данные сохраняются в виде отдельных вре
 
 ### Сборка проекта <a href="#build"></a>
 
-Сборка проекта осуществляется с помощью sbt.  Некотороые команды в sbt shell:
+Сборка проекта осуществляется с помощью sbt.  Некоторые команды в sbt shell:
 
  - compile -- компиляция проекта.
  - test -- запуск юнит-тестов.
@@ -85,7 +85,7 @@ HBase. Данные сохраняются в виде отдельных вре
 В примере реализована схема данных основанная на схеме из пакета yupana-schema с добавлением двух внешних связей (каталог
 адресов и каталог организаций).  Каталог адресов (AddressCatalog) использует внутреннюю логику для отображения идентификатора
 кассы на город.  Каталог организаций (OrganisationCatalog) отображает кассы на информацию об организации: тип организации
-(например аптека, супермаркет) и обезличенный идентификатор. Каталог использует данные из внешнегоисточника -- базы данных PostgreSQL.
+(например аптека, супермаркет) и обезличенный идентификатор. Каталог использует данные из внешнего источника -- базы данных PostgreSQL.
 
 Для запуска примеров необходима база данных PostgreSQL.  По умолчанию используется база данных `yupana-example` на `localhost`.
 Базу необходимо создать до запуска примера и миграции:
@@ -216,34 +216,35 @@ SQL запрос для запуска и путь для сохранения �
 ```SQL
 SELECT sum(sum), day(time) as d, kkmId
   FROM items_kkm
-  WHERE time >= TIMESTAMP '2017-06-29' AND time < TIMESTAMP '2017-07-1' AND kkmId = '0000000000004641'
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND kkmId = '10'
   GROUP BY d, kkmId
 ```
 
-Суммы продаж товаров в которых встречается слово "Печенье" за указанный период с разбивкой по дням
+Суммы продаж товаров в которых встречается слово "штангенциркуль" за указанный период с разбивкой по дням
 ```SQL
 SELECT sum(sum), day(time) as d, kkmId
   FROM items_kkm
-  WHERE time >= TIMESTAMP '2017-06-29' AND time < TIMESTAMP '2017-07-1' AND itemsInvertedIndex_phrase = 'печенье вкусное'
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND itemsInvertedIndex_phrase = 'штангенциркуль'
   GROUP BY d, kkmId
 ```
 
-Первой и последней продажи лепешки за сутки:
+Первой и последней продажи селедки за сутки:
 
 ```SQL
 SELECT min(time) as mint, max(time) as maxt, day(time) as d
   FROM items_kkm
-  WHERE time >= TIMESTAMP '2017-09-1' and time < TIMESTAMP '2017-10-1' and itemsInvertedIndex_phrase = 'лепешка'
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' and itemsInvertedIndex_phrase = 'селедка'
+  GROUP BY d
 ```
 
 Считаем количество продаж товаров купленных в количестве больше 10:
 
 ```SQL
 SELECT item, sum(CASE
-    WHEN quantity > 10 THEN 1
+    WHEN quantity > 9 THEN 1
     ELSE 0 )
   FROM items_kkm
-  WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1'
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01'
   GROUP BY item
 ```
 
@@ -255,49 +256,50 @@ SELECT
   time AS t,
   lag(time) AS l
 FROM receipt
-WHERE time < TIMESTAMP '2018-03-01' AND time > TIMESTAMP '2018-02-01'
+WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01'
 GROUP BY kkmId
 HAVING
-  ((l - t) > INTERVAL '2:00:00' AND hour(t) >= 8 AND hour(t) <= 18) OR
-  ((l - t) > INTERVAL '4:00:00' AND hour(t) > 18 OR hour(t) < 8)
+  ((l - t) > INTERVAL '2' HOUR AND extract_hour(t) >= 8 AND extract_hour(t) <= 18) OR
+  ((l - t) > INTERVAL '4' HOUR AND extract_hour(t) > 18 OR extract_hour(t) < 8)
 ```
 
 Выбираем предыдущие три месяца:
 ```SQL
 SELECT sum(sum), day(time) as d, kkmId
   FROM items_kkm
-  WHERE time >= trunc_month(now() - INTERVAL '3' MONTH) AND time < trunc_month(now()) AND kkmId = '0000000000004641'
+  WHERE time >= trunc_month(now() - INTERVAL '3' MONTH) AND time < trunc_month(now())
   GROUP BY d, kkmId
 ```
 
 Агрегация по выражению:
 ```SQL
 SELECT kkmId,
-(CASE WHEN cardSum>0 THEN 1 ELSE 0) as paymentType
+    (CASE WHEN totalReceiptCardSum > 0 THEN 1 ELSE 0) as paymentType
   FROM items_kkm
-  WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1'
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01'
   GROUP BY paymentType, kkmId
 ```
 
 Используем арифметику (`+`, `-`, `*`, `/`):
 ```SQL
-SELECT sum(totalSum) as ts, sum(cardSum) * max(cashSum) / 2 as something FROM receipt
-    WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1' AND kkmId = '123654789545' GROUP BY kkmId
+SELECT sum(totalSum) as ts, sum(cardSum) * max(cashSum) / 2 as something
+  FROM receipt
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND kkmId = '11'
+  GROUP BY kkmId
 ```
 
-Группируем ягоды по цвету и считаем сумму:
+Группируем колбасу по вкусу и считаем сумму:
 ```
 SELECT
-  tag_b,
-  case
-    when contains_any(stem(item), stem('крыжовник')) then 'зеленые'
-    when contains_any(stem(item), stem('клубника', 'малина')) then 'красные'
-    when contains_any(stem(item), stem('черника', 'ежевика', 'ирга')) then 'черные'
-    else 'прочие' as color,
-  sum(testField)
-FROM test_table
-WHERE time >= timestamp '2019-03-14' AND time < timestamp '2019-03-26' AND InvertedIndex_phrase = 'ягода'
-GROUP BY tag_b, color
+    item,
+    case
+      when contains_any(stem(item), stem('вареная')) then 'вареная'
+      when contains_any(stem(item), stem('соленая')) then 'соленая'
+      else 'невкусная' as taste,
+    sum(sum)
+  FROM items_kkm
+  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND itemsInvertedIndex_phrase = 'колбаса'
+  GROUP BY item, color
 ```
 
 #### Функции <a name="sql-functions"></a>
@@ -393,7 +395,7 @@ JDBC драйвер для Yupana.
 
 ### yupana-spark <a href="#structure-spark"></a>
 
-Реализация TSDB рабатающая поверх HBase внутри Apache Spark.
+Реализация TSDB работающая поверх HBase внутри Apache Spark.
 
 ### yupana-schema <a href="#structure-schema"></a>
 
@@ -401,7 +403,7 @@ JDBC драйвер для Yupana.
 
 ### yupana-external-links <a href="#structure-links"></a>
 
-Имплементация внешних связей, таких как инвертированный индекс, поиск сопутствующих товаров и связи на базе SQL таблиц.
+Реализация внешних связей, таких как инвертированный индекс, поиск сопутствующих товаров и связи на базе SQL таблиц.
 
 ### yupana-examples <a href="#structure-examples"></a>
 

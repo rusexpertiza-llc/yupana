@@ -192,9 +192,8 @@ lazy val examples = (project in file("yupana-examples"))
       case x => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
-      val path = (assembly / target).value
-      val outputFile = path / "assemblyname.sh"
-      val assemblyName = (path / (assembly / assemblyJarName).value).getCanonicalPath
+      val outputFile = target.value / "assemblyname.sh"
+      val assemblyName = ((assembly / target).value / (assembly / assemblyJarName).value).getCanonicalPath
       streams.value.log.info("Assembly into: " + assemblyName)
       IO.write(outputFile, s"JARFILE=$assemblyName\n")
     },
