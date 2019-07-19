@@ -299,7 +299,7 @@ SELECT
     sum(sum)
   FROM items_kkm
   WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND itemsInvertedIndex_phrase = 'колбаса'
-  GROUP BY item, color
+  GROUP BY item, taste
 ```
 
 #### Функции <a name="sql-functions"></a>
