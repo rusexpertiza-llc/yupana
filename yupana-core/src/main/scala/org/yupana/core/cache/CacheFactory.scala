@@ -73,10 +73,6 @@ object CacheFactory extends StrictLogging {
     initCache(createDescription[K, V](name))
   }
 
-  def getCache(description: CacheDescription): Cache[description.Key, description.Value] = {
-    getFactory(description).getCache(description)
-  }
-
   def flushCaches(): Unit = {
     logger.info("Flushing caches")
     factories.values.foreach(_.flushCaches())

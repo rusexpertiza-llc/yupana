@@ -165,7 +165,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 //    } else {
 //      (Seq.empty, dimensionFilters.filterKeys(discreteDimensions.contains))
 //    }
-    (Seq.empty, dimensionFilters.filterKeys(discreteDimensions.contains))
+    (Seq.empty, dimensionFilters.filter(x => discreteDimensions.contains(x._1)))
   }
 
   private def createTimeFilter(fromTime: Long, toTime: Long, include: Set[Long], exclude: Set[Long]): Filtration.TimeFilter = {

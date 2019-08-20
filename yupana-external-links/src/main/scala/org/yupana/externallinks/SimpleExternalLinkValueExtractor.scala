@@ -28,9 +28,10 @@ trait SimpleExternalLinkValueExtractor[T <: ExternalLink] extends ExternalLinkSe
     val allFieldValues = fieldValuesForDimValues(fields, dimValues)
 
     valueData.foreach { vd =>
-      vd.get[String](exprIndex, dimExpr).foreach { tagValue =>
-        allFieldValues.row(tagValue).foreach { case (field, value) =>
-          if (value != null) vd.set(exprIndex, LinkExpr(externalLink, field), Some(value))
+      vd.get[String](exprIndex, dimExpr).foreach { dimValue =>
+        allFieldValues.row(dimValue).foreach { case (field, value) =>
+          val linkExpr = LinkExpr(externalLink, field)
+          if (value != null && exprIndex.contains(linkExpr)) vd.set(exprIndex, linkExpr, Some(value))
         }
       }
     }

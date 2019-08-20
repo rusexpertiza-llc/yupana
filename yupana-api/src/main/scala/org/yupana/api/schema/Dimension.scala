@@ -14,4 +14,6 @@ case class Dimension(name: String, hashFunction: Option[String => Int] = None) {
     case Dimension(n, _) => name == n
     case _ => false
   }
+
+  override def toString: String = s"Dimension($name)"
 }

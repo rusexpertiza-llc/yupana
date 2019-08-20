@@ -62,7 +62,7 @@ class TSDaoHBase(connection: Connection,
         .map(createPutOperation)
         .sliding(putsBatchSize, putsBatchSize)
         .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-      logger.trace(s" -- DETAIL ROWS: \r\n ${rows.mkString("\r\n")}")
+      logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: \r\n ${rows.mkString("\r\n")}")
     }
   }
 

@@ -5,13 +5,13 @@ import java.util.Properties
 
 import org.joda.time.{DateTimeZone, LocalDateTime}
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{FlatSpec, Matchers, OptionValues}
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{Dimension, Metric, MetricValue, Table}
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{DictionaryDao, DictionaryProviderImpl}
 
-class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory {
+class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
 
   "HBaseUtils" should "serialize and parse row TSROW keys" in {
 
@@ -49,7 +49,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory {
 
     rbt should have size 2
 
-    val rows = rbt(TestTable)
+    val rows = rbt.find(_._1 == TestTable).value._2
     rows should have size 1
 
     val (time1, value1) = rows.head.values.valuesByGroup(1)(0)
@@ -61,7 +61,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory {
     value2.toSeq shouldEqual ByteBuffer.allocate(9).put(1.toByte).putDouble(3.0).array().toSeq
     rows.head.key shouldEqual TSDRowKey[Int](1508025600000l, Array(Some(1), Some(2), None))
 
-    val rows2 = rbt(TestTable2)
+    val rows2 = rbt.find(_._1 == TestTable2).value._2
     rows2 should have size 1
 
     val (time3, value3) = rows2.head.values.valuesByGroup(1)(0)

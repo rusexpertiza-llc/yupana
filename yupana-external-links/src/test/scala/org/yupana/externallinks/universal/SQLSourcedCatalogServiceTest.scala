@@ -1,12 +1,15 @@
 package org.yupana.externallinks.universal
 
+import java.util.Properties
+
 import org.flywaydb.core.Flyway
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers, OptionValues}
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
-import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkConfig
-import org.yupana.schema.SchemaRegistry
+import org.yupana.core.cache.CacheFactory
+import org.yupana.externallinks.universal.JsonCatalogs.{SQLExternalLink, SQLExternalLinkConfig}
+import org.yupana.schema.{Dimensions, SchemaRegistry}
 
 class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionValues with BeforeAndAfterAll{
   val dbUrl = "jdbc:h2:mem:yupana;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
@@ -18,7 +21,9 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val ds = new DriverManagerDataSource(config.connection.url, config.connection.username.orNull, config.connection.password.orNull)
     val jdbc = new JdbcTemplate(ds)
 
-    new SQLSourcedExternalLinkService(null, config.description, jdbc, null)
+    val externalLink = SQLExternalLink(config, Dimensions.KKM_ID_TAG)
+
+    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc, null)
   }
 
 
@@ -127,5 +132,12 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     flyway.setDataSource(dbUrl, dbUser, dbPass)
 //    flyway.setLocations("")
     flyway.migrate()
+
+    val props = new Properties()
+    props.put("analytics.caches.default.engine", "EhCache")
+    props.put("analytics.caches.UniversalCatalogFieldValuesCache.maxElements", "100")
+    props.put("analytics.caches.UniversalCatalogFieldValuesCache.heapSize", "1024")
+    props.put("analytics.caches.UniversalCatalogFieldValuesCache.offHeapSize", "0")
+    CacheFactory.init(props, "ns")
   }
 }

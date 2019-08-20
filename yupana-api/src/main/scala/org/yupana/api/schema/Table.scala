@@ -41,6 +41,15 @@ class Table(val name: String,
   def withMetrics(extraMetrics: Seq[Metric]): Table = {
     new Table(name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks)
   }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: Table => this.name == that.name
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = name.hashCode
 }
 
 object Table {

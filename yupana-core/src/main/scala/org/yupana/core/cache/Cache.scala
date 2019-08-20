@@ -2,6 +2,7 @@ package org.yupana.core.cache
 
 trait Cache[K, V] {
   def get(key: K): Option[V]
+  def getNullable(key: K): V
   def put(key: K, value: V): Unit
   def remove(key: K): Boolean
   def removeAll(): Unit
@@ -10,12 +11,13 @@ trait Cache[K, V] {
   def contains(key: K): Boolean
 
   def caching(key: K)(eval: => V): V = {
-    get(key) match {
-      case Some(v) => v
-      case None =>
-        val v = eval
-        put(key, v)
-        v
+    val value = getNullable(key)
+    if (value == null) {
+      val v = eval
+      put(key, v)
+      v
+    } else {
+      value
     }
   }
 

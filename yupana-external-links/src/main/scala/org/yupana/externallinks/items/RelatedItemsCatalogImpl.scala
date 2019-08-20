@@ -8,7 +8,10 @@ import org.yupana.core.{ExternalLinkService, TsdbBase}
 import org.yupana.schema.{Dimensions, Tables}
 import org.yupana.schema.externallinks.{ItemsInvertedIndex, RelatedItemsCatalog}
 
-class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: RelatedItemsCatalog) extends ExternalLinkService[RelatedItemsCatalog] {
+class RelatedItemsCatalogImpl(tsdb: TsdbBase,
+                              override val externalLink: RelatedItemsCatalog)
+  extends ExternalLinkService[RelatedItemsCatalog] {
+
   import org.yupana.api.query.syntax.All._
 
   def includeCondition(fieldsValues: Seq[(String, Set[String])], from: Long, to: Long): Condition = {

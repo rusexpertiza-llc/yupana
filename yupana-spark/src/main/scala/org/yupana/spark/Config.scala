@@ -14,7 +14,7 @@ class Config(@transient val sparkConf: SparkConf) extends Serializable {
 
   val extractBatchSize: Int = sparkConf.getInt("analytics.tsdb.extract-batch-size", 10000)
 
-  val rowKeyBatchSize = sparkConf.getInt("analytics.tsdb.row-key-batch-size", 50000)
+  val rowKeyBatchSize: Int = sparkConf.getInt("analytics.tsdb.row-key-batch-size", 50000)
 
   val properties: Properties = propsWithPrefix("")
 

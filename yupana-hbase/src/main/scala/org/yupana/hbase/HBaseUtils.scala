@@ -24,7 +24,7 @@ object HBaseUtils extends StrictLogging {
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
   val rollupSpecialKey: Array[Byte] = "\u0000".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
-  val NULL_VALUE: Long = 0
+  val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
 
@@ -36,7 +36,7 @@ object HBaseUtils extends StrictLogging {
     time % table.rowTimeSpan
   }
 
-  def createTsdRows(dataPoints: Seq[DataPoint], dictionaryProvider: DictionaryProvider): Map[Table, Seq[TSDInputRow[Long]]] = {
+  def createTsdRows(dataPoints: Seq[DataPoint], dictionaryProvider: DictionaryProvider): Seq[(Table, Seq[TSDInputRow[Long]])] = {
 
     dataPoints.groupBy(_.table).map { case (table, points) =>
 
@@ -44,7 +44,7 @@ object HBaseUtils extends StrictLogging {
       table -> grouped.map { case (key, dps) =>
         TSDInputRow(key, TSDRowValues(table, dps))
       }.toSeq
-    }
+    }.toSeq
   }
 
   def createPutOperation(row: TSDInputRow[Long]): Put = {
@@ -299,11 +299,11 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {
-    val tagIds = table.dimensionSeq.map { tag =>
-      dataPoint.dimensions.get(tag).filter(_.trim.nonEmpty).map(v => dictionaryProvider.dictionary(tag).id(v))
+    val dimIds = table.dimensionSeq.map { dim =>
+      dataPoint.dimensions.get(dim).filter(_.trim.nonEmpty).map(v => dictionaryProvider.dictionary(dim).id(v))
     }.toArray
 
-    TSDRowKey(HBaseUtils.baseTime(dataPoint.time, table), tagIds)
+    TSDRowKey(HBaseUtils.baseTime(dataPoint.time, table), dimIds)
   }
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes

@@ -6,6 +6,7 @@ import java.sql.{Array => SqlArray, _}
 import java.util
 import java.util.Calendar
 
+import org.joda.time.DateTimeZone
 import org.yupana.api.query.{DataRow, Result}
 import org.yupana.api.{Time => ApiTime}
 
@@ -171,7 +172,7 @@ class YupanaResultSet protected[jdbc](
 
   private def toLocalMillis(a: Any): Long = {
     a match {
-      case t: ApiTime => t.toLocalDateTime.toDate.getTime
+      case t: ApiTime => DateTimeZone.getDefault.convertLocalToUTC(t.millis, false)
       case x => throw new ClassCastException(s"Cannot cast $x to Time")
     }
   }

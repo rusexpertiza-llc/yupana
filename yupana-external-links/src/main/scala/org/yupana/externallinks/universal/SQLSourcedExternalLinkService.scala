@@ -3,8 +3,8 @@ package org.yupana.externallinks.universal
 import com.typesafe.scalalogging.StrictLogging
 import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.schema.ExternalLink
-import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.TsdbBase
+import org.yupana.core.cache.{Cache, CacheFactory}
 import org.yupana.core.utils.{SparseTable, Table}
 import org.yupana.externallinks.DimValueBasedExternalLinkService
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
@@ -35,15 +35,28 @@ class SQLSourcedExternalLinkService(override val externalLink: ExternalLink,
   def relation: String = config.relation.getOrElse(camelToSnake(linkName))
 
   override def fieldValuesForDimValues(fields: Set[FieldName],
-                                       tagValues: Set[DimensionValue]
-                                       ): Table[DimensionValue, FieldName, FieldValue] = {
-    val q = fieldsByTagsQuery(fields, tagValues.size)
-    val params = tagValues.map(_.asInstanceOf[Object]).toArray
-    logger.trace(s"Query for fields for catalog $linkName: ${q.take(1000)} with params: ${CollectionUtils.mkStringWithLimit(params)}")
-    val dataFromDb = jdbc.queryForList(q, params:_*).asScala
-      .map(vs => vs.asScala.toMap.mapValues(_.toString)
-        .map { case (k, v) => snakeToCamel(k) -> v})
-    SparseTable(dataFromDb.groupBy(m => m(dimensionName)).mapValues(_.head - dimensionName))
+                                       tagValues: Set[DimensionValue]): Table[DimensionValue, FieldName, FieldValue] = {
+
+    def withLinkName(dimVal: DimensionValue): String = s"${externalLink.linkName}:$dimVal"
+    def withoutLinkName(cacheKey: String): DimensionValue = cacheKey.substring(cacheKey.indexOf(':') + 1)
+
+    val tableRows = fieldValuesForDimValuesCache.getAll(tagValues.map(withLinkName)).map {
+      case (k, v) => withoutLinkName(k) -> v
+    }
+    if (tagValues.forall(tableRows.contains)) {
+      SparseTable(tableRows)
+    } else {
+      val missedKeys = tagValues diff tableRows.keys.toSet
+      val q = fieldsByTagsQuery(externalLink.fieldsNames, missedKeys.size)
+      val params = missedKeys.map(_.asInstanceOf[Object]).toArray
+      logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
+      val dataFromDb = jdbc.queryForList(q, params:_*).asScala
+        .map(vs => vs.asScala.toMap.mapValues(_.toString)
+        .map { case (k, v) => snakeToCamel(k) -> v })
+        .groupBy(m => m(dimensionName)).mapValues(_.head - dimensionName)
+      fieldValuesForDimValuesCache.putAll(dataFromDb.map { case (k, v) => withLinkName(k) -> v })
+      SparseTable(tableRows ++ dataFromDb)
+    }
   }
 
   override def dimValuesForAllFieldsValues(fieldsValues: Seq[(FieldName, Set[FieldValue])]): Set[DimensionValue] = {
@@ -101,4 +114,7 @@ object SQLSourcedExternalLinkService {
   def snakeToCamel(s: String): String = {
     snakeParts.replaceAllIn(s, _.group(1).toUpperCase())
   }
+
+  val fieldValuesForDimValuesCache: Cache[String, Map[FieldName, FieldValue]] =
+    CacheFactory.initCache[String, Map[FieldName, FieldValue]]("UniversalCatalogFieldValuesCache")
 }

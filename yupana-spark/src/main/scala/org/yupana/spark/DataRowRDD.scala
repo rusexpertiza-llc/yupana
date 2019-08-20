@@ -6,6 +6,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.types._
 import org.apache.spark.{Partition, TaskContext}
+import org.joda.time.DateTimeZone
 import org.yupana.api.Time
 import org.yupana.api.query.{DataRow, QueryField}
 import org.yupana.core.{QueryContext, TsdbServerResultBase}
@@ -35,7 +36,7 @@ class DataRowRDD(val underlying: RDD[Array[Option[Any]]], override val queryCont
   private def createRow(a: Array[Option[Any]]): Row = {
     val values = queryContext.query.fields.indices.map(idx =>
       a(dataIndexForFieldIndex(idx)) match {
-        case Some(Time(t)) => new Timestamp(t)
+        case Some(Time(t)) => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
         case x => x.orNull
       }
     )
