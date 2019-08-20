@@ -44,7 +44,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
     }
   }
 
-  def handlePingProto(tsdb: TSDB, ping: proto.Ping, majorVersion: Int, minorVersion: Int, version: String)(implicit ec: ExecutionContext): Future[Either[String, Iterator[proto.Response]]] = {
+  def handlePingProto(tsdb: TSDB, ping: proto.Ping, majorVersion: Int, minorVersion: Int, version: String): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"Processing Ping request: $ping")
 
     val pong = proto.Pong(

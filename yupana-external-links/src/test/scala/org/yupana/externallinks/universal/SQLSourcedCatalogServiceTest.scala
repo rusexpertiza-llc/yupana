@@ -128,9 +128,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
   }
 
   override protected def beforeAll(): Unit = {
-    val flyway = new Flyway()
-    flyway.setDataSource(dbUrl, dbUser, dbPass)
-//    flyway.setLocations("")
+    val flyway = Flyway.configure().dataSource(dbUrl, dbUser, dbPass).load()
     flyway.migrate()
 
     val props = new Properties()

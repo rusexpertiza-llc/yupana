@@ -237,6 +237,16 @@ val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := "2.12.9",
   crossScalaVersions := Seq("2.11.12", "2.12.9"),
+  scalacOptions ++= Seq(
+    "-target:jvm-1.8",
+    "-deprecation",
+    "-unchecked",
+    "-feature",
+    "-Xlint",
+    "-Ywarn-dead-code",
+    "-Ywarn-unused-import"
+  ),
+  Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
   parallelExecution in Test := false
 )
 

@@ -75,13 +75,12 @@ object DataType {
   }
 
   implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Array[TT]] = {
-    implicit val ttct: ClassTag[TT] = dtt.classTag
     new DataType {
       override type T = Array[TT]
       override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(dtt.meta)
       override val readable: Readable[T] = Readable.arrayReadable(dtt.readable, dtt.classTag)
       override val writable: Writable[T] = Writable.arrayWritable(dtt.writable)
-      override val classTag: ClassTag[T] = implicitly[ClassTag[Array[TT]]]
+      override val classTag: ClassTag[T] = dtt.classTag.wrap
 
       override def operations: TypeOperations[T] = TypeOperations.arrayOperations(dtt)
     }

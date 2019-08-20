@@ -103,7 +103,7 @@ object HBaseUtils extends StrictLogging {
     val familiesCount = iterators.length
     // init times array with the time offset from the first cell of each family
     val times = iterators.map(i => getTimeOffset(cells(i)))
-    var buffer = ListBuffer.empty[Cell]
+    val buffer = ListBuffer.empty[Cell]
     val values = ArrayBuffer.empty[(Long, Array[Byte])]
 
     var processed = 0
@@ -141,7 +141,7 @@ object HBaseUtils extends StrictLogging {
 
   private def findFamiliesOffsets(cells: Array[Cell]): Array[Int] = {
     var i = 1
-    var offsets = ArrayBuffer(0)
+    val offsets = ArrayBuffer(0)
     var prevFamilyCell = cells(0)
     while (i < cells.length) {
       val cell = cells(i)

@@ -3,8 +3,6 @@ package org.yupana.api.types
 import org.joda.time.Period
 import org.yupana.api.Time
 
-import scala.reflect.ClassTag
-
 /**
   * Operations registry for a type `T`.
   *
@@ -80,9 +78,9 @@ object TypeOperations {
     )
   }
 
-  def arrayOperations[T](dtt: DataType.Aux[T])(implicit ct: ClassTag[T]): TypeOperations[Array[T]] = {
+  def arrayOperations[T](dtt: DataType.Aux[T]): TypeOperations[Array[T]] = {
     TypeOperations(
-      BinaryOperation.arrayOperations[T](dtt, ct),
+      BinaryOperation.arrayOperations[T](dtt),
       UnaryOperation.arrayOperations[T] ++ dtt.operations.arrayOperations,
       Map.empty,
       Map.empty

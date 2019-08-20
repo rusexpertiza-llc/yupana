@@ -59,7 +59,7 @@ object TimeBoundedCondition {
   private def andToTimeBounded(and: And): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
-    var other = ListBuffer.empty[Condition]
+    val other = ListBuffer.empty[Condition]
 
     def updateFrom(c: Condition, e: Expression, offset: Long): Unit = {
       val const = ExpressionCalculator.evaluateExpression(e.asInstanceOf[Expression.Aux[Time]], null, null)

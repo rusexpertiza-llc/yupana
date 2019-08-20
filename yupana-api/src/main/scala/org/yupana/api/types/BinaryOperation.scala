@@ -3,8 +3,6 @@ package org.yupana.api.types
 import org.joda.time.Period
 import org.yupana.api.Time
 
-import scala.reflect.ClassTag
-
 /**
   * Binary operation definition
   * @tparam T first argument type
@@ -148,7 +146,7 @@ object BinaryOperation {
     }.toMap
   }
 
-  def arrayOperations[T](implicit dt: DataType.Aux[T], ct: ClassTag[T]): Map[(String, String), BinaryOperation[Array[T]]] = Map(
+  def arrayOperations[T](implicit dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[Array[T]]] = Map(
     entry(CONTAINS, DataType[T], contains),
     entry(CONTAINS_ALL, DataType[Array[T]], containsAll),
     entry(CONTAINS_ANY, DataType[Array[T]], containsAny),
