@@ -1,5 +1,7 @@
 # Yupana
 
+[![Join the chat at https://gitter.im/rusexpertiza-llc/yupana](https://badges.gitter.im/rusexpertiza-llc/beanpuree.svg)](https://gitter.im/rusexpertiza-llc/yupana?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Yupana -- аналитическая платформа с открытым исходным кодом для анализа больших данных. Она обеспечивает:
 
  - перевод транзакционной информации в форму пригодную для бизнес анализа.
