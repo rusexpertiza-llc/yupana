@@ -6,3 +6,8 @@ scala:
 
 jdk:
   - openjdk8
+
+cache:
+  directories:
+    - $HOME/.ivy2/cache
+    - $HOME/.sbt

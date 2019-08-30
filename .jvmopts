@@ -1,0 +1,4 @@
+-Dfile.encoding=UTF8
+-Xms4096M
+-Xmx4096M
+-XX:MaxMetaspaceSize=512m
