@@ -6,7 +6,7 @@ addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.23")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.8.4"
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.9")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
 
 addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.2")
 
