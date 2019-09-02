@@ -266,7 +266,13 @@ val publishSettings = Seq(
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
   licenses += ("Apache 2.0 License", url("http://www.apache.org/licenses/LICENSE-2.0")),
-  homepage := Some(url("https://www.yupana.org")),
+  homepage := Some(url("https://github.com/rusexpertiza-llc/yupana")),
+  scmInfo := Some(
+    ScmInfo(
+      url("https://github.com/rusexpertiza-llc/yupana"),
+      "scm:git:git@github.com/rusexpertiza-llc/yupana.git"
+    )
+  ),
   developers := List(
     Developer("rusexpertiza", "Rusexpertiza LLC", "info@1-ofd.ru", url("https://www.1-ofd.ru"))
   )
