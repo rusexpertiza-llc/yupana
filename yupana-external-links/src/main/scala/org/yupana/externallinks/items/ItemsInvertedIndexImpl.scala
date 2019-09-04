@@ -55,6 +55,7 @@ object ItemsInvertedIndexImpl {
 
     filtered
       .map(Transliterator.transliterate)
+      .filter(_.nonEmpty)
       .sorted
   }
 }

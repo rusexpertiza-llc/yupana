@@ -130,6 +130,7 @@ object UnaryOperation {
     SECOND -> truncSecond,
     TRUNC_YEAR -> truncYear,
     TRUNC_MONTH -> truncMonth,
+    TRUNC_WEEK -> truncWeek,
     TRUNC_DAY -> truncDay,
     TRUNC_HOUR -> truncHour,
     TRUNC_MINUTE -> truncMinute,

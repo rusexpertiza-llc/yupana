@@ -58,6 +58,7 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
   protected def initManager(): Unit = {
     if (cacheManager.isEmpty) {
       logger.info("Initializing EhCache cache manager")
+      System.setProperty(Caching.JAVAX_CACHE_CACHING_PROVIDER, classOf[org.ehcache.jsr107.EhcacheCachingProvider].getName)
       val provider = Caching.getCachingProvider(classOf[org.ehcache.jsr107.EhcacheCachingProvider].getName)
       cacheManager = Some(provider.getCacheManager)
     }

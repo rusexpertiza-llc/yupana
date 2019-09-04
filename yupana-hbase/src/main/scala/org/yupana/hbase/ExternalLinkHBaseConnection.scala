@@ -10,7 +10,7 @@ import org.apache.hadoop.hbase.{HBaseConfiguration, HTableDescriptor, TableExist
 class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) extends StrictLogging {
   protected lazy val connection: Connection = createConnectionAndNamespace
 
-  private def createConnectionAndNamespace = {
+  private def createConnectionAndNamespace: Connection = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.checkNamespaceExistsElseCreate(connection, namespace)
     connection

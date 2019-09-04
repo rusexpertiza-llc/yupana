@@ -13,6 +13,7 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
     hbaseconf.set("zookeeper.session.timeout", 180000.toString)
+    cfg.hbaseWriteBufferSize.foreach(x => hbaseconf.set("hbase.client.write.buffer", x.toString))
     hbaseconf
   }
 
