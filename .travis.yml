@@ -20,4 +20,6 @@ script:
   - if [[ "$TRAVIS_SCALA_VERSION" == 2.12.* ]];
     then
       sbt ++$TRAVIS_SCALA_VERSION coverageReport && codecov
+    else
+      echo "Skipping coverage report for Scala != 2.12.x"
     fi
