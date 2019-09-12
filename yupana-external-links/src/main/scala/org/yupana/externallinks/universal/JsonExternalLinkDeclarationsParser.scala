@@ -12,15 +12,17 @@ object JsonExternalLinkDeclarationsParser {
 
   implicit private val formats: Formats = DefaultFormats
 
-  def parse(schema: Schema, declaration: String): Either[String, Seq[SQLExternalLinkConfig]] = JsonMethods.parse(declaration) \\ "externalLinks" match {
-    case jCatalogs: JArray =>
-      val (errors, catalogs) = jCatalogs.arr map extractCatalog(schema) partition (_.isLeft)
-      if (errors.isEmpty) {
-        Right(catalogs.map(_.right.get))
-      } else {
-        Left(errors.map(_.left.get).mkString(", "))
-      }
-    case _ => Left(s"No 'externalLinks' array was found in $declaration")
+  def parse(schema: Schema, declaration: String): Either[String, Seq[SQLExternalLinkConfig]] = {
+    JsonMethods.parse(declaration) \\ "externalLinks" match {
+      case jCatalogs: JArray =>
+        val (errors, catalogs) = jCatalogs.arr map extractCatalog(schema) partition (_.isLeft)
+        if (errors.isEmpty) {
+          Right(catalogs.map(_.right.get))
+        } else {
+          Left(errors.map(_.left.get).mkString(", "))
+        }
+      case _ => Left(s"No 'externalLinks' array was found in $declaration")
+    }
   }
 
   def extractCatalog(schema: Schema)(jLink: JValue): Either[String, SQLExternalLinkConfig] = {
