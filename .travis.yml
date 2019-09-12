@@ -4,7 +4,7 @@ install:
   - pip install --user codecov
 
 scala:
-  - 2.12.9
+  - 2.12.10
   - 2.11.12
 
 jdk:
@@ -19,7 +19,7 @@ script:
   - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
   - if [[ "$TRAVIS_SCALA_VERSION" == 2.12.* ]];
     then
-      sbt ++$TRAVIS_SCALA_VERSION coverageReport && codecov
+      sbt ++$TRAVIS_SCALA_VERSION coverageReport && codecov;
     else
-      echo "Skipping coverage report for Scala != 2.12.x"
+      echo "Skipping coverage report for Scala != 2.12.x";
     fi
