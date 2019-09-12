@@ -1,5 +1,8 @@
 language: scala
 
+install:
+  - pip install --user codecov
+
 scala:
   - 2.12.9
   - 2.11.12
@@ -11,3 +14,10 @@ cache:
   directories:
     - $HOME/.ivy2/cache
     - $HOME/.sbt
+
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
+  - if [[ "$TRAVIS_SCALA_VERSION" == 2.12.* ]];
+    then
+      sbt ++$TRAVIS_SCALA_VERSION coverageReport && codecov
+    fi

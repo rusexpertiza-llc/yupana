@@ -247,7 +247,8 @@ val commonSettings = Seq(
     "-Ywarn-unused-import"
   ),
   Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
-  parallelExecution in Test := false
+  parallelExecution in Test := false,
+  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*"
 )
 
 val noPublishSettings = Seq(
