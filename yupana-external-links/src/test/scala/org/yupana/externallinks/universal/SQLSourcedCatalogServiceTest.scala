@@ -132,10 +132,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     flyway.migrate()
 
     val props = new Properties()
-    props.put("analytics.caches.default.engine", "EhCache")
-    props.put("analytics.caches.UniversalCatalogFieldValuesCache.maxElements", "100")
-    props.put("analytics.caches.UniversalCatalogFieldValuesCache.heapSize", "1024")
-    props.put("analytics.caches.UniversalCatalogFieldValuesCache.offHeapSize", "0")
+    props.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
     CacheFactory.init(props, "ns")
   }
 }
