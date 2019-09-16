@@ -55,38 +55,18 @@ class ItemsInvertedIndexImplTest extends FlatSpec with Matchers with MockFactory
     val itemDict = new Dictionary(Dimensions.ITEM_TAG, dictDao)
     (tsdb.dictionary _).expects(Dimensions.ITEM_TAG).returning(itemDict)
     (dictDao.getIdsByValues _)
-      .expects(Dimensions.ITEM_TAG, Set("сигареты", "папиросы", "молоко"))
+      .expects(Dimensions.ITEM_TAG, Set("сигареты легкие", "папиросы", "молоко"))
       .returning(Map("папиросы" -> 2))
     (dictDao.createSeqId _).expects(Dimensions.ITEM_TAG).returning(3)
-    (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "сигареты").returning(true)
+    (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "сигареты легкие").returning(true)
     (dictDao.createSeqId _).expects(Dimensions.ITEM_TAG).returning(4)
     (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "молоко").returning(true)
 
     (dao.batchPut _).expects ( where { vs: Map[String, Set[Long]] =>
-      vs.keySet == Set("sigaret", "molok", "papiros")
+      vs.keySet == Set("sigaret", "legk", "molok", "papiros")
     })
 
-    index.putItemNames(Set("сигареты", "папиросы", "молоко"))
-  }
-
-  it should "put new values storage" in withMocks { (index, dao, tsdb) =>
-    val dictDao = mock[DictionaryDao]
-    val itemDict = new Dictionary(Dimensions.ITEM_TAG, dictDao)
-    (tsdb.dictionary _).expects(Dimensions.ITEM_TAG).returning(itemDict).anyNumberOfTimes()
-    (dictDao.getIdsByValues _)
-      .expects(Dimensions.ITEM_TAG, Set("сигареты", "папиросы", "молоко"))
-      .returning(Map("папиросы" -> 2))
-    (dictDao.getIdsByValues _)
-      .expects(Dimensions.ITEM_TAG, Set("сигареты", "молоко"))
-      .returning(Map("сигареты" -> 42))
-    (dictDao.createSeqId _).expects(Dimensions.ITEM_TAG).returning(44)
-    (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "молоко").returning(true)
-
-    (dao.batchPut _).expects ( where { vs: Map[String, Set[Long]] =>
-      vs.keySet == Set("sigaret", "molok")
-    })
-
-    index.putNewItemsNames(Set("сигареты", "папиросы", "молоко"))
+    index.putItemNames(Set("сигареты легкие", "папиросы", "молоко"))
   }
 
   def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, Long], TSDB) => Unit): Unit = {
