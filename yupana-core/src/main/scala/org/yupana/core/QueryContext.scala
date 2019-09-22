@@ -21,17 +21,18 @@ import org.yupana.api.query._
 
 import scala.collection.mutable
 
-case class QueryContext(query: Query,
-                        condition: Condition,
-                        postCondition: Option[Condition],
-                        postConditionExprs: Array[Expression],
-                        exprsIndex: mutable.HashMap[Expression, Int],
-                        aggregateExprs: Array[AggregateExpr],
-                        topRowExprs: Array[Expression],
-                        exprsOnAggregatesAndWindows: Array[Expression],
-                        bottomExprs: Array[Expression],
-                        linkExprs: Seq[LinkExpr],
-                        groupByExprs: Array[Expression]
+case class QueryContext(
+    query: Query,
+    condition: Condition,
+    postCondition: Option[Condition],
+    postConditionExprs: Array[Expression],
+    exprsIndex: mutable.HashMap[Expression, Int],
+    aggregateExprs: Array[AggregateExpr],
+    topRowExprs: Array[Expression],
+    exprsOnAggregatesAndWindows: Array[Expression],
+    bottomExprs: Array[Expression],
+    linkExprs: Seq[LinkExpr],
+    groupByExprs: Array[Expression]
 )
 
 object QueryContext extends StrictLogging {
@@ -51,22 +52,22 @@ object QueryContext extends StrictLogging {
     val dataFiltersExternalLinks = conditionExprs.flatMap(_.requiredLinks)
     val havingExternalLinks = query.postFilter.toSeq.flatMap(_.exprs.flatMap(_.requiredLinks))
 
-    val linkExprs = (groupByExternalLinks ++ fieldsExternalLinks ++ dataFiltersExternalLinks ++ havingExternalLinks).distinct
+    val linkExprs =
+      (groupByExternalLinks ++ fieldsExternalLinks ++ dataFiltersExternalLinks ++ havingExternalLinks).distinct
 
     val topExprs: Set[Expression] = query.fields.map(_.expr).toSet ++
       (query.groupBy.toSet ++
         conditionExprs ++
         requiredDimExprs ++
         query.postFilter.map(_.exprs).getOrElse(Set.empty) +
-        TimeExpr
-      ).filterNot(_.isInstanceOf[ConstantExpr])
+        TimeExpr).filterNot(_.isInstanceOf[ConstantExpr])
 
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr] && (
         (!expr.containsAggregates && !expr.containsWindows) ||
-          expr.isInstanceOf[AggregateExpr] ||
-          expr.isInstanceOf[WindowFunctionExpr]
-        )
+        expr.isInstanceOf[AggregateExpr] ||
+        expr.isInstanceOf[WindowFunctionExpr]
+      )
     }
 
     val exprsOnAggregatesAndWindows = topExprs diff topRowExprs
@@ -77,7 +78,7 @@ object QueryContext extends StrictLogging {
 
     val aggregateExprs = allExprs.collect { case ae: AggregateExpr => ae }
 
-    val exprsIndex =  mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
+    val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
 
     val optionPost = if (postCondition == EmptyCondition) None else Some(postCondition)
 
@@ -96,14 +97,15 @@ object QueryContext extends StrictLogging {
     )
   }
 
-  def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = exprs.collect {
-    case a@AggregateExpr(_, e) => Set(a, e)
-    case ConditionExpr(condition, _, _) => condition.exprs.flatMap(_.flatten)
-    case c: ConstantExpr => Set(c)
-    case t: DimensionExpr => Set(t)
-    case c: LinkExpr => Set(c)
-    case v: MetricExpr[_] => Set(v)
-    case TimeExpr => Set(TimeExpr)
-    case _ => Set.empty
-  }.flatten
+  def collectBottomExprs(exprs: Set[Expression]): Set[Expression] =
+    exprs.collect {
+      case a @ AggregateExpr(_, e)        => Set(a, e)
+      case ConditionExpr(condition, _, _) => condition.exprs.flatMap(_.flatten)
+      case c: ConstantExpr                => Set(c)
+      case t: DimensionExpr               => Set(t)
+      case c: LinkExpr                    => Set(c)
+      case v: MetricExpr[_]               => Set(v)
+      case TimeExpr                       => Set(TimeExpr)
+      case _                              => Set.empty
+    }.flatten
 }

@@ -29,27 +29,28 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
   def value(id: Long): Option[String] = {
     cache.get(id) match {
       case Some(v) => Some(v)
-      case None => if (isMarkedAsAbsent(id)) {
-        None
-      } else {
-        logger.trace(s"Get value for id $id, dictionary ${dimension.name}")
-        dao.getValueById(dimension, id).fold[Option[String]] {
-          markAsAbsent(id)
+      case None =>
+        if (isMarkedAsAbsent(id)) {
           None
-        }{ value =>
-          updateCache(id, value)
-          Some(value)
+        } else {
+          logger.trace(s"Get value for id $id, dictionary ${dimension.name}")
+          dao
+            .getValueById(dimension, id)
+            .fold[Option[String]] {
+              markAsAbsent(id)
+              None
+            } { value =>
+              updateCache(id, value)
+              Some(value)
+            }
         }
-      }
     }
   }
 
   def values(ids: Set[Long]): Map[Long, String] = {
     val fromCache = cache.getAll(ids)
 
-    val idsToGet = ids.filter(id =>
-      fromCache.get(id).isEmpty && !isMarkedAsAbsent(id)
-    )
+    val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
 
     val fromDB = if (idsToGet.nonEmpty) {
       val gotValues = dao.getValuesByIds(dimension, idsToGet)
@@ -113,9 +114,11 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     val id = if (dao.checkAndPut(dimension, genId, v)) {
       genId
     } else {
-      dao.getIdByValue(dimension, v).getOrElse(
-        throw new IllegalStateException(s"Can't put value to $v dictionary ${dimension.name}")
-      )
+      dao
+        .getIdByValue(dimension, v)
+        .getOrElse(
+          throw new IllegalStateException(s"Can't put value to $v dictionary ${dimension.name}")
+        )
     }
     updateReverseCache(v, id)
     id

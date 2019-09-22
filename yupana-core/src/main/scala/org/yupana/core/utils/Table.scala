@@ -48,7 +48,7 @@ trait TableOps[R, C, +V, +TT[_, _, _]] {
   def ++[V2 >: V](t: Table[R, C, V2]): TT[R, C, V2]
 }
 
-abstract class TableFactory[+TT[_, _, _]]  {
+abstract class TableFactory[+TT[_, _, _]] {
   def empty[R, C, V]: TT[R, C, V]
   def apply[R, C, V](items: TraversableOnce[(R, C, V)]): TT[R, C, V]
 }

@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import java.util.Properties
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
+import org.apache.hadoop.fs.{ FileStatus, FileSystem, Path }
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 
 object HdfsFileUtils {
@@ -83,8 +83,9 @@ object HdfsFileUtils {
     import scala.collection.JavaConverters._
     configuration.set("fs.defaultFS", properties.getProperty("fs.defaultFS"))
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
-    properties.asScala.foreach { case (key, value) =>
-      if (key.startsWith("dfs.")) configuration.set(key, value)
+    properties.asScala.foreach {
+      case (key, value) =>
+        if (key.startsWith("dfs.")) configuration.set(key, value)
     }
   }
 }

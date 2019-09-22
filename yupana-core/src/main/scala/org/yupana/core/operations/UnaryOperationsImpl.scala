@@ -19,7 +19,7 @@ package org.yupana.core.operations
 import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.types.UnaryOperations
-import org.yupana.utils.{ItemsStemmer, Transliterator}
+import org.yupana.utils.{ ItemsStemmer, Transliterator }
 
 import scala.collection.AbstractIterator
 
@@ -51,7 +51,8 @@ trait UnaryOperationsImpl extends UnaryOperations {
   override def stringLength(s: Option[String]): Option[Int] = s.map(_.length)
 
   override def stemString(s: Option[String]): Option[Array[String]] = s.map(stem)
-  override def splitString(s: Option[String]): Option[Array[String]] = s.map(v => splitBy(v, !_.isLetterOrDigit).toArray)
+  override def splitString(s: Option[String]): Option[Array[String]] =
+    s.map(v => splitBy(v, !_.isLetterOrDigit).toArray)
 
   override def arrayToString[T](a: Option[Array[T]]): Option[String] = a.map(_.mkString("(", ", ", ")"))
   override def arrayLength[T](a: Option[Array[T]]): Option[Int] = a.map(_.length)

@@ -16,21 +16,22 @@
 
 package org.yupana.jdbc
 
-import java.io.{InputStream, Reader}
+import java.io.{ InputStream, Reader }
 import java.net.URL
-import java.sql.{Array => SqlArray, _}
+import java.sql.{ Array => SqlArray, _ }
 import java.util.Calendar
-import java.util.logging.{Level, Logger}
+import java.util.logging.{ Level, Logger }
 
-import org.joda.time.{DateTimeZone, LocalDateTime}
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 
 object YupanaPreparedStatement {
   private val LOGGER: Logger = Logger.getLogger(classOf[YupanaPreparedStatement].getName)
 }
 
 @throws[SQLException]
-class YupanaPreparedStatement protected[jdbc](connection: YupanaConnection, templateQuery: String)
-  extends YupanaStatement (connection) with PreparedStatement {
+class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, templateQuery: String)
+    extends YupanaStatement(connection)
+    with PreparedStatement {
 
   private var parameters = Map.empty[Int, ParameterValue]
 
@@ -39,11 +40,10 @@ class YupanaPreparedStatement protected[jdbc](connection: YupanaConnection, temp
   }
 
   @throws[SQLException]
-  override def addBatch (): Unit = {
-  }
+  override def addBatch(): Unit = {}
 
   @throws[SQLException]
-  override def clearParameters (): Unit = {
+  override def clearParameters(): Unit = {
     parameters = Map.empty
   }
 
@@ -71,62 +71,62 @@ class YupanaPreparedStatement protected[jdbc](connection: YupanaConnection, temp
   override def getParameterMetaData: ParameterMetaData = null
 
   @throws[SQLException]
-  override def setArray (parameterIndex: Int, x: SqlArray): Unit = {
+  override def setArray(parameterIndex: Int, x: SqlArray): Unit = {
     throw new SQLFeatureNotSupportedException("SqlArrays are not supported")
   }
 
   @throws[SQLException]
-  override def setAsciiStream (parameterIndex: Int, x: InputStream): Unit = {
+  override def setAsciiStream(parameterIndex: Int, x: InputStream): Unit = {
     throw new SQLFeatureNotSupportedException("InputStreams are not supported")
   }
 
   @throws[SQLException]
-  override def setAsciiStream (parameterIndex: Int, x: InputStream, length: Int): Unit = {
+  override def setAsciiStream(parameterIndex: Int, x: InputStream, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException("InputStreams are not supported")
   }
 
   @throws[SQLException]
-  override def setAsciiStream (parameterIndex: Int, x: InputStream, length: Long): Unit = {
+  override def setAsciiStream(parameterIndex: Int, x: InputStream, length: Long): Unit = {
     throw new SQLFeatureNotSupportedException("InputStreams are not supported")
   }
 
   @throws[SQLException]
-  override def setBigDecimal (parameterIndex: Int, x: java.math.BigDecimal): Unit = {
+  override def setBigDecimal(parameterIndex: Int, x: java.math.BigDecimal): Unit = {
     setParameter(parameterIndex, NumericValue(x))
   }
 
   @throws[SQLException]
-  override def setBinaryStream (parameterIndex: Int, x: InputStream): Unit = {
+  override def setBinaryStream(parameterIndex: Int, x: InputStream): Unit = {
     throw new SQLFeatureNotSupportedException("InputStreams are not supported")
   }
 
   @throws[SQLException]
-  override def setBinaryStream (parameterIndex: Int, x: InputStream, length: Int): Unit = {
+  override def setBinaryStream(parameterIndex: Int, x: InputStream, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException("InputStreams are not supported")
   }
 
   @throws[SQLException]
-  override def setBinaryStream (parameterIndex: Int, x: InputStream, length: Long): Unit = {
+  override def setBinaryStream(parameterIndex: Int, x: InputStream, length: Long): Unit = {
     throw new SQLFeatureNotSupportedException("InputStreams are not supported")
   }
 
   @throws[SQLException]
-  override def setBlob (parameterIndex: Int, x: Blob): Unit = {
+  override def setBlob(parameterIndex: Int, x: Blob): Unit = {
     throw new SQLFeatureNotSupportedException("Blobs are not supported")
   }
 
   @throws[SQLException]
-  override def setBlob (parameterIndex: Int, x: InputStream): Unit = {
+  override def setBlob(parameterIndex: Int, x: InputStream): Unit = {
     throw new SQLFeatureNotSupportedException("Blobs are not supported")
   }
 
   @throws[SQLException]
-  override def setBlob (parameterIndex: Int, x: InputStream, length: Long): Unit = {
+  override def setBlob(parameterIndex: Int, x: InputStream, length: Long): Unit = {
     throw new SQLFeatureNotSupportedException("Blobs are not supported")
   }
 
   @throws[SQLException]
-  override def setBoolean (parameterIndex: Int, x: Boolean): Unit = {
+  override def setBoolean(parameterIndex: Int, x: Boolean): Unit = {
     throw new SQLFeatureNotSupportedException("Booleans are not supported")
   }
 

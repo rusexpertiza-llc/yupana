@@ -18,7 +18,7 @@ package org.yupana.core.sql.parser
 
 import fastparse.WhitespaceApi
 import fastparse.all._
-import org.joda.time.{LocalDateTime, Period}
+import org.joda.time.{ LocalDateTime, Period }
 import org.yupana.core.sql.parser.ValueParser.IntervalPart
 
 trait ValueParser {
@@ -53,18 +53,24 @@ trait ValueParser {
 
   private val hours = P(twoDigitInt.filter(x => x >= 0 && x <= 23))
   private val minutes = P(twoDigitInt.filter(x => x >= 0 && x <= 59))
-  private val millis = P(digit.rep(min = 1, max = 3)
-    .map(s => (s.mkString + ("0" * (3 - s.length))).toInt))
+  private val millis = P(
+    digit
+      .rep(min = 1, max = 3)
+      .map(s => (s.mkString + ("0" * (3 - s.length))).toInt)
+  )
 
-  val time: Parser[(Int, Int, Int, Int)] = P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
+  val time: Parser[(Int, Int, Int, Int)] = P(
+    hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0))
+  )
 
   val dateAndTime: Parser[LocalDateTime] = P(date ~/ (" " ~ time).?).map {
-    case (y, m, d, None) => new LocalDateTime(y, m, d, 0, 0, 0, 0)
+    case (y, m, d, None)                  => new LocalDateTime(y, m, d, 0, 0, 0, 0)
     case (y, m, d, Some((h, mm, ss, ms))) => new LocalDateTime(y, m, d, h, mm, ss, ms)
   }
 
-  val duration: Parser[Period] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map { case (d, (h, m, s, ms)) =>
-    new Period(0, 0, 0, d.getOrElse(0), h, m, s, ms)
+  val duration: Parser[Period] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
+    case (d, (h, m, s, ms)) =>
+      new Period(0, 0, 0, d.getOrElse(0), h, m, s, ms)
   }
 
   private val pgTimestamp: Parser[LocalDateTime] = {
@@ -98,11 +104,14 @@ trait ValueParser {
       case v :: Nil => Some(P("'" ~ v.parser ~ "' " ~ IgnoreCase(v.name)).opaque(v.name))
 
       case v :: vs =>
-        val p = vs.map(p => P(p.parser ~ p.separator))
-          .reduceRight((a, b) => (b ~ a).map { case (x, y) => x plus y})
-        Some(P("'" ~ p ~ v.parser ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
-          .map { case (x, y) => x plus y }
-          .opaque(s"${vs.last.name} TO ${v.name}"))
+        val p = vs
+          .map(p => P(p.parser ~ p.separator))
+          .reduceRight((a, b) => (b ~ a).map { case (x, y) => x plus y })
+        Some(
+          P("'" ~ p ~ v.parser ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
+            .map { case (x, y) => x plus y }
+            .opaque(s"${vs.last.name} TO ${v.name}")
+        )
 
       case Nil => None
     }
@@ -110,13 +119,12 @@ trait ValueParser {
     parsers.reduceLeft(_ | _)
   }
 
-
   val periodValue: Parser[PeriodValue] = {
     import white._
     P(intervalWord ~/ (duration | singleFieldDuration)).map(PeriodValue)
   }
 
-  val value: Parser[Value] = P(numericValue | timestampValue  | periodValue | stringValue | placeholder)
+  val value: Parser[Value] = P(numericValue | timestampValue | periodValue | stringValue | placeholder)
 }
 
 object ValueParser {

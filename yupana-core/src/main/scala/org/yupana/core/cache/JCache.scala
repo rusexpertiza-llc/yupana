@@ -18,7 +18,7 @@ package org.yupana.core.cache
 
 import java.util
 
-import javax.cache.{Cache => JavaCache}
+import javax.cache.{ Cache => JavaCache }
 
 import scala.collection.JavaConverters._
 
@@ -32,7 +32,7 @@ class JCache[K, V](underlying: JavaCache[K, V]) extends Cache[K, V] {
   override def contains(key: K): Boolean = underlying.containsKey(key)
 
   override def putAll(batch: Map[K, V]): Unit = {
-    val treeMap = new util.TreeMap[K,V]()
+    val treeMap = new util.TreeMap[K, V]()
     treeMap.putAll(batch.asJava)
     underlying.putAll(treeMap)
   }

@@ -31,13 +31,13 @@ import org.yupana.api.types.UnaryOperation
   * @param toTable table to write data
   */
 case class Rollup(
-  name: String,
-  filter: Option[Condition],
-  groupBy: Seq[Expression],
-  fields: Seq[QueryFieldProjection],
-  downsamplingInterval: Option[DateTimeFieldType],
-  fromTable: Table,
-  toTable: Table
+    name: String,
+    filter: Option[Condition],
+    groupBy: Seq[Expression],
+    fields: Seq[QueryFieldProjection],
+    downsamplingInterval: Option[DateTimeFieldType],
+    fromTable: Table,
+    toTable: Table
 ) extends Serializable {
 
   lazy val timeExpr: Expression = downsamplingInterval match {

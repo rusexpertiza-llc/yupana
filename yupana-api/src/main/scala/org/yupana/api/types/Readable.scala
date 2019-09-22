@@ -16,7 +16,7 @@
 
 package org.yupana.api.types
 
-import java.math.{BigInteger, BigDecimal => JavaBigDecimal}
+import java.math.{ BigInteger, BigDecimal => JavaBigDecimal }
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
@@ -33,6 +33,7 @@ import scala.reflect.ClassTag
   */
 @implicitNotFound("No member of type class Readable for class ${T} is found")
 trait Readable[T] extends Serializable {
+
   /**
     * Reads an object from array of bytes
     * @param a bytes to be read
@@ -56,7 +57,9 @@ object Readable {
   implicit val longReadable: Readable[Long] = of(readVLong)
   implicit val stringReadable: Readable[String] = of(readString)
   implicit val timestampReadable: Readable[Time] = of(bb => Time(longReadable.read(bb)))
-  implicit val periodReadable: Readable[Period] = of(bb => ISOPeriodFormat.standard().parsePeriod(stringReadable.read(bb)))
+  implicit val periodReadable: Readable[Period] = of(
+    bb => ISOPeriodFormat.standard().parsePeriod(stringReadable.read(bb))
+  )
 
   implicit def arrayReadable[T](implicit rt: Readable[T], ct: ClassTag[T]): Readable[Array[T]] = of(readArray(rt))
 
@@ -87,7 +90,8 @@ object Readable {
 
   private def readVInt(bb: ByteBuffer): Int = {
     val l = readVLong(bb)
-    if (l <= Int.MaxValue && l >= Int.MinValue) l.toInt else throw new IllegalArgumentException("Got Long but Int expected")
+    if (l <= Int.MaxValue && l >= Int.MinValue) l.toInt
+    else throw new IllegalArgumentException("Got Long but Int expected")
   }
 
   private def readVLong(bb: ByteBuffer): Long = {
@@ -95,13 +99,13 @@ object Readable {
 
     val len = if (first >= -112) {
       1
-    } else if (first >= - 120) {
+    } else if (first >= -120) {
       -111 - first
     } else {
       -119 - first
     }
 
-    var result = 0l
+    var result = 0L
 
     if (len == 1) {
       first

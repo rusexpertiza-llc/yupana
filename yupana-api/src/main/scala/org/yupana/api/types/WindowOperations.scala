@@ -23,8 +23,10 @@ import scala.annotation.implicitNotFound
   * @tparam T input type
   */
 trait WindowOperation[T] extends Serializable {
+
   /** result type */
   type Out
+
   /** This operation name */
   val name: String
 
@@ -47,10 +49,15 @@ object WindowOperation {
 
   def lag[T](implicit dt: DataType.Aux[T]): WindowOperation.Aux[T, T] = create(LAG, _.lag, dt)
 
-  def create[T, V](n: String, f: WindowOperations => (Array[Option[T]], Int) => Option[V], dt: DataType.Aux[V]): Aux[T, V] = new WindowOperation[T] {
+  def create[T, V](
+      n: String,
+      f: WindowOperations => (Array[Option[T]], Int) => Option[V],
+      dt: DataType.Aux[V]
+  ): Aux[T, V] = new WindowOperation[T] {
     override type Out = V
     override val name: String = n
-    override def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[V] = f(wo)(values, index)
+    override def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[V] =
+      f(wo)(values, index)
     override val dataType: DataType.Aux[V] = dt
   }
 
@@ -64,16 +71,17 @@ case class TypeWindowOperations[T](operations: Map[String, WindowOperation[T]]) 
 object TypeWindowOperations {
   import WindowOperation._
 
-  def getFunction(name:String, dataType: DataType): Option[WindowOperation.Aux[dataType.T, dataType.T]] = {
+  def getFunction(name: String, dataType: DataType): Option[WindowOperation.Aux[dataType.T, dataType.T]] = {
     name match {
       case LAG => Some(WindowOperation.lag(dataType))
-      case _ => None
+      case _   => None
     }
   }
 
-  def apply[T: DataType.Aux](ops: (String, WindowOperation[T])*): TypeWindowOperations[T] = TypeWindowOperations[T](Map(ops:_*))
+  def apply[T: DataType.Aux](ops: (String, WindowOperation[T])*): TypeWindowOperations[T] =
+    TypeWindowOperations[T](Map(ops: _*))
 
-  implicit def typeIndependence[T : DataType.Aux]: TypeWindowOperations[T] = TypeWindowOperations(
+  implicit def typeIndependence[T: DataType.Aux]: TypeWindowOperations[T] = TypeWindowOperations(
     LAG -> WindowOperation.lag
   )
 }

@@ -18,7 +18,7 @@ package org.yupana.api.schema
 
 case class Dimension(name: String, hashFunction: Option[String => Int] = None) {
 
-  def hash(v: String): Int  = _hash(v)
+  def hash(v: String): Int = _hash(v)
 
   private val _hash: String => Int = hashFunction.getOrElse(zeroHash)
 
@@ -28,7 +28,7 @@ case class Dimension(name: String, hashFunction: Option[String => Int] = None) {
 
   override def equals(obj: Any): Boolean = obj match {
     case Dimension(n, _) => name == n
-    case _ => false
+    case _               => false
   }
 
   override def toString: String = s"Dimension($name)"

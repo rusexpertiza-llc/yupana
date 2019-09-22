@@ -16,7 +16,7 @@
 
 package org.yupana.examples
 
-import org.yupana.api.schema.{Schema, Table}
+import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.schema.SchemaRegistry
 
 object ExampleSchema {

@@ -22,6 +22,7 @@ package org.yupana.api.schema
   * @param rollups list of rollups available for this schema
   */
 class Schema(val tables: Map[String, Table], val rollups: Seq[Rollup]) extends Serializable {
+
   /** Get table by name */
   def getTable(name: String): Option[Table] = tables.get(name)
 
@@ -44,6 +45,7 @@ class Schema(val tables: Map[String, Table], val rollups: Seq[Rollup]) extends S
 }
 
 object Schema {
+
   /**
     * Creates table for sequence of tables.
     * @param tables tables in this schema

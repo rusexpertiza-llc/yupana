@@ -45,22 +45,24 @@ case class EmptyFilter[T]() extends DimensionFilter[T] {
 case class FiltersCollection[T](conditions: Map[Dimension, Set[T]]) extends DimensionFilter[T] {
 
   override def and(tagFilter: DimensionFilter[T]): DimensionFilter[T] = tagFilter match {
-    case NoResult() => NoResult()
+    case NoResult()    => NoResult()
     case EmptyFilter() => this
     case FiltersCollection(cs) =>
-      val newConditions = conditions ++ cs.map { case (tag, ids) =>
-        tag -> conditions.get(tag).map(_ intersect ids).getOrElse(ids)
+      val newConditions = conditions ++ cs.map {
+        case (tag, ids) =>
+          tag -> conditions.get(tag).map(_ intersect ids).getOrElse(ids)
       }
 
       DimensionFilter[T](newConditions)
   }
 
   override def or(tagFilter: DimensionFilter[T]): DimensionFilter[T] = tagFilter match {
-    case NoResult() => this
+    case NoResult()    => this
     case EmptyFilter() => EmptyFilter()
     case FiltersCollection(cs) =>
-      val newConditions = conditions ++ cs.map { case (tag, ids) =>
-        tag -> conditions.get(tag).map(_ union ids).getOrElse(ids)
+      val newConditions = conditions ++ cs.map {
+        case (tag, ids) =>
+          tag -> conditions.get(tag).map(_ union ids).getOrElse(ids)
       }
 
       DimensionFilter[T](newConditions)
@@ -69,14 +71,16 @@ case class FiltersCollection[T](conditions: Map[Dimension, Set[T]]) extends Dime
   override def exclude(tagFilter: DimensionFilter[T]): DimensionFilter[T] = tagFilter match {
     case NoResult() | EmptyFilter() => this
     case FiltersCollection(cs) =>
-      val newConditions = conditions.map { case (tag, ids) =>
-        tag -> (ids -- cs.getOrElse(tag, Set.empty))
+      val newConditions = conditions.map {
+        case (tag, ids) =>
+          tag -> (ids -- cs.getOrElse(tag, Set.empty))
       }
 
       DimensionFilter[T](newConditions)
   }
 
-  override def map[U](f: (Dimension, Set[T]) => (Dimension, Set[U])): DimensionFilter[U] = DimensionFilter(conditions.map(f.tupled))
+  override def map[U](f: (Dimension, Set[T]) => (Dimension, Set[U])): DimensionFilter[U] =
+    DimensionFilter(conditions.map(f.tupled))
 
   override def toMap: Map[Dimension, Set[T]] = conditions
 }

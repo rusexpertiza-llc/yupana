@@ -19,13 +19,13 @@ package org.yupana.examples.externallinks
 import java.util.Properties
 
 import org.springframework.jdbc.core.JdbcTemplate
-import org.yupana.api.schema.{Dimension, ExternalLink}
+import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.TsdbBase
-import org.yupana.externallinks.universal.JsonCatalogs.{SQLExternalLinkConnection, SQLExternalLinkDescription}
+import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLinkConnection, SQLExternalLinkDescription }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
-import org.yupana.schema.{Dimensions, SchemaRegistry}
+import org.yupana.schema.{ Dimensions, SchemaRegistry }
 
-trait OrganisationCatalog extends ExternalLink{
+trait OrganisationCatalog extends ExternalLink {
 
   val TYPE = "type"
   val ID = "id"
@@ -40,13 +40,16 @@ trait OrganisationCatalog extends ExternalLink{
 object OrganisationCatalog extends OrganisationCatalog
 
 object OrganisationCatalogImpl {
-  val description: SQLExternalLinkDescription = SQLExternalLinkDescription(OrganisationCatalog,
+  val description: SQLExternalLinkDescription = SQLExternalLinkDescription(
+    OrganisationCatalog,
     SchemaRegistry.defaultSchema.tables.map(_._2.name).toSeq,
-    Some(Map(
-      OrganisationCatalog.TYPE -> "o.type",
-      OrganisationCatalog.ID -> "o.org_id",
-      Dimensions.KKM_ID_TAG.name -> "k.device_id"
-    )),
+    Some(
+      Map(
+        OrganisationCatalog.TYPE -> "o.type",
+        OrganisationCatalog.ID -> "o.org_id",
+        Dimensions.KKM_ID_TAG.name -> "k.device_id"
+      )
+    ),
     Some("kkms k INNER JOIN organisations o on k.org_id = o.id")
   )
 
@@ -60,4 +63,4 @@ object OrganisationCatalogImpl {
 }
 
 class OrganisationCatalogImpl(tsdb: TsdbBase, jdbcTemplate: JdbcTemplate)
-  extends SQLSourcedExternalLinkService(OrganisationCatalog, OrganisationCatalogImpl.description, jdbcTemplate, tsdb)
+    extends SQLSourcedExternalLinkService(OrganisationCatalog, OrganisationCatalogImpl.description, jdbcTemplate, tsdb)

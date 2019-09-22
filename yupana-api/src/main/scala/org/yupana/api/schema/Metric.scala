@@ -22,6 +22,7 @@ import org.yupana.api.types.DataType
   * Defines metrics in some table.
   */
 trait Metric extends Serializable {
+
   /** Type of a value for this metric */
   type T
 

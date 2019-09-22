@@ -17,7 +17,7 @@
 package org.yupana.api.query.syntax
 
 trait All
-  extends ExpressionSyntax
+    extends ExpressionSyntax
     with ConditionSyntax
     with DataTypeConverterSyntax
     with AggregationSyntax

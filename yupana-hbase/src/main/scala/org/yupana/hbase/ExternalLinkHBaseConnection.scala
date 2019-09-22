@@ -20,8 +20,8 @@ import java.io.IOException
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{Connection, ConnectionFactory, Table}
-import org.apache.hadoop.hbase.{HBaseConfiguration, HTableDescriptor, TableExistsException, TableName}
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table }
+import org.apache.hadoop.hbase.{ HBaseConfiguration, HTableDescriptor, TableExistsException, TableName }
 
 class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) extends StrictLogging {
   protected lazy val connection: Connection = createConnectionAndNamespace

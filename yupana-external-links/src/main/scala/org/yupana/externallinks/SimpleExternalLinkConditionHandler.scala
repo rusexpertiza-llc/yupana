@@ -16,7 +16,7 @@
 
 package org.yupana.externallinks
 
-import org.yupana.api.query.{Condition, EmptyCondition}
+import org.yupana.api.query.{ Condition, EmptyCondition }
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.utils.TimeBoundedCondition

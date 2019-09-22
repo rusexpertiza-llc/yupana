@@ -51,9 +51,14 @@ object KMeans {
 
         val rndSum = rand.nextFloat() * sumDx2
 
-        val mean = xs.iterator.scanLeft(0l -> 0d) { case ((_, sum), x) =>
-          x -> (sum + dx2(x, means))
-        }.find { case (_, sum) => sum > 0 && sum > rndSum }.get._1
+        val mean = xs.iterator
+          .scanLeft(0L -> 0d) {
+            case ((_, sum), x) =>
+              x -> (sum + dx2(x, means))
+          }
+          .find { case (_, sum) => sum > 0 && sum > rndSum }
+          .get
+          ._1
 
         nextMean(means :+ mean)
       }
@@ -76,9 +81,10 @@ object KMeans {
     xs.groupBy(x => findClosest(x, means))
   }
 
-  private def updateMeans(partitions: Map[Long, Seq[Long]]): Seq[Long]= {
-    partitions.map { case (mean, xs) =>
-      xs.sum / xs.size
+  private def updateMeans(partitions: Map[Long, Seq[Long]]): Seq[Long] = {
+    partitions.map {
+      case (mean, xs) =>
+        xs.sum / xs.size
     }.toSeq
   }
 

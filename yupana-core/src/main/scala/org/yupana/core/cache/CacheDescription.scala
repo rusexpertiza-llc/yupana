@@ -30,7 +30,7 @@ abstract class CacheDescription(val name: String, val suffix: String, val engine
   override def equals(obj: scala.Any): Boolean = {
     obj match {
       case that: CacheDescription => this.name == that.name && this.suffix == that.suffix && this.engine == that.engine
-      case _ => false
+      case _                      => false
     }
   }
 
@@ -41,11 +41,12 @@ abstract class CacheDescription(val name: String, val suffix: String, val engine
 }
 
 object CacheDescription {
-  type Aux[K, V] = CacheDescription { type Key = K ; type Value = V}
+  type Aux[K, V] = CacheDescription { type Key = K; type Value = V }
 
-  def apply[K, V](name: String, suffix: String, engine: CacheEngine)(implicit
-    kTag: BoxingTag[K],
-    vTag: BoxingTag[V]
+  def apply[K, V](name: String, suffix: String, engine: CacheEngine)(
+      implicit
+      kTag: BoxingTag[K],
+      vTag: BoxingTag[V]
   ): CacheDescription.Aux[K, V] = {
     new CacheDescription(name, suffix, engine) {
       override type Key = K

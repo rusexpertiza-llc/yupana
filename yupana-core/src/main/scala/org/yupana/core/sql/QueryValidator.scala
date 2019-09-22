@@ -31,18 +31,18 @@ trait QueryValidator {
           case QueryField(name, e) =>
             e.kind match {
               case Aggregate => Some(s"Aggregation defined for field $name together with window functions")
-              case Invalid => Some(s"Invalid expression '$e' for field $name")
-              case _ => None
+              case Invalid   => Some(s"Invalid expression '$e' for field $name")
+              case _         => None
             }
         }
       } else {
         query.fields.flatMap {
           case QueryField(name, e) =>
             e.kind match {
-              case Const | Aggregate | Window => None
+              case Const | Aggregate | Window          => None
               case Simple if query.groupBy.contains(e) => None
-              case Simple => Some(s"Aggregate function is not defined for field $name")
-              case Invalid => Some(s"Invalid expression '$e' for field $name")
+              case Simple                              => Some(s"Aggregate function is not defined for field $name")
+              case Invalid                             => Some(s"Invalid expression '$e' for field $name")
             }
         }
       }
@@ -51,15 +51,15 @@ trait QueryValidator {
         case QueryField(name, e) =>
           e.kind match {
             case Aggregate => Some(s"Aggregation is defined for field $name without group by")
-            case Invalid => Some(s"Invalid expression '$e' for field $name")
-            case _ => None
+            case Invalid   => Some(s"Invalid expression '$e' for field $name")
+            case _         => None
           }
       }
     }
 
     if (errors.nonEmpty) {
       Left(errors mkString ", ")
-    } else  {
+    } else {
       Right(query)
     }
   }

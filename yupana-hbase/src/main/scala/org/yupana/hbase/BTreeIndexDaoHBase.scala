@@ -16,18 +16,18 @@
 
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{Get, Put}
+import org.apache.hadoop.hbase.client.{ Get, Put }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor}
+import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor }
 
 import scala.collection.JavaConverters._
 
 class BTreeIndexDaoHBase[K, V](
-  connection: ExternalLinkHBaseConnection,
-  tableName: String,
-  keySerializer: K => Array[Byte],
-  valueSerializer: V => Array[Byte],
-  valueDeserializer: Array[Byte] => V
+    connection: ExternalLinkHBaseConnection,
+    tableName: String,
+    keySerializer: K => Array[Byte],
+    valueSerializer: V => Array[Byte],
+    valueDeserializer: Array[Byte] => V
 ) {
 
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
@@ -45,7 +45,7 @@ class BTreeIndexDaoHBase[K, V](
     new Put(keySerializer(key)).addColumn(FAMILY, QUALIFIER, valueSerializer(value))
   }
 
-  def batchPut(batch: Seq[(K,V)]) = {
+  def batchPut(batch: Seq[(K, V)]) = {
     val puts = batch.map { case (key, value) => createPutOperation(key, value) }
     val table = connection.getTable(tableName)
     table.put(puts.asJava)

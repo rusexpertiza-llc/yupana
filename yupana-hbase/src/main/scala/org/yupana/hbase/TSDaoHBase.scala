@@ -18,27 +18,33 @@ package org.yupana.hbase
 
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics
-import org.apache.hadoop.hbase.client.{Connection, Get, Put, Scan}
+import org.apache.hadoop.hbase.client.{ Connection, Get, Put, Scan }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.Table
 import org.yupana.core.MapReducible
-import org.yupana.core.dao.{DictionaryProvider, TSDao}
+import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
 
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 
-class TSDaoHBase(connection: Connection,
-                 namespace: String,
-                 override val dictionaryProvider: DictionaryProvider,
-                 putsBatchSize: Int = 1000
-                ) extends TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
+class TSDaoHBase(
+    connection: Connection,
+    namespace: String,
+    override val dictionaryProvider: DictionaryProvider,
+    putsBatchSize: Int = 1000
+) extends TSDaoHBaseBase[Iterator]
+    with TSDao[Iterator, Long] {
 
   override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
-  override def executeScans(table: Table, scans: Seq[Scan], metricCollector: MetricQueryCollector): Iterator[TSDOutputRow[Long]] = {
+  override def executeScans(
+      table: Table,
+      scans: Seq[Scan],
+      metricCollector: MetricQueryCollector
+  ): Iterator[TSDOutputRow[Long]] = {
     import HBaseUtils._
 
     if (scans.nonEmpty) {
@@ -72,13 +78,14 @@ class TSDaoHBase(connection: Connection,
     logger.trace(s"Put ${dataPoints.size} dataPoints to tsdb")
     logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPoints.mkString("\r\n")}")
 
-    createTsdRows(dataPoints, dictionaryProvider).foreach { case (table, rows) =>
-      val hbaseTable = connection.getTable(tableName(namespace, table))
-      rows
-        .map(createPutOperation)
-        .sliding(putsBatchSize, putsBatchSize)
-        .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-      logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: \r\n ${rows.mkString("\r\n")}")
+    createTsdRows(dataPoints, dictionaryProvider).foreach {
+      case (table, rows) =>
+        val hbaseTable = connection.getTable(tableName(namespace, table))
+        rows
+          .map(createPutOperation)
+          .sliding(putsBatchSize, putsBatchSize)
+          .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
+        logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: \r\n ${rows.mkString("\r\n")}")
     }
   }
 
@@ -101,14 +108,20 @@ class TSDaoHBase(connection: Connection,
   override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
     val hbaseTable = connection.getTable(tableName(namespace, table))
-    val puts = statuses.map(status =>
-      new Put(Bytes.toBytes(status._1))
-        .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
+    val puts = statuses.map(
+      status =>
+        new Put(Bytes.toBytes(status._1))
+          .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
     )
     hbaseTable.put(puts.asJava)
   }
 
-  override def checkAndPutRollupStatus(time: Long, oldStatus: Option[String], newStatus: String, table: Table): Boolean = {
+  override def checkAndPutRollupStatus(
+      time: Long,
+      oldStatus: Option[String],
+      newStatus: String,
+      table: Table
+  ): Boolean = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
     val hbaseTable = connection.getTable(tableName(namespace, table))
     hbaseTable.checkAndPut(

@@ -17,12 +17,12 @@
 package org.yupana.schema
 
 import org.joda.time.DateTimeFieldType
-import org.yupana.api.query.{DimensionExpr, Expression}
+import org.yupana.api.query.{ DimensionExpr, Expression }
 import org.yupana.api.schema.Rollup
 
 object ReceiptRollups {
   import org.yupana.schema.ReceiptTableMetrics.ReceiptRollupFields._
-  
+
   val receiptDayRollup = Rollup(
     name = "receiptByDay",
     filter = None,
@@ -58,8 +58,7 @@ object ReceiptRollups {
   val receiptMonthRollup = Rollup(
     name = "receiptByMonth",
     filter = None,
-    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID_TAG),
-      DimensionExpr(Dimensions.OPERATION_TYPE_TAG)),
+    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID_TAG), DimensionExpr(Dimensions.OPERATION_TYPE_TAG)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,

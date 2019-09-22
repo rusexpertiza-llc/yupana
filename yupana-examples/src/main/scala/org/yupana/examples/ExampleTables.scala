@@ -17,7 +17,7 @@
 package org.yupana.examples
 
 import org.yupana.api.schema.Table
-import org.yupana.examples.externallinks.{AddressCatalog, OrganisationCatalog}
+import org.yupana.examples.externallinks.{ AddressCatalog, OrganisationCatalog }
 import org.yupana.schema.Tables
 
 object ExampleTables {

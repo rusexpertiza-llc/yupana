@@ -28,7 +28,8 @@ trait Result extends immutable.Iterable[DataRow] {
   def dataIndexForFieldIndex(idx: Int): Int
   def rows: Iterator[Array[Option[Any]]]
 
-  override def iterator: Iterator[DataRow] = rows.map(r => new DataRow(r, dataIndexForFieldName, dataIndexForFieldIndex))
+  override def iterator: Iterator[DataRow] =
+    rows.map(r => new DataRow(r, dataIndexForFieldName, dataIndexForFieldIndex))
 
   override def size: Int = rows.size
 }
@@ -48,9 +49,8 @@ object Result {
   }
 }
 
-case class SimpleResult(fieldNames: Seq[String],
-                        dataTypes: Seq[DataType],
-                        rows: Iterator[Array[Option[Any]]]) extends Result {
+case class SimpleResult(fieldNames: Seq[String], dataTypes: Seq[DataType], rows: Iterator[Array[Option[Any]]])
+    extends Result {
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap
 
@@ -58,7 +58,11 @@ case class SimpleResult(fieldNames: Seq[String],
   override def dataIndexForFieldIndex(idx: Int): Int = idx
 }
 
-class DataRow(val fields: Array[Option[Any]], dataIndexForFieldName: String => Int, dataIndexForFieldIndex: Int => Int) {
+class DataRow(
+    val fields: Array[Option[Any]],
+    dataIndexForFieldName: String => Int,
+    dataIndexForFieldIndex: Int => Int
+) {
 
   def fieldValueByName[T](name: String): Option[T] = {
     fields(dataIndexForFieldName(name)).asInstanceOf[Option[T]]

@@ -17,12 +17,12 @@
 package org.yupana.jdbc
 
 import java.nio.channels.ReadableByteChannel
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.{ ByteBuffer, ByteOrder }
 
 class FramingChannelIterator(
-  channel: ReadableByteChannel,
-  frameSize: Int
-) extends Iterator[Array[Byte]]{
+    channel: ReadableByteChannel,
+    frameSize: Int
+) extends Iterator[Array[Byte]] {
 
   private val buffer = createBuffer
 
@@ -64,7 +64,8 @@ class FramingChannelIterator(
       totalRead += read(dst, totalRead)
     }
 
-    if (totalRead < bytesRequired) throw new IllegalStateException(s"$bytesRequired bytes requested but got only $totalRead")
+    if (totalRead < bytesRequired)
+      throw new IllegalStateException(s"$bytesRequired bytes requested but got only $totalRead")
 
     totalRead
   }
@@ -88,4 +89,4 @@ class FramingChannelIterator(
     totalRead
   }
 
- }
+}

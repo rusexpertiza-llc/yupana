@@ -22,6 +22,7 @@ package org.yupana.api.schema
   * about address, so you can query data by city.
   */
 trait ExternalLink extends Serializable {
+
   /** Name of this external link */
   val linkName: String
 
@@ -38,7 +39,7 @@ trait ExternalLink extends Serializable {
 
   override def equals(obj: Any): Boolean = obj match {
     case that: ExternalLink => this.linkName == that.linkName
-    case _ => false
+    case _                  => false
   }
 
   override def toString: String = s"ExternalLink($linkName)"

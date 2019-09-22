@@ -19,10 +19,10 @@ package org.yupana.examples.spark.queryrunner
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.sql.parser.{Select, SqlParser}
+import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
-import org.yupana.spark.{DataRowRDD, SparkConfUtils}
+import org.yupana.spark.{ DataRowRDD, SparkConfUtils }
 
 object QueryRunner {
 

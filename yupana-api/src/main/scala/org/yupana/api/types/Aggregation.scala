@@ -31,10 +31,13 @@ import org.yupana.api.Time
   * @tparam T input type of aggregation
   */
 trait Aggregation[T] extends Serializable {
+
   /** Type after first map operation */
   type Interim
+
   /** Output type */
   type Out
+
   /** This aggregation name */
   val name: String
 
@@ -90,18 +93,20 @@ object Aggregation {
 
   def distinctCount[T]: Aggregation.Aux[T, Set[T], Int] = create(DISTINCT_COUNT, _.distinctCount, DataType[Int])
 
-  def distinctRandom[T](implicit dt: DataType.Aux[T]): Aggregation.Aux[T, Set[T], T] = create(DISTINCT_RANDOM, _.distinctRandom, dt)
+  def distinctRandom[T](implicit dt: DataType.Aux[T]): Aggregation.Aux[T, Set[T], T] =
+    create(DISTINCT_RANDOM, _.distinctRandom, dt)
 
-  def create[T, U, V](n: String, f: Aggregations => AggregationImpl[T, U, V], dt: DataType.Aux[V]): Aux[T, U, V] = new Aggregation[T] {
-    override type Out = V
-    override type Interim = U
-    override val name: String = n
-    override def map(t: T)(implicit a: Aggregations): U = f(a).map(t)
-    override def reduce(x: U, y: U)(implicit a: Aggregations): U = f(a).reduce(x, y)
-    override def postMap(x: U)(implicit a: Aggregations): V = f(a).postMap(x)
+  def create[T, U, V](n: String, f: Aggregations => AggregationImpl[T, U, V], dt: DataType.Aux[V]): Aux[T, U, V] =
+    new Aggregation[T] {
+      override type Out = V
+      override type Interim = U
+      override val name: String = n
+      override def map(t: T)(implicit a: Aggregations): U = f(a).map(t)
+      override def reduce(x: U, y: U)(implicit a: Aggregations): U = f(a).reduce(x, y)
+      override def postMap(x: U)(implicit a: Aggregations): V = f(a).postMap(x)
 
-    override val dataType: DataType.Aux[Out] = dt
-  }
+      override val dataType: DataType.Aux[Out] = dt
+    }
 
   lazy val stringAggregations: Map[String, Aggregation[String]] = Map(
     MAX -> Aggregation.max[String](Ordering[String], DataType[String]),
@@ -119,7 +124,7 @@ object Aggregation {
     DISTINCT_RANDOM -> Aggregation.distinctRandom[Time]
   )
 
-  def intAggregations[T](dt: DataType.Aux[T])(implicit i: Integral[T]): Map[String, Aggregation[T]]  = Map(
+  def intAggregations[T](dt: DataType.Aux[T])(implicit i: Integral[T]): Map[String, Aggregation[T]] = Map(
     SUM -> Aggregation.sum[T](i, dt),
     MAX -> Aggregation.max[T](i, dt),
     MIN -> Aggregation.min[T](i, dt),
@@ -128,7 +133,7 @@ object Aggregation {
     DISTINCT_RANDOM -> Aggregation.distinctRandom[T](dt)
   )
 
-  def fracAggregations[T](dt: DataType.Aux[T])(implicit f: Fractional[T]): Map[String, Aggregation[T]]  = Map(
+  def fracAggregations[T](dt: DataType.Aux[T])(implicit f: Fractional[T]): Map[String, Aggregation[T]] = Map(
     SUM -> Aggregation.sum[T](f, dt),
     MAX -> Aggregation.max[T](f, dt),
     MIN -> Aggregation.min[T](f, dt),

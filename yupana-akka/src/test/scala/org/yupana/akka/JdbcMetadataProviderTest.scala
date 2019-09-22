@@ -1,6 +1,6 @@
 package org.yupana.akka
 
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
+import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
 
@@ -19,7 +19,11 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
     val r = res.iterator.next
     val cols = metadataProvider.tableFieldNames.map(r.fieldValueByName[String])
     cols should contain theSameElementsInOrderAs Seq(
-      None, None, Some("s1"), Some("TABLE"), None
+      None,
+      None,
+      Some("s1"),
+      Some("TABLE"),
+      None
     )
   }
 

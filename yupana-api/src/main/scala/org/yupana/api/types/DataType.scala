@@ -37,11 +37,12 @@ trait DataType extends Serializable {
 
   override def equals(obj: scala.Any): Boolean = {
     if (obj == null) false
-    else obj match {
-      case that: DataType =>
-        this.meta == that.meta
-      case _ => false
-    }
+    else
+      obj match {
+        case that: DataType =>
+          this.meta == that.meta
+        case _ => false
+      }
   }
 
   override def toString: String = s"${meta.sqlTypeName}"
@@ -72,10 +73,10 @@ object DataType {
 
   implicit val periodDt: DataType.Aux[Period] = DataType[Period](r => TypeOperations.periodOperations(r))
 
-  implicit def intDt[T: Readable : Writable : DataTypeMeta : Integral : ClassTag]: DataType.Aux[T] =
+  implicit def intDt[T: Readable: Writable: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
 
-  implicit def fracDt[T: Readable : Writable : DataTypeMeta : Fractional : ClassTag]: DataType.Aux[T] =
+  implicit def fracDt[T: Readable: Writable: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
@@ -102,11 +103,12 @@ object DataType {
     }
   }
 
-  private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(implicit
-                                                                        r: Readable[TT],
-                                                                        w: Writable[TT],
-                                                                        m: DataTypeMeta[TT],
-                                                                        ct: ClassTag[TT]
+  private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(
+      implicit
+      r: Readable[TT],
+      w: Writable[TT],
+      m: DataTypeMeta[TT],
+      ct: ClassTag[TT]
   ): DataType.Aux[TT] = new DataType {
     override type T = TT
     override val meta: DataTypeMeta[T] = m

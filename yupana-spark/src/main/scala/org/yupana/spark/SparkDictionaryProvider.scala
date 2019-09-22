@@ -20,7 +20,7 @@ import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.schema.Dimension
 import org.yupana.core.Dictionary
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{DictionaryDao, DictionaryProvider}
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider }
 import org.yupana.hbase.DictionaryDaoHBase
 
 class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Serializable {
@@ -39,7 +39,10 @@ class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Se
     SparkDictionaryProvider.dictionaryDao match {
       case Some(dao) => dao
       case None =>
-        val dao = new DictionaryDaoHBase(ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)), config.hbaseNamespace)
+        val dao = new DictionaryDaoHBase(
+          ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
+          config.hbaseNamespace
+        )
         SparkDictionaryProvider.dictionaryDao = Some(dao)
         dao
     }

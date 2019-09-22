@@ -17,9 +17,9 @@
 package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{Result, Scan}
+import org.apache.hadoop.hbase.client.{ Result, Scan }
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, MultiTableInputFormat, TableMapReduceUtil}
+import org.apache.hadoop.hbase.mapreduce.{ IdentityTableMapper, MultiTableInputFormat, TableMapReduceUtil }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapreduce.Job
@@ -30,18 +30,24 @@ import org.yupana.api.schema.Table
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.hbase.{HBaseUtils, HdfsFileUtils, TSDOutputRow, TSDaoHBaseBase}
+import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TSDOutputRow, TSDaoHBaseBase }
 
 import scala.collection.JavaConverters._
 
-class TsDaoHBaseSpark(@transient val sparkContext: SparkContext,
-                      config: Config,
-                      override val dictionaryProvider: DictionaryProvider
-                     ) extends TSDaoHBaseBase[RDD] with Serializable {
+class TsDaoHBaseSpark(
+    @transient val sparkContext: SparkContext,
+    config: Config,
+    override val dictionaryProvider: DictionaryProvider
+) extends TSDaoHBaseBase[RDD]
+    with Serializable {
 
   override val mr: MapReducible[RDD] = new RddMapReducible(sparkContext)
 
-  override def executeScans(table: Table, scans: Seq[Scan], metricCollector: MetricQueryCollector): RDD[TSDOutputRow[Long]] = {
+  override def executeScans(
+      table: Table,
+      scans: Seq[Scan],
+      metricCollector: MetricQueryCollector
+  ): RDD[TSDOutputRow[Long]] = {
     if (scans.nonEmpty) {
       val tableName = Bytes.toBytes(HBaseUtils.tableNameString(config.hbaseNamespace, table))
       val rdds = scans.sliding(config.rowKeyBatchSize, config.rowKeyBatchSize).map { qs =>
@@ -66,10 +72,12 @@ class TsDaoHBaseSpark(@transient val sparkContext: SparkContext,
       job.getConfiguration,
       classOf[MultiTableInputFormat],
       classOf[ImmutableBytesWritable],
-      classOf[Result])
+      classOf[Result]
+    )
 
-    hbaseRdd.map { case (_, hbaseResult) =>
-      HBaseUtils.getTsdRowFromResult(table, hbaseResult)
+    hbaseRdd.map {
+      case (_, hbaseResult) =>
+        HBaseUtils.getTsdRowFromResult(table, hbaseResult)
     }
   }
 }

@@ -17,8 +17,8 @@
 package org.yupana.api.query.syntax
 
 import org.yupana.api.Time
-import org.yupana.api.query.{Expression, UnaryOperationExpr}
-import org.yupana.api.types.{DataType, UnaryOperation}
+import org.yupana.api.query.{ Expression, UnaryOperationExpr }
+import org.yupana.api.types.{ DataType, UnaryOperation }
 
 trait UnaryOperationSyntax {
   def truncYear(e: Expression.Aux[Time]) = UnaryOperationExpr(UnaryOperation.truncYear, e)
@@ -42,8 +42,10 @@ trait UnaryOperationSyntax {
 
   def not(e: Expression.Aux[Boolean]) = UnaryOperationExpr(UnaryOperation.not, e)
 
-  def abs[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = UnaryOperationExpr(UnaryOperation.abs, e)
-  def minus[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = UnaryOperationExpr(UnaryOperation.minus, e)
+  def abs[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
+    UnaryOperationExpr(UnaryOperation.abs, e)
+  def minus[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
+    UnaryOperationExpr(UnaryOperation.minus, e)
 }
 
 object UnaryOperationSyntax extends UnaryOperationSyntax

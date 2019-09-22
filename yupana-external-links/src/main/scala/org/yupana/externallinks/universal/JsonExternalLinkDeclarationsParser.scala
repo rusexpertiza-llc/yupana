@@ -43,11 +43,12 @@ object JsonExternalLinkDeclarationsParser {
 
   def extractCatalog(schema: Schema)(jLink: JValue): Either[String, SQLExternalLinkConfig] = {
     jLink \\ "source" match {
-      case JString("sql") => try {
-        validate(schema, jLink.extract[SQLExternalLinkConfig])
-      } catch {
-        case e: Exception => Left(s"Can not parse external link ${JsonMethods.compact(jLink)}: ${e.getMessage}")
-      }
+      case JString("sql") =>
+        try {
+          validate(schema, jLink.extract[SQLExternalLinkConfig])
+        } catch {
+          case e: Exception => Left(s"Can not parse external link ${JsonMethods.compact(jLink)}: ${e.getMessage}")
+        }
       case _ => Left(s"Bad source field in ${JsonMethods.compact(jLink)}")
     }
   }

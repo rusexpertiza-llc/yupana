@@ -16,7 +16,7 @@
 
 package org.yupana.core.model
 
-import java.io.{ObjectInputStream, ObjectOutputStream}
+import java.io.{ ObjectInputStream, ObjectOutputStream }
 
 import org.yupana.core.QueryContext
 
@@ -48,13 +48,11 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
             a && this.row.get(i) == that.row.get(i)
           }
         } else if (this.queryContext != null) {
-          queryContext.groupByExprs.indices.forall(idx =>
-            this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx)
-          )
+          queryContext.groupByExprs.indices
+            .forall(idx => this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
         } else if (that.queryContext != null) {
-          that.queryContext.groupByExprs.indices.forall(idx =>
-            that.row.get(queryContext, queryContext.groupByExprs(idx)) == this.data(idx)
-          )
+          that.queryContext.groupByExprs.indices
+            .forall(idx => that.row.get(queryContext, queryContext.groupByExprs(idx)) == this.data(idx))
         } else {
           this.data sameElements that.data
         }

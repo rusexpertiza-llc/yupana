@@ -19,14 +19,14 @@ package org.yupana.hbase
 import scala.util.hashing.MurmurHash3
 
 case class TSDRowKey[T](
-  baseTime: Long,
-  tagsIds: Array[Option[T]]
+    baseTime: Long,
+    tagsIds: Array[Option[T]]
 ) {
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
       case that: TSDRowKey[T] => this.baseTime == that.baseTime && (this.tagsIds sameElements that.tagsIds)
-      case _ => false
+      case _                  => false
     }
   }
 

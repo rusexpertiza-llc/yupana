@@ -36,14 +36,15 @@ object DataSource {
   )
 
   val measures = Array(
-    Some("кг"), Some("шт"), Some("л"), None
+    Some("кг"),
+    Some("шт"),
+    Some("л"),
+    None
   )
-
 
   def getReceipts(n: Int): Seq[Receipt] = {
     1 to n map genReceipt
   }
-
 
   def genReceipt(n: Int): Receipt = {
     val items = 1 to (1 + Random.nextInt(10)) map (_ => genItem)

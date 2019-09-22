@@ -17,8 +17,8 @@
 package org.yupana.hbase
 
 case class TSDInputRow[T](
-  key: TSDRowKey[T],
-  values: TSDRowValues
+    key: TSDRowKey[T],
+    values: TSDRowValues
 ) {
   override def toString: String = {
     s"""TSDRow(

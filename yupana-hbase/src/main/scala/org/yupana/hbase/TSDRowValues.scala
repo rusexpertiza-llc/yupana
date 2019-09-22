@@ -19,7 +19,7 @@ package org.yupana.hbase
 import java.nio.ByteBuffer
 
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{MetricValue, Table}
+import org.yupana.api.schema.{ MetricValue, Table }
 
 case class TSDRowValues(valuesByGroup: TSDRowValues.ValuesByGroup)
 
@@ -39,17 +39,20 @@ object TSDRowValues {
     dp.metrics.groupBy(_.metric.group).mapValues(vs => Seq((timeShift, fieldsToBytes(vs))))
   }
 
-  private def mergeMaps(m1: Map[Int, Seq[TimeShiftedValue]],
-                        m2: Map[Int, Seq[TimeShiftedValue]]): Map[Int, Seq[TimeShiftedValue]] =
+  private def mergeMaps(
+      m1: Map[Int, Seq[TimeShiftedValue]],
+      m2: Map[Int, Seq[TimeShiftedValue]]
+  ): Map[Int, Seq[TimeShiftedValue]] =
     (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
 
   private def fieldsToBytes(fields: Seq[MetricValue]): Array[Byte] = {
     val fieldBytes = fields.map(f => (f.metric.tag, f.metric.dataType.writable.write(f.value)))
     val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
     val bb = ByteBuffer.allocate(size)
-    fieldBytes.foreach { case (tag, bytes) =>
-      bb.put(tag)
-      bb.put(bytes)
+    fieldBytes.foreach {
+      case (tag, bytes) =>
+        bb.put(tag)
+        bb.put(bytes)
     }
 
     bb.array()

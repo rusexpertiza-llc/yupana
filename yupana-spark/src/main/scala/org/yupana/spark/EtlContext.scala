@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
-import org.yupana.hbase.{ExternalLinkHBaseConnection, InvertedIndexDaoHBase, TSDBHbase}
+import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, TSDBHbase }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 
 class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
@@ -55,6 +55,6 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
 }
 
 object EtlContext {
-  private var tsdb: Option[TSDB] =  None
+  private var tsdb: Option[TSDB] = None
   private var itemsInvertedIndex: Option[ItemsInvertedIndexImpl] = None
 }

@@ -16,7 +16,7 @@
 
 package org.yupana.jdbc
 
-import org.joda.time.{DateTimeZone, LocalDateTime}
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 
 sealed trait ParameterValue
 

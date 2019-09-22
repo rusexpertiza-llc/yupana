@@ -27,9 +27,10 @@ trait BoxingTag[T] {
 object BoxingTag {
   def apply[T](implicit b: BoxingTag[T]): BoxingTag[T] = b
 
-  implicit def valBoxing[T <: AnyVal, B <: AnyRef](implicit
-    ev: T => B,
-    tag: ClassTag[B]
+  implicit def valBoxing[T <: AnyVal, B <: AnyRef](
+      implicit
+      ev: T => B,
+      tag: ClassTag[B]
   ): BoxingTag[T] = new BoxingTag[T]() {
     override type R = B
     override def clazz: Class[B] = tag.runtimeClass.asInstanceOf[Class[B]]

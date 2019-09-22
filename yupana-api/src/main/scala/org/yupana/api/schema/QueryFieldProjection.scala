@@ -22,6 +22,7 @@ import org.yupana.api.query.QueryField
   * Defines field projection in rollup.
   */
 sealed trait QueryFieldProjection {
+
   /** Query field to be projected */
   val queryField: QueryField
 }

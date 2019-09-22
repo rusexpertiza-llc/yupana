@@ -44,31 +44,35 @@ case class Case(conditionalValues: Seq[(Condition, SqlExpr)], defaultValue: SqlE
 }
 
 case class Plus(a: SqlExpr, b: SqlExpr) extends SqlExpr {
-  override def proposedName: Option[String] = for {
-    aName <- a.proposedName
-    bName <- b.proposedName
-  } yield s"${aName}_plus_$bName"
+  override def proposedName: Option[String] =
+    for {
+      aName <- a.proposedName
+      bName <- b.proposedName
+    } yield s"${aName}_plus_$bName"
 }
 
 case class Minus(a: SqlExpr, b: SqlExpr) extends SqlExpr {
-  override def proposedName: Option[String] = for {
-    aName <- a.proposedName
-    bName <- b.proposedName
-  } yield s"${aName}_minus_$bName"
+  override def proposedName: Option[String] =
+    for {
+      aName <- a.proposedName
+      bName <- b.proposedName
+    } yield s"${aName}_minus_$bName"
 }
 
 case class Multiply(a: SqlExpr, b: SqlExpr) extends SqlExpr {
-  override def proposedName: Option[String] = for {
-    aName <- a.proposedName
-    bName <- b.proposedName
-  } yield s"${aName}_mul_$bName"
+  override def proposedName: Option[String] =
+    for {
+      aName <- a.proposedName
+      bName <- b.proposedName
+    } yield s"${aName}_mul_$bName"
 }
 
 case class Divide(a: SqlExpr, b: SqlExpr) extends SqlExpr {
-  override def proposedName: Option[String] = for {
-    aName <- a.proposedName
-    bName <- b.proposedName
-  } yield s"${aName}_div_$bName"
+  override def proposedName: Option[String] =
+    for {
+      aName <- a.proposedName
+      bName <- b.proposedName
+    } yield s"${aName}_div_$bName"
 }
 
 case class UMinus(x: SqlExpr) extends SqlExpr {

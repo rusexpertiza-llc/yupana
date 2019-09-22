@@ -20,13 +20,13 @@ import java.util.concurrent.TimeUnit
 
 import com.typesafe.scalalogging.StrictLogging
 import javax.cache.configuration.Configuration
-import javax.cache.{CacheManager, Caching}
+import javax.cache.{ CacheManager, Caching }
 import org.ehcache.config.CacheConfiguration
-import org.ehcache.config.builders.{CacheConfigurationBuilder, ResourcePoolsBuilder}
-import org.ehcache.config.units.{EntryUnit, MemoryUnit}
-import org.ehcache.expiry.{Duration, Expirations, Expiry}
+import org.ehcache.config.builders.{ CacheConfigurationBuilder, ResourcePoolsBuilder }
+import org.ehcache.config.units.{ EntryUnit, MemoryUnit }
+import org.ehcache.expiry.{ Duration, Expirations, Expiry }
 import org.ehcache.jsr107.Eh107Configuration
-import org.yupana.core.cache.{Cache, CacheDescription, CacheFactory, JCache}
+import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
 class EhCacheFactory extends CacheFactory with StrictLogging {
 
@@ -43,9 +43,11 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
       case Some(cm) =>
         if (!caches.contains(description)) {
           logger.info(s"Adding cache ${description.fullName}")
-          val cache = cm.createCache[description.Key, description.Value, Configuration[description.Key, description.Value]](
-            description.fullName, Eh107Configuration.fromEhcacheCacheConfiguration(createCacheConfig(description))
-          )
+          val cache =
+            cm.createCache[description.Key, description.Value, Configuration[description.Key, description.Value]](
+              description.fullName,
+              Eh107Configuration.fromEhcacheCacheConfiguration(createCacheConfig(description))
+            )
 
           caches += description
           new JCache(cache)
@@ -60,12 +62,12 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
 
   override def getCache(description: CacheDescription): Cache[description.Key, description.Value] = {
     cacheManager match {
-      case Some(cm) => new JCache(cm.getCache(description.fullName, description.keyBoxing.clazz, description.valueBoxing.clazz))
-        .asInstanceOf[Cache[description.Key, description.Value]] // This is not needed for EhCache >= 3.5.0
+      case Some(cm) =>
+        new JCache(cm.getCache(description.fullName, description.keyBoxing.clazz, description.valueBoxing.clazz))
+          .asInstanceOf[Cache[description.Key, description.Value]] // This is not needed for EhCache >= 3.5.0
       case None => throw new IllegalStateException("EhCache manager is not initialized yet")
     }
   }
-
 
   override def flushCaches(): Unit = {
     caches.foreach(d => getCache(d).removeAll())
@@ -74,13 +76,18 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
   protected def initManager(): Unit = {
     if (cacheManager.isEmpty) {
       logger.info("Initializing EhCache cache manager")
-      System.setProperty(Caching.JAVAX_CACHE_CACHING_PROVIDER, classOf[org.ehcache.jsr107.EhcacheCachingProvider].getName)
+      System.setProperty(
+        Caching.JAVAX_CACHE_CACHING_PROVIDER,
+        classOf[org.ehcache.jsr107.EhcacheCachingProvider].getName
+      )
       val provider = Caching.getCachingProvider(classOf[org.ehcache.jsr107.EhcacheCachingProvider].getName)
       cacheManager = Some(provider.getCacheManager)
     }
   }
 
-  private def createCacheConfig(description: CacheDescription): CacheConfiguration[description.Key, description.Value] = {
+  private def createCacheConfig(
+      description: CacheDescription
+  ): CacheConfiguration[description.Key, description.Value] = {
     val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
     val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.ehcache")
 
@@ -90,7 +97,8 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
       Expirations.noExpiration().asInstanceOf[Expiry[description.Key, description.Value]]
     } else {
       val ttl = Duration.of(
-        props.get("timeToLive").orElse(defaultProps.get("timeToLive")).map(_.toLong).getOrElse(DEFAULT_TTL), TimeUnit.SECONDS
+        props.get("timeToLive").orElse(defaultProps.get("timeToLive")).map(_.toLong).getOrElse(DEFAULT_TTL),
+        TimeUnit.SECONDS
       )
       val tti = props.get("timeToIdle").map(s => Duration.of(s.toLong, TimeUnit.SECONDS)).orNull
 //      ExpiryPolicyBuilder.expiry().create(ttl).access(tti).update(ttl).build() // for EhCache >= 3.5.0
@@ -100,7 +108,6 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
     val resourcePoolsBuilder = createResourcePool(props)
       .orElse(createResourcePool(defaultProps))
       .getOrElse(throw new IllegalArgumentException(s"Cache size is not defined for ${description.name}"))
-
 
     val conf = CacheConfigurationBuilder
       .newCacheConfigurationBuilder(

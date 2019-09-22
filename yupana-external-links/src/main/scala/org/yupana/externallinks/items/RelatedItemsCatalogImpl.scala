@@ -19,14 +19,13 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{CollectionUtils, TimeBoundedCondition}
-import org.yupana.core.{ExternalLinkService, TsdbBase}
-import org.yupana.schema.{Dimensions, Tables}
-import org.yupana.schema.externallinks.{ItemsInvertedIndex, RelatedItemsCatalog}
+import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
+import org.yupana.core.{ ExternalLinkService, TsdbBase }
+import org.yupana.schema.{ Dimensions, Tables }
+import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 
-class RelatedItemsCatalogImpl(tsdb: TsdbBase,
-                              override val externalLink: RelatedItemsCatalog)
-  extends ExternalLinkService[RelatedItemsCatalog] {
+class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: RelatedItemsCatalog)
+    extends ExternalLinkService[RelatedItemsCatalog] {
 
   import org.yupana.api.query.syntax.All._
 
@@ -46,8 +45,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
     val tbcs = TimeBoundedCondition(condition)
 
     val r = tbcs.map { tbc =>
-      val from = tbc.from.getOrElse(throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}"))
-      val to = tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
+      val from = tbc.from.getOrElse(
+        throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")
+      )
+      val to =
+        tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
       val (includeValues, excludeValues, other) = ExternalLinkService.extractCatalogFields(tbc, externalLink.linkName)
 
@@ -77,9 +79,9 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
 
   protected def createFilter(field: String, values: Set[String]): Condition = {
     field match {
-      case externalLink.ITEM_FIELD => in(dimension(Dimensions.ITEM_TAG), values)
+      case externalLink.ITEM_FIELD    => in(dimension(Dimensions.ITEM_TAG), values)
       case externalLink.PHRASE_FIELDS => in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), values)
-      case f  => throw new IllegalArgumentException(s"Unsupported field $f")
+      case f                          => throw new IllegalArgumentException(s"Unsupported field $f")
     }
   }
 
@@ -107,7 +109,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
     tsdb.mr.fold(extracted)(Set.empty)(_ ++ _).toSeq
   }
 
-  override def setLinkedValues(exprIndex: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow], exprs: Set[LinkExpr]): Unit = {
+  override def setLinkedValues(
+      exprIndex: scala.collection.Map[Expression, Int],
+      valueData: Seq[InternalRow],
+      exprs: Set[LinkExpr]
+  ): Unit = {
     // may be throw exception here?
   }
 }

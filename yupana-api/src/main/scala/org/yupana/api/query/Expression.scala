@@ -17,7 +17,7 @@
 package org.yupana.api.query
 
 import org.yupana.api.Time
-import org.yupana.api.schema.{Dimension, ExternalLink, Metric}
+import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
 
@@ -38,16 +38,16 @@ sealed trait Expression extends Serializable {
 
   def aux: Expression.Aux[Out] = this.asInstanceOf[Expression.Aux[Out]]
 
-  lazy val flatten: Set[Expression]  = Set(this)
+  lazy val flatten: Set[Expression] = Set(this)
 
   def containsAggregates: Boolean = flatten.exists {
     case _: AggregateExpr => true
-    case _ => false
+    case _                => false
   }
 
   def containsWindows: Boolean = flatten.exists {
     case _: WindowFunctionExpr => true
-    case _ => false
+    case _                     => false
   }
 
   private lazy val encoded = encode
@@ -60,7 +60,7 @@ sealed trait Expression extends Serializable {
   override def equals(obj: scala.Any): Boolean = {
     obj match {
       case that: Expression => this.encoded == that.encoded
-      case _ => false
+      case _                => false
     }
   }
 }
@@ -206,9 +206,7 @@ object LinkExpr {
   def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
 }
 
-case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U],
-                                    expr: Expression.Aux[T]
-                          ) extends Expression {
+case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U], expr: Expression.Aux[T]) extends Expression {
   override type Out = U
   override def dataType: DataType.Aux[U] = function.dataType
   override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
@@ -220,24 +218,24 @@ case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U],
   override lazy val flatten: Set[Expression] = Set(this) ++ expr.flatten
 }
 
-case class TypeConvertExpr[T, U](tc: TypeConverter[T, U],
-                                 expr: Expression.Aux[T]
-                                ) extends Expression {
+case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression.Aux[T]) extends Expression {
   override type Out = U
 
   override def dataType: DataType.Aux[U] = tc.dataType
   override def requiredMetrics: Set[Metric] = expr.requiredMetrics
   override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
-  override def encode: String =  s"${tc.functionName}($expr)"
+  override def encode: String = s"${tc.functionName}($expr)"
 
   override def kind: ExprKind = expr.kind
   override lazy val flatten: Set[Expression] = Set(this) ++ expr.flatten
 }
 
-case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
-                                        a: Expression.Aux[T],
-                                        b: Expression.Aux[U]) extends Expression {
+case class BinaryOperationExpr[T, U, O](
+    function: BinaryOperation.Aux[T, U, O],
+    a: Expression.Aux[T],
+    b: Expression.Aux[U]
+) extends Expression {
   override type Out = O
   override def dataType: DataType.Aux[Out] = function.dataType
   override def requiredMetrics: Set[Metric] = a.requiredMetrics union b.requiredMetrics
@@ -252,7 +250,10 @@ case class BinaryOperationExpr[T, U, O](function: BinaryOperation.Aux[T, U, O],
   override lazy val flatten: Set[Expression] = Set(this) ++ a.flatten ++ b.flatten
 }
 
-case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) extends Expression {
+case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(
+    implicit rtt: DataType.Aux[T],
+    rtu: DataType.Aux[U]
+) extends Expression {
   override type Out = (T, U)
 
   override def dataType: DataType.Aux[(T, U)] = DataType[(T, U)]
@@ -268,8 +269,8 @@ case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implici
   override def requiredMetrics: Set[Metric] = Set.empty
 }
 
-
-case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDataType: DataType.Aux[T]) extends Expression {
+case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDataType: DataType.Aux[T])
+    extends Expression {
   override type Out = Array[T]
 
   override val dataType: DataType.Aux[Array[T]] = DataType[Array[T]]
@@ -284,7 +285,8 @@ case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDat
   override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
 }
 
-case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], negative: Expression.Aux[T]) extends Expression {
+case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], negative: Expression.Aux[T])
+    extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[T] = positive.dataType
 

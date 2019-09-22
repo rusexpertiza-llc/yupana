@@ -77,12 +77,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     logger.trace(s"--- Send request to HBase")
     val results = table.get(gets.asJava)
     logger.trace(s"--- Response received, extract dictionary values")
-    val r = (idsSeq zip results).flatMap { case (id, result) =>
-      if (!result.isEmpty) {
-        Some(id -> Bytes.toString(result.getValue(directFamily, column)))
-      } else {
-        None
-      }
+    val r = (idsSeq zip results).flatMap {
+      case (id, result) =>
+        if (!result.isEmpty) {
+          Some(id -> Bytes.toString(result.getValue(directFamily, column)))
+        } else {
+          None
+        }
     }.toMap
     logger.trace(s"--- Dictionary values extracted")
     r
@@ -121,12 +122,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       logger.trace(s"--- Send request to HBase")
       val results = table.get(gets.asJava)
       logger.trace(s"--- Response received, extract dictionary ids")
-      val r = (nonEmptyValues zip results).flatMap { case (value, result) =>
-        if (!result.isEmpty) {
-          Some(value -> Bytes.toLong(result.getValue(reverseFamily, column)))
-        } else {
-          None
-        }
+      val r = (nonEmptyValues zip results).flatMap {
+        case (value, result) =>
+          if (!result.isEmpty) {
+            Some(value -> Bytes.toLong(result.getValue(reverseFamily, column)))
+          } else {
+            None
+          }
       }.toMap
       logger.trace(s"--- Dictionary values extracted")
       r

@@ -28,13 +28,14 @@ import org.yupana.api.Time
   * @param arrayOperations operations on array of `T` (in addition to common operations like array length)
   */
 case class TypeOperations[T](
-  binaryOperations: Map[(String, String), BinaryOperation[T]],
-  unaryOperations: Map[String, UnaryOperation[T]],
-  aggregations: Map[String, Aggregation[T]],
-  arrayOperations: Map[String, UnaryOperation[Array[T]]]
+    binaryOperations: Map[(String, String), BinaryOperation[T]],
+    unaryOperations: Map[String, UnaryOperation[T]],
+    aggregations: Map[String, Aggregation[T]],
+    arrayOperations: Map[String, UnaryOperation[Array[T]]]
 ) {
   def biOperation[U](name: String, argType: DataType.Aux[U]): Option[BinaryOperation.Aux[T, U, _]] = {
-    binaryOperations.get((name, argType.meta.sqlTypeName))
+    binaryOperations
+      .get((name, argType.meta.sqlTypeName))
       .map(op => op.asInstanceOf[BinaryOperation.Aux[T, U, op.Out]])
   }
   def unaryOperation(name: String): Option[UnaryOperation[T]] = unaryOperations.get(name)
@@ -42,14 +43,14 @@ case class TypeOperations[T](
 }
 
 object TypeOperations {
-  def intOperations[T : Integral](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
+  def intOperations[T: Integral](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
     BinaryOperation.integralOperations(dt),
     UnaryOperation.numericOperations(dt),
     Aggregation.intAggregations(dt),
     Map.empty
   )
 
-  def fracOperations[T : Fractional](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
+  def fracOperations[T: Fractional](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
     BinaryOperation.fractionalOperations(dt),
     UnaryOperation.numericOperations(dt),
     Aggregation.fracAggregations(dt),

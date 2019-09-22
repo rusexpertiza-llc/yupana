@@ -16,9 +16,8 @@
 
 package org.yupana.core.sql
 
-import org.yupana.api.query.{Expression, TypeConvertExpr}
-import org.yupana.api.types.{DataType, TypeConverter}
-
+import org.yupana.api.query.{ Expression, TypeConvertExpr }
+import org.yupana.api.types.{ DataType, TypeConverter }
 
 trait ExprPair {
   type T
@@ -41,9 +40,11 @@ object ExprPair {
     } else {
       TypeConverter(ca.dataType, cb.dataType)
         .map(aToB => ExprPair[cb.Out](TypeConvertExpr(aToB, ca.aux), cb.aux))
-        .orElse(TypeConverter(cb.dataType, ca.dataType)
-          .map(bToA => ExprPair[ca.Out](ca.aux, TypeConvertExpr(bToA, cb.aux)))
-        ).toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
+        .orElse(
+          TypeConverter(cb.dataType, ca.dataType)
+            .map(bToA => ExprPair[ca.Out](ca.aux, TypeConvertExpr(bToA, cb.aux)))
+        )
+        .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
     }
   }
 }

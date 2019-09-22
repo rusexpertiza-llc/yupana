@@ -18,10 +18,12 @@ package org.yupana.externallinks
 
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.core.{Dictionary, TsdbBase}
-import org.yupana.core.utils.{SparseTable, Table}
+import org.yupana.core.{ Dictionary, TsdbBase }
+import org.yupana.core.utils.{ SparseTable, Table }
 
-abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBase) extends SimpleExternalLinkConditionHandler[T] with SimpleExternalLinkValueExtractor[T] {
+abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBase)
+    extends SimpleExternalLinkConditionHandler[T]
+    with SimpleExternalLinkValueExtractor[T] {
 
   lazy val dictionary: Dictionary = tsdb.dictionary(externalLink.dimension)
 

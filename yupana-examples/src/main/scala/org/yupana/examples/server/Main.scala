@@ -21,11 +21,11 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.HBaseAdmin
-import org.yupana.akka.{RequestHandler, TsdbTcp}
+import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
-import org.yupana.externallinks.universal.{JsonCatalogs, JsonExternalLinkDeclarationsParser}
-import org.yupana.hbase.{HdfsFileUtils, TSDBHbase}
+import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
+import org.yupana.hbase.{ HdfsFileUtils, TSDBHbase }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -49,10 +49,15 @@ object Main extends StrictLogging {
 
     val schema = ExampleSchema.schema
     val jsonLinks = Option(config.properties.getProperty("yupana.json-catalogs-declaration"))
-    val schemaWithJson = jsonLinks.map(json =>
-        JsonExternalLinkDeclarationsParser.parse(schema, json)
-          .right.map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
-      ).getOrElse(Right(schema))
+    val schemaWithJson = jsonLinks
+      .map(
+        json =>
+          JsonExternalLinkDeclarationsParser
+            .parse(schema, json)
+            .right
+            .map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
+      )
+      .getOrElse(Right(schema))
       .fold(msg => throw new RuntimeException(s"Cannot register JSON catalogs: $msg"), identity)
 
     val tsdb = TSDBHbase(hbaseConfiguration, config.hbaseNamespace, schemaWithJson, identity, config.properties)

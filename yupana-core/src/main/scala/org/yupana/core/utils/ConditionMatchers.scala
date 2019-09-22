@@ -16,7 +16,7 @@
 
 package org.yupana.core.utils
 
-import org.yupana.api.query.{BinaryOperationExpr, Condition, Expression, SimpleCondition}
+import org.yupana.api.query.{ BinaryOperationExpr, Condition, Expression, SimpleCondition }
 
 object ConditionMatchers {
 
@@ -24,7 +24,7 @@ object ConditionMatchers {
     def unapply(condition: Condition): Option[(Expression, Expression)] = {
       condition match {
         case SimpleCondition(BinaryOperationExpr(op, a, b)) if op.name == "==" => Some((a, b))
-        case _ => None
+        case _                                                                 => None
       }
     }
   }
@@ -33,7 +33,7 @@ object ConditionMatchers {
     def unapply(condition: Condition): Option[(Expression, Expression)] = {
       condition match {
         case SimpleCondition(BinaryOperationExpr(op, a, b)) if op.name == "!=" => Some((a, b))
-        case _ => None
+        case _                                                                 => None
       }
     }
   }
@@ -42,7 +42,7 @@ object ConditionMatchers {
     def unapply(condition: Condition): Option[(Expression, Expression)] = {
       condition match {
         case SimpleCondition(BinaryOperationExpr(op, a, b)) if op.name == "<" => Some((a, b))
-        case _ => None
+        case _                                                                => None
       }
     }
   }
@@ -51,7 +51,7 @@ object ConditionMatchers {
     def unapply(condition: Condition): Option[(Expression, Expression)] = {
       condition match {
         case SimpleCondition(BinaryOperationExpr(op, a, b)) if op.name == ">" => Some((a, b))
-        case _ => None
+        case _                                                                => None
       }
     }
   }
@@ -60,7 +60,7 @@ object ConditionMatchers {
     def unapply(condition: Condition): Option[(Expression, Expression)] = {
       condition match {
         case SimpleCondition(BinaryOperationExpr(op, a, b)) if op.name == "<=" => Some((a, b))
-        case _ => None
+        case _                                                                 => None
       }
     }
   }
@@ -69,7 +69,7 @@ object ConditionMatchers {
     def unapply(condition: Condition): Option[(Expression, Expression)] = {
       condition match {
         case SimpleCondition(BinaryOperationExpr(op, a, b)) if op.name == ">=" => Some((a, b))
-        case _ => None
+        case _                                                                 => None
       }
     }
   }

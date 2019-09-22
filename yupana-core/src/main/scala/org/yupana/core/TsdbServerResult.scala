@@ -20,7 +20,8 @@ import org.yupana.api.query.Result
 import org.yupana.api.types.DataType
 
 class TsdbServerResult(override val queryContext: QueryContext, data: Iterator[Array[Option[Any]]])
-  extends Result with TsdbServerResultBase {
+    extends Result
+    with TsdbServerResultBase {
 
   override def rows: Iterator[Array[Option[Any]]] = data
 

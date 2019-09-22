@@ -18,15 +18,16 @@ package org.yupana.hbase
 
 import org.yupana.api.query.DimensionExpr
 import org.yupana.core.model.InternalQuery
-import org.yupana.api.schema.{Dimension, Metric}
+import org.yupana.api.schema.{ Dimension, Metric }
 
 import scala.collection.mutable
 
-case class SchemaContext(query: InternalQuery,
-                         fieldIndexMap: mutable.HashMap[Byte, Metric],
-                         tagIndexMap: mutable.Map[Dimension, Int],
-                         requiredTags: Set[Dimension]
-                        )
+case class SchemaContext(
+    query: InternalQuery,
+    fieldIndexMap: mutable.HashMap[Byte, Metric],
+    tagIndexMap: mutable.Map[Dimension, Int],
+    requiredTags: Set[Dimension]
+)
 
 object SchemaContext {
   def apply(query: InternalQuery): SchemaContext = {

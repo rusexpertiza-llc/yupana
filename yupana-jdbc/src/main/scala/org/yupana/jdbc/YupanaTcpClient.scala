@@ -18,10 +18,10 @@ package org.yupana.jdbc
 
 import java.net.InetSocketAddress
 import java.nio.channels.SocketChannel
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.{ ByteBuffer, ByteOrder }
 import java.util.logging.Logger
 
-import org.yupana.api.query.{Result, SimpleResult}
+import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto._
@@ -66,7 +66,9 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     pong.resp match {
       case Response.Resp.Pong(r) =>
         if (r.getVersion.protocol != ProtocolVersion.value) {
-          error(s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver")
+          error(
+            s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver"
+          )
           null
         } else {
           r
@@ -88,11 +90,9 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     val it = new FramingChannelIterator(channel, CHUNK_SIZE + 4)
       .map(bytes => Response.parseFrom(bytes).resp)
 
-    val header = it.map( resp =>
-      handleResultHeader(resp)
-    ).find(_.isDefined).flatten
+    val header = it.map(resp => handleResultHeader(resp)).find(_.isDefined).flatten
 
-    header match  {
+    header match {
       case Some(Right(h)) =>
         val r = resultIterator(it)
         extractProtoResult(h, r)
@@ -112,13 +112,16 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
-    data.sliding(CHUNK_SIZE, CHUNK_SIZE).map { ch =>
-      val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
-      bb.putInt(ch.length)
-      bb.put(ch)
-      bb.flip()
-      bb
-    }.toArray
+    data
+      .sliding(CHUNK_SIZE, CHUNK_SIZE)
+      .map { ch =>
+        val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
+        bb.putInt(ch.length)
+        bb.put(ch)
+        bb.flip()
+        bb
+      }
+      .toArray
   }
 
   private def fetchResponse(): Response = {
@@ -162,7 +165,6 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     logger.warning(s"Got error message: $e")
     e
   }
-
 
   private def heartbeat(time: String) = {
     val msg = s"Heartbeat($time)"
@@ -230,10 +232,14 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def createProtoPing(reqTime: Long): Request = {
-    Request(Request.Req.Ping(Ping(
-      reqTime,
-      Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
-    )))
+    Request(
+      Request.Req.Ping(
+        Ping(
+          reqTime,
+          Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
+        )
+      )
+    )
   }
 
   private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {
@@ -243,15 +249,17 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     }
 
     val values = res.flatMap { row =>
-
-      val v = dataTypes.zip(row.values).map { case (rt, bytes) =>
-
-        if (bytes.isEmpty) {
-          None
-        } else {
-          Some[Any](rt.readable.read(bytes.toByteArray))
+      val v = dataTypes
+        .zip(row.values)
+        .map {
+          case (rt, bytes) =>
+            if (bytes.isEmpty) {
+              None
+            } else {
+              Some[Any](rt.readable.read(bytes.toByteArray))
+            }
         }
-      }.toArray
+        .toArray
       Some(v)
     }
 
@@ -270,8 +278,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def createProtoValue(value: ParameterValue): Value = {
     value match {
-      case NumericValue(n) => Value(Value.Value.DecimalValue(n.toString()))
-      case StringValue(s) => Value(Value.Value.TextValue(s))
+      case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
+      case StringValue(s)    => Value(Value.Value.TextValue(s))
       case t: TimestampValue => Value(Value.Value.TimeValue(t.millis))
     }
   }

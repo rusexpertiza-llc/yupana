@@ -61,5 +61,3 @@ trait Metric extends Serializable {
 object NoMetric extends Metric {
   override def measure[T](f: => T): T = f
 }
-
-

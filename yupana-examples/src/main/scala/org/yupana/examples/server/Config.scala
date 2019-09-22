@@ -17,16 +17,17 @@
 package org.yupana.examples.server
 
 import java.util.Properties
-import com.typesafe.config.{Config => TypesafeConfig}
+import com.typesafe.config.{ Config => TypesafeConfig }
 
 import scala.collection.JavaConverters._
 
-case class Config(hbaseZookeeperUrl: String,
-                  hbaseNamespace: String,
-                  host: String = "localhost",
-                  port: Int = 12345,
-                  properties: Properties
-                 )
+case class Config(
+    hbaseZookeeperUrl: String,
+    hbaseNamespace: String,
+    host: String = "localhost",
+    port: Int = 12345,
+    properties: Properties
+)
 
 object Config {
   def create(cfg: TypesafeConfig): Config = {

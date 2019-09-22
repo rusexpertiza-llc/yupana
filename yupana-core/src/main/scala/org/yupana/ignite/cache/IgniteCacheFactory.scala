@@ -18,12 +18,12 @@ package org.yupana.ignite.cache
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.ignite.cache.eviction.lru.LruEvictionPolicyFactory
-import org.apache.ignite.configuration.{CacheConfiguration, IgniteConfiguration, NearCacheConfiguration}
+import org.apache.ignite.configuration.{ CacheConfiguration, IgniteConfiguration, NearCacheConfiguration }
 import org.apache.ignite.logger.slf4j.Slf4jLogger
 import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
 import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
-import org.apache.ignite.{Ignite, Ignition}
-import org.yupana.core.cache.{Cache, CacheDescription, CacheFactory, JCache}
+import org.apache.ignite.{ Ignite, Ignition }
+import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
 import scala.collection.JavaConverters._
 
@@ -72,7 +72,8 @@ class IgniteCacheFactory extends CacheFactory with StrictLogging {
         logger.info("Zookeeper is not set for Ignite, using default discovery")
     }
 
-    defaultCacheSize = props.getOrElse("maxSize", throw new IllegalArgumentException("Default max cache size is not defined")).toInt
+    defaultCacheSize =
+      props.getOrElse("maxSize", throw new IllegalArgumentException("Default max cache size is not defined")).toInt
 
     config.setClientMode(true)
     ignite = Some(Ignition.start(config))
@@ -92,14 +93,16 @@ class IgniteCacheFactory extends CacheFactory with StrictLogging {
     }
   }
 
-
   override def flushCaches(): Unit = {
     caches.foreach(d => getCache(d).removeAll())
   }
 
   private def createConfig(
-    description: CacheDescription
-  ): (CacheConfiguration[description.Key, description.Value], NearCacheConfiguration[description.Key, description.Value]) = {
+      description: CacheDescription
+  ): (
+      CacheConfiguration[description.Key, description.Value],
+      NearCacheConfiguration[description.Key, description.Value]
+  ) = {
     val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
 
     val config = new CacheConfiguration[description.Key, description.Value](description.fullName)

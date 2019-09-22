@@ -16,7 +16,7 @@
 
 package org.yupana.core.sql.parser
 
-import org.joda.time.{DateTimeZone, LocalDateTime, Period}
+import org.joda.time.{ DateTimeZone, LocalDateTime, Period }
 
 sealed trait Value {
   def asString: String

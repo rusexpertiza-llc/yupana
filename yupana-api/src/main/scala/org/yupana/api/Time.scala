@@ -16,7 +16,7 @@
 
 package org.yupana.api
 
-import org.joda.time.{DateTime, DateTimeZone, LocalDateTime}
+import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 
 /**
   * Simple time value implementation.
