@@ -2283,7 +2283,6 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
 
-    val parser = new SqlParser
     val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
     val format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
     val from: DateTime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
@@ -2295,7 +2294,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val sql = s"SELECT sum(CASE WHEN TAG_A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
       s"WHERE time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}' GROUP BY d"
 
-    val query = parser.parse(sql).right.flatMap {
+    val query = SqlParser.parse(sql).right.flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
       case x => Left(s"SELECT statement expected, but got $x")
     } match {

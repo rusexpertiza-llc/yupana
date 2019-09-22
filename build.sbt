@@ -76,7 +76,7 @@ lazy val core = (project in file ("yupana-core"))
     publishSettings,
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
-      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse,
+      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse.value,
       "org.apache.ignite"           %  "ignite-core"                  % versions.ignite,
       "org.apache.ignite"           %  "ignite-slf4j"                 % versions.ignite,
       "org.ehcache"                 %  "ehcache"                      % versions.ehcache,
@@ -208,7 +208,8 @@ lazy val versions = new {
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.2"
-  val fastparse = "1.0.0"
+  val fastparse212 = "2.1.3"
+  val fastparse211 = "2.1.2"
 
   val hbase = "1.3.1"
   val hadoop = "2.8.3"
@@ -231,12 +232,20 @@ lazy val versions = new {
   val scalaTest = "3.0.7"
   val scalaCheck = "1.14.0"
   val scalaMock = "4.1.0"
+
+  val fastparse = Def.setting(
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => fastparse211
+      case Some((2, 12)) => fastparse212
+      case _ => sys.error(s"Unsupported Scala version ${scalaVersion.value}")
+    }
+  )
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.9",
-  crossScalaVersions := Seq("2.11.12", "2.12.9"),
+  scalaVersion := "2.12.10",
+  crossScalaVersions := Seq("2.11.12", "2.12.10"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-deprecation",

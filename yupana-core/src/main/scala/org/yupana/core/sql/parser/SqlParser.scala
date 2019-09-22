@@ -1,140 +1,138 @@
 package org.yupana.core.sql.parser
 
-import fastparse.all._
-import fastparse.core.Parsed.{Failure, Success}
+import fastparse._
+import fastparse.internal.Util
+import MultiLineWhitespace._
 
-class SqlParser extends ValueParser {
-  import white._
+object SqlParser {
 
-  private val selectWord = P(IgnoreCase("SELECT"))
-  private val showWord = P(IgnoreCase("SHOW"))
-  private val tablesWord = P(IgnoreCase("TABLES"))
-  private val columnsWord = P(IgnoreCase("COLUMNS"))
-  private val fromWord = P(IgnoreCase("FROM"))
-  private val whereWord = P(IgnoreCase("WHERE"))
-  private val andWord = P(IgnoreCase("AND"))
-  private val orWord = P(IgnoreCase("OR"))
-  private val asWord = P(IgnoreCase("AS"))
-  private val groupWord = P(IgnoreCase("GROUP"))
-  private val byWord = P(IgnoreCase("BY"))
-  private val limitWord = P(IgnoreCase("LIMIT"))
-  private val caseWord = P(IgnoreCase("CASE"))
-  private val whenWord = P(IgnoreCase("WHEN"))
-  private val thenWord = P(IgnoreCase("THEN"))
-  private val elseWord = P(IgnoreCase("ELSE"))
-  private val havingWord = P(IgnoreCase("HAVING"))
-  private val inWord = P(IgnoreCase("IN"))
-  private val isWord = P(IgnoreCase("IS"))
-  private val nullWord = P(IgnoreCase("NULL"))
-  private val notWord = P(IgnoreCase("NOT"))
+  private def selectWord[_: P] = P(IgnoreCase("SELECT"))
+  private def showWord[_: P] = P(IgnoreCase("SHOW"))
+  private def tablesWord[_: P] = P(IgnoreCase("TABLES"))
+  private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
+  private def fromWord[_: P] = P(IgnoreCase("FROM"))
+  private def whereWord[_: P] = P(IgnoreCase("WHERE"))
+  private def andWord[_: P] = P(IgnoreCase("AND"))
+  private def orWord[_: P] = P(IgnoreCase("OR"))
+  private def asWord[_: P] = P(IgnoreCase("AS"))
+  private def groupWord[_: P] = P(IgnoreCase("GROUP"))
+  private def byWord[_: P] = P(IgnoreCase("BY"))
+  private def limitWord[_: P] = P(IgnoreCase("LIMIT"))
+  private def caseWord[_: P] = P(IgnoreCase("CASE"))
+  private def whenWord[_: P] = P(IgnoreCase("WHEN"))
+  private def thenWord[_: P] = P(IgnoreCase("THEN"))
+  private def elseWord[_: P] = P(IgnoreCase("ELSE"))
+  private def havingWord[_: P] = P(IgnoreCase("HAVING"))
+  private def inWord[_: P] = P(IgnoreCase("IN"))
+  private def isWord[_: P] = P(IgnoreCase("IS"))
+  private def nullWord[_: P] = P(IgnoreCase("NULL"))
+  private def notWord[_: P] = P(IgnoreCase("NOT"))
   private val keywords = Set(
     "select", "from", "where", "and", "or", "as", "group", "order", "by", "limit", "case", "when", "then", "else",
     "having", "in", "is", "null", "not"
   )
-  private val asterisk = P("*")
+  private def asterisk[_: P] = P("*")
 
-  private val plus = P("+").map(_ => Plus)
-  private val minus = P("-"). map(_ => Minus)
-  private val multiply = P("*").map(_ => Multiply)
-  private val divide = P("/").map(_ => Divide)
+  private def plus[_: P] = P("+").map(_ => Plus)
+  private def minus[_: P] = P("-"). map(_ => Minus)
+  private def multiply[_: P] = P("*").map(_ => Multiply)
+  private def divide[_: P] = P("/").map(_ => Divide)
 
-  def wrapOpt[T](open: String, close: String, p: Parser[T]): Parser[T] = P(p | open ~ p ~ close)
-
-  val name: Parser[String] = P(CharsWhileIn(('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9') :+ '_').!
+  def name[_: P]: P[String] = P(CharsWhileIn("a-zA-Z0-9_").!
     .filter(s => s.nonEmpty && s.exists(_.isLetter)))
 
-  val schemaName: Parser[String] = wrapOpt("\"", "\"", name)
-  val fieldWithSchema: Parser[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
+  def schemaName[_: P]: P[String] = P(name | "\"" ~ name ~ "\"")
+  def fieldWithSchema[_: P]: P[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
 
-  val notKeyword: Parser[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
+  def notKeyword[_: P]: P[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
 
-  val alias: Parser[String] = P(asWord.? ~ notKeyword)
+  def alias[_: P]: P[String] = P(asWord.? ~ notKeyword)
 
-  val functionCallExpr: Parser[FunctionCall] = P(name ~ "(" ~ expr.rep(sep =",") ~ ")").map { case (f, vs) => FunctionCall(f.toLowerCase, vs.toList) }
+  def functionCallExpr[_: P]: P[FunctionCall] = P(name ~ "(" ~ expr.rep(sep =",") ~ ")").map { case (f, vs) => FunctionCall(f.toLowerCase, vs.toList) }
 
-  val fieldNameExpr: Parser[FieldName] = P(fieldWithSchema).map(FieldName)
+  def fieldNameExpr[_: P]: P[FieldName] = P(fieldWithSchema).map(FieldName)
 
-  val constExpr: Parser[Constant] = P(value).map(Constant)
+  def constExpr[_: P]: P[Constant] = P(ValueParser.value).map(Constant)
 
-  val caseExpr: Parser[Case] = P(
-      caseWord ~/
-        (whenWord ~/ condition ~ thenWord ~/ expr).rep(min = 1) ~
-        elseWord ~/ expr
+  def caseExpr[_: P]: P[Case] = P(
+    caseWord ~/
+      (whenWord ~/ condition ~ thenWord ~/ expr).rep(1) ~
+      elseWord ~/ expr
   ).map { case (cs, d) => Case(cs, d) }
 
-  private def chained[E](elem: Parser[E], op: Parser[(E, E) => E]): Parser[E] = chained1(elem, elem, op)
+  private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
 
-  private def chained1[E](firstElem: Parser[E], elem: Parser[E], op: Parser[(E, E) => E]): Parser[E] = {
+  private def chained1[E, _: P](firstElem: => P[E], elem: => P[E], op: => P[(E, E) => E]): P[E] = {
     P(firstElem ~ (op ~ elem).rep).map { case (first, rest) =>
       rest.foldLeft(first) { case (l, (fun, r)) => fun(l, r) }
     }
   }
 
-  def expr: Parser[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def expr[_: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
 
-  def minusMathTerm: Parser[SqlExpr] = P("-" ~ mathTerm).map(UMinus)
+  def minusMathTerm[_: P]: P[SqlExpr] = P("-" ~ mathTerm).map(UMinus)
 
-  def mathTerm: Parser[SqlExpr] = chained(mathFactor, multiply | divide)
+  def mathTerm[_: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
 
-  def mathFactor: Parser[SqlExpr] = P(functionCallExpr | caseExpr | constExpr | fieldNameExpr | "(" ~ expr ~ ")")
+  def mathFactor[_: P]: P[SqlExpr] = P(functionCallExpr | caseExpr | constExpr | fieldNameExpr | "(" ~ expr ~ ")")
 
-  val field: Parser[SqlField] = P(expr ~ alias.?).map(SqlField.tupled)
+  def field[_: P]: P[SqlField] = P(expr ~ alias.?).map(SqlField.tupled)
 
-  val fieldList: Parser[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
-  val allFields: Parser[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
+  def fieldList[_: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
+  def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
 
-  val op: Parser[(SqlExpr, SqlExpr) => Comparison] = P(
+  def op[_: P]: P[(SqlExpr, SqlExpr) => Comparison] = P(
     P("=").map(_ => Eq) |
-    P("<>").map(_ => Ne) |
-    P("!=").map( _ => Ne) |
-    P(">=").map(_ => Ge) |
-    P(">").map(_ => Gt) |
-    P("<=").map(_ => Le) |
-    P("<").map(_ => Lt)
+      P("<>").map(_ => Ne) |
+      P("!=").map( _ => Ne) |
+      P(">=").map(_ => Ge) |
+      P(">").map(_ => Gt) |
+      P("<=").map(_ => Le) |
+      P("<").map(_ => Lt)
   )
 
-  def callOrField: Parser[SqlExpr] = functionCallExpr | fieldNameExpr
+  def callOrField[_: P]: P[SqlExpr] = functionCallExpr | fieldNameExpr
 
-  val comparison: Parser[SqlExpr => Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
+  def comparison[_: P]: P[SqlExpr => Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
 
-  val in: Parser[SqlExpr => Condition] = P(inWord ~/ "(" ~ value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
+  def in[_: P]: P[SqlExpr => Condition] = P(inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
-  val notIn: Parser[SqlExpr => Condition] = P(notWord ~ inWord ~/ "(" ~ value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
+  def notIn[_: P]: P[SqlExpr => Condition] = P(notWord ~ inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
-  val isNull: Parser[SqlExpr => Condition] = P(isWord ~ nullWord).map(_ => IsNull)
+  def isNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ nullWord).map(_ => IsNull)
 
-  val isNotNull: Parser[SqlExpr => Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull)
+  def isNotNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull)
 
-  def condition: Parser[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
+  def condition[_: P]: P[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => Or(x +: y)
     case (x, _) => x
   }
 
-  def logicalTerm: Parser[Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
+  def logicalTerm[_: P]: P[Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
     case (x, y) if y.nonEmpty => And(x +: y)
     case (x, _) => x
   }
 
-  def boolExpr: Parser[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull).?).map {
+  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull).?).map {
     case (e, Some(f)) => f(e)
     case (e, None) => ExprCondition(e)
   }
 
-  def logicalFactor: Parser[Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
+  def logicalFactor[_: P]: P[Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
 
-  def where: Parser[Condition] = P(whereWord ~/ condition)
+  def where[_: P]: P[Condition] = P(whereWord ~/ condition)
 
-  def grouping: Parser[SqlExpr] = callOrField
+  def grouping[_: P]: P[SqlExpr] = callOrField
 
-  def groupings: Parser[Seq[SqlExpr]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
+  def groupings[_: P]: P[Seq[SqlExpr]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
 
-  def having: Parser[Condition] = P(havingWord ~/ condition)
+  def having[_: P]: P[Condition] = P(havingWord ~/ condition)
 
-  val limit: Parser[Int] = P(limitWord ~/ intNumber)
+  def limit[_: P]: P[Int] = P(limitWord ~/ ValueParser.intNumber)
 
-  val selectFields: Parser[SqlFields] = P(selectWord ~/ (fieldList | allFields))
+  def selectFields[_: P]: P[SqlFields] = P(selectWord ~/ (fieldList | allFields))
 
-  def nestedSelectFrom(fields: SqlFields): Parser[Select] = {
+  def nestedSelectFrom[_: P](fields: SqlFields): P[Select] = {
     P("(" ~ select ~ ")" ~/ (asWord.? ~ notKeyword).?).map {
       case (sel, _) =>
         fields match {
@@ -152,18 +150,18 @@ class SqlParser extends ValueParser {
     }
   }
 
-  def normalSelectFrom(fields: SqlFields): Parser[Select] = {
+  def normalSelectFrom[_: P](fields: SqlFields): P[Select] = {
     P(schemaName ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
       case (s, c, gs, h, l) => Select(s, fields, c, gs.getOrElse(Seq.empty), h, l)
     }
   }
 
-  def selectFrom(fields: SqlFields): Parser[Select] = {
+  def selectFrom[_: P](fields: SqlFields): P[Select] = {
     // Pass is required because FastParse 1.0.0 bug https://github.com/lihaoyi/fastparse/issues/88
-    P(Pass ~ fromWord ~/ (nestedSelectFrom(fields) | normalSelectFrom(fields)))
+    P(fromWord ~/ (nestedSelectFrom(fields) | normalSelectFrom(fields)))
   }
 
-  val select: Parser[Select] = P(selectFields.flatMap(selectFrom))
+  def select[_: P]: P[Select] = P(selectFields.flatMap(selectFrom))
 
   def substituteNested(expr: SqlExpr, nestedFields: Seq[SqlField]): SqlExpr = {
     expr match {
@@ -181,33 +179,27 @@ class SqlParser extends ValueParser {
     }
   }
 
-  val tables: Parser[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
+  def tables[_: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
-  val columns: Parser[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
+  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
 
-  val show: Parser[Statement] = P(showWord ~/ (columns | tables))
+  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables))
 
-  val statement: Parser[Statement] = P((select | show) ~ ";".? ~ End)
+  def statement[_: P]: P[Statement] = P((select | show) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
-    statement.parse(sql.trim) match {
-      case Success(s, _)      => Right(s)
-      case Failure(lastParser, index, extra) =>
-        val expected = lastParser.toString.toUpperCase
-        val actual = extra.input.repr.literalize(extra.input.slice(index, index + 10))
-        val position = extra.input.repr.prettyIndex(extra.input, index)
+    fastparse.parse(sql.trim, statement(_)) match {
+      case Parsed.Success(s, _)      => Right(s)
+      case f@Parsed.Failure(_, index, extra) =>
+        val trace = f.trace()
+        val expected = trace.terminals.render
+        val actual = Util.literalize(extra.input.slice(index, index + 10))
+        val position = extra.input.prettyIndex(index)
 
         Left(
           s"""Invalid SQL statement: '$sql'
              |Expect $expected, but got $actual at $position""".stripMargin
         )
     }
-  }
-}
-
-object SqlParser {
-  def parse(sql: String): Either[String, Statement] = {
-    val parser = new SqlParser
-    parser.parse(sql)
   }
 }

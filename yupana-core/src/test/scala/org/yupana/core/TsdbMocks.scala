@@ -64,11 +64,10 @@ trait TsdbMocks extends MockFactory {
     }
   }
 
-  private val parser = new SqlParser
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   def createQuery(sql: String): Query = {
-    parser.parse(sql).right.flatMap {
+    SqlParser.parse(sql).right.flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
       case x => Left(s"SELECT statement expected, but got $x")
     }.fold(fail(_), identity)
