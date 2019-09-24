@@ -248,7 +248,8 @@ val commonSettings = Seq(
   ),
   Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
   parallelExecution in Test := false,
-  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*"
+  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*",
+  headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
 )
 
 val noPublishSettings = Seq(

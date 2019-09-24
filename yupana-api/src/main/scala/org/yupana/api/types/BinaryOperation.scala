@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.types
 
 import org.joda.time.Period
@@ -8,8 +24,10 @@ import org.yupana.api.Time
   * @tparam T first argument type
   */
 trait BinaryOperation[T] extends Serializable {
+
   /** Second argument type */
   type U
+
   /** Result type */
   type Out
 
@@ -35,7 +53,7 @@ trait BinaryOperation[T] extends Serializable {
 }
 
 object BinaryOperation {
-  type Aux[A, B, O] = BinaryOperation[A] { type U = B;  type Out = O }
+  type Aux[A, B, O] = BinaryOperation[A] { type U = B; type Out = O }
 
   val PLUS = "plus"
   val MINUS = "minus"
@@ -62,10 +80,14 @@ object BinaryOperation {
   def le[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.le[T], "<=", DataType[Boolean])
 
   def plus[T](dt: DataType.Aux[T])(implicit num: Numeric[T]): BinaryOperation.Aux[T, T, T] = create(_.plus[T], "+", dt)
-  def minus[T](dt: DataType.Aux[T])(implicit num: Numeric[T]): BinaryOperation.Aux[T, T, T] = create(_.minus[T], "-", dt)
-  def multiply[T](dt: DataType.Aux[T])(implicit num: Numeric[T]): BinaryOperation.Aux[T, T, T] = create(_.multiply[T], "*", dt)
-  def divideInt[T](dt: DataType.Aux[T])(implicit num: Integral[T]): BinaryOperation.Aux[T, T, T] = create(_.intDiv[T], "/", dt)
-  def divideFrac[T](dt: DataType.Aux[T])(implicit num: Fractional[T]): BinaryOperation.Aux[T, T, T] = create(_.fracDiv[T], "/", dt)
+  def minus[T](dt: DataType.Aux[T])(implicit num: Numeric[T]): BinaryOperation.Aux[T, T, T] =
+    create(_.minus[T], "-", dt)
+  def multiply[T](dt: DataType.Aux[T])(implicit num: Numeric[T]): BinaryOperation.Aux[T, T, T] =
+    create(_.multiply[T], "*", dt)
+  def divideInt[T](dt: DataType.Aux[T])(implicit num: Integral[T]): BinaryOperation.Aux[T, T, T] =
+    create(_.intDiv[T], "/", dt)
+  def divideFrac[T](dt: DataType.Aux[T])(implicit num: Fractional[T]): BinaryOperation.Aux[T, T, T] =
+    create(_.fracDiv[T], "/", dt)
 
   def timeMinusTime: BinaryOperation.Aux[Time, Time, Long] = create(_.minus, "-", DataType[Long])
   def timeMinusPeriod: BinaryOperation.Aux[Time, Period, Time] = create(_.minus, "-", DataType[Time])
@@ -74,11 +96,18 @@ object BinaryOperation {
   def periodPlusPeriod: BinaryOperation.Aux[Period, Period, Period] = create(_.plus, "+", DataType[Period])
 
   def contains[T]: BinaryOperation.Aux[Array[T], T, Boolean] = create(_.contains, CONTAINS, DataType[Boolean])
-  def containsAll[T]: BinaryOperation.Aux[Array[T], Array[T], Boolean] = create(_.containsAll, CONTAINS_ALL, DataType[Boolean])
-  def containsAny[T]: BinaryOperation.Aux[Array[T], Array[T], Boolean] = create(_.containsAny, CONTAINS_ANY, DataType[Boolean])
-  def containsSame[T]: BinaryOperation.Aux[Array[T], Array[T], Boolean] = create(_.containsSame, CONTAINS_SAME, DataType[Boolean])
+  def containsAll[T]: BinaryOperation.Aux[Array[T], Array[T], Boolean] =
+    create(_.containsAll, CONTAINS_ALL, DataType[Boolean])
+  def containsAny[T]: BinaryOperation.Aux[Array[T], Array[T], Boolean] =
+    create(_.containsAny, CONTAINS_ANY, DataType[Boolean])
+  def containsSame[T]: BinaryOperation.Aux[Array[T], Array[T], Boolean] =
+    create(_.containsSame, CONTAINS_SAME, DataType[Boolean])
 
-  private def create[A, B, O](fun: BinaryOperations => (A, B) => O, n: String, rt: DataType.Aux[O]): BinaryOperation.Aux[A, B, O] = new BinaryOperation[A] {
+  private def create[A, B, O](
+      fun: BinaryOperations => (A, B) => O,
+      n: String,
+      rt: DataType.Aux[O]
+  ): BinaryOperation.Aux[A, B, O] = new BinaryOperation[A] {
     override type U = B
     override type Out = O
     override val dataType: DataType.Aux[O] = rt
@@ -96,19 +125,21 @@ object BinaryOperation {
     entry(GE, dt, BinaryOperation.ge)
   )
 
-  def integralOperations[T : Integral](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] = Map(
-    entry(PLUS, dt, BinaryOperation.plus[T](dt)),
-    entry(MINUS, dt, BinaryOperation.minus[T](dt)),
-    entry(MULTIPLY, dt, BinaryOperation.multiply[T](dt)),
-    entry(DIVIDE, dt, BinaryOperation.divideInt[T](dt))
-  ) ++ ordOperations(dt)
+  def integralOperations[T: Integral](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] =
+    Map(
+      entry(PLUS, dt, BinaryOperation.plus[T](dt)),
+      entry(MINUS, dt, BinaryOperation.minus[T](dt)),
+      entry(MULTIPLY, dt, BinaryOperation.multiply[T](dt)),
+      entry(DIVIDE, dt, BinaryOperation.divideInt[T](dt))
+    ) ++ ordOperations(dt)
 
-  def fractionalOperations[T : Fractional](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] = Map(
-    entry(PLUS, dt, BinaryOperation.plus[T](dt)),
-    entry(MINUS, dt, BinaryOperation.minus[T](dt)),
-    entry(MULTIPLY, dt, BinaryOperation.multiply[T](dt)),
-    entry(DIVIDE, dt, BinaryOperation.divideFrac[T](dt))
-  ) ++ ordOperations(dt)
+  def fractionalOperations[T: Fractional](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] =
+    Map(
+      entry(PLUS, dt, BinaryOperation.plus[T](dt)),
+      entry(MINUS, dt, BinaryOperation.minus[T](dt)),
+      entry(MULTIPLY, dt, BinaryOperation.multiply[T](dt)),
+      entry(DIVIDE, dt, BinaryOperation.divideFrac[T](dt))
+    ) ++ ordOperations(dt)
 
   val timeOperations: Map[(String, String), BinaryOperation[Time]] = Map(
     entry(MINUS, DataType[Time], BinaryOperation.timeMinusTime),
@@ -124,9 +155,10 @@ object BinaryOperation {
     entry(PLUS, DataType[String], create[String, String, String](_.plus, "+", DataType[String]))
   ) ++ ordOperations(DataType[String])
 
-  def tupleOperations[A, B](aOps: Map[(String, String), BinaryOperation[A]],
-                            bOps: Map[(String, String), BinaryOperation[B]]
-                           ): Map[(String, String), BinaryOperation[(A, B)]] = {
+  def tupleOperations[A, B](
+      aOps: Map[(String, String), BinaryOperation[A]],
+      bOps: Map[(String, String), BinaryOperation[B]]
+  ): Map[(String, String), BinaryOperation[(A, B)]] = {
     val commonOps = aOps.keySet intersect bOps.keySet
     commonOps.map { c =>
       val ao = aOps(c)
@@ -139,7 +171,9 @@ object BinaryOperation {
         override val name: String = ao.name
         override val infix: Boolean = ao.infix
 
-        override def apply(x: (A, B), y: (ao.U, bo.U))(implicit binaryOperations: BinaryOperations): (ao.Out, bo.Out) = {
+        override def apply(x: (A, B), y: (ao.U, bo.U))(
+            implicit binaryOperations: BinaryOperations
+        ): (ao.Out, bo.Out) = {
           (ao(x._1, y._1), bo(x._2, y._2))
         }
       }
@@ -153,7 +187,11 @@ object BinaryOperation {
     entry(CONTAINS_SAME, DataType[Array[T]], containsSame)
   )
 
-  private def entry[T, U](name: String, argType: DataType.Aux[U], op: BinaryOperation.Aux[T, U, _]): ((String, String), BinaryOperation[T]) = {
+  private def entry[T, U](
+      name: String,
+      argType: DataType.Aux[U],
+      op: BinaryOperation.Aux[T, U, _]
+  ): ((String, String), BinaryOperation[T]) = {
     (name, argType.meta.sqlTypeName) -> op
   }
 }

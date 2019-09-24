@@ -7,20 +7,26 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model._
-import org.yupana.core.utils.metric.{MetricQueryCollector, NoMetricCollector}
-import org.scalamock.function.{FunctionAdapter1, MockFunction1}
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
-import org.yupana.api.query.{DimIdIn, DimIdNotIn, Expression}
+import org.yupana.api.query.{ DimIdIn, DimIdNotIn, Expression }
 import org.yupana.api.schema.Table
 import org.yupana.api.types.Writable
-import org.yupana.core.{MapReducible, TestDims, TestSchema, TestTableFields}
-import org.yupana.core.dao.{DictionaryDao, DictionaryProvider, DictionaryProviderImpl}
+import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 
 import scala.collection.JavaConverters._
 
-class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfterAll with BeforeAndAfterEach with OptionValues {
+class TSDaoHBaseTest
+    extends FlatSpec
+    with Matchers
+    with MockFactory
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
@@ -65,10 +71,11 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
-          range.zipWithIndex.forall { case (id, idx) =>
-            val e = if (idx == range.size - 1) id + 1 else id
-            id >= Bytes.toLong(rowRange.getStartRow, 8 + idx * 8) &&
-            e <= Bytes.toLong(rowRange.getStopRow, 8 + idx * 8)
+          range.zipWithIndex.forall {
+            case (id, idx) =>
+              val e = if (idx == range.size - 1) id + 1 else id
+              id >= Bytes.toLong(rowRange.getStartRow, 8 + idx * 8) &&
+              e <= Bytes.toLong(rowRange.getStopRow, 8 + idx * 8)
           } &&
           time == Bytes.toLong(rowRange.getStartRow) &&
           time == Bytes.toLong(rowRange.getStopRow)
@@ -88,20 +95,26 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
     val pointTime = 2000
 
-    queryRunner.expects(scan(from, to)).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-        Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+    queryRunner
+      .expects(scan(from, to))
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+          )
+        )
       )
-    ))
 
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1l)).returning(Map(1l -> "test1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
 
-    val res = dao.query(
-      InternalQuery(testTable, exprs.toSet, and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(testTable, exprs.toSet, and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res.size shouldEqual 1
 
@@ -114,33 +127,40 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
   it should "skip values with fields not defined in schema" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
     val pointTime = 2000
 
-    queryRunner.expects(scan(from, to, Seq(1l))).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-        Array(
-          pointTime  % testTable.rowTimeSpan -> tagged(111, 3d),
-          (pointTime + 1) % testTable.rowTimeSpan -> tagged(1, 1d)
+    queryRunner
+      .expects(scan(from, to, Seq(1L)))
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            Array(
+              pointTime % testTable.rowTimeSpan -> tagged(111, 3d),
+              (pointTime + 1) % testTable.rowTimeSpan -> tagged(1, 1d)
+            )
+          )
         )
       )
-    ))
 
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1l))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1l)).returning(Map(1l -> "test1"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2l)).returning(Map(2l -> "test22"))
+    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L)).returning(Map(2L -> "test22"))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("test1")))
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("test1")))
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res.size shouldEqual 1
 
@@ -154,30 +174,37 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
   it should "set tag filter for equ" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
     val pointTime = 2000
 
-    queryRunner.expects(scan(from, to, Seq(1l))).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-        Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+    queryRunner
+      .expects(scan(from, to, Seq(1L)))
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+          )
+        )
       )
-    ))
 
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1l))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1l)).returning(Map(1l -> "test1"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2l)).returning(Map(2l -> "test22"))
+    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L)).returning(Map(2L -> "test22"))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("test1")))
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("test1")))
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res.size shouldEqual 1
 
@@ -191,22 +218,25 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
   it should "support not create queries if dimension value is not found" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
 
     queryRunner.expects(Seq.empty).returning(Iterator.empty)
 
     (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map.empty)
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("test1")))
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("test1")))
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res shouldBe empty
   }
@@ -220,28 +250,40 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     val pointTime1 = 2000
     val pointTime2 = 2200
 
-    queryRunner.expects(scan(from, to, Set(Seq(1l), Seq(2l)))).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-          pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+    queryRunner
+      .expects(scan(from, to, Set(Seq(1L), Seq(2L))))
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
+              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+            )
+          )
         )
       )
-    ))
 
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1", "test2")).returning(Map("test1" -> 1l, "test2" -> 2l))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5l)).returning(Map(5l -> "test25"))
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.TAG_A, Set("test1", "test2"))
+      .returning(Map("test1" -> 1L, "test2" -> 2L))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L)).returning(Map(5L -> "test25"))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.TAG_A), Set("test1", "test2")))
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("test1", "test2"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res.size shouldEqual 2
 
@@ -262,15 +304,17 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
 
     queryRunner.expects(Seq()).returning(Iterator.empty)
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.TAG_A), Set()))
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.TAG_A), Set()))
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res shouldBe empty
   }
@@ -283,19 +327,23 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
 
     val pointTime1 = 2000
 
-    queryRunner.expects(
-      scan(from, to, Seq(2l, 21l))
-    ).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(21))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 3d)
+    queryRunner
+      .expects(
+        scan(from, to, Seq(2L, 21L))
+      )
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(21))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 3d)
+            )
+          )
         )
       )
-    ))
 
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test2")).returning(Map("test2" -> 2l))
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("test21")).returning(Map("test21" -> 21l))
+    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test2")).returning(Map("test2" -> 2L))
+    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("test21")).returning(Map("test21" -> 21L))
 
     dao.query(
       InternalQuery(
@@ -317,51 +365,74 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
   it should "cross join different IN conditions for different tags" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
 
     val pointTime = 2000
 
-    queryRunner.expects(
-      scan(
-        from,
-        to,
-        Set(
-          Seq(1l, 1l),
-          Seq(1l,2l),
-          Seq(2l,1l),
-          Seq(2l,2l),
-          Seq(3l, 1l),
-          Seq(3l,2l)
+    queryRunner
+      .expects(
+        scan(
+          from,
+          to,
+          Set(
+            Seq(1L, 1L),
+            Seq(1L, 2L),
+            Seq(2L, 1L),
+            Seq(2L, 2L),
+            Seq(3L, 1L),
+            Seq(3L, 2L)
+          )
         )
       )
-    ).returning(Iterator(
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 4d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 6d)))
-    ))
-
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("A 1", "A 2", "A 3")).returning(Map("A 1" -> 1l, "A 2" -> 2l, "A 3" -> 3l))
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1", "B 2")).returning(Map("B 1" -> 1l, "B 2" -> 2l))
-
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1l, 2l, 3l)).returning(Map(1l -> "A 1", 2l -> "A 2", 3l -> "A 3"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1l, 2l)).returning(Map(1l -> "B 1", 2l -> "B 2"))
-
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
-          in(dimension(TestDims.TAG_B), Set("B 1", "B 2"))
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 4d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 6d))
+          )
         )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+      )
+
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.TAG_A, Set("A 1", "A 2", "A 3"))
+      .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
+    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1", "B 2")).returning(Map("B 1" -> 1L, "B 2" -> 2L))
+
+    (dictionary.getValuesByIds _)
+      .expects(TestDims.TAG_A, Set(1L, 2L, 3L))
+      .returning(Map(1L -> "A 1", 2L -> "A 2", 3L -> "A 3"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L, 2L)).returning(Map(1L -> "B 1", 2L -> "B 2"))
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
+            in(dimension(TestDims.TAG_B), Set("B 1", "B 2"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res should have size 4
   }
@@ -369,46 +440,61 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
   it should "cross join in and eq for different tags" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
 
     val pointTime = 2000
 
-    queryRunner.expects(
-      scan(
-        from,
-        to,
-        Set(
-          Seq(1l,1l),
-          Seq(2l,1l),
-          Seq(3l, 1l)
+    queryRunner
+      .expects(
+        scan(
+          from,
+          to,
+          Set(
+            Seq(1L, 1L),
+            Seq(2L, 1L),
+            Seq(3L, 1L)
+          )
         )
       )
-    ).returning(Iterator(
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d)))
-    ))
-
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("A 1", "A 2", "A 3")).returning(Map("A 1" -> 1l, "A 2" -> 2l, "A 3" -> 3l))
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1")).returning(Map("B 1" -> 1l))
-
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1l, 2l)).returning(Map(1l -> "A 1", 2l -> "A 2"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1l)).returning(Map(1l -> "B 1"))
-
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
-          equ(dimension(TestDims.TAG_B), const("B 1"))
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))
+          )
         )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+      )
+
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.TAG_A, Set("A 1", "A 2", "A 3"))
+      .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
+    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1")).returning(Map("B 1" -> 1L))
+
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L, 2L)).returning(Map(1L -> "A 1", 2L -> "A 2"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L)).returning(Map(1L -> "B 1"))
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
+            equ(dimension(TestDims.TAG_B), const("B 1"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res should have size 2
   }
@@ -497,18 +583,24 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
 
     val pointTime1 = 2000
 
-    queryRunner.expects(
-      scan(from, to)
-    ).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 3d)
+    queryRunner
+      .expects(
+        scan(from, to)
+      )
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(1))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 3d)
+            )
+          )
         )
       )
-    ))
 
-    (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("test1", "test2")).returning(Map("test1" -> 1, "test2" -> 2))
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.TAG_B, Set("test1", "test2"))
+      .returning(Map("test1" -> 1, "test2" -> 2))
     (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("test3")).returning(Map("test3" -> 3))
 
     dao.query(
@@ -535,39 +627,60 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
 
     val pointTime = 2000
 
-    queryRunner.expects(
-      scan(from, to)
-    ).returning(Iterator(
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 2d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4), Some(3))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 4d))),
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 5d)))
-    ))
+    queryRunner
+      .expects(
+        scan(from, to)
+      )
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 2d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4), Some(3))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 4d))
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 5d))
+          )
+        )
+      )
 
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test11", "test12", "test14", "test15"))
       .returning(Map("test11" -> 1, "test12" -> 2, "test14" -> 4, "test15" -> 5))
 
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(2l))
-      .returning(Map(2l -> "test22"))
+      .expects(TestDims.TAG_B, Set(2L))
+      .returning(Map(2L -> "test22"))
 
-    val results = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
-          notIn(dimension(TestDims.TAG_A), Set("test12", "test15")),
-          neq(dimension(TestDims.TAG_A), const("test14"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val results = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            notIn(dimension(TestDims.TAG_A), Set("test12", "test15")),
+            neq(dimension(TestDims.TAG_A), const("test14"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     results should have size 1
   }
@@ -582,26 +695,28 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
 
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("tagValue1"))
-      .returning(Map("tagValue1" -> 1l))
+      .returning(Map("tagValue1" -> 1L))
 
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("tagValue2"))
-      .returning(Map("tagValue2" -> 2l))
+      .returning(Map("tagValue2" -> 2L))
 
-    val results = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          notIn(dimension(TestDims.TAG_A), Set("tagValue1", "tagValue2")),
-          equ(dimension(TestDims.TAG_A), const("tagValue1"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val results = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(dimension(TestDims.TAG_A), Set("tagValue1", "tagValue2")),
+            equ(dimension(TestDims.TAG_A), const("tagValue1"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     results shouldBe empty
   }
@@ -615,36 +730,42 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     val pointTime1 = 2000
     val pointTime2 = 2200
 
-    queryRunner.expects(
-      scan(
-        from,
-        to,
-        Set(
-          Seq(1l),
-          Seq(2l)
+    queryRunner
+      .expects(
+        scan(
+          from,
+          to,
+          Set(
+            Seq(1L),
+            Seq(2L)
+          )
         )
       )
-    ).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-          pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
+              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+            )
+          )
         )
       )
-    ))
 
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5l)).returning(Map(5l -> "test25"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L)).returning(Map(5L -> "test25"))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), DimIdIn(dimension(TestDims.TAG_A), Set(1, 2)))
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), DimIdIn(dimension(TestDims.TAG_A), Set(1, 2)))
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res.size shouldEqual 2
 
@@ -665,11 +786,18 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
 
     val pointTime = 2000
 
-    queryRunner.expects(
-      scan(from, to, Seq(1l))
-    ).returning(Iterator(
-      TSDOutputRow(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))), Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d)))
-    ))
+    queryRunner
+      .expects(
+        scan(from, to, Seq(1L))
+      )
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+          )
+        )
+      )
 
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test11", "test12"))
@@ -680,24 +808,26 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
       .returning(Map("test14" -> 4))
 
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(2l))
-      .returning(Map(2l -> "test22"))
+      .expects(TestDims.TAG_B, Set(2L))
+      .returning(Map(2L -> "test22"))
 
-    val results = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-          DimIdNotIn(dimension(TestDims.TAG_A), Set(2, 5)),
-          neq(dimension(TestDims.TAG_A), const("test14"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val results = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            DimIdNotIn(dimension(TestDims.TAG_A), Set(2, 5)),
+            neq(dimension(TestDims.TAG_A), const("test14"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     results should have size 1
   }
@@ -711,34 +841,40 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     val pointTime = 2000
 
     (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("tag_a")).returning(Map("tag_a" -> 1))
-    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(1l)).returning(Map(1l -> "tag_a"))
+    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "tag_a"))
 
-    queryRunner.expects(
-      scan(from, to, Seq(1l))
-    ).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(5))),
-        Array(
-          pointTime % testTable.rowTimeSpan -> tagged(1, 7d),
-          (pointTime + 1) % testTable.rowTimeSpan -> tagged(1, 5d)
+    queryRunner
+      .expects(
+        scan(from, to, Seq(1L))
+      )
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(5))),
+            Array(
+              pointTime % testTable.rowTimeSpan -> tagged(1, 7d),
+              (pointTime + 1) % testTable.rowTimeSpan -> tagged(1, 5d)
+            )
+          )
         )
       )
-    ))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          equ(time, const(Time(pointTime))),
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          equ(dimension(TestDims.TAG_A), const("tag_a"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            equ(time, const(Time(pointTime))),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(dimension(TestDims.TAG_A), const("tag_a"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res should have size 1
     res.head.get(0).value shouldEqual Time(pointTime)
@@ -755,34 +891,40 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     val pointTime1 = 2000
     val pointTime2 = 2500
 
-    (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("test42")).returning(Map("test42" -> 42l))
-    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(42l)).returning(Map(42l -> "test42"))
+    (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("test42")).returning(Map("test42" -> 42L))
+    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(42L)).returning(Map(42L -> "test42"))
 
-    queryRunner.expects(
-      scan(from, to, Seq(42l))
-    ).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-          pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+    queryRunner
+      .expects(
+        scan(from, to, Seq(42L))
+      )
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
+              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+            )
+          )
         )
       )
-    ))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          equ(tuple(time, dimension(TestDims.TAG_A)), const((Time(pointTime2), "test42")))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(tuple(time, dimension(TestDims.TAG_A)), const((Time(pointTime2), "test42")))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res should have size 1
     res.head.get(0).value shouldEqual Time(pointTime2)
@@ -801,50 +943,60 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     val pointTime2 = 1020
     val pointTime3 = 1030
 
-    (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("test42", "test51")).returning(Map("test42" -> 42l, "test51" -> 51l))
-    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(42l, 51l)).returning(Map(42l -> "test42", 51l -> "test51"))
+    (dictionaryDao.getIdsByValues _)
+      .expects(TestDims.TAG_A, Set("test42", "test51"))
+      .returning(Map("test42" -> 42L, "test51" -> 51L))
+    (dictionaryDao.getValuesByIds _)
+      .expects(TestDims.TAG_A, Set(42L, 51L))
+      .returning(Map(42L -> "test42", 51L -> "test51"))
 
-    queryRunner.expects(
-      scan(
-        from,
-        to,
-        Set(
-          Seq(42l),
-          Seq(51l)
+    queryRunner
+      .expects(
+        scan(
+          from,
+          to,
+          Set(
+            Seq(42L),
+            Seq(51L)
+          )
         )
       )
-    ).returning(Iterator(
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-          pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d),
-          pointTime3 % testTable.rowTimeSpan -> tagged(1, 8d)
-        )
-      ),
-      TSDOutputRow(
-        TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51), Some(6))),
-        Array(
-          pointTime1 % testTable.rowTimeSpan -> tagged(1, 15d),
-          pointTime2 % testTable.rowTimeSpan -> tagged(1, 33d),
-          pointTime3 % testTable.rowTimeSpan -> tagged(1, 43d)
+      .returning(
+        Iterator(
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
+              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d),
+              pointTime3 % testTable.rowTimeSpan -> tagged(1, 8d)
+            )
+          ),
+          TSDOutputRow(
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51), Some(6))),
+            Array(
+              pointTime1 % testTable.rowTimeSpan -> tagged(1, 15d),
+              pointTime2 % testTable.rowTimeSpan -> tagged(1, 33d),
+              pointTime3 % testTable.rowTimeSpan -> tagged(1, 43d)
+            )
+          )
         )
       )
-    ))
 
-    val res = dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"), (Time(pointTime1), "test51")))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"), (Time(pointTime1), "test51")))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
 
     res should have size 4
     res.head.get(0).value shouldEqual Time(pointTime1)
@@ -864,10 +1016,15 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     res(3).get(2).value shouldEqual 33d
   }
 
-  class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner) extends TSDaoHBaseBase[Iterator] {
+  class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
+      extends TSDaoHBaseBase[Iterator] {
     override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
-    override def executeScans(table: Table, queries: Seq[Scan], metricCollector: MetricQueryCollector): Iterator[TSDOutputRow[Long]] = {
+    override def executeScans(
+        table: Table,
+        queries: Seq[Scan],
+        metricCollector: MetricQueryCollector
+    ): Iterator[TSDOutputRow[Long]] = {
       queryRunner(queries)
     }
   }
@@ -884,4 +1041,3 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
     tag +: writable.write(value)
   }
 }
-

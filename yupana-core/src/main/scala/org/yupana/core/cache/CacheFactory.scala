@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.cache
 
 import java.util.Properties
@@ -19,7 +35,7 @@ object CacheFactory extends StrictLogging {
 
   object CacheEngine extends Enumeration {
     type CacheEngine = Value
-    val  EhCache, Ignite, Disabled = Value
+    val EhCache, Ignite, Disabled = Value
   }
 
   private val factories = Map(
@@ -33,17 +49,21 @@ object CacheFactory extends StrictLogging {
   private var nameSuffix: String = _
 
   def propsForPrefix(prefix: String): Map[String, String] = {
-    properties.asScala.filter(_._1.startsWith(prefix + "."))
-      .map { case (k, v) => k.drop(prefix.length + 1) -> v }
-      .toMap
+    properties.asScala.filter(_._1.startsWith(prefix + ".")).map { case (k, v) => k.drop(prefix.length + 1) -> v }.toMap
   }
 
-  def createDescription[K : BoxingTag, V : BoxingTag](name: String): CacheDescription.Aux[K, V] = {
+  def createDescription[K: BoxingTag, V: BoxingTag](name: String): CacheDescription.Aux[K, V] = {
     if (properties == null) throw new IllegalStateException("CacheUtils were not properly initialized")
     val props = propsForPrefix("analytics.caches." + name)
-    val engine = props.get("engine").map(engineName =>
-        CacheEngine.values.find(_.toString == engineName).getOrElse(throw new IllegalArgumentException(s"Unknown cache engine $engineName for cache $name"))
-    ).getOrElse(defaultEngine)
+    val engine = props
+      .get("engine")
+      .map(
+        engineName =>
+          CacheEngine.values
+            .find(_.toString == engineName)
+            .getOrElse(throw new IllegalArgumentException(s"Unknown cache engine $engineName for cache $name"))
+      )
+      .getOrElse(defaultEngine)
 
     CacheDescription(name, nameSuffix, engine)
   }
@@ -54,12 +74,14 @@ object CacheFactory extends StrictLogging {
       val defaultEngineName = Option(properties.getProperty("analytics.caches.default.engine"))
         .getOrElse(throw new IllegalArgumentException("Default cache engine is not defined"))
 
-      defaultEngine = CacheEngine.values.find(_.toString == defaultEngineName)
+      defaultEngine = CacheEngine.values
+        .find(_.toString == defaultEngineName)
         .getOrElse(throw new IllegalArgumentException(s"Unknown default cache engine $defaultEngineName"))
 
       nameSuffix = Option(properties.getProperty("analytics.caches.default.suffix"))
         .filter(_.trim.nonEmpty)
-        .getOrElse(hbaseNamespace).trim
+        .getOrElse(hbaseNamespace)
+        .trim
     } else logger.info("CacheUtils already initialized")
   }
 
@@ -69,7 +91,7 @@ object CacheFactory extends StrictLogging {
     getFactory(description).initCache(description)
   }
 
-  def initCache[K : BoxingTag, V : BoxingTag](name: String): Cache[K, V] = {
+  def initCache[K: BoxingTag, V: BoxingTag](name: String): Cache[K, V] = {
     initCache(createDescription[K, V](name))
   }
 
@@ -79,6 +101,9 @@ object CacheFactory extends StrictLogging {
   }
 
   private def getFactory(description: CacheDescription): CacheFactory = {
-    factories.getOrElse(description.engine, throw new IllegalArgumentException(s"Unsupported cache engine ${description.engine}"))
+    factories.getOrElse(
+      description.engine,
+      throw new IllegalArgumentException(s"Unsupported cache engine ${description.engine}")
+    )
   }
 }

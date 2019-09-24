@@ -1,23 +1,40 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ExternalLink, Table}
-import org.yupana.core.dao.{DictionaryProvider, TSDao}
-import org.yupana.core.model.{InternalRow, KeyData}
-import org.yupana.core.utils.metric.{ConsoleMetricQueryCollector, MetricQueryCollector, NoMetricCollector}
+import org.yupana.api.schema.{ ExternalLink, Table }
+import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector, NoMetricCollector }
 
 import scala.collection.AbstractIterator
 
 // NOTE: dao is TSDaoHBase because TSDB has put and rollup related method.  Possible it better to not have them here
-class TSDB(override val dao: TSDao[Iterator, Long],
-           override val dictionaryProvider: DictionaryProvider,
-           override val prepareQuery: Query => Query,
-           override val extractBatchSize: Int = 10000,
-           collectMetrics: Boolean = false
-          )
-  extends TsdbBase with StrictLogging {
+class TSDB(
+    override val dao: TSDao[Iterator, Long],
+    override val dictionaryProvider: DictionaryProvider,
+    override val prepareQuery: Query => Query,
+    override val extractBatchSize: Int = 10000,
+    collectMetrics: Boolean = false
+) extends TsdbBase
+    with StrictLogging {
 
   private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
@@ -38,7 +55,10 @@ class TSDB(override val dao: TSDao[Iterator, Long],
     if (collectMetrics) new ConsoleMetricQueryCollector(query, "query") else NoMetricCollector
   }
 
-  override def finalizeQuery(data: Iterator[Array[Option[Any]]], metricCollector: MetricQueryCollector): Iterator[Array[Option[Any]]] = {
+  override def finalizeQuery(
+      data: Iterator[Array[Option[Any]]],
+      metricCollector: MetricQueryCollector
+  ): Iterator[Array[Option[Any]]] = {
     new AbstractIterator[Array[Option[Any]]] {
       var hasEnded = false
 
@@ -66,39 +86,46 @@ class TSDB(override val dao: TSDao[Iterator, Long],
     new TsdbServerResult(queryContext, queryPipeline(queryContext, metricCollector))
   }
 
-  override def applyWindowFunctions(queryContext: QueryContext, keysAndValues: Iterator[(KeyData, InternalRow)]): Iterator[(KeyData, InternalRow)] = {
+  override def applyWindowFunctions(
+      queryContext: QueryContext,
+      keysAndValues: Iterator[(KeyData, InternalRow)]
+  ): Iterator[(KeyData, InternalRow)] = {
     val seq = keysAndValues.zipWithIndex.toList
 
     val grouped = seq
       .groupBy(_._1._1)
-      .map { case (keyData, group) =>
+      .map {
+        case (keyData, group) =>
+          val (values, rowNumbers) = group
+            .map { case ((_, valuedata), rowNumber) => (valuedata, rowNumber) }
+            .toArray
+            .sortBy(_._1.get[Time](queryContext, TimeExpr))
+            .unzip
 
-        val (values, rowNumbers) = group.map { case ((_, valuedata), rowNumber) => (valuedata, rowNumber) }
-          .toArray
-          .sortBy(_._1.get[Time](queryContext, TimeExpr))
-          .unzip
-
-        keyData -> ((values, rowNumbers.zipWithIndex.toMap))
+          keyData -> ((values, rowNumbers.zipWithIndex.toMap))
       }
 
     val winFieldsAndGroupValues = queryContext.query.fields.map(_.expr).collect {
       case winFuncExpr: WindowFunctionExpr =>
-        val values = grouped.mapValues { case (vs, rowNumIndex) =>
-           val funcValues = vs.map(_.get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr))
-          (funcValues, rowNumIndex)
+        val values = grouped.mapValues {
+          case (vs, rowNumIndex) =>
+            val funcValues = vs.map(_.get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr))
+            (funcValues, rowNumIndex)
         }
         winFuncExpr -> values
     }
 
-    seq.map { case ((keyData, valueData), rowNumber) =>
-      winFieldsAndGroupValues.foreach { case (winFuncExpr, groups) =>
-        val (group, rowIndex) = groups(keyData)
-        rowIndex.get(rowNumber).map { index =>
-          val value = winFuncExpr.operation(group.asInstanceOf[Array[Option[winFuncExpr.expr.Out]]], index)
-          valueData.set(queryContext, winFuncExpr, value)
+    seq.map {
+      case ((keyData, valueData), rowNumber) =>
+        winFieldsAndGroupValues.foreach {
+          case (winFuncExpr, groups) =>
+            val (group, rowIndex) = groups(keyData)
+            rowIndex.get(rowNumber).map { index =>
+              val value = winFuncExpr.operation(group.asInstanceOf[Array[Option[winFuncExpr.expr.Out]]], index)
+              valueData.set(queryContext, winFuncExpr, value)
+            }
         }
-      }
-      keyData -> valueData
+        keyData -> valueData
     }.toIterator
   }
 
@@ -113,13 +140,14 @@ class TSDB(override val dao: TSDao[Iterator, Long],
   }
 
   private def loadTagsIds(dataPoints: Seq[DataPoint]): Unit = {
-    dataPoints.groupBy(_.table).foreach { case (table, points) =>
-      table.dimensionSeq.map { tag =>
-        val values = points.flatMap { dp =>
-          dp.dimensions.get(tag).filter(_.trim.nonEmpty)
+    dataPoints.groupBy(_.table).foreach {
+      case (table, points) =>
+        table.dimensionSeq.map { tag =>
+          val values = points.flatMap { dp =>
+            dp.dimensions.get(tag).filter(_.trim.nonEmpty)
+          }
+          dictionary(tag).findIdsByValues(values.toSet)
         }
-        dictionary(tag).findIdsByValues(values.toSet)
-      }
     }
   }
 
@@ -127,5 +155,3 @@ class TSDB(override val dao: TSDao[Iterator, Long],
     catalogs.getOrElse(catalog, throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}"))
   }
 }
-
-

@@ -1,9 +1,25 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.jdbc
 
-import java.sql.{Connection, DatabaseMetaData, ResultSet, RowIdLifetime, SQLException}
+import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, SQLException }
 
-import org.yupana.api.query.{Result, SimpleResult}
-import org.yupana.api.types.{DataType, UnaryOperation}
+import org.yupana.api.query.{ Result, SimpleResult }
+import org.yupana.api.types.{ DataType, UnaryOperation }
 import org.yupana.jdbc.build.BuildInfo
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
@@ -58,11 +74,23 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxCatalogNameLength = 0
 
-  override def getCrossReference(parentCatalog: String, parentSchema: String, parentTable: String, foreignCatalog: String, foreignSchema: String, foreignTable: String): ResultSet = emptyResultSet
+  override def getCrossReference(
+      parentCatalog: String,
+      parentSchema: String,
+      parentTable: String,
+      foreignCatalog: String,
+      foreignSchema: String,
+      foreignTable: String
+  ): ResultSet = emptyResultSet
 
   override def getCatalogTerm = "catalog"
 
-  override def getAttributes(catalog: String, schemaPattern: String, typeNamePattern: String, attributeNamePattern: String): ResultSet = emptyResultSet
+  override def getAttributes(
+      catalog: String,
+      schemaPattern: String,
+      typeNamePattern: String,
+      attributeNamePattern: String
+  ): ResultSet = emptyResultSet
 
   override def getMaxStatementLength = 0
 
@@ -100,7 +128,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsSelectForUpdate() = false
 
-  override def getUDTs(catalog: String, schemaPattern: String, typeNamePattern: String, types: Array[Int]): ResultSet = emptyResultSet
+  override def getUDTs(catalog: String, schemaPattern: String, typeNamePattern: String, types: Array[Int]): ResultSet =
+    emptyResultSet
 
   override def supportsOpenStatementsAcrossRollback() = false
 
@@ -130,7 +159,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def isReadOnly = true
 
-  override def getProcedureColumns(catalog: String, schemaPattern: String, procedureNamePattern: String, columnNamePattern: String): ResultSet = emptyResultSet
+  override def getProcedureColumns(
+      catalog: String,
+      schemaPattern: String,
+      procedureNamePattern: String,
+      columnNamePattern: String
+  ): ResultSet = emptyResultSet
 
   override def getCatalogs: ResultSet = emptyResultSet
 
@@ -162,9 +196,16 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def doesMaxRowSizeIncludeBlobs = false
 
-  override def getBestRowIdentifier(catalog: String, schema: String, table: String, scope: Int, nullable: Boolean): ResultSet = emptyResultSet
+  override def getBestRowIdentifier(
+      catalog: String,
+      schema: String,
+      table: String,
+      scope: Int,
+      nullable: Boolean
+  ): ResultSet = emptyResultSet
 
-  override def getProcedures(catalog: String, schemaPattern: String, procedureNamePattern: String): ResultSet = emptyResultSet
+  override def getProcedures(catalog: String, schemaPattern: String, procedureNamePattern: String): ResultSet =
+    emptyResultSet
 
   override def supportsSubqueriesInQuantifieds() = false
 
@@ -172,7 +213,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsIntegrityEnhancementFacility() = false
 
-  override def getTablePrivileges(catalog: String, schemaPattern: String, tableNamePattern: String): ResultSet = emptyResultSet
+  override def getTablePrivileges(catalog: String, schemaPattern: String, tableNamePattern: String): ResultSet =
+    emptyResultSet
 
   override def supportsExtendedSQLGrammar() = false
 
@@ -180,7 +222,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsConvert(fromType: Int, toType: Int) = false
 
-  override def getFunctionColumns(catalog: String, schemaPattern: String, functionNamePattern: String, columnNamePattern: String): ResultSet = emptyResultSet
+  override def getFunctionColumns(
+      catalog: String,
+      schemaPattern: String,
+      functionNamePattern: String,
+      columnNamePattern: String
+  ): ResultSet = emptyResultSet
 
   override def supportsPositionedDelete() = false
 
@@ -190,7 +237,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsANSI92IntermediateSQL() = false
 
-  override def getSuperTypes(catalog: String, schemaPattern: String, typeNamePattern: String): ResultSet = emptyResultSet
+  override def getSuperTypes(catalog: String, schemaPattern: String, typeNamePattern: String): ResultSet =
+    emptyResultSet
 
   override def supportsMultipleTransactions() = false
 
@@ -226,7 +274,13 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsGroupBy() = true
 
-  override def getIndexInfo(catalog: String, schema: String, table: String, unique: Boolean, approximate: Boolean): ResultSet = emptyResultSet
+  override def getIndexInfo(
+      catalog: String,
+      schema: String,
+      table: String,
+      unique: Boolean,
+      approximate: Boolean
+  ): ResultSet = emptyResultSet
 
   override def getSchemas: ResultSet = emptyResultSet
 
@@ -258,7 +312,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getSQLStateType: Int = DatabaseMetaData.sqlStateSQL
 
-  override def getColumnPrivileges(catalog: String, schema: String, table: String, columnNamePattern: String): ResultSet = emptyResultSet
+  override def getColumnPrivileges(
+      catalog: String,
+      schema: String,
+      table: String,
+      columnNamePattern: String
+  ): ResultSet = emptyResultSet
 
   override def getMaxColumnsInIndex = 0
 
@@ -285,7 +344,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsSavepoints() = false
 
-  override def getSuperTables(catalog: String, schemaPattern: String, tableNamePattern: String): ResultSet = emptyResultSet
+  override def getSuperTables(catalog: String, schemaPattern: String, tableNamePattern: String): ResultSet =
+    emptyResultSet
 
   override def dataDefinitionCausesTransactionCommit = false
 
@@ -307,10 +367,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxProcedureNameLength = 0
 
-  override def getColumns(catalog: String,
-                          schemaPattern: String,
-                          tableNamePattern: String,
-                          columnNamePattern: String): ResultSet = {
+  override def getColumns(
+      catalog: String,
+      schemaPattern: String,
+      tableNamePattern: String,
+      columnNamePattern: String
+  ): ResultSet = {
     val sql = s"SHOW COLUMNS FROM $tableNamePattern"
     val stmt = connection.createStatement()
     stmt.executeQuery(sql)
@@ -324,7 +386,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def nullsAreSortedLow() = false
 
-  override def getTables(catalog: String, schemaPattern: String, tableNamePattern: String, types: Array[String]): ResultSet = {
+  override def getTables(
+      catalog: String,
+      schemaPattern: String,
+      tableNamePattern: String,
+      types: Array[String]
+  ): ResultSet = {
     val sql = "SHOW TABLES"
     val stmt = connection.createStatement()
     stmt.executeQuery(sql)
@@ -346,13 +413,19 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getProcedureTerm = "procedure"
 
-  override def getFunctions(catalog: String, schemaPattern: String, functionNamePattern: String): ResultSet = emptyResultSet
+  override def getFunctions(catalog: String, schemaPattern: String, functionNamePattern: String): ResultSet =
+    emptyResultSet
 
   override def getClientInfoProperties: ResultSet = emptyResultSet
 
   override def supportsStoredFunctionsUsingCallSyntax() = false
 
-  override def getPseudoColumns(catalog: String, schemaPattern: String, tableNamePattern: String, columnNamePattern: String): ResultSet = emptyResultSet
+  override def getPseudoColumns(
+      catalog: String,
+      schemaPattern: String,
+      tableNamePattern: String,
+      columnNamePattern: String
+  ): ResultSet = emptyResultSet
 
   override def usesLocalFilePerTable() = false
 
