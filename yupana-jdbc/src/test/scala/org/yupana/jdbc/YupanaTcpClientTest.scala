@@ -51,7 +51,7 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     server.closeOnReceive()
-    the[IOException] thrownBy client.ping(12345) should have message "Broken pipe"
+    an[IOException] should be thrownBy client.ping(12345)
   }
 
 }
