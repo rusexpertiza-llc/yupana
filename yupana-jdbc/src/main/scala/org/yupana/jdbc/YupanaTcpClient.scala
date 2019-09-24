@@ -1,5 +1,6 @@
 package org.yupana.jdbc
 
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.channels.SocketChannel
 import java.nio.{ByteBuffer, ByteOrder}
@@ -34,15 +35,19 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   def ping(reqTime: Long): Option[Version] = {
     val request = createProtoPing(reqTime)
-    val response = execPing(request)
-    if (response.reqTime != reqTime) {
-      throw new Exception("got wrong ping response")
+    execPing(request) match {
+      case Right(response) =>
+        if (response.reqTime != reqTime) {
+          throw new Exception("got wrong ping response")
+        }
+        channel.close()
+        response.version
+
+      case Left(msg) => throw new IOException(msg)
     }
-    channel.close()
-    response.version
   }
 
-  private def execPing(request: Request): Pong = {
+  private def execPing(request: Request): Either[String, Pong] = {
     ensureConnected()
     sendRequest(request)
     val pong = fetchResponse()
@@ -50,19 +55,17 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     pong.resp match {
       case Response.Resp.Pong(r) =>
         if (r.getVersion.protocol != ProtocolVersion.value) {
-          error(s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver")
-          null
+          Left(error(s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver"))
         } else {
-          r
+          Right(r)
         }
 
       case Response.Resp.Error(msg) =>
-        error(s"Got error response on ping, '$msg'")
-        null
+        Left(error(s"Got error response on ping, '$msg'"))
 
       case _ =>
-        error("Unexpected response on ping")
-        null
+        Left(error("Unexpected response on ping"))
+
     }
   }
 
@@ -107,7 +110,9 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def fetchResponse(): Response = {
     val bb = ByteBuffer.allocate(CHUNK_SIZE + 4).order(ByteOrder.BIG_ENDIAN)
-    channel.read(bb)
+    val bytesRead = channel.read(bb)
+    if (bytesRead < 0) throw new IOException("Broken pipe")
+    else if (bytesRead < 4) throw new IOException("Invalid server response")
     bb.flip()
     val chunkSize = bb.getInt()
     val bytes = Array.ofDim[Byte](chunkSize)
@@ -129,6 +134,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
       case Response.Resp.Heartbeat(time) =>
         heartbeat(time)
+        None
 
       case Response.Resp.Error(e) =>
         channel.close()
@@ -148,10 +154,9 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
 
-  private def heartbeat(time: String) = {
+  private def heartbeat(time: String): Unit = {
     val msg = s"Heartbeat($time)"
     logger.info(msg)
-    None
   }
 
   private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
