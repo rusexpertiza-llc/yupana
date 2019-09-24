@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.hbase
 
 import java.nio.ByteBuffer
@@ -8,12 +24,12 @@ import org.apache.hadoop.hbase.client.{ Table => _, _ }
 import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
-import org.apache.hadoop.hbase.util.{Bytes, Pair}
+import org.apache.hadoop.hbase.util.{ Bytes, Pair }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.collection.JavaConverters._
 
 object HBaseUtils extends StrictLogging {
@@ -36,24 +52,33 @@ object HBaseUtils extends StrictLogging {
     time % table.rowTimeSpan
   }
 
-  def createTsdRows(dataPoints: Seq[DataPoint], dictionaryProvider: DictionaryProvider): Seq[(Table, Seq[TSDInputRow[Long]])] = {
+  def createTsdRows(
+      dataPoints: Seq[DataPoint],
+      dictionaryProvider: DictionaryProvider
+  ): Seq[(Table, Seq[TSDInputRow[Long]])] = {
 
-    dataPoints.groupBy(_.table).map { case (table, points) =>
-
-      val grouped = points.groupBy(rowKey(_, table, dictionaryProvider))
-      table -> grouped.map { case (key, dps) =>
-        TSDInputRow(key, TSDRowValues(table, dps))
-      }.toSeq
-    }.toSeq
+    dataPoints
+      .groupBy(_.table)
+      .map {
+        case (table, points) =>
+          val grouped = points.groupBy(rowKey(_, table, dictionaryProvider))
+          table -> grouped.map {
+            case (key, dps) =>
+              TSDInputRow(key, TSDRowValues(table, dps))
+          }.toSeq
+      }
+      .toSeq
   }
 
   def createPutOperation(row: TSDInputRow[Long]): Put = {
     val put = new Put(rowKeyToBytes(row.key))
-    row.values.valuesByGroup.foreach { case (group, values) =>
-      values.foreach { case (time, bytes) =>
-        val timeBytes = Bytes.toBytes(time)
-        put.addColumn(family(group), timeBytes, bytes)
-      }
+    row.values.valuesByGroup.foreach {
+      case (group, values) =>
+        values.foreach {
+          case (time, bytes) =>
+            val timeBytes = Bytes.toBytes(time)
+            put.addColumn(family(group), timeBytes, bytes)
+        }
     }
     put
   }
@@ -179,31 +204,33 @@ object HBaseUtils extends StrictLogging {
 
   def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Long]]): FuzzyRowFilter = {
     val filterRowKey = TSDRowKey(
-      baseTime.getOrElse(0l),
+      baseTime.getOrElse(0L),
       tagsFilter
     )
     val filterKey = rowKeyToBytes(filterRowKey)
 
     val baseTimeMask: Byte = if (baseTime.isDefined) 0 else 1
 
-    val buffer = ByteBuffer.allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
+    val buffer = ByteBuffer
+      .allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
       .put(Array.fill[Byte](Bytes.SIZEOF_LONG)(baseTimeMask))
 
-    val filterMask = tagsFilter.foldLeft(buffer) { case (buf, v) =>
-      if (v.isDefined) {
-        buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
-      } else {
-        buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
+    val filterMask = tagsFilter
+      .foldLeft(buffer) {
+        case (buf, v) =>
+          if (v.isDefined) {
+            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
+          } else {
+            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
+          }
       }
-    }.array()
+      .array()
 
     val filter = new FuzzyRowFilter(List(new Pair(filterKey, filterMask)).asJava)
     filter
   }
 
-  private def checkSchemaDefinition(connection: Connection,
-                                    namespace: String,
-                                    schema: Schema): SchemaCheckResult = {
+  private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
     if (connection.getAdmin.tableExists(metaTableName)) {
       ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
@@ -243,9 +270,9 @@ object HBaseUtils extends StrictLogging {
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
     checkSchemaDefinition(connection, namespace, schema) match {
-      case Success => logger.info("TSDB table definition checked successfully")
+      case Success      => logger.info("TSDB table definition checked successfully")
       case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
-      case Error(msg) => throw new RuntimeException("TSDB table definition check failed: " + msg)
+      case Error(msg)   => throw new RuntimeException("TSDB table definition check failed: " + msg)
     }
   }
 
@@ -261,11 +288,14 @@ object HBaseUtils extends StrictLogging {
     if (!connection.getAdmin.tableExists(hbaseTable)) {
       val desc = new HTableDescriptor(hbaseTable)
       val fieldGroups = table.metrics.map(_.group).toSet
-      fieldGroups foreach(group => desc.addFamily(
-        new HColumnDescriptor(family(group))
-          .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-          .setCompactionCompressionType(Algorithm.SNAPPY)
-      ))
+      fieldGroups foreach (
+          group =>
+            desc.addFamily(
+              new HColumnDescriptor(family(group))
+                .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+                .setCompactionCompressionType(Algorithm.SNAPPY)
+            )
+        )
       connection.getAdmin.createTable(desc)
     }
   }
@@ -290,12 +320,16 @@ object HBaseUtils extends StrictLogging {
 
     val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
 
-    val buffer = ByteBuffer.allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
+    val buffer = ByteBuffer
+      .allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
       .put(baseTimeBytes)
 
-    rowKey.dimIds.foldLeft(buffer) { case (buf, value) =>
-      buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
-    }.array()
+    rowKey.dimIds
+      .foldLeft(buffer) {
+        case (buf, value) =>
+          buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
+      }
+      .array()
   }
 
   private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {

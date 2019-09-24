@@ -1,16 +1,15 @@
 package org.yupana.api.utils
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
 class SortedIteratorTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
-
 
   "SortedSetIterator" should "throw IllegalStateException when items not sorted" in {
 
     val it = SortedSetIterator(1, 2, 2, 3, 4, 5)
 
-    it.toList shouldBe List(1,2,3,4,5)
+    it.toList shouldBe List(1, 2, 3, 4, 5)
 
   }
 
@@ -90,8 +89,8 @@ class SortedIteratorTest extends FlatSpec with Matchers with ScalaCheckDrivenPro
   }
 
   it should "fetch specified elements from iterator" in {
-    val it = SortedSetIterator(1,2,3,4,5).prefetch(3)
-    it.fetched shouldBe Array(1,2,3)
+    val it = SortedSetIterator(1, 2, 3, 4, 5).prefetch(3)
+    it.fetched shouldBe Array(1, 2, 3)
     it.isAllFetched shouldBe false
   }
 
@@ -102,14 +101,14 @@ class SortedIteratorTest extends FlatSpec with Matchers with ScalaCheckDrivenPro
   }
 
   it should "iterate all elements for partially fetched elements" in {
-    val it = SortedSetIterator(1,2,3,4,5,6).prefetch(3)
-    it.toList shouldBe List(1,2,3,4,5,6)
+    val it = SortedSetIterator(1, 2, 3, 4, 5, 6).prefetch(3)
+    it.toList shouldBe List(1, 2, 3, 4, 5, 6)
     it.hasNext shouldBe false
   }
 
   it should "iterate all elements for fully fetched elements" in {
-    val it = SortedSetIterator(1,2,3,4,5,6).prefetch(7)
-    it.toList shouldBe List(1,2,3,4,5,6)
+    val it = SortedSetIterator(1, 2, 3, 4, 5, 6).prefetch(7)
+    it.toList shouldBe List(1, 2, 3, 4, 5, 6)
     it.hasNext shouldBe false
   }
 }

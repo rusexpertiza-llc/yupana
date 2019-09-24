@@ -1,8 +1,24 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.utils
 
 import scala.reflect.ClassTag
 
-abstract class SortedSetIterator[A:Ordering] extends Iterator[A] {
+abstract class SortedSetIterator[A: Ordering] extends Iterator[A] {
 
   def union(that: SortedSetIterator[A]): SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new UnionSortedIteratorImpl(this, that))
@@ -23,7 +39,7 @@ abstract class SortedSetIterator[A:Ordering] extends Iterator[A] {
 
 object SortedSetIterator {
 
-  def empty[A:Ordering]: SortedSetIterator[A] = {
+  def empty[A: Ordering]: SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](Iterator.empty))
   }
 
@@ -44,13 +60,13 @@ object SortedSetIterator {
   }
 
   def unionAll[A: Ordering](its: Iterator[SortedSetIterator[A]]): SortedSetIterator[A] = {
-    if (its.nonEmpty) its.reduce(_ union  _) else SortedSetIterator.empty
+    if (its.nonEmpty) its.reduce(_ union _) else SortedSetIterator.empty
   }
 }
 
 private class SingleSortedIteratorImpl[A](it: Iterator[A])(implicit ord: Ordering[A]) extends SortedSetIterator[A] {
 
-  var prevValue:A = _
+  var prevValue: A = _
 
   override def hasNext: Boolean = {
     it.hasNext
@@ -68,7 +84,7 @@ private class SingleSortedIteratorImpl[A](it: Iterator[A])(implicit ord: Orderin
   }
 }
 
-private class SortedSetIteratorImpl[A:Ordering](it: SortedSetIterator[A]) extends SortedSetIterator[A] {
+private class SortedSetIteratorImpl[A: Ordering](it: SortedSetIterator[A]) extends SortedSetIterator[A] {
 
   var nextVal: A = _
   var hasNextVal = false
@@ -97,7 +113,7 @@ private class SortedSetIteratorImpl[A:Ordering](it: SortedSetIterator[A]) extend
         }
       } while (hasT && t == nextVal)
       nextVal = t
-      hasNextVal= hasT
+      hasNextVal = hasT
       hasT
     } else {
       true
@@ -111,7 +127,9 @@ private class SortedSetIteratorImpl[A:Ordering](it: SortedSetIterator[A]) extend
   }
 }
 
-private class UnionSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedSetIterator[A])(implicit ord: Ordering[A]) extends SortedSetIterator[A] {
+private class UnionSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedSetIterator[A])(
+    implicit ord: Ordering[A]
+) extends SortedSetIterator[A] {
 
   private val bIt1 = it1.buffered
   private val bIt2 = it2.buffered
@@ -135,7 +153,9 @@ private class UnionSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedS
   }
 }
 
-private class IntersectSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedSetIterator[A])(implicit ord: Ordering[A])  extends SortedSetIterator[A] {
+private class IntersectSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedSetIterator[A])(
+    implicit ord: Ordering[A]
+) extends SortedSetIterator[A] {
 
   private val bIt1 = new SortedSetIteratorImpl(it1).buffered
   private val bIt2 = new SortedSetIteratorImpl(it2).buffered
@@ -172,8 +192,9 @@ private class IntersectSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: Sor
   }
 }
 
-
-private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: SortedSetIterator[A])(implicit ord: Ordering[A])  extends SortedSetIterator[A] {
+private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: SortedSetIterator[A])(
+    implicit ord: Ordering[A]
+) extends SortedSetIterator[A] {
 
   private val bIt = it.buffered
   private val bSub = sub.buffered
@@ -203,7 +224,10 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
   }
 }
 
-class PrefetchedSortedSetIterator[T] private[utils] (it: SortedSetIterator[T], prefetchElements: Int)(implicit val ord: Ordering[T], ct: ClassTag[T]) extends SortedSetIterator[T] {
+class PrefetchedSortedSetIterator[T] private[utils] (it: SortedSetIterator[T], prefetchElements: Int)(
+    implicit val ord: Ordering[T],
+    ct: ClassTag[T]
+) extends SortedSetIterator[T] {
 
   private val buffer = Array.ofDim[T](prefetchElements)
   private var bufferLen = 0

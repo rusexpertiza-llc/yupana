@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.hbase
 
 import java.nio.ByteBuffer
@@ -5,18 +21,18 @@ import java.util
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client.Scan
-import org.apache.hadoop.hbase.filter.{FilterList, FuzzyRowFilter, MultiRowRangeFilter}
+import org.apache.hadoop.hbase.filter.{ FilterList, FuzzyRowFilter, MultiRowRangeFilter }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{Dimension, Metric, Table}
-import org.yupana.api.utils.{PrefetchedSortedSetIterator, SortedSetIterator}
+import org.yupana.api.schema.{ Dimension, Metric, Table }
+import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
-import org.yupana.core.model.{InternalQuery, InternalRow, InternalRowBuilder}
+import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.utils.{CollectionUtils, SparseTable, TimeBoundedCondition}
+import org.yupana.core.utils.{ CollectionUtils, SparseTable, TimeBoundedCondition }
 import org.yupana.hbase.Filtration.TimeFilter
 import scala.collection.JavaConverters._
 import scala.language.higherKinds
@@ -24,7 +40,7 @@ import scala.language.higherKinds
 trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
   type IdType = Long
 
-  import org.yupana.core.utils.ConditionMatchers.{Equ, Neq}
+  import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
   val TIME = Dimension("time")
 
@@ -35,16 +51,25 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   def mr: MapReducible[Collection]
   def dictionaryProvider: DictionaryProvider
 
-  case class Filters(includeDims: DimensionFilter[IdType],
-                     excludeDims: DimensionFilter[IdType],
-                     includeTime: DimensionFilter[Time],
-                     excludeTime: DimensionFilter[Time],
-                     condition: Option[Condition]
-                    )
+  case class Filters(
+      includeDims: DimensionFilter[IdType],
+      excludeDims: DimensionFilter[IdType],
+      includeTime: DimensionFilter[Time],
+      excludeTime: DimensionFilter[Time],
+      condition: Option[Condition]
+  )
 
-  def executeScans(table: Table, scans: Iterator[Scan], metricCollector: MetricQueryCollector): Collection[TSDOutputRow[IdType]]
+  def executeScans(
+      table: Table,
+      scans: Iterator[Scan],
+      metricCollector: MetricQueryCollector
+  ): Collection[TSDOutputRow[IdType]]
 
-  override def query(query: InternalQuery, valueDataBuilder: InternalRowBuilder, metricCollector: MetricQueryCollector): Collection[InternalRow] = {
+  override def query(
+      query: InternalQuery,
+      valueDataBuilder: InternalRowBuilder,
+      metricCollector: MetricQueryCollector
+  ): Collection[InternalRow] = {
 
     val tbc = TimeBoundedCondition(query.condition)
 
@@ -62,7 +87,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val dimFilter = filters.includeDims exclude filters.excludeDims
 
-    val prefetchedDimIterators = dimFilter.toMap.map{ case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT) }
+    val prefetchedDimIterators = dimFilter.toMap.map { case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT) }
     val sizeLimitedRangeScanDims = rageScanDimensions(query, prefetchedDimIterators)
 
     val scans = dimFilter match {
@@ -76,15 +101,18 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val rows = executeScans(query.table, scans, metricCollector)
 
-    val includeRowFilter = DimensionFilter(prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d)))
+    val includeRowFilter = DimensionFilter(
+      prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    )
     val rowFilter = createRowFilter(query.table, includeRowFilter, filters.excludeDims)
 
     val filtered = mr.filter(rows)(rowFilter)
 
     val schemaContext = InternalQueryContext(query)
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
-    mr.batchFlatMap(filtered)(10000, rs =>
-      extractData(schemaContext, valueDataBuilder, rs, timeFilter, metricCollector)
+    mr.batchFlatMap(filtered)(
+      10000,
+      rs => extractData(schemaContext, valueDataBuilder, rs, timeFilter, metricCollector)
     )
   }
 
@@ -93,25 +121,35 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
-    val dictionary =  dictionaryProvider.dictionary(dimension)
+    val dictionary = dictionaryProvider.dictionary(dimension)
     val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sorted.iterator
     SortedSetIterator(it)
   }
 
-  private def rageScanDimensions(query: InternalQuery, prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[IdType]]) = {
+  private def rageScanDimensions(
+      query: InternalQuery,
+      prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[IdType]]
+  ) = {
 
     val continuousDims = query.table.dimensionSeq.takeWhile(prefetchedDimIterators.contains)
-    val sizes = continuousDims.scanLeft(1L) { case (size, dim) =>
-      val it = prefetchedDimIterators(dim)
-      val itSize = if (it.isAllFetched) it.fetched.length else RANGE_FILTERS_LIMIT
-      size * itSize
-    }.drop(1)
+    val sizes = continuousDims
+      .scanLeft(1L) {
+        case (size, dim) =>
+          val it = prefetchedDimIterators(dim)
+          val itSize = if (it.isAllFetched) it.fetched.length else RANGE_FILTERS_LIMIT
+          size * itSize
+      }
+      .drop(1)
 
     val sizeLimitedRangeScanDims = continuousDims.zip(sizes).takeWhile(_._2 <= CROSS_JOIN_LIMIT).map(_._1)
     sizeLimitedRangeScanDims
   }
 
-  private def createScan(query: InternalQuery, multiRowRangeFilter: MultiRowRangeFilter, hbaseFuzzyRowFilter: Seq[FuzzyRowFilter]): Scan = {
+  private def createScan(
+      query: InternalQuery,
+      multiRowRangeFilter: MultiRowRangeFilter,
+      hbaseFuzzyRowFilter: Seq[FuzzyRowFilter]
+  ): Scan = {
     val start = multiRowRangeFilter.getRowRanges.asScala.head.getStartRow
     val stop = multiRowRangeFilter.getRowRanges.asScala.toList.last.getStopRow
 
@@ -128,7 +166,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     scan
   }
 
-  private def rangeScanFilters(query: InternalQuery, from: IdType, to: IdType, dimensionIds: Map[Dimension, PrefetchedSortedSetIterator[IdType]]): Iterator[MultiRowRangeFilter] = {
+  private def rangeScanFilters(
+      query: InternalQuery,
+      from: IdType,
+      to: IdType,
+      dimensionIds: Map[Dimension, PrefetchedSortedSetIterator[IdType]]
+  ): Iterator[MultiRowRangeFilter] = {
 
     val startBaseTime = from - (from % query.table.rowTimeSpan)
     val stopBaseTime = to - (to % query.table.rowTimeSpan)
@@ -138,8 +181,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val (completelyFetchedDimIts, partiallyFetchedDimIts) = aligned.partition(_._2.isAllFetched)
 
     if (partiallyFetchedDimIts.size > 1) {
-      throw new IllegalStateException(s"More then one dimension in query have size greater " +
-        s"than $RANGE_FILTERS_LIMIT [${partiallyFetchedDimIts.map(_._1).mkString(", ")}]")
+      throw new IllegalStateException(
+        s"More then one dimension in query have size greater " +
+          s"than $RANGE_FILTERS_LIMIT [${partiallyFetchedDimIts.map(_._1).mkString(", ")}]"
+      )
     }
 
     val crossJoinedDimIds = {
@@ -147,8 +192,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       if (c.nonEmpty) c else List(List())
     }
 
-    val dimIndex = completelyFetchedDimIts.map { case (dim, _) =>
-       query.table.dimensionSeq.indexOf(dim)
+    val dimIndex = completelyFetchedDimIts.map {
+      case (dim, _) =>
+        query.table.dimensionSeq.indexOf(dim)
     }.toArray
 
     val hbaseRowRanges = partiallyFetchedDimIts.headOption match {
@@ -161,7 +207,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         } yield {
           val filter = Array.ofDim[IdType](dimIndex.length + 1)
           filter(pIdx) = pid
-          cids.foldLeft(0){ (i, id) =>
+          cids.foldLeft(0) { (i, id) =>
             val idx = dimIndex(i)
             filter(idx) = id
             i + 1
@@ -183,63 +229,76 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def createTimeFilter(fromTime: Long, toTime: Long, include: DimensionFilter[Time], exclude: DimensionFilter[Time]): Filtration.TimeFilter = {
+  private def createTimeFilter(
+      fromTime: Long,
+      toTime: Long,
+      include: DimensionFilter[Time],
+      exclude: DimensionFilter[Time]
+  ): Filtration.TimeFilter = {
     val baseFilter: Filtration.TimeFilter = t => t >= fromTime && t < toTime
 
     val includeSet = include.toMap.getOrElse(TIME, Set.empty).map(_.millis).toSet
     val excludeSet = exclude.toMap.getOrElse(TIME, Set.empty).map(_.millis).toSet
 
     if (excludeSet.nonEmpty) {
-      if (includeSet.nonEmpty) {
-        t => baseFilter(t) && includeSet.contains(t) && !excludeSet.contains(t)
-      } else {
-        t => baseFilter(t) && !excludeSet.contains(t)
+      if (includeSet.nonEmpty) { t =>
+        baseFilter(t) && includeSet.contains(t) && !excludeSet.contains(t)
+      } else { t =>
+        baseFilter(t) && !excludeSet.contains(t)
       }
     } else {
-      if (includeSet.nonEmpty) {
-        t => baseFilter(t) && includeSet.contains(t)
+      if (includeSet.nonEmpty) { t =>
+        baseFilter(t) && includeSet.contains(t)
       } else {
         baseFilter
       }
     }
   }
 
-  private def createRowFilter(table: Table, include: DimensionFilter[IdType], exclude: DimensionFilter[IdType]): Filtration.RowFilter = {
+  private def createRowFilter(
+      table: Table,
+      include: DimensionFilter[IdType],
+      exclude: DimensionFilter[IdType]
+  ): Filtration.RowFilter = {
 
-    val includeMap = include.toMap.map { case (k, v) => k -> v.toSet}
-    val excludeMap = exclude.toMap.map { case (k, v) => k -> v.toSet}
+    val includeMap = include.toMap.map { case (k, v) => k -> v.toSet }
+    val excludeMap = exclude.toMap.map { case (k, v) => k -> v.toSet }
 
     if (excludeMap.nonEmpty) {
       if (includeMap.nonEmpty) {
-        rowFilter(table, (dim, x) => includeMap.get(dim).forall(_.contains(x)) && !excludeMap.get(dim).exists(_.contains(x)))
+        rowFilter(
+          table,
+          (dim, x) => includeMap.get(dim).forall(_.contains(x)) && !excludeMap.get(dim).exists(_.contains(x))
+        )
       } else {
         rowFilter(table, (dim, x) => !excludeMap.get(dim).exists(_.contains(x)))
       }
     } else {
       if (includeMap.nonEmpty) {
         rowFilter(table, (dim, x) => includeMap.get(dim).forall(_.contains(x)))
-      } else {
-        _ => true
+      } else { _ =>
+        true
       }
     }
   }
 
-  private def rowFilter(table: Table, f: (Dimension, IdType) => Boolean): Filtration.RowFilter= {
-    row =>
-      row.key.dimIds.zip(table.dimensionSeq).forall {
-        case (Some(x), dim) => f(dim, x)
-        case _ => true
-      }
+  private def rowFilter(table: Table, f: (Dimension, IdType) => Boolean): Filtration.RowFilter = { row =>
+    row.key.dimIds.zip(table.dimensionSeq).forall {
+      case (Some(x), dim) => f(dim, x)
+      case _              => true
+    }
   }
 
   def createFilters(condition: Option[Condition]): Filters = {
-    case class FilterParts(incValues: DimensionFilter[String],
-                           incIds: DimensionFilter[IdType],
-                           incTime: DimensionFilter[Time],
-                           excValues: DimensionFilter[String],
-                           excIds: DimensionFilter[IdType],
-                           excTime: DimensionFilter[Time],
-                           other: List[Condition])
+    case class FilterParts(
+        incValues: DimensionFilter[String],
+        incIds: DimensionFilter[IdType],
+        incTime: DimensionFilter[Time],
+        excValues: DimensionFilter[String],
+        excIds: DimensionFilter[IdType],
+        excTime: DimensionFilter[Time],
+        other: List[Condition]
+    )
 
     def createFilters(condition: Condition, filters: FilterParts): FilterParts = {
       condition match {
@@ -256,11 +315,13 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           filters.copy(incTime = DimensionFilter[Time](TIME, c) and filters.incTime)
 
         case In(DimensionExpr(dim), consts) =>
-          val valFilter = if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
+          val valFilter =
+            if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
           filters.copy(incValues = valFilter and filters.incValues)
 
         case In(_: TimeExpr.type, consts) =>
-          val valFilter = if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
+          val valFilter =
+            if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
           filters.copy(incTime = valFilter and filters.incTime)
 
         case DimIdIn(DimensionExpr(dim), dimIds) =>
@@ -268,7 +329,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           filters.copy(incIds = idFilter and filters.incIds)
 
         case Neq(DimensionExpr(dim), ConstantExpr(c: String)) =>
-          filters.copy(excValues = DimensionFilter[String](dim,c).or(filters.excValues))
+          filters.copy(excValues = DimensionFilter[String](dim, c).or(filters.excValues))
 
         case Neq(ConstantExpr(c: String), DimensionExpr(dim)) =>
           filters.copy(excValues = DimensionFilter[String](dim, c).or(filters.excValues))
@@ -280,11 +341,13 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           filters.copy(excTime = DimensionFilter[Time](TIME, c).or(filters.excTime))
 
         case NotIn(DimensionExpr(dim), consts) =>
-          val valFilter = if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
+          val valFilter =
+            if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
           filters.copy(excValues = valFilter or filters.excValues)
 
         case NotIn(_: TimeExpr.type, consts) =>
-          val valFilter = if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
+          val valFilter =
+            if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
           filters.copy(excTime = valFilter or filters.excTime)
 
         case DimIdNotIn(DimensionExpr(dim), dimIds) =>
@@ -312,14 +375,17 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     condition match {
       case Some(c) =>
-        val filters = createFilters(c, FilterParts(EmptyFilter(), EmptyFilter(), EmptyFilter(), NoResult(), NoResult(), NoResult(), List.empty))
+        val filters = createFilters(
+          c,
+          FilterParts(EmptyFilter(), EmptyFilter(), EmptyFilter(), NoResult(), NoResult(), NoResult(), List.empty)
+        )
 
         val includeFilter = filters.incValues.map { case (dim, values) => dim -> valuesToIds(dim, values) } and filters.incIds
         val excludeFilter = filters.excValues.map { case (dim, values) => dim -> valuesToIds(dim, values) } or filters.excIds
         val cond = filters.other match {
-          case Nil => None
+          case Nil      => None
           case x :: Nil => Some(x)
-          case xs => Some(And(xs.reverse))
+          case xs       => Some(And(xs.reverse))
         }
 
         Filters(includeFilter, excludeFilter, filters.incTime, filters.excTime, cond)
@@ -329,7 +395,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def readRow(context: InternalQueryContext, bytes: Array[Byte], data: Array[Option[Any]], time: Long): Boolean = {
+  private def readRow(
+      context: InternalQueryContext,
+      bytes: Array[Byte],
+      data: Array[Option[Any]],
+      time: Long
+  ): Boolean = {
     val bb = ByteBuffer.wrap(bytes)
     util.Arrays.fill(data.asInstanceOf[Array[AnyRef]], None)
     var correct = true
@@ -348,11 +419,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   private def extractData(
-    context: InternalQueryContext,
-    valueDataBuilder: InternalRowBuilder,
-    rows: Seq[TSDOutputRow[IdType]],
-    timeFilter: TimeFilter,
-    metricCollector: MetricQueryCollector
+      context: InternalQueryContext,
+      valueDataBuilder: InternalRowBuilder,
+      rows: Seq[TSDOutputRow[IdType]],
+      timeFilter: TimeFilter,
+      metricCollector: MetricQueryCollector
   ): Seq[InternalRow] = {
 
     val indexedRows = rows.zipWithIndex
@@ -374,10 +445,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       } yield {
 
         context.query.exprs.foreach {
-          case e@DimensionExpr(dim) => valueDataBuilder.set(e, tagValues.get(dim))
-          case e@MetricExpr(field) => valueDataBuilder.set(e, rowValues(field.tag))
-          case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
-          case e => throw new IllegalArgumentException(s"Unsupported expression $e passed to DAO")
+          case e @ DimensionExpr(dim) => valueDataBuilder.set(e, tagValues.get(dim))
+          case e @ MetricExpr(field)  => valueDataBuilder.set(e, rowValues(field.tag))
+          case TimeExpr               => valueDataBuilder.set(TimeExpr, Some(Time(time)))
+          case e                      => throw new IllegalArgumentException(s"Unsupported expression $e passed to DAO")
         }
 
         valueDataBuilder.buildAndReset()
@@ -389,15 +460,15 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     condition match {
       case SimpleCondition(BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_))) => true
       case SimpleCondition(BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type)) => true
-      case _: DimIdIn => true
-      case _: DimIdNotIn => true
-      case Equ(_: DimensionExpr, ConstantExpr(_)) => true
-      case Equ(ConstantExpr(_), _: DimensionExpr) => true
-      case Neq(_: DimensionExpr, ConstantExpr(_)) => true
-      case Neq(ConstantExpr(_), _: DimensionExpr) => true
-      case In(_: DimensionExpr, _) => true
-      case NotIn(_: DimensionExpr, _) => true
-      case _ => false
+      case _: DimIdIn                                                                 => true
+      case _: DimIdNotIn                                                              => true
+      case Equ(_: DimensionExpr, ConstantExpr(_))                                     => true
+      case Equ(ConstantExpr(_), _: DimensionExpr)                                     => true
+      case Neq(_: DimensionExpr, ConstantExpr(_))                                     => true
+      case Neq(ConstantExpr(_), _: DimensionExpr)                                     => true
+      case In(_: DimensionExpr, _)                                                    => true
+      case NotIn(_: DimensionExpr, _)                                                 => true
+      case _                                                                          => false
     }
   }
 
@@ -420,7 +491,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }
 
-  private def rowsForDims(indexedRows: Seq[(TSDOutputRow[IdType], Int)], context: InternalQueryContext): SparseTable[Dimension, IdType, Seq[Int]] = {
+  private def rowsForDims(
+      indexedRows: Seq[(TSDOutputRow[IdType], Int)],
+      context: InternalQueryContext
+  ): SparseTable[Dimension, IdType, Seq[Int]] = {
     val dimRowMap = context.requiredDims.map { dim =>
       val dimIndex = context.dimIndexMap(dim)
       dim -> indexedRows
@@ -432,12 +506,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     SparseTable(dimRowMap)
   }
 
-  private def dimFields(dimTable: SparseTable[Dimension, IdType, Seq[Int]], schemaContext: InternalQueryContext): SparseTable[Int, Dimension, String] = {
+  private def dimFields(
+      dimTable: SparseTable[Dimension, IdType, Seq[Int]],
+      schemaContext: InternalQueryContext
+  ): SparseTable[Int, Dimension, String] = {
     val allValues = schemaContext.requiredDims.map { dim =>
       val dimIdRows = dimTable.row(dim)
       val dimValues = idsToValues(dim, dimIdRows.keySet)
-      val data = dimValues.flatMap { case (dimId, dimValue) =>
-        dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))
+      val data = dimValues.flatMap {
+        case (dimId, dimValue) =>
+          dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))
       }
       SparseTable(data)
     }
