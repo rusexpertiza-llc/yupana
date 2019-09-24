@@ -10,7 +10,7 @@ trait MetricQueryCollector extends Serializable {
   def isEnabled: Boolean
 
   val createQueries: Metric = NoMetric
-  val createQueriesTags: Metric = NoMetric
+  val createDimensionFilters: Metric = NoMetric
   val createScans: Metric = NoMetric
   val loadTags: Metric = NoMetric
   val filterRows: Metric = NoMetric

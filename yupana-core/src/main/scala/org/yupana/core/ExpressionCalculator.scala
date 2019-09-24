@@ -56,6 +56,8 @@ object ExpressionCalculator {
     case Or(cs) =>
       val executed = cs.map(c => evaluateCondition(c, queryContext, valueData, tryEval))
       executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
+
+    case x => throw new IllegalArgumentException(s"Unsupported condition $x")
   }
 
   private def eval(expr: Expression,

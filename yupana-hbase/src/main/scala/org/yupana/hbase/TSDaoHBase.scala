@@ -22,13 +22,13 @@ class TSDaoHBase(connection: Connection,
 
   override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
-  override def executeScans(table: Table, scans: Seq[Scan], metricCollector: MetricQueryCollector): Iterator[TSDOutputRow[Long]] = {
+  override def executeScans(table: Table, scans: Iterator[Scan], metricCollector: MetricQueryCollector): Iterator[TSDOutputRow[Long]] = {
     import HBaseUtils._
 
     if (scans.nonEmpty) {
       val htable = connection.getTable(tableName(namespace, table))
 
-      scans.iterator.flatMap { scan =>
+      scans.flatMap { scan =>
         scan.setScanMetricsEnabled(metricCollector.isEnabled)
         val scanner = htable.getScanner(scan)
         val scannerIterator = scanner.iterator()

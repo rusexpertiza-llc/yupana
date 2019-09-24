@@ -10,6 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types._
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{DictionaryDao, DictionaryProviderImpl, TSDao}
 import org.yupana.core.model._
@@ -121,7 +122,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      DimIdIn(dimension(TestDims.TAG_A), Set(123))
+      DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(123))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -131,7 +132,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         TestSchema.testTable,
         Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
         and(
-          DimIdIn(dimension(TestDims.TAG_A), Set(123)),
+          DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(123)),
           ge(time, const(Time(from))),
           lt(time, const(Time(to)))
         )
@@ -793,7 +794,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
       .returning(and(
         ge(time, const(Time(from))),
         lt(time, const(Time(to))),
-        DimIdIn(dimension(TestDims.TAG_A), Set.empty)
+        DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator.empty)
       ))
 
     (tsdbDaoMock.query _).expects(
@@ -803,7 +804,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          DimIdIn(dimension(TestDims.TAG_A), Set())
+          DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator.empty)
         )
       ),
       *, NoMetricCollector
@@ -928,7 +929,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
       .returning(and(
         ge(time, const(Time(from))),
         lt(time, const(Time(to))),
-        DimIdNotIn(dimension(TestDims.TAG_A), Set(1, 2))
+        DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
       ))
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -947,7 +948,7 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          DimIdNotIn(dimension(TestDims.TAG_A), Set(1, 2))
+          DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
         )
       ),
       *,

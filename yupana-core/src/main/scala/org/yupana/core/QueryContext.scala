@@ -6,7 +6,6 @@ import org.yupana.api.query._
 import scala.collection.mutable
 
 case class QueryContext(query: Query,
-                        condition: Condition,
                         postCondition: Option[Condition],
                         postConditionExprs: Array[Expression],
                         exprsIndex: mutable.HashMap[Expression, Int],
@@ -20,7 +19,7 @@ case class QueryContext(query: Query,
 
 object QueryContext extends StrictLogging {
 
-  def apply(query: Query, condition: Condition, postCondition: Condition): QueryContext = {
+  def apply(query: Query, postCondition: Condition): QueryContext = {
     val conditionExprs = postCondition.exprs
 
     val requiredTags = query.groupBy.flatMap(_.requiredDimensions).toSet ++
@@ -67,7 +66,6 @@ object QueryContext extends StrictLogging {
 
     new QueryContext(
       query,
-      condition,
       optionPost,
       postCondition.exprs.toArray,
       exprsIndex,

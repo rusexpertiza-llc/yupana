@@ -15,6 +15,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{DimIdIn, DimIdNotIn, Expression}
 import org.yupana.api.schema.Table
 import org.yupana.api.types.Writable
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{MapReducible, TestDims, TestSchema, TestTableFields}
 import org.yupana.core.dao.{DictionaryDao, DictionaryProvider, DictionaryProviderImpl}
 
@@ -640,7 +641,7 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
       InternalQuery(
         testTable,
         exprs.toSet,
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))), DimIdIn(dimension(TestDims.TAG_A), Set(1, 2)))
+        and(ge(time, const(Time(from))), lt(time, const(Time(to))), DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2)))
       ),
       valueDataBuilder,
       NoMetricCollector
@@ -691,7 +692,7 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-          DimIdNotIn(dimension(TestDims.TAG_A), Set(2, 5)),
+          DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(2, 5)),
           neq(dimension(TestDims.TAG_A), const("test14"))
         )
       ),
@@ -867,8 +868,8 @@ class TSDaoHBaseTest extends FlatSpec with Matchers with MockFactory with Before
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner) extends TSDaoHBaseBase[Iterator] {
     override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
-    override def executeScans(table: Table, queries: Seq[Scan], metricCollector: MetricQueryCollector): Iterator[TSDOutputRow[Long]] = {
-      queryRunner(queries)
+    override def executeScans(table: Table, queries: Iterator[Scan], metricCollector: MetricQueryCollector): Iterator[TSDOutputRow[Long]] = {
+      queryRunner(queries.toSeq)
     }
   }
 

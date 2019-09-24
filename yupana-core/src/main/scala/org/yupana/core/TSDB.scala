@@ -19,9 +19,10 @@ class TSDB(override val dao: TSDao[Iterator, Long],
           )
   extends TsdbBase with StrictLogging {
 
-  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
-
   override type Collection[X] = Iterator[X]
+  override type Result = TsdbServerResult
+
+  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
   override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
@@ -38,8 +39,8 @@ class TSDB(override val dao: TSDao[Iterator, Long],
     if (collectMetrics) new ConsoleMetricQueryCollector(query, "query") else NoMetricCollector
   }
 
-  override def finalizeQuery(data: Iterator[Array[Option[Any]]], metricCollector: MetricQueryCollector): Iterator[Array[Option[Any]]] = {
-    new AbstractIterator[Array[Option[Any]]] {
+  override def finalizeQuery(queryContext: QueryContext, data: Iterator[Array[Option[Any]]], metricCollector: MetricQueryCollector): TsdbServerResult = {
+    val it = new AbstractIterator[Array[Option[Any]]] {
       var hasEnded = false
 
       override def hasNext: Boolean = {
@@ -57,13 +58,8 @@ class TSDB(override val dao: TSDao[Iterator, Long],
 
       override def next(): Array[Option[Any]] = data.next()
     }
-  }
 
-  def query(query: Query): Result = {
-    logger.info("TSDB query start: " + query)
-    val metricCollector = createMetricCollector(query)
-    val queryContext = createContext(query, metricCollector)
-    new TsdbServerResult(queryContext, queryPipeline(queryContext, metricCollector))
+    new TsdbServerResult(queryContext, it)
   }
 
   override def applyWindowFunctions(queryContext: QueryContext, keysAndValues: Iterator[(KeyData, InternalRow)]): Iterator[(KeyData, InternalRow)] = {

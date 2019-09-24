@@ -1,7 +1,7 @@
 package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Mutation, Result}
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Mutation, Result => HBaseResult}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, TableInputFormat, TableMapReduceUtil, TableOutputFormat}
 import org.apache.hadoop.mapred.JobConf
@@ -24,6 +24,7 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
                ) extends TsdbBase with StrictLogging with Serializable {
 
   override type Collection[X] = RDD[X]
+  override type Result = DataRowRDD
 
   override val extractBatchSize: Int = conf.extractBatchSize
 
@@ -37,8 +38,9 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
 
   override def createMetricCollector(query: Query): MetricQueryCollector = NoMetricCollector
 
-  override def finalizeQuery(data: RDD[Array[Option[Any]]], metricCollector: MetricQueryCollector): RDD[Array[Option[Any]]] = data
-
+  override def finalizeQuery(queryContext: QueryContext, data: RDD[Array[Option[Any]]], metricCollector: MetricQueryCollector): DataRowRDD = {
+    new DataRowRDD(data, queryContext)
+  }
 
   /**
     * Save DataPoints into table.
@@ -90,7 +92,7 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
       job.getConfiguration,
       classOf[TableInputFormat],
       classOf[ImmutableBytesWritable],
-      classOf[Result])
+      classOf[HBaseResult])
 
     val rowsRdd = hbaseRdd.flatMap { case (_, hbaseResult) =>
       DictionaryDaoHBase.getReversePairFromResult(hbaseResult)
@@ -98,15 +100,8 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
     rowsRdd
   }
 
-  def queryDataRows(query: Query): DataRowRDD = {
-    logger.info("TSDB query start: " + query)
-    val queryContext = createContext(query, NoMetricCollector)
-    val underlying = queryPipeline(queryContext, NoMetricCollector)
-    new DataRowRDD(underlying, queryContext)
-  }
-
   def union(rdds: Seq[DataRowRDD]): DataRowRDD = {
-    val rdd = sparkContext.union(rdds.map(_.underlying))
+    val rdd = sparkContext.union(rdds.map(_.rows))
     new DataRowRDD(rdd, rdds.head.queryContext)
   }
 

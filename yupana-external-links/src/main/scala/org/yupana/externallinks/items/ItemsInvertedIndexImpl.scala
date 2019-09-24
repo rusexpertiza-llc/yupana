@@ -1,10 +1,11 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.TsdbBase
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.utils.{CollectionUtils, SparseTable, Table}
+import org.yupana.core.utils.{SparseTable, Table}
 import org.yupana.externallinks.DimIdBasedExternalLinkService
 import org.yupana.schema.Dimensions
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -95,35 +96,32 @@ class ItemsInvertedIndexImpl(tsdb: TsdbBase, invertedIndexDao: InvertedIndexDao[
       }.toSet
   }
 
-  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[Long] = {
+  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
     val ids = getPhraseIds(fieldsValues)
-    CollectionUtils.intersectAll(ids)
+    SortedSetIterator.intersectAll(ids)
   }
 
-  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[Long] = {
+  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
     val ids = getPhraseIds(fieldsValues)
-    ids.foldLeft(Set.empty[Long])(_ union _)
+    SortedSetIterator.unionAll(ids)
   }
 
   override def fieldValuesForDimIds(fields: Set[String], dimIds: Set[Long]): Table[Long, String, String] = {
     SparseTable.empty
   }
 
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[Set[Long]] = {
-    fieldsValues.map {
-      case (PHRASE_FIELD, phrases) => phrases.flatMap(dimIdsForPhrase)
+  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Iterator[SortedSetIterator[Long]] = {
+    fieldsValues.iterator.map {
+      case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.iterator.map(dimIdsForPhrase))
       case (x, _) => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 
-  def dimIdsForPhrase(phrase: String): Seq[Long] = {
+  def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
     val words = stemmed(phrase)
-    val idsPerWord = words.map { w =>
-      dimIdsForStemmedWord(w).toSet
+    val idsPerWord = words.iterator.map { w =>
+      SortedSetIterator(dimIdsForStemmedWord(w))
     }
-
-    if (idsPerWord.nonEmpty) {
-      idsPerWord.reduceLeft((a, b) => a intersect b).toSeq
-    } else Seq.empty
+    SortedSetIterator.intersectAll(idsPerWord)
   }
 }

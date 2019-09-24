@@ -32,7 +32,7 @@ object QueryRunner {
     new SqlParser().parse(sql).right flatMap {
       case s: Select =>
         new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).right.map { q =>
-          tsdbSpark.queryDataRows(q)
+          tsdbSpark.query(q)
         }
       case _ => Left(s"Unsupported query: $sql")
     }

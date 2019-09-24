@@ -2,6 +2,7 @@ package org.yupana.externallinks
 
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{Dictionary, TsdbBase}
 import org.yupana.core.utils.{SparseTable, Table}
 
@@ -9,17 +10,9 @@ abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBa
 
   lazy val dictionary: Dictionary = tsdb.dictionary(externalLink.dimension)
 
-  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[Long]
+  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
 
-  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[Long]
-
-  def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[String] = {
-    dictionary.values(dimIdsForAllFieldsValues(fieldsValues)).values.toSeq
-  }
-
-  def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[String] = {
-    dictionary.values(dimIdsForAnyFieldsValues(fieldsValues)).values.toSeq
-  }
+  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
 
   override def fieldValuesForDimValues(fields: Set[String], dimValues: Set[String]): Table[String, String, String] = {
     val ids = dictionary.findIdsByValues(dimValues).map(_.swap)

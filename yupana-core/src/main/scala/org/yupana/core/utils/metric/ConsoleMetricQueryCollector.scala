@@ -14,7 +14,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
   val uuid: String = query.uuid
 
   override val createQueries = MetricImpl("createQueries")
-  override val createQueriesTags = MetricImpl("createQueries.tags")
+  override val createDimensionFilters = MetricImpl("createQueries.tags")
   override val createScans = MetricImpl("createScans")
   override val loadTags = MetricImpl("loadTags")
   override val filterRows = MetricImpl("filterRows")
@@ -34,7 +34,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
   private val startTime = System.nanoTime()
   logger.info(s"${query.uuidLog}; operation: $operationName started, query: $query")
 
-  def getMetrics: Seq[MetricImpl] = Seq(createQueries, createQueriesTags, createScans, loadTags, filterRows,
+  def getMetrics: Seq[MetricImpl] = Seq(createQueries, createDimensionFilters, createScans, loadTags, filterRows,
     windowFunctionsCheck, windowFunctions, mapOperation, postMapOperation, reduceOperation, postFilter,
     collectResultRows, extractDataTags, extractDataComputation, getResult, parseResult)
 

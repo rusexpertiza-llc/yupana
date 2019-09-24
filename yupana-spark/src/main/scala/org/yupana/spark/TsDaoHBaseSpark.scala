@@ -25,11 +25,11 @@ class TsDaoHBaseSpark(@transient val sparkContext: SparkContext,
 
   override val mr: MapReducible[RDD] = new RddMapReducible(sparkContext)
 
-  override def executeScans(table: Table, scans: Seq[Scan], metricCollector: MetricQueryCollector): RDD[TSDOutputRow[Long]] = {
+  override def executeScans(table: Table, scans: Iterator[Scan], metricCollector: MetricQueryCollector): RDD[TSDOutputRow[Long]] = {
     if (scans.nonEmpty) {
       val tableName = Bytes.toBytes(HBaseUtils.tableNameString(config.hbaseNamespace, table))
-      val rdds = scans.sliding(config.rowKeyBatchSize, config.rowKeyBatchSize).map { qs =>
-        val s = scans.map(_.setAttribute(Scan.SCAN_ATTRIBUTES_TABLE_NAME, tableName))
+      val rdds = scans.grouped(config.rowKeyBatchSize).map { qs =>
+        val s = qs.map(_.setAttribute(Scan.SCAN_ATTRIBUTES_TABLE_NAME, tableName))
         executeScans(table, s)
       }
       sparkContext.union(rdds.toSeq)

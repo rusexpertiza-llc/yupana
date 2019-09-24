@@ -290,10 +290,10 @@ object HBaseUtils extends StrictLogging {
 
     val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
 
-    val buffer = ByteBuffer.allocate(baseTimeBytes.length + rowKey.tagsIds.length * Bytes.SIZEOF_LONG)
+    val buffer = ByteBuffer.allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
       .put(baseTimeBytes)
 
-    rowKey.tagsIds.foldLeft(buffer) { case (buf, value) =>
+    rowKey.dimIds.foldLeft(buffer) { case (buf, value) =>
       buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
     }.array()
   }
