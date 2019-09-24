@@ -69,10 +69,15 @@ object TestSchema {
 
   val testTable = new Table(
     name = "test_table",
-    rowTimeSpan = 24*60*60*1000,
+    rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(TestDims.TAG_A, TestDims.TAG_B),
-    metrics = Seq(TestTableFields.TEST_FIELD, TestTableFields.TEST_STRING_FIELD, TestTableFields.TEST_FIELD2, TestTableFields.TEST_LONG_FIELD),
-    externalLinks  = Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4)
+    metrics = Seq(
+      TestTableFields.TEST_FIELD,
+      TestTableFields.TEST_STRING_FIELD,
+      TestTableFields.TEST_FIELD2,
+      TestTableFields.TEST_LONG_FIELD
+    ),
+    externalLinks = Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4)
   )
 
   val testTable2 = new Table(

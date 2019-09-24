@@ -1,12 +1,29 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.externallinks.universal
 
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.core.model.{InternalRow, InternalRowBuilder}
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.externallinks.SimpleExternalLinkConditionHandler
 
-abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[String], data: Array[Array[String]]) extends SimpleExternalLinkConditionHandler[T] {
+abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[String], data: Array[Array[String]])
+    extends SimpleExternalLinkConditionHandler[T] {
   def keyIndex: Int
 
   def fillKeyValues(indexMap: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit
@@ -19,9 +36,9 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     if (orderedFields.size != externalLink.fieldsNames.size)
       throw new IllegalArgumentException(s"orderedFields have to have ${externalLink.fieldsNames.size} items")
 
-    orderedFields.find(x => !externalLink.fieldsNames.contains(x)).foreach(x =>
-      throw new IllegalArgumentException(s"Unknown field '$x'")
-    )
+    orderedFields
+      .find(x => !externalLink.fieldsNames.contains(x))
+      .foreach(x => throw new IllegalArgumentException(s"Unknown field '$x'"))
 
     if (data.exists(_.length != orderedFields.size))
       throw new IllegalArgumentException(s"Data must have exactly ${orderedFields.size} columns")
@@ -42,7 +59,11 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     result
   }
 
-  override def setLinkedValues(exprIndex: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow], exprs: Set[LinkExpr]): Unit = {
+  override def setLinkedValues(
+      exprIndex: scala.collection.Map[Expression, Int],
+      valueData: Seq[InternalRow],
+      exprs: Set[LinkExpr]
+  ): Unit = {
     val tagExpr = new DimensionExpr(externalLink.dimension)
     val indexMap = Seq[Expression](TimeExpr, tagExpr, keyExpr).distinct.zipWithIndex.toMap
     val valueDataBuilder = new InternalRowBuilder(indexMap)
@@ -56,12 +77,13 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
     fillKeyValues(indexMap, keyValueData)
 
-    keyValueData.zip(valueData).foreach { case (kvd, vd) =>
-      kvd.get[String](indexMap(keyExpr)).foreach { keyValue =>
-        exprs.foreach { expr =>
-          vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField)(keyValue))
+    keyValueData.zip(valueData).foreach {
+      case (kvd, vd) =>
+        kvd.get[String](indexMap(keyExpr)).foreach { keyValue =>
+          exprs.foreach { expr =>
+            vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField)(keyValue))
+          }
         }
-      }
     }
   }
 
@@ -80,12 +102,18 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     NotIn(keyExpr, keyValues)
   }
 
-  private def keyValuesForFieldValues(fieldValues: Seq[(String, Set[String])], reducer: (Set[Int], Set[Int]) => Set[Int]): Set[String] = {
+  private def keyValuesForFieldValues(
+      fieldValues: Seq[(String, Set[String])],
+      reducer: (Set[Int], Set[Int]) => Set[Int]
+  ): Set[String] = {
     if (fieldValues.nonEmpty) {
-      val rows = fieldValues.map { case (field, values) =>
-        val idx = getFieldIndex(field)
-        values.flatMap(value => multiIndex(idx).getOrElse(value, Set.empty))
-      }.reduceLeft(reducer)
+      val rows = fieldValues
+        .map {
+          case (field, values) =>
+            val idx = getFieldIndex(field)
+            values.flatMap(value => multiIndex(idx).getOrElse(value, Set.empty))
+        }
+        .reduceLeft(reducer)
 
       rows.map(row => data(row)(keyIndex))
     } else Set.empty
@@ -98,6 +126,9 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   }
 
   private def getFieldIndex(field: String): Int = {
-    fieldIndex.getOrElse(field, throw new IllegalArgumentException(s"Field $field is not defined in catalog ${externalLink.linkName}"))
+    fieldIndex.getOrElse(
+      field,
+      throw new IllegalArgumentException(s"Field $field is not defined in catalog ${externalLink.linkName}")
+    )
   }
 }

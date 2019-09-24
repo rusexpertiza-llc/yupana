@@ -1,13 +1,28 @@
-package org.yupana.core
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
+package org.yupana.core
 
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers.{Equ, Neq}
+import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 import org.yupana.core.utils.TimeBoundedCondition
 
-trait ExternalLinkService[T <: ExternalLink]  {
+trait ExternalLinkService[T <: ExternalLink] {
 
   def externalLink: T
 
@@ -18,7 +33,11 @@ trait ExternalLinkService[T <: ExternalLink]  {
     * @param valueData batch of ValueData
     * @param exprs expressions to be set
     */
-  def setLinkedValues(exprIndex: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow], exprs: Set[LinkExpr]): Unit
+  def setLinkedValues(
+      exprIndex: scala.collection.Map[Expression, Int],
+      valueData: Seq[InternalRow],
+      exprs: Set[LinkExpr]
+  ): Unit
 
   /**
     * Transforms condition according to filter by this external link conditions.
@@ -55,34 +74,40 @@ trait ExternalLinkService[T <: ExternalLink]  {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case SimpleCondition(BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))) if Set("==", "!=").contains(op.name)&& c.linkName == externalLink.linkName=> true
-      case In(LinkExpr(c, _), _) if c.linkName == externalLink.linkName => true
+      case SimpleCondition(BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_)))
+          if Set("==", "!=").contains(op.name) && c.linkName == externalLink.linkName =>
+        true
+      case In(LinkExpr(c, _), _) if c.linkName == externalLink.linkName    => true
       case NotIn(LinkExpr(c, _), _) if c.linkName == externalLink.linkName => true
-      case _ => false
+      case _                                                               => false
     }
   }
 }
 
 object ExternalLinkService {
-  def extractCatalogFields(simpleCondition: TimeBoundedCondition,
-                           linkName: String
-                          ): (List[(String, Set[String])], List[(String, Set[String])], List[Condition]) = {
-    simpleCondition.conditions.foldLeft((List.empty[(String, Set[String])], List.empty[(String, Set[String])], List.empty[Condition])) {
-      case ((cat, neg, oth), cond) => cond match {
-        case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
-          ((field, Set(v)) :: cat, neg, oth)
+  def extractCatalogFields(
+      simpleCondition: TimeBoundedCondition,
+      linkName: String
+  ): (List[(String, Set[String])], List[(String, Set[String])], List[Condition]) = {
+    simpleCondition.conditions.foldLeft(
+      (List.empty[(String, Set[String])], List.empty[(String, Set[String])], List.empty[Condition])
+    ) {
+      case ((cat, neg, oth), cond) =>
+        cond match {
+          case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+            ((field, Set(v)) :: cat, neg, oth)
 
-        case In(LinkExpr(c, field), cs) if c.linkName == linkName =>
-          ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
+          case In(LinkExpr(c, field), cs) if c.linkName == linkName =>
+            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
 
-        case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
-          (cat, (field, Set(v)) :: neg, oth)
+          case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+            (cat, (field, Set(v)) :: neg, oth)
 
-        case NotIn(LinkExpr(c, field), cs) if c.linkName == linkName =>
-          (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
+          case NotIn(LinkExpr(c, field), cs) if c.linkName == linkName =>
+            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
 
-        case _ => (cat, neg, cond :: oth)
-      }
+          case _ => (cat, neg, cond :: oth)
+        }
     }
   }
 }

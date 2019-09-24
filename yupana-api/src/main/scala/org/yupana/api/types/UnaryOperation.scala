@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.types
 
 import org.joda.time.DateTimeFieldType
@@ -8,6 +24,7 @@ import org.yupana.api.Time
   * @tparam T type to thus function be applied
   */
 trait UnaryOperation[T] extends Serializable {
+
   /** Output type */
   type Out
 
@@ -68,8 +85,8 @@ object UnaryOperation {
 
   type Aux[T, U] = UnaryOperation[T] { type Out = U }
 
-  def abs[T : Numeric](implicit dt: DataType.Aux[T]): UnaryOperation.Aux[T, T] = create(_.abs[T], ABS, dt)
-  def minus[T : Numeric](implicit dt: DataType.Aux[T]): UnaryOperation.Aux[T, T] = create(_.unaryMinus[T], MINUS, dt)
+  def abs[T: Numeric](implicit dt: DataType.Aux[T]): UnaryOperation.Aux[T, T] = create(_.abs[T], ABS, dt)
+  def minus[T: Numeric](implicit dt: DataType.Aux[T]): UnaryOperation.Aux[T, T] = create(_.unaryMinus[T], MINUS, dt)
 
   def isNull[T]: UnaryOperation.Aux[T, Boolean] = create(_.isNull[T], IS_NULL, DataType[Boolean])
   def isNotNull[T]: UnaryOperation.Aux[T, Boolean] = create(_.isNotNull[T], IS_NOT_NULL, DataType[Boolean])
@@ -82,7 +99,8 @@ object UnaryOperation {
   val extractMinute: UnaryOperation.Aux[Time, Int] = create(_.extractMinute, EXTRACT_MINUTE, DataType[Int])
   val extractSecond: UnaryOperation.Aux[Time, Int] = create(_.extractSecond, EXTRACT_SECOND, DataType[Int])
 
-  def trunc(interval: DateTimeFieldType): UnaryOperation.Aux[Time, Time] = create(_.trunc(interval), TRUNC, DataType[Time])
+  def trunc(interval: DateTimeFieldType): UnaryOperation.Aux[Time, Time] =
+    create(_.trunc(interval), TRUNC, DataType[Time])
   val truncYear: UnaryOperation.Aux[Time, Time] = create(_.truncYear, TRUNC_YEAR, DataType[Time])
   val truncMonth: UnaryOperation.Aux[Time, Time] = create(_.truncMonth, TRUNC_MONTH, DataType[Time])
   val truncDay: UnaryOperation.Aux[Time, Time] = create(_.truncDay, TRUNC_DAY, DataType[Time])
@@ -95,11 +113,16 @@ object UnaryOperation {
   val stem: UnaryOperation.Aux[String, Array[String]] = create(_.stemString, STEM, DataType[Array[String]])
   val splitString: UnaryOperation.Aux[String, Array[String]] = create(_.splitString, SPLIT, DataType[Array[String]])
 
-  def arrayToString[T]: UnaryOperation.Aux[Array[T], String] = create(_.arrayToString[T], ARRAY_TO_STRING, DataType[String])
+  def arrayToString[T]: UnaryOperation.Aux[Array[T], String] =
+    create(_.arrayToString[T], ARRAY_TO_STRING, DataType[String])
   def arrayLength[T]: UnaryOperation.Aux[Array[T], Int] = create(_.arrayLength[T], LENGTH, DataType[Int])
   val stemArray: UnaryOperation.Aux[Array[String], Array[String]] = create(_.stemArray, STEM, DataType[Array[String]])
 
-  def create[T, U](fun: UnaryOperations => Option[T] => Option[U], n: String, dt: DataType.Aux[U]): UnaryOperation.Aux[T, U] = new UnaryOperation[T] {
+  def create[T, U](
+      fun: UnaryOperations => Option[T] => Option[U],
+      n: String,
+      dt: DataType.Aux[U]
+  ): UnaryOperation.Aux[T, U] = new UnaryOperation[T] {
     override type Out = U
     override val name: String = n
     override def dataType: DataType.Aux[U] = dt
@@ -152,9 +175,10 @@ object UnaryOperation {
     STEM -> stemArray
   )
 
-  def tupleOperations[A, B](aOps: Map[String, UnaryOperation[A]],
-                            bOps: Map[String, UnaryOperation[B]]
-                           ): Map[String, UnaryOperation[(A, B)]] = {
+  def tupleOperations[A, B](
+      aOps: Map[String, UnaryOperation[A]],
+      bOps: Map[String, UnaryOperation[B]]
+  ): Map[String, UnaryOperation[(A, B)]] = {
     val commonOps = aOps.keySet intersect bOps.keySet
     commonOps.map { c =>
       val ao = aOps(c)

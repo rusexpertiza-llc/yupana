@@ -1,8 +1,12 @@
 package org.yupana.externallinks.universal
 
-import org.scalatest.{FlatSpec, Inside, Matchers}
+import org.scalatest.{ FlatSpec, Inside, Matchers }
 import org.yupana.api.schema.Schema
-import org.yupana.externallinks.universal.JsonCatalogs.{SQLExternalLinkConfig, SQLExternalLinkConnection, SQLExternalLinkDescription}
+import org.yupana.externallinks.universal.JsonCatalogs.{
+  SQLExternalLinkConfig,
+  SQLExternalLinkConnection,
+  SQLExternalLinkDescription
+}
 import org.yupana.schema.Tables
 
 class JsonExternalLinkDeclarationsParserTest extends FlatSpec with Matchers with Inside {
@@ -35,22 +39,23 @@ class JsonExternalLinkDeclarationsParserTest extends FlatSpec with Matchers with
                   |  ]
                   |}""".stripMargin
 
-    inside(JsonExternalLinkDeclarationsParser.parse(testSchema, json)) { case Right(Seq(catalog)) =>
-      catalog shouldEqual SQLExternalLinkConfig(
-        description = SQLExternalLinkDescription(
-          linkName = "ComplicatedTestCatalog",
-          dimensionName = "kkmId",
-          fieldsNames = Set("f1", "f2"),
-          fieldsMapping = Some(Map("kkmId" -> "t1.k", "f1" -> "t1.ff1", "f2" -> "t2.ff2")),
-          relation = Some("t1 JOIN t2 ON t1.t2_id = t2.id"),
-          tables = Seq("receipt")
-        ),
-        connection = SQLExternalLinkConnection(
-          url = "jdbc:postgresql://host:5432/my_db",
-          username = Some("root"),
-          password = Some("root")
+    inside(JsonExternalLinkDeclarationsParser.parse(testSchema, json)) {
+      case Right(Seq(catalog)) =>
+        catalog shouldEqual SQLExternalLinkConfig(
+          description = SQLExternalLinkDescription(
+            linkName = "ComplicatedTestCatalog",
+            dimensionName = "kkmId",
+            fieldsNames = Set("f1", "f2"),
+            fieldsMapping = Some(Map("kkmId" -> "t1.k", "f1" -> "t1.ff1", "f2" -> "t2.ff2")),
+            relation = Some("t1 JOIN t2 ON t1.t2_id = t2.id"),
+            tables = Seq("receipt")
+          ),
+          connection = SQLExternalLinkConnection(
+            url = "jdbc:postgresql://host:5432/my_db",
+            username = Some("root"),
+            password = Some("root")
+          )
         )
-      )
     }
   }
 

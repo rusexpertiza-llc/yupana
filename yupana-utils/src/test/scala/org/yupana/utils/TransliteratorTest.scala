@@ -1,6 +1,6 @@
 package org.yupana.utils
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 class TransliteratorTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
@@ -18,8 +18,6 @@ class TransliteratorTest extends FlatSpec with Matchers with TableDrivenProperty
       Transliterator.transliterate(string) shouldEqual expected
     }
   }
-
-
 
   it should "transliterate stemmed items correctly" in {
     val data = Table(

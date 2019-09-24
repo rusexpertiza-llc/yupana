@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.examples.spark.etl
 
 import org.joda.time.LocalDateTime
@@ -20,14 +36,15 @@ object DataSource {
   )
 
   val measures = Array(
-    Some("кг"), Some("шт"), Some("л"), None
+    Some("кг"),
+    Some("шт"),
+    Some("л"),
+    None
   )
-
 
   def getReceipts(n: Int): Seq[Receipt] = {
     1 to n map genReceipt
   }
-
 
   def genReceipt(n: Int): Receipt = {
     val items = 1 to (1 + Random.nextInt(10)) map (_ => genItem)
