@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.query
 
 import org.yupana.api.Time
@@ -15,7 +31,7 @@ sealed trait Condition extends Serializable {
   override def equals(obj: scala.Any): Boolean = {
     obj match {
       case that: Condition => this.encoded == that.encoded
-      case _ => false
+      case _               => false
     }
   }
 }
@@ -43,11 +59,17 @@ object Condition {
     }
   }
 
-  def timeAndCondition(from: Expression.Aux[Time], to: Expression.Aux[Time], condition: Option[Condition]): Condition = {
-    And(Seq(
-      SimpleCondition(BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, from)),
-      SimpleCondition(BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, to))
-    ) ++ condition)
+  def timeAndCondition(
+      from: Expression.Aux[Time],
+      to: Expression.Aux[Time],
+      condition: Option[Condition]
+  ): Condition = {
+    And(
+      Seq(
+        SimpleCondition(BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, from)),
+        SimpleCondition(BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, to))
+      ) ++ condition
+    )
   }
 }
 
@@ -78,7 +100,7 @@ object In {
 
     override def exprs: Set[Expression] = Set(expr)
 
-    override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",","))")
+    override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
     override def toString: String = {
       expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
     }
@@ -103,7 +125,7 @@ object NotIn {
 
     override def exprs: Set[Expression] = Set(expr)
 
-    override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"nin(${expr.encode}, (", ",","))")
+    override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"nin(${expr.encode}, (", ",", "))")
     override def toString: String = {
       expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
     }
@@ -114,7 +136,7 @@ object NotIn {
 
 case class DimIdIn(expr: DimensionExpr, dimIds: Set[Long]) extends Condition {
   override def exprs: Set[Expression] = Set(expr)
-  override def encode: String = dimIds.mkString(s"idIn(${expr.encode}, (", ",","))")
+  override def encode: String = dimIds.mkString(s"idIn(${expr.encode}, (", ",", "))")
   override def toString: String = {
     expr.toString + CollectionUtils.mkStringWithLimit(dimIds, 10, " ID IN (", ", ", ")")
   }
@@ -122,7 +144,7 @@ case class DimIdIn(expr: DimensionExpr, dimIds: Set[Long]) extends Condition {
 
 case class DimIdNotIn(expr: DimensionExpr, dimIds: Set[Long]) extends Condition {
   override def exprs: Set[Expression] = Set(expr)
-  override def encode: String = dimIds.mkString(s"idNotIn(${expr.encode}, (", ",","))")
+  override def encode: String = dimIds.mkString(s"idNotIn(${expr.encode}, (", ",", "))")
   override def toString: String = {
     expr.toString + CollectionUtils.mkStringWithLimit(dimIds, 10, " ID NOT IN (", ", ", ")")
   }
@@ -141,6 +163,6 @@ case class Or(conditions: Seq[Condition]) extends Condition {
 
   override def exprs: Set[Expression] = conditions.foldLeft(Set.empty[Expression])(_ union _.exprs)
 
-  override def toString: String = conditions.mkString( "(", " OR ", ")")
+  override def toString: String = conditions.mkString("(", " OR ", ")")
   override def encode: String = conditions.map(_.encoded).sorted.mkString("or(", ",", ")")
 }

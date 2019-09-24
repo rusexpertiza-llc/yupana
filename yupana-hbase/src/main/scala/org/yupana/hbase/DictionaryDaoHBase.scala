@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
@@ -61,12 +77,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     logger.trace(s"--- Send request to HBase")
     val results = table.get(gets.asJava)
     logger.trace(s"--- Response received, extract dictionary values")
-    val r = (idsSeq zip results).flatMap { case (id, result) =>
-      if (!result.isEmpty) {
-        Some(id -> Bytes.toString(result.getValue(directFamily, column)))
-      } else {
-        None
-      }
+    val r = (idsSeq zip results).flatMap {
+      case (id, result) =>
+        if (!result.isEmpty) {
+          Some(id -> Bytes.toString(result.getValue(directFamily, column)))
+        } else {
+          None
+        }
     }.toMap
     logger.trace(s"--- Dictionary values extracted")
     r
@@ -105,12 +122,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       logger.trace(s"--- Send request to HBase")
       val results = table.get(gets.asJava)
       logger.trace(s"--- Response received, extract dictionary ids")
-      val r = (nonEmptyValues zip results).flatMap { case (value, result) =>
-        if (!result.isEmpty) {
-          Some(value -> Bytes.toLong(result.getValue(reverseFamily, column)))
-        } else {
-          None
-        }
+      val r = (nonEmptyValues zip results).flatMap {
+        case (value, result) =>
+          if (!result.isEmpty) {
+            Some(value -> Bytes.toLong(result.getValue(reverseFamily, column)))
+          } else {
+            None
+          }
       }.toMap
       logger.trace(s"--- Dictionary values extracted")
       r

@@ -1,6 +1,6 @@
 package org.yupana.core.utils
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 
 class CollectionUtilsTest extends FlatSpec with Matchers {
 
@@ -50,8 +50,12 @@ class CollectionUtilsTest extends FlatSpec with Matchers {
 
   "Align by key" should "align" in {
     val keys = List("kkm", "item", "op_type")
-    val values = List("item" -> 6,  "kkm" -> 1, "op_type" -> 2)
-    CollectionUtils.alignByKey(keys, values, (x: (String, Int)) => x._1) shouldEqual List("kkm" -> 1, "item" -> 6, "op_type" -> 2)
+    val values = List("item" -> 6, "kkm" -> 1, "op_type" -> 2)
+    CollectionUtils.alignByKey(keys, values, (x: (String, Int)) => x._1) shouldEqual List(
+      "kkm" -> 1,
+      "item" -> 6,
+      "op_type" -> 2
+    )
   }
 
   it should "work if some key is missing" in {

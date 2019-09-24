@@ -1,10 +1,26 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{Schema, Table}
+import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.TSDB
 import org.yupana.hbase.HBaseUtils
 import org.yupana.schema.Dimensions
@@ -13,9 +29,7 @@ import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(context: EtlContext,
-                          schema: Schema,
-                          dataPoints: RDD[DataPoint]): Unit = {
+  def processTransactions(context: EtlContext, schema: Schema, dataPoints: RDD[DataPoint]): Unit = {
 
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
@@ -31,10 +45,11 @@ object ETLFunctions extends StrictLogging {
 
         val byTable = dps.groupBy(_.table)
 
-        byTable.foreach { case (t, ps) =>
-          if (schema.rollups.exists(_.fromTable.name == t.name)) {
-            invalidateRollups(context.tsdb, ps, t)
-          }
+        byTable.foreach {
+          case (t, ps) =>
+            if (schema.rollups.exists(_.fromTable.name == t.name)) {
+              invalidateRollups(context.tsdb, ps, t)
+            }
         }
       }
     }
@@ -42,7 +57,6 @@ object ETLFunctions extends StrictLogging {
 
   def invalidateRollups(tsdb: TSDB, dps: Seq[DataPoint], table: Table): Unit = {
     tsdb.getRollupSpecialField("etl", table).foreach { etlObligatoryRecalc =>
-
       val rollupStatuses = dps
         .filter(_.time < etlObligatoryRecalc)
         .groupBy(dp => HBaseUtils.baseTime(dp.time, table))
@@ -59,7 +73,8 @@ object ETLFunctions extends StrictLogging {
     }
   }
 
-  implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions= new DataPointStreamFunctions(stream)
+  implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
+    new DataPointStreamFunctions(stream)
   implicit def rdd2Functions(rdd: RDD[DataPoint]): DataPointRddFunctions = new DataPointRddFunctions(rdd)
 }
 

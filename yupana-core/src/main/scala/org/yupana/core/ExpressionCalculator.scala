@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import org.yupana.core.model.InternalRow
@@ -6,13 +22,14 @@ import org.yupana.core.operations.Operations
 
 object ExpressionCalculator {
 
-  private implicit val operations: Operations = Operations
+  implicit private val operations: Operations = Operations
 
-  def evaluateExpression(expr: Expression,
-                         queryContext: QueryContext,
-                         internalRow: InternalRow,
-                         tryEval: Boolean = true
-                        ): Option[expr.Out] = {
+  def evaluateExpression(
+      expr: Expression,
+      queryContext: QueryContext,
+      internalRow: InternalRow,
+      tryEval: Boolean = true
+  ): Option[expr.Out] = {
     expr match {
       case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
 
@@ -30,10 +47,11 @@ object ExpressionCalculator {
     }
   }
 
-  def evaluateCondition(condition: Condition,
-                        queryContext: QueryContext,
-                        valueData: InternalRow,
-                        tryEval: Boolean = false
+  def evaluateCondition(
+      condition: Condition,
+      queryContext: QueryContext,
+      valueData: InternalRow,
+      tryEval: Boolean = false
   ): Option[Boolean] = condition match {
 
     case SimpleCondition(e) =>
@@ -58,18 +76,15 @@ object ExpressionCalculator {
       executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
   }
 
-  private def eval(expr: Expression,
-                   queryContext: QueryContext,
-                   internalRow: InternalRow
-                  ): Option[expr.Out] = {
+  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): Option[expr.Out] = {
 
     val res = expr match {
       case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
 
-      case TimeExpr => None //Some(Time(internalRow.get()))
+      case TimeExpr         => None //Some(Time(internalRow.get()))
       case DimensionExpr(_) => None // tagValues.get(tagName)
-      case MetricExpr(_) =>  None // rowValues(f.tag)
-      case LinkExpr(_, _) => None // catalogValues.get(c.queryFieldName)
+      case MetricExpr(_)    => None // rowValues(f.tag)
+      case LinkExpr(_, _)   => None // catalogValues.get(c.queryFieldName)
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateCondition(condition, queryContext, internalRow, tryEval = true)
@@ -104,15 +119,16 @@ object ExpressionCalculator {
           b <- evaluateExpression(e2, queryContext, internalRow)
         } yield (a, b)
 
-      case ae@ArrayExpr(es) =>
-        val values: Array[ae.elementDataType.T] = Array.ofDim[ae.elementDataType.T](es.length)(ae.elementDataType.classTag)
+      case ae @ ArrayExpr(es) =>
+        val values: Array[ae.elementDataType.T] =
+          Array.ofDim[ae.elementDataType.T](es.length)(ae.elementDataType.classTag)
         var success = true
         var i = 0
 
         while (i < es.length && success) {
           evaluateExpression(es(i), queryContext, internalRow) match {
             case Some(v) => values(i) = v.asInstanceOf[ae.elementDataType.T]
-            case None => success = false
+            case None    => success = false
           }
 
           i += 1

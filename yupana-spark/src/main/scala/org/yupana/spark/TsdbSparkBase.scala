@@ -1,33 +1,61 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Mutation, Result}
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, Mutation, Result }
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, TableInputFormat, TableMapReduceUtil, TableOutputFormat}
+import org.apache.hadoop.hbase.mapreduce.{
+  IdentityTableMapper,
+  TableInputFormat,
+  TableMapReduceUtil,
+  TableOutputFormat
+}
 import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.mapreduce.{Job, OutputFormat}
+import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
 import org.apache.spark.SparkContext
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.{DataPoint, Query}
-import org.yupana.api.schema.{Schema, Table}
-import org.yupana.core.dao.{DictionaryProvider, TSReadingDao}
-import org.yupana.core.model.{InternalRow, KeyData}
-import org.yupana.core.utils.metric.{MetricQueryCollector, NoMetricCollector}
-import org.yupana.core.{MapReducible, QueryContext, TsdbBase}
-import org.yupana.hbase.{DictionaryDaoHBase, HBaseUtils}
+import org.yupana.api.query.{ DataPoint, Query }
+import org.yupana.api.schema.{ Schema, Table }
+import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
+import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
+import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils }
 
-abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
-                override val prepareQuery: Query => Query,
-                conf: Config,
-                schema: Schema
-               ) extends TsdbBase with StrictLogging with Serializable {
+abstract class TsdbSparkBase(
+    @transient val sparkContext: SparkContext,
+    override val prepareQuery: Query => Query,
+    conf: Config,
+    schema: Schema
+) extends TsdbBase
+    with StrictLogging
+    with Serializable {
 
   override type Collection[X] = RDD[X]
 
   override val extractBatchSize: Int = conf.extractBatchSize
 
-  HBaseUtils.initStorage(ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)), conf.hbaseNamespace, schema)
+  HBaseUtils.initStorage(
+    ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
+    conf.hbaseNamespace,
+    schema
+  )
 
   override val mr: MapReducible[RDD] = new RddMapReducible(sparkContext)
 
@@ -37,8 +65,10 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
 
   override def createMetricCollector(query: Query): MetricQueryCollector = NoMetricCollector
 
-  override def finalizeQuery(data: RDD[Array[Option[Any]]], metricCollector: MetricQueryCollector): RDD[Array[Option[Any]]] = data
-
+  override def finalizeQuery(
+      data: RDD[Array[Option[Any]]],
+      metricCollector: MetricQueryCollector
+  ): RDD[Array[Option[Any]]] = data
 
   /**
     * Save DataPoints into table.
@@ -53,7 +83,11 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
     val hbaseConf = TsDaoHBaseSpark.hbaseConfiguration(conf)
 
     hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, HBaseUtils.tableNameString(conf.hbaseNamespace, table))
-    hbaseConf.setClass("mapreduce.job.outputformat.class", classOf[TableOutputFormat[String]], classOf[OutputFormat[String, Mutation]])
+    hbaseConf.setClass(
+      "mapreduce.job.outputformat.class",
+      classOf[TableOutputFormat[String]],
+      classOf[OutputFormat[String, Mutation]]
+    )
     hbaseConf.set("mapreduce.output.fileoutputformat.outputdir", "/tmp")
 
     val job: Job = Job.getInstance(hbaseConf, "TsdbRollup-write")
@@ -67,8 +101,9 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
     val puts = filtered.mapPartitions { partition =>
       partition.grouped(10000).flatMap { dataPoints =>
         val rowsByTable = HBaseUtils.createTsdRows(dataPoints, dictionaryProvider)
-        rowsByTable.flatMap { case (_, rows) =>
-          rows.map(row => new ImmutableBytesWritable() -> HBaseUtils.createPutOperation(row))
+        rowsByTable.flatMap {
+          case (_, rows) =>
+            rows.map(row => new ImmutableBytesWritable() -> HBaseUtils.createPutOperation(row))
         }
       }
     }
@@ -80,8 +115,14 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
 
     val job: Job = Job.getInstance(TsDaoHBaseSpark.hbaseConfiguration(conf))
     TableMapReduceUtil.initCredentials(job)
-    TableMapReduceUtil.initTableMapperJob(DictionaryDaoHBase.getTableName(namespace, name), scan,
-      classOf[IdentityTableMapper], null, null, job)
+    TableMapReduceUtil.initTableMapperJob(
+      DictionaryDaoHBase.getTableName(namespace, name),
+      scan,
+      classOf[IdentityTableMapper],
+      null,
+      null,
+      job
+    )
 
     val jconf = new JobConf(job.getConfiguration)
     SparkHadoopUtil.get.addCredentials(jconf)
@@ -90,10 +131,12 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
       job.getConfiguration,
       classOf[TableInputFormat],
       classOf[ImmutableBytesWritable],
-      classOf[Result])
+      classOf[Result]
+    )
 
-    val rowsRdd = hbaseRdd.flatMap { case (_, hbaseResult) =>
-      DictionaryDaoHBase.getReversePairFromResult(hbaseResult)
+    val rowsRdd = hbaseRdd.flatMap {
+      case (_, hbaseResult) =>
+        DictionaryDaoHBase.getReversePairFromResult(hbaseResult)
     }
     rowsRdd
   }
@@ -110,7 +153,10 @@ abstract class TsdbSparkBase(@transient val sparkContext: SparkContext,
     new DataRowRDD(rdd, rdds.head.queryContext)
   }
 
-  override def applyWindowFunctions(queryContext: QueryContext, keysAndValues: RDD[(KeyData, InternalRow)]): RDD[(KeyData, InternalRow)] = {
+  override def applyWindowFunctions(
+      queryContext: QueryContext,
+      keysAndValues: RDD[(KeyData, InternalRow)]
+  ): RDD[(KeyData, InternalRow)] = {
     throw new UnsupportedOperationException("Window functions are not supported in TSDB Spark")
   }
 }

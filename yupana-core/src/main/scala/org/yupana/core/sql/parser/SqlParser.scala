@@ -1,7 +1,23 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.sql.parser
 
 import fastparse.all._
-import fastparse.core.Parsed.{Failure, Success}
+import fastparse.core.Parsed.{ Failure, Success }
 
 class SqlParser extends ValueParser {
   import white._
@@ -28,20 +44,38 @@ class SqlParser extends ValueParser {
   private val nullWord = P(IgnoreCase("NULL"))
   private val notWord = P(IgnoreCase("NOT"))
   private val keywords = Set(
-    "select", "from", "where", "and", "or", "as", "group", "order", "by", "limit", "case", "when", "then", "else",
-    "having", "in", "is", "null", "not"
+    "select",
+    "from",
+    "where",
+    "and",
+    "or",
+    "as",
+    "group",
+    "order",
+    "by",
+    "limit",
+    "case",
+    "when",
+    "then",
+    "else",
+    "having",
+    "in",
+    "is",
+    "null",
+    "not"
   )
   private val asterisk = P("*")
 
   private val plus = P("+").map(_ => Plus)
-  private val minus = P("-"). map(_ => Minus)
+  private val minus = P("-").map(_ => Minus)
   private val multiply = P("*").map(_ => Multiply)
   private val divide = P("/").map(_ => Divide)
 
   def wrapOpt[T](open: String, close: String, p: Parser[T]): Parser[T] = P(p | open ~ p ~ close)
 
-  val name: Parser[String] = P(CharsWhileIn(('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9') :+ '_').!
-    .filter(s => s.nonEmpty && s.exists(_.isLetter)))
+  val name: Parser[String] = P(
+    CharsWhileIn(('a' to 'z') ++ ('A' to 'Z') ++ ('0' to '9') :+ '_').!.filter(s => s.nonEmpty && s.exists(_.isLetter))
+  )
 
   val schemaName: Parser[String] = wrapOpt("\"", "\"", name)
   val fieldWithSchema: Parser[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
@@ -50,23 +84,26 @@ class SqlParser extends ValueParser {
 
   val alias: Parser[String] = P(asWord.? ~ notKeyword)
 
-  val functionCallExpr: Parser[FunctionCall] = P(name ~ "(" ~ expr.rep(sep =",") ~ ")").map { case (f, vs) => FunctionCall(f.toLowerCase, vs.toList) }
+  val functionCallExpr: Parser[FunctionCall] = P(name ~ "(" ~ expr.rep(sep = ",") ~ ")").map {
+    case (f, vs) => FunctionCall(f.toLowerCase, vs.toList)
+  }
 
   val fieldNameExpr: Parser[FieldName] = P(fieldWithSchema).map(FieldName)
 
   val constExpr: Parser[Constant] = P(value).map(Constant)
 
   val caseExpr: Parser[Case] = P(
-      caseWord ~/
-        (whenWord ~/ condition ~ thenWord ~/ expr).rep(min = 1) ~
-        elseWord ~/ expr
+    caseWord ~/
+      (whenWord ~/ condition ~ thenWord ~/ expr).rep(min = 1) ~
+      elseWord ~/ expr
   ).map { case (cs, d) => Case(cs, d) }
 
   private def chained[E](elem: Parser[E], op: Parser[(E, E) => E]): Parser[E] = chained1(elem, elem, op)
 
   private def chained1[E](firstElem: Parser[E], elem: Parser[E], op: Parser[(E, E) => E]): Parser[E] = {
-    P(firstElem ~ (op ~ elem).rep).map { case (first, rest) =>
-      rest.foldLeft(first) { case (l, (fun, r)) => fun(l, r) }
+    P(firstElem ~ (op ~ elem).rep).map {
+      case (first, rest) =>
+        rest.foldLeft(first) { case (l, (fun, r)) => fun(l, r) }
     }
   }
 
@@ -85,21 +122,23 @@ class SqlParser extends ValueParser {
 
   val op: Parser[(SqlExpr, SqlExpr) => Comparison] = P(
     P("=").map(_ => Eq) |
-    P("<>").map(_ => Ne) |
-    P("!=").map( _ => Ne) |
-    P(">=").map(_ => Ge) |
-    P(">").map(_ => Gt) |
-    P("<=").map(_ => Le) |
-    P("<").map(_ => Lt)
+      P("<>").map(_ => Ne) |
+      P("!=").map(_ => Ne) |
+      P(">=").map(_ => Ge) |
+      P(">").map(_ => Gt) |
+      P("<=").map(_ => Le) |
+      P("<").map(_ => Lt)
   )
 
   def callOrField: Parser[SqlExpr] = functionCallExpr | fieldNameExpr
 
   val comparison: Parser[SqlExpr => Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
 
-  val in: Parser[SqlExpr => Condition] = P(inWord ~/ "(" ~ value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
+  val in: Parser[SqlExpr => Condition] =
+    P(inWord ~/ "(" ~ value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
-  val notIn: Parser[SqlExpr => Condition] = P(notWord ~ inWord ~/ "(" ~ value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
+  val notIn: Parser[SqlExpr => Condition] =
+    P(notWord ~ inWord ~/ "(" ~ value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
   val isNull: Parser[SqlExpr => Condition] = P(isWord ~ nullWord).map(_ => IsNull)
 
@@ -107,17 +146,17 @@ class SqlParser extends ValueParser {
 
   def condition: Parser[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => Or(x +: y)
-    case (x, _) => x
+    case (x, _)               => x
   }
 
   def logicalTerm: Parser[Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
     case (x, y) if y.nonEmpty => And(x +: y)
-    case (x, _) => x
+    case (x, _)               => x
   }
 
   def boolExpr: Parser[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull).?).map {
     case (e, Some(f)) => f(e)
-    case (e, None) => ExprCondition(e)
+    case (e, None)    => ExprCondition(e)
   }
 
   def logicalFactor: Parser[Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
@@ -167,15 +206,15 @@ class SqlParser extends ValueParser {
 
   def substituteNested(expr: SqlExpr, nestedFields: Seq[SqlField]): SqlExpr = {
     expr match {
-      case e@FieldName(n) =>
+      case e @ FieldName(n) =>
         nestedFields.find(f => f.alias.orElse(f.expr.proposedName).contains(n)).map(_.expr).getOrElse(e)
 
       case FunctionCall(n, es) => FunctionCall(n, es.map(e => substituteNested(e, nestedFields)))
 
-      case Plus(a, b) => Plus(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
-      case Minus(a, b) => Minus(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
+      case Plus(a, b)     => Plus(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
+      case Minus(a, b)    => Minus(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
       case Multiply(a, b) => Multiply(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
-      case Divide(a, b) => Divide(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
+      case Divide(a, b)   => Divide(substituteNested(a, nestedFields), substituteNested(b, nestedFields))
 
       case e => e
     }
@@ -191,7 +230,7 @@ class SqlParser extends ValueParser {
 
   def parse(sql: String): Either[String, Statement] = {
     statement.parse(sql.trim) match {
-      case Success(s, _)      => Right(s)
+      case Success(s, _) => Right(s)
       case Failure(lastParser, index, extra) =>
         val expected = lastParser.toString.toUpperCase
         val actual = extra.input.repr.literalize(extra.input.slice(index, index + 10))

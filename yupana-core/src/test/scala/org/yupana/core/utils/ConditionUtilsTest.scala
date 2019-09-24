@@ -1,10 +1,10 @@
 package org.yupana.core.utils
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Dimension
-import org.yupana.core.utils.ConditionMatchers.{Equ, Neq}
+import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
 class ConditionUtilsTest extends FlatSpec with Matchers {
   import org.yupana.api.query.syntax.All._
@@ -15,15 +15,19 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
   }
 
   it should "flatten nested ANDs" in {
-    val c = And(Seq(
-      And(Seq(
-        gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
-        gt[String](dimension(Dimension("b")), const("c"))
-      )),
-      And(Seq()),
-      gt[String](dimension(Dimension("c")), const("c")),
-      And(Seq(And(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
-    ))
+    val c = And(
+      Seq(
+        And(
+          Seq(
+            gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
+            gt[String](dimension(Dimension("b")), const("c"))
+          )
+        ),
+        And(Seq()),
+        gt[String](dimension(Dimension("c")), const("c")),
+        And(Seq(And(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
+      )
+    )
     ConditionUtils.simplify(c) shouldEqual and(
       gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
       gt[String](dimension(Dimension("b")), const("c")),
@@ -33,21 +37,27 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
   }
 
   it should "flatten nested ORs" in {
-    val c = Or(Seq(
-      Or(Seq(
+    val c = Or(
+      Seq(
+        Or(
+          Seq(
+            gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
+            gt[String](dimension(Dimension("b")), const("c"))
+          )
+        ),
+        Or(Seq()),
+        gt[String](dimension(Dimension("c")), const("c")),
+        Or(Seq(Or(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
+      )
+    )
+    ConditionUtils.simplify(c) shouldEqual Or(
+      Seq(
         gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
-        gt[String](dimension(Dimension("b")), const("c"))
-      )),
-      Or(Seq()),
-      gt[String](dimension(Dimension("c")), const("c")),
-      Or(Seq(Or(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
-    ))
-    ConditionUtils.simplify(c) shouldEqual Or(Seq(
-      gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
-      gt[String](dimension(Dimension("b")), const("c")),
-      gt[String](dimension(Dimension("c")), const("c")),
-      gt[String](dimension(Dimension("d")), const("e"))
-    ))
+        gt[String](dimension(Dimension("b")), const("c")),
+        gt[String](dimension(Dimension("c")), const("c")),
+        gt[String](dimension(Dimension("d")), const("e"))
+      )
+    )
   }
 
   it should "process ANDs in OR" in {
@@ -111,7 +121,7 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
     ConditionUtils.flatMap(c) {
       case In(DimensionExpr(Dimension("x", None)), _) => In(DimensionExpr(Dimension("y", None)), Set("x"))
-      case _ => EmptyCondition
+      case _                                          => EmptyCondition
     } shouldEqual in(dimension(Dimension("y")), Set("x"))
   }
 
@@ -120,7 +130,7 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
     ConditionUtils.flatMap(c) {
       case In(DimensionExpr(Dimension("y", None)), _) => In(DimensionExpr(Dimension("z", None)), Set("x"))
-      case _ => EmptyCondition
+      case _                                          => EmptyCondition
     } shouldEqual EmptyCondition
   }
 
@@ -131,8 +141,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     )
 
     ConditionUtils.flatMap(c) {
-      case x@SimpleCondition(BinaryOperationExpr(f, DimensionExpr(_), _)) if f.name == "==" || f.name == "!=" => x
-      case _ => EmptyCondition
+      case x @ SimpleCondition(BinaryOperationExpr(f, DimensionExpr(_), _)) if f.name == "==" || f.name == "!=" => x
+      case _                                                                                                    => EmptyCondition
     } shouldEqual or(equ(dimension(Dimension("x")), const("a")), neq(dimension(Dimension("y")), const("b")))
   }
 
@@ -161,7 +171,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
   it should "avoid duplicates" in {
     val a = and(equ(dimension(Dimension("x")), const("bar")), gt(time, const(Time(100))), lt(time, const(Time(500))))
-    val b = and(in(dimension(Dimension("y")), Set("foo", "bar")), gt(time, const(Time(100))), lt(time, const(Time(500))))
+    val b =
+      and(in(dimension(Dimension("y")), Set("foo", "bar")), gt(time, const(Time(100))), lt(time, const(Time(500))))
 
     ConditionUtils.merge(a, b) shouldEqual and(
       equ(dimension(Dimension("x")), const("bar")),
@@ -176,11 +187,13 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
     ConditionUtils.split(c) {
       case Equ(DimensionExpr(Dimension("foo", None)), ConstantExpr(_)) => true
-      case _ => false
+      case _                                                           => false
     } shouldBe ((c, EmptyCondition))
 
     ConditionUtils.split(c) {
-      case SimpleCondition(BinaryOperationExpr(f, DimensionExpr(Dimension("bar", None)), ConstantExpr(_))) if f.name == "==" => true
+      case SimpleCondition(BinaryOperationExpr(f, DimensionExpr(Dimension("bar", None)), ConstantExpr(_)))
+          if f.name == "==" =>
+        true
       case _ => false
     } shouldBe ((EmptyCondition, c))
   }
@@ -194,11 +207,14 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
     val (l, r) = ConditionUtils.split(c) {
       case Neq(DimensionExpr(Dimension("y", None)), ConstantExpr(_)) => true
-      case _ => false
+      case _                                                         => false
     }
 
     l shouldEqual neq(dimension(Dimension("y")), const("z"))
-    r shouldEqual and(equ(dimension(Dimension("x")), const("b")), gt(dimension(Dimension("y")), dimension(Dimension("x"))))
+    r shouldEqual and(
+      equ(dimension(Dimension("x")), const("b")),
+      gt(dimension(Dimension("y")), dimension(Dimension("x")))
+    )
   }
 
   it should "support nested ANDs and ORs" in {
@@ -216,10 +232,14 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
     val (l, r) = ConditionUtils.split(c) {
       case Equ(DimensionExpr(Dimension("x", None)), ConstantExpr(_)) => true
-      case _ => false
+      case _                                                         => false
     }
 
     l shouldEqual or(equ(dimension(Dimension("x")), const("b")), equ(dimension(Dimension("x")), const("a")))
-    r shouldEqual or(gt(dimension(Dimension("y")), dimension(Dimension("x"))), neq(dimension(Dimension("y")), const("z")), lt(dimension(Dimension("z")), const("c")))
+    r shouldEqual or(
+      gt(dimension(Dimension("y")), dimension(Dimension("x"))),
+      neq(dimension(Dimension("y")), const("z")),
+      lt(dimension(Dimension("z")), const("c"))
+    )
   }
 }

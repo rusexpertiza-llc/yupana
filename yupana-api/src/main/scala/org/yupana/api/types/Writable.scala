@@ -1,11 +1,27 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.types
 
-import java.math.{BigDecimal => JavaBigDecimal}
+import java.math.{ BigDecimal => JavaBigDecimal }
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
 import org.joda.time.Period
-import org.joda.time.format.{ISOPeriodFormat, PeriodFormatter}
+import org.joda.time.format.{ ISOPeriodFormat, PeriodFormatter }
 import org.yupana.api.Time
 
 import scala.annotation.implicitNotFound
@@ -16,6 +32,7 @@ import scala.annotation.implicitNotFound
   */
 @implicitNotFound("No member of type class Writable for class ${T} is found")
 trait Writable[T] extends Serializable {
+
   /**
     * Serialize instance of T into array of bytes
     * @param t value to be serialized
@@ -50,7 +67,8 @@ object Writable {
     val a = x.unscaledValue().toByteArray
     val scale = vLongToBytes(x.scale())
     val length = vLongToBytes(a.length)
-    ByteBuffer.allocate(a.length + scale.length + length.length)
+    ByteBuffer
+      .allocate(a.length + scale.length + length.length)
       .put(scale)
       .put(length)
       .put(a)
@@ -59,7 +77,8 @@ object Writable {
 
   private def stringToBytes(s: String): Array[Byte] = {
     val a = s.getBytes(StandardCharsets.UTF_8)
-    ByteBuffer.allocate(a.length + 4)
+    ByteBuffer
+      .allocate(a.length + 4)
       .putInt(a.length)
       .put(a)
       .array()
@@ -75,7 +94,7 @@ object Writable {
 
       if (ll < 0) {
         len = -120
-        ll ^= -1l
+        ll ^= -1L
       }
 
       var tmp = ll
@@ -94,7 +113,7 @@ object Writable {
 
       (len - 1 to 0 by -1) foreach { idx =>
         val shift = idx * 8
-        val mask = 0xffl << shift
+        val mask = 0xFFL << shift
         bb.put(((ll & mask) >> shift).toByte)
       }
 

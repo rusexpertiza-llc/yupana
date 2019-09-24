@@ -2,10 +2,10 @@ package org.yupana.jdbc
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler}
+import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
 import java.util.concurrent.TimeUnit
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ Future, Promise }
 
 class ServerMock {
 
@@ -24,35 +24,41 @@ class ServerMock {
   def readBytesSendResponse(response: Array[Byte], pack: Array[Byte] => ByteBuffer): Future[Array[Byte]] = {
     val p = Promise[Array[Byte]]()
 
-    serverSock.accept(null, new CompletionHandler[AsynchronousSocketChannel, AnyRef] {
-      override def completed(v: AsynchronousSocketChannel, a: AnyRef): Unit = {
-        val bb = ByteBuffer.allocate(16 * 1024)
-        v.read(bb).get(1, TimeUnit.SECONDS)
-        bb.flip()
-        val reqSize = bb.getInt()
-        val bytes = new Array[Byte](reqSize)
-        bb.get(bytes)
-        val resp = pack(response)
-        v.write(resp).get(1, TimeUnit.SECONDS)
-        p.success(bytes)
-      }
+    serverSock.accept(
+      null,
+      new CompletionHandler[AsynchronousSocketChannel, AnyRef] {
+        override def completed(v: AsynchronousSocketChannel, a: AnyRef): Unit = {
+          val bb = ByteBuffer.allocate(16 * 1024)
+          v.read(bb).get(1, TimeUnit.SECONDS)
+          bb.flip()
+          val reqSize = bb.getInt()
+          val bytes = new Array[Byte](reqSize)
+          bb.get(bytes)
+          val resp = pack(response)
+          v.write(resp).get(1, TimeUnit.SECONDS)
+          p.success(bytes)
+        }
 
-      override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)
-    })
+        override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)
+      }
+    )
 
     p.future
   }
 
   def closeOnReceive(): Future[Unit] = {
     val p = Promise[Unit]()
-    serverSock.accept(null, new CompletionHandler[AsynchronousSocketChannel, AnyRef] {
-      override def completed(v: AsynchronousSocketChannel, a: AnyRef): Unit = {
-        v.close()
-        p.success(())
-      }
+    serverSock.accept(
+      null,
+      new CompletionHandler[AsynchronousSocketChannel, AnyRef] {
+        override def completed(v: AsynchronousSocketChannel, a: AnyRef): Unit = {
+          v.close()
+          p.success(())
+        }
 
-      override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)
-    })
+        override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)
+      }
+    )
 
     p.future
   }
