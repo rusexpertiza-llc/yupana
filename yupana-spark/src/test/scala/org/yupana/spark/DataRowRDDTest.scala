@@ -15,7 +15,7 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
 
   import org.yupana.api.query.syntax.All._
 
-  "DataRowRDD" should "convert itself to RDD" in {
+  "DataRowRDD" should "convert itself to DataFrame" in {
     val query = Query(
       table = Tables.itemsKkmTable,
       fields = Seq(
