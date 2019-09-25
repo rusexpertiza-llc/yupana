@@ -135,8 +135,16 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
-      "org.apache.hbase"            % "hbase-server"                    % versions.hbase,
-      "org.apache.hbase"            % "hbase-hadoop-compat"             % versions.hbase
+      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
+      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
+      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting   % Test
+    ),
+    dependencyOverrides ++= Seq(
+      "com.fasterxml.jackson.core"      %  "jackson-core"               % "2.8.7" % Test,
+      "com.fasterxml.jackson.core"      %  "jackson-annotations"        % "2.8.7" % Test,
+      "com.fasterxml.jackson.core"      %  "jackson-databind"           % "2.8.7" % Test,
+      "com.fasterxml.jackson.module"    %% "jackson-module-scala"       % "2.8.7" % Test
     )
   )
   .dependsOn(core, hbase, externalLinks)
@@ -160,6 +168,7 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
       "org.springframework"         %  "spring-jdbc"                % versions.spring,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
+      "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
       "org.flywaydb"                %  "flyway-core"                % versions.flyway           % Test,
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
@@ -203,7 +212,7 @@ lazy val examples = (project in file("yupana-examples"))
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
-  val joda = "2.10.2"
+  val joda = "2.10.3"
 
   val protobufJava = "2.6.1"
 
@@ -213,7 +222,7 @@ lazy val versions = new {
   val hbase = "1.3.1"
   val hadoop = "2.8.3"
   val spark = "2.4.3"
-  val akka = "2.5.23"
+  val akka = "2.5.25"
 
   val lucene = "6.6.0"
   val ignite = "2.7.0"
@@ -228,15 +237,16 @@ lazy val versions = new {
   val h2Jdbc = "1.4.199"
   val postgresqlJdbc = "42.2.6"
 
-  val scalaTest = "3.0.7"
+  val scalaTest = "3.0.8"
   val scalaCheck = "1.14.0"
-  val scalaMock = "4.1.0"
+  val scalaMock = "4.4.0"
+  val sparkTesting = s"${spark}_0.12.0"
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.9",
-  crossScalaVersions := Seq("2.11.12", "2.12.9"),
+  scalaVersion := "2.12.10",
+  crossScalaVersions := Seq("2.11.12", "2.12.10"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-deprecation",

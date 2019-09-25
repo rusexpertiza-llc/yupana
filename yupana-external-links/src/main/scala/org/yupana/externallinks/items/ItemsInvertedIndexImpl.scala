@@ -95,12 +95,6 @@ class ItemsInvertedIndexImpl(
 
   private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[Long]]("dim_ids_by_word")
 
-  def putNewItemsNames(names: Set[String]): Unit = {
-    val itemIdsMap = tsdb.dictionary(Dimensions.ITEM_TAG).findIdsByValues(names)
-    val newNames = names -- itemIdsMap.keySet
-    putItemNames(newNames)
-  }
-
   def putItemNames(names: Set[String]): Unit = {
     val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)
     val items = itemIds.map(_.swap)
