@@ -19,6 +19,7 @@ package org.yupana.hbase
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client._
+import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
 import org.yupana.core.dao.DictionaryDao
@@ -32,6 +33,8 @@ object DictionaryDaoHBase {
   val reverseFamily: Array[Byte] = Bytes.toBytes("reverse") // store value -> id
   val column: Array[Byte] = Bytes.toBytes("c")
   val seqIdRowKey: Array[Byte] = Bytes.toBytes(0)
+
+  val BATCH_SIZE = 50000
 
   def getTableName(namespace: String, name: String): TableName =
     TableName.valueOf(namespace, tableNamePrefix + name)
@@ -72,19 +75,30 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
     checkTablesExistsElseCreate(dimension)
     val table = getTable(dimension.name)
-    val idsSeq = ids.toSeq
-    val gets = idsSeq.map(id => new Get(Bytes.toBytes(id)).addFamily(directFamily))
-    logger.trace(s"--- Send request to HBase")
-    val results = table.get(gets.asJava)
-    logger.trace(s"--- Response received, extract dictionary values")
-    val r = (idsSeq zip results).flatMap {
-      case (id, result) =>
-        if (!result.isEmpty) {
-          Some(id -> Bytes.toString(result.getValue(directFamily, column)))
-        } else {
-          None
+    val r = ids.toSeq
+      .grouped(BATCH_SIZE)
+      .flatMap { idsSeq =>
+        val ranges = idsSeq.sorted.map { id =>
+          val key = Bytes.toBytes(id)
+          new MultiRowRangeFilter.RowRange(key, true, key, true)
         }
-    }.toMap
+
+        val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+
+        val scan = new Scan(ranges.head.getStartRow, Bytes.padTail(ranges.last.getStopRow, 1))
+          .addFamily(directFamily)
+          .setFilter(filter)
+
+        logger.trace(s"--- Send request to HBase")
+        val scanner = table.getScanner(scan)
+
+        scanner.iterator().asScala.map { result =>
+          val id = Bytes.toLong(result.getRow)
+          val value = Bytes.toString(result.getValue(directFamily, column))
+          id -> value
+        }
+      }
+      .toMap
     logger.trace(s"--- Dictionary values extracted")
     r
   }
@@ -118,18 +132,29 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       logger.trace(s"Get dictionary ids by values for ${dimension.name}. Size of values: ${nonEmptyValues.size}")
       checkTablesExistsElseCreate(dimension)
       val table = getTable(dimension.name)
-      val gets = nonEmptyValues.map(value => new Get(Bytes.toBytes(value)).addFamily(reverseFamily))
-      logger.trace(s"--- Send request to HBase")
-      val results = table.get(gets.asJava)
-      logger.trace(s"--- Response received, extract dictionary ids")
-      val r = (nonEmptyValues zip results).flatMap {
-        case (value, result) =>
-          if (!result.isEmpty) {
-            Some(value -> Bytes.toLong(result.getValue(reverseFamily, column)))
-          } else {
-            None
+
+      val r = nonEmptyValues
+        .grouped(BATCH_SIZE)
+        .flatMap { vs =>
+          val ranges = vs.sorted.map { value =>
+            new MultiRowRangeFilter.RowRange(Bytes.toBytes(value), true, Bytes.toBytes(value), true)
           }
-      }.toMap
+
+          val rangeFilter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+          val scan = new Scan(ranges.head.getStartRow, Bytes.padTail(ranges.last.getStopRow, 1))
+            .addFamily(reverseFamily)
+            .setFilter(rangeFilter)
+
+          logger.trace(s"--- Send request to HBase")
+          val scanner = table.getScanner(scan)
+          scanner.iterator().asScala.map { result =>
+            val id = Bytes.toLong(result.getValue(reverseFamily, column))
+            val value = Bytes.toString(result.getRow)
+            value -> id
+          }
+        }
+        .toMap
+
       logger.trace(s"--- Dictionary values extracted")
       r
     }
