@@ -36,6 +36,6 @@ class AsyncIteratorSourceTest extends TestKit(ActorSystem("Test")) with FlatSpec
     val ticks = Source.tick(0.millis, 1.millis, 1).scan(0)(_ + _).drop(1)
     val merged = source.merge(ticks, eagerComplete = true)
 
-    Await.ready(merged.runWith(Sink.foreach(print)), 1.second).isCompleted shouldEqual true
+    Await.ready(merged.runWith(Sink.ignore), 1.second).isCompleted shouldEqual true
   }
 }
