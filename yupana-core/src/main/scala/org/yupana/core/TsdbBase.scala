@@ -39,6 +39,7 @@ trait TsdbBase extends StrictLogging {
     * Spark based implementation uses RDD.
     */
   type Collection[_]
+  type Result <: TsdbResultBase[Collection]
 
   def mr: MapReducible[Collection]
 
@@ -66,38 +67,15 @@ trait TsdbBase extends StrictLogging {
   def createMetricCollector(query: Query): MetricQueryCollector
 
   def finalizeQuery(
-      value: Collection[Array[Option[Any]]],
+      queryContext: QueryContext,
+      rows: Collection[Array[Option[Any]]],
       metricCollector: MetricQueryCollector
-  ): Collection[Array[Option[Any]]]
+  ): Result
 
   implicit protected val operations: Operations = Operations
 
-  def queryCollection(query: Query): (Collection[Array[Option[Any]]], QueryContext) = {
-    logger.info(s"TSDB query with ${query.uuidLog} start: " + query)
-
-    val metricQueryCollector = createMetricCollector(query)
-    val queryContext = createContext(query, metricQueryCollector)
-    (queryPipeline(queryContext, metricQueryCollector), queryContext)
-  }
-
-  def createContext(query: Query, metricCollector: MetricQueryCollector): QueryContext = {
-    val prepared = prepareQuery(query)
-    logger.debug(s"Prepared query is $prepared")
-
-    val simplified = ConditionUtils.simplify(prepared.filter)
-
-    val substitutedCondition = substituteLinks(simplified, metricCollector)
-    logger.debug(s"Substituted condition: $substitutedCondition")
-
-    val postCondition = ConditionUtils.split(substitutedCondition)(dao.isSupportedCondition)._2
-
-    logger.debug(s"Post condition: $postCondition")
-
-    QueryContext(prepared, substitutedCondition, postCondition)
-  }
-
   /**
-    * Query data extraction pipeline.
+    * Query pipeline. Perform following stages:
     *
     * - creates queries for DAO
     * - call DAO query to get [[Collection]] of rows
@@ -112,10 +90,22 @@ trait TsdbBase extends StrictLogging {
     * The pipeline is not responsible for limiting. This means that collection have to be lazy, to avoid extra
     * calculations if limit is defined.
     */
-  def queryPipeline(
-      queryContext: QueryContext,
-      metricCollector: MetricQueryCollector
-  ): Collection[Array[Option[Any]]] = {
+  def query(query: Query): Result = {
+
+    logger.info(s"TSDB query with ${query.uuidLog} start: " + query)
+
+    val metricCollector = createMetricCollector(query)
+
+    val simplified = ConditionUtils.simplify(query.filter)
+
+    val substitutedCondition = substituteLinks(simplified, metricCollector)
+    logger.debug(s"Substituted condition: $substitutedCondition")
+
+    val postCondition = ConditionUtils.split(substitutedCondition)(dao.isSupportedCondition)._2
+
+    logger.debug(s"Post condition: $postCondition")
+
+    val queryContext = QueryContext(query, postCondition)
 
     val daoExprs = queryContext.bottomExprs.collect {
       case e: DimensionExpr => e
@@ -123,7 +113,7 @@ trait TsdbBase extends StrictLogging {
       case TimeExpr         => TimeExpr
     }
 
-    val internalQuery = InternalQuery(queryContext.query.table, daoExprs.toSet, queryContext.condition)
+    val internalQuery = InternalQuery(queryContext.query.table, daoExprs.toSet, substitutedCondition)
 
     val rows = dao.query(internalQuery, new InternalRowBuilder(queryContext), metricCollector)
 
@@ -223,7 +213,7 @@ trait TsdbBase extends StrictLogging {
         }
     }
 
-    finalizeQuery(result, metricCollector)
+    finalizeQuery(queryContext, result, metricCollector)
   }
 
   def readExternalLinks(queryContext: QueryContext, rows: Seq[InternalRow]): Seq[InternalRow] = {

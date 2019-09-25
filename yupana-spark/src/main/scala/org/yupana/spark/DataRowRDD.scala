@@ -25,22 +25,23 @@ import org.apache.spark.{ Partition, TaskContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataRow, QueryField }
-import org.yupana.core.{ QueryContext, TsdbServerResultBase }
+import org.yupana.core.{ QueryContext, TsdbResultBase }
 
-class DataRowRDD(val underlying: RDD[Array[Option[Any]]], override val queryContext: QueryContext)
-    extends RDD[DataRow](underlying)
-    with TsdbServerResultBase {
+class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override val queryContext: QueryContext)
+    extends RDD[DataRow](rows)
+    with TsdbResultBase[RDD] {
 
   override def compute(split: Partition, context: TaskContext): Iterator[DataRow] = {
-    underlying
+    rows
       .iterator(split, context)
       .map(data => new DataRow(data, dataIndexForFieldName, dataIndexForFieldIndex))
   }
 
-  override protected def getPartitions: Array[Partition] = underlying.partitions
+  override protected def getPartitions: Array[Partition] = rows.partitions
 
   def toDF(spark: SparkSession): DataFrame = {
-    val rowRdd = underlying.map(createRow)
+    val fields = queryContext.query.fields
+    val rowRdd = rows.map(v => createRow(v, fields))
     spark.createDataFrame(rowRdd, createSchema)
   }
 
@@ -49,8 +50,8 @@ class DataRowRDD(val underlying: RDD[Array[Option[Any]]], override val queryCont
     StructType(fields)
   }
 
-  private def createRow(a: Array[Option[Any]]): Row = {
-    val values = queryContext.query.fields.indices.map(
+  private def createRow(a: Array[Option[Any]], fields: Seq[QueryField]): Row = {
+    val values = fields.indices.map(
       idx =>
         a(dataIndexForFieldIndex(idx)) match {
           case Some(Time(t)) => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))

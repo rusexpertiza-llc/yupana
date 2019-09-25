@@ -42,7 +42,7 @@ class TSDaoHBase(
 
   override def executeScans(
       table: Table,
-      scans: Seq[Scan],
+      scans: Iterator[Scan],
       metricCollector: MetricQueryCollector
   ): Iterator[TSDOutputRow[Long]] = {
     import HBaseUtils._
@@ -50,7 +50,7 @@ class TSDaoHBase(
     if (scans.nonEmpty) {
       val htable = connection.getTable(tableName(namespace, table))
 
-      scans.iterator.flatMap { scan =>
+      scans.flatMap { scan =>
         scan.setScanMetricsEnabled(metricCollector.isEnabled)
         val scanner = htable.getScanner(scan)
         val scannerIterator = scanner.iterator()

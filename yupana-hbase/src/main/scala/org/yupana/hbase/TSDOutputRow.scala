@@ -22,7 +22,7 @@ case class TSDOutputRow[T](
 ) {
   override def toString: String = {
     s"""TSDRow(
-      | key: ${key.baseTime} / ${key.tagsIds.toList}
+      | key: ${key.baseTime} / ${key.dimIds.toList}
       | values: ${values.toList}
     )""".stripMargin
   }

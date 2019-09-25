@@ -30,7 +30,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
   val uuid: String = query.uuid
 
   override val createQueries = MetricImpl("createQueries")
-  override val createQueriesTags = MetricImpl("createQueries.tags")
+  override val createDimensionFilters = MetricImpl("createQueries.tags")
   override val createScans = MetricImpl("createScans")
   override val loadTags = MetricImpl("loadTags")
   override val filterRows = MetricImpl("filterRows")
@@ -53,7 +53,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
   def getMetrics: Seq[MetricImpl] =
     Seq(
       createQueries,
-      createQueriesTags,
+      createDimensionFilters,
       createScans,
       loadTags,
       filterRows,

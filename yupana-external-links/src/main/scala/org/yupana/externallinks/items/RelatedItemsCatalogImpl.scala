@@ -94,12 +94,12 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       filter = filter
     )
 
-    val (result, queryContext) = tsdb.queryCollection(q)
+    val result = tsdb.query(q)
 
-    val timeIdx = queryContext.exprsIndex(time)
-    val kkmIdIdx = queryContext.exprsIndex(dimension(Dimensions.KKM_ID_TAG))
+    val timeIdx = result.queryContext.exprsIndex(time)
+    val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID_TAG))
 
-    val extracted = tsdb.mr.flatMap(result) { a =>
+    val extracted = tsdb.mr.flatMap(result.rows) { a =>
       for {
         kkmId <- a(kkmIdIdx)
         time <- a(timeIdx)

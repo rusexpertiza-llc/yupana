@@ -36,9 +36,10 @@ class TSDB(
 ) extends TsdbBase
     with StrictLogging {
 
-  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
-
   override type Collection[X] = Iterator[X]
+  override type Result = TsdbServerResult
+
+  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
   override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
@@ -56,10 +57,11 @@ class TSDB(
   }
 
   override def finalizeQuery(
+      queryContext: QueryContext,
       data: Iterator[Array[Option[Any]]],
       metricCollector: MetricQueryCollector
-  ): Iterator[Array[Option[Any]]] = {
-    new AbstractIterator[Array[Option[Any]]] {
+  ): TsdbServerResult = {
+    val it = new AbstractIterator[Array[Option[Any]]] {
       var hasEnded = false
 
       override def hasNext: Boolean = {
@@ -77,13 +79,8 @@ class TSDB(
 
       override def next(): Array[Option[Any]] = data.next()
     }
-  }
 
-  def query(query: Query): Result = {
-    logger.info("TSDB query start: " + query)
-    val metricCollector = createMetricCollector(query)
-    val queryContext = createContext(query, metricCollector)
-    new TsdbServerResult(queryContext, queryPipeline(queryContext, metricCollector))
+    new TsdbServerResult(queryContext, it)
   }
 
   override def applyWindowFunctions(

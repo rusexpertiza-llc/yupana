@@ -22,23 +22,23 @@ import org.yupana.api.schema.{ Dimension, Metric }
 
 import scala.collection.mutable
 
-case class SchemaContext(
+case class InternalQueryContext(
     query: InternalQuery,
     fieldIndexMap: mutable.HashMap[Byte, Metric],
-    tagIndexMap: mutable.Map[Dimension, Int],
-    requiredTags: Set[Dimension]
+    dimIndexMap: mutable.Map[Dimension, Int],
+    requiredDims: Set[Dimension]
 )
 
-object SchemaContext {
-  def apply(query: InternalQuery): SchemaContext = {
+object InternalQueryContext {
+  def apply(query: InternalQuery): InternalQueryContext = {
     val fieldIndexMap = mutable.HashMap(query.table.metrics.map(f => f.tag -> f): _*)
 
-    val tagIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
+    val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
 
     val requiredTags = query.exprs.collect {
       case DimensionExpr(tag) => tag
     }
 
-    new SchemaContext(query, fieldIndexMap, tagIndexMap, requiredTags)
+    new InternalQueryContext(query, fieldIndexMap, dimIndexMap, requiredTags)
   }
 }
