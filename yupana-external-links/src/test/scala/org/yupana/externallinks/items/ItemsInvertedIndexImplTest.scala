@@ -32,12 +32,12 @@ class ItemsInvertedIndexImplTest
   "ItemsInvertedIndex" should "substitute in condition" in withMocks { (index, dao, _) =>
     import org.yupana.api.query.syntax.All._
 
-    (dao.values _).expects("kolbas").returning(Iterator(1, 4, 5))
-    (dao.values _).expects("varen").returning(Iterator(5, 2, 4))
-    (dao.values _).expects("shchupalc").returning(Iterator(1, 42))
-    (dao.values _).expects("kalmar").returning(Iterator(42, 45, 48))
-    (dao.values _).expects("hol").returning(Iterator(1, 2))
-    (dao.values _).expects("kopchen").returning(Iterator(2, 3))
+    (dao.values _).expects("kolbas").returning(SortedSetIterator(1, 4, 5))
+    (dao.values _).expects("varen").returning(SortedSetIterator(2, 4, 5))
+    (dao.values _).expects("shchupalc").returning(SortedSetIterator(1, 42))
+    (dao.values _).expects("kalmar").returning(SortedSetIterator(42, 45, 48))
+    (dao.values _).expects("hol").returning(SortedSetIterator(1, 2))
+    (dao.values _).expects("kopchen").returning(SortedSetIterator(2, 3))
 
     val actual = index.condition(
       and(
