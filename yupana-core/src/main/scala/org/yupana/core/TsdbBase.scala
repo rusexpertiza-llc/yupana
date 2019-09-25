@@ -39,7 +39,7 @@ trait TsdbBase extends StrictLogging {
     * Spark based implementation uses RDD.
     */
   type Collection[_]
-  type Result <: TsdbServerResultBase[Collection]
+  type Result <: TsdbResultBase[Collection]
 
   def mr: MapReducible[Collection]
 

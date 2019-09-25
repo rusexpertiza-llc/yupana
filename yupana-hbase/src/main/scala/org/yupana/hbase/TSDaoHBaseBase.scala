@@ -88,7 +88,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val dimFilter = filters.includeDims exclude filters.excludeDims
 
     val prefetchedDimIterators = dimFilter.toMap.map { case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT) }
-    val sizeLimitedRangeScanDims = rageScanDimensions(query, prefetchedDimIterators)
+    val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
     val scans = dimFilter match {
       case NoResult() => Iterator.empty
@@ -126,7 +126,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     SortedSetIterator(it)
   }
 
-  private def rageScanDimensions(
+  private def rangeScanDimensions(
       query: InternalQuery,
       prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[IdType]]
   ) = {

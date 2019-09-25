@@ -18,7 +18,7 @@ package org.yupana.core
 
 import scala.language.higherKinds
 
-trait TsdbServerResultBase[T[_]] {
+trait TsdbResultBase[T[_]] {
 
   protected val nameIndex: Seq[(String, Int)] =
     queryContext.query.fields.map(f => f.name -> queryContext.exprsIndex(f.expr))

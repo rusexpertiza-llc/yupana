@@ -25,11 +25,11 @@ import org.apache.spark.{ Partition, TaskContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataRow, QueryField }
-import org.yupana.core.{ QueryContext, TsdbServerResultBase }
+import org.yupana.core.{ QueryContext, TsdbResultBase }
 
 class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override val queryContext: QueryContext)
     extends RDD[DataRow](rows)
-    with TsdbServerResultBase[RDD] {
+    with TsdbResultBase[RDD] {
 
   override def compute(split: Partition, context: TaskContext): Iterator[DataRow] = {
     rows
