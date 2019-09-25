@@ -3,15 +3,21 @@ package org.yupana.externallinks.items
 import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers}
-import org.yupana.api.query.{DimIdIn, DimIdNotIn}
-import org.yupana.core.{Dictionary, TSDB}
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers }
+import org.yupana.api.query.{ DimIdIn, DimIdNotIn }
+import org.yupana.api.utils.SortedSetIterator
+import org.yupana.core.{ Dictionary, TSDB }
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{DictionaryDao, InvertedIndexDao}
+import org.yupana.core.dao.{ DictionaryDao, InvertedIndexDao }
 import org.yupana.schema.Dimensions
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 
-class ItemsInvertedIndexImplTest extends FlatSpec with Matchers with MockFactory with BeforeAndAfterAll with BeforeAndAfterEach {
+class ItemsInvertedIndexImplTest
+    extends FlatSpec
+    with Matchers
+    with MockFactory
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach {
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -30,23 +36,25 @@ class ItemsInvertedIndexImplTest extends FlatSpec with Matchers with MockFactory
     (dao.values _).expects("varen").returning(Iterator(5, 2, 4))
     (dao.values _).expects("shchupalc").returning(Iterator(1, 42))
     (dao.values _).expects("kalmar").returning(Iterator(42, 45, 48))
-    (dao.values _).expects("hol").returning(Iterator(1,2))
-    (dao.values _).expects("kopchen").returning(Iterator(2,3))
+    (dao.values _).expects("hol").returning(Iterator(1, 2))
+    (dao.values _).expects("kopchen").returning(Iterator(2, 3))
 
-    val actual = index.condition(and(
-      in(
-        link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
-        Set("колбаса вареная", "щупальца кальмара")
-      ),
-      neq(
-        link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
-        const("хол.копчения")
+    val actual = index.condition(
+      and(
+        in(
+          link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
+          Set("колбаса вареная", "щупальца кальмара")
+        ),
+        neq(
+          link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
+          const("хол.копчения")
+        )
       )
-    ))
+    )
 
     actual shouldEqual and(
-      DimIdIn(dimension(Dimensions.ITEM_TAG), Set(4, 5, 42)),
-      DimIdNotIn(dimension(Dimensions.ITEM_TAG), Set(2))
+      DimIdIn(dimension(Dimensions.ITEM_TAG), SortedSetIterator(4, 5, 42)),
+      DimIdNotIn(dimension(Dimensions.ITEM_TAG), SortedSetIterator(2))
     )
   }
 
@@ -62,7 +70,7 @@ class ItemsInvertedIndexImplTest extends FlatSpec with Matchers with MockFactory
     (dictDao.createSeqId _).expects(Dimensions.ITEM_TAG).returning(4)
     (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "молоко").returning(true)
 
-    (dao.batchPut _).expects ( where { vs: Map[String, Set[Long]] =>
+    (dao.batchPut _).expects(where { vs: Map[String, Set[Long]] =>
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
     })
 

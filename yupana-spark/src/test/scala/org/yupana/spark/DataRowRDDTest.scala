@@ -5,11 +5,11 @@ import java.sql.Timestamp
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.apache.spark.sql.types._
 import org.joda.time.LocalDateTime
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
-import org.yupana.api.query.{Condition, Query}
+import org.yupana.api.query.{ Condition, Query }
 import org.yupana.core.QueryContext
-import org.yupana.schema.{Dimensions, ItemTableMetrics, Tables}
+import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
 class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
 
@@ -27,26 +27,32 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = QueryContext(query, Condition.and(Seq.empty), Condition.and(Seq.empty))
+    val queryContext = QueryContext(query, Condition.and(Seq.empty))
 
     val theTime = LocalDateTime.now().minusHours(1)
 
-    val rdd = sc.parallelize(Seq(Array(
-      Some(Time(theTime)),
-      Some("болт М6"),
-      Some(42d),
-      None
-    )))
+    val rdd = sc.parallelize(
+      Seq(
+        Array(
+          Some(Time(theTime)),
+          Some("болт М6"),
+          Some(42d),
+          None
+        )
+      )
+    )
 
     val drRdd = new DataRowRDD(rdd, queryContext)
     val df = drRdd.toDF(spark)
 
-    df.schema shouldEqual StructType(List(
-      StructField("time", TimestampType),
-      StructField("item", StringType),
-      StructField("quantity", DoubleType),
-      StructField("sum", DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2))
-    ))
+    df.schema shouldEqual StructType(
+      List(
+        StructField("time", TimestampType),
+        StructField("item", StringType),
+        StructField("quantity", DoubleType),
+        StructField("sum", DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2))
+      )
+    )
 
     df.count() shouldEqual 1
     val row = df.head()
