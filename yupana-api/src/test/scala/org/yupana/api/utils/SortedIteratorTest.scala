@@ -6,18 +6,15 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 class SortedIteratorTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   "SortedSetIterator" should "throw IllegalStateException when items not sorted" in {
-
     val it = SortedSetIterator(1, 2, 2, 3, 4, 5)
 
     it.toList shouldBe List(1, 2, 3, 4, 5)
-
   }
 
   it should "throws IllegalSTateException when items not sorted" in {
     val it = SortedSetIterator(1, 2, 4, 3, 5)
 
     an[IllegalStateException] should be thrownBy it.sum
-
   }
 
   it should "remove duplicates" in {
@@ -110,5 +107,11 @@ class SortedIteratorTest extends FlatSpec with Matchers with ScalaCheckDrivenPro
     val it = SortedSetIterator(1, 2, 3, 4, 5, 6).prefetch(7)
     it.toList shouldBe List(1, 2, 3, 4, 5, 6)
     it.hasNext shouldBe false
+  }
+
+  it should "union a lot of iterators" in {
+    val its = 1 to 500000 map (x => SortedSetIterator(Iterator(x)))
+    val uit = SortedSetIterator.unionAll(its)
+    uit.hasNext shouldBe true
   }
 }

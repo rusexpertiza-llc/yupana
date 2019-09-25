@@ -21,11 +21,11 @@ import scala.reflect.ClassTag
 abstract class SortedSetIterator[A: Ordering] extends Iterator[A] {
 
   def union(that: SortedSetIterator[A]): SortedSetIterator[A] = {
-    new SortedSetIteratorImpl(new UnionSortedIteratorImpl(this, that))
+    new SortedSetIteratorImpl(new UnionSortedIteratorImpl(Seq(this, that)))
   }
 
   def intersect(that: SortedSetIterator[A]): SortedSetIterator[A] = {
-    new IntersectSortedIteratorImpl(this, that)
+    new IntersectSortedIteratorImpl(Seq(this, that))
   }
 
   def exclude(sub: SortedSetIterator[A]): SortedSetIterator[A] = {
@@ -55,12 +55,12 @@ object SortedSetIterator {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl(Iterator.empty))
   }
 
-  def intersectAll[A: Ordering](ids: Iterator[SortedSetIterator[A]]): SortedSetIterator[A] = {
-    if (ids.nonEmpty) ids.reduce(_ intersect _) else SortedSetIterator.empty
+  def intersectAll[A: Ordering](ids: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
+    if (ids.nonEmpty) new IntersectSortedIteratorImpl[A](ids) else SortedSetIterator.empty
   }
 
-  def unionAll[A: Ordering](its: Iterator[SortedSetIterator[A]]): SortedSetIterator[A] = {
-    if (its.nonEmpty) its.reduce(_ union _) else SortedSetIterator.empty
+  def unionAll[A: Ordering](its: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
+    if (its.nonEmpty) new UnionSortedIteratorImpl[A](its) else SortedSetIterator.empty
   }
 }
 
@@ -127,68 +127,64 @@ private class SortedSetIteratorImpl[A: Ordering](it: SortedSetIterator[A]) exten
   }
 }
 
-private class UnionSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedSetIterator[A])(
-    implicit ord: Ordering[A]
-) extends SortedSetIterator[A] {
+private class UnionSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implicit ord: Ordering[A])
+    extends SortedSetIterator[A] {
 
-  private val bIt1 = it1.buffered
-  private val bIt2 = it2.buffered
+  private val bIts = its.map(_.buffered)
 
   override def hasNext: Boolean = {
-    bIt1.hasNext || bIt2.hasNext
+    bIts.exists(_.hasNext)
   }
 
   override def next(): A = {
-    if (bIt1.hasNext && bIt2.hasNext) {
-      if (ord.lt(bIt1.head, bIt2.head)) {
-        bIt1.next()
-      } else {
-        bIt2.next()
+    var minIt = bIts.head
+
+    for (bit <- bIts) {
+      if (bit.hasNext && minIt.hasNext) {
+        if (ord.lt(bit.head, minIt.head)) {
+          minIt = bit
+        }
+      } else if (bit.hasNext) {
+        minIt = bit
       }
-    } else if (bIt1.hasNext) {
-      bIt1.next()
-    } else {
-      bIt2.next()
     }
+
+    minIt.next()
   }
 }
 
-private class IntersectSortedIteratorImpl[A](it1: SortedSetIterator[A], it2: SortedSetIterator[A])(
-    implicit ord: Ordering[A]
-) extends SortedSetIterator[A] {
+private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implicit ord: Ordering[A])
+    extends SortedSetIterator[A] {
 
-  private val bIt1 = new SortedSetIteratorImpl(it1).buffered
-  private val bIt2 = new SortedSetIteratorImpl(it2).buffered
+  private val bIts = its.map(_.buffered)
 
   override def hasNext: Boolean = {
-    bIt1.hasNext && bIt2.hasNext && seekToNextEq()
+    bIts.forall(_.hasNext) && seekToNextEq()
   }
 
   override def next(): A = {
     if (hasNext) {
-      bIt1.next()
-      bIt2.next()
+      bIts.tail.foreach(_.next())
+      bIts.head.next()
     } else {
       throw new IllegalStateException("Next on empty iterator")
     }
   }
 
-  private def seekToNextEq() = {
+  private def seekToNextEq(): Boolean = {
     import ord.mkOrderingOps
 
     do {
-      val maxHead = ord.max(bIt1.head, bIt2.head)
+      val maxHead = bIts.maxBy(_.head).head
 
-      if (bIt1.hasNext && bIt1.head < maxHead) {
-        bIt1.next()
+      bIts.foreach { bit =>
+        if (bit.hasNext && bit.head < maxHead) {
+          bit.next()
+        }
       }
+    } while (bIts.forall(_.hasNext) && bIts.exists(_.head != bIts.head.head))
 
-      if (bIt2.hasNext && bIt2.head < maxHead) {
-        bIt2.next()
-      }
-    } while (bIt1.hasNext && bIt2.hasNext && bIt1.head != bIt2.head)
-
-    bIt1.hasNext && bIt2.hasNext && bIt1.head == bIt2.head
+    bIts.forall(bit => bit.hasNext && bit.head == bIts.head.head)
   }
 }
 

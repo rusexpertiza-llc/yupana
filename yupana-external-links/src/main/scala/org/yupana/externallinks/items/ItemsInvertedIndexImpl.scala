@@ -108,20 +108,19 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 
-  def dimIdsForStemmedWord(word: String): Iterator[Long] = {
+  def dimIdsForStemmedWord(word: String): SortedSetIterator[Long] = {
     invertedIndexDao.values(word)
   }
 
-  def dimIdsForStemmedWordsCached(wordWithSynonyms: (String, Set[String])): Set[Long] = wordWithSynonyms match {
-    case (word, synonyms) =>
-      dimIdsByStemmedWordCache
-        .caching(word) {
-          val dimIds = invertedIndexDao.allValues(synonyms)
-          logger.info(s"synonyms: $synonyms")
-          logger.info(s"found dimIds: ${dimIds.length}")
-          dimIds.distinct.toArray
-        }
-        .toSet
+  def dimIdsForStemmedWordsCached(word: String, synonyms: Set[String]): Set[Long] = {
+    dimIdsByStemmedWordCache
+      .caching(word) {
+        val dimIds = invertedIndexDao.allValues(synonyms)
+        logger.info(s"synonyms: $synonyms")
+        logger.info(s"found dimIds: ${dimIds.length}")
+        dimIds.toArray
+      }
+      .toSet
   }
 
   override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
@@ -138,17 +137,17 @@ class ItemsInvertedIndexImpl(
     SparseTable.empty
   }
 
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Iterator[SortedSetIterator[Long]] = {
-    fieldsValues.iterator.map {
-      case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.iterator.map(dimIdsForPhrase))
+  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[Long]] = {
+    fieldsValues.map {
+      case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
       case (x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 
   def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
     val words = stemmed(phrase)
-    val idsPerWord = words.iterator.map { w =>
-      SortedSetIterator(dimIdsForStemmedWord(w))
+    val idsPerWord = words.map { w =>
+      dimIdsForStemmedWord(w)
     }
     SortedSetIterator.intersectAll(idsPerWord)
   }

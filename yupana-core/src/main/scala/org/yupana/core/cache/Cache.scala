@@ -45,7 +45,7 @@ trait Cache[K, V] {
       putAll(e)
       e
     } else {
-      Seq.empty
+      Map.empty
     }
 
     cached ++ evaluated
