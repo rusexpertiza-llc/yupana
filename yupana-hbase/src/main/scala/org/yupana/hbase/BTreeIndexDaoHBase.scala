@@ -41,11 +41,11 @@ class BTreeIndexDaoHBase[K, V](
     table.put(put)
   }
 
-  private def createPutOperation(key: K, value: V) = {
+  private def createPutOperation(key: K, value: V): Put = {
     new Put(keySerializer(key)).addColumn(FAMILY, QUALIFIER, valueSerializer(value))
   }
 
-  def batchPut(batch: Seq[(K, V)]) = {
+  def batchPut(batch: Seq[(K, V)]): Unit = {
     val puts = batch.map { case (key, value) => createPutOperation(key, value) }
     val table = connection.getTable(tableName)
     table.put(puts.asJava)
@@ -58,11 +58,17 @@ class BTreeIndexDaoHBase[K, V](
     Option(result.getValue(FAMILY, QUALIFIER)).map(valueDeserializer)
   }
 
-  def get(keys: Seq[K]): Seq[V] = {
+  def get(keys: Seq[K]): Map[K, V] = {
     val gets = keys.map(key => new Get(keySerializer(key)).addColumn(FAMILY, QUALIFIER))
     val table = connection.getTable(tableName)
     val result = table.get(gets.asJava)
-    result.flatMap(r => Option(r.getValue(FAMILY, QUALIFIER)).map(valueDeserializer))
+    keys
+      .zip(result)
+      .flatMap {
+        case (k, v) =>
+          Option(v.getValue(FAMILY, QUALIFIER)).map(b => k -> valueDeserializer(b))
+      }
+      .toMap
   }
 
   private def checkTableExistsElseCreate() {

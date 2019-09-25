@@ -20,8 +20,10 @@ import org.apache.hadoop.hbase.client.{ Get, Put }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.dao.InvertedIndexDao
 
+import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 
 object InvertedIndexDaoHBase {
@@ -58,7 +60,7 @@ object InvertedIndexDaoHBase {
   }
 }
 
-class InvertedIndexDaoHBase[K, V](
+class InvertedIndexDaoHBase[K, V: Ordering](
     connection: ExternalLinkHBaseConnection,
     tableName: String,
     keySerializer: K => Array[Byte],
@@ -87,8 +89,8 @@ class InvertedIndexDaoHBase[K, V](
     table.put(puts.toSeq.asJava)
   }
 
-  private def toIterator(result: Result): Iterator[V] = {
-    new Iterator[V] {
+  private def toIterator(result: Result): SortedSetIterator[V] = {
+    SortedSetIterator(new AbstractIterator[V] {
       private val cellScanner = result.cellScanner()
       private var nextResultOpt: Option[V] = None
 
@@ -106,18 +108,19 @@ class InvertedIndexDaoHBase[K, V](
         nextResultOpt = None
         result
       }
-    }
+    })
   }
 
-  override def values(key: K): Iterator[V] = {
+  override def values(key: K): SortedSetIterator[V] = {
     val get = new Get(keySerializer(key)).addFamily(FAMILY)
     val table = connection.getTable(tableName)
     toIterator(table.get(get))
   }
 
-  override def allValues(keys: Set[K]): Seq[V] = {
+  override def allValues(keys: Set[K]): SortedSetIterator[V] = {
     val gets = keys.map(key => new Get(keySerializer(key)).addFamily(FAMILY)).toList.asJava
     val table = connection.getTable(tableName)
     table.get(gets).flatMap(toIterator)
+    SortedSetIterator.unionAll(table.get(gets).map(toIterator))
   }
 }
