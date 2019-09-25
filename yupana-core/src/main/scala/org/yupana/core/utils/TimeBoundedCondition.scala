@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.utils
 
 import org.yupana.api.Time
@@ -11,10 +27,14 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
   def toCondition: Condition = {
     import org.yupana.api.query.syntax.All._
 
-    ConditionUtils.simplify(And(Seq(
-      from.map(f => ge(time, const(Time(f)))).getOrElse(EmptyCondition),
-      to.map(t => lt(time, const(Time(t)))).getOrElse(EmptyCondition)
-    ) ++ conditions))
+    ConditionUtils.simplify(
+      And(
+        Seq(
+          from.map(f => ge(time, const(Time(f)))).getOrElse(EmptyCondition),
+          to.map(t => lt(time, const(Time(t)))).getOrElse(EmptyCondition)
+        ) ++ conditions
+      )
+    )
   }
 }
 
@@ -23,23 +43,23 @@ object TimeBoundedCondition {
   def apply(condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
       case a: And => andToTimeBounded(a)
-      case x => Seq(TimeBoundedCondition(None, None, Seq(x)))
+      case x      => Seq(TimeBoundedCondition(None, None, Seq(x)))
     }
   }
 
   def apply(from: Long, to: Long, condition: Condition): TimeBoundedCondition = {
     ConditionUtils.simplify(condition) match {
       case And(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
-      case o: Or => throw new IllegalArgumentException(s"Or not supported yet $o")
-      case c => TimeBoundedCondition(Some(from), Some(to), Seq(c))
+      case o: Or   => throw new IllegalArgumentException(s"Or not supported yet $o")
+      case c       => TimeBoundedCondition(Some(from), Some(to), Seq(c))
     }
   }
 
   def toCondition(conditions: Seq[TimeBoundedCondition]): Condition = {
     conditions.map(_.toCondition) match {
-      case Nil => EmptyCondition
+      case Nil    => EmptyCondition
       case Seq(x) => x
-      case xs => Or(xs)
+      case xs     => Or(xs)
     }
   }
 
@@ -48,11 +68,14 @@ object TimeBoundedCondition {
 
     val from = conditions.head.from
     val to = conditions.head.to
-    val cs = conditions.foldLeft(Seq.empty[Condition])((a, c) => if (c.from == from && c.to == to) {
-      a ++ c.conditions
-    } else {
-      throw new IllegalArgumentException("Conditions must have same time limits.")
-    })
+    val cs = conditions.foldLeft(Seq.empty[Condition])(
+      (a, c) =>
+        if (c.from == from && c.to == to) {
+          a ++ c.conditions
+        } else {
+          throw new IllegalArgumentException("Conditions must have same time limits.")
+        }
+    )
     TimeBoundedCondition(from, to, cs)
   }
 
@@ -65,7 +88,7 @@ object TimeBoundedCondition {
       val const = ExpressionCalculator.evaluateExpression(e.asInstanceOf[Expression.Aux[Time]], null, null)
       const match {
         case Some(t) => from = from.map(o => math.max(t.millis + offset, o)) orElse Some(t.millis + offset)
-        case _ => other += c
+        case _       => other += c
       }
     }
 
@@ -73,24 +96,24 @@ object TimeBoundedCondition {
       val const = ExpressionCalculator.evaluateExpression(e.asInstanceOf[Expression.Aux[Time]], null, null)
       const match {
         case Some(t) => to = to.map(o => math.max(t.millis + offset, o)) orElse Some(t.millis)
-        case _ => other += c
+        case _       => other += c
       }
     }
 
     and.conditions.foreach {
-      case c@Gt(TimeExpr, e) => updateFrom(c, e, 1l)
-      case c@Lt(e, TimeExpr) => updateFrom(c, e, 1l)
+      case c @ Gt(TimeExpr, e) => updateFrom(c, e, 1L)
+      case c @ Lt(e, TimeExpr) => updateFrom(c, e, 1L)
 
-      case c@Ge(TimeExpr, e) => updateFrom(c, e, 0l)
-      case c@Le(e, TimeExpr) => updateFrom(c, e, 0l)
+      case c @ Ge(TimeExpr, e) => updateFrom(c, e, 0L)
+      case c @ Le(e, TimeExpr) => updateFrom(c, e, 0L)
 
-      case c@Lt(TimeExpr, e) => updateTo(c, e, 0l)
-      case c@Gt(e, TimeExpr) => updateTo(c, e, 0l)
+      case c @ Lt(TimeExpr, e) => updateTo(c, e, 0L)
+      case c @ Gt(e, TimeExpr) => updateTo(c, e, 0L)
 
-      case c@Le(TimeExpr, e) => updateTo(c, e, 1l)
-      case c@Ge(e, TimeExpr) => updateTo(c, e, 1l)
+      case c @ Le(TimeExpr, e) => updateTo(c, e, 1L)
+      case c @ Ge(e, TimeExpr) => updateTo(c, e, 1L)
 
-      case c@(And(_) | Or(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
+      case c @ (And(_) | Or(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
 
       case x => other += x
     }

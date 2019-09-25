@@ -1,9 +1,25 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.operations
 
 import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.types.UnaryOperations
-import org.yupana.utils.{ItemsStemmer, Transliterator}
+import org.yupana.utils.{ ItemsStemmer, Transliterator }
 
 import scala.collection.AbstractIterator
 
@@ -35,7 +51,8 @@ trait UnaryOperationsImpl extends UnaryOperations {
   override def stringLength(s: Option[String]): Option[Int] = s.map(_.length)
 
   override def stemString(s: Option[String]): Option[Array[String]] = s.map(stem)
-  override def splitString(s: Option[String]): Option[Array[String]] = s.map(v => splitBy(v, !_.isLetterOrDigit).toArray)
+  override def splitString(s: Option[String]): Option[Array[String]] =
+    s.map(v => splitBy(v, !_.isLetterOrDigit).toArray)
 
   override def arrayToString[T](a: Option[Array[T]]): Option[String] = a.map(_.mkString("(", ", ", ")"))
   override def arrayLength[T](a: Option[Array[T]]): Option[Int] = a.map(_.length)

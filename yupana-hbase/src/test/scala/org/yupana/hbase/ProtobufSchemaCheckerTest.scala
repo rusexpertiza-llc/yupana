@@ -1,11 +1,11 @@
 package org.yupana.hbase
 
-import org.scalatest.{FlatSpec, Inside, Matchers}
+import org.scalatest.{ FlatSpec, Inside, Matchers }
 import org.yupana.api.schema._
 import org.yupana.hbase.proto.SchemaRegistry
 
 class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
-  
+
   val TAG_A = Dimension("tag_a")
   val TAG_B = Dimension("tag_b")
   val TAG_C = Dimension("tag_c")
@@ -54,8 +54,10 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
   it should "return tables size diff warning" in {
     val mutatedSchemas = Seq(table1)
     val expectedSchema = new SchemaRegistry(mutatedSchemas.map(ProtobufSchemaChecker.asProto))
-    ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray) shouldBe Warning("1 tables expected, but 2 actually present in " +
-      "registry\nUnknown table table_2")
+    ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray) shouldBe Warning(
+      "1 tables expected, but 2 actually present in " +
+        "registry\nUnknown table table_2"
+    )
   }
 
   it should "return check errors" in {
@@ -69,10 +71,11 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
     val mutatedSchemas = Seq(significantlyDifferentTable1, table2)
     val expectedSchema = new SchemaRegistry(mutatedSchemas.map(ProtobufSchemaChecker.asProto))
-    inside(ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray)) { case Error(msg) =>
-      msg shouldEqual "Expected rowTimeSpan for table table_1: 2678400000, actual: 2592000000\n" +
-        "Expected dimensions for table table_1: tag_a, tag_c; actual: tag_b, tag_a, tag_c, tag_d\n" +
-        "In table table_1 metric extra_metric has been removed"
+    inside(ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray)) {
+      case Error(msg) =>
+        msg shouldEqual "Expected rowTimeSpan for table table_1: 2678400000, actual: 2592000000\n" +
+          "Expected dimensions for table table_1: tag_a, tag_c; actual: tag_b, tag_a, tag_c, tag_d\n" +
+          "In table table_1 metric extra_metric has been removed"
     }
   }
 
@@ -89,9 +92,10 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
     val mutatedSchemas = Seq(table1WithChangedGroups, table2)
     val expectedSchema = new SchemaRegistry(mutatedSchemas.map(ProtobufSchemaChecker.asProto))
-    inside(ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray)) { case Error(msg) =>
-      msg shouldBe
-        """In table table_1 metric metric_b has been removed
+    inside(ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray)) {
+      case Error(msg) =>
+        msg shouldBe
+          """In table table_1 metric metric_b has been removed
           |In table table_1 metric metric_b is unknown (new)""".stripMargin
     }
   }
@@ -107,8 +111,10 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
     val mutatedSchemas = Seq(slightlyDifferentTable1, table2)
     val expectedSchema = new SchemaRegistry(mutatedSchemas.map(ProtobufSchemaChecker.asProto))
-    inside(ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray)) { case Warning(msg) => msg shouldBe
-      """In table table_1 metric metric_c is unknown (new)
+    inside(ProtobufSchemaChecker.check(schema, expectedSchema.toByteArray)) {
+      case Warning(msg) =>
+        msg shouldBe
+          """In table table_1 metric metric_c is unknown (new)
         |In table table_1 metric metric_d is unknown (new)""".stripMargin
     }
   }

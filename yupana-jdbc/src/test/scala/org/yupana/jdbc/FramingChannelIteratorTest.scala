@@ -2,10 +2,10 @@ package org.yupana.jdbc
 
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
-import java.nio.channels.{Channels, ReadableByteChannel}
+import java.nio.channels.{ Channels, ReadableByteChannel }
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 
 class FramingChannelIteratorTest extends FlatSpec with Matchers with MockFactory {
 
@@ -56,14 +56,16 @@ class FramingChannelIteratorTest extends FlatSpec with Matchers with MockFactory
   }
 
   it should "continue read several frames from channel" in {
-    val channel = Channels.newChannel(new ByteArrayInputStream(
-      createFrame(1, 2, 3) ++ createFrame(4, 5, 6, 7) ++ createFrame(8, 9)
-    ))
+    val channel = Channels.newChannel(
+      new ByteArrayInputStream(
+        createFrame(1, 2, 3) ++ createFrame(4, 5, 6, 7) ++ createFrame(8, 9)
+      )
+    )
     val iterator = new FramingChannelIterator(channel, 100)
 
-    iterator.next() should  contain theSameElementsAs Array(1, 2, 3)
-    iterator.next() should  contain theSameElementsAs Array(4, 5, 6, 7)
-    iterator.next() should  contain theSameElementsAs Array(8, 9)
+    iterator.next() should contain theSameElementsAs Array(1, 2, 3)
+    iterator.next() should contain theSameElementsAs Array(4, 5, 6, 7)
+    iterator.next() should contain theSameElementsAs Array(8, 9)
   }
 
   it should "handle create a single chunk from parts" in {
@@ -92,24 +94,33 @@ class FramingChannelIteratorTest extends FlatSpec with Matchers with MockFactory
     val iterator = new FramingChannelIterator(channel, 14)
 
     (channel.isOpen _).expects().returning(true).anyNumberOfTimes()
-    (channel.read _).expects(*).onCall { bb: ByteBuffer =>
-      bb.putInt(4)
-      bb.put(Array[Byte](1, 2, 3, 4))
-      8
-    }.once()
+    (channel.read _)
+      .expects(*)
+      .onCall { bb: ByteBuffer =>
+        bb.putInt(4)
+        bb.put(Array[Byte](1, 2, 3, 4))
+        8
+      }
+      .once()
 
     iterator.next() should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
 
-    (channel.read _).expects(*).onCall { bb: ByteBuffer =>
-      bb.putInt(5)
-      bb.put(Array[Byte](5, 6))
-      6
-    }.once()
+    (channel.read _)
+      .expects(*)
+      .onCall { bb: ByteBuffer =>
+        bb.putInt(5)
+        bb.put(Array[Byte](5, 6))
+        6
+      }
+      .once()
 
-    (channel.read _).expects(*).onCall { bb: ByteBuffer =>
-      bb.put(Array[Byte](7, 8, 9))
-      3
-    }.once()
+    (channel.read _)
+      .expects(*)
+      .onCall { bb: ByteBuffer =>
+        bb.put(Array[Byte](7, 8, 9))
+        3
+      }
+      .once()
 
     iterator.next() should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
   }

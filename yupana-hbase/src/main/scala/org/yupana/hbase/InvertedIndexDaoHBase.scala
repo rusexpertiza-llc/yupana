@@ -1,9 +1,25 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{Get, Put}
+import org.apache.hadoop.hbase.client.{ Get, Put }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.client.Result
-import org.apache.hadoop.hbase.{CellUtil, HColumnDescriptor, HTableDescriptor}
+import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
 import org.yupana.core.dao.InvertedIndexDao
 
 import scala.collection.JavaConverters._
@@ -25,26 +41,29 @@ object InvertedIndexDaoHBase {
     hBaseConnection.checkTablesExistsElseCreate(desc)
   }
 
-  def createPutOperation[K, V](key: K, values: Set[V], keySerializer: K => Array[Byte],
-               valueSerializer: V => Array[Byte]): Option[Put] = {
+  def createPutOperation[K, V](
+      key: K,
+      values: Set[V],
+      keySerializer: K => Array[Byte],
+      valueSerializer: V => Array[Byte]
+  ): Option[Put] = {
     if (values.isEmpty) {
       None
     } else {
       val wordBytes = keySerializer(key)
-      val put = values.foldLeft(new Put(wordBytes))((put, value) =>
-        put.addColumn(FAMILY, valueSerializer(value), VALUE)
-      )
+      val put =
+        values.foldLeft(new Put(wordBytes))((put, value) => put.addColumn(FAMILY, valueSerializer(value), VALUE))
       Some(put)
     }
   }
 }
 
 class InvertedIndexDaoHBase[K, V](
-  connection: ExternalLinkHBaseConnection,
-  tableName: String,
-  keySerializer: K => Array[Byte],
-  valueSerializer: V => Array[Byte],
-  valueDeserializer: Array[Byte] => V
+    connection: ExternalLinkHBaseConnection,
+    tableName: String,
+    keySerializer: K => Array[Byte],
+    valueSerializer: V => Array[Byte],
+    valueDeserializer: Array[Byte] => V
 ) extends InvertedIndexDao[K, V] {
 
   import InvertedIndexDaoHBase._
@@ -61,8 +80,9 @@ class InvertedIndexDaoHBase[K, V](
 
   override def batchPut(batch: Map[K, Set[V]]): Unit = {
     val table = connection.getTable(tableName)
-    val puts = batch.flatMap { case (key, values) =>
-      createPutOperation(key, values, keySerializer, valueSerializer)
+    val puts = batch.flatMap {
+      case (key, values) =>
+        createPutOperation(key, values, keySerializer, valueSerializer)
     }
     table.put(puts.toSeq.asJava)
   }

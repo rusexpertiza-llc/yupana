@@ -1,16 +1,31 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.externallinks.items
 
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{CollectionUtils, TimeBoundedCondition}
-import org.yupana.core.{ExternalLinkService, TsdbBase}
-import org.yupana.schema.{Dimensions, Tables}
-import org.yupana.schema.externallinks.{ItemsInvertedIndex, RelatedItemsCatalog}
+import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
+import org.yupana.core.{ ExternalLinkService, TsdbBase }
+import org.yupana.schema.{ Dimensions, Tables }
+import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 
-class RelatedItemsCatalogImpl(tsdb: TsdbBase,
-                              override val externalLink: RelatedItemsCatalog)
-  extends ExternalLinkService[RelatedItemsCatalog] {
+class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: RelatedItemsCatalog)
+    extends ExternalLinkService[RelatedItemsCatalog] {
 
   import org.yupana.api.query.syntax.All._
 
@@ -30,8 +45,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
     val tbcs = TimeBoundedCondition(condition)
 
     val r = tbcs.map { tbc =>
-      val from = tbc.from.getOrElse(throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}"))
-      val to = tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
+      val from = tbc.from.getOrElse(
+        throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")
+      )
+      val to =
+        tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
       val (includeValues, excludeValues, other) = ExternalLinkService.extractCatalogFields(tbc, externalLink.linkName)
 
@@ -61,9 +79,9 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
 
   protected def createFilter(field: String, values: Set[String]): Condition = {
     field match {
-      case externalLink.ITEM_FIELD => in(dimension(Dimensions.ITEM_TAG), values)
+      case externalLink.ITEM_FIELD    => in(dimension(Dimensions.ITEM_TAG), values)
       case externalLink.PHRASE_FIELDS => in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), values)
-      case f  => throw new IllegalArgumentException(s"Unsupported field $f")
+      case f                          => throw new IllegalArgumentException(s"Unsupported field $f")
     }
   }
 
@@ -76,12 +94,12 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
       filter = filter
     )
 
-    val (result, queryContext) = tsdb.queryCollection(q)
+    val result = tsdb.query(q)
 
-    val timeIdx = queryContext.exprsIndex(time)
-    val kkmIdIdx = queryContext.exprsIndex(dimension(Dimensions.KKM_ID_TAG))
+    val timeIdx = result.queryContext.exprsIndex(time)
+    val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID_TAG))
 
-    val extracted = tsdb.mr.flatMap(result) { a =>
+    val extracted = tsdb.mr.flatMap(result.rows) { a =>
       for {
         kkmId <- a(kkmIdIdx)
         time <- a(timeIdx)
@@ -91,7 +109,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase,
     tsdb.mr.fold(extracted)(Set.empty)(_ ++ _).toSeq
   }
 
-  override def setLinkedValues(exprIndex: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow], exprs: Set[LinkExpr]): Unit = {
+  override def setLinkedValues(
+      exprIndex: scala.collection.Map[Expression, Int],
+      valueData: Seq[InternalRow],
+      exprs: Set[LinkExpr]
+  ): Unit = {
     // may be throw exception here?
   }
 }

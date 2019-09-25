@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.types
 
 /**
@@ -10,10 +26,10 @@ package org.yupana.api.types
   * @tparam Out output type
   */
 class TypeConverter[In, Out](
-  val dataType: DataType.Aux[Out],
-  val functionName: String,
-  val direct: In => Out,
-  val reverse: Out => Option[In]
+    val dataType: DataType.Aux[Out],
+    val functionName: String,
+    val direct: In => Out,
+    val reverse: Out => Option[In]
 ) extends Serializable
 
 object TypeConverter {
@@ -31,23 +47,30 @@ object TypeConverter {
   }
 
   val double2BigDecimal: TypeConverter[Double, BigDecimal] = of(x => BigDecimal(x), x => Some(x.toDouble))
-  val long2BigDecimal: TypeConverter[Long, BigDecimal] = of(x => BigDecimal(x), x => if (x.isValidLong) Some(x.longValue) else None)
+  val long2BigDecimal: TypeConverter[Long, BigDecimal] =
+    of(x => BigDecimal(x), x => if (x.isValidLong) Some(x.longValue) else None)
   val long2Double: TypeConverter[Long, Double] = of(_.toDouble, _ => None)
   val int2Long: TypeConverter[Int, Long] = of(_.toLong, x => if (x.isValidInt) Some(x.toInt) else None)
-  val int2BigDecimal: TypeConverter[Int, BigDecimal] = of(x => BigDecimal(x), x => if (x.isValidInt) Some(x.toInt) else None)
+  val int2BigDecimal: TypeConverter[Int, BigDecimal] =
+    of(x => BigDecimal(x), x => if (x.isValidInt) Some(x.toInt) else None)
 
-  def of[T, U](f: T => U, rev: U => Option[T])(implicit
-    rtt: DataType.Aux[T],
-    rtu: DataType.Aux[U]
+  def of[T, U](f: T => U, rev: U => Option[T])(
+      implicit
+      rtt: DataType.Aux[T],
+      rtu: DataType.Aux[U]
   ): TypeConverter[T, U] = {
     new TypeConverter[T, U](
-      rtu, rtt.meta.sqlTypeName.toLowerCase + "2" + rtu.meta.sqlTypeName.toLowerCase, f, rev
+      rtu,
+      rtt.meta.sqlTypeName.toLowerCase + "2" + rtu.meta.sqlTypeName.toLowerCase,
+      f,
+      rev
     )
   }
 
-  private def entry[T, U](tc: TypeConverter[T, U])(implicit
-    dtt: DataType.Aux[T],
-    dtu: DataType.Aux[U]
+  private def entry[T, U](tc: TypeConverter[T, U])(
+      implicit
+      dtt: DataType.Aux[T],
+      dtu: DataType.Aux[U]
   ): ((String, String), TypeConverter[T, U]) = {
     ((dtt.meta.sqlTypeName, dtu.meta.sqlTypeName), tc)
   }

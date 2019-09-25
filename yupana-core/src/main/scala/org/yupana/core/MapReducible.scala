@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import scala.language.higherKinds
@@ -9,14 +25,14 @@ import scala.reflect.ClassTag
 trait MapReducible[Collection[_]] extends Serializable {
   def filter[A](c: Collection[A])(f: A => Boolean): Collection[A]
 
-  def map[A, B : ClassTag](c: Collection[A])(f: A => B): Collection[B]
-  def flatMap[A, B : ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
+  def map[A, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
+  def flatMap[A, B: ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
 
-  def batchFlatMap[A, B : ClassTag](c: Collection[A])(size: Int, f: Seq[A] => Seq[B]): Collection[B]
+  def batchFlatMap[A, B: ClassTag](c: Collection[A])(size: Int, f: Seq[A] => Seq[B]): Collection[B]
 
   def fold[A](c: Collection[A])(zero: A)(f: (A, A) => A): A
   def reduce[A](c: Collection[A])(f: (A, A) => A): A
-  def reduceByKey[K : ClassTag, V : ClassTag](c: Collection[(K, V)])(f: (V, V) => V): Collection[(K, V)]
+  def reduceByKey[K: ClassTag, V: ClassTag](c: Collection[(K, V)])(f: (V, V) => V): Collection[(K, V)]
 
   def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
 }
@@ -25,8 +41,8 @@ object MapReducible {
   val iteratorMR: MapReducible[Iterator] = new MapReducible[Iterator] {
     override def filter[A](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 
-    override def map[A, B : ClassTag](it: Iterator[A])(f: A => B): Iterator[B] = it.map(f)
-    override def flatMap[A, B : ClassTag](it: Iterator[A])(f: A => Iterable[B]): Iterator[B] = it.flatMap(f)
+    override def map[A, B: ClassTag](it: Iterator[A])(f: A => B): Iterator[B] = it.map(f)
+    override def flatMap[A, B: ClassTag](it: Iterator[A])(f: A => Iterable[B]): Iterator[B] = it.flatMap(f)
 
     override def batchFlatMap[A, B: ClassTag](it: Iterator[A])(size: Int, f: Seq[A] => Seq[B]): Iterator[B] = {
       it.sliding(size, size).flatMap(f)
@@ -36,12 +52,13 @@ object MapReducible {
 
     override def reduce[A](it: Iterator[A])(f: (A, A) => A): A = it.reduce(f)
 
-    override def reduceByKey[K : ClassTag, V : ClassTag](it: Iterator[(K, V)])(f: (V, V) => V): Iterator[(K, V)] = {
+    override def reduceByKey[K: ClassTag, V: ClassTag](it: Iterator[(K, V)])(f: (V, V) => V): Iterator[(K, V)] = {
       val map = collection.mutable.Map.empty[K, V]
-      it.foreach { case (k, v) =>
-        val old = map.get(k)
-        val n = old.map(o => f(o, v)).getOrElse(v)
-        map.put(k, n)
+      it.foreach {
+        case (k, v) =>
+          val old = map.get(k)
+          val n = old.map(o => f(o, v)).getOrElse(v)
+          map.put(k, n)
       }
       map.iterator
     }
