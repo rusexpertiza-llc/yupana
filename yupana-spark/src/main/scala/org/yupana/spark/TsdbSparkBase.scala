@@ -17,26 +17,36 @@
 package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, Mutation, Result => HBaseResult }
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Mutation, Result => HBaseResult}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.{
-  IdentityTableMapper,
-  TableInputFormat,
-  TableMapReduceUtil,
-  TableOutputFormat
-}
+import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, TableInputFormat, TableMapReduceUtil, TableOutputFormat}
 import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
+import org.apache.hadoop.mapreduce.{Job, OutputFormat}
 import org.apache.spark.SparkContext
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.{ DataPoint, Query }
-import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
-import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
-import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils }
+import org.yupana.api.query.{DataPoint, Query}
+import org.yupana.api.schema.{Schema, Table}
+import org.yupana.core.dao.{DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao}
+import org.yupana.core.model.{InternalRow, KeyData}
+import org.yupana.core.utils.metric.{MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext}
+import org.yupana.core.{MapReducible, QueryContext, TsdbBase}
+import org.yupana.hbase.{DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase}
+
+object TsdbSparkBase {
+  @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
+
+  def hbaseConfiguration(config: Config): Configuration = {
+    val configuration = new Configuration()
+    configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
+    configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)
+    if (config.addHdfsToConfiguration) {
+      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.properties)
+    }
+    configuration
+  }
+}
 
 abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
@@ -64,7 +74,23 @@ abstract class TsdbSparkBase(
 
   override val dao: TSReadingDao[RDD, Long] = new TsDaoHBaseSpark(sparkContext, conf, dictionaryProvider)
 
-  override def createMetricCollector(query: Query): MetricQueryCollector = NoMetricCollector
+  private def getMetricsDao(): TsdbQueryMetricsDao = TsdbSparkBase.metricsDao match {
+    case None =>
+      logger.info("TsdbQueryMetricsDao initialization...")
+      val hbaseConnection = ConnectionFactory.createConnection(TsdbSparkBase.hbaseConfiguration(conf))
+      new TsdbQueryMetricsDaoHBase(hbaseConnection, conf.hbaseNamespace)
+    case Some(d) => d
+  }
+
+  override def createMetricCollector(query: Query): MetricQueryCollector = {
+    val queryCollectorContext: QueryCollectorContext = new QueryCollectorContext(
+      metricsDao = getMetricsDao,
+      operationName = "spark query",
+      metricsUpdateInterval = conf.metricsUpdateInterval,
+      sparkQuery = true
+    )
+    new PersistentMetricQueryCollector(queryCollectorContext, query)
+  }
 
   override def finalizeQuery(
       queryContext: QueryContext,

@@ -18,7 +18,7 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.{ Query, Result }
+import org.yupana.api.query.{Query, Result}
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.core.sql.SqlQueryProcessor
@@ -26,7 +26,7 @@ import org.yupana.core.sql.parser._
 import org.yupana.proto
 import org.yupana.proto.util.ProtocolVersion
 
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.{ExecutionContext, Future}
 
 class RequestHandler(schema: Schema) extends StrictLogging {
 
@@ -56,6 +56,10 @@ class RequestHandler(schema: Schema) extends StrictLogging {
         case ShowTables => Right(resultToProto(metadataProvider.listTables))
 
         case ShowColumns(tableName) => metadataProvider.describeTable(tableName).right map resultToProto
+
+        case ShowQueries(id, limit) => Right(resultToProto(QueryInfoProvider.handleShowQueries(tsdb, id, limit.getOrElse(20))))
+
+        case KillQuery(id) => Right(resultToProto(QueryInfoProvider.handleKillQuery(tsdb, id)))
       }
     }
   }

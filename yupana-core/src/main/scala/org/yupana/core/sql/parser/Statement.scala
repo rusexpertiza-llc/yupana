@@ -30,3 +30,7 @@ case class Select(
 case object ShowTables extends Statement
 
 case class ShowColumns(table: String) extends Statement
+
+case class ShowQueries(id: Option[String], limit: Option[Int]) extends Statement
+
+case class KillQuery(id: String) extends Statement

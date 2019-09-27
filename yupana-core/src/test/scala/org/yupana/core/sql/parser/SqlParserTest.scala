@@ -890,6 +890,22 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     parser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
 
+  it should "parse SHOW QUERIES statements" in {
+    parser.parse("SHOW QUERIES") shouldBe Right(ShowQueries(None, None))
+  }
+
+  it should "parse SHOW QUERIES statements with limit" in {
+    parser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueries(None, Some(1)))
+  }
+
+  it should "parse SHOW QUERIES statements with id" in {
+    parser.parse("SHOW QUERIES WHERE ID = '1'") shouldBe Right(ShowQueries(Some("1"), None))
+  }
+
+  it should "parse KILL QUERY statements with id" in {
+    parser.parse("KILL QUERY WHERE id = '1'") shouldBe Right(KillQuery("1"))
+  }
+
   it should "support functions as conditions" in {
     val statement =
       """
@@ -998,14 +1014,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect SELECT | SHOW, but got "INSERT""")
+        msg should include("""Expect SELECT | SHOW | KILL, but got "INSERT""")
     }
   }
 
   it should "produce error on unknown show" in {
     errorMessage("SHOW functions") {
       case msg =>
-        msg should include("""Expect COLUMNS | TABLES, but got "functions""")
+        msg should include("""Expect COLUMNS | TABLES | QUERIES, but got "functions""")
     }
   }
 
