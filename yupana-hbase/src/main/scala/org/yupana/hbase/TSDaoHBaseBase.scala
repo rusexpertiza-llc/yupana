@@ -87,7 +87,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val dimFilter = filters.includeDims exclude filters.excludeDims
 
+    logger.trace("Prefetch dimension iterators")
     val prefetchedDimIterators = dimFilter.toMap.map { case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT) }
+    logger.trace("dimension iterators is prefetched")
+
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
     val scans = dimFilter match {
@@ -150,6 +153,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       multiRowRangeFilter: MultiRowRangeFilter,
       hbaseFuzzyRowFilter: Seq[FuzzyRowFilter]
   ): Scan = {
+
+    logger.trace(s"Create range scan for ${multiRowRangeFilter.getRowRanges.size()} ranges")
+
     val start = multiRowRangeFilter.getRowRanges.asScala.head.getStartRow
     val stop = multiRowRangeFilter.getRowRanges.asScala.toList.last.getStopRow
 

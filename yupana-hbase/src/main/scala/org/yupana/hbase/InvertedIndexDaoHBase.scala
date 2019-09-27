@@ -16,19 +16,19 @@
 
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{ Get, Put }
+import com.typesafe.scalalogging.StrictLogging
+import org.apache.hadoop.hbase.client.{ Get, Put, ResultScanner, Scan }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.dao.InvertedIndexDao
 
-import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 
 object InvertedIndexDaoHBase {
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
   val VALUE: Array[Byte] = Array.emptyByteArray
+  val BATCH_SIZE = 500000
 
   def stringSerializer(str: String): Array[Byte] = Bytes.toBytes(str)
   def stringDeserializer(bytes: Array[Byte]): String = Bytes.toString(bytes)
@@ -66,7 +66,8 @@ class InvertedIndexDaoHBase[K, V: Ordering](
     keySerializer: K => Array[Byte],
     valueSerializer: V => Array[Byte],
     valueDeserializer: Array[Byte] => V
-) extends InvertedIndexDao[K, V] {
+) extends InvertedIndexDao[K, V]
+    with StrictLogging {
 
   import InvertedIndexDaoHBase._
 
@@ -89,38 +90,48 @@ class InvertedIndexDaoHBase[K, V: Ordering](
     table.put(puts.toSeq.asJava)
   }
 
-  private def toIterator(result: Result): SortedSetIterator[V] = {
-    SortedSetIterator(new AbstractIterator[V] {
-      private val cellScanner = result.cellScanner()
-      private var nextResultOpt: Option[V] = None
-
-      override def hasNext: Boolean = {
-        if (nextResultOpt.isEmpty) {
-          if (cellScanner.advance()) {
-            nextResultOpt = Some(valueDeserializer(CellUtil.cloneQualifier(cellScanner.current())))
-          }
-        }
-        nextResultOpt.nonEmpty
+  private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
+    val it = result.iterator().asScala.flatMap { result =>
+      result.rawCells().map { cell =>
+        valueDeserializer(CellUtil.cloneQualifier(cell))
       }
-
-      override def next(): V = {
-        val result = nextResultOpt.get
-        nextResultOpt = None
-        result
-      }
-    })
+    }
+    SortedSetIterator(it)
   }
 
-  override def values(key: K): SortedSetIterator[V] = {
-    val get = new Get(keySerializer(key)).addFamily(FAMILY)
-    val table = connection.getTable(tableName)
-    toIterator(table.get(get))
+  def values(key: K): SortedSetIterator[V] = {
+    allValues(Set(key))
   }
 
-  override def allValues(keys: Set[K]): SortedSetIterator[V] = {
-    val gets = keys.map(key => new Get(keySerializer(key)).addFamily(FAMILY)).toList.asJava
+  private def scanValues(key: K): SortedSetIterator[V] = {
+    logger.trace(s"scan values for key $key")
+    val skey = keySerializer(key)
     val table = connection.getTable(tableName)
-    table.get(gets).flatMap(toIterator)
-    SortedSetIterator.unionAll(table.get(gets).map(toIterator))
+    val scan = new Scan(skey, Bytes.padTail(skey, 1)).addFamily(FAMILY).setBatch(BATCH_SIZE)
+    val scanner = table.getScanner(scan)
+    toIterator(scanner)
+  }
+
+  def allValues(keys: Set[K]): SortedSetIterator[V] = {
+    val table = connection.getTable(tableName)
+
+    val keySeq = keys.toSeq
+
+    val gets = keySeq.map { key =>
+      val skey = keySerializer(key)
+      new Get(skey).setMaxResultsPerColumnFamily(BATCH_SIZE)
+    }
+
+    val results = table.get(gets.asJava).zip(keySeq)
+    val (completed, partial) = results.partition { case (res, key) => res.rawCells().length < BATCH_SIZE }
+
+    val iterators = partial.map { case (_, key) => scanValues(key) }
+
+    val fetched = completed.map {
+      case (result, _) =>
+        SortedSetIterator(result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c))).toIterator)
+    }
+
+    SortedSetIterator.unionAll(iterators ++ fetched)
   }
 }
