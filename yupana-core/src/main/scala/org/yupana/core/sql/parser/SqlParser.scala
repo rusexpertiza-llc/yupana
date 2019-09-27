@@ -238,7 +238,7 @@ class SqlParser extends ValueParser {
 
   val kill: Parser[Statement] = P(killWord ~/ query)
 
-  val statement: Parser[Statement] = P((select | show) ~ ";".? ~ End)
+  val statement: Parser[Statement] = P((select | show | kill) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
     statement.parse(sql.trim) match {
