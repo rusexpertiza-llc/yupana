@@ -3,7 +3,7 @@ package org.yupana.core
 import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMetricsDao }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -40,6 +40,7 @@ trait TsdbMocks extends MockFactory {
 
   def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
     val tsdbDaoMock = mock[TSTestDao]
+    val metricsDaoMock = mock[TsdbQueryMetricsDao]
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
       .onCall(
@@ -63,7 +64,7 @@ trait TsdbMocks extends MockFactory {
       .anyNumberOfTimes()
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, dictionaryProvider, identity)
+    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity)
     body(tsdb, tsdbDaoMock)
   }
 

@@ -14,23 +14,20 @@
  * limitations under the License.
  */
 
-package org.yupana.core.sql.parser
+package org.yupana.core.utils.metric
 
-sealed trait Statement
+import java.util.Timer
 
-case class Select(
-    schemaName: String,
-    fields: SqlFields,
-    condition: Option[Condition],
-    groupings: Seq[SqlExpr],
-    having: Option[Condition],
-    limit: Option[Int]
-) extends Statement
+import org.yupana.core.dao.TsdbQueryMetricsDao
 
-case object ShowTables extends Statement
+class QueryCollectorContext(
+    val metricsDao: () => TsdbQueryMetricsDao,
+    val operationName: String,
+    val metricsUpdateInterval: Int,
+    val sparkQuery: Boolean = false
+) extends Serializable {
 
-case class ShowColumns(table: String) extends Statement
+  @transient lazy val timer = new Timer()
 
-case class ShowQueries(id: Option[String], limit: Option[Int]) extends Statement
-
-case class KillQuery(id: String) extends Statement
+  var queryActive: Boolean = true
+}

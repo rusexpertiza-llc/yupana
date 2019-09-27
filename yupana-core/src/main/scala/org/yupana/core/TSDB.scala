@@ -20,19 +20,20 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.metric._
 
 import scala.collection.AbstractIterator
 
 // NOTE: dao is TSDaoHBase because TSDB has put and rollup related method.  Possible it better to not have them here
 class TSDB(
     override val dao: TSDao[Iterator, Long],
+    val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
     override val extractBatchSize: Int = 10000,
-    collectMetrics: Boolean = false
+    config: TSDBConfig = TSDBConfig()
 ) extends TsdbBase
     with StrictLogging {
 
@@ -53,7 +54,14 @@ class TSDB(
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
-    if (collectMetrics) new ConsoleMetricQueryCollector(query, "query") else NoMetricCollector
+    if (config.collectMetrics) {
+      val queryCollectorContext = new QueryCollectorContext(
+        metricsDao = () => metricsDao,
+        operationName = "query",
+        metricsUpdateInterval = config.metricsUpdateInterval
+      )
+      new PersistentMetricQueryCollector(queryCollectorContext, query)
+    } else NoMetricCollector
   }
 
   override def finalizeQuery(
@@ -152,3 +160,5 @@ class TSDB(
     catalogs.getOrElse(catalog, throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}"))
   }
 }
+
+case class TSDBConfig(collectMetrics: Boolean = false, metricsUpdateInterval: Int = 30000)

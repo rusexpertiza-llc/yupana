@@ -56,6 +56,11 @@ class RequestHandler(schema: Schema) extends StrictLogging {
         case ShowTables => Right(resultToProto(metadataProvider.listTables))
 
         case ShowColumns(tableName) => metadataProvider.describeTable(tableName).right map resultToProto
+
+        case ShowQueries(id, limit) =>
+          Right(resultToProto(QueryInfoProvider.handleShowQueries(tsdb, id, limit.getOrElse(20))))
+
+        case KillQuery(id) => Right(resultToProto(QueryInfoProvider.handleKillQuery(tsdb, id)))
       }
     }
   }
