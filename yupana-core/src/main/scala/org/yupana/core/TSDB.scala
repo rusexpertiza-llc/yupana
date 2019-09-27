@@ -19,9 +19,9 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ExternalLink, Table}
-import org.yupana.core.dao.{DictionaryProvider, TSDao, TsdbQueryMetricsDao}
-import org.yupana.core.model.{InternalRow, KeyData}
+import org.yupana.api.schema.{ ExternalLink, Table }
+import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
+import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.metric._
 
 import scala.collection.AbstractIterator

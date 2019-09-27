@@ -22,7 +22,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
-import org.yupana.core.{TSDB, TSDBConfig}
+import org.yupana.core.{ TSDB, TSDBConfig }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
 

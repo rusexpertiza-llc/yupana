@@ -17,7 +17,7 @@
 package org.yupana.core.sql.parser
 
 import fastparse.all._
-import fastparse.core.Parsed.{Failure, Success}
+import fastparse.core.Parsed.{ Failure, Success }
 
 class SqlParser extends ValueParser {
   import white._

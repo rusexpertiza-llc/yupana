@@ -1,16 +1,32 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.model
 
 import org.joda.time.LocalDateTime
 import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
-                             queryId: String,
-                             startDate: LocalDateTime,
-                             totalDuration: Double = 0.0,
-                             query: String,
-                             state: QueryState,
-                             metrics: Map[String, MetricData]
-                           )
+    queryId: String,
+    startDate: LocalDateTime,
+    totalDuration: Double = 0.0,
+    query: String,
+    state: QueryState,
+    metrics: Map[String, MetricData]
+)
 
 object TsdbQueryMetrics {
   val createQueriesQualifier = "create_queries"
@@ -41,10 +57,22 @@ object TsdbQueryMetrics {
   val metricSpeed = "speed"
 
   val qualifiers = List(
-    createQueriesQualifier, createDimensionFiltersQualifier, createScansQualifier, loadTagsQualifier,
-    filterRowsQualifier, windowFunctionsCheckQualifier, windowFunctionsQualifier, mapOperationQualifier,
-    postMapOperationQualifier, reduceOperationQualifier, postFilterQualifier, collectResultRowsQualifier,
-    extractDataTagsQualifier, extractDataComputationQualifier, getResultQualifier, parseResultQualifier
+    createQueriesQualifier,
+    createDimensionFiltersQualifier,
+    createScansQualifier,
+    loadTagsQualifier,
+    filterRowsQualifier,
+    windowFunctionsCheckQualifier,
+    windowFunctionsQualifier,
+    mapOperationQualifier,
+    postMapOperationQualifier,
+    reduceOperationQualifier,
+    postFilterQualifier,
+    collectResultRowsQualifier,
+    extractDataTagsQualifier,
+    extractDataComputationQualifier,
+    getResultQualifier,
+    parseResultQualifier
   )
 }
 
@@ -64,6 +92,7 @@ object QueryStates {
 
   val states = List(Running, Finished, Cancelled)
 
-  def getByName(name: String): QueryState = states.find(_.name == name).getOrElse(throw new IllegalArgumentException(s"State with name $name not found"))
+  def getByName(name: String): QueryState =
+    states.find(_.name == name).getOrElse(throw new IllegalArgumentException(s"State with name $name not found"))
 
 }
