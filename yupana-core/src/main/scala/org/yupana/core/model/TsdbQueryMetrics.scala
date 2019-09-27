@@ -16,12 +16,12 @@
 
 package org.yupana.core.model
 
-import org.joda.time.LocalDateTime
+import org.joda.time.DateTime
 import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
     queryId: String,
-    startDate: LocalDateTime,
+    startDate: DateTime,
     totalDuration: Double = 0.0,
     query: String,
     state: QueryState,

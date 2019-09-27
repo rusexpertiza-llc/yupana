@@ -153,10 +153,16 @@ case class PersistentMetricImpl(
     if (!collectorContext.queryActive) {
       throw new IllegalStateException(s"Metric $name: query $queryId was cancelled!")
     }
-    val start = System.nanoTime()
-    val result = f
-    count.add(1)
-    time.add(System.nanoTime() - start)
-    result
+    try {
+      val start = System.nanoTime()
+      val result = f
+      count.add(1)
+      time.add(System.nanoTime() - start)
+      result
+    } catch {
+      case e: Throwable =>
+        collectorContext.timer.cancel()
+        throw e
+    }
   }
 }

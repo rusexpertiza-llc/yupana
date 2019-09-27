@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
-import org.joda.time.LocalDateTime
+import org.joda.time.DateTime
 import org.yupana.api.query.Query
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.{ Cancelled, QueryState }
@@ -49,12 +49,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
 
   override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit = withTables {
     val id = query.uuid
-    val startDate = LocalDateTime.now()
+    val startDate = DateTime.now()
     val queryAsString = if (sparkQuery) "SPARK - " + query.toString else query.toString
     val table = getTable
     val put = new Put(Bytes.toBytes(id))
     put.addColumn(FAMILY, QUERY_QUALIFIER, Bytes.toBytes(queryAsString))
-    put.addColumn(FAMILY, START_DATE_QUALIFIER, Bytes.toBytes(startDate.toDateTime().getMillis))
+    put.addColumn(FAMILY, START_DATE_QUALIFIER, Bytes.toBytes(startDate.getMillis))
     put.addColumn(FAMILY, TOTAL_DURATION_QUALIFIER, Bytes.toBytes(0.0))
     put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name))
     TsdbQueryMetrics.qualifiers.foreach { qualifier =>
@@ -169,7 +169,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       queryId = Bytes.toString(result.getRow),
       state = QueryStates.getByName(Bytes.toString(result.getValue(FAMILY, STATE_QUALIFIER))),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
-      startDate = new LocalDateTime(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
+      startDate = new DateTime(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
       totalDuration = Bytes.toDouble(result.getValue(FAMILY, TOTAL_DURATION_QUALIFIER)),
       metrics = metrics
     )
