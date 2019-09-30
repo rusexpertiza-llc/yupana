@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client.{ Get, Put, ResultScanner, Scan }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
-import org.yupana.api.utils.SortedSetIterator
+import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
 
 import scala.collection.JavaConverters._
@@ -60,7 +60,7 @@ object InvertedIndexDaoHBase {
   }
 }
 
-class InvertedIndexDaoHBase[K, V: Ordering](
+class InvertedIndexDaoHBase[K, V: DimOrdering](
     connection: ExternalLinkHBaseConnection,
     tableName: String,
     keySerializer: K => Array[Byte],
