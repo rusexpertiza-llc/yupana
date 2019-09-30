@@ -19,16 +19,16 @@ package org.yupana.hbase
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
+import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableExistsException, TableName}
 import org.joda.time.DateTime
 import org.yupana.api.query.Query
-import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.QueryStates.{ Cancelled, QueryState }
-import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
+import org.yupana.core.dao.{QueryMetricsFilter, TsdbQueryMetricsDao}
+import org.yupana.core.model.QueryStates.{Cancelled, QueryState}
+import org.yupana.core.model.TsdbQueryMetrics._
+import org.yupana.core.model.{MetricData, QueryStates, TsdbQueryMetrics}
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
 import scala.collection.JavaConverters._
-import org.yupana.core.model.TsdbQueryMetrics._
 
 object TsdbQueryMetricsDaoHBase {
   val TABLE_NAME: String = "ts_query_metrics"
@@ -131,7 +131,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     tryUpdateMetrics(0)
   }
 
-  override def queriesByFilter(filter: QueryMetricsFilter): List[TsdbQueryMetrics] = withTables {
+  override def queriesByFilter(filter: QueryMetricsFilter): Iterable[TsdbQueryMetrics] = withTables {
     val table = getTable
     filter.queryId match {
       case Some(id) =>
@@ -140,13 +140,10 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         if (result.isEmpty) List()
         else List(toMetric(result))
       case None =>
-        val scan = new Scan().addFamily(FAMILY)
-        val result = table.getScanner(scan)
-        result.asScala
-          .map(toMetric)
-          .toList
-          .sortBy(-_.startDate.toDateTime.getMillis)
+        val scan = new Scan().addFamily(FAMILY).setReversed(true)
+        table.getScanner(scan).asScala
           .take(filter.limit)
+          .map(toMetric)
     }
   }
 
