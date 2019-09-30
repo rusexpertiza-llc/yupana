@@ -18,7 +18,7 @@ package org.yupana.api.utils
 
 import scala.reflect.ClassTag
 
-abstract class SortedSetIterator[A: Ordering] extends Iterator[A] {
+abstract class SortedSetIterator[A: DimOrdering] extends Iterator[A] {
 
   def union(that: SortedSetIterator[A]): SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new UnionSortedIteratorImpl(Seq(this, that)))
@@ -39,32 +39,32 @@ abstract class SortedSetIterator[A: Ordering] extends Iterator[A] {
 
 object SortedSetIterator {
 
-  def empty[A: Ordering]: SortedSetIterator[A] = {
+  def empty[A: DimOrdering]: SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](Iterator.empty))
   }
 
-  def apply[A: Ordering](seq: A*): SortedSetIterator[A] = {
+  def apply[A: DimOrdering](seq: A*): SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](seq.toIterator))
   }
 
-  def apply[A: Ordering](it: Iterator[A]): SortedSetIterator[A] = {
+  def apply[A: DimOrdering](it: Iterator[A]): SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](it))
   }
 
-  def apply[A: Ordering](): SortedSetIterator[A] = {
+  def apply[A: DimOrdering](): SortedSetIterator[A] = {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl(Iterator.empty))
   }
 
-  def intersectAll[A: Ordering](ids: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
+  def intersectAll[A: DimOrdering](ids: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
     if (ids.nonEmpty) new IntersectSortedIteratorImpl[A](ids) else SortedSetIterator.empty
   }
 
-  def unionAll[A: Ordering](its: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
+  def unionAll[A: DimOrdering](its: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
     if (its.nonEmpty) new UnionSortedIteratorImpl[A](its) else SortedSetIterator.empty
   }
 }
 
-private class SingleSortedIteratorImpl[A](it: Iterator[A])(implicit ord: Ordering[A]) extends SortedSetIterator[A] {
+private class SingleSortedIteratorImpl[A](it: Iterator[A])(implicit ord: DimOrdering[A]) extends SortedSetIterator[A] {
 
   var prevValue: A = _
 
@@ -84,7 +84,7 @@ private class SingleSortedIteratorImpl[A](it: Iterator[A])(implicit ord: Orderin
   }
 }
 
-private class SortedSetIteratorImpl[A: Ordering](it: SortedSetIterator[A]) extends SortedSetIterator[A] {
+private class SortedSetIteratorImpl[A: DimOrdering](it: SortedSetIterator[A]) extends SortedSetIterator[A] {
 
   var nextVal: A = _
   var hasNextVal = false
@@ -127,7 +127,7 @@ private class SortedSetIteratorImpl[A: Ordering](it: SortedSetIterator[A]) exten
   }
 }
 
-private class UnionSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implicit ord: Ordering[A])
+private class UnionSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implicit ord: DimOrdering[A])
     extends SortedSetIterator[A] {
 
   private val bIts = its.map(_.buffered)
@@ -153,7 +153,7 @@ private class UnionSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implici
   }
 }
 
-private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implicit ord: Ordering[A])
+private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(implicit ord: DimOrdering[A])
     extends SortedSetIterator[A] {
 
   private val bIts = its.map(_.buffered)
@@ -172,13 +172,12 @@ private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(imp
   }
 
   private def seekToNextEq(): Boolean = {
-    import ord.mkOrderingOps
 
     do {
-      val maxHead = bIts.maxBy(_.head).head
+      val maxHead = bIts.map(_.head).reduce(ord.max)
 
       bIts.foreach { bit =>
-        if (bit.hasNext && bit.head < maxHead) {
+        if (bit.hasNext && ord.lt(bit.head, maxHead)) {
           bit.next()
         }
       }
@@ -189,24 +188,23 @@ private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(imp
 }
 
 private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: SortedSetIterator[A])(
-    implicit ord: Ordering[A]
+    implicit ord: DimOrdering[A]
 ) extends SortedSetIterator[A] {
 
   private val bIt = it.buffered
   private val bSub = sub.buffered
 
   override def hasNext: Boolean = {
-    import ord.mkOrderingOps
 
     do {
-      while (bIt.hasNext && bSub.hasNext && bSub.head < bIt.head) {
+      while (bIt.hasNext && bSub.hasNext && ord.lt(bSub.head, bIt.head)) {
         bSub.next()
       }
 
       if (bIt.hasNext && bSub.hasNext && bIt.head == bSub.head) {
         bIt.next
       }
-    } while (bIt.hasNext && bSub.hasNext && bSub.head <= bIt.head)
+    } while (bIt.hasNext && bSub.hasNext && ord.lte(bSub.head, bIt.head))
 
     bIt.hasNext && !(bSub.hasNext && bIt.head == bSub.head)
   }
@@ -221,7 +219,7 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
 }
 
 class PrefetchedSortedSetIterator[T] private[utils] (it: SortedSetIterator[T], prefetchElements: Int)(
-    implicit val ord: Ordering[T],
+    implicit val ord: DimOrdering[T],
     ct: ClassTag[T]
 ) extends SortedSetIterator[T] {
 

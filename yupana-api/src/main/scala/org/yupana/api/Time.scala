@@ -17,6 +17,7 @@
 package org.yupana.api
 
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
+import org.yupana.api.utils.DimOrdering
 
 /**
   * Simple time value implementation.
@@ -31,6 +32,7 @@ case class Time(millis: Long) {
 
 object Time {
   implicit val ordering: Ordering[Time] = Ordering.by(_.millis)
+  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(ordering.compare)
 
   def apply(localDateTime: LocalDateTime): Time = new Time(localDateTime.toDateTime(DateTimeZone.UTC).getMillis)
   def apply(dateTime: DateTime): Time = new Time(dateTime.getMillis)

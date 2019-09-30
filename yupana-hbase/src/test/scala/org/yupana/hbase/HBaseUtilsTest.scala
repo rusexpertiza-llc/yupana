@@ -3,6 +3,7 @@ package org.yupana.hbase
 import java.nio.ByteBuffer
 import java.util.Properties
 
+import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers, OptionValues }
@@ -73,6 +74,13 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     rows.head.key shouldEqual TSDRowKey[Int](1508025600000L, Array(Some(1), Some(2), None))
 
     CacheFactory.flushCaches()
+  }
+
+  it should "test" in {
+    val i1 = -1
+    val i2 = 1
+
+    Bytes.compareTo(Bytes.toBytes(i1), Bytes.toBytes(i2)) shouldEqual java.lang.Long.compareUnsigned(i1, i2)
   }
 
   val TAG_A = Dimension("TAG_A")

@@ -17,7 +17,7 @@
 package org.yupana.core.dao
 
 import org.yupana.api.schema.Dimension
-import org.yupana.api.utils.SortedSetIterator
+import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 
 sealed trait DimensionFilter[T] {
   def and(tagFilter: DimensionFilter[T]): DimensionFilter[T]
@@ -108,11 +108,12 @@ object DimensionFilter {
     new FiltersCollection[T](Map(dim -> ids))
   }
 
-  def apply[T: Ordering](dim: Dimension, ids: Set[T]): DimensionFilter[T] = {
-    new FiltersCollection[T](Map(dim -> SortedSetIterator(ids.toList.sorted.iterator)))
+  def apply[T: DimOrdering](dim: Dimension, ids: Set[T]): DimensionFilter[T] = {
+    val ord = implicitly[DimOrdering[T]]
+    new FiltersCollection[T](Map(dim -> SortedSetIterator(ids.toList.sortWith(ord.lt).iterator)))
   }
 
-  def apply[T: Ordering](dim: Dimension, id: T): DimensionFilter[T] = {
+  def apply[T: DimOrdering](dim: Dimension, id: T): DimensionFilter[T] = {
     new FiltersCollection[T](Map(dim -> SortedSetIterator(id)))
   }
 }
