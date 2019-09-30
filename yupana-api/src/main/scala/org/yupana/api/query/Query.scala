@@ -38,7 +38,7 @@ case class Query(
     postFilter: Option[Condition] = None
 ) {
 
-  val uuid: String = hashCode().abs.toString
+  val uuid: String = System.nanoTime().toString
   val uuidLog: String = s"query_uuid: $uuid"
 
   override def toString: String = {
