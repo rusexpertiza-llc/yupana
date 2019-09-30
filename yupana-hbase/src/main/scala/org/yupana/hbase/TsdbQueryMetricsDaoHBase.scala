@@ -19,13 +19,13 @@ package org.yupana.hbase
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HColumnDescriptor, HTableDescriptor, TableExistsException, TableName}
+import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
 import org.joda.time.DateTime
 import org.yupana.api.query.Query
-import org.yupana.core.dao.{QueryMetricsFilter, TsdbQueryMetricsDao}
-import org.yupana.core.model.QueryStates.{Cancelled, QueryState}
+import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.model.QueryStates.{ Cancelled, QueryState }
 import org.yupana.core.model.TsdbQueryMetrics._
-import org.yupana.core.model.{MetricData, QueryStates, TsdbQueryMetrics}
+import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
 import scala.collection.JavaConverters._
@@ -141,7 +141,9 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         else List(toMetric(result))
       case None =>
         val scan = new Scan().addFamily(FAMILY).setReversed(true)
-        table.getScanner(scan).asScala
+        table
+          .getScanner(scan)
+          .asScala
           .take(filter.limit)
           .map(toMetric)
     }
