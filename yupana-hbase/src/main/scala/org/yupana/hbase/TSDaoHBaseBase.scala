@@ -111,11 +111,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val filtered = mr.filter(rows)(rowFilter)
 
-    val schemaContext = InternalQueryContext(query)
+    val context = InternalQueryContext(query)
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
     mr.batchFlatMap(filtered)(
       10000,
-      rs => extractData(schemaContext, valueDataBuilder, rs, timeFilter, metricCollector)
+      rs => extractData(context, valueDataBuilder, rs, timeFilter, metricCollector)
     )
   }
 
@@ -418,7 +418,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
         case None =>
           correct = false
-          logger.warn(s"Unknown tag: $tag, in table: ${context.query.table.name}, row time: $time")
+          logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}, row time: $time")
       }
     }
     correct
@@ -439,7 +439,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     lazy val allTagValues = dimFields(rowsByTags, context)
 
     metricCollector.extractDataComputation.measure {
-      val maxTag = context.query.table.metrics.map(_.tag).max
+      val maxTag = context.table.metrics.map(_.tag).max
 
       val rowValues = Array.ofDim[Option[Any]](maxTag + 1)
 
@@ -450,7 +450,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         time = row.key.baseTime + offset if timeFilter(time) && readRow(context, bytes, rowValues, time)
       } yield {
 
-        context.query.exprs.foreach {
+        context.exprs.foreach {
           case e @ DimensionExpr(dim) => valueDataBuilder.set(e, tagValues.get(dim))
           case e @ MetricExpr(field)  => valueDataBuilder.set(e, rowValues(field.tag))
           case TimeExpr               => valueDataBuilder.set(TimeExpr, Some(Time(time)))
