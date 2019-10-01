@@ -300,6 +300,8 @@ val pbSettings = Seq(
 
 releaseCrossBuild := true
 
+releasePublishArtifactsAction := PgpKeys.publishSigned.value
+
 releaseProcess := Seq[ReleaseStep](
   checkSnapshotDependencies,
   inquireVersions,
@@ -308,7 +310,7 @@ releaseProcess := Seq[ReleaseStep](
   setReleaseVersion,
   commitReleaseVersion,
   tagRelease,
-  releaseStepCommandAndRemaining("+publishSigned"),
+  publishArtifacts,
   releaseStepCommand("sonatypeBundleRelease"),
   setNextVersion,
   commitNextVersion,
