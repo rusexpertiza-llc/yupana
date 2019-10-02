@@ -24,6 +24,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
 import org.yupana.core.dao.DictionaryDao
 
+import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 
 object DictionaryDaoHBase {
@@ -78,14 +79,16 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     val r = ids.toSeq
       .grouped(BATCH_SIZE)
       .flatMap { idsSeq =>
-        val ranges = idsSeq.sorted.map { id =>
+        val ranges = idsSeq.map { id =>
           val key = Bytes.toBytes(id)
           new MultiRowRangeFilter.RowRange(key, true, key, true)
         }
 
         val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+        val start = filter.getRowRanges.asScala.head.getStartRow
+        val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
 
-        val scan = new Scan(ranges.head.getStartRow, Bytes.padTail(ranges.last.getStopRow, 1))
+        val scan = new Scan(start, end)
           .addFamily(directFamily)
           .setFilter(filter)
 
@@ -136,12 +139,14 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       val r = nonEmptyValues
         .grouped(BATCH_SIZE)
         .flatMap { vs =>
-          val ranges = vs.sorted.map { value =>
+          val ranges = vs.map { value =>
             new MultiRowRangeFilter.RowRange(Bytes.toBytes(value), true, Bytes.toBytes(value), true)
           }
 
           val rangeFilter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
-          val scan = new Scan(ranges.head.getStartRow, Bytes.padTail(ranges.last.getStopRow, 1))
+          val start = rangeFilter.getRowRanges.asScala.head.getStartRow
+          val end = Bytes.padTail(rangeFilter.getRowRanges.asScala.last.getStopRow, 1)
+          val scan = new Scan(start, end)
             .addFamily(reverseFamily)
             .setFilter(rangeFilter)
 
