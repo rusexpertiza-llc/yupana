@@ -27,13 +27,14 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, Metric, Table }
-import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
+import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, SparseTable, TimeBoundedCondition }
 import org.yupana.hbase.Filtration.TimeFilter
+
 import scala.collection.JavaConverters._
 import scala.language.higherKinds
 
@@ -125,7 +126,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
     val dictionary = dictionaryProvider.dictionary(dimension)
-    val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sorted.iterator
+    val ord = implicitly[DimOrdering[IdType]]
+    val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(ord.lt).iterator
     SortedSetIterator(it)
   }
 
@@ -531,7 +533,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   private def familiesQueried(query: InternalQuery): Set[Int] = {
     val groups = query.exprs.flatMap(_.requiredMetrics.map(_.group))
-
     if (groups.nonEmpty) {
       groups
     } else {
