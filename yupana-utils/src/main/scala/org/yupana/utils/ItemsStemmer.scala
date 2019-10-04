@@ -24,12 +24,13 @@ object ItemsStemmer extends Serializable {
   private val stemmer = new RussianLightStemmer()
   private val charSet = mutable.Set(
     '/', '.', ',', '\\', '%', '*'
-  )
-  charSet ++= '0' to '9'
-  charSet ++= 'a' to 'z'
-  charSet ++= 'A' to 'Z'
-  charSet ++= 'а' to 'я'
-  charSet ++= 'А' to 'Я'
+  ) ++
+    ('0' to '9') ++
+    ('a' to 'z') ++
+    ('A' to 'Z') ++
+    ('а' to 'я') ++
+    ('А' to 'Я')
+
   private val includedChars = Array.fill[Boolean](charSet.max + 1)(false)
   charSet.foreach { s =>
     includedChars(s) = true
