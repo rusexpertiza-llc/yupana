@@ -306,8 +306,8 @@ val releaseSettings = Seq(
     tagRelease,
     publishArtifacts,
     releaseStepCommand("sonatypeBundleRelease"),
-    setNextVersion,
-    commitNextVersion,
+//    setNextVersion,
+//    commitNextVersion,
     pushChanges
   )
 )
