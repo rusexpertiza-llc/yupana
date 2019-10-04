@@ -3,13 +3,16 @@ import ReleaseTransformations._
 
 lazy val yupana = (project in file("."))
   .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
-  .settings(noPublishSettings, commonSettings, crossScalaVersions := Nil)
+  .settings(
+    allSettings,
+    noPublishSettings,
+    crossScalaVersions := Nil
+  )
 
 lazy val api = (project in file("yupana-api"))
   .settings(
     name := "yupana-api",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
@@ -21,8 +24,7 @@ lazy val api = (project in file("yupana-api"))
 lazy val proto = (project in file("yupana-proto"))
   .settings(
     name := "yupana-proto",
-    commonSettings,
-    publishSettings,
+    allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
@@ -34,8 +36,7 @@ lazy val proto = (project in file("yupana-proto"))
 lazy val jdbc = (project in file("yupana-jdbc"))
   .settings(
     name := "yupana-jdbc",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
@@ -62,8 +63,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
 lazy val utils = (project in file ("yupana-utils"))
   .settings(
     name := "yupana-utils",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "org.apache.lucene"           %  "lucene-analyzers-common"       % versions.lucene,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest
@@ -73,8 +73,7 @@ lazy val utils = (project in file ("yupana-utils"))
 lazy val core = (project in file ("yupana-core"))
   .settings(
     name := "yupana-core",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse,
@@ -92,8 +91,7 @@ lazy val core = (project in file ("yupana-core"))
 lazy val hbase = (project in file("yupana-hbase"))
   .settings(
     name := "yupana-hbase",
-    commonSettings,
-    publishSettings,
+    allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
@@ -113,8 +111,7 @@ lazy val hbase = (project in file("yupana-hbase"))
 lazy val akka = (project in file("yupana-akka"))
   .settings(
     name := "yupana-akka",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-actor"                 % versions.akka,
       "com.typesafe.akka"             %% "akka-stream"                % versions.akka,
@@ -130,8 +127,7 @@ lazy val akka = (project in file("yupana-akka"))
 lazy val spark = (project in file("yupana-spark"))
   .settings(
     name := "yupana-spark",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
@@ -163,8 +159,7 @@ lazy val schema = (project in file("yupana-schema"))
 lazy val externalLinks = (project in file("yupana-external-links"))
   .settings(
     name := "yupana-external-links",
-    commonSettings,
-    publishSettings,
+    allSettings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
       "org.springframework"         %  "spring-jdbc"                % versions.spring,
@@ -178,13 +173,13 @@ lazy val externalLinks = (project in file("yupana-external-links"))
   .dependsOn(schema, core)
   .disablePlugins(AssemblyPlugin)
 
-val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
+lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
 
 lazy val examples = (project in file("yupana-examples"))
   .settings(
     name := "yupana-examples",
-    commonSettings,
-    publishSettings,
+    allSettings,
+    noPublishSettings,
     libraryDependencies ++= Seq(
       "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
@@ -298,21 +293,23 @@ val pbSettings = Seq(
   )
 )
 
-releaseCrossBuild := true
-
-releasePublishArtifactsAction := PgpKeys.publishSigned.value
-
-releaseProcess := Seq[ReleaseStep](
-  checkSnapshotDependencies,
-  inquireVersions,
-  runClean,
-  runTest,
-  setReleaseVersion,
-  commitReleaseVersion,
-  tagRelease,
-  publishArtifacts,
-  releaseStepCommand("sonatypeBundleRelease"),
-  setNextVersion,
-  commitNextVersion,
-  pushChanges
+val releaseSettings = Seq(
+  releaseCrossBuild := true,
+  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
+  releaseProcess := Seq[ReleaseStep](
+    checkSnapshotDependencies,
+    inquireVersions,
+    runClean,
+    runTest,
+    setReleaseVersion,
+    commitReleaseVersion,
+    tagRelease,
+    publishArtifacts,
+    releaseStepCommand("sonatypeBundleRelease"),
+    setNextVersion,
+    commitNextVersion,
+    pushChanges
+  )
 )
+
+val allSettings = commonSettings ++ publishSettings ++ releaseSettings
