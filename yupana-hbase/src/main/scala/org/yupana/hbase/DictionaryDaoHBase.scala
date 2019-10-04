@@ -24,7 +24,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
 import org.yupana.core.dao.DictionaryDao
 
-import scala.collection.JavaConverters
 import scala.collection.JavaConverters._
 
 object DictionaryDaoHBase {

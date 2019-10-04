@@ -1,4 +1,5 @@
 import scalapb.compiler.Version.scalapbVersion
+import ReleaseTransformations._
 
 lazy val yupana = (project in file("."))
   .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
@@ -273,7 +274,7 @@ val publishSettings = Seq(
     if (isSnapshot.value)
       Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
     else
-      Some("nexus common releases" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-release/")
+      Some("Sonatype OSS releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
   },
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
@@ -295,4 +296,23 @@ val pbSettings = Seq(
   Compile / PB.targets := Seq (
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )
+)
+
+releaseCrossBuild := true
+
+releasePublishArtifactsAction := PgpKeys.publishSigned.value
+
+releaseProcess := Seq[ReleaseStep](
+  checkSnapshotDependencies,
+  inquireVersions,
+  runClean,
+  runTest,
+  setReleaseVersion,
+  commitReleaseVersion,
+  tagRelease,
+  publishArtifacts,
+  releaseStepCommand("sonatypeBundleRelease"),
+  setNextVersion,
+  commitNextVersion,
+  pushChanges
 )
