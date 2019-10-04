@@ -45,22 +45,6 @@ object ConditionUtils {
     }
   }
 
-  def isTimeLimit(c: Condition): Boolean = {
-    c match {
-      case SimpleCondition(BinaryOperationExpr(op, _: TimeExpr.type, ConstantExpr(_))) =>
-        Set(">=", ">", "<=", "<").contains(op.name)
-      case _ => false
-    }
-  }
-
-  def isCatalogFilter(c: Condition): Boolean = {
-    c match {
-      case SimpleCondition(BinaryOperationExpr(op, _: LinkExpr, ConstantExpr(_))) => Set("==", "!=").contains(op.name)
-      case In(_: LinkExpr, _)                                                     => true
-      case NotIn(_: LinkExpr, _)                                                  => true
-    }
-  }
-
   def merge(a: Condition, b: Condition): Condition = {
     (a, b) match {
       case (EmptyCondition, x) => x
@@ -92,18 +76,6 @@ object ConditionUtils {
     val (a, b) = doSplit(c)
 
     (simplify(a), simplify(b))
-  }
-
-  def extractValues[T](condition: Condition, pf: PartialFunction[Condition, Seq[T]]): Seq[T] = {
-    pf.applyOrElse(
-      condition,
-      (c: Condition) =>
-        c match {
-          case Or(_)   => throw new IllegalArgumentException("OR is not supported yet")
-          case And(cs) => cs.flatMap(c => extractValues(c, pf))
-          case _       => Seq.empty
-        }
-    )
   }
 
   private def optimizeAnd(c: Condition): Seq[Condition] = {

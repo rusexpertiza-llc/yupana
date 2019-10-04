@@ -239,7 +239,7 @@ lazy val versions = new {
   val postgresqlJdbc = "42.2.6"
 
   val scalaTest = "3.0.8"
-  val scalaCheck = "1.14.0"
+  val scalaCheck = "1.14.2"
   val scalaMock = "4.4.0"
   val sparkTesting = s"${spark}_0.12.0"
 }
@@ -272,7 +272,7 @@ val publishSettings = Seq(
   credentials += Credentials(Path.userHome / ".ivy2" / ".credentials_nexus"),
   publishTo := {
     if (isSnapshot.value)
-      Some("nexus ru snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/ru-snapshots/")
+      Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
     else
       Some("Sonatype OSS releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
   },
