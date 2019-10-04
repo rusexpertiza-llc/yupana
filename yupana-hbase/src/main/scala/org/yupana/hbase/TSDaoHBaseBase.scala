@@ -20,22 +20,17 @@ import java.nio.ByteBuffer
 import java.util
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.client.Scan
-import org.apache.hadoop.hbase.filter.{ FilterList, FuzzyRowFilter, MultiRowRangeFilter }
-import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
-import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, Metric, Table }
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.utils.{ CollectionUtils, SparseTable, TimeBoundedCondition }
+import org.yupana.core.utils.{ SparseTable, TimeBoundedCondition }
 import org.yupana.hbase.Filtration.TimeFilter
 
-import scala.collection.JavaConverters._
 import scala.language.higherKinds
 
 trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
@@ -61,8 +56,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   )
 
   def executeScans(
-      table: Table,
-      scans: Iterator[Scan],
+      queryContext: InternalQueryContext,
+      from: Long,
+      to: Long,
+      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
       metricCollector: MetricQueryCollector
   ): Collection[TSDOutputRow[IdType]]
 
@@ -94,16 +91,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
-    val scans = dimFilter match {
+    val rangeScanDimIds = dimFilter match {
       case NoResult() => Iterator.empty
       case _ =>
         val rangeScanDimIterators = sizeLimitedRangeScanDims.map(d => d -> prefetchedDimIterators(d)).toMap
-        rangeScanFilters(query, from, to, rangeScanDimIterators).map { multiRowRangeFilter =>
-          createScan(query, multiRowRangeFilter, Seq.empty)
-        }
+        rangeScanFilters(query, from, to, rangeScanDimIterators)
     }
 
-    val rows = executeScans(query.table, scans, metricCollector)
+    val context = InternalQueryContext(query)
+
+    val rows = executeScans(context, from, to, rangeScanDimIds, metricCollector)
 
     val includeRowFilter = DimensionFilter(
       prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
@@ -112,7 +109,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val filtered = mr.filter(rows)(rowFilter)
 
-    val context = InternalQueryContext(query)
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
     mr.batchFlatMap(filtered)(
       10000,
@@ -150,90 +146,32 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     sizeLimitedRangeScanDims
   }
 
-  private def createScan(
-      query: InternalQuery,
-      multiRowRangeFilter: MultiRowRangeFilter,
-      hbaseFuzzyRowFilter: Seq[FuzzyRowFilter]
-  ): Scan = {
-
-    logger.trace(s"Create range scan for ${multiRowRangeFilter.getRowRanges.size()} ranges")
-
-    val start = multiRowRangeFilter.getRowRanges.asScala.head.getStartRow
-    val stop = multiRowRangeFilter.getRowRanges.asScala.toList.last.getStopRow
-
-    val hbaseFilter =
-      if (hbaseFuzzyRowFilter.nonEmpty) {
-        val orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFuzzyRowFilter: _*)
-        new FilterList(FilterList.Operator.MUST_PASS_ALL, multiRowRangeFilter, orFilter)
-      } else {
-        multiRowRangeFilter
-      }
-
-    val scan = new Scan(start, stop).setFilter(hbaseFilter)
-    familiesQueried(query).foreach(f => scan.addFamily(HBaseUtils.family(f)))
-    scan
-  }
-
   private def rangeScanFilters(
       query: InternalQuery,
       from: IdType,
       to: IdType,
       dimensionIds: Map[Dimension, PrefetchedSortedSetIterator[IdType]]
-  ): Iterator[MultiRowRangeFilter] = {
+  ): Iterator[Map[Dimension, Seq[IdType]]] = {
 
-    val startBaseTime = from - (from % query.table.rowTimeSpan)
-    val stopBaseTime = to - (to % query.table.rowTimeSpan)
-    val baseTimeList = startBaseTime to stopBaseTime by query.table.rowTimeSpan
-
-    val aligned = query.table.dimensionSeq.flatMap(d => dimensionIds.get(d).map(ids => d -> ids)).toList
-    val (completelyFetchedDimIts, partiallyFetchedDimIts) = aligned.partition(_._2.isAllFetched)
+    val (completelyFetchedDimIts, partiallyFetchedDimIts) = dimensionIds.partition(_._2.isAllFetched)
 
     if (partiallyFetchedDimIts.size > 1) {
       throw new IllegalStateException(
         s"More then one dimension in query have size greater " +
-          s"than $RANGE_FILTERS_LIMIT [${partiallyFetchedDimIts.map(_._1).mkString(", ")}]"
+          s"than $RANGE_FILTERS_LIMIT [${partiallyFetchedDimIts.keys.mkString(", ")}]"
       )
     }
 
-    val crossJoinedDimIds = {
-      val c = CollectionUtils.crossJoin(completelyFetchedDimIts.map(_._2.fetched.toList))
-      if (c.nonEmpty) c else List(List())
-    }
+    val fetchedDimIds = completelyFetchedDimIts.map { case (dim, ids) => dim -> ids.fetched.toSeq }
 
-    val dimIndex = completelyFetchedDimIts.map {
-      case (dim, _) =>
-        query.table.dimensionSeq.indexOf(dim)
-    }.toArray
-
-    val hbaseRowRanges = partiallyFetchedDimIts.headOption match {
+    partiallyFetchedDimIts.headOption match {
       case Some((pd, pids)) =>
-        val pIdx = query.table.dimensionSeq.indexOf(pd)
-        for {
-          pid <- pids
-          time <- baseTimeList
-          cids <- crossJoinedDimIds
-        } yield {
-          val filter = Array.ofDim[IdType](dimIndex.length + 1)
-          filter(pIdx) = pid
-          cids.foldLeft(0) { (i, id) =>
-            val idx = dimIndex(i)
-            filter(idx) = id
-            i + 1
-          }
-          rowRange(time, filter)
+        pids.grouped(RANGE_FILTERS_LIMIT).map { batch =>
+          fetchedDimIds + (pd -> batch)
         }
-      case None =>
-        val ranges = for {
-          time <- baseTimeList
-          cids <- crossJoinedDimIds
-        } yield {
-          rowRange(time, cids.toArray)
-        }
-        ranges.toIterator
-    }
 
-    hbaseRowRanges.grouped(RANGE_FILTERS_LIMIT).map { ranges =>
-      new MultiRowRangeFilter(new util.ArrayList(ranges.asJava))
+      case None =>
+        Iterator(fetchedDimIds)
     }
   }
 
@@ -480,25 +418,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def rowRange(baseTime: IdType, dimIds: Array[IdType]) = {
-    val timeInc = if (dimIds.isEmpty) 1 else 0
-
-    val bufSize = (dimIds.length + 1) * Bytes.SIZEOF_LONG
-
-    val startBuffer = ByteBuffer.allocate(bufSize)
-    val stopBuffer = ByteBuffer.allocate(bufSize)
-    startBuffer.put(Bytes.toBytes(baseTime))
-    stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
-    dimIds.indices.foreach { i =>
-      val vb = dimIds(i)
-      startBuffer.put(Bytes.toBytes(vb))
-      val ve = if (i < dimIds.length - 1) vb else vb + 1
-      stopBuffer.put(Bytes.toBytes(ve))
-    }
-
-    new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
-  }
-
   private def rowsForDims(
       indexedRows: Seq[(TSDOutputRow[IdType], Int)],
       context: InternalQueryContext
@@ -529,14 +448,5 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
 
     allValues.foldLeft(SparseTable.empty[Int, Dimension, String])(_ ++ _)
-  }
-
-  private def familiesQueried(query: InternalQuery): Set[Int] = {
-    val groups = query.exprs.flatMap(_.requiredMetrics.map(_.group))
-    if (groups.nonEmpty) {
-      groups
-    } else {
-      Set(Metric.defaultGroup)
-    }
   }
 }

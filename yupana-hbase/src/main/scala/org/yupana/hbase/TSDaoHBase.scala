@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Connection, Get, Put, Scan }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.Table
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -41,36 +41,41 @@ class TSDaoHBase(
   override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
   override def executeScans(
-      table: Table,
-      scans: Iterator[Scan],
+      queryContext: InternalQueryContext,
+      from: IdType,
+      to: IdType,
+      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
       metricCollector: MetricQueryCollector
-  ): Iterator[TSDOutputRow[Long]] = {
-    import HBaseUtils._
+  ): Iterator[TSDOutputRow[IdType]] = {
 
-    if (scans.nonEmpty) {
-      val htable = connection.getTable(tableName(namespace, table))
-
-      scans.flatMap { scan =>
-        scan.setScanMetricsEnabled(metricCollector.isEnabled)
-        val scanner = htable.getScanner(scan)
-        val scannerIterator = scanner.iterator()
-        val it = new AbstractIterator[TSDOutputRow[Long]] {
-          override def hasNext: Boolean = metricCollector.getResult.measure {
-            val hasNext = scannerIterator.hasNext
-            if (!hasNext && scan.isScanMetricsEnabled) {
-              logger.info(s"query_uuid: ${metricCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}")
-            }
-            hasNext
-          }
-
-          override def next(): TSDOutputRow[Long] = metricCollector.parseResult.measure {
-            getTsdRowFromResult(table, scannerIterator.next())
-          }
-        }
-        it
+    if (rangeScanDims.nonEmpty) {
+      rangeScanDims.flatMap { dimIds =>
+        val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
+        val scan = createScan(queryContext, filter, Seq.empty, from, to)
+        executeScan(connection, scan, queryContext.table, metricCollector)
       }
     } else {
       Iterator.empty
+    }
+  }
+
+  def executeScan(connection: Connection, scan: Scan, table: Table, metricCollector: MetricQueryCollector) = {
+    val htable = connection.getTable(tableName(namespace, table))
+    scan.setScanMetricsEnabled(metricCollector.isEnabled)
+    val scanner = htable.getScanner(scan)
+    val scannerIterator = scanner.iterator()
+    new AbstractIterator[TSDOutputRow[IdType]] {
+      override def hasNext: Boolean = metricCollector.getResult.measure {
+        val hasNext = scannerIterator.hasNext
+        if (!hasNext && scan.isScanMetricsEnabled) {
+          logger.info(s"query_uuid: ${metricCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}")
+        }
+        hasNext
+      }
+
+      override def next(): TSDOutputRow[IdType] = metricCollector.parseResult.measure {
+        getTsdRowFromResult(table, scannerIterator.next())
+      }
     }
   }
 

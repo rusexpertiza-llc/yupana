@@ -13,7 +13,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimIdIn, DimIdNotIn, Expression }
-import org.yupana.api.schema.Table
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.api.types.Writable
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
@@ -1026,11 +1026,17 @@ class TSDaoHBaseTest
     override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
     override def executeScans(
-        table: Table,
-        queries: Iterator[Scan],
+        queryContext: InternalQueryContext,
+        from: IdType,
+        to: IdType,
+        rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
         metricCollector: MetricQueryCollector
-    ): Iterator[TSDOutputRow[Long]] = {
-      queryRunner(queries.toSeq)
+    ): Iterator[TSDOutputRow[IdType]] = {
+      val scans = rangeScanDims.map { dimIds =>
+        val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
+        HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
+      }
+      queryRunner(scans.toSeq)
     }
   }
 
