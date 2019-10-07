@@ -21,6 +21,7 @@ import java.nio.ByteBuffer
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => _, _ }
+import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
@@ -28,11 +29,13 @@ import org.apache.hadoop.hbase.util.{ Bytes, Pair }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.utils.CollectionUtils
 
-import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.collection.JavaConverters._
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 
 object HBaseUtils extends StrictLogging {
+
   val tableNamePrefix: String = "ts_"
   val rollupStatusFamily: Array[Byte] = "v".getBytes
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
@@ -50,6 +53,12 @@ object HBaseUtils extends StrictLogging {
 
   def restTime(time: Long, table: Table): Long = {
     time % table.rowTimeSpan
+  }
+
+  def baseTimeList(fromTime: Long, toTime: Long, table: Table) = {
+    val startBaseTime = fromTime - (fromTime % table.rowTimeSpan)
+    val stopBaseTime = toTime - (toTime % table.rowTimeSpan)
+    startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
   def createTsdRows(
@@ -81,6 +90,121 @@ object HBaseUtils extends StrictLogging {
         }
     }
     put
+  }
+
+  def createScan(
+      queryContext: InternalQueryContext,
+      multiRowRangeFilter: Option[MultiRowRangeFilter],
+      hbaseFuzzyRowFilter: Seq[FuzzyRowFilter],
+      fromTime: Long,
+      toTime: Long,
+      startRowKey: Option[Array[Byte]] = None,
+      endRowKey: Option[Array[Byte]] = None
+  ): Scan = {
+
+    logger.trace(s"Create range scan for ${multiRowRangeFilter.map(_.getRowRanges.size())} ranges")
+
+    val rangeStartKey = multiRowRangeFilter.map(_.getRowRanges.asScala.head.getStartRow)
+    val rangeStopKey = multiRowRangeFilter.map(_.getRowRanges.asScala.toList.last.getStopRow)
+
+    val fromTimeKey = Bytes.toBytes(baseTime(fromTime, queryContext.table))
+    val toTimeKey = Bytes.toBytes(baseTime(toTime, queryContext.table) + 1)
+
+    val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
+      .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+
+    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey.filter(_.nonEmpty).map(Bytes.padTail(_, 1))).flatten
+      .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+
+    val filter = multiRowRangeFilter match {
+      case Some(rangeFilter) =>
+        if (hbaseFuzzyRowFilter.nonEmpty) {
+          val orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFuzzyRowFilter: _*)
+          Some(new FilterList(FilterList.Operator.MUST_PASS_ALL, rangeFilter, orFilter))
+        } else {
+          Some(rangeFilter)
+        }
+      case None =>
+        if (hbaseFuzzyRowFilter.nonEmpty) {
+          Some(new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFuzzyRowFilter: _*))
+        } else {
+          None
+        }
+    }
+
+    val scan = new Scan(startKey, stopKey)
+    filter.foreach(scan.setFilter)
+
+    familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
+    scan
+  }
+
+  def multiRowRangeFilter(
+      table: Table,
+      from: Long,
+      to: Long,
+      dimIds: Map[Dimension, Seq[Long]]
+  ): Option[MultiRowRangeFilter] = {
+
+    val baseTimeLs = baseTimeList(from, to, table)
+
+    val dimIdsList = dimIds.toList.map { case (dim, ids) => dim -> ids.toList }
+    val dimIndex = dimIdsList.map {
+      case (dim, _) =>
+        table.dimensionSeq.indexOf(dim)
+    }.toArray
+
+    val crossJoinedDimIds = {
+      CollectionUtils.crossJoin(dimIdsList.map(_._2))
+    }
+
+    val ranges = for {
+      time <- baseTimeLs
+      cids <- crossJoinedDimIds if cids.nonEmpty
+    } yield {
+      val filter = Array.ofDim[Long](dimIndex.length)
+      cids.foldLeft(0) { (i, id) =>
+        val idx = dimIndex(i)
+        filter(idx) = id
+        i + 1
+      }
+      rowRange(time, filter)
+    }
+
+    if (ranges.nonEmpty) {
+      val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+      Some(filter)
+    } else {
+      None
+    }
+  }
+
+  private def rowRange(baseTime: Long, dimIds: Array[Long]) = {
+    val timeInc = if (dimIds.isEmpty) 1 else 0
+
+    val bufSize = (dimIds.length + 1) * Bytes.SIZEOF_LONG
+
+    val startBuffer = ByteBuffer.allocate(bufSize)
+    val stopBuffer = ByteBuffer.allocate(bufSize)
+    startBuffer.put(Bytes.toBytes(baseTime))
+    stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
+    dimIds.indices.foreach { i =>
+      val vb = dimIds(i)
+      startBuffer.put(Bytes.toBytes(vb))
+      val ve = if (i < dimIds.length - 1) vb else vb + 1
+      stopBuffer.put(Bytes.toBytes(ve))
+    }
+
+    new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
+  }
+
+  private def familiesQueried(queryContext: InternalQueryContext): Set[Int] = {
+    val groups = queryContext.exprs.flatMap(_.requiredMetrics.map(_.group))
+    if (groups.nonEmpty) {
+      groups
+    } else {
+      Set(Metric.defaultGroup)
+    }
   }
 
   def tableNameString(namespace: String, table: Table): String = {
