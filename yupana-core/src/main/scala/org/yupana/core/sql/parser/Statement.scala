@@ -31,6 +31,11 @@ case object ShowTables extends Statement
 
 case class ShowColumns(table: String) extends Statement
 
-case class ShowQueries(id: Option[String], limit: Option[Int]) extends Statement
+case class MetricsFilter(id: Option[Long] = None, queryId: Option[String] = None, state: Option[String] = None)
+    extends Statement
 
-case class KillQuery(id: String) extends Statement
+case class ShowQueryMetrics(filter: Option[MetricsFilter], limit: Option[Int]) extends Statement
+
+case class KillQuery(filter: MetricsFilter) extends Statement
+
+case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement

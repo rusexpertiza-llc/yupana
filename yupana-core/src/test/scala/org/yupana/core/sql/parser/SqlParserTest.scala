@@ -890,20 +890,58 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     parser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
 
-  it should "parse SHOW QUERIES statements" in {
-    parser.parse("SHOW QUERIES") shouldBe Right(ShowQueries(None, None))
+  it should "parse SHOW QUERY_METRICS statements" in {
+    parser.parse("SHOW QUERY_METRICS") shouldBe Right(ShowQueryMetrics(None, None))
   }
 
-  it should "parse SHOW QUERIES statements with limit" in {
-    parser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueries(None, Some(1)))
+  it should "parse SHOW QUERY_METRICS statements with limit" in {
+    parser.parse("SHOW QUERY_METRICS LIMIT 1") shouldBe Right(ShowQueryMetrics(None, Some(1)))
   }
 
-  it should "parse SHOW QUERIES statements with id" in {
-    parser.parse("SHOW QUERIES WHERE ID = '1'") shouldBe Right(ShowQueries(Some("1"), None))
+  it should "parse SHOW QUERY_METRICS statements with id" in {
+    parser.parse("SHOW QUERY_METRICS WHERE METRIC_ID = 1") shouldBe Right(
+      ShowQueryMetrics(Some(MetricsFilter(id = Some(1L))), None)
+    )
+  }
+
+  it should "parse SHOW QUERY_METRICS statements with query_id" in {
+    parser.parse("SHOW QUERY_METRICS WHERE QUERY_ID = '1'") shouldBe Right(
+      ShowQueryMetrics(Some(MetricsFilter(queryId = Some("1"))), None)
+    )
+  }
+
+  it should "parse SHOW QUERY_METRICS statements with state" in {
+    parser.parse("SHOW QUERY_METRICS WHERE STATE = 'RUNNING'") shouldBe Right(
+      ShowQueryMetrics(Some(MetricsFilter(state = Some("RUNNING"))), None)
+    )
   }
 
   it should "parse KILL QUERY statements with id" in {
-    parser.parse("KILL QUERY WHERE id = '1'") shouldBe Right(KillQuery("1"))
+    parser.parse("KILL QUERY WHERE METRIC_ID = 1") shouldBe Right(KillQuery(MetricsFilter(id = Some(1L))))
+  }
+
+  it should "parse KILL QUERY statements with query_id" in {
+    parser.parse("KILL QUERY WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+      KillQuery(MetricsFilter(queryId = Some("qwe123")))
+    )
+  }
+
+  it should "parse DELETE QUERY_METRICS statements with id" in {
+    parser.parse("DELETE QUERY_METRICS WHERE METRIC_ID = 1") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(id = Some(1L)))
+    )
+  }
+
+  it should "parse DELETE QUERY_METRICS statements with query_id" in {
+    parser.parse("DELETE QUERY_METRICS WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(queryId = Some("qwe123")))
+    )
+  }
+
+  it should "parse DELETE QUERY_METRICS statements with state" in {
+    parser.parse("DELETE QUERY_METRICS WHERE STATE = 'FINISHED'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(state = Some("FINISHED")))
+    )
   }
 
   it should "support functions as conditions" in {
@@ -1014,14 +1052,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect SELECT | SHOW | KILL, but got "INSERT""")
+        msg should include("""Expect SELECT | SHOW | KILL | DELETE, but got "INSERT""")
     }
   }
 
   it should "produce error on unknown show" in {
     errorMessage("SHOW functions") {
       case msg =>
-        msg should include("""Expect COLUMNS | TABLES | QUERIES, but got "functions""")
+        msg should include("""Expect COLUMNS | TABLES | METRICS, but got "functions""")
     }
   }
 

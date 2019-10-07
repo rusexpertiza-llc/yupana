@@ -21,16 +21,25 @@ import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
 
 trait TsdbQueryMetricsDao {
-  def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit
-  def queriesByFilter(filter: QueryMetricsFilter): Iterable[TsdbQueryMetrics]
+  def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long
+
+  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics]
+
   def updateQueryMetrics(
-      queryId: String,
+      queryMetricsId: Long,
       queryState: QueryState,
       totalDuration: Double,
       metricValues: Map[String, MetricData],
       sparkQuery: Boolean
   ): Unit
-  def setQueryState(queryId: String, queryState: QueryState): Boolean
+
+  def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit
+
+  def deleteMetrics(filter: QueryMetricsFilter): Int
 }
 
-case class QueryMetricsFilter(queryId: Option[String], limit: Int = 1)
+case class QueryMetricsFilter(
+    queryMetricsId: Option[Long] = None,
+    queryId: Option[String] = None,
+    queryState: Option[QueryState] = None
+)

@@ -22,46 +22,60 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.QueryStates
+import org.yupana.core.sql.parser.MetricsFilter
 
 object QueryInfoProvider {
 
-  def handleShowQueries(tsdb: TSDB, queryId: Option[String], limit: Int = 20): Result = {
+  private def getFilter(sqlFilter: MetricsFilter): QueryMetricsFilter = {
+    QueryMetricsFilter(
+      queryMetricsId = sqlFilter.id,
+      queryId = sqlFilter.queryId,
+      queryState = sqlFilter.state.map(s => QueryStates.getByName(s))
+    )
+  }
+
+  def handleShowQueries(tsdb: TSDB, sqlFilter: Option[MetricsFilter], limit: Option[Int]): Result = {
     import org.yupana.core.model.TsdbQueryMetrics._
 
-    val queries = tsdb.metricsDao.queriesByFilter(
-      QueryMetricsFilter(
-        limit = limit,
-        queryId = queryId
-      )
-    )
-    val data: Iterator[Array[Option[Any]]] = queries.map { query =>
+    val filter = sqlFilter.map(getFilter)
+    val metrics = tsdb.metricsDao.queriesByFilter(filter, limit)
+    val data: Iterator[Array[Option[Any]]] = metrics.map { queryMetrics =>
       Array[Option[Any]](
-        Some(query.queryId),
-        Some(query.state.name),
-        Some(query.query),
-        Some(Time(query.startDate)),
-        Some(query.totalDuration)
+        Some(queryMetrics.id),
+        Some(queryMetrics.queryId),
+        Some(queryMetrics.state.name),
+        Some(queryMetrics.query),
+        Some(Time(queryMetrics.startDate)),
+        Some(queryMetrics.totalDuration)
       ) ++ qualifiers.flatMap { q =>
-        val metric = query.metrics(q)
+        val metric = queryMetrics.metrics(q)
         Array(Some(metric.count.toDouble), Some(metric.time), Some(metric.speed))
       }
     }.iterator
 
-    val queryFieldNames = List(queryIdColumn, stateColumn, queryColumn, startDateColumn, totalDurationColumn) ++
+    val queryFieldNames = List(idColumn, queryIdColumn, stateColumn, queryColumn, startDateColumn, totalDurationColumn) ++
       qualifiers.flatMap(q => List(q + "_" + metricCount, q + "_" + metricTime, q + "_" + metricSpeed))
 
-    val queryFieldTypes = List(DataType[String], DataType[String], DataType[String], DataType[Time], DataType[Double]) ++
+    val queryFieldTypes = List(
+      DataType[Long],
+      DataType[String],
+      DataType[String],
+      DataType[String],
+      DataType[Time],
+      DataType[Double]
+    ) ++
       (0 until qualifiers.size * 3).map(_ => DataType[Double])
 
     SimpleResult(queryFieldNames, queryFieldTypes, data)
   }
 
-  def handleKillQuery(tsdb: TSDB, id: String): Result = {
-    val result = if (tsdb.metricsDao.setQueryState(id, QueryStates.Cancelled)) {
-      "OK"
-    } else {
-      "QUERY NOT FOUND"
-    }
-    SimpleResult(List("RESULT"), List(DataType[String]), Iterator(Array(Some(result))))
+  def handleKillQuery(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
+    tsdb.metricsDao.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
+    SimpleResult(List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
+  }
+
+  def handleDeleteQueryMetrics(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
+    val deleted = tsdb.metricsDao.deleteMetrics(getFilter(sqlFilter))
+    SimpleResult(List("DELETED"), List(DataType[Int]), Iterator(Array(Some(deleted))))
   }
 }

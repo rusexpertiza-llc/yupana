@@ -26,8 +26,8 @@ class SqlParser extends ValueParser {
   private val showWord = P(IgnoreCase("SHOW"))
   private val tablesWord = P(IgnoreCase("TABLES"))
   private val columnsWord = P(IgnoreCase("COLUMNS"))
-  private val queriesWord = P(IgnoreCase("QUERIES"))
   private val queryWord = P(IgnoreCase("QUERY"))
+  private val queryMetricsWord = P(IgnoreCase("QUERY_METRICS"))
   private val fromWord = P(IgnoreCase("FROM"))
   private val whereWord = P(IgnoreCase("WHERE"))
   private val andWord = P(IgnoreCase("AND"))
@@ -45,8 +45,11 @@ class SqlParser extends ValueParser {
   private val isWord = P(IgnoreCase("IS"))
   private val nullWord = P(IgnoreCase("NULL"))
   private val notWord = P(IgnoreCase("NOT"))
-  private val idWord = P(IgnoreCase("ID"))
+  private val metricIdWord = P(IgnoreCase("METRIC_ID"))
+  private val queryIdWord = P(IgnoreCase("QUERY_ID"))
+  private val stateWord = P(IgnoreCase("STATE"))
   private val killWord = P(IgnoreCase("KILL"))
+  private val deleteWord = P(IgnoreCase("DELETE"))
   private val keywords = Set(
     "select",
     "from",
@@ -228,17 +231,29 @@ class SqlParser extends ValueParser {
 
   val columns: Parser[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
 
-  val queryFilter: Parser[String] = P(whereWord ~ idWord ~ "=" ~/ string)
+  val metricIdFilter: Parser[MetricsFilter] =
+    P(metricIdWord ~ "=" ~/ longNumber).map(id => MetricsFilter(id = Some(id)))
+  val metricQueryIdFilter: Parser[MetricsFilter] =
+    P(queryIdWord ~ "=" ~/ string).map(queryId => MetricsFilter(queryId = Some(queryId)))
+  val metricStateFilter: Parser[MetricsFilter] =
+    P(stateWord ~ "=" ~/ string).map(state => MetricsFilter(state = Some(state)))
+  val queryMetricsFilter: Parser[MetricsFilter] = P(
+    whereWord ~ (metricIdFilter | metricQueryIdFilter | metricStateFilter)
+  )
 
-  val queries: Parser[ShowQueries] = P(queriesWord ~/ queryFilter.? ~/ limit.?).map(ShowQueries.tupled)
+  val metrics: Parser[ShowQueryMetrics] =
+    P(queryMetricsWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
-  val query: Parser[KillQuery] = P(queryWord ~/ queryFilter).map(KillQuery)
+  val query: Parser[KillQuery] = P(queryWord ~/ whereWord ~ (metricIdFilter | metricQueryIdFilter)).map(KillQuery)
 
-  val show: Parser[Statement] = P(showWord ~/ (columns | tables | queries))
+  val show: Parser[Statement] = P(showWord ~/ (columns | tables | metrics))
 
   val kill: Parser[Statement] = P(killWord ~/ query)
 
-  val statement: Parser[Statement] = P((select | show | kill) ~ ";".? ~ End)
+  val delete: Parser[DeleteQueryMetrics] =
+    P(deleteWord ~/ queryMetricsWord ~/ queryMetricsFilter).map(DeleteQueryMetrics)
+
+  val statement: Parser[Statement] = P((select | show | kill | delete) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
     statement.parse(sql.trim) match {

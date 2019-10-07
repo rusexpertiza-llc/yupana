@@ -58,8 +58,8 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   override val getResult: PersistentMetricImpl = createMetric(getResultQualifier)
   override val parseResult: PersistentMetricImpl = createMetric(parseResultQualifier)
 
-  logger.info(s"${query.uuidLog}; operation: $operationName started, query: $query")
-  collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
+  private val queryMetricsId = collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
+  logger.info(s"$queryMetricsId - ${query.uuidLog}; operation: $operationName started, query: $query")
 
   private val dynamicMetrics = mutable.Map.empty[String, PersistentMetricImpl]
   private val startTime = System.nanoTime()
@@ -118,7 +118,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
     val duration = totalDuration
     collectorContext
       .metricsDao()
-      .updateQueryMetrics(uuid, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
+      .updateQueryMetrics(queryMetricsId, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
   }
 
   override def finish(): Unit = {
@@ -127,11 +127,13 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
     }
     getMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
-        s"${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
+        s"$queryMetricsId - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
       )
     }
     updateQueryMetrics(QueryStates.Finished)
-    logger.info(s"${query.uuidLog}; operation: $operationName finished; time: $totalDuration; query: $query")
+    logger.info(
+      s"$queryMetricsId - ${query.uuidLog}; operation: $operationName finished; time: $totalDuration; query: $query"
+    )
   }
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
