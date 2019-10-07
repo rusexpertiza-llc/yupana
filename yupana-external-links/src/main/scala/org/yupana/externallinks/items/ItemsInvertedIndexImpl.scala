@@ -79,7 +79,6 @@ object ItemsInvertedIndexImpl {
     filtered
       .map(Transliterator.transliterate)
       .filter(_.nonEmpty)
-      .sorted
   }
 }
 
@@ -104,6 +103,10 @@ class ItemsInvertedIndexImpl(
 
   def dimIdsForStemmedWord(word: String): SortedSetIterator[Long] = {
     invertedIndexDao.values(word)
+  }
+
+  def dimIdsForPrefix(prefix: String): SortedSetIterator[Long] = {
+    invertedIndexDao.valuesByPrefix(prefix)
   }
 
   def dimIdsForStemmedWordsCached(word: String, synonyms: Set[String]): Set[Long] = {
@@ -139,10 +142,14 @@ class ItemsInvertedIndexImpl(
   }
 
   def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
-    val words = stemmed(phrase)
-    val idsPerWord = words.map { w =>
-      dimIdsForStemmedWord(w)
-    }
-    SortedSetIterator.intersectAll(idsPerWord)
+    val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
+
+    val stemmedWords = words.map(ItemsStemmer.stem).map(Transliterator.transliterate)
+
+    val idsPerWord = stemmedWords.map(dimIdsForStemmedWord)
+
+    val transPrefixes = prefixes.map(s => Transliterator.transliterate(s.substring(0, s.length - 1)))
+    val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
+    SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
   }
 }
