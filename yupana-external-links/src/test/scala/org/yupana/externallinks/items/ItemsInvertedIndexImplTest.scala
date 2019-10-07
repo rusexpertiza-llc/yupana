@@ -48,7 +48,7 @@ class ItemsInvertedIndexImplTest
         ),
         neq(
           link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
-          const("хол.копчения")
+          const("хол копчения")
         )
       )
     )
