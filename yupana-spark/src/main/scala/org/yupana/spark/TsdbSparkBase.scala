@@ -83,7 +83,9 @@ abstract class TsdbSparkBase(
     case None =>
       logger.info("TsdbQueryMetricsDao initialization...")
       val hbaseConnection = ConnectionFactory.createConnection(TsdbSparkBase.hbaseConfiguration(conf))
-      new TsdbQueryMetricsDaoHBase(hbaseConnection, conf.hbaseNamespace)
+      val dao = new TsdbQueryMetricsDaoHBase(hbaseConnection, conf.hbaseNamespace)
+      TsdbSparkBase.metricsDao = Some(dao)
+      dao
     case Some(d) => d
   }
 
