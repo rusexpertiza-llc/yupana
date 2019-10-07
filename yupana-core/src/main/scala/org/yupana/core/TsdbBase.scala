@@ -92,11 +92,12 @@ trait TsdbBase extends StrictLogging {
     */
   def query(query: Query): Result = {
 
-    logger.info(s"TSDB query with ${query.uuidLog} start: " + query)
+    val preparedQuery = prepareQuery(query)
+    logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val metricCollector = createMetricCollector(query)
+    val metricCollector = createMetricCollector(preparedQuery)
 
-    val simplified = ConditionUtils.simplify(query.filter)
+    val simplified = ConditionUtils.simplify(preparedQuery.filter)
 
     val substitutedCondition = substituteLinks(simplified, metricCollector)
     logger.debug(s"Substituted condition: $substitutedCondition")
@@ -105,7 +106,7 @@ trait TsdbBase extends StrictLogging {
 
     logger.debug(s"Post condition: $postCondition")
 
-    val queryContext = QueryContext(query, postCondition)
+    val queryContext = QueryContext(preparedQuery, postCondition)
 
     val daoExprs = queryContext.bottomExprs.collect {
       case e: DimensionExpr => e
