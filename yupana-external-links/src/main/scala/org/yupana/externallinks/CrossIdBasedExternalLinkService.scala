@@ -17,7 +17,7 @@
 package org.yupana.externallinks
 
 import org.yupana.api.schema.ExternalLink
-import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.TsdbBase
 import org.yupana.core.utils.CollectionUtils
 
@@ -38,8 +38,7 @@ abstract class CrossIdBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase
     val dimIds = crossed.flatMap { vs =>
       dimIdsForCrossJoinedValues(vs)
     }
-    val ord = implicitly[DimOrdering[Long]]
-    SortedSetIterator(dimIds.sortWith(ord.lt).iterator)
+    SortedSetIterator(dimIds.sorted.iterator)
   }
 
   override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
@@ -47,7 +46,6 @@ abstract class CrossIdBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase
       case (k, vs) =>
         vs.flatMap(v => dimIdsForCrossJoinedValues(Map(k -> v)))
     }
-    val ord = implicitly[DimOrdering[Long]]
-    SortedSetIterator(dimIds.sortWith(ord.lt).iterator)
+    SortedSetIterator(dimIds.sorted.iterator)
   }
 }

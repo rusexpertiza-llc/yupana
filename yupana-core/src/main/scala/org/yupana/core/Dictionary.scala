@@ -18,15 +18,15 @@ package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.schema.Dimension
-import org.yupana.core.cache.CacheFactory
+import org.yupana.core.cache.{ BoxingTag, CacheFactory }
 import org.yupana.core.dao.DictionaryDao
 
-class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging {
-  private val cache = CacheFactory.initCache[Long, String](s"dictionary-${dimension.name}")
+class Dictionary[K: BoxingTag](dimension: Dimension, dao: DictionaryDao[K]) extends StrictLogging {
+  private val cache = CacheFactory.initCache[K, String](s"dictionary-${dimension.name}")
   private val absentsCache = CacheFactory.initCache[String, Boolean](s"dictionary-absents-${dimension.name}")
-  private val reverseCache = CacheFactory.initCache[String, Long](s"dictionary-reverse-${dimension.name}")
+  private val reverseCache = CacheFactory.initCache[String, K](s"dictionary-reverse-${dimension.name}")
 
-  def value(id: Long): Option[String] = {
+  def value(id: K): Option[String] = {
     cache.get(id) match {
       case Some(v) => Some(v)
       case None =>
@@ -47,7 +47,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-  def values(ids: Set[Long]): Map[Long, String] = {
+  def values(ids: Set[K]): Map[K, String] = {
     val fromCache = cache.getAll(ids)
 
     val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
@@ -70,7 +70,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     fromCache ++ fromDB
   }
 
-  def findIdByValue(value: String): Option[Long] = {
+  def findIdByValue(value: String): Option[K] = {
     val trimmed = trimValue(value)
     reverseCache.get(trimmed).orElse {
       dao.getIdByValue(dimension, trimmed).map { id =>
@@ -80,7 +80,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-  def findIdsByValues(values: Set[String]): Map[String, Long] = {
+  def findIdsByValues(values: Set[String]): Map[String, K] = {
     val trimmed = values.map(v => v -> trimValue(v)).toMap
     if (trimmed.nonEmpty) {
       val ids = getIdsByValues(trimmed.values.toSet)
@@ -90,14 +90,14 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-  def id(value: String): Long = {
+  def id(value: String): K = {
     val v = trimValue(value)
     findIdByValue(v).getOrElse {
       put(v)
     }
   }
 
-  def getOrCreateIdsForValues(values: Set[String]): Map[String, Long] = {
+  def getOrCreateIdsForValues(values: Set[String]): Map[String, K] = {
     val trimmed = values.map(trimValue)
     val exists = getIdsByValues(trimmed)
     val notExists = trimmed -- exists.keySet
@@ -107,10 +107,10 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     added ++ exists
   }
 
-  private def put(v: String): Long = {
+  private def put(v: String): K = {
     val hash = dimension.hash(v)
 
-    val genId = (hash.toLong << 32) | generateId()
+    val genId = dao.generateId(dimension, hash)
     val id = if (dao.checkAndPut(dimension, genId, v)) {
       genId
     } else {
@@ -124,7 +124,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     id
   }
 
-  private def getIdsByValues(trimmed: Set[String]): Map[String, Long] = {
+  private def getIdsByValues(trimmed: Set[String]): Map[String, K] = {
     val fromCache = reverseCache.getAll(trimmed)
     val notInCacheValues = trimmed -- fromCache.keySet
 
@@ -137,24 +137,20 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-  private def updateCache(id: Long, value: String): Unit = {
+  private def updateCache(id: K, value: String): Unit = {
     cache.put(id, value)
   }
 
-  private def updateReverseCache(normValue: String, id: Long): Unit = {
+  private def updateReverseCache(normValue: String, id: K): Unit = {
     reverseCache.put(normValue, id)
   }
 
-  private def markAsAbsent(id: Long): Unit = {
+  private def markAsAbsent(id: K): Unit = {
     absentsCache.put(id.toString, true)
   }
 
-  private def isMarkedAsAbsent(id: Long): Boolean = {
+  private def isMarkedAsAbsent(id: K): Boolean = {
     absentsCache.get(id.toString).getOrElse(false)
-  }
-
-  private def generateId(): Int = {
-    dao.createSeqId(dimension)
   }
 
   private def trimValue(value: String): String = {

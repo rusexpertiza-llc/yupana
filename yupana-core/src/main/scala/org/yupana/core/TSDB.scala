@@ -27,14 +27,14 @@ import org.yupana.core.utils.metric._
 import scala.collection.AbstractIterator
 
 // NOTE: dao is TSDaoHBase because TSDB has put and rollup related method.  Possible it better to not have them here
-class TSDB(
-    override val dao: TSDao[Iterator, Long],
+class TSDB[IdType](
+    override val dao: TSDao[Iterator, IdType],
     val metricsDao: TsdbQueryMetricsDao,
-    override val dictionaryProvider: DictionaryProvider,
+    override val dictionaryProvider: DictionaryProvider[IdType],
     override val prepareQuery: Query => Query,
     override val extractBatchSize: Int = 10000,
     config: TSDBConfig = TSDBConfig()
-) extends TsdbBase
+) extends TsdbBase[IdType]
     with StrictLogging {
 
   override type Collection[X] = Iterator[X]

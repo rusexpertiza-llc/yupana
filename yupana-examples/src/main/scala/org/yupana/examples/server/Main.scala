@@ -25,7 +25,7 @@ import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
-import org.yupana.hbase.{ HdfsFileUtils, TSDBHbase }
+import org.yupana.hbase.{ HdfsFileUtils, TSDBHBase }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -60,7 +60,7 @@ object Main extends StrictLogging {
       .getOrElse(Right(schema))
       .fold(msg => throw new RuntimeException(s"Cannot register JSON catalogs: $msg"), identity)
 
-    val tsdb = TSDBHbase(hbaseConfiguration, config.hbaseNamespace, schemaWithJson, identity, config.properties)
+    val tsdb = TSDBHBase(hbaseConfiguration, config.hbaseNamespace, schemaWithJson, identity, config.properties)
     logger.info("Registering catalogs")
     val elRegistrator = new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
     elRegistrator.registerAll(schemaWithJson)

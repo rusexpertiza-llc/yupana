@@ -16,6 +16,13 @@
 
 package org.yupana.api.schema
 
+/**
+  * Describes dimension in Table.
+  *
+  * @param name dimension name.
+  * @param hashFunction optional hash function, which can be used by DAO implementation.  This might be helpful
+  *                     to manage data location.
+  */
 case class Dimension(name: String, hashFunction: Option[String => Int] = None) {
 
   def hash(v: String): Int = _hash(v)

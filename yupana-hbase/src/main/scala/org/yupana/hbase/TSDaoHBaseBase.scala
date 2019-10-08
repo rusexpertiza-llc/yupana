@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
+import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
@@ -33,8 +33,8 @@ import org.yupana.hbase.Filtration.TimeFilter
 
 import scala.language.higherKinds
 
-trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
-  type IdType = Long
+trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, HBaseId] with StrictLogging {
+  type IdType = HBaseId
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
@@ -45,7 +45,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   val FUZZY_FILTERS_LIMIT = 20
 
   def mr: MapReducible[Collection]
-  def dictionaryProvider: DictionaryProvider
+  def dictionaryProvider: DictionaryProvider[HBaseId]
 
   case class Filters(
       includeDims: DimensionFilter[IdType],
@@ -91,11 +91,14 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
+    val fromId = HBaseId(from)
+    val toId = HBaseId(to)
+
     val rangeScanDimIds = dimFilter match {
       case NoResult() => Iterator.empty
       case _ =>
         val rangeScanDimIterators = sizeLimitedRangeScanDims.map(d => d -> prefetchedDimIterators(d)).toMap
-        rangeScanFilters(query, from, to, rangeScanDimIterators)
+        rangeScanFilters(query, fromId, toId, rangeScanDimIterators)
     }
 
     val context = InternalQueryContext(query)
@@ -122,8 +125,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
     val dictionary = dictionaryProvider.dictionary(dimension)
-    val ord = implicitly[DimOrdering[IdType]]
-    val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(ord.lt).iterator
+    val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sorted.iterator
     SortedSetIterator(it)
   }
 
@@ -271,7 +273,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           filters.copy(incTime = valFilter and filters.incTime)
 
         case DimIdIn(DimensionExpr(dim), dimIds) =>
-          val idFilter = if (dimIds.nonEmpty) DimensionFilter(Map(dim -> dimIds)) else NoResult[IdType]()
+          val idFilter =
+            if (dimIds.nonEmpty) DimensionFilter(Map(dim -> dimIds)) else NoResult[IdType]()
           filters.copy(incIds = idFilter and filters.incIds)
 
         case Neq(DimensionExpr(dim), ConstantExpr(c: String)) =>

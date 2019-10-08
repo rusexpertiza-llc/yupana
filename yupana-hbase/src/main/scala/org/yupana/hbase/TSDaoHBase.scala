@@ -33,17 +33,17 @@ import scala.collection.JavaConverters._
 class TSDaoHBase(
     connection: Connection,
     namespace: String,
-    override val dictionaryProvider: DictionaryProvider,
+    override val dictionaryProvider: DictionaryProvider[HBaseId],
     putsBatchSize: Int = 1000
 ) extends TSDaoHBaseBase[Iterator]
-    with TSDao[Iterator, Long] {
+    with TSDao[Iterator, HBaseId] {
 
   override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: IdType,
-      to: IdType,
+      from: Long,
+      to: Long,
       rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
       metricCollector: MetricQueryCollector
   ): Iterator[TSDOutputRow[IdType]] = {
@@ -59,7 +59,12 @@ class TSDaoHBase(
     }
   }
 
-  def executeScan(connection: Connection, scan: Scan, table: Table, metricCollector: MetricQueryCollector) = {
+  def executeScan(
+      connection: Connection,
+      scan: Scan,
+      table: Table,
+      metricCollector: MetricQueryCollector
+  ): Iterator[TSDOutputRow[IdType]] = {
     val htable = connection.getTable(tableName(namespace, table))
     scan.setScanMetricsEnabled(metricCollector.isEnabled)
     val scanner = htable.getScanner(scan)

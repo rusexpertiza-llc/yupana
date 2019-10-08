@@ -52,17 +52,17 @@ object DictionaryDaoHBase {
   def getReverseScan: Scan = new Scan().addFamily(DictionaryDaoHBase.reverseFamily)
 }
 
-class DictionaryDaoHBase(connection: Connection, namespace: String) extends DictionaryDao with StrictLogging {
+class DictionaryDaoHBase(connection: Connection, namespace: String) extends DictionaryDao[HBaseId] with StrictLogging {
   import DictionaryDaoHBase._
 
   var existsTables = Set.empty[String]
 
   HBaseUtils.checkNamespaceExistsElseCreate(connection, namespace)
 
-  override def getValueById(dimension: Dimension, id: Long): Option[String] = {
+  override def getValueById(dimension: Dimension, id: HBaseId): Option[String] = {
     checkTablesExistsElseCreate(dimension)
     val table = getTable(dimension.name)
-    val get = new Get(Bytes.toBytes(id)).addFamily(directFamily)
+    val get = new Get(Bytes.toBytes(id.id)).addFamily(directFamily)
     val result = table.get(get)
     if (!result.isEmpty) {
       Some(Bytes.toString(result.getValue(directFamily, column)))
@@ -71,7 +71,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def getValuesByIds(dimension: Dimension, ids: Set[Long]): Map[Long, String] = {
+  override def getValuesByIds(dimension: Dimension, ids: Set[HBaseId]): Map[HBaseId, String] = {
     logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
     checkTablesExistsElseCreate(dimension)
     val table = getTable(dimension.name)
@@ -79,7 +79,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       .grouped(BATCH_SIZE)
       .flatMap { idsSeq =>
         val ranges = idsSeq.map { id =>
-          val key = Bytes.toBytes(id)
+          val key = Bytes.toBytes(id.id)
           new MultiRowRangeFilter.RowRange(key, true, key, true)
         }
 
@@ -97,7 +97,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
         scanner.iterator().asScala.map { result =>
           val id = Bytes.toLong(result.getRow)
           val value = Bytes.toString(result.getValue(directFamily, column))
-          id -> value
+          HBaseId(id) -> value
         }
       }
       .toMap
@@ -105,7 +105,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     r
   }
 
-  override def getIdByValue(dimension: Dimension, value: String): Option[Long] = {
+  override def getIdByValue(dimension: Dimension, value: String): Option[HBaseId] = {
     checkTablesExistsElseCreate(dimension)
     if (value != null) {
       val trimmed = value.trim
@@ -114,7 +114,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
         val get = new Get(Bytes.toBytes(trimmed)).addFamily(reverseFamily)
         val result = table.get(get)
         if (!result.isEmpty) {
-          Some(Bytes.toLong(result.getValue(reverseFamily, column)))
+          Some(HBaseId(Bytes.toLong(result.getValue(reverseFamily, column))))
         } else {
           None
         }
@@ -126,7 +126,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def getIdsByValues(dimension: Dimension, values: Set[String]): Map[String, Long] = {
+  override def getIdsByValues(dimension: Dimension, values: Set[String]): Map[String, HBaseId] = {
     if (values.isEmpty) {
       Map.empty
     } else {
@@ -154,7 +154,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
           scanner.iterator().asScala.map { result =>
             val id = Bytes.toLong(result.getValue(reverseFamily, column))
             val value = Bytes.toString(result.getRow)
-            value -> id
+            value -> HBaseId(id)
           }
         }
         .toMap
@@ -164,9 +164,9 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def checkAndPut(dimension: Dimension, id: Long, value: String): Boolean = {
+  override def checkAndPut(dimension: Dimension, id: HBaseId, value: String): Boolean = {
     checkTablesExistsElseCreate(dimension)
-    val idBytes = Bytes.toBytes(id)
+    val idBytes = Bytes.toBytes(id.id)
     val valueBytes = Bytes.toBytes(value)
 
     val table = getTable(dimension.name)

@@ -63,8 +63,8 @@ object HBaseUtils extends StrictLogging {
 
   def createTsdRows(
       dataPoints: Seq[DataPoint],
-      dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[TSDInputRow[Long]])] = {
+      dictionaryProvider: DictionaryProvider[HBaseId]
+  ): Seq[(Table, Seq[TSDInputRow[HBaseId]])] = {
 
     dataPoints
       .groupBy(_.table)
@@ -79,7 +79,7 @@ object HBaseUtils extends StrictLogging {
       .toSeq
   }
 
-  def createPutOperation(row: TSDInputRow[Long]): Put = {
+  def createPutOperation(row: TSDInputRow[HBaseId]): Put = {
     val put = new Put(rowKeyToBytes(row.key))
     row.values.valuesByGroup.foreach {
       case (group, values) =>
@@ -143,7 +143,7 @@ object HBaseUtils extends StrictLogging {
       table: Table,
       from: Long,
       to: Long,
-      dimIds: Map[Dimension, Seq[Long]]
+      dimIds: Map[Dimension, Seq[HBaseId]]
   ): Option[MultiRowRangeFilter] = {
 
     val baseTimeLs = baseTimeList(from, to, table)
@@ -165,7 +165,7 @@ object HBaseUtils extends StrictLogging {
       val filter = Array.ofDim[Long](dimIndex.length)
       cids.foldLeft(0) { (i, id) =>
         val idx = dimIndex(i)
-        filter(idx) = id
+        filter(idx) = id.id
         i + 1
       }
       rowRange(time, filter)
@@ -215,7 +215,7 @@ object HBaseUtils extends StrictLogging {
     TableName.valueOf(namespace, tableNamePrefix + table.name)
   }
 
-  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow[Long] = {
+  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow[HBaseId] = {
     val row = result.getRow
     TSDOutputRow(
       parseRowKey(row, table),
@@ -223,15 +223,15 @@ object HBaseUtils extends StrictLogging {
     )
   }
 
-  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey[Long] = {
+  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey[HBaseId] = {
     val baseTime = Bytes.toLong(bytes)
 
-    val tagsIds = Array.ofDim[Option[Long]](table.dimensionSeq.size)
+    val tagsIds = Array.ofDim[Option[HBaseId]](table.dimensionSeq.size)
 
     var i = 0
     while (i < tagsIds.length) {
       val value = Bytes.toLong(bytes, TAGS_POSITION_IN_ROW_KEY + i * Bytes.SIZEOF_LONG)
-      val v = if (value != NULL_VALUE) Some(value) else None
+      val v = if (value != NULL_VALUE) Some(HBaseId(value)) else None
       tagsIds(i) = v
       i += 1
     }
@@ -326,7 +326,7 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Long]]): FuzzyRowFilter = {
+  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[HBaseId]]): FuzzyRowFilter = {
     val filterRowKey = TSDRowKey(
       baseTime.getOrElse(0L),
       tagsFilter
@@ -440,7 +440,7 @@ object HBaseUtils extends StrictLogging {
     new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
-  private[hbase] def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
+  private[hbase] def rowKeyToBytes(rowKey: TSDRowKey[HBaseId]): Array[Byte] = {
 
     val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
 
@@ -451,12 +451,16 @@ object HBaseUtils extends StrictLogging {
     rowKey.dimIds
       .foldLeft(buffer) {
         case (buf, value) =>
-          buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
+          buf.put(Bytes.toBytes(value.map(_.id).getOrElse(NULL_VALUE)))
       }
       .array()
   }
 
-  private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {
+  private def rowKey(
+      dataPoint: DataPoint,
+      table: Table,
+      dictionaryProvider: DictionaryProvider[HBaseId]
+  ): TSDRowKey[HBaseId] = {
     val dimIds = table.dimensionSeq.map { dim =>
       dataPoint.dimensions.get(dim).filter(_.trim.nonEmpty).map(v => dictionaryProvider.dictionary(dim).id(v))
     }.toArray

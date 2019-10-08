@@ -18,12 +18,14 @@ package org.yupana.core.dao
 
 import org.yupana.api.schema.Dimension
 import org.yupana.core.Dictionary
+import org.yupana.core.cache.BoxingTag
 
-class DictionaryProviderImpl(dictionaryDao: DictionaryDao) extends DictionaryProvider {
+class DictionaryProviderImpl[IdType: BoxingTag](dictionaryDao: DictionaryDao[IdType])
+    extends DictionaryProvider[IdType] {
 
-  private var dictionaries = Map.empty[Dimension, Dictionary]
+  private var dictionaries = Map.empty[Dimension, Dictionary[IdType]]
 
-  override def dictionary(dim: Dimension): Dictionary = {
+  override def dictionary(dim: Dimension): Dictionary[IdType] = {
     dictionaries.get(dim) match {
       case Some(d) => d
       case None =>

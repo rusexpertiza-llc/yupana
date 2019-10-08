@@ -32,7 +32,7 @@ import scala.language.higherKinds
 /**
   * Core of time series database processing pipeline.
   */
-trait TsdbBase extends StrictLogging {
+trait TsdbBase[IdType] extends StrictLogging {
 
   /**
     * Type of collection used in this TSDB instance and the DAO. The default implementation uses Iterator as a collection type.
@@ -44,14 +44,14 @@ trait TsdbBase extends StrictLogging {
   def mr: MapReducible[Collection]
 
   // TODO: it should work with different DAO Id types
-  def dao: TSReadingDao[Collection, Long]
+  def dao: TSReadingDao[Collection, IdType]
 
-  def dictionaryProvider: DictionaryProvider
+  def dictionaryProvider: DictionaryProvider[IdType]
 
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
 
-  def dictionary(dimension: Dimension): Dictionary = dictionaryProvider.dictionary(dimension)
+  def dictionary(dimension: Dimension): Dictionary[IdType] = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 

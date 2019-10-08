@@ -26,14 +26,14 @@ import org.yupana.core.{ TSDB, TSDBConfig }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
 
-object TSDBHbase {
+object TSDBHBase {
   def apply(
       config: Configuration,
       namespace: String,
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties
-  ): TSDB = {
+  ): TSDB[HBaseId] = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema)
 
