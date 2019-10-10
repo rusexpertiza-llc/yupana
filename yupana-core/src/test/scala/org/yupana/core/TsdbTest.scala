@@ -79,7 +79,7 @@ class TsdbTest
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      SimpleCondition(BinaryOperationExpr(BinaryOperation.equ[String], dimension(TestDims.TAG_A), const("test1")))
+      BinaryOperationExpr(BinaryOperation.equ[String], dimension(TestDims.TAG_A), const("test1"))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -139,7 +139,7 @@ class TsdbTest
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(123))
+      DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator(123))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -150,7 +150,7 @@ class TsdbTest
           TestSchema.testTable,
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
           and(
-            DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(123)),
+            DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator(123)),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -248,9 +248,9 @@ class TsdbTest
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.TAG_A) as "TAG_A"
       ),
-      And(
+      AndExpr(
         Seq(
-          In(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
+          InExpr(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
         )
       )
     )
@@ -309,7 +309,7 @@ class TsdbTest
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.TAG_A) as "TAG_A"
       ),
-      And(
+      AndExpr(
         Seq(
           equ(dimension(TestDims.TAG_B), const("B-52")),
           notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
@@ -689,7 +689,7 @@ class TsdbTest
     val to = qtime.plusDays(1).getMillis
 
     val query = Query(
-      filter = And(
+      filter = AndExpr(
         Seq(
           ge(time, const(Time(from))),
           lt(time, const(Time(to)))
@@ -929,12 +929,10 @@ class TsdbTest
           dimension(TestDims.TAG_B) as "TAG_B"
         ),
         Some(
-          SimpleCondition(
-            BinaryOperationExpr(
-              BinaryOperation.equ[String],
-              link(TestLinks.TEST_LINK, "testField"),
-              const("testFieldValue")
-            )
+          BinaryOperationExpr(
+            BinaryOperation.equ[String],
+            link(TestLinks.TEST_LINK, "testField"),
+            const("testFieldValue")
           )
         ),
         Seq(function(UnaryOperation.truncDay, time))
@@ -952,7 +950,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator.empty)
+            DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator.empty)
           )
         )
 
@@ -964,7 +962,7 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator.empty)
+              DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator.empty)
             )
           ),
           *,
@@ -996,12 +994,10 @@ class TsdbTest
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(
-        SimpleCondition(
-          BinaryOperationExpr(
-            BinaryOperation.neq[String],
-            link(TestLinks.TEST_LINK, "testField"),
-            const("testFieldValue")
-          )
+        BinaryOperationExpr(
+          BinaryOperation.neq[String],
+          link(TestLinks.TEST_LINK, "testField"),
+          const("testFieldValue")
         )
       ),
       Seq(
@@ -1024,7 +1020,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          NotIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+          NotInExpr(dimension(TestDims.TAG_A), Set("test11", "test12"))
         )
       )
 
@@ -1123,7 +1119,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+            DimIdNotInExpr(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
           )
         )
 
@@ -1149,7 +1145,7 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+              DimIdNotInExpr(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
             )
           ),
           *,
@@ -1203,7 +1199,7 @@ class TsdbTest
           link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
         ),
         Some(
-          And(
+          AndExpr(
             Seq(
               neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
               equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
@@ -1328,7 +1324,7 @@ class TsdbTest
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
       Some(
-        And(
+        AndExpr(
           Seq(
             neq(dimension(TestDims.TAG_A), const("test11")),
             neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
@@ -1422,7 +1418,7 @@ class TsdbTest
           dimension(TestDims.TAG_B) as "TAG_B"
         ),
         Some(
-          And(
+          AndExpr(
             Seq(
               equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
               equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
@@ -1529,7 +1525,7 @@ class TsdbTest
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
       Some(
-        And(
+        AndExpr(
           Seq(
             equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
             equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
@@ -1635,7 +1631,7 @@ class TsdbTest
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
       Some(
-        In(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
+        in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
       ),
       Seq.empty
     )
@@ -1652,7 +1648,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          In(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
+          in(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
         )
       )
 
@@ -1725,10 +1721,10 @@ class TsdbTest
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
       Some(
-        And(
+        AndExpr(
           Seq(
-            In(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
-            In(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
+            InExpr(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
+            InExpr(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
           )
         )
       ),
@@ -2513,10 +2509,10 @@ class TsdbTest
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      And(
+      AndExpr(
         Seq(
-          SimpleCondition(BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime)))),
-          SimpleCondition(BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1)))))
+          BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime))),
+          BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1))))
         )
       ),
       Seq(dimension(TestDims.TAG_B)),

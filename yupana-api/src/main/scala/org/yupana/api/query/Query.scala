@@ -17,6 +17,7 @@
 package org.yupana.api.query
 
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
 
 /**

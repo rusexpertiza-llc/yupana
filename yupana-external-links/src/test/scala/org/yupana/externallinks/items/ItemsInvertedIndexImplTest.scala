@@ -4,7 +4,7 @@ import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers }
-import org.yupana.api.query.{ DimIdIn, DimIdNotIn }
+import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ Dictionary, TSDB }
 import org.yupana.core.cache.CacheFactory
@@ -53,8 +53,8 @@ class ItemsInvertedIndexImplTest
     )
 
     actual shouldEqual and(
-      DimIdIn(dimension(Dimensions.ITEM_TAG), SortedSetIterator(4, 5, 42)),
-      DimIdNotIn(dimension(Dimensions.ITEM_TAG), SortedSetIterator(2))
+      DimIdInExpr(dimension(Dimensions.ITEM_TAG), SortedSetIterator(4, 5, 42)),
+      DimIdNotInExpr(dimension(Dimensions.ITEM_TAG), SortedSetIterator(2))
     )
   }
 

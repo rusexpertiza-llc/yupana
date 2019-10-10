@@ -17,6 +17,7 @@
 package org.yupana.core.utils
 
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.utils.ConditionMatchers._
@@ -28,10 +29,10 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
     import org.yupana.api.query.syntax.All._
 
     ConditionUtils.simplify(
-      And(
+      AndExpr(
         Seq(
-          from.map(f => ge(time, const(Time(f)))).getOrElse(EmptyCondition),
-          to.map(t => lt(time, const(Time(t)))).getOrElse(EmptyCondition)
+          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true).aux),
+          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true).aux)
         ) ++ conditions
       )
     )
@@ -42,24 +43,24 @@ object TimeBoundedCondition {
 
   def apply(condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
-      case a: And => andToTimeBounded(a)
-      case x      => Seq(TimeBoundedCondition(None, None, Seq(x)))
+      case a: AndExpr => andToTimeBounded(a)
+      case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
     }
   }
 
   def apply(from: Long, to: Long, condition: Condition): TimeBoundedCondition = {
     ConditionUtils.simplify(condition) match {
-      case And(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
-      case o: Or   => throw new IllegalArgumentException(s"Or not supported yet $o")
-      case c       => TimeBoundedCondition(Some(from), Some(to), Seq(c))
+      case AndExpr(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
+      case o: OrExpr   => throw new IllegalArgumentException(s"Or not supported yet $o")
+      case c           => TimeBoundedCondition(Some(from), Some(to), Seq(c))
     }
   }
 
   def toCondition(conditions: Seq[TimeBoundedCondition]): Condition = {
     conditions.map(_.toCondition) match {
-      case Nil    => EmptyCondition
+      case Nil    => ConstantExpr(true)
       case Seq(x) => x
-      case xs     => Or(xs)
+      case xs     => OrExpr(xs)
     }
   }
 
@@ -79,7 +80,7 @@ object TimeBoundedCondition {
     TimeBoundedCondition(from, to, cs)
   }
 
-  private def andToTimeBounded(and: And): Seq[TimeBoundedCondition] = {
+  private def andToTimeBounded(and: AndExpr): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
@@ -113,7 +114,7 @@ object TimeBoundedCondition {
       case c @ Le(TimeExpr, e) => updateTo(c, e, 1L)
       case c @ Ge(e, TimeExpr) => updateTo(c, e, 1L)
 
-      case c @ (And(_) | Or(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
+      case c @ (AndExpr(_) | OrExpr(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
 
       case x => other += x
     }

@@ -17,9 +17,10 @@
 package org.yupana.api.query
 
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
 import org.yupana.api.types._
-import org.yupana.api.utils.CollectionUtils
+import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
 sealed trait Expression extends Serializable {
   type Out
@@ -38,7 +39,7 @@ sealed trait Expression extends Serializable {
 
   def aux: Expression.Aux[Out] = this.asInstanceOf[Expression.Aux[Out]]
 
-  lazy val flatten: Set[Expression] = Set(this)
+  def flatten: Set[Expression]
 
   def containsAggregates: Boolean = flatten.exists {
     case _: AggregateExpr => true
@@ -67,6 +68,8 @@ sealed trait Expression extends Serializable {
 
 object Expression {
   type Aux[T] = Expression { type Out = T }
+
+  type Condition = Expression.Aux[Boolean]
 }
 
 sealed trait WindowFunctionExpr extends Expression {
@@ -77,6 +80,8 @@ sealed trait WindowFunctionExpr extends Expression {
   override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
   override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
   override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+
+  override lazy val flatten: Set[Expression] = Set(this)
 
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
 
@@ -137,6 +142,7 @@ sealed trait ConstantExpr extends Expression {
   override def requiredDimensions: Set[Dimension] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def requiredMetrics: Set[Metric] = Set.empty
+  override lazy val flatten: Set[Expression] = Set(this)
 }
 
 object ConstantExpr {
@@ -158,6 +164,7 @@ case object TimeExpr extends Expression {
   override def requiredDimensions: Set[Dimension] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def requiredMetrics: Set[Metric] = Set.empty
+  override lazy val flatten: Set[Expression] = Set(this)
   override def encode: String = s"time()"
   def toField = QueryField("time", this)
 }
@@ -170,6 +177,7 @@ class DimensionExpr(val dimension: Dimension) extends Expression {
   override def requiredLinks: Set[LinkExpr] = Set.empty
   override def requiredMetrics: Set[Metric] = Set.empty
   override def encode: String = s"dim(${dimension.name})"
+  override lazy val flatten: Set[Expression] = Set(this)
   def toField = QueryField(dimension.name, this)
 }
 
@@ -185,6 +193,7 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override def requiredMetrics: Set[Metric] = Set(metric)
   override def requiredDimensions: Set[Dimension] = Set.empty
   override def requiredLinks: Set[LinkExpr] = Set.empty
+  override lazy val flatten: Set[Expression] = Set(this)
   override def encode: String = s"metric(${metric.name})"
   def toField = QueryField(metric.name, this)
 }
@@ -196,6 +205,7 @@ class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression
   override def requiredDimensions: Set[Dimension] = Set(link.dimension)
   override def requiredLinks: Set[LinkExpr] = Set(this)
   override def requiredMetrics: Set[Metric] = Set.empty
+  override lazy val flatten: Set[Expression] = Set(this)
   override def encode: String = s"link(${link.linkName}, $linkField)"
   def queryFieldName: String = link.linkName + "_" + linkField
   def toField = QueryField(queryFieldName, this)
@@ -274,6 +284,7 @@ case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDat
   override type Out = Array[T]
 
   override val dataType: DataType.Aux[Array[T]] = DataType[Array[T]]
+  override lazy val flatten: Set[Expression] = exprs.toSet + this
 
   override def kind: ExprKind = exprs.foldLeft(Const: ExprKind)((a, e) => ExprKind.combine(a, e.kind))
 
@@ -285,26 +296,135 @@ case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDat
   override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
 }
 
-case class ConditionExpr[T](condition: Condition, positive: Expression.Aux[T], negative: Expression.Aux[T])
-    extends Expression {
+case class ConditionExpr[T](
+    condition: Condition,
+    positive: Expression.Aux[T],
+    negative: Expression.Aux[T]
+) extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[T] = positive.dataType
 
   override def kind: ExprKind = ExprKind.combine(positive.kind, negative.kind)
 
   override def requiredDimensions: Set[Dimension] =
-    positive.requiredDimensions ++ negative.requiredDimensions ++ condition.exprs.flatMap(_.requiredDimensions)
+    positive.requiredDimensions ++ negative.requiredDimensions ++ condition.requiredDimensions
   override def requiredLinks: Set[LinkExpr] =
-    positive.requiredLinks ++ negative.requiredLinks ++ condition.exprs.flatMap(_.requiredLinks)
+    positive.requiredLinks ++ negative.requiredLinks ++ condition.requiredLinks
   override def requiredMetrics: Set[Metric] =
-    positive.requiredMetrics ++ negative.requiredMetrics ++ condition.exprs.flatMap(_.requiredMetrics)
+    positive.requiredMetrics ++ negative.requiredMetrics ++ condition.requiredMetrics
 
   override def toString: String = s"IF ($condition) THEN $positive ELSE $negative"
 
-  override def encode: String = s"if(${condition.encoded},${positive.encode},${negative.encode}"
+  override def encode: String = s"if(${condition.encode},${positive.encode},${negative.encode}"
 
   override lazy val flatten: Set[Expression] = Set(this) ++
-    condition.exprs.flatMap(_.flatten) ++
+    condition.flatten ++
     positive.flatten ++
     negative.flatten
+}
+
+trait InExpr extends Expression {
+  override type Out = Boolean
+  override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
+
+  type T
+  val expr: Expression.Aux[T]
+  val values: Set[T]
+
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
+  override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override lazy val flatten: Set[Expression] = Set(this, expr)
+
+  override def kind: ExprKind = expr.kind
+
+  override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
+  override def toString: String =
+    expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
+}
+
+object InExpr {
+  def apply[T0](e: Expression.Aux[T0], vs: Set[T0]): Condition = new InExpr {
+    override type T = T0
+    override val expr: Expression.Aux[T] = e
+    override val values: Set[T] = vs
+  }
+
+  def unapply(i: InExpr): Option[(Expression.Aux[i.T], Set[i.T])] = Some((i.expr, i.values))
+}
+
+case class NotInExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Expression {
+  override type Out = Boolean
+  override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
+
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
+  override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override lazy val flatten: Set[Expression] = Set(this, expr)
+
+  override def kind: ExprKind = expr.kind
+
+  override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"notIn(${expr.encode}, (", ",", "))")
+  override def toString: String =
+    expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
+}
+
+case class DimIdInExpr(expr: DimensionExpr, values: SortedSetIterator[Long]) extends Expression {
+  override type Out = Boolean
+  override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
+
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
+  override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override lazy val flatten: Set[Expression] = Set(this, expr)
+
+  override def kind: ExprKind = expr.kind
+
+  override def encode: String = s"idIn(${expr.encode}, (Iterator))"
+  override def toString: String = expr.toString + " ID IN (Iterator)"
+}
+
+case class DimIdNotInExpr(expr: DimensionExpr, values: SortedSetIterator[Long]) extends Expression {
+  override type Out = Boolean
+  override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
+
+  override def requiredDimensions: Set[Dimension] = expr.requiredDimensions
+  override def requiredLinks: Set[LinkExpr] = expr.requiredLinks
+  override def requiredMetrics: Set[Metric] = expr.requiredMetrics
+  override lazy val flatten: Set[Expression] = Set(this, expr)
+
+  override def kind: ExprKind = expr.kind
+
+  override def encode: String = s"idNotIn(${expr.encode}, (Iterator))"
+  override def toString: String = expr.toString + " ID NOT IN (Iterator)"
+}
+
+case class AndExpr(conditions: Seq[Condition]) extends Expression {
+  override type Out = Boolean
+  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+
+  override def requiredDimensions: Set[Dimension] = conditions.flatMap(_.requiredDimensions).toSet
+  override def requiredLinks: Set[LinkExpr] = conditions.flatMap(_.requiredLinks).toSet
+  override def requiredMetrics: Set[Metric] = conditions.flatMap(_.requiredMetrics).toSet
+  override lazy val flatten: Set[Expression] = (this +: conditions.flatMap(_.flatten)).toSet
+
+  override def kind: ExprKind = conditions.foldLeft(Const: ExprKind)((k, c) => ExprKind.combine(k, c.kind))
+
+  override def toString: String = conditions.mkString("(", " AND ", ")")
+  override def encode: String = conditions.map(_.encode).sorted.mkString("and(", ",", ")")
+}
+
+case class OrExpr(conditions: Seq[Condition]) extends Expression {
+  override type Out = Boolean
+  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+
+  override def requiredDimensions: Set[Dimension] = conditions.flatMap(_.requiredDimensions).toSet
+  override def requiredLinks: Set[LinkExpr] = conditions.flatMap(_.requiredLinks).toSet
+  override def requiredMetrics: Set[Metric] = conditions.flatMap(_.requiredMetrics).toSet
+  override lazy val flatten: Set[Expression] = (this +: conditions.flatMap(_.flatten)).toSet
+
+  override def kind: ExprKind = conditions.foldLeft(Const: ExprKind)((k, c) => ExprKind.combine(k, c.kind))
+
+  override def toString: String = conditions.mkString("(", " OR ", ")")
+  override def encode: String = conditions.map(_.encode).sorted.mkString("or(", ",", ")")
 }

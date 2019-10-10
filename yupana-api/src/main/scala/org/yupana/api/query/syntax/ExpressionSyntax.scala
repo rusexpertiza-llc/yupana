@@ -16,6 +16,7 @@
 
 package org.yupana.api.query.syntax
 
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
 import org.yupana.api.types._
