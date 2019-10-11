@@ -19,6 +19,7 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.schema.Dimension
 
 import scala.collection.mutable
 
@@ -39,17 +40,17 @@ object QueryContext extends StrictLogging {
 
   def apply(query: Query, postCondition: Condition): QueryContext = {
 
-    val requiredTags = query.groupBy.flatMap(_.requiredDimensions).toSet ++
-      query.fields.flatMap(_.expr.requiredDimensions).toSet ++
-      postCondition.requiredDimensions ++
-      query.postFilter.toSeq.flatMap(_.requiredDimensions)
+    val requiredTags = query.groupBy.flatMap(requiredDimensions).toSet ++
+      query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
+      requiredDimensions(postCondition) ++
+      query.postFilter.toSeq.flatMap(requiredDimensions)
 
     val requiredDimExprs = requiredTags.map(DimensionExpr(_))
 
-    val groupByExternalLinks = query.groupBy.flatMap(_.requiredLinks)
-    val fieldsExternalLinks = query.fields.flatMap(_.expr.requiredLinks)
-    val dataFiltersExternalLinks = postCondition.requiredLinks
-    val havingExternalLinks = query.postFilter.toSeq.flatMap(_.requiredLinks)
+    val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
+    val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))
+    val dataFiltersExternalLinks = requiredLinks(postCondition)
+    val havingExternalLinks = query.postFilter.toSeq.flatMap(requiredLinks)
 
     val linkExprs =
       (groupByExternalLinks ++ fieldsExternalLinks ++ dataFiltersExternalLinks ++ havingExternalLinks).distinct
@@ -63,7 +64,7 @@ object QueryContext extends StrictLogging {
 
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr] && (
-        (!expr.containsAggregates && !expr.containsWindows) ||
+        (!containsAggregates(expr) && !containsWindows(expr)) ||
         expr.isInstanceOf[AggregateExpr] ||
         expr.isInstanceOf[WindowFunctionExpr]
       )
@@ -95,7 +96,7 @@ object QueryContext extends StrictLogging {
     )
   }
 
-  def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = {
+  private def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = {
     exprs.collect {
       case a @ AggregateExpr(_, e)        => Set(a, e)
       case ConditionExpr(condition, _, _) => Set(condition)
@@ -107,4 +108,30 @@ object QueryContext extends StrictLogging {
       case _                              => Set.empty
     }.flatten
   }
+
+  private def containsAggregates(e: Expression): Boolean = e.flatten.exists {
+    case _: AggregateExpr => true
+    case _                => false
+  }
+
+  private def containsWindows(e: Expression): Boolean = e.flatten.exists {
+    case _: WindowFunctionExpr => true
+    case _                     => false
+  }
+
+  private def requiredDimensions(e: Expression): Set[Dimension] = {
+    e.fold(Set.empty[Dimension]) {
+      case (s, DimensionExpr(d)) => s + d
+      case (s, LinkExpr(l, _))   => s + l.dimension
+      case (s, _)                => s
+    }
+  }
+
+  private def requiredLinks(e: Expression): Set[LinkExpr] = {
+    e.fold(Set.empty[LinkExpr]) {
+      case (s, l: LinkExpr) => s + l
+      case (s, _)           => s
+    }
+  }
+
 }

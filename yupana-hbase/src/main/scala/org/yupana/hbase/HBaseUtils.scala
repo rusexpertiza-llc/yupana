@@ -26,12 +26,13 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.{ Bytes, Pair }
-import org.yupana.api.query.DataPoint
+import org.yupana.api.query.{ DataPoint, Expression, MetricExpr }
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.CollectionUtils
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.NumericRange
 import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 
 object HBaseUtils extends StrictLogging {
@@ -55,7 +56,7 @@ object HBaseUtils extends StrictLogging {
     time % table.rowTimeSpan
   }
 
-  def baseTimeList(fromTime: Long, toTime: Long, table: Table) = {
+  def baseTimeList(fromTime: Long, toTime: Long, table: Table): NumericRange[Long] = {
     val startBaseTime = fromTime - (fromTime % table.rowTimeSpan)
     val stopBaseTime = toTime - (toTime % table.rowTimeSpan)
     startBaseTime to stopBaseTime by table.rowTimeSpan
@@ -199,7 +200,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def familiesQueried(queryContext: InternalQueryContext): Set[Int] = {
-    val groups = queryContext.exprs.flatMap(_.requiredMetrics.map(_.group))
+    val groups = queryContext.exprs.flatMap(e => requiredMetrics(e).map(_.group))
     if (groups.nonEmpty) {
       groups
     } else {
@@ -454,6 +455,13 @@ object HBaseUtils extends StrictLogging {
           buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
       }
       .array()
+  }
+
+  private def requiredMetrics(e: Expression): Set[Metric] = {
+    e.fold(Set.empty[Metric]) {
+      case (s, MetricExpr(m)) => s + m
+      case (s, _)             => s
+    }
   }
 
   private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {
