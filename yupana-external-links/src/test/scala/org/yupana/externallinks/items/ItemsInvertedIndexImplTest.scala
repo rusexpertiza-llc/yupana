@@ -3,7 +3,7 @@ package org.yupana.externallinks.items
 import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers }
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Inside, Matchers }
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ Dictionary, TSDB }
@@ -17,7 +17,8 @@ class ItemsInvertedIndexImplTest
     with Matchers
     with MockFactory
     with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with Inside {
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -47,7 +48,7 @@ class ItemsInvertedIndexImplTest
         ),
         neq(
           link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
-          const("хол.копчения")
+          const("хол копчения")
         )
       )
     )
@@ -75,6 +76,24 @@ class ItemsInvertedIndexImplTest
     })
 
     index.putItemNames(Set("сигареты легкие", "папиросы", "молоко"))
+  }
+
+  it should "handle queries" in withMocks { (index, dao, _) =>
+    import org.yupana.api.query.syntax.All._
+
+    (dao.values _).expects("krasn").returning(SortedSetIterator(1, 2, 3))
+    (dao.values _).expects("yablok").returning(SortedSetIterator(2, 3, 5))
+    (dao.values _).expects("zhelt").returning(SortedSetIterator(6))
+    (dao.valuesByPrefix _).expects("banan").returning(SortedSetIterator(6, 7))
+    val res = index.condition(
+      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("красное яблоко", "банан% желтый"))
+    )
+
+    inside(res) {
+      case DimIdIn(d, vs) =>
+        d shouldEqual dimension(Dimensions.ITEM_TAG)
+        vs.toSeq should contain theSameElementsInOrderAs Seq(2L, 3L, 6L)
+    }
   }
 
   def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, Long], TSDB) => Unit): Unit = {
