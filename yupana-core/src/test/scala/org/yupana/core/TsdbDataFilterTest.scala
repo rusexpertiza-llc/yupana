@@ -442,12 +442,12 @@ class TsdbDataFilterTest
         (_, b, _) =>
           Iterator(
             b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(10))
+              .set(metric(TestTableFields.TEST_FIELD), Some(10d))
               .set(dimension(TestDims.TAG_A), Some("test1a"))
               .set(dimension(TestDims.TAG_B), Some("test2b"))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(30))
+              .set(metric(TestTableFields.TEST_FIELD), Some(30d))
               .set(dimension(TestDims.TAG_A), Some("test2a"))
               .set(dimension(TestDims.TAG_B), Some("test3b"))
               .buildAndReset()
@@ -512,12 +512,12 @@ class TsdbDataFilterTest
         (_, b, _) =>
           Iterator(
             b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(10))
+              .set(metric(TestTableFields.TEST_FIELD), Some(10d))
               .set(dimension(TestDims.TAG_A), Some("test1a"))
               .set(dimension(TestDims.TAG_B), Some("test2b"))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(30))
+              .set(metric(TestTableFields.TEST_FIELD), Some(30d))
               .set(dimension(TestDims.TAG_A), Some("test2a"))
               .set(dimension(TestDims.TAG_B), Some("test3b"))
               .buildAndReset()

@@ -54,7 +54,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
             .forall(idx => this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
         } else if (that.queryContext != null) {
           that.queryContext.groupByExprs.indices
-            .forall(idx => that.row.get(queryContext, queryContext.groupByExprs(idx)) == this.data(idx))
+            .forall(idx => that.row.get(that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
         } else {
           this.data sameElements that.data
         }
