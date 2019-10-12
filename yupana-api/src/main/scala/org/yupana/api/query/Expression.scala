@@ -206,7 +206,7 @@ case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression.Aux[T
   override def dataType: DataType.Aux[U] = tc.dataType
   override def kind: ExprKind = expr.kind
 
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(z)(f)
+  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
 
   override def encode: String = s"${tc.functionName}($expr)"
 }
