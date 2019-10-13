@@ -19,14 +19,12 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.Dimension
 
 import scala.collection.mutable
 
 case class QueryContext(
     query: Query,
     postCondition: Option[Condition],
-//    postConditionExprs: Array[Expression],
     exprsIndex: mutable.HashMap[Expression, Int],
     aggregateExprs: Array[AggregateExpr],
     topRowExprs: Array[Expression],
@@ -39,6 +37,7 @@ case class QueryContext(
 object QueryContext extends StrictLogging {
 
   def apply(query: Query, postCondition: Condition): QueryContext = {
+    import org.yupana.core.utils.QueryUtils.{ requiredDimensions, requiredLinks }
 
     val requiredTags = query.groupBy.flatMap(requiredDimensions).toSet ++
       query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
@@ -118,20 +117,4 @@ object QueryContext extends StrictLogging {
     case _: WindowFunctionExpr => true
     case _                     => false
   }
-
-  private def requiredDimensions(e: Expression): Set[Dimension] = {
-    e.fold(Set.empty[Dimension]) {
-      case (s, DimensionExpr(d)) => s + d
-      case (s, LinkExpr(l, _))   => s + l.dimension
-      case (s, _)                => s
-    }
-  }
-
-  private def requiredLinks(e: Expression): Set[LinkExpr] = {
-    e.fold(Set.empty[LinkExpr]) {
-      case (s, l: LinkExpr) => s + l
-      case (s, _)           => s
-    }
-  }
-
 }
