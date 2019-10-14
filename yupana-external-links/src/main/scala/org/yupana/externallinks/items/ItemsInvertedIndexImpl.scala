@@ -149,7 +149,10 @@ class ItemsInvertedIndexImpl(
 
     val idsPerWord = stemmedWords.map(dimIdsForStemmedWord)
 
-    val transPrefixes = prefixes.map(s => Transliterator.transliterate(s.substring(0, s.length - 1)))
+    val transPrefixes = prefixes
+      .map(s => s.substring(0, s.length - 1).trim)
+      .filter(_.nonEmpty)
+      .map(Transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
     SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
   }
