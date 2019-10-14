@@ -45,7 +45,7 @@ object ItemsStemmer extends Serializable {
   }
 
   def stem(word: String): String = {
-    val w = word.toCharArray
+    val w = word.toLowerCase.toCharArray
     val len = stemmer.stem(w, w.length)
     new String(w, 0, len)
   }
