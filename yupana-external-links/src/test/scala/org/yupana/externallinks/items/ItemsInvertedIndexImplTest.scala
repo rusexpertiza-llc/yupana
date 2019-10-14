@@ -78,7 +78,7 @@ class ItemsInvertedIndexImplTest
     index.putItemNames(Set("сигареты легкие", "папиросы", "молоко"))
   }
 
-  it should "handle queries" in withMocks { (index, dao, _) =>
+  it should "ignore handle prefixes" in withMocks { (index, dao, _) =>
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("krasn").returning(SortedSetIterator(1, 2, 3))
@@ -93,6 +93,22 @@ class ItemsInvertedIndexImplTest
       case DimIdIn(d, vs) =>
         d shouldEqual dimension(Dimensions.ITEM_TAG)
         vs.toSeq should contain theSameElementsInOrderAs Seq(2L, 3L, 6L)
+    }
+  }
+
+  it should "ignore empty prefixes" in withMocks { (index, dao, _) =>
+    import org.yupana.api.query.syntax.All._
+
+    (dao.values _).expects("sigaret").returning(SortedSetIterator(1, 3))
+
+    val res = index.condition(
+      notIn(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("сигареты %"))
+    )
+
+    inside(res) {
+      case DimIdNotIn(d, vs) =>
+        d shouldEqual dimension(Dimensions.ITEM_TAG)
+        vs.toSeq should contain theSameElementsInOrderAs Seq(1L, 3L)
     }
   }
 
