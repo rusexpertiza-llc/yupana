@@ -670,17 +670,19 @@ class TsdbTest
           )
       )
 
-    val results = tsdb.query(query).iterator
+    val results = tsdb.query(query).toList
 
-    val group1 = results.next()
+    results should have size 2
+
+    val group1 = results(0)
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    group1.fieldValueByName[Double]("testField").value shouldBe 1d
-    group1.fieldValueByName[Int]("TAG_A").value shouldBe 4
+    group1.fieldValueByName[Double]("testField").value shouldBe 2d
+    group1.fieldValueByName[Int]("TAG_A").value shouldBe 2
 
-    val group2 = results.next()
+    val group2 = results(1)
     group2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    group2.fieldValueByName[Double]("testField").value shouldBe 2d
-    group2.fieldValueByName[Int]("TAG_A").value shouldBe 2
+    group2.fieldValueByName[Double]("testField").value shouldBe 1d
+    group2.fieldValueByName[Int]("TAG_A").value shouldBe 4
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -839,14 +841,14 @@ class TsdbTest
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
     r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
     r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
     r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
     r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
   }
@@ -1918,13 +1920,13 @@ class TsdbTest
 
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue1"
+    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+    r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue2"
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue2"
+    r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
+    r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue1"
   }
 
   it should "execute query with aggregate functions on string field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2117,16 +2119,16 @@ class TsdbTest
 
     val r1 = it.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+    r1.fieldValueByName[Double]("sum_testField").value shouldBe 3d
     r1.fieldValueByName[String]("TestCatalog3_testField3-1").value shouldBe "Value1"
-    r1.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value1"
+    r1.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value2"
     r1.fieldValueByName[String]("TestCatalog3_testField3-3").value shouldBe "Value2"
 
     val r2 = it.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
+    r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
     r2.fieldValueByName[String]("TestCatalog3_testField3-1").value shouldBe "Value1"
-    r2.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value2"
+    r2.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value1"
     r2.fieldValueByName[String]("TestCatalog3_testField3-3").value shouldBe "Value2"
   }
 
@@ -2486,17 +2488,17 @@ class TsdbTest
 
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
-    r1.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 1
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
+    r1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
+    r1.fieldValueByName[Long]("count_TAG_A").value shouldBe 4L
+    r1.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 2
+    r1.fieldValueByName[String]("TAG_B").value shouldBe "testB1"
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r2.fieldValueByName[Long]("count_TAG_A").value shouldBe 4L
-    r2.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 2
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "testB1"
+    r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+    r2.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
+    r2.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 1
+    r2.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
   }
 
   it should "calculate lag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
