@@ -150,7 +150,7 @@ class ItemsInvertedIndexImpl(
     val idsPerWord = stemmedWords.map(dimIdsForStemmedWord)
 
     val transPrefixes = prefixes
-      .map(s => s.substring(0, s.length - 1).trim)
+      .map(s => s.substring(0, s.length - 1).trim.toLowerCase)
       .filter(_.nonEmpty)
       .map(Transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
