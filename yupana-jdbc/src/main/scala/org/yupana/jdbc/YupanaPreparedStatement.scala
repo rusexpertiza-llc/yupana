@@ -22,8 +22,6 @@ import java.sql.{ Array => SqlArray, _ }
 import java.util.Calendar
 import java.util.logging.{ Level, Logger }
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
-
 object YupanaPreparedStatement {
   private val LOGGER: Logger = Logger.getLogger(classOf[YupanaPreparedStatement].getName)
 }
@@ -292,7 +290,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setTimestamp(parameterIndex: Int, x: Timestamp): Unit = {
-    setParameter(parameterIndex, TimestampValue(new LocalDateTime(x, DateTimeZone.UTC)))
+    setParameter(parameterIndex, TimestampValue(x.getTime))
   }
 
   @throws[SQLException]

@@ -287,7 +287,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     value match {
       case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
       case StringValue(s)    => Value(Value.Value.TextValue(s))
-      case t: TimestampValue => Value(Value.Value.TimeValue(t.millis))
+      case TimestampValue(m) => Value(Value.Value.TimeValue(m))
     }
   }
 }
