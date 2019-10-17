@@ -5,19 +5,19 @@ import java.util.Properties
 import org.apache.hadoop.hbase.client.Scan
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.model._
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimIdIn, DimIdNotIn, Expression }
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.Dimension
 import org.yupana.api.types.Writable
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
+import org.yupana.core.model._
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
 
 import scala.collection.JavaConverters._
 
@@ -29,9 +29,8 @@ class TSDaoHBaseTest
     with BeforeAndAfterEach
     with OptionValues {
 
-  import org.yupana.api.query.syntax.All._
-
   import TestSchema._
+  import org.yupana.api.query.syntax.All._
 
   type QueryRunner = MockFunction1[Seq[Scan], Iterator[TSDOutputRow[Long]]]
 

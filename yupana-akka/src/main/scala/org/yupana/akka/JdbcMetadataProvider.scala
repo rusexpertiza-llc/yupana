@@ -49,7 +49,7 @@ class JdbcMetadataProvider(schema: Schema) {
     val data: Iterator[Array[Option[Any]]] = schema.tables.keys.map { name =>
       Array[Option[Any]](None, None, Some(name), Some("TABLE"), None)
     }.iterator
-    SimpleResult(tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
+    SimpleResult("TABLES", tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
   }
 
   def describeTable(tableName: String): Either[String, Result] =
@@ -73,6 +73,7 @@ class JdbcMetadataProvider(schema: Schema) {
       ((metricColumns :+ timeColumn) ++ tagColumns ++ catalogColumns).iterator
     } map { data =>
       SimpleResult(
+        "COLUMNS",
         columnFieldNames,
         columnFieldNames.map(n => if (n == "DATA_TYPE") DataType[Int] else DataType[String]),
         data

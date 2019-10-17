@@ -53,7 +53,7 @@ object QueryInfoProvider {
     val queryFieldTypes = List(DataType[String], DataType[String], DataType[String], DataType[Time], DataType[Double]) ++
       (0 until qualifiers.size * 3).map(_ => DataType[Double])
 
-    SimpleResult(queryFieldNames, queryFieldTypes, data)
+    SimpleResult("QUERIES", queryFieldNames, queryFieldTypes, data)
   }
 
   def handleKillQuery(tsdb: TSDB, id: String): Result = {
@@ -62,6 +62,6 @@ object QueryInfoProvider {
     } else {
       "QUERY NOT FOUND"
     }
-    SimpleResult(List("RESULT"), List(DataType[String]), Iterator(Array(Some(result))))
+    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some(result))))
   }
 }

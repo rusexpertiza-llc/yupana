@@ -270,7 +270,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
       Some(v)
     }
 
-    SimpleResult(names, dataTypes, values)
+    SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)
   }
 
   private def createProtoQuery(query: String, params: Map[Int, ParameterValue]): Request = {

@@ -51,7 +51,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
   override def execute: Boolean = {
     YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
     val result = connection.runQuery(templateQuery, parameters)
-    lastResultSet = new YupanaResultSet(this, result, "TABLE")
+    lastResultSet = new YupanaResultSet(this, result)
     true
   }
 

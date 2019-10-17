@@ -24,7 +24,7 @@ import org.yupana.jdbc.build.BuildInfo
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 
-  private val emptyResultSet = new YupanaResultSet(null, Result.empty, "EMPTY")
+  private val emptyResultSet = new YupanaResultSet(null, Result.empty)
 
   override def supportsMinimumSQLGrammar(): Boolean = false
 
@@ -178,7 +178,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsSchemasInPrivilegeDefinitions() = false
 
-  override def getDriverName = "TSDB JDBC"
+  override def getDriverName = "Yupana JDBC"
 
   override def getDriverVersion: String = BuildInfo.version
 
@@ -326,8 +326,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
   override def getTableTypes: ResultSet = {
     val names = List("TABLE_TYPE")
     val dataTypes = List(DataType[String])
-    val types = SimpleResult(names, dataTypes, Iterator(Array[Option[Any]](Some("TABLE"))))
-    new YupanaResultSet(null, types, "TYPES")
+    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Option[Any]](Some("TABLE"))))
+    new YupanaResultSet(null, types)
   }
 
   override def nullsAreSortedHigh() = false
@@ -380,7 +380,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getConnection: Connection = connection
 
-  override def getDatabaseProductName = "TSDB"
+  override def getDatabaseProductName = "Yupana"
 
   override def supportsGroupByUnrelated() = true
 
