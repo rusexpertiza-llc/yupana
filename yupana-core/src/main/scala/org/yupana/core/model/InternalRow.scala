@@ -60,7 +60,7 @@ class InternalRowBuilder(exprIndex: scala.collection.Map[Expression, Int]) exten
 
   def this(queryContext: QueryContext) = this(queryContext.exprsIndex)
 
-  def set(expr: Expression, v: Option[Any]): InternalRowBuilder = {
+  def set[T](expr: Expression.Aux[T], v: Option[T]): InternalRowBuilder = {
     data(exprIndex(expr)) = v
     this
   }
