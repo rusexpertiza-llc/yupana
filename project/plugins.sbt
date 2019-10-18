@@ -8,7 +8,7 @@ addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.9.0")
 
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.25")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.1"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.4"
 
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "0.14.10")
 
@@ -20,4 +20,4 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.0")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.2.0")
 
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.0.6")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.0.7")
