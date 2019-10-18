@@ -3,7 +3,7 @@ package org.yupana.externallinks
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Condition, Expression, LinkExpr }
+import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.model.InternalRow
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -14,15 +14,15 @@ class SimpleExternalLinkConditionHandlerTest extends FlatSpec with Matchers {
 
   class TestExternalLink(override val externalLink: TestLink) extends SimpleExternalLinkConditionHandler[TestLink] {
     override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
-      Condition.and(values.map {
+      and(values.map {
         case (field, vs) => in(dimension(externalLink.dimension), vs.map(v => field + "_" + v))
-      })
+      }: _*)
     }
 
     override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-      Condition.and(values.map {
+      and(values.map {
         case (field, vs) => notIn(dimension(externalLink.dimension), vs.map(v => field + "_" + v))
-      })
+      }: _*)
     }
 
     override def setLinkedValues(

@@ -45,6 +45,28 @@ trait ExpressionSyntax {
 
   def condition[T](condition: Condition, positive: Expression.Aux[T], negative: Expression.Aux[T]) =
     ConditionExpr(condition, positive, negative)
+
+  def in[T](e: Expression.Aux[T], consts: Set[T]): Condition = InExpr(e, consts).aux
+  def notIn[T](e: Expression.Aux[T], consts: Set[T]): Condition = NotInExpr(e, consts).aux
+
+  def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*)).aux
+  def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*)).aux
+
+  def gt[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.gt, left, right)
+  def lt[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.lt, left, right)
+  def ge[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.ge, left, right)
+  def le[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.le, left, right)
+  def equ[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.equ, left, right)
+  def neq[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.neq, left, right)
+
+  def isNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNull[T], e)
+  def isNotNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNotNull[T], e)
 }
 
 object ExpressionSyntax extends ExpressionSyntax

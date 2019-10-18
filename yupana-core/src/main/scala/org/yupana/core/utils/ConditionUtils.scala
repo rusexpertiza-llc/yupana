@@ -22,8 +22,8 @@ import org.yupana.api.query._
 object ConditionUtils {
   def simplify(condition: Condition): Condition = {
     condition match {
-      case AndExpr(cs) => Condition.and(cs.flatMap(optimizeAnd))
-      case OrExpr(cs)  => Condition.or(cs.flatMap(optimizeOr))
+      case AndExpr(cs) => and(cs.flatMap(optimizeAnd))
+      case OrExpr(cs)  => or(cs.flatMap(optimizeOr))
       case c           => c
     }
   }
@@ -40,8 +40,8 @@ object ConditionUtils {
     }
 
     c match {
-      case AndExpr(cs) => Condition.and(doFlat(cs))
-      case OrExpr(cs)  => Condition.or(doFlat(cs))
+      case AndExpr(cs) => and(doFlat(cs))
+      case OrExpr(cs)  => or(doFlat(cs))
       case x           => f(x)
     }
   }
@@ -90,6 +90,28 @@ object ConditionUtils {
     c match {
       case OrExpr(cs) => cs.flatMap(optimizeOr)
       case x          => Seq(simplify(x))
+    }
+  }
+
+  private def and(conditions: Seq[Condition]): Condition = {
+    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    if (nonEmpty.size == 1) {
+      nonEmpty.head
+    } else if (nonEmpty.nonEmpty) {
+      AndExpr(nonEmpty)
+    } else {
+      ConstantExpr(true)
+    }
+  }
+
+  private def or(conditions: Seq[Condition]): Condition = {
+    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    if (nonEmpty.size == 1) {
+      nonEmpty.head
+    } else if (nonEmpty.nonEmpty) {
+      OrExpr(nonEmpty)
+    } else {
+      ConstantExpr(true)
     }
   }
 }
