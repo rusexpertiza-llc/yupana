@@ -1,9 +1,9 @@
 package org.yupana.core.sql.parser
 
 import fastparse.Parsed
-import fastparse.Parsed.{Failure, Success}
+import fastparse.Parsed.{ Failure, Success }
 import org.scalactic.source
-import org.scalatest.exceptions.{StackDepthException, TestFailedException}
+import org.scalatest.exceptions.{ StackDepthException, TestFailedException }
 
 trait ParsedValues {
   import scala.language.implicitConversions

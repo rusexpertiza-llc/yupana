@@ -8,7 +8,13 @@ import org.yupana.api.schema.Dimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 
-class DictionaryTest extends FlatSpec with Matchers with MockFactory with OptionValues with BeforeAndAfterAll with BeforeAndAfterEach {
+class DictionaryTest
+    extends FlatSpec
+    with Matchers
+    with MockFactory
+    with OptionValues
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach {
 
   override def beforeAll(): Unit = {
     val properties = new Properties()
@@ -52,7 +58,10 @@ class DictionaryTest extends FlatSpec with Matchers with MockFactory with Option
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
-    (dictionaryDaoMock.getValuesByIds _).expects(testDim, Set(1l,2l,3l)).returning(Map(1l -> "value 1", 3l -> "value 3")).once()
+    (dictionaryDaoMock.getValuesByIds _)
+      .expects(testDim, Set(1L, 2L, 3L))
+      .returning(Map(1L -> "value 1", 3L -> "value 3"))
+      .once()
     dictionary.values(Set(1, 2, 3)) shouldEqual Map(1 -> "value 1", 3 -> "value 3")
   }
 
@@ -60,10 +69,13 @@ class DictionaryTest extends FlatSpec with Matchers with MockFactory with Option
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
-    (dictionaryDaoMock.getValuesByIds _).expects(testDim, Set(1l, 2l, 3l)).returning(Map(1l -> "value 1", 3l -> "value 3")).once()
-    (dictionaryDaoMock.getValuesByIds _).expects(testDim, Set(4l)).returning(Map(4l -> "value 4")).once()
-    dictionary.values(Set(1l, 2l, 3l)) shouldEqual Map(1l -> "value 1", 3l -> "value 3")
-    dictionary.values(Set(2l, 3l, 4l)) shouldEqual Map(4l -> "value 4", 3l -> "value 3")
+    (dictionaryDaoMock.getValuesByIds _)
+      .expects(testDim, Set(1L, 2L, 3L))
+      .returning(Map(1L -> "value 1", 3L -> "value 3"))
+      .once()
+    (dictionaryDaoMock.getValuesByIds _).expects(testDim, Set(4L)).returning(Map(4L -> "value 4")).once()
+    dictionary.values(Set(1L, 2L, 3L)) shouldEqual Map(1L -> "value 1", 3L -> "value 3")
+    dictionary.values(Set(2L, 3L, 4L)) shouldEqual Map(4L -> "value 4", 3L -> "value 3")
   }
 
   it should "use DAO in findIdByValue method" in {

@@ -3,7 +3,7 @@ package org.yupana.core.sql.parser
 import org.joda.time._
 import org.scalactic.source
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Inside, Matchers}
+import org.scalatest.{ FlatSpec, Inside, Matchers }
 
 import fastparse._
 
@@ -58,7 +58,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
 
     parse("INTERVAL '10 12:00:00'", ValueParser.value(_)).value shouldEqual PeriodValue(
-      new Period( 0, 0, 0, 10, 12, 0, 0, 0)
+      new Period(0, 0, 0, 10, 12, 0, 0, 0)
     )
   }
 
@@ -105,10 +105,12 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), groupings, None, None) =>
         schema shouldEqual "items"
         fields should contain theSameElementsAs List(SqlField(FieldName("sum")), SqlField(FieldName("quantity")))
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(NumericValue(54321))),
-          Lt(FieldName("time"), Constant(NumericValue(939393)))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(NumericValue(54321))),
+            Lt(FieldName("time"), Constant(NumericValue(939393)))
+          )
+        )
         groupings shouldBe empty
     }
   }
@@ -119,28 +121,35 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     parsed(statement) {
       case Select(schema, SqlFieldsAll, Some(condition), groupings, None, None) =>
         schema shouldEqual "items"
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(NumericValue(12345678))),
-          Lt(FieldName("time"), Constant(NumericValue(23456789)))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(NumericValue(12345678))),
+            Lt(FieldName("time"), Constant(NumericValue(23456789)))
+          )
+        )
         groupings shouldBe empty
     }
   }
 
   it should "support parentheses in conditions" in {
-    val statement = "SELECT sum, quantity FROM items WHERE ((time >= 12345678) AND ((time < 23456789) and kkmId = '123456'))"
+    val statement =
+      "SELECT sum, quantity FROM items WHERE ((time >= 12345678) AND ((time < 23456789) and kkmId = '123456'))"
 
     parsed(statement) {
       case Select(schema, SqlFieldList(fields), Some(condition), groupings, None, None) =>
         schema shouldEqual "items"
         fields should contain theSameElementsAs List(SqlField(FieldName("sum")), SqlField(FieldName("quantity")))
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(NumericValue(12345678))),
-          And(Seq(
-            Lt(FieldName("time"), Constant(NumericValue(23456789))),
-            Eq(FieldName("kkmId"), Constant(StringValue("123456")))
-          ))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(NumericValue(12345678))),
+            And(
+              Seq(
+                Lt(FieldName("time"), Constant(NumericValue(23456789))),
+                Eq(FieldName("kkmId"), Constant(StringValue("123456")))
+              )
+            )
+          )
+        )
         groupings shouldBe empty
     }
   }
@@ -152,11 +161,13 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
-        condition shouldEqual Or(Seq(
-          And(Seq(Gt(FieldName("a"), Constant(NumericValue(5))), Lt(FieldName("a"), Constant(NumericValue(10))))),
-          And(Seq(Ge(FieldName("a"), Constant(NumericValue(30))), Le(FieldName("a"), Constant(NumericValue(40))))),
-          Or(Seq(Eq(FieldName("b"), Constant(NumericValue(10))), Eq(FieldName("b"), Constant(NumericValue(42)))))
-        ))
+        condition shouldEqual Or(
+          Seq(
+            And(Seq(Gt(FieldName("a"), Constant(NumericValue(5))), Lt(FieldName("a"), Constant(NumericValue(10))))),
+            And(Seq(Ge(FieldName("a"), Constant(NumericValue(30))), Le(FieldName("a"), Constant(NumericValue(40))))),
+            Or(Seq(Eq(FieldName("b"), Constant(NumericValue(10))), Eq(FieldName("b"), Constant(NumericValue(42)))))
+          )
+        )
     }
   }
 
@@ -167,13 +178,17 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
-        condition shouldEqual Or(Seq(
-          Gt(FieldName("a"), Constant(NumericValue(10))),
-          And(Seq(
-            In(FieldName("b"), Seq(StringValue("aaa"), StringValue("bbb"))),
-            Eq(FieldName("c"), Constant(NumericValue(8)))
-          ))
-        ))
+        condition shouldEqual Or(
+          Seq(
+            Gt(FieldName("a"), Constant(NumericValue(10))),
+            And(
+              Seq(
+                In(FieldName("b"), Seq(StringValue("aaa"), StringValue("bbb"))),
+                Eq(FieldName("c"), Constant(NumericValue(8)))
+              )
+            )
+          )
+        )
     }
   }
 
@@ -182,10 +197,12 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
-        condition shouldEqual And(Seq(
-          NotIn(FieldName("x"), Seq(NumericValue(1), NumericValue(2), NumericValue(3))),
-          Eq(FieldName("z"), Constant(NumericValue(12)))
-        ))
+        condition shouldEqual And(
+          Seq(
+            NotIn(FieldName("x"), Seq(NumericValue(1), NumericValue(2), NumericValue(3))),
+            Eq(FieldName("z"), Constant(NumericValue(12)))
+          )
+        )
     }
   }
 
@@ -196,10 +213,12 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
-        condition shouldEqual And(Seq(
-          Gt(FieldName("a"), Constant(NumericValue(10))),
-          IsNull(FieldName("c"))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Gt(FieldName("a"), Constant(NumericValue(10))),
+            IsNull(FieldName("c"))
+          )
+        )
     }
   }
 
@@ -210,10 +229,12 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
-        condition shouldEqual And(Seq(
-          Gt(FieldName("a"), Constant(NumericValue(10))),
-          IsNotNull(FieldName("c"))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Gt(FieldName("a"), Constant(NumericValue(10))),
+            IsNotNull(FieldName("c"))
+          )
+        )
     }
   }
 
@@ -248,7 +269,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
           SqlField(FunctionCall("day", FieldName("time") :: Nil))
         )
-        groupings should contain (FunctionCall("day", FieldName("time") :: Nil))
+        groupings should contain(FunctionCall("day", FieldName("time") :: Nil))
     }
   }
 
@@ -262,7 +283,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d"))
         )
-        groupings should contain (FieldName("d"))
+        groupings should contain(FieldName("d"))
     }
   }
 
@@ -276,7 +297,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d"))
         )
-        groupings should contain (FieldName("d"))
+        groupings should contain(FieldName("d"))
     }
   }
 
@@ -319,9 +340,10 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         schema shouldEqual "tickets"
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("sum")),
-          SqlField(FieldName("name"), Some("n")))
-        condition shouldEqual  Ne(FieldName("n"), Constant(StringValue("картошка")))
-        groupings should contain (FieldName("n"))
+          SqlField(FieldName("name"), Some("n"))
+        )
+        condition shouldEqual Ne(FieldName("n"), Constant(StringValue("картошка")))
+        groupings should contain(FieldName("n"))
     }
   }
 
@@ -347,9 +369,9 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     parsed(statement) {
       case Select(schema, SqlFieldList(fields), Some(condition), groupings, None, None) =>
         schema shouldEqual "foo"
-        fields should contain (SqlField(FieldName("field")))
+        fields should contain(SqlField(FieldName("field")))
         condition shouldEqual Le(FieldName("bar"), Constant(NumericValue(5)))
-        groupings should contain (FieldName("baz"))
+        groupings should contain(FieldName("baz"))
     }
   }
 
@@ -362,11 +384,13 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     parsed(statement) {
       case Select(schema, SqlFieldList(fields), Some(condition), groupings, None, None) =>
         schema shouldEqual "foo"
-        fields should contain (SqlField(FieldName("field")))
-        condition shouldEqual And(Seq(
-          Ge(FieldName("bar"), Constant(Placeholder)),
-          Lt(FieldName("baz"), Constant(Placeholder))
-        ))
+        fields should contain(SqlField(FieldName("field")))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("bar"), Constant(Placeholder)),
+            Lt(FieldName("baz"), Constant(Placeholder))
+          )
+        )
         groupings shouldBe empty
     }
   }
@@ -434,10 +458,12 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FieldName("cashSum"), Some("cashSum"))
         )
 
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 10, 1, 0, 0)))),
-          Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 10, 30, 0, 0))))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 10, 1, 0, 0)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 10, 30, 0, 0))))
+          )
+        )
 
         groupings should contain theSameElementsAs Seq(FieldName("time"))
     }
@@ -454,7 +480,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "qux"
         fields should contain theSameElementsInOrderAs List(
-          SqlField(FieldName("foo")), SqlField(FieldName("barbarian"), Some("bar"))
+          SqlField(FieldName("foo")),
+          SqlField(FieldName("barbarian"), Some("bar"))
         )
         condition shouldEqual Ne(FieldName("mode"), Constant(StringValue("test")))
     }
@@ -479,11 +506,13 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("quantity")),
           SqlField(FunctionCall("sum", FieldName("sum") :: Nil), Some("sum"))
         )
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
-          Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 12, 20, 0, 0)))),
-          Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 12, 20, 0, 0)))),
+            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
+          )
+        )
         groupings should contain theSameElementsAs List(FieldName("d"))
     }
   }
@@ -508,11 +537,13 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d")),
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("amount"))
         )
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
-          Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 12, 20, 0, 0)))),
-          Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 12, 20, 0, 0)))),
+            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
+          )
+        )
         groupings should contain theSameElementsAs List(FieldName("d"))
     }
   }
@@ -541,18 +572,19 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("quantity")),
           SqlField(FunctionCall("sum", FieldName("sum") :: Nil), Some("sum"))
         )
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
-          Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 20, 0, 0)))),
-          Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 20, 0, 0)))),
+            Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
+          )
+        )
         groupings should contain theSameElementsAs List(FieldName("d"))
     }
   }
 
   it should "support expressions in outer queries" in {
-    parsed(
-      """
+    parsed("""
         |SELECT foo + bar as baz, qux
         |  FROM (SELECT 1 - sum / quantity as foo, test FROM table WHERE x > 100)
       """.stripMargin) {
@@ -588,13 +620,21 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "foo"
         fields should contain theSameElementsAs List(
-          SqlField(Case(
-            Seq(
-              (Lt(FieldName("x"), Constant(NumericValue(10))), Constant(NumericValue(0))),
-              (And(Seq(Ge(FieldName("x"), Constant(NumericValue(10))), Lt(FieldName("x"), Constant(NumericValue(100))))), Constant(NumericValue(1)))
+          SqlField(
+            Case(
+              Seq(
+                (Lt(FieldName("x"), Constant(NumericValue(10))), Constant(NumericValue(0))),
+                (
+                  And(
+                    Seq(Ge(FieldName("x"), Constant(NumericValue(10))), Lt(FieldName("x"), Constant(NumericValue(100))))
+                  ),
+                  Constant(NumericValue(1))
+                )
+              ),
+              Constant(NumericValue(2))
             ),
-            Constant(NumericValue(2))
-          ), Some("logx"))
+            Some("logx")
+          )
         )
         condition shouldEqual Eq(FieldName("y"), Constant(NumericValue(5)))
     }
@@ -617,12 +657,16 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
 
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("item")),
-          SqlField(FunctionCall(
-            "sum", Case(
-              Seq((Lt(FieldName("x"), Constant(NumericValue(10))), Constant(NumericValue(0)))),
-              Constant(NumericValue(1))
-            ) :: Nil
-          ), Some("more_than_ten"))
+          SqlField(
+            FunctionCall(
+              "sum",
+              Case(
+                Seq((Lt(FieldName("x"), Constant(NumericValue(10))), Constant(NumericValue(0)))),
+                Constant(NumericValue(1))
+              ) :: Nil
+            ),
+            Some("more_than_ten")
+          )
         )
 
         condition shouldEqual Ge(FieldName("more_than_ten"), Constant(NumericValue(5)))
@@ -646,12 +690,16 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
 
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("item")),
-          SqlField(FunctionCall(
-            "sum", Case(
-              Seq((Eq(FieldName("x"), Constant(StringValue("type_one"))), FieldName("y"))),
-              Constant(NumericValue(0))
-            ) :: Nil
-          ), Some("sum_type_one"))
+          SqlField(
+            FunctionCall(
+              "sum",
+              Case(
+                Seq((Eq(FieldName("x"), Constant(StringValue("type_one"))), FieldName("y"))),
+                Constant(NumericValue(0))
+              ) :: Nil
+            ),
+            Some("sum_type_one")
+          )
         )
 
         condition shouldEqual Ge(FieldName("more_than_ten"), Constant(NumericValue(5)))
@@ -698,25 +746,35 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("lag", FieldName("time") :: Nil), Some("l")),
           SqlField(FunctionCall("hour", FieldName("time") :: Nil), Some("h"))
         )
-        condition shouldEqual And(Seq(
-          Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2018, 1, 11, 0, 0)))),
-          Gt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2018, 1, 1, 0, 0))))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2018, 1, 11, 0, 0)))),
+            Gt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2018, 1, 1, 0, 0))))
+          )
+        )
         groupings should contain theSameElementsAs List(FieldName("kkmId"))
-        having shouldEqual Or(Seq(
-          And(Seq(
-            Gt(Minus(FieldName("l"), FieldName("t")), Constant(StringValue("2:00:00"))),
-            Ge(FieldName("h"), Constant(NumericValue(8))),
-            Le(FieldName("h"), Constant(NumericValue(18)))
-          )),
-          And(Seq(
-            Gt(Minus(FieldName("l"), FieldName("t")), Constant(StringValue("4:00:00"))),
-            Or(Seq(
-              Gt(FieldName("h"), Constant(NumericValue(18))),
-              Lt(FieldName("h"), Constant(NumericValue(8)))
-            ))
-          ))
-        ))
+        having shouldEqual Or(
+          Seq(
+            And(
+              Seq(
+                Gt(Minus(FieldName("l"), FieldName("t")), Constant(StringValue("2:00:00"))),
+                Ge(FieldName("h"), Constant(NumericValue(8))),
+                Le(FieldName("h"), Constant(NumericValue(18)))
+              )
+            ),
+            And(
+              Seq(
+                Gt(Minus(FieldName("l"), FieldName("t")), Constant(StringValue("4:00:00"))),
+                Or(
+                  Seq(
+                    Gt(FieldName("h"), Constant(NumericValue(18))),
+                    Lt(FieldName("h"), Constant(NumericValue(8)))
+                  )
+                )
+              )
+            )
+          )
+        )
         limit shouldEqual 10
     }
   }
@@ -739,11 +797,13 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil))
         )
 
-        condition shouldEqual And(Seq(
-          Lt(FieldName("time"), FunctionCall("now", Nil)),
-          Ge(FieldName("time"), Minus(FunctionCall("now", Nil), Constant(PeriodValue(Period.months(1))))),
-          Eq(FieldName("item"), Constant(StringValue("конфета 'Чупа-чупс'")))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Lt(FieldName("time"), FunctionCall("now", Nil)),
+            Ge(FieldName("time"), Minus(FunctionCall("now", Nil), Constant(PeriodValue(Period.months(1))))),
+            Eq(FieldName("item"), Constant(StringValue("конфета 'Чупа-чупс'")))
+          )
+        )
 
         groupings should contain theSameElementsInOrderAs Seq(
           FieldName("kkmId"),
@@ -784,9 +844,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         fields should contain theSameElementsAs Seq(
           SqlField(FieldName("day")),
           SqlField(
-            Plus(
-              FunctionCall("sum", FieldName("cashSum") :: Nil),
-              FunctionCall("min", FieldName("cardSum") :: Nil)),
+            Plus(FunctionCall("sum", FieldName("cashSum") :: Nil), FunctionCall("min", FieldName("cardSum") :: Nil)),
             Some("wtf")
           )
         )
@@ -806,16 +864,19 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), groupings, None, None) =>
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FieldName("kkmId")),
-          SqlField(Divide(
-            Minus(
-              Multiply(
-                Plus(FieldName("cardSum"), FieldName("cashSum")),
-                Constant(NumericValue(5))
+          SqlField(
+            Divide(
+              Minus(
+                Multiply(
+                  Plus(FieldName("cardSum"), FieldName("cashSum")),
+                  Constant(NumericValue(5))
+                ),
+                Divide(FieldName("whatever"), Constant(NumericValue(1.3)))
               ),
-              Divide(FieldName("whatever"), Constant(NumericValue(1.3)))
-              ),
-            Constant(NumericValue(52))
-          ), Some("wtf"))
+              Constant(NumericValue(52))
+            ),
+            Some("wtf")
+          )
         )
         fields(1).expr.proposedName.get shouldBe "cardSum_plus_cashSum_mul_5_minus_whatever_div_1.3_div_52"
     }
@@ -829,6 +890,22 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     SqlParser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
 
+  it should "parse SHOW QUERIES statements" in {
+    SqlParser.parse("SHOW QUERIES") shouldBe Right(ShowQueries(None, None))
+  }
+
+  it should "parse SHOW QUERIES statements with limit" in {
+    SqlParser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueries(None, Some(1)))
+  }
+
+  it should "parse SHOW QUERIES statements with id" in {
+    SqlParser.parse("SHOW QUERIES WHERE ID = '1'") shouldBe Right(ShowQueries(Some("1"), None))
+  }
+
+  it should "parse KILL QUERY statements with id" in {
+    SqlParser.parse("KILL QUERY WHERE id = '1'") shouldBe Right(KillQuery("1"))
+  }
+
   it should "support functions as conditions" in {
     val statement =
       """
@@ -839,13 +916,20 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Select(schema, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         schema shouldEqual "table_x"
         fields should contain theSameElementsAs Seq(SqlField(FieldName("value")))
-        condition shouldEqual And(Seq(
-          ExprCondition(FunctionCall("isvalid", List(FieldName("value")))),
-          ExprCondition(FunctionCall("isthesame", List(
-            FunctionCall("toarray", List(FieldName("foo"))),
-            FunctionCall("toarray", List(Constant(StringValue("bar"))))
-          )))
-        ))
+        condition shouldEqual And(
+          Seq(
+            ExprCondition(FunctionCall("isvalid", List(FieldName("value")))),
+            ExprCondition(
+              FunctionCall(
+                "isthesame",
+                List(
+                  FunctionCall("toarray", List(FieldName("foo"))),
+                  FunctionCall("toarray", List(Constant(StringValue("bar"))))
+                )
+              )
+            )
+          )
+        )
     }
   }
 
@@ -864,66 +948,93 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FunctionCall("abs", List(FunctionCall("sum", List(UMinus(FieldName("quantity")))))), Some("abs1")),
           SqlField(
-            FunctionCall("abs", List(
-              FunctionCall("sum", List(
-                Case(
-                  Seq(
-                    Lt(FieldName("sum"), Constant(NumericValue(40000))) -> Plus(UMinus(Constant(NumericValue(10))), UMinus(Constant(NumericValue(5))))
-                  ),
-                  Constant(NumericValue(1)))
-              ))
-            )),
-            Some("abs2")),
+            FunctionCall(
+              "abs",
+              List(
+                FunctionCall(
+                  "sum",
+                  List(
+                    Case(
+                      Seq(
+                        Lt(FieldName("sum"), Constant(NumericValue(40000))) -> Plus(
+                          UMinus(Constant(NumericValue(10))),
+                          UMinus(Constant(NumericValue(5)))
+                        )
+                      ),
+                      Constant(NumericValue(1))
+                    )
+                  )
+                )
+              )
+            ),
+            Some("abs2")
+          ),
           SqlField(FunctionCall("abs", List(FunctionCall("count", List(FieldName("taxNo"))))), Some("abs3")),
           SqlField(
-            FunctionCall("abs", List(
-              FunctionCall("sum", List(
-                Case(
-                  Seq(
-                    Eq(FieldName("operation_type"), Constant(StringValue("0"))) -> UMinus(FieldName("sum")),
-                    Eq(FieldName("operation_type"), Constant(StringValue("2"))) -> Plus(UMinus(Constant(NumericValue(5))), FieldName("sum"))
-                  ), UMinus(Constant(NumericValue(10)))
+            FunctionCall(
+              "abs",
+              List(
+                FunctionCall(
+                  "sum",
+                  List(
+                    Case(
+                      Seq(
+                        Eq(FieldName("operation_type"), Constant(StringValue("0"))) -> UMinus(FieldName("sum")),
+                        Eq(FieldName("operation_type"), Constant(StringValue("2"))) -> Plus(
+                          UMinus(Constant(NumericValue(5))),
+                          FieldName("sum")
+                        )
+                      ),
+                      UMinus(Constant(NumericValue(10)))
+                    )
+                  )
                 )
-              ))
-            )),
+              )
+            ),
             Some("abs4")
           )
         )
-        condition shouldEqual And(Seq(
-          Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2019, 4, 10, 0, 0)))),
-          Le(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2019, 4, 11, 0, 0)))),
-          Lt(UMinus(FieldName("quantity")), UMinus(Constant(NumericValue(100))))
-        ))
+        condition shouldEqual And(
+          Seq(
+            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2019, 4, 10, 0, 0)))),
+            Le(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2019, 4, 11, 0, 0)))),
+            Lt(UMinus(FieldName("quantity")), UMinus(Constant(NumericValue(100))))
+          )
+        )
     }
   }
 
   it should "produce error message when FROM statement is missing" in {
-    errorMessage("""SELECT field, sum(sum) sum WHERE time > TIMESTAMP '2017-01-03'""") { case msg =>
-      msg should include ("""Expect ("," | "FROM"), but got "WHERE time"""")
+    errorMessage("""SELECT field, sum(sum) sum WHERE time > TIMESTAMP '2017-01-03'""") {
+      case msg =>
+        msg should include("""Expect ("," | "FROM"), but got "WHERE time"""")
     }
   }
 
   it should "produce error on unknown statements" in {
-    errorMessage("INSERT 'foo' INTO table;") { case msg =>
-      msg should include ("""Expect ("SELECT" | "SHOW"), but got "INSERT""")
+    errorMessage("INSERT 'foo' INTO table;") {
+      case msg =>
+        msg should include("""Expect ("SELECT" | "SHOW" | "KILL"), but got "INSERT""")
     }
   }
 
   it should "produce error on unknown show" in {
-    errorMessage("SHOW functions") { case msg =>
-      msg should include("""Expect ("COLUMNS" | "TABLES"), but got "functions""")
+    errorMessage("SHOW functions") {
+      case msg =>
+        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES"), but got "functions""")
     }
   }
 
   it should "it should properly identify error position" in {
-    errorMessage("""SELECT x + y z - 1 from y""") { case msg =>
-      msg should include("""Expect ("," | "FROM"), but got "- 1""")
+    errorMessage("""SELECT x + y z - 1 from y""") {
+      case msg =>
+        msg should include("""Expect ("," | "FROM"), but got "- 1""")
     }
   }
 
   def parsed[U](statement: String)(pf: PartialFunction[Statement, U])(implicit pos: source.Position): U = {
     inside(SqlParser.parse(statement)) {
-      case Right(x) => pf(x)
+      case Right(x)  => pf(x)
       case Left(msg) => fail(msg)
     }
   }
@@ -931,7 +1042,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   def errorMessage[U](statement: String)(pf: PartialFunction[String, U]): U = {
     inside(SqlParser.parse(statement)) {
       case Left(msg) => pf(msg)
-      case Right(s) => fail(s"Error message expected, byt got statement: $s")
+      case Right(s)  => fail(s"Error message expected, byt got statement: $s")
     }
   }
 }

@@ -3,25 +3,32 @@ package org.yupana.core
 import java.util.Properties
 
 import org.joda.time.format.DateTimeFormat
-import org.joda.time.{DateTime, DateTimeZone, LocalDateTime}
+import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types._
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{DictionaryDao, DictionaryProviderImpl, TSDao}
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.sql.parser.{Select, SqlParser}
+import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
-class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues with TableDrivenPropertyChecks
-  with BeforeAndAfterAll with BeforeAndAfterEach {
+class TsdbTest
+    extends FlatSpec
+    with Matchers
+    with TsdbMocks
+    with OptionValues
+    with TableDrivenPropertyChecks
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach {
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -38,18 +45,20 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
   "TSDB" should "put datapoint to database" in {
 
     val tsdbDaoMock = mock[TSTestDao]
+    val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, dictionaryProvider, identity)
+    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity)
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
-    val tags =  Map(TestDims.TAG_A -> "test1", TestDims.TAG_B -> "test2")
+    val tags = Map(TestDims.TAG_A -> "test1", TestDims.TAG_B -> "test2")
     val dp1 = DataPoint(TestSchema.testTable, time, tags, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
     val dp2 = DataPoint(TestSchema.testTable, time + 1, tags, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
-    val dp3 = DataPoint(TestSchema.testTable2, time + 1, tags, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
+    val dp3 =
+      DataPoint(TestSchema.testTable2, time + 1, tags, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
-    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1l))
-    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.TAG_B, Set("test2")).returning(Map("test2" -> 2l))
+    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
+    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.TAG_B, Set("test2")).returning(Map("test2" -> 2L))
     (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Seq(dp1, dp2, dp3))
@@ -79,7 +88,12 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set[Expression](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.TAG_A),
+            dimension(TestDims.TAG_B)
+          ),
           and(
             equ(dimension(TestDims.TAG_A), const("test1")),
             ge(time, const(Time(from))),
@@ -88,13 +102,17 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         ),
         *,
         NoMetricCollector
-      ).onCall((_, b, _) => Iterator(
-        b.set(time, Some(Time(pointTime)))
-          .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-          .set(dimension(TestDims.TAG_A), Some("test1"))
-          .set(dimension(TestDims.TAG_B), Some("test2"))
-          .buildAndReset()
-      ))
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -121,30 +139,35 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      DimIdIn(dimension(TestDims.TAG_A), Set(123))
+      DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(123))
     )
 
     val pointTime = qtime.getMillis + 10
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(
-          DimIdIn(dimension(TestDims.TAG_A), Set(123)),
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime)))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-        .set(dimension(TestDims.TAG_A), Some("test123"))
-        .set(dimension(TestDims.TAG_B), Some("test2"))
-        .buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(
+            DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(123)),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(dimension(TestDims.TAG_A), Some("test123"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -175,24 +198,29 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
       equ(time, const(Time(pointTime)))
     )
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(
-          equ(time, const(Time(pointTime))),
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime)))
-        .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-        .set(dimension(TestDims.TAG_A), Some("test12"))
-        .buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            equ(time, const(Time(pointTime))),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(3d))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -220,33 +248,40 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.TAG_A) as "TAG_A"
       ),
-      And(Seq(
-        In(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
-      ))
+      And(
+        Seq(
+          In(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
+        )
+      )
     )
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(
-          in(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"))),
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1)))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-        .set(dimension(TestDims.TAG_A), Some("test42"))
-        .buildAndReset(),
-      b.set(time, Some(Time(pointTime2)))
-        .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-        .set(dimension(TestDims.TAG_A), Some("test42"))
-        .buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            in(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"))),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(dimension(TestDims.TAG_A), Some("test42"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(3d))
+              .set(dimension(TestDims.TAG_A), Some("test42"))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -274,30 +309,46 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.TAG_A) as "TAG_A"
       ),
-      And(Seq(
-        equ(dimension(TestDims.TAG_B), const("B-52")),
-        notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
-      ))
+      And(
+        Seq(
+          equ(dimension(TestDims.TAG_B), const("B-52")),
+          notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
+        )
+      )
     )
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(
-          notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"))),
-          equ(dimension(TestDims.TAG_B), const("B-52")),
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test42")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test24")).set(metric(TestTableFields.TEST_FIELD), Some(2d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test42")).set(metric(TestTableFields.TEST_FIELD), Some(3d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"))),
+            equ(dimension(TestDims.TAG_B), const("B-52")),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test42"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test24"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(2d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test42"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(3d))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 2
@@ -333,25 +384,30 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
 
     val pointTime = qtime.getMillis + 10
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_B), dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          neq(dimension(TestDims.TAG_A), const("test11"))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime)))
-        .set(dimension(TestDims.TAG_A), Some("test12"))
-        .set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-        .buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_B), dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            neq(dimension(TestDims.TAG_A), const("test11"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -382,24 +438,29 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
 
     val pointTime = qtime.getMillis + 10
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime)))
-        .set(dimension(TestDims.TAG_A), Some("test1"))
-        .set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-        .buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val row = tsdb.query(query).head
 
@@ -431,29 +492,34 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1)))
-        .set(dimension(TestDims.TAG_A), Some("test1"))
-        .set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-        .buildAndReset(),
-      b.set(time, Some(Time(pointTime2)))
-        .set(dimension(TestDims.TAG_A), Some("test1"))
-        .set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-        .buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val row = tsdb.query(query).head
 
@@ -484,25 +550,48 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
@@ -538,37 +627,62 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(2d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(2d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(2d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(2d))
+              .buildAndReset()
+          )
+      )
 
-    val results = tsdb.query(query).iterator
+    val results = tsdb.query(query).toList
 
-    val group1 = results.next()
+    results should have size 2
+
+    val group1 = results(0)
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    group1.fieldValueByName[Double]("testField").value shouldBe 1d
-    group1.fieldValueByName[Int]("TAG_A").value shouldBe 4
+    group1.fieldValueByName[Double]("testField").value shouldBe 2d
+    group1.fieldValueByName[Int]("TAG_A").value shouldBe 2
 
-    val group2 = results.next()
+    val group2 = results(1)
     group2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    group2.fieldValueByName[Double]("testField").value shouldBe 2d
-    group2.fieldValueByName[Int]("TAG_A").value shouldBe 2
+    group2.fieldValueByName[Double]("testField").value shouldBe 1d
+    group2.fieldValueByName[Int]("TAG_A").value shouldBe 4
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -577,10 +691,12 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val to = qtime.plusDays(1).getMillis
 
     val query = Query(
-      filter = And(Seq(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to)))
-      )),
+      filter = And(
+        Seq(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to)))
+        )
+      ),
       groupBy = Seq(function(UnaryOperation.truncDay, time)),
       fields = Seq(
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField"
@@ -592,23 +708,28 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
+            b.set(time, Some(Time(pointTime2))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
+            b.set(time, Some(Time(pointTime1))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
+            b.set(time, Some(Time(pointTime2))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query)
 
@@ -646,16 +767,20 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     )
 
     (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_A), Set("test1", "test12"))
-      ))
+      .expects(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+        )
+      )
+      .returning(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+        )
+      )
 
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
@@ -663,155 +788,195 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
       .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK,
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
           SparseTable("test1" -> Map("testField" -> "testFieldValue"), "test12" -> Map("testField" -> "testFieldValue"))
         )
       })
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test1", "test12"))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1)))
-        .set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2)))
-        .set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1)))
-        .set(dimension(TestDims.TAG_A), Some("test12")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2)))
-        .set(dimension(TestDims.TAG_A), Some("test12")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
     r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
     r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
     r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
     r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
   }
 
-  it should "execute query with filter values by external link field return empty result when linked values not found" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
+  it should "execute query with filter values by external link field return empty result when linked values not found" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+      val from = qtime.getMillis
+      val to = qtime.plusDays(1).getMillis
 
-    val query = Query(
-      TestSchema.testTable,
-      const(Time(qtime)),
-      const(Time(qtime.plusDays(1))),
-      Seq(
-        truncDay(time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
-      ),
-      Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
-      Seq(truncDay(time))
-    )
-
-    (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_A), Set.empty)
-      ))
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
+      val query = Query(
         TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set())
+        const(Time(qtime)),
+        const(Time(qtime.plusDays(1))),
+        Seq(
+          truncDay(time) as "time",
+          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          dimension(TestDims.TAG_A) as "TAG_A",
+          dimension(TestDims.TAG_B) as "TAG_B"
+        ),
+        Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
+        Seq(truncDay(time))
+      )
+
+      (testCatalogServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+          )
         )
-      ),
-      *, NoMetricCollector
-    ).returning(Iterator.empty)
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set.empty)
+          )
+        )
 
-    val result = tsdb.query(query)
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              in(dimension(TestDims.TAG_A), Set())
+            )
+          ),
+          *,
+          NoMetricCollector
+        )
+        .returning(Iterator.empty)
 
-    result shouldBe empty
+      val result = tsdb.query(query)
+
+      result shouldBe empty
   }
 
-  it should "execute query with filter values by external link field return empty result when linked tag ids not found" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
+  it should "execute query with filter values by external link field return empty result when linked tag ids not found" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+      val from = qtime.getMillis
+      val to = qtime.plusDays(1).getMillis
 
-    val query = Query(
-      TestSchema.testTable,
-      const(Time(qtime)),
-      const(Time(qtime.plusDays(1))),
-      Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
-      ),
-      Some(SimpleCondition(BinaryOperationExpr(BinaryOperation.equ[String], link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")))),
-      Seq(function(UnaryOperation.truncDay, time))
-    )
-
-    (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")))
-      )
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        DimIdIn(dimension(TestDims.TAG_A), Set.empty)
-      ))
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
+      val query = Query(
         TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          DimIdIn(dimension(TestDims.TAG_A), Set())
+        const(Time(qtime)),
+        const(Time(qtime.plusDays(1))),
+        Seq(
+          function(UnaryOperation.truncDay, time) as "time",
+          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          dimension(TestDims.TAG_A) as "TAG_A",
+          dimension(TestDims.TAG_B) as "TAG_B"
+        ),
+        Some(
+          SimpleCondition(
+            BinaryOperationExpr(
+              BinaryOperation.equ[String],
+              link(TestLinks.TEST_LINK, "testField"),
+              const("testFieldValue")
+            )
+          )
+        ),
+        Seq(function(UnaryOperation.truncDay, time))
+      )
+
+      (testCatalogServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+          )
         )
-      ),
-      *, NoMetricCollector
-    ).returning(Iterator.empty)
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator.empty)
+          )
+        )
 
-    val result = tsdb.query(query)
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator.empty)
+            )
+          ),
+          *,
+          NoMetricCollector
+        )
+        .returning(Iterator.empty)
 
-    result shouldBe empty
+      val result = tsdb.query(query)
+
+      result shouldBe empty
   }
 
   it should "execute query with exclude filter by external link field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -832,7 +997,15 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_B) as "TAG_B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
-      Some(SimpleCondition(BinaryOperationExpr(BinaryOperation.neq[String], link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")))),
+      Some(
+        SimpleCondition(
+          BinaryOperationExpr(
+            BinaryOperation.neq[String],
+            link(TestLinks.TEST_LINK, "testField"),
+            const("testFieldValue")
+          )
+        )
+      ),
       Seq(
         function(UnaryOperation.truncDay, time),
         dimension(TestDims.TAG_A),
@@ -842,16 +1015,20 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     )
 
     (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        NotIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
-      ))
+      .expects(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+        )
+      )
+      .returning(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          NotIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+        )
+      )
 
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
@@ -859,27 +1036,43 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
       .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test13" -> Map("testField" -> "test value 3")))
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable("test13" -> Map("testField" -> "test value 3"))
+        )
       })
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test13")).set(dimension(TestDims.TAG_B), Some("test21"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test13")).set(dimension(TestDims.TAG_B), Some("test21"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test13"))
+              .set(dimension(TestDims.TAG_B), Some("test21"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test13"))
+              .set(dimension(TestDims.TAG_B), Some("test21"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -892,185 +1085,231 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
-  it should "execute query with exclude filter by external link field when link service return tag ids" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
+  it should "execute query with exclude filter by external link field when link service return tag ids" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+      val from = qtime.getMillis
+      val to = qtime.plusDays(1).getMillis
 
-    val query = Query(
-      TestSchema.testTable,
-      const(Time(from)),
-      const(Time(to)),
-      Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B",
-        link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
-      ),
-      Some(neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
-      Seq(
-        function(UnaryOperation.truncDay, time),
-        dimension(TestDims.TAG_A),
-        dimension(TestDims.TAG_B),
-        link(TestLinks.TEST_LINK, "testField")
-      )
-    )
-
-    (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        DimIdNotIn(dimension(TestDims.TAG_A), Set(1, 2))
-      ))
-
-    (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test13" -> Map("testField" -> "test value 3")))
-      })
-
-    val pointTime1 = qtime.getMillis + 10
-    val pointTime2 = pointTime1 + 1
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
+      val query = Query(
         TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          DimIdNotIn(dimension(TestDims.TAG_A), Set(1, 2))
+        const(Time(from)),
+        const(Time(to)),
+        Seq(
+          function(UnaryOperation.truncDay, time) as "time",
+          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          dimension(TestDims.TAG_A) as "TAG_A",
+          dimension(TestDims.TAG_B) as "TAG_B",
+          link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
+        ),
+        Some(neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
+        Seq(
+          function(UnaryOperation.truncDay, time),
+          dimension(TestDims.TAG_A),
+          dimension(TestDims.TAG_B),
+          link(TestLinks.TEST_LINK, "testField")
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1)))
-        .set(dimension(TestDims.TAG_A), Some("test13")).set(dimension(TestDims.TAG_B), Some("test21"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2)))
-        .set(dimension(TestDims.TAG_A), Some("test13")).set(dimension(TestDims.TAG_B), Some("test21"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+      )
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+      (testCatalogServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+          )
+        )
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+          )
+        )
 
-    row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
-    row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
+      (testCatalogServiceMock.setLinkedValues _)
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .onCall((qc, datas, _) => {
+          setCatalogValueByTag(
+            qc,
+            datas,
+            TestLinks.TEST_LINK,
+            SparseTable("test13" -> Map("testField" -> "test value 3"))
+          )
+        })
+
+      val pointTime1 = qtime.getMillis + 10
+      val pointTime2 = pointTime1 + 1
+
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+            )
+          ),
+          *,
+          NoMetricCollector
+        )
+        .onCall(
+          (_, b, _) =>
+            Iterator(
+              b.set(time, Some(Time(pointTime1)))
+                .set(dimension(TestDims.TAG_A), Some("test13"))
+                .set(dimension(TestDims.TAG_B), Some("test21"))
+                .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+                .buildAndReset(),
+              b.set(time, Some(Time(pointTime2)))
+                .set(dimension(TestDims.TAG_A), Some("test13"))
+                .set(dimension(TestDims.TAG_B), Some("test21"))
+                .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+                .buildAndReset()
+            )
+        )
+
+      val rows = tsdb.query(query).toList
+      rows should have size 1
+      val row = rows.head
+
+      row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+      row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+      row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
+      row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+      row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
-  it should "exclude tag ids from external link filter then they are in FilterNeq" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
-    val testCatalog2ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
+  it should "exclude tag ids from external link filter then they are in FilterNeq" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
+      val testCatalog2ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+      val from = qtime.getMillis
+      val to = qtime.plusDays(1).getMillis
 
-    val query = Query(
-      TestSchema.testTable,
-      const(Time(from)),
-      const(Time(to)),
-      Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
-        dimension(TestDims.TAG_A).toField,
-        dimension(TestDims.TAG_B).toField,
-        link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
-      ),
-      Some(And(Seq(
-        neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))),
-      Seq(
-        function(UnaryOperation.truncDay, time),
-        dimension(TestDims.TAG_A),
-        dimension(TestDims.TAG_B),
-        link(TestLinks.TEST_LINK, "testField")
-      )
-    )
-
-    (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))
-
-    (testCatalog2ServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        in(dimension(TestDims.TAG_A), Set("test12", "test13"))
-      ))
-
-    (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test13" -> Map("testField" -> "test value 3")))
-      })
-
-    val pointTime1 = qtime.getMillis + 10
-    val pointTime2 = pointTime1 + 1
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
+      val query = Query(
         TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test12", "test13")),
-          notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+        const(Time(from)),
+        const(Time(to)),
+        Seq(
+          function(UnaryOperation.truncDay, time) as "time",
+          sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+          dimension(TestDims.TAG_A).toField,
+          dimension(TestDims.TAG_B).toField,
+          link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
+        ),
+        Some(
+          And(
+            Seq(
+              neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+              equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+            )
+          )
+        ),
+        Seq(
+          function(UnaryOperation.truncDay, time),
+          dimension(TestDims.TAG_A),
+          dimension(TestDims.TAG_B),
+          link(TestLinks.TEST_LINK, "testField")
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1)))
-        .set(dimension(TestDims.TAG_A), Some("test13")).set(dimension(TestDims.TAG_B), Some("test21"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2)))
-        .set(dimension(TestDims.TAG_A), Some("test13")).set(dimension(TestDims.TAG_B), Some("test21"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+      )
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+      (testCatalogServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+          )
+        )
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+          )
+        )
 
-    row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
-    row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
+      (testCatalog2ServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+          )
+        )
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            in(dimension(TestDims.TAG_A), Set("test12", "test13"))
+          )
+        )
+
+      (testCatalogServiceMock.setLinkedValues _)
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .onCall((qc, datas, _) => {
+          setCatalogValueByTag(
+            qc,
+            datas,
+            TestLinks.TEST_LINK,
+            SparseTable("test13" -> Map("testField" -> "test value 3"))
+          )
+        })
+
+      val pointTime1 = qtime.getMillis + 10
+      val pointTime2 = pointTime1 + 1
+
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              in(dimension(TestDims.TAG_A), Set("test12", "test13")),
+              notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+            )
+          ),
+          *,
+          NoMetricCollector
+        )
+        .onCall(
+          (_, b, _) =>
+            Iterator(
+              b.set(time, Some(Time(pointTime1)))
+                .set(dimension(TestDims.TAG_A), Some("test13"))
+                .set(dimension(TestDims.TAG_B), Some("test21"))
+                .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+                .buildAndReset(),
+              b.set(time, Some(Time(pointTime2)))
+                .set(dimension(TestDims.TAG_A), Some("test13"))
+                .set(dimension(TestDims.TAG_B), Some("test21"))
+                .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+                .buildAndReset()
+            )
+        )
+
+      val rows = tsdb.query(query).toList
+      rows should have size 1
+      val row = rows.head
+
+      row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+      row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+      row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
+      row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+      row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
   it should "handle not equal filters with both tags and external link fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1090,53 +1329,70 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      Some(And(Seq(
-        neq(dimension(TestDims.TAG_A), const("test11")),
-        neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
-        neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb")),
-        neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
-      ))),
+      Some(
+        And(
+          Seq(
+            neq(dimension(TestDims.TAG_A), const("test11")),
+            neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
+            neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb")),
+            neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
+          )
+        )
+      ),
       Seq.empty
     )
 
-    (testCatalogServiceMock.condition _).expects(and(
-      ge(time, const(Time(from))),
-      lt(time, const(Time(to))),
-      neq(dimension(TestDims.TAG_A), const("test11")),
-      neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
-      neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb")),
-      neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
-    )).returning(and(
-      ge(time, const(Time(from))),
-      lt(time, const(Time(to))),
-      neq(dimension(TestDims.TAG_A), const("test11")),
-      notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
-      notIn(dimension(TestDims.TAG_A), Set("test13")),
-      notIn(dimension(TestDims.TAG_A), Set("test11", "test14"))
-    ))
-
-    val pointTime = qtime.getMillis + 10
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+    (testCatalogServiceMock.condition _)
+      .expects(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
+          neq(dimension(TestDims.TAG_A), const("test11")),
+          neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
+          neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb")),
+          neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
+        )
+      )
+      .returning(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          neq(dimension(TestDims.TAG_A), const("test11")),
           notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
           notIn(dimension(TestDims.TAG_A), Set("test13")),
-          notIn(dimension(TestDims.TAG_A), Set("test11", "test14")),
-          neq(dimension(TestDims.TAG_A), const("test11"))
+          notIn(dimension(TestDims.TAG_A), Set("test11", "test14"))
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime)))
-        .set(dimension(TestDims.TAG_A), Some("test15")).set(dimension(TestDims.TAG_B), Some("test22"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(5d)).buildAndReset()
-    ))
+      )
+
+    val pointTime = qtime.getMillis + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            notIn(dimension(TestDims.TAG_A), Set("test13")),
+            notIn(dimension(TestDims.TAG_A), Set("test11", "test14")),
+            neq(dimension(TestDims.TAG_A), const("test11"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("test15"))
+              .set(dimension(TestDims.TAG_B), Some("test22"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(5d))
+              .buildAndReset()
+          )
+      )
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -1148,89 +1404,112 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     row.fieldValueByName[String]("TAG_B").value shouldBe "test22"
   }
 
-  it should "intersect tag ids with one tag for query with filter values by catalogs fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
-    val testCatalog2ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
+  it should "intersect tag ids with one tag for query with filter values by catalogs fields" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
+      val testCatalog2ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+      val from = qtime.getMillis
+      val to = qtime.plusDays(1).getMillis
 
-    val query = Query(
-      TestSchema.testTable,
-      const(Time(qtime)),
-      const(Time(qtime.plusDays(1))),
-      Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
-      ),
-      Some(And(Seq(
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))),
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
-    )
-
-    (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))
-    (testCatalog2ServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        in(dimension(TestDims.TAG_A), Set("test12"))
-      ))
-
-    val pointTime1 = qtime.getMillis + 10
-    val pointTime2 = pointTime1 + 1
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
+      val query = Query(
         TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-          in(dimension(TestDims.TAG_A), Set("test12"))
-        )
+        const(Time(qtime)),
+        const(Time(qtime.plusDays(1))),
+        Seq(
+          function(UnaryOperation.truncDay, time) as "time",
+          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          dimension(TestDims.TAG_A) as "TAG_A",
+          dimension(TestDims.TAG_B) as "TAG_B"
+        ),
+        Some(
+          And(
+            Seq(
+              equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+              equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+            )
+          )
+        ),
+        Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
       )
-      ,
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
 
-    val result = tsdb.query(query).toList
-    val r1 = result.head
-    r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
-    result should have size 1
+      (testCatalogServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+          )
+        )
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+          )
+        )
+      (testCatalog2ServiceMock.condition _)
+        .expects(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
+          )
+        )
+        .returning(
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            in(dimension(TestDims.TAG_A), Set("test12"))
+          )
+        )
+
+      val pointTime1 = qtime.getMillis + 10
+      val pointTime2 = pointTime1 + 1
+
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+              in(dimension(TestDims.TAG_A), Set("test12"))
+            )
+          ),
+          *,
+          NoMetricCollector
+        )
+        .onCall(
+          (_, b, _) =>
+            Iterator(
+              b.set(time, Some(Time(pointTime1)))
+                .set(dimension(TestDims.TAG_A), Some("test12"))
+                .set(dimension(TestDims.TAG_B), Some("test2"))
+                .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+                .buildAndReset(),
+              b.set(time, Some(Time(pointTime2)))
+                .set(dimension(TestDims.TAG_A), Some("test12"))
+                .set(dimension(TestDims.TAG_B), Some("test2"))
+                .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+                .buildAndReset()
+            )
+        )
+
+      val result = tsdb.query(query).toList
+      val r1 = result.head
+      r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+      r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+      r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+      r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+      result should have size 1
   }
 
   it should "intersect catalogs by different tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1251,60 +1530,85 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      Some(And(Seq(
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-      ))),
+      Some(
+        And(
+          Seq(
+            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+            equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
+          )
+        )
+      ),
       Seq(dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), function(UnaryOperation.truncDay, time))
     )
 
     (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-        equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-      ))
-    (testCatalog4ServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-        in(dimension(TestDims.TAG_B), Set("test23", "test24"))
-      ))
-
-    val pointTime1 = qtime.getMillis + 10
-    val pointTime2 = pointTime1 + 1
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+      .expects(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+          equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
+        )
+      )
+      .returning(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+          equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
+        )
+      )
+    (testCatalog4ServiceMock.condition _)
+      .expects(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
+          equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
+        )
+      )
+      .returning(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
           in(dimension(TestDims.TAG_B), Set("test23", "test24"))
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(dimension(TestDims.TAG_B), Some("test23")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(dimension(TestDims.TAG_B), Some("test23")).set(metric(TestTableFields.TEST_FIELD), Some(5d)).buildAndReset()
-    ))
+      )
+
+    val pointTime1 = qtime.getMillis + 10
+    val pointTime2 = pointTime1 + 1
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            in(dimension(TestDims.TAG_B), Set("test23", "test24"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(dimension(TestDims.TAG_B), Some("test23"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(dimension(TestDims.TAG_B), Some("test23"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(5d))
+              .buildAndReset()
+          )
+      )
 
     val result = tsdb.query(query).toList
     val r1 = result.head
@@ -1339,35 +1643,52 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     )
 
     (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        In(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
-      ))
-
-    val pointTime = qtime.getMillis + 10
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+      .expects(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
+          in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("Test a 1")).set(dimension(TestDims.TAG_B), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(2d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("Test a 3")).set(dimension(TestDims.TAG_B), Some("test2")).set(metric(TestTableFields.TEST_FIELD), Some(3d)).buildAndReset()
-    ))
+      )
+      .returning(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          In(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
+        )
+      )
+
+    val pointTime = qtime.getMillis + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("Test a 1"))
+              .set(dimension(TestDims.TAG_B), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(2d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("Test a 3"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(3d))
+              .buildAndReset()
+          )
+      )
 
     val iterator = tsdb.query(query).iterator
 
@@ -1405,52 +1726,77 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      Some(And(Seq(
-        In(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
-        In(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
-      ))),
+      Some(
+        And(
+          Seq(
+            In(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
+            In(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
+          )
+        )
+      ),
       Seq.empty
     )
 
     (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
-        in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
-        in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3"))
-      ))
-
-    val pointTime = qtime.getMillis + 10
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+      .expects(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
-          in(dimension(TestDims.TAG_B), Set("B 1", "B 2"))
+          in(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
+          in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("A 1")).set(dimension(TestDims.TAG_B), Some("B 1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("A 2")).set(dimension(TestDims.TAG_B), Some("B 1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(3d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("A 2")).set(dimension(TestDims.TAG_B), Some("B 2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(4d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("A 3")).set(dimension(TestDims.TAG_B), Some("B 2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(6d)).buildAndReset()
-    ))
+      )
+      .returning(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          in(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
+          in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3"))
+        )
+      )
+
+    val pointTime = qtime.getMillis + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
+            in(dimension(TestDims.TAG_B), Set("B 1", "B 2"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("A 1"))
+              .set(dimension(TestDims.TAG_B), Some("B 1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("A 2"))
+              .set(dimension(TestDims.TAG_B), Some("B 1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(3d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("A 2"))
+              .set(dimension(TestDims.TAG_B), Some("B 2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(4d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime)))
+              .set(dimension(TestDims.TAG_A), Some("A 3"))
+              .set(dimension(TestDims.TAG_B), Some("B 2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(6d))
+              .buildAndReset()
+          )
+      )
 
     val iterator = tsdb.query(query).iterator
 
@@ -1510,45 +1856,77 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
       .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable(
-          Map("test1" -> Map("testField" -> "testFieldValue1"), "test12" -> Map("testField" -> "testFieldValue1"), "test13" -> Map("testField" -> "testFieldValue2"))
-        ))
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable(
+            Map(
+              "test1" -> Map("testField" -> "testFieldValue1"),
+              "test12" -> Map("testField" -> "testFieldValue1"),
+              "test13" -> Map("testField" -> "testFieldValue2")
+            )
+          )
+        )
       })
 
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
-        )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test13")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test13")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test13"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test13"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue1"
+    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+    r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue2"
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue2"
+    r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
+    r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue1"
   }
 
   it should "execute query with aggregate functions on string field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1571,20 +1949,47 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
 
     val pointTime1 = qtime.getMillis + 10
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_STRING_FIELD), dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1 + 1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_2")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1 + 2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_200")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1 + 3))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_02_1")).buildAndReset()
-    )).repeated(3)
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            metric(TestTableFields.TEST_STRING_FIELD),
+            dimension(TestDims.TAG_A)
+          ),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_1"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1 + 1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_2"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1 + 2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_200"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1 + 3)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_02_1"))
+              .buildAndReset()
+          )
+      )
+      .repeated(3)
 
     val startDay = Time(qtime.withMillisOfDay(0).getMillis)
 
@@ -1593,27 +1998,31 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
     r1.fieldValueByName[String]("min_testStringField").value shouldBe "001_01_1"
 
-    val query2 = query1.copy(fields = Seq(
-      function(UnaryOperation.truncDay, time) as "time",
-      aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-      aggregate(Aggregation.max[String], TestTableFields.TEST_STRING_FIELD) as "max_testStringField"
-    ))
+    val query2 = query1.copy(
+      fields = Seq(
+        function(UnaryOperation.truncDay, time) as "time",
+        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        aggregate(Aggregation.max[String], TestTableFields.TEST_STRING_FIELD) as "max_testStringField"
+      )
+    )
 
     val r2 = tsdb.query(query2).head
     r2.fieldValueByName[Time]("time").value shouldBe startDay
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
     r2.fieldValueByName[String]("max_testStringField").value shouldBe "001_02_1"
 
-    val query3 = query1.copy(fields = Seq(
-      function(UnaryOperation.truncDay, time) as "time",
-      aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-      aggregate(Aggregation.count[String], TestTableFields.TEST_STRING_FIELD) as "count_testStringField"
-    ))
+    val query3 = query1.copy(
+      fields = Seq(
+        function(UnaryOperation.truncDay, time) as "time",
+        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        aggregate(Aggregation.count[String], TestTableFields.TEST_STRING_FIELD) as "count_testStringField"
+      )
+    )
 
     val r3 = tsdb.query(query3).head
     r3.fieldValueByName[Time]("time").value shouldBe startDay
     r3.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r3.fieldValueByName[Long]("count_testStringField").value shouldBe 4l
+    r3.fieldValueByName[Long]("count_testStringField").value shouldBe 4L
   }
 
   it should "handle the same values for different grouping fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1645,37 +2054,63 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(
-        link(TestLinks.TEST_LINK3, "testField3-1"),
-        link(TestLinks.TEST_LINK3, "testField3-2"),
-        link(TestLinks.TEST_LINK3, "testField3-3")
-      ))
+      .expects(
+        *,
+        *,
+        Set(
+          link(TestLinks.TEST_LINK3, "testField3-1"),
+          link(TestLinks.TEST_LINK3, "testField3-2"),
+          link(TestLinks.TEST_LINK3, "testField3-3")
+        )
+      )
       .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK3,
-          SparseTable(Map(
-            "testA1" -> Map("testField3-1" -> "Value1", "testField3-2" -> "Value1", "testField3-3" -> "Value2"),
-            "testA2" -> Map("testField3-1" -> "Value1", "testField3-2" -> "Value2", "testField3-3" -> "Value2")
-          ))
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK3,
+          SparseTable(
+            Map(
+              "testA1" -> Map("testField3-1" -> "Value1", "testField3-2" -> "Value1", "testField3-3" -> "Value2"),
+              "testA2" -> Map("testField3-1" -> "Value1", "testField3-2" -> "Value2", "testField3-3" -> "Value2")
+            )
+          )
         )
       })
 
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA2")).set(metric(TestTableFields.TEST_FIELD), Some(2d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA2")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(2d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).toList
     results should have size 2
@@ -1684,16 +2119,16 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
 
     val r1 = it.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+    r1.fieldValueByName[Double]("sum_testField").value shouldBe 3d
     r1.fieldValueByName[String]("TestCatalog3_testField3-1").value shouldBe "Value1"
-    r1.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value1"
+    r1.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value2"
     r1.fieldValueByName[String]("TestCatalog3_testField3-3").value shouldBe "Value2"
 
     val r2 = it.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
+    r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
     r2.fieldValueByName[String]("TestCatalog3_testField3-1").value shouldBe "Value1"
-    r2.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value2"
+    r2.fieldValueByName[String]("TestCatalog3_testField3-2").value shouldBe "Value1"
     r2.fieldValueByName[String]("TestCatalog3_testField3-3").value shouldBe "Value2"
   }
 
@@ -1722,22 +2157,36 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime2 = pointTime1 + 5
     val pointTime3 = pointTime1 + 10
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime3))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime3)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val r = tsdb.query(query).head
     r.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
@@ -1771,20 +2220,31 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val row = tsdb.query(query).head
 
@@ -1817,26 +2277,37 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(dimension(TestDims.TAG_B), Some("test2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val row = tsdb.query(query).head
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[Long]("count_TAG_A").value shouldBe 2l
+    row.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
     row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
   }
 
@@ -1862,46 +2333,72 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     )
 
     (testCatalogServiceMock.condition _)
-      .expects(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      ))
-      .returning(and(
-        ge(time, const(Time(from))),
-        lt(time, const(Time(to))),
-        in(dimension(TestDims.TAG_A), Set("test1", "test12"))
-      ))
-
-    (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable(
-          Map("test1" -> Map("testField" -> "testFieldValue"), "test12" -> Map("testField" -> "testFieldValue"))
-        ))
-      })
-
-    val pointTime1 = qtime.getMillis + 10
-    val pointTime2 = pointTime1 + 1
-
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+      .expects(
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+        )
+      )
+      .returning(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           in(dimension(TestDims.TAG_A), Set("test1", "test12"))
         )
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+      )
+
+    (testCatalogServiceMock.setLinkedValues _)
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable(
+            Map("test1" -> Map("testField" -> "testFieldValue"), "test12" -> Map("testField" -> "testFieldValue"))
+          )
+        )
+      })
+
+    val pointTime1 = qtime.getMillis + 10
+    val pointTime2 = pointTime1 + 1
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
@@ -1909,13 +2406,13 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
     r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    r1.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2l
+    r1.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
     r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r2.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2l
+    r2.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
   }
 
   it should "calculate distinct count" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1941,44 +2438,67 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA2")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA2")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA2"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA2"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[Long]("count_TAG_A").value shouldBe 2l
-    r1.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 1
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
+    r1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
+    r1.fieldValueByName[Long]("count_TAG_A").value shouldBe 4L
+    r1.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 2
+    r1.fieldValueByName[String]("TAG_B").value shouldBe "testB1"
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r2.fieldValueByName[Long]("count_TAG_A").value shouldBe 4l
-    r2.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 2
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "testB1"
+    r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
+    r2.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
+    r2.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 1
+    r2.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
   }
 
   it should "calculate lag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1995,10 +2515,12 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      And(Seq(
-        SimpleCondition(BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime)))),
-        SimpleCondition(BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1)))))
-      )),
+      And(
+        Seq(
+          SimpleCondition(BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime)))),
+          SimpleCondition(BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1)))))
+        )
+      ),
       Seq(dimension(TestDims.TAG_B)),
       None
     )
@@ -2006,40 +2528,62 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB2"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA2")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("testA2")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2 + 1000))).set(dimension(TestDims.TAG_A), Some("testA1")).set(dimension(TestDims.TAG_B), Some("testB1"))
-        .set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA2"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("testA2"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2 + 1000)))
+              .set(dimension(TestDims.TAG_A), Some("testA1"))
+              .set(dimension(TestDims.TAG_B), Some("testB1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val t = Table(
       ("time_time", "lag_time_time", "testField", "TAG_A", "TAG_B"),
-      (qtime.toLocalDateTime,  None, 1d, "testA1", "testB2"),
-      (qtime.toLocalDateTime,  Some(qtime.toLocalDateTime), 1d, "testA1", "testB2"),
-      (qtime.toLocalDateTime,  None, 1d, "testA2", "testB1"),
-      (qtime.toLocalDateTime,  Some(qtime.toLocalDateTime), 1d, "testA2", "testB1"),
-      (qtime.toLocalDateTime,  Some(qtime.toLocalDateTime), 1d, "testA1", "testB1"),
-      (qtime.toLocalDateTime.plusSeconds(1),  Some(qtime.toLocalDateTime), 1d, "testA1", "testB1")
+      (qtime.toLocalDateTime, None, 1d, "testA1", "testB2"),
+      (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA1", "testB2"),
+      (qtime.toLocalDateTime, None, 1d, "testA2", "testB1"),
+      (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA2", "testB1"),
+      (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA1", "testB1"),
+      (qtime.toLocalDateTime.plusSeconds(1), Some(qtime.toLocalDateTime), 1d, "testA1", "testB1")
     )
     val results = tsdb.query(query).iterator
-
 
     forAll(t) { (time, lagTime, testField, tagA, tagB) =>
       val r = results.next()
@@ -2082,22 +2626,45 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(10d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(15d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(10d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(15d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
@@ -2114,7 +2681,6 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
     val from = qtime.getMillis
     val to = qtime.plusDays(1).getMillis
-
 
     val query = Query(
       TestSchema.testTable,
@@ -2145,22 +2711,27 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
@@ -2193,22 +2764,45 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test12")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test12"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).toList
     results should have size 1
@@ -2241,7 +2835,10 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
       .onCall((qc, datas, _) => {
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK,
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
           SparseTable(Map("test1" -> Map("testField" -> "testFieldValue")))
         )
       })
@@ -2249,19 +2846,33 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
     val pointTime1 = qtime.getMillis + 10
     val pointTime2 = pointTime1 + 1
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).set(metric(TestTableFields.TEST_FIELD), Some(2d)).buildAndReset(),
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test2")).set(metric(TestTableFields.TEST_FIELD), Some(3d)).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1)))
+              .set(dimension(TestDims.TAG_A), Some("test1"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(2d))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime2)))
+              .set(dimension(TestDims.TAG_A), Some("test2"))
+              .set(metric(TestTableFields.TEST_FIELD), Some(3d))
+              .buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).iterator
 
@@ -2282,7 +2893,6 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
   }
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-
     val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
     val format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
     val from: DateTime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
@@ -2296,28 +2906,33 @@ class TsdbTest extends FlatSpec with Matchers with TsdbMocks with OptionValues w
 
     val query = SqlParser.parse(sql).right.flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
-      case x => Left(s"SELECT statement expected, but got $x")
+      case x         => Left(s"SELECT statement expected, but got $x")
     } match {
       case Right(q) => q
-      case Left(e) => fail(e)
+      case Left(e)  => fail(e)
     }
 
     val pointTime1 = from.getMillis + 10
     val pointTime2 = from.getMillis + 100
 
-    (tsdbDaoMock.query _).expects(
-      InternalQuery(
-        TestSchema.testTable,
-        Set(time, dimension(TestDims.TAG_A)),
-        and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-      ),
-      *,
-      NoMetricCollector
-    ).onCall((_, b, _) => Iterator(
-      b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("1")).buildAndReset(),
-      b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("2")).buildAndReset()
-    ))
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.TAG_A)),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall(
+        (_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("1")).buildAndReset(),
+            b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("2")).buildAndReset()
+          )
+      )
 
     val results = tsdb.query(query).toList
     results should have size 1

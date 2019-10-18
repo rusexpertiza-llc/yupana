@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
@@ -13,27 +29,28 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
   def value(id: Long): Option[String] = {
     cache.get(id) match {
       case Some(v) => Some(v)
-      case None => if (isMarkedAsAbsent(id)) {
-        None
-      } else {
-        logger.trace(s"Get value for id $id, dictionary ${dimension.name}")
-        dao.getValueById(dimension, id).fold[Option[String]] {
-          markAsAbsent(id)
+      case None =>
+        if (isMarkedAsAbsent(id)) {
           None
-        }{ value =>
-          updateCache(id, value)
-          Some(value)
+        } else {
+          logger.trace(s"Get value for id $id, dictionary ${dimension.name}")
+          dao
+            .getValueById(dimension, id)
+            .fold[Option[String]] {
+              markAsAbsent(id)
+              None
+            } { value =>
+              updateCache(id, value)
+              Some(value)
+            }
         }
-      }
     }
   }
 
   def values(ids: Set[Long]): Map[Long, String] = {
     val fromCache = cache.getAll(ids)
 
-    val idsToGet = ids.filter(id =>
-      fromCache.get(id).isEmpty && !isMarkedAsAbsent(id)
-    )
+    val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
 
     val fromDB = if (idsToGet.nonEmpty) {
       val gotValues = dao.getValuesByIds(dimension, idsToGet)
@@ -97,9 +114,11 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     val id = if (dao.checkAndPut(dimension, genId, v)) {
       genId
     } else {
-      dao.getIdByValue(dimension, v).getOrElse(
-        throw new IllegalStateException(s"Can't put value to $v dictionary ${dimension.name}")
-      )
+      dao
+        .getIdByValue(dimension, v)
+        .getOrElse(
+          throw new IllegalStateException(s"Can't put value to $v dictionary ${dimension.name}")
+        )
     }
     updateReverseCache(v, id)
     id

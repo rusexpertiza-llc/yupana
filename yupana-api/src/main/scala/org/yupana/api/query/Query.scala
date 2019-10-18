@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.query
 
 import org.yupana.api.Time
@@ -14,31 +30,29 @@ import org.yupana.api.schema.Table
   * @param postFilter filter applied after aggregation stage (HAVING statement in SQL).
   */
 case class Query(
-  table: Table,
-  fields: Seq[QueryField],
-  filter: Condition,
-  groupBy: Seq[Expression] = Seq.empty,
-  limit: Option[Int] = None,
-  postFilter: Option[Condition] = None
+    table: Table,
+    fields: Seq[QueryField],
+    filter: Condition,
+    groupBy: Seq[Expression] = Seq.empty,
+    limit: Option[Int] = None,
+    postFilter: Option[Condition] = None
 ) {
 
-  val uuid: String = hashCode().abs.toString
+  val uuid: String = System.nanoTime().toString
   val uuidLog: String = s"query_uuid: $uuid"
 
   override def toString: String = {
     val fs = fields.mkString("\n    ")
 
     val builder = StringBuilder.newBuilder
-    builder.append(
-    s"""Query(
+    builder.append(s"""Query(
          |  $uuidLog
          |  TABLE: ${table.name}
          |  FIELDS:
          |    $fs
          |""".stripMargin)
 
-    builder.append(
-      s"""  FILTER:
+    builder.append(s"""  FILTER:
         |    $filter
         |""".stripMargin)
 
@@ -59,39 +73,39 @@ case class Query(
 }
 
 object Query {
-  def apply(table: Table,
-            from: Expression.Aux[Time],
-            to: Expression.Aux[Time],
-            fields: Seq[QueryField],
-            filter: Option[Condition],
-            groupBy: Seq[Expression],
-            limit: Option[Int],
-            postFilter: Option[Condition]
-           ): Query = {
+  def apply(
+      table: Table,
+      from: Expression.Aux[Time],
+      to: Expression.Aux[Time],
+      fields: Seq[QueryField],
+      filter: Option[Condition],
+      groupBy: Seq[Expression],
+      limit: Option[Int],
+      postFilter: Option[Condition]
+  ): Query = {
 
     val newCondition = Condition.timeAndCondition(from, to, filter)
     new Query(table, fields, newCondition, groupBy, limit, postFilter)
   }
 
-  def apply(table: Table,
-            from: Expression.Aux[Time],
-            to: Expression.Aux[Time],
-            fields: Seq[QueryField]
-           ): Query = apply(table, from, to, fields, None, Seq.empty, None, None)
+  def apply(table: Table, from: Expression.Aux[Time], to: Expression.Aux[Time], fields: Seq[QueryField]): Query =
+    apply(table, from, to, fields, None, Seq.empty, None, None)
 
-  def apply(table: Table,
-            from: Expression.Aux[Time],
-            to: Expression.Aux[Time],
-            fields: Seq[QueryField],
-            filter: Condition
-           ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None)
+  def apply(
+      table: Table,
+      from: Expression.Aux[Time],
+      to: Expression.Aux[Time],
+      fields: Seq[QueryField],
+      filter: Condition
+  ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None)
 
-  def apply(table: Table,
-            from: Expression.Aux[Time],
-            to: Expression.Aux[Time],
-            fields: Seq[QueryField],
-            filter: Option[Condition],
-            groupBy: Seq[Expression]
-           ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
+  def apply(
+      table: Table,
+      from: Expression.Aux[Time],
+      to: Expression.Aux[Time],
+      fields: Seq[QueryField],
+      filter: Option[Condition],
+      groupBy: Seq[Expression]
+  ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
 
 }

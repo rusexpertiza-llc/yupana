@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.api.types
 
 import org.joda.time.Period
@@ -12,13 +28,14 @@ import org.yupana.api.Time
   * @param arrayOperations operations on array of `T` (in addition to common operations like array length)
   */
 case class TypeOperations[T](
-  binaryOperations: Map[(String, String), BinaryOperation[T]],
-  unaryOperations: Map[String, UnaryOperation[T]],
-  aggregations: Map[String, Aggregation[T]],
-  arrayOperations: Map[String, UnaryOperation[Array[T]]]
+    binaryOperations: Map[(String, String), BinaryOperation[T]],
+    unaryOperations: Map[String, UnaryOperation[T]],
+    aggregations: Map[String, Aggregation[T]],
+    arrayOperations: Map[String, UnaryOperation[Array[T]]]
 ) {
   def biOperation[U](name: String, argType: DataType.Aux[U]): Option[BinaryOperation.Aux[T, U, _]] = {
-    binaryOperations.get((name, argType.meta.sqlTypeName))
+    binaryOperations
+      .get((name, argType.meta.sqlTypeName))
       .map(op => op.asInstanceOf[BinaryOperation.Aux[T, U, op.Out]])
   }
   def unaryOperation(name: String): Option[UnaryOperation[T]] = unaryOperations.get(name)
@@ -26,14 +43,14 @@ case class TypeOperations[T](
 }
 
 object TypeOperations {
-  def intOperations[T : Integral](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
+  def intOperations[T: Integral](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
     BinaryOperation.integralOperations(dt),
     UnaryOperation.numericOperations(dt),
     Aggregation.intAggregations(dt),
     Map.empty
   )
 
-  def fracOperations[T : Fractional](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
+  def fracOperations[T: Fractional](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
     BinaryOperation.fractionalOperations(dt),
     UnaryOperation.numericOperations(dt),
     Aggregation.fracAggregations(dt),

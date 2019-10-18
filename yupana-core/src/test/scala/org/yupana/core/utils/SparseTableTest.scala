@@ -1,8 +1,8 @@
 package org.yupana.core.utils
 
-import org.scalatest.{FlatSpec, Matchers, OptionValues}
+import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 
-class SparseTableTest extends FlatSpec with Matchers with OptionValues{
+class SparseTableTest extends FlatSpec with Matchers with OptionValues {
 
   val testData = Map(
     "foo" -> Map(1 -> "foo 1", 2 -> "foo 2"),
@@ -64,8 +64,9 @@ class SparseTableTest extends FlatSpec with Matchers with OptionValues{
   }
 
   it should "support flatMap operation" in {
-    val mapped = testTable.flatMap { case (r, c, v) =>
-      if (r.startsWith("b")) Some((c, r.reverse, v)) else None
+    val mapped = testTable.flatMap {
+      case (r, c, v) =>
+        if (r.startsWith("b")) Some((c, r.reverse, v)) else None
     }
 
     mapped shouldEqual SparseTable(

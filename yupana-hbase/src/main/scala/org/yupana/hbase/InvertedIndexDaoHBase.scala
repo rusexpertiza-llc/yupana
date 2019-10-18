@@ -1,9 +1,27 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{Get, Put}
+import com.typesafe.scalalogging.StrictLogging
+import org.apache.hadoop.hbase.client.{ Get, Put, ResultScanner, Scan }
+import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.client.Result
-import org.apache.hadoop.hbase.{CellUtil, HColumnDescriptor, HTableDescriptor}
+import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
+import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
 
 import scala.collection.JavaConverters._
@@ -11,6 +29,7 @@ import scala.collection.JavaConverters._
 object InvertedIndexDaoHBase {
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
   val VALUE: Array[Byte] = Array.emptyByteArray
+  val BATCH_SIZE = 500000
 
   def stringSerializer(str: String): Array[Byte] = Bytes.toBytes(str)
   def stringDeserializer(bytes: Array[Byte]): String = Bytes.toString(bytes)
@@ -25,27 +44,32 @@ object InvertedIndexDaoHBase {
     hBaseConnection.checkTablesExistsElseCreate(desc)
   }
 
-  def createPutOperation[K, V](key: K, values: Set[V], keySerializer: K => Array[Byte],
-               valueSerializer: V => Array[Byte]): Option[Put] = {
+  def createPutOperation[K, V](
+      key: K,
+      values: Set[V],
+      keySerializer: K => Array[Byte],
+      valueSerializer: V => Array[Byte]
+  ): Option[Put] = {
     if (values.isEmpty) {
       None
     } else {
       val wordBytes = keySerializer(key)
-      val put = values.foldLeft(new Put(wordBytes))((put, value) =>
-        put.addColumn(FAMILY, valueSerializer(value), VALUE)
-      )
+      val put =
+        values.foldLeft(new Put(wordBytes))((put, value) => put.addColumn(FAMILY, valueSerializer(value), VALUE))
       Some(put)
     }
   }
 }
 
-class InvertedIndexDaoHBase[K, V](
-  connection: ExternalLinkHBaseConnection,
-  tableName: String,
-  keySerializer: K => Array[Byte],
-  valueSerializer: V => Array[Byte],
-  valueDeserializer: Array[Byte] => V
-) extends InvertedIndexDao[K, V] {
+class InvertedIndexDaoHBase[K, V: DimOrdering](
+    connection: ExternalLinkHBaseConnection,
+    tableName: String,
+    keySerializer: K => Array[Byte],
+    keyDeserializer: Array[Byte] => K,
+    valueSerializer: V => Array[Byte],
+    valueDeserializer: Array[Byte] => V
+) extends InvertedIndexDao[K, V]
+    with StrictLogging {
 
   import InvertedIndexDaoHBase._
 
@@ -61,43 +85,75 @@ class InvertedIndexDaoHBase[K, V](
 
   override def batchPut(batch: Map[K, Set[V]]): Unit = {
     val table = connection.getTable(tableName)
-    val puts = batch.flatMap { case (key, values) =>
-      createPutOperation(key, values, keySerializer, valueSerializer)
+    val puts = batch.flatMap {
+      case (key, values) =>
+        createPutOperation(key, values, keySerializer, valueSerializer)
     }
     table.put(puts.toSeq.asJava)
   }
 
-  private def toIterator(result: Result): Iterator[V] = {
-    new Iterator[V] {
-      private val cellScanner = result.cellScanner()
-      private var nextResultOpt: Option[V] = None
+  override def values(key: K): SortedSetIterator[V] = {
+    allValues(Set(key))
+  }
 
-      override def hasNext: Boolean = {
-        if (nextResultOpt.isEmpty) {
-          if (cellScanner.advance()) {
-            nextResultOpt = Some(valueDeserializer(CellUtil.cloneQualifier(cellScanner.current())))
-          }
-        }
-        nextResultOpt.nonEmpty
+  override def valuesByPrefix(prefix: K): SortedSetIterator[V] = {
+    val skey = keySerializer(prefix)
+
+    val filters = new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter())
+
+    val scan = new Scan().setRowPrefixFilter(skey).setFilter(filters)
+    val table = connection.getTable(tableName)
+    val scanner = table.getScanner(scan)
+
+    val keys = scanner
+      .iterator()
+      .asScala
+      .map { result =>
+        keyDeserializer(result.getRow)
       }
+      .toSet
 
-      override def next(): V = {
-        val result = nextResultOpt.get
-        nextResultOpt = None
-        result
+    allValues(keys)
+  }
+
+  def allValues(keys: Set[K]): SortedSetIterator[V] = {
+    val table = connection.getTable(tableName)
+
+    val keySeq = keys.toSeq
+
+    val gets = keySeq.map { key =>
+      val skey = keySerializer(key)
+      new Get(skey).setMaxResultsPerColumnFamily(BATCH_SIZE)
+    }
+
+    val results = table.get(gets.asJava).zip(keySeq)
+    val (completed, partial) = results.partition { case (res, _) => res.rawCells().length < BATCH_SIZE }
+
+    val iterators = partial.map { case (_, key) => scanValues(key) }
+
+    val fetched = completed.map {
+      case (result, _) =>
+        SortedSetIterator(result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c))).toIterator)
+    }
+
+    SortedSetIterator.unionAll(iterators ++ fetched)
+  }
+
+  private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
+    val it = result.iterator().asScala.flatMap { result =>
+      result.rawCells().map { cell =>
+        valueDeserializer(CellUtil.cloneQualifier(cell))
       }
     }
+    SortedSetIterator(it)
   }
 
-  override def values(key: K): Iterator[V] = {
-    val get = new Get(keySerializer(key)).addFamily(FAMILY)
+  private def scanValues(key: K): SortedSetIterator[V] = {
+    logger.trace(s"scan values for key $key")
+    val skey = keySerializer(key)
     val table = connection.getTable(tableName)
-    toIterator(table.get(get))
-  }
-
-  override def allValues(keys: Set[K]): Seq[V] = {
-    val gets = keys.map(key => new Get(keySerializer(key)).addFamily(FAMILY)).toList.asJava
-    val table = connection.getTable(tableName)
-    table.get(gets).flatMap(toIterator)
+    val scan = new Scan(skey, Bytes.padTail(skey, 1)).addFamily(FAMILY).setBatch(BATCH_SIZE)
+    val scanner = table.getScanner(scan)
+    toIterator(scanner)
   }
 }

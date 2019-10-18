@@ -2,14 +2,15 @@ package org.yupana.api.types
 
 import org.scalacheck.Arbitrary
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.Time
 
-class SerializationTest extends FlatSpec
-  with Matchers
-  with ScalaCheckDrivenPropertyChecks
-  with TableDrivenPropertyChecks {
+class SerializationTest
+    extends FlatSpec
+    with Matchers
+    with ScalaCheckDrivenPropertyChecks
+    with TableDrivenPropertyChecks {
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
@@ -35,22 +36,22 @@ class SerializationTest extends FlatSpec
     val writable = implicitly[Writable[Long]]
 
     val table = Table(
-      ("Value",     "Bytes count"),
-      ( 0l,                   1),
-      ( 100l,                 1),
-      (-105l,                 1),
-      ( 181l,                 2),
-      (-222l,                 2),
-      ( 1000l,                3),
-      (-1000l,                3),
-      ( 70000l,               4),
-      (-70000l,               4),
-      ( 3000000000l,          5),
-      (-1099511627776L,       6),
-      ( 1099511627776L,       7),
-      ( 290000000000000L,     8),
+      ("Value", "Bytes count"),
+      (0L, 1),
+      (100L, 1),
+      (-105L, 1),
+      (181L, 2),
+      (-222L, 2),
+      (1000L, 3),
+      (-1000L, 3),
+      (70000L, 4),
+      (-70000L, 4),
+      (3000000000L, 5),
+      (-1099511627776L, 6),
+      (1099511627776L, 7),
+      (290000000000000L, 8),
       (-5000000000000000000L, 9),
-      ( 1000000000000000000L, 9)
+      (1000000000000000000L, 9)
     )
 
     forAll(table) { (x, len) =>
@@ -62,10 +63,10 @@ class SerializationTest extends FlatSpec
     val writable = implicitly[Writable[Long]]
     val readable = implicitly[Readable[Int]]
 
-    an[IllegalArgumentException] should be thrownBy readable.read(writable.write(3000000000l))
+    an[IllegalArgumentException] should be thrownBy readable.read(writable.write(3000000000L))
   }
 
-  private def readWriteTest[T: Readable : Writable : Arbitrary] = {
+  private def readWriteTest[T: Readable: Writable: Arbitrary] = {
     val readable = implicitly[Readable[T]]
     val writable = implicitly[Writable[T]]
 

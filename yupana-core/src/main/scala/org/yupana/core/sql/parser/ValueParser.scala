@@ -1,7 +1,23 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.sql.parser
 
 import fastparse._
-import org.joda.time.{LocalDateTime, Period}
+import org.joda.time.{ LocalDateTime, Period }
 
 import NoWhitespace._
 
@@ -22,7 +38,9 @@ object ValueParser {
 
   def intNumber[_: P]: P[Int] = P(digits).map(_.toInt)
 
-  def number[_: P]: P[BigDecimal] = P(digits ~ ("." ~ digits).!.?).map { case (x, y) => BigDecimal(x + y.getOrElse("")) }
+  def number[_: P]: P[BigDecimal] = P(digits ~ ("." ~ digits).!.?).map {
+    case (x, y) => BigDecimal(x + y.getOrElse(""))
+  }
 
   private def stringCharacter[_: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
   private def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\").!)
@@ -37,18 +55,24 @@ object ValueParser {
 
   private def hours[_: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 23))
   private def minutes[_: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 59))
-  private def millis[_: P] = P(digit.rep(min = 1, max = 3)
-    .map(s => (s.mkString + ("0" * (3 - s.length))).toInt))
+  private def millis[_: P] =
+    P(
+      digit
+        .rep(min = 1, max = 3)
+        .map(s => (s.mkString + ("0" * (3 - s.length))).toInt)
+    )
 
-  def time[_: P]: P[(Int, Int, Int, Int)] = P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
+  def time[_: P]: P[(Int, Int, Int, Int)] =
+    P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
 
   def dateAndTime[_: P]: P[LocalDateTime] = P(date ~/ (" " ~ time).?).map {
-    case (y, m, d, None) => new LocalDateTime(y, m, d, 0, 0, 0, 0)
+    case (y, m, d, None)                  => new LocalDateTime(y, m, d, 0, 0, 0, 0)
     case (y, m, d, Some((h, mm, ss, ms))) => new LocalDateTime(y, m, d, h, mm, ss, ms)
   }
 
-  def duration[_: P]: P[Period] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map { case (d, (h, m, s, ms)) =>
-    new Period(0, 0, 0, d.getOrElse(0), h, m, s, ms)
+  def duration[_: P]: P[Period] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
+    case (d, (h, m, s, ms)) =>
+      new Period(0, 0, 0, d.getOrElse(0), h, m, s, ms)
   }
 
   private def pgTimestamp[_: P]: P[LocalDateTime] = {
@@ -63,9 +87,14 @@ object ValueParser {
   def timestampValue[_: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
 
   def INTERVAL_PARTS[_: P]: List[IntervalPart] = List(
-    IntervalPart("SECOND", () => (intNumber ~ ("." ~ millis).?).map {
-      case (s, ms) => Period.seconds(s).plusMillis(ms.getOrElse(0))
-    }, () => P("")),
+    IntervalPart(
+      "SECOND",
+      () =>
+        (intNumber ~ ("." ~ millis).?).map {
+          case (s, ms) => Period.seconds(s).plusMillis(ms.getOrElse(0))
+        },
+      () => P("")
+    ),
     IntervalPart("MINUTE", () => intNumber.map(Period.minutes), () => P(":")),
     IntervalPart("HOUR", () => intNumber.map(Period.hours), () => P(":")),
     IntervalPart("DAY", () => intNumber.map(Period.days), () => P(" ")),
@@ -80,11 +109,14 @@ object ValueParser {
       case v :: Nil => Some(() => P("'" ~ v.parser() ~ "' " ~ IgnoreCase(v.name)).opaque(v.name))
 
       case v :: vs =>
-        val p = vs.map(p => () => p.parser() ~ p.separator())
+        val p = vs
+          .map(p => () => p.parser() ~ p.separator())
           .reduceRight((a, b) => () => P(b() ~ a()).map { case (x, y) => x plus y })
-        Some(() => P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
-          .map { case (x, y) => x plus y }
-          .opaque(s"${vs.last.name} TO ${v.name}")
+        Some(
+          () =>
+            P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
+              .map { case (x, y) => x plus y }
+              .opaque(s"${vs.last.name} TO ${v.name}")
         )
 
       case Nil => None
@@ -97,7 +129,7 @@ object ValueParser {
     P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue)
   }
 
-  def value[_: P]: P[Value] = P(numericValue | timestampValue  | periodValue | stringValue | placeholder)
+  def value[_: P]: P[Value] = P(numericValue | timestampValue | periodValue | stringValue | placeholder)
 
   case class IntervalPart(name: String, parser: () => P[Period], separator: () => P[Unit])
 }

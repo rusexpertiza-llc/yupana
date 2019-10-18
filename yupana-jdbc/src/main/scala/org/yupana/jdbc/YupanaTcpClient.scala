@@ -1,11 +1,28 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.jdbc
 
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.channels.SocketChannel
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.{ ByteBuffer, ByteOrder }
 import java.util.logging.Logger
 
-import org.yupana.api.query.{Result, SimpleResult}
+import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto._
@@ -34,15 +51,19 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   def ping(reqTime: Long): Option[Version] = {
     val request = createProtoPing(reqTime)
-    val response = execPing(request)
-    if (response.reqTime != reqTime) {
-      throw new Exception("got wrong ping response")
+    execPing(request) match {
+      case Right(response) =>
+        if (response.reqTime != reqTime) {
+          throw new Exception("got wrong ping response")
+        }
+        channel.close()
+        response.version
+
+      case Left(msg) => throw new IOException(msg)
     }
-    channel.close()
-    response.version
   }
 
-  private def execPing(request: Request): Pong = {
+  private def execPing(request: Request): Either[String, Pong] = {
     ensureConnected()
     sendRequest(request)
     val pong = fetchResponse()
@@ -50,19 +71,21 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     pong.resp match {
       case Response.Resp.Pong(r) =>
         if (r.getVersion.protocol != ProtocolVersion.value) {
-          error(s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver")
-          null
+          Left(
+            error(
+              s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver"
+            )
+          )
         } else {
-          r
+          Right(r)
         }
 
       case Response.Resp.Error(msg) =>
-        error(s"Got error response on ping, '$msg'")
-        null
+        Left(error(s"Got error response on ping, '$msg'"))
 
       case _ =>
-        error("Unexpected response on ping")
-        null
+        Left(error("Unexpected response on ping"))
+
     }
   }
 
@@ -72,11 +95,9 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     val it = new FramingChannelIterator(channel, CHUNK_SIZE + 4)
       .map(bytes => Response.parseFrom(bytes).resp)
 
-    val header = it.map( resp =>
-      handleResultHeader(resp)
-    ).find(_.isDefined).flatten
+    val header = it.map(resp => handleResultHeader(resp)).find(_.isDefined).flatten
 
-    header match  {
+    header match {
       case Some(Right(h)) =>
         val r = resultIterator(it)
         extractProtoResult(h, r)
@@ -96,18 +117,23 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
-    data.sliding(CHUNK_SIZE, CHUNK_SIZE).map { ch =>
-      val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
-      bb.putInt(ch.length)
-      bb.put(ch)
-      bb.flip()
-      bb
-    }.toArray
+    data
+      .sliding(CHUNK_SIZE, CHUNK_SIZE)
+      .map { ch =>
+        val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
+        bb.putInt(ch.length)
+        bb.put(ch)
+        bb.flip()
+        bb
+      }
+      .toArray
   }
 
   private def fetchResponse(): Response = {
     val bb = ByteBuffer.allocate(CHUNK_SIZE + 4).order(ByteOrder.BIG_ENDIAN)
-    channel.read(bb)
+    val bytesRead = channel.read(bb)
+    if (bytesRead < 0) throw new IOException("Broken pipe")
+    else if (bytesRead < 4) throw new IOException("Invalid server response")
     bb.flip()
     val chunkSize = bb.getInt()
     val bytes = Array.ofDim[Byte](chunkSize)
@@ -129,6 +155,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
       case Response.Resp.Heartbeat(time) =>
         heartbeat(time)
+        None
 
       case Response.Resp.Error(e) =>
         channel.close()
@@ -147,11 +174,9 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     e
   }
 
-
-  private def heartbeat(time: String) = {
+  private def heartbeat(time: String): Unit = {
     val msg = s"Heartbeat($time)"
     logger.info(msg)
-    None
   }
 
   private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
@@ -214,10 +239,14 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def createProtoPing(reqTime: Long): Request = {
-    Request(Request.Req.Ping(Ping(
-      reqTime,
-      Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
-    )))
+    Request(
+      Request.Req.Ping(
+        Ping(
+          reqTime,
+          Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
+        )
+      )
+    )
   }
 
   private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {
@@ -227,15 +256,17 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     }
 
     val values = res.flatMap { row =>
-
-      val v = dataTypes.zip(row.values).map { case (rt, bytes) =>
-
-        if (bytes.isEmpty) {
-          None
-        } else {
-          Some[Any](rt.readable.read(bytes.toByteArray))
+      val v = dataTypes
+        .zip(row.values)
+        .map {
+          case (rt, bytes) =>
+            if (bytes.isEmpty) {
+              None
+            } else {
+              Some[Any](rt.readable.read(bytes.toByteArray))
+            }
         }
-      }.toArray
+        .toArray
       Some(v)
     }
 
@@ -254,8 +285,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def createProtoValue(value: ParameterValue): Value = {
     value match {
-      case NumericValue(n) => Value(Value.Value.DecimalValue(n.toString()))
-      case StringValue(s) => Value(Value.Value.TextValue(s))
+      case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
+      case StringValue(s)    => Value(Value.Value.TextValue(s))
       case t: TimestampValue => Value(Value.Value.TimeValue(t.millis))
     }
   }
