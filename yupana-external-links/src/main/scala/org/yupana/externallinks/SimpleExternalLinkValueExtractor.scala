@@ -22,17 +22,17 @@ import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.Table
 
-trait SimpleExternalLinkValueExtractor[T <: ExternalLink] extends ExternalLinkService[T] {
+trait SimpleExternalLinkValueExtractor[IdType, T <: ExternalLink] extends ExternalLinkService[T] {
 
   def fieldValuesForDimValues(fields: Set[String], tagValues: Set[String]): Table[String, String, String]
 
-  def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, String]
+  def fieldValuesForDimIds(fields: Set[String], tagIds: Set[IdType]): Table[IdType, String, String]
 
   def fieldValueForDimValue(fieldName: String, tagValue: String): Option[String] = {
     fieldValuesForDimValues(Set(fieldName), Set(tagValue)).get(tagValue, fieldName)
   }
 
-  def fieldValueForDimId(fieldName: String, tagId: Long): Option[String] = {
+  def fieldValueForDimId(fieldName: String, tagId: IdType): Option[String] = {
     fieldValuesForDimIds(Set(fieldName), Set(tagId)).get(tagId, fieldName)
   }
 

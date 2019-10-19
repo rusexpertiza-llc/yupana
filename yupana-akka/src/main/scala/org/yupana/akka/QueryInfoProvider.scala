@@ -25,7 +25,7 @@ import org.yupana.core.model.QueryStates
 
 object QueryInfoProvider {
 
-  def handleShowQueries(tsdb: TSDB, queryId: Option[String], limit: Int = 20): Result = {
+  def handleShowQueries(tsdb: TSDB[_], queryId: Option[String], limit: Int = 20): Result = {
     import org.yupana.core.model.TsdbQueryMetrics._
 
     val queries = tsdb.metricsDao.queriesByFilter(
@@ -56,7 +56,7 @@ object QueryInfoProvider {
     SimpleResult(queryFieldNames, queryFieldTypes, data)
   }
 
-  def handleKillQuery(tsdb: TSDB, id: String): Result = {
+  def handleKillQuery(tsdb: TSDB[_], id: String): Result = {
     val result = if (tsdb.metricsDao.setQueryState(id, QueryStates.Cancelled)) {
       "OK"
     } else {

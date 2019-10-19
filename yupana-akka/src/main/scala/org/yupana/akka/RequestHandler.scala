@@ -34,7 +34,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
   val sqlQueryProcessor = new SqlQueryProcessor(schema)
   val metadataProvider = new JdbcMetadataProvider(schema)
 
-  def handleQuery(tsdb: TSDB, sqlQuery: proto.SqlQuery)(
+  def handleQuery(tsdb: TSDB[_], sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
 
@@ -66,7 +66,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
   }
 
   def handlePingProto(
-      tsdb: TSDB,
+      tsdb: TSDB[_],
       ping: proto.Ping,
       majorVersion: Int,
       minorVersion: Int,

@@ -22,25 +22,25 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.core.{ Dictionary, TsdbBase }
 
-abstract class DimValueBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBase)
+abstract class DimValueBasedExternalLinkService[I, T <: ExternalLink](val tsdb: TsdbBase[I])
     extends SimpleExternalLinkConditionHandler[T]
-    with SimpleExternalLinkValueExtractor[T] {
+    with SimpleExternalLinkValueExtractor[I, T] {
 
-  lazy val dictionary: Dictionary = tsdb.dictionary(externalLink.dimension)
+  lazy val dictionary: Dictionary[I] = tsdb.dictionary(externalLink.dimension)
 
   def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String]
 
   def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String]
 
-  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[Long] = {
+  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[I] = {
     dictionary.findIdsByValues(dimValuesForAllFieldsValues(fieldsValues)).values.toSeq
   }
 
-  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[Long] = {
+  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[I] = {
     dictionary.findIdsByValues(dimValuesForAnyFieldsValues(fieldsValues)).values.toSeq
   }
 
-  override def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, String] = {
+  override def fieldValuesForDimIds(fields: Set[String], tagIds: Set[I]): Table[I, String, String] = {
     val values = dictionary.values(tagIds).map(_.swap)
     if (values.nonEmpty) {
       fieldValuesForDimValues(fields, values.keySet).mapRowKeys(values)

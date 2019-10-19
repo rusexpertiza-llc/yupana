@@ -20,8 +20,8 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.TsdbBase
 import org.yupana.core.utils.CollectionUtils
 
-abstract class CrossValueBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase)
-    extends DimValueBasedExternalLinkService[T](tsdb) {
+abstract class CrossValueBasedExternalLinkService[I, T <: ExternalLink](tsdb: TsdbBase[I])
+    extends DimValueBasedExternalLinkService[I, T](tsdb) {
 
   def tagValuesForCrossJoinedValues(fieldsValues: Map[String, String]): Seq[String]
 

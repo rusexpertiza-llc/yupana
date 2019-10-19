@@ -32,7 +32,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
 class TsdbTcp(
-    tsdb: TSDB,
+    tsdb: TSDB[_],
     requestHandler: RequestHandler,
     host: String,
     port: Int,

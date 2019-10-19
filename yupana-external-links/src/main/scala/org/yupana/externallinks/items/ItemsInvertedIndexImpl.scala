@@ -36,7 +36,7 @@ object ItemsInvertedIndexImpl {
   val CACHE_NAME = "items-reverse-index"
   val CACHE_MAX_IDS_FOR_WORD = 100000
 
-  def indexItems(items: Seq[(Long, String)]): Map[String, Seq[Long]] =
+  def indexItems[I](items: Seq[(I, String)]): Map[String, Seq[I]] =
     items
       .flatMap {
         case (id, n) =>
@@ -83,17 +83,17 @@ object ItemsInvertedIndexImpl {
   }
 }
 
-class ItemsInvertedIndexImpl(
-    tsdb: TsdbBase,
-    invertedIndexDao: InvertedIndexDao[String, Long],
+class ItemsInvertedIndexImpl[IdType: Ordering](
+    tsdb: TsdbBase[IdType],
+    invertedIndexDao: InvertedIndexDao[String, IdType],
     override val externalLink: ItemsInvertedIndex
-) extends DimIdBasedExternalLinkService[ItemsInvertedIndex](tsdb)
+) extends DimIdBasedExternalLinkService[IdType, ItemsInvertedIndex](tsdb)
     with StrictLogging {
 
   import ItemsInvertedIndexImpl._
   import externalLink._
 
-  private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[Long]]("dim_ids_by_word")
+  private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[IdType]]("dim_ids_by_word")
 
   def putItemNames(names: Set[String]): Unit = {
     val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)
@@ -102,15 +102,15 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 
-  def dimIdsForStemmedWord(word: String): SortedSetIterator[Long] = {
+  def dimIdsForStemmedWord(word: String): SortedSetIterator[IdType] = {
     invertedIndexDao.values(word)
   }
 
-  def dimIdsForPrefix(prefix: String): SortedSetIterator[Long] = {
+  def dimIdsForPrefix(prefix: String): SortedSetIterator[IdType] = {
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
-  def dimIdsForStemmedWordsCached(word: String, synonyms: Set[String]): Set[Long] = {
+  def dimIdsForStemmedWordsCached(word: String, synonyms: Set[String]): Set[IdType] = {
     dimIdsByStemmedWordCache
       .caching(word) {
         val dimIds = invertedIndexDao.allValues(synonyms)
@@ -121,28 +121,28 @@ class ItemsInvertedIndexImpl(
       .toSet
   }
 
-  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
+  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[IdType] = {
     val ids = getPhraseIds(fieldsValues)
     SortedSetIterator.intersectAll(ids)
   }
 
-  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
+  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[IdType] = {
     val ids = getPhraseIds(fieldsValues)
     SortedSetIterator.unionAll(ids)
   }
 
-  override def fieldValuesForDimIds(fields: Set[String], dimIds: Set[Long]): Table[Long, String, String] = {
+  override def fieldValuesForDimIds(fields: Set[String], dimIds: Set[IdType]): Table[IdType, String, String] = {
     SparseTable.empty
   }
 
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[Long]] = {
+  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[IdType]] = {
     fieldsValues.map {
       case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
       case (x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 
-  def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
+  def dimIdsForPhrase(phrase: String): SortedSetIterator[IdType] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
     val stemmedWords = words.map(ItemsStemmer.stem).map(Transliterator.transliterate)

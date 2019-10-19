@@ -28,12 +28,12 @@ import org.yupana.schema.externallinks.ExternalLinks._
 
 import scala.collection.JavaConverters._
 
-class SQLSourcedExternalLinkService(
+class SQLSourcedExternalLinkService[I](
     override val externalLink: ExternalLink,
     config: SQLExternalLinkDescription,
     jdbc: JdbcTemplate,
-    tsdb: TsdbBase
-) extends DimValueBasedExternalLinkService[ExternalLink](tsdb)
+    tsdb: TsdbBase[I]
+) extends DimValueBasedExternalLinkService[I, ExternalLink](tsdb)
     with StrictLogging {
 
   import SQLSourcedExternalLinkService._

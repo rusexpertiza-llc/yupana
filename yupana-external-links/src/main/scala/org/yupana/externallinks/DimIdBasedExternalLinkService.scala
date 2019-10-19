@@ -23,15 +23,15 @@ import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ Dictionary, TsdbBase }
 import org.yupana.core.utils.{ SparseTable, Table }
 
-abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBase)
+abstract class DimIdBasedExternalLinkService[IdType, T <: ExternalLink](val tsdb: TsdbBase[IdType])
     extends SimpleExternalLinkConditionHandler[T]
-    with SimpleExternalLinkValueExtractor[T] {
+    with SimpleExternalLinkValueExtractor[IdType, T] {
 
-  lazy val dictionary: Dictionary = tsdb.dictionary(externalLink.dimension)
+  lazy val dictionary: Dictionary[IdType] = tsdb.dictionary(externalLink.dimension)
 
-  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
+  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[IdType]
 
-  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
+  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[IdType]
 
   override def fieldValuesForDimValues(fields: Set[String], dimValues: Set[String]): Table[String, String, String] = {
     val ids = dictionary.findIdsByValues(dimValues).map(_.swap)
