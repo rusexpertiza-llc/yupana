@@ -7,7 +7,7 @@ import org.apache.spark.sql.types._
 import org.joda.time.LocalDateTime
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
-import org.yupana.api.query.{ Condition, Query }
+import org.yupana.api.query.Query
 import org.yupana.core.QueryContext
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
@@ -27,7 +27,7 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = QueryContext(query, Condition.and(Seq.empty))
+    val queryContext = QueryContext(query, const(true))
 
     val theTime = LocalDateTime.now().minusHours(1)
 

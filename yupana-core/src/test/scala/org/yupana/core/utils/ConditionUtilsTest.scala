@@ -15,17 +15,17 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
   }
 
   it should "flatten nested ANDs" in {
-    val c = And(
+    val c = AndExpr(
       Seq(
-        And(
+        AndExpr(
           Seq(
             gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
             gt[String](dimension(Dimension("b")), const("c"))
           )
         ),
-        And(Seq()),
+        AndExpr(Seq()).aux,
         gt[String](dimension(Dimension("c")), const("c")),
-        And(Seq(And(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
+        AndExpr(Seq(AndExpr(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
       )
     )
     ConditionUtils.simplify(c) shouldEqual and(
@@ -37,20 +37,20 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
   }
 
   it should "flatten nested ORs" in {
-    val c = Or(
+    val c = OrExpr(
       Seq(
-        Or(
+        OrExpr(
           Seq(
             gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
             gt[String](dimension(Dimension("b")), const("c"))
           )
         ),
-        Or(Seq()),
+        OrExpr(Seq()).aux,
         gt[String](dimension(Dimension("c")), const("c")),
-        Or(Seq(Or(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
+        OrExpr(Seq(OrExpr(Seq(gt[String](dimension(Dimension("d")), const("e"))))))
       )
     )
-    ConditionUtils.simplify(c) shouldEqual Or(
+    ConditionUtils.simplify(c) shouldEqual OrExpr(
       Seq(
         gt[String](dimension(Dimension("a")), dimension(Dimension("b"))),
         gt[String](dimension(Dimension("b")), const("c")),
@@ -120,8 +120,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     val c = in(dimension(Dimension("x")), Set("a", "b", "c"))
 
     ConditionUtils.flatMap(c) {
-      case In(DimensionExpr(Dimension("x", None)), _) => In(DimensionExpr(Dimension("y", None)), Set("x"))
-      case _                                          => EmptyCondition
+      case InExpr(DimensionExpr(Dimension("x", None)), _) => InExpr(DimensionExpr(Dimension("y", None)), Set("x"))
+      case _                                              => ConstantExpr(true)
     } shouldEqual in(dimension(Dimension("y")), Set("x"))
   }
 
@@ -129,9 +129,9 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     val c = in(dimension(Dimension("x")), Set("a", "b", "c"))
 
     ConditionUtils.flatMap(c) {
-      case In(DimensionExpr(Dimension("y", None)), _) => In(DimensionExpr(Dimension("z", None)), Set("x"))
-      case _                                          => EmptyCondition
-    } shouldEqual EmptyCondition
+      case InExpr(DimensionExpr(Dimension("y", None)), _) => InExpr(DimensionExpr(Dimension("z", None)), Set("x"))
+      case _                                              => ConstantExpr(true)
+    } shouldEqual ConstantExpr(true)
   }
 
   it should "handle AND and OR conditions" in {
@@ -141,8 +141,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     )
 
     ConditionUtils.flatMap(c) {
-      case x @ SimpleCondition(BinaryOperationExpr(f, DimensionExpr(_), _)) if f.name == "==" || f.name == "!=" => x
-      case _                                                                                                    => EmptyCondition
+      case x @ BinaryOperationExpr(f, DimensionExpr(_), _) if f.name == "==" || f.name == "!=" => x
+      case _                                                                                   => ConstantExpr(true)
     } shouldEqual or(equ(dimension(Dimension("x")), const("a")), neq(dimension(Dimension("y")), const("b")))
   }
 
@@ -188,14 +188,13 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     ConditionUtils.split(c) {
       case Equ(DimensionExpr(Dimension("foo", None)), ConstantExpr(_)) => true
       case _                                                           => false
-    } shouldBe ((c, EmptyCondition))
+    } shouldBe ((c, ConstantExpr(true)))
 
     ConditionUtils.split(c) {
-      case SimpleCondition(BinaryOperationExpr(f, DimensionExpr(Dimension("bar", None)), ConstantExpr(_)))
-          if f.name == "==" =>
+      case BinaryOperationExpr(f, DimensionExpr(Dimension("bar", None)), ConstantExpr(_)) if f.name == "==" =>
         true
       case _ => false
-    } shouldBe ((EmptyCondition, c))
+    } shouldBe ((ConstantExpr(true), c))
   }
 
   it should "split AND conditions" in {

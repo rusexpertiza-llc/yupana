@@ -16,7 +16,8 @@
 
 package org.yupana.externallinks
 
-import org.yupana.api.query.{ Condition, DimensionExpr, In, NotIn }
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.{ DimensionExpr, InExpr, NotInExpr }
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.core.{ Dictionary, TsdbBase }
@@ -50,11 +51,11 @@ abstract class DimValueBasedExternalLinkService[T <: ExternalLink](val tsdb: Tsd
 
   override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     val tagValues = dimValuesForAllFieldsValues(values).filter(x => x != null && x.nonEmpty)
-    In(DimensionExpr(externalLink.dimension), tagValues)
+    InExpr(DimensionExpr(externalLink.dimension), tagValues)
   }
 
   override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     val tagValues = dimValuesForAnyFieldsValues(values).filter(x => x != null && x.nonEmpty)
-    NotIn(DimensionExpr(externalLink.dimension), tagValues)
+    NotInExpr(DimensionExpr(externalLink.dimension), tagValues)
   }
 }

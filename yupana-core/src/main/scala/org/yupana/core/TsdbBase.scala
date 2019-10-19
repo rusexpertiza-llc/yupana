@@ -19,6 +19,7 @@ package org.yupana.core
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
@@ -138,7 +139,7 @@ trait TsdbBase[IdType] extends StrictLogging {
       .map(
         c =>
           mr.filter(filterValuesEvaluated)(
-            values => ExpressionCalculator.evaluateCondition(c, queryContext, values).getOrElse(false)
+            values => ExpressionCalculator.evaluateExpression(c, queryContext, values, tryEval = false).getOrElse(false)
           )
       )
       .getOrElse(filterValuesEvaluated)
@@ -195,7 +196,9 @@ trait TsdbBase[IdType] extends StrictLogging {
       .map(
         c =>
           metricCollector.postFilter.measure {
-            mr.filter(calculated)(kv => ExpressionCalculator.evaluateCondition(c, queryContext, kv._2).getOrElse(false))
+            mr.filter(calculated)(
+              kv => ExpressionCalculator.evaluateExpression(c, queryContext, kv._2, tryEval = false).getOrElse(false)
+            )
           }
       )
       .getOrElse(calculated)
@@ -233,7 +236,7 @@ trait TsdbBase[IdType] extends StrictLogging {
       metricCollector: MetricQueryCollector
   ): InternalRow = {
     metricCollector.extractDataComputation.measure {
-      queryContext.postConditionExprs.foreach { expr =>
+      queryContext.postCondition.foreach { expr =>
         row.set(
           queryContext.exprsIndex(expr),
           ExpressionCalculator.evaluateExpression(expr, queryContext, row)
@@ -320,7 +323,7 @@ trait TsdbBase[IdType] extends StrictLogging {
   }
 
   def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Condition = {
-    val linkServices = condition.exprs.flatMap(_.flatten).collect {
+    val linkServices = condition.flatten.collect {
       case LinkExpr(c, _) => linkService(c)
     }
 
