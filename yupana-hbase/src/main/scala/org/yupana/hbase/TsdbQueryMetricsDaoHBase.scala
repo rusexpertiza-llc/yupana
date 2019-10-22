@@ -32,7 +32,7 @@ import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 import scala.collection.JavaConverters._
 
 object TsdbQueryMetricsDaoHBase {
-  val TABLE_NAME: String = "ts_query_metrics_test"
+  val TABLE_NAME: String = "ts_query_metrics"
   val ID_FAMILY: Array[Byte] = Bytes.toBytes("idf")
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
   val QUERY_ID_QUALIFIER: Array[Byte] = Bytes.toBytes(queryIdColumn)
