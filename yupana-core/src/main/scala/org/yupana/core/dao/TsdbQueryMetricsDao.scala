@@ -26,7 +26,7 @@ trait TsdbQueryMetricsDao {
   def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics]
 
   def updateQueryMetrics(
-      queryMetricsId: Long,
+      rowKey: Long,
       queryState: QueryState,
       totalDuration: Double,
       metricValues: Map[String, MetricData],
@@ -39,7 +39,7 @@ trait TsdbQueryMetricsDao {
 }
 
 case class QueryMetricsFilter(
-    queryMetricsId: Option[Long] = None,
+    rowKey: Option[Long] = None,
     queryId: Option[String] = None,
     queryState: Option[QueryState] = None
 )

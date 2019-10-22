@@ -890,34 +890,24 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     parser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
 
-  it should "parse SHOW QUERY_METRICS statements" in {
-    parser.parse("SHOW QUERY_METRICS") shouldBe Right(ShowQueryMetrics(None, None))
+  it should "parse SHOW QUERIES statements" in {
+    parser.parse("SHOW QUERIES") shouldBe Right(ShowQueryMetrics(None, None))
   }
 
-  it should "parse SHOW QUERY_METRICS statements with limit" in {
-    parser.parse("SHOW QUERY_METRICS LIMIT 1") shouldBe Right(ShowQueryMetrics(None, Some(1)))
+  it should "parse SHOW QUERIES statements with limit" in {
+    parser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueryMetrics(None, Some(1)))
   }
 
-  it should "parse SHOW QUERY_METRICS statements with id" in {
-    parser.parse("SHOW QUERY_METRICS WHERE METRIC_ID = 1") shouldBe Right(
-      ShowQueryMetrics(Some(MetricsFilter(id = Some(1L))), None)
-    )
-  }
-
-  it should "parse SHOW QUERY_METRICS statements with query_id" in {
-    parser.parse("SHOW QUERY_METRICS WHERE QUERY_ID = '1'") shouldBe Right(
+  it should "parse SHOW QUERIES statements with query_id" in {
+    parser.parse("SHOW QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
       ShowQueryMetrics(Some(MetricsFilter(queryId = Some("1"))), None)
     )
   }
 
-  it should "parse SHOW QUERY_METRICS statements with state" in {
-    parser.parse("SHOW QUERY_METRICS WHERE STATE = 'RUNNING'") shouldBe Right(
+  it should "parse SHOW QUERIES statements with state" in {
+    parser.parse("SHOW QUERIES WHERE STATE = 'RUNNING'") shouldBe Right(
       ShowQueryMetrics(Some(MetricsFilter(state = Some("RUNNING"))), None)
     )
-  }
-
-  it should "parse KILL QUERY statements with id" in {
-    parser.parse("KILL QUERY WHERE METRIC_ID = 1") shouldBe Right(KillQuery(MetricsFilter(id = Some(1L))))
   }
 
   it should "parse KILL QUERY statements with query_id" in {
@@ -926,20 +916,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
   }
 
-  it should "parse DELETE QUERY_METRICS statements with id" in {
-    parser.parse("DELETE QUERY_METRICS WHERE METRIC_ID = 1") shouldBe Right(
-      DeleteQueryMetrics(MetricsFilter(id = Some(1L)))
-    )
-  }
-
-  it should "parse DELETE QUERY_METRICS statements with query_id" in {
-    parser.parse("DELETE QUERY_METRICS WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+  it should "parse DELETE QUERIES statements with query_id" in {
+    parser.parse("DELETE QUERIES WHERE QUERY_ID = 'qwe123'") shouldBe Right(
       DeleteQueryMetrics(MetricsFilter(queryId = Some("qwe123")))
     )
   }
 
-  it should "parse DELETE QUERY_METRICS statements with state" in {
-    parser.parse("DELETE QUERY_METRICS WHERE STATE = 'FINISHED'") shouldBe Right(
+  it should "parse DELETE QUERIES statements with state" in {
+    parser.parse("DELETE QUERIES WHERE STATE = 'FINISHED'") shouldBe Right(
       DeleteQueryMetrics(MetricsFilter(state = Some("FINISHED")))
     )
   }

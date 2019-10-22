@@ -32,7 +32,7 @@ import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 import scala.collection.JavaConverters._
 
 object TsdbQueryMetricsDaoHBase {
-  val TABLE_NAME: String = "ts_query_metrics"
+  val TABLE_NAME: String = "ts_query_metrics_test"
   val ID_FAMILY: Array[Byte] = Bytes.toBytes("idf")
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
   val QUERY_ID_QUALIFIER: Array[Byte] = Bytes.toBytes(queryIdColumn)
@@ -40,6 +40,7 @@ object TsdbQueryMetricsDaoHBase {
   val START_DATE_QUALIFIER: Array[Byte] = Bytes.toBytes(startDateColumn)
   val TOTAL_DURATION_QUALIFIER: Array[Byte] = Bytes.toBytes(totalDurationColumn)
   val STATE_QUALIFIER: Array[Byte] = Bytes.toBytes(stateColumn)
+  val ENGINE_QUALIFIER: Array[Byte] = Bytes.toBytes(engineColumn)
   val ID_QUALIFIER: Array[Byte] = Bytes.toBytes("ID")
 
   private val UPDATE_ATTEMPTS_LIMIT = 5
@@ -54,14 +55,15 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long = withTables {
     val queryMetricsId = createId()
     val startDate = DateTime.now()
-    val queryAsString = if (sparkQuery) "SPARK - " + query.toString else query.toString
+    val engine = if (sparkQuery) "SPARK" else "STANDALONE"
     val table = getTable
     val put = new Put(Bytes.toBytes(queryMetricsId))
     put.addColumn(FAMILY, QUERY_ID_QUALIFIER, Bytes.toBytes(query.uuid))
-    put.addColumn(FAMILY, QUERY_QUALIFIER, Bytes.toBytes(queryAsString))
+    put.addColumn(FAMILY, QUERY_QUALIFIER, Bytes.toBytes(query.toString))
     put.addColumn(FAMILY, START_DATE_QUALIFIER, Bytes.toBytes(startDate.getMillis))
     put.addColumn(FAMILY, TOTAL_DURATION_QUALIFIER, Bytes.toBytes(0.0))
     put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name))
+    put.addColumn(FAMILY, ENGINE_QUALIFIER, Bytes.toBytes(engine))
     TsdbQueryMetrics.qualifiers.foreach { qualifier =>
       put.addColumn(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount), Bytes.toBytes(0L))
       put.addColumn(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime), Bytes.toBytes(0.0))
@@ -72,7 +74,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   }
 
   override def updateQueryMetrics(
-      queryMetricsId: Long,
+      queryRowKey: Long,
       queryState: QueryState,
       totalDuration: Double,
       metricValues: Map[String, MetricData],
@@ -81,21 +83,21 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     def tryUpdateMetrics(n: Int): Unit = {
       if (n != UPDATE_ATTEMPTS_LIMIT) {
         if (n != 0) {
-          logger.info(s"query $queryMetricsId attempt: $n")
+          logger.info(s"query $queryRowKey attempt: $n")
         }
         val table = getTable
-        val filter = QueryMetricsFilter(queryMetricsId = Some(queryMetricsId))
+        val filter = QueryMetricsFilter(rowKey = Some(queryRowKey))
         queriesByFilter(Some(filter), limit = Some(1)).headOption match {
-          case Some(currentData) =>
-            if (!sparkQuery && currentData.state == Cancelled) {
-              throw new IllegalStateException(s"Query $queryMetricsId was cancelled!")
+          case Some(query) =>
+            if (!sparkQuery && query.state == Cancelled) {
+              throw new IllegalStateException(s"Query $queryRowKey was cancelled!")
             }
-            val put = new Put(Bytes.toBytes(queryMetricsId))
+            val put = new Put(Bytes.toBytes(queryRowKey))
             put.addColumn(FAMILY, TOTAL_DURATION_QUALIFIER, Bytes.toBytes(totalDuration))
             put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
             metricValues.foreach {
               case (metricName, metricData) =>
-                currentData.metrics.get(metricName) match {
+                query.metrics.get(metricName) match {
                   case Some(oldMetricData) =>
                     put.addColumn(
                       FAMILY,
@@ -118,20 +120,20 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
                 put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricSpeed), Bytes.toBytes(metricData.speed))
             }
             val result = table.checkAndPut(
-              Bytes.toBytes(queryMetricsId),
+              Bytes.toBytes(queryRowKey),
               FAMILY,
               TOTAL_DURATION_QUALIFIER,
-              Bytes.toBytes(currentData.totalDuration),
+              Bytes.toBytes(query.totalDuration),
               put
             )
             if (!result) {
               tryUpdateMetrics(n + 1)
             }
           case None =>
-            throw new IllegalStateException(s"Query $queryMetricsId doesn't exists!")
+            throw new IllegalStateException(s"Query $queryRowKey doesn't exists!")
         }
       } else {
-        throw new IllegalStateException(s"Cannot update query $queryMetricsId with no reason")
+        throw new IllegalStateException(s"Cannot update query $queryRowKey with no reason")
       }
     }
 
@@ -146,9 +148,9 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val scan = new Scan().addFamily(FAMILY).setReversed(true)
     val queries = filter match {
       case Some(f) =>
-        f.queryMetricsId match {
-          case Some(id) =>
-            val get = new Get(Bytes.toBytes(id)).addFamily(FAMILY)
+        f.rowKey match {
+          case Some(rowKey) =>
+            val get = new Get(Bytes.toBytes(rowKey)).addFamily(FAMILY)
             val result = table.get(get)
             if (result.isEmpty) List()
             else List(result)
@@ -196,10 +198,16 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   override def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit = {
     val table = getTable
     queriesByFilter(filter = Some(filter), limit = Some(1)).headOption match {
-      case Some(row) =>
-        val put = new Put(Bytes.toBytes(row.id))
+      case Some(query) =>
+        val put = new Put(Bytes.toBytes(query.rowKey))
         put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
-        table.checkAndPut(Bytes.toBytes(row.id), FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name), put)
+        table.checkAndPut(
+          Bytes.toBytes(query.rowKey),
+          FAMILY,
+          STATE_QUALIFIER,
+          Bytes.toBytes(QueryStates.Running.name),
+          put
+        )
       case None =>
         throw new IllegalArgumentException(s"Query not found by filter $filter!")
     }
@@ -208,8 +216,8 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   override def deleteMetrics(filter: QueryMetricsFilter): Int = {
     val table = getTable
     var n = 0
-    queriesByFilter(filter = Some(filter)).foreach { row =>
-      table.delete(new Delete(Bytes.toBytes(row.id)))
+    queriesByFilter(filter = Some(filter)).foreach { query =>
+      table.delete(new Delete(Bytes.toBytes(query.rowKey)))
       n += 1
     }
     n
@@ -224,9 +232,10 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       )
     }.toMap
     TsdbQueryMetrics(
-      id = Bytes.toLong(result.getRow),
+      rowKey = Bytes.toLong(result.getRow),
       queryId = Bytes.toString(result.getValue(FAMILY, QUERY_ID_QUALIFIER)),
       state = QueryStates.getByName(Bytes.toString(result.getValue(FAMILY, STATE_QUALIFIER))),
+      engine = Bytes.toString(result.getValue(FAMILY, ENGINE_QUALIFIER)),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
       startDate = new DateTime(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
       totalDuration = Bytes.toDouble(result.getValue(FAMILY, TOTAL_DURATION_QUALIFIER)),

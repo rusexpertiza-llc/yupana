@@ -28,7 +28,6 @@ object QueryInfoProvider {
 
   private def getFilter(sqlFilter: MetricsFilter): QueryMetricsFilter = {
     QueryMetricsFilter(
-      queryMetricsId = sqlFilter.id,
       queryId = sqlFilter.queryId,
       queryState = sqlFilter.state.map(s => QueryStates.getByName(s))
     )
@@ -41,8 +40,8 @@ object QueryInfoProvider {
     val metrics = tsdb.metricsDao.queriesByFilter(filter, limit)
     val data: Iterator[Array[Option[Any]]] = metrics.map { queryMetrics =>
       Array[Option[Any]](
-        Some(queryMetrics.id),
         Some(queryMetrics.queryId),
+        Some(queryMetrics.engine),
         Some(queryMetrics.state.name),
         Some(queryMetrics.query),
         Some(Time(queryMetrics.startDate)),
@@ -53,11 +52,18 @@ object QueryInfoProvider {
       }
     }.iterator
 
-    val queryFieldNames = List(idColumn, queryIdColumn, stateColumn, queryColumn, startDateColumn, totalDurationColumn) ++
+    val queryFieldNames = List(
+      queryIdColumn,
+      engineColumn,
+      stateColumn,
+      queryColumn,
+      startDateColumn,
+      totalDurationColumn
+    ) ++
       qualifiers.flatMap(q => List(q + "_" + metricCount, q + "_" + metricTime, q + "_" + metricSpeed))
 
     val queryFieldTypes = List(
-      DataType[Long],
+      DataType[String],
       DataType[String],
       DataType[String],
       DataType[String],
