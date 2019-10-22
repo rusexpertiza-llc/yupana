@@ -45,8 +45,10 @@ object SqlParser {
   private def isWord[_: P] = P(IgnoreCase("IS"))
   private def nullWord[_: P] = P(IgnoreCase("NULL"))
   private def notWord[_: P] = P(IgnoreCase("NOT"))
-  private def idWord[_: P] = P(IgnoreCase("ID"))
+  private def queryIdWord[_: P] = P(IgnoreCase("QUERY_ID"))
+  private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
+  private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
   private val keywords = Set(
     "select",
     "from",
@@ -225,17 +227,27 @@ object SqlParser {
 
   def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
 
-  def queryFilter[_: P]: P[String] = P(whereWord ~ idWord ~ "=" ~/ ValueParser.string)
+  def metricQueryIdFilter[_: P]: P[MetricsFilter] =
+    P(queryIdWord ~ "=" ~/ ValueParser.string).map(queryId => MetricsFilter(queryId = Some(queryId)))
+  def metricStateFilter[_: P]: P[MetricsFilter] =
+    P(stateWord ~ "=" ~/ ValueParser.string).map(state => MetricsFilter(state = Some(state)))
+  def queryMetricsFilter[_: P]: P[MetricsFilter] = P(
+    whereWord ~ (metricQueryIdFilter | metricStateFilter)
+  )
 
-  def queries[_: P]: P[ShowQueries] = P(queriesWord ~/ queryFilter.? ~/ limit.?).map(ShowQueries.tupled)
+  def queries[_: P]: P[ShowQueryMetrics] =
+    P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
-  def query[_: P]: P[KillQuery] = P(queryWord ~/ queryFilter).map(KillQuery)
+  def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
   def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 
-  def statement[_: P]: P[Statement] = P((select | show | kill) ~ ";".? ~ End)
+  def delete[_: P]: P[DeleteQueryMetrics] =
+    P(deleteWord ~/ queriesWord ~/ queryMetricsFilter).map(DeleteQueryMetrics)
+
+  def statement[_: P]: P[Statement] = P((select | show | kill | delete) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {

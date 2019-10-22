@@ -16,6 +16,8 @@
 
 package org.yupana.api.query
 
+import java.util.UUID
+
 import org.yupana.api.Time
 import org.yupana.api.schema.Table
 
@@ -38,7 +40,7 @@ case class Query(
     postFilter: Option[Condition] = None
 ) {
 
-  val uuid: String = System.nanoTime().toString
+  val uuid: String = UUID.randomUUID().toString
   val uuidLog: String = s"query_uuid: $uuid"
 
   override def toString: String = {

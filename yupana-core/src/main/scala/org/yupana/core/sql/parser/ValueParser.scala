@@ -38,6 +38,8 @@ object ValueParser {
 
   def intNumber[_: P]: P[Int] = P(digits).map(_.toInt)
 
+  def longNumber[_: P]: P[Long] = P(digits).map(_.toLong)
+
   def number[_: P]: P[BigDecimal] = P(digits ~ ("." ~ digits).!.?).map {
     case (x, y) => BigDecimal(x + y.getOrElse(""))
   }
