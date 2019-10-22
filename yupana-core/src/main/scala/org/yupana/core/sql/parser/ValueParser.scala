@@ -38,6 +38,8 @@ trait ValueParser {
 
   val intNumber: Parser[Int] = P(digits).map(_.toInt)
 
+  val longNumber: Parser[Long] = P(digits).map(_.toLong)
+
   val number: Parser[BigDecimal] = P(digits ~ ("." ~ digits).!.?).map { case (x, y) => BigDecimal(x + y.getOrElse("")) }
 
   private val stringCharacter = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
