@@ -14,9 +14,9 @@ lazy val api = (project in file("yupana-api"))
     name := "yupana-api",
     allSettings,
     libraryDependencies ++= Seq(
-      "joda-time"              %  "joda-time"            % versions.joda,
-      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
+      "joda-time" % "joda-time" % versions.joda,
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "org.scalacheck" %% "scalacheck" % versions.scalaCheck % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -27,8 +27,8 @@ lazy val proto = (project in file("yupana-proto"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
-      "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
-      "com.google.protobuf"    %  "protobuf-java"        % versions.protobufJava force()
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf" exclude ("com.google.protobuf", "protobuf-java"),
+      "com.google.protobuf" % "protobuf-java" % versions.protobufJava force ()
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -38,8 +38,8 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "org.scalamock" %% "scalamock" % versions.scalaMock % Test
     ),
     buildInfoKeys := {
       val vn = VersionNumber(version.value)
@@ -60,29 +60,28 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   .enablePlugins(AssemblyPlugin)
   .dependsOn(api, proto)
 
-lazy val utils = (project in file ("yupana-utils"))
+lazy val utils = (project in file("yupana-utils"))
   .settings(
     name := "yupana-utils",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.lucene"           %  "lucene-analyzers-common"       % versions.lucene,
-      "org.scalatest"               %% "scalatest"                     % versions.scalaTest
+      "org.apache.lucene" % "lucene-analyzers-common" % versions.lucene,
+      "org.scalatest" %% "scalatest" % versions.scalaTest
     )
   )
 
-lazy val core = (project in file ("yupana-core"))
+lazy val core = (project in file("yupana-core"))
   .settings(
     name := "yupana-core",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
-      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse,
-      "org.apache.ignite"           %  "ignite-core"                  % versions.ignite,
-      "org.apache.ignite"           %  "ignite-slf4j"                 % versions.ignite,
-      "org.ehcache"                 %  "ehcache"                      % versions.ehcache,
-
-      "org.scalatest"               %% "scalatest"                    % versions.scalaTest          % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock          % Test
+      "com.typesafe.scala-logging" %% "scala-logging" % versions.scalaLogging,
+      "com.lihaoyi" %% "fastparse" % versions.fastparse,
+      "org.apache.ignite" % "ignite-core" % versions.ignite,
+      "org.apache.ignite" % "ignite-slf4j" % versions.ignite,
+      "org.ehcache" % "ehcache" % versions.ehcache,
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "org.scalamock" %% "scalamock" % versions.scalaMock % Test
     )
   )
   .dependsOn(api, utils)
@@ -94,15 +93,15 @@ lazy val hbase = (project in file("yupana-hbase"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
-      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
-      "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
-      "org.apache.hadoop"           %  "hadoop-hdfs-client"           % versions.hadoop,
-      "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
-      "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
-      "org.scalatest"               %% "scalatest"                    % versions.scalaTest                % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test
+      "org.apache.hbase" % "hbase-common" % versions.hbase,
+      "org.apache.hbase" % "hbase-client" % versions.hbase,
+      "org.apache.hadoop" % "hadoop-common" % versions.hadoop,
+      "org.apache.hadoop" % "hadoop-hdfs-client" % versions.hadoop,
+      "com.thesamet.scalapb" %% "scalapb-runtime" % scalapbVersion % "protobuf" exclude ("com.google.protobuf", "protobuf-java"),
+      "com.google.protobuf" % "protobuf-java" % versions.protobufJava force (),
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "org.scalamock" %% "scalamock" % versions.scalaMock % Test,
+      "org.scalacheck" %% "scalacheck" % versions.scalaCheck % Test
     )
   )
   .dependsOn(core % "compile->compile ; test->test")
@@ -113,12 +112,12 @@ lazy val akka = (project in file("yupana-akka"))
     name := "yupana-akka",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.typesafe.akka"             %% "akka-actor"                 % versions.akka,
-      "com.typesafe.akka"             %% "akka-stream"                % versions.akka,
-      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
-      "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
-      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
-      "com.typesafe.akka"             %% "akka-stream-testkit"        % versions.akka                     % Test
+      "com.typesafe.akka" %% "akka-actor" % versions.akka,
+      "com.typesafe.akka" %% "akka-stream" % versions.akka,
+      "com.typesafe.scala-logging" %% "scala-logging" % versions.scalaLogging,
+      "com.google.protobuf" % "protobuf-java" % versions.protobufJava force (),
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "com.typesafe.akka" %% "akka-stream-testkit" % versions.akka % Test
     )
   )
   .dependsOn(proto, core)
@@ -129,19 +128,19 @@ lazy val spark = (project in file("yupana-spark"))
     name := "yupana-spark",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
-      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
-      "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
-      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting   % Test
+      "org.apache.spark" %% "spark-core" % versions.spark % Provided,
+      "org.apache.spark" %% "spark-sql" % versions.spark % Provided,
+      "org.apache.spark" %% "spark-streaming" % versions.spark % Provided,
+      "org.apache.hbase" % "hbase-server" % versions.hbase,
+      "org.apache.hbase" % "hbase-hadoop-compat" % versions.hbase,
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "com.holdenkarau" %% "spark-testing-base" % versions.sparkTesting % Test
     ),
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core"      %  "jackson-core"               % "2.8.7" % Test,
-      "com.fasterxml.jackson.core"      %  "jackson-annotations"        % "2.8.7" % Test,
-      "com.fasterxml.jackson.core"      %  "jackson-databind"           % "2.8.7" % Test,
-      "com.fasterxml.jackson.module"    %% "jackson-module-scala"       % "2.8.7" % Test
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.8.7" % Test,
+      "com.fasterxml.jackson.core" % "jackson-annotations" % "2.8.7" % Test,
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.8.7" % Test,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.8.7" % Test
     )
   )
   .dependsOn(core, hbase, externalLinks)
@@ -161,13 +160,13 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     name := "yupana-external-links",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
-      "org.springframework"         %  "spring-jdbc"                % versions.spring,
-      "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
-      "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
-      "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
-      "org.flywaydb"                %  "flyway-core"                % versions.flyway           % Test,
-      "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
+      "org.json4s" %% "json4s-jackson" % versions.json4s,
+      "org.springframework" % "spring-jdbc" % versions.spring,
+      "org.scalatest" %% "scalatest" % versions.scalaTest % Test,
+      "org.scalamock" %% "scalamock" % versions.scalaMock % Test,
+      "com.h2database" % "h2" % versions.h2Jdbc % Test,
+      "org.flywaydb" % "flyway-core" % versions.flyway % Test,
+      "ch.qos.logback" % "logback-classic" % versions.logback % Test
     )
   )
   .dependsOn(schema, core)
@@ -181,20 +180,20 @@ lazy val examples = (project in file("yupana-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
-      "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
-      "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc % Runtime,
-      "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
+      "org.apache.spark" %% "spark-core" % versions.spark % Provided,
+      "org.apache.spark" %% "spark-sql" % versions.spark % Provided,
+      "org.apache.spark" %% "spark-streaming" % versions.spark % Provided,
+      "com.zaxxer" % "HikariCP" % versions.hikariCP,
+      "org.postgresql" % "postgresql" % versions.postgresqlJdbc % Runtime,
+      "ch.qos.logback" % "logback-classic" % versions.logback % Runtime
     ),
     assembly / assemblyMergeStrategy := {
-      case PathList("org", "apache", "jasper", _*) => MergeStrategy.last
+      case PathList("org", "apache", "jasper", _*)  => MergeStrategy.last
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
-      case PathList("javax", "servlet", _*) => MergeStrategy.last
-      case PathList("javax", "el", _*) => MergeStrategy.last
-      case PathList("org", "slf4j", "impl", _*) => MergeStrategy.first
-      case x => (assembly / assemblyMergeStrategy).value(x)
+      case PathList("javax", "servlet", _*)         => MergeStrategy.last
+      case PathList("javax", "el", _*)              => MergeStrategy.last
+      case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
+      case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
       val outputFile = target.value / "assemblyname.sh"
@@ -206,6 +205,13 @@ lazy val examples = (project in file("yupana-examples"))
   )
   .dependsOn(spark, akka, hbase, schema, externalLinks)
   .enablePlugins(FlywayPlugin)
+
+lazy val docs = (project in file("yupana-docs"))
+  .settings(
+    name := "Yupana",
+    paradoxTheme := Some(builtinParadoxTheme("generic"))
+  )
+  .enablePlugins(ParadoxSitePlugin)
 
 lazy val versions = new {
   val joda = "2.10.3"
@@ -272,7 +278,9 @@ val publishSettings = Seq(
       Some("Sonatype OSS releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
   },
   Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false },
+  pomIncludeRepository := { _ =>
+    false
+  },
   licenses += ("Apache 2.0 License", url("http://www.apache.org/licenses/LICENSE-2.0")),
   homepage := Some(url("https://github.com/rusexpertiza-llc/yupana")),
   scmInfo := Some(
@@ -288,7 +296,7 @@ val publishSettings = Seq(
 
 val pbSettings = Seq(
   PB.protocVersion := "-v261",
-  Compile / PB.targets := Seq (
+  Compile / PB.targets := Seq(
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )
 )

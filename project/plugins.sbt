@@ -21,3 +21,7 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.0")
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.2.0")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.0.6")
+
+addSbtPlugin("com.typesafe.sbt" % "sbt-site" % "1.4.0")
+
+addSbtPlugin("com.lightbend.paradox" % "sbt-paradox" % "0.6.6")
