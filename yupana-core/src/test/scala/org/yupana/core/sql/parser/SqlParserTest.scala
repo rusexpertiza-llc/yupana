@@ -1043,7 +1043,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error on unknown show" in {
     errorMessage("SHOW functions") {
       case msg =>
-        msg should include("""Expect COLUMNS | TABLES | METRICS, but got "functions""")
+        msg should include("""Expect COLUMNS | TABLES | QUERIES, but got "functions""")
     }
   }
 
