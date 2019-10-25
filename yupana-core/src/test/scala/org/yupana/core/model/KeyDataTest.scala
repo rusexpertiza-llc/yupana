@@ -5,7 +5,7 @@ import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream,
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
-import org.yupana.api.query.{ EmptyCondition, Query, TimeExpr }
+import org.yupana.api.query.{ Query, TimeExpr }
 import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 
 class KeyDataTest extends FlatSpec with Matchers {
@@ -27,7 +27,7 @@ class KeyDataTest extends FlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.TAG_A))
     )
-    val context = QueryContext(query, EmptyCondition)
+    val context = QueryContext(query, const(true))
 
     val builder = new InternalRowBuilder(context)
 
@@ -60,7 +60,7 @@ class KeyDataTest extends FlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
     )
-    val context = QueryContext(query, EmptyCondition)
+    val context = QueryContext(query, const(true))
 
     val builder = new InternalRowBuilder(context)
 

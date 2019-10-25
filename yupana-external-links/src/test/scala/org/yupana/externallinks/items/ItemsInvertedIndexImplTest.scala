@@ -106,7 +106,7 @@ class ItemsInvertedIndexImplTest
     )
 
     inside(res) {
-      case DimIdNotIn(d, vs) =>
+      case DimIdNotInExpr(d, vs) =>
         d shouldEqual dimension(Dimensions.ITEM_TAG)
         vs.toSeq should contain theSameElementsInOrderAs Seq(1L, 3L)
     }
