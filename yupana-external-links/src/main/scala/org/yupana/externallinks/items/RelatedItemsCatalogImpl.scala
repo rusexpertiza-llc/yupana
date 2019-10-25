@@ -17,6 +17,7 @@
 package org.yupana.externallinks.items
 
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
@@ -58,13 +59,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       val include = if (includeValues.nonEmpty) {
         includeCondition(includeValues, from, to)
       } else {
-        EmptyCondition
+        const(true)
       }
 
       val exclude = if (excludeValues.nonEmpty) {
         excludeCondition(excludeValues, from, to)
       } else {
-        EmptyCondition
+        const(true)
       }
 
       TimeBoundedCondition(tbc.from, tbc.to, include :: exclude :: other)

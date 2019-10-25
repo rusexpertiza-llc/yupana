@@ -16,6 +16,7 @@
 
 package org.yupana.core
 
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
@@ -74,12 +75,12 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case SimpleCondition(BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_)))
+      case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
           if Set("==", "!=").contains(op.name) && c.linkName == externalLink.linkName =>
         true
-      case In(LinkExpr(c, _), _) if c.linkName == externalLink.linkName    => true
-      case NotIn(LinkExpr(c, _), _) if c.linkName == externalLink.linkName => true
-      case _                                                               => false
+      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName    => true
+      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName => true
+      case _                                                                   => false
     }
   }
 }
@@ -97,13 +98,13 @@ object ExternalLinkService {
           case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 
-          case In(LinkExpr(c, field), cs) if c.linkName == linkName =>
+          case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
             ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
 
           case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
             (cat, (field, Set(v)) :: neg, oth)
 
-          case NotIn(LinkExpr(c, field), cs) if c.linkName == linkName =>
+          case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
             (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)

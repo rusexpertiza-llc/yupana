@@ -29,9 +29,10 @@ import org.apache.hadoop.hbase.util.{ Bytes, Pair }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
-import org.yupana.core.utils.CollectionUtils
+import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
 import scala.collection.JavaConverters._
+import scala.collection.immutable.NumericRange
 import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 
 object HBaseUtils extends StrictLogging {
@@ -55,7 +56,7 @@ object HBaseUtils extends StrictLogging {
     time % table.rowTimeSpan
   }
 
-  def baseTimeList(fromTime: Long, toTime: Long, table: Table) = {
+  def baseTimeList(fromTime: Long, toTime: Long, table: Table): NumericRange[Long] = {
     val startBaseTime = fromTime - (fromTime % table.rowTimeSpan)
     val stopBaseTime = toTime - (toTime % table.rowTimeSpan)
     startBaseTime to stopBaseTime by table.rowTimeSpan
@@ -199,7 +200,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def familiesQueried(queryContext: InternalQueryContext): Set[Int] = {
-    val groups = queryContext.exprs.flatMap(_.requiredMetrics.map(_.group))
+    val groups = queryContext.exprs.flatMap(e => QueryUtils.requiredMetrics(e).map(_.group))
     if (groups.nonEmpty) {
       groups
     } else {

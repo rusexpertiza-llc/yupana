@@ -16,7 +16,8 @@
 
 package org.yupana.externallinks
 
-import org.yupana.api.query.{ Condition, EmptyCondition }
+import org.yupana.api.query.ConstantExpr
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.utils.TimeBoundedCondition
@@ -36,13 +37,13 @@ trait SimpleExternalLinkConditionHandler[T <: ExternalLink] extends ExternalLink
       val include = if (includeValues.nonEmpty) {
         includeCondition(includeValues)
       } else {
-        EmptyCondition
+        ConstantExpr(true)
       }
 
       val exclude = if (excludeValues.nonEmpty) {
         excludeCondition(excludeValues)
       } else {
-        EmptyCondition
+        ConstantExpr(true)
       }
 
       TimeBoundedCondition(tbc.from, tbc.to, include :: exclude :: other)

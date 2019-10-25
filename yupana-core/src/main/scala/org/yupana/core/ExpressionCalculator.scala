@@ -47,37 +47,6 @@ object ExpressionCalculator {
     }
   }
 
-  def evaluateCondition(
-      condition: Condition,
-      queryContext: QueryContext,
-      valueData: InternalRow,
-      tryEval: Boolean = false
-  ): Option[Boolean] = condition match {
-
-    case SimpleCondition(e) =>
-      evaluateExpression(e, queryContext, valueData, tryEval)
-
-    case In(e, vs) =>
-      for {
-        eValue <- evaluateExpression(e, queryContext, valueData, tryEval)
-      } yield vs contains eValue
-
-    case NotIn(e, vs) =>
-      for {
-        eValue <- evaluateExpression(e, queryContext, valueData, tryEval)
-      } yield !vs.contains(eValue)
-
-    case And(cs) =>
-      val executed = cs.map(c => evaluateCondition(c, queryContext, valueData, tryEval))
-      executed.reduce((a, b) => a.flatMap(x => b.map(y => x && y)))
-
-    case Or(cs) =>
-      val executed = cs.map(c => evaluateCondition(c, queryContext, valueData, tryEval))
-      executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
-
-    case x => throw new IllegalArgumentException(s"Unsupported condition $x")
-  }
-
   private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): Option[expr.Out] = {
 
     val res = expr match {
@@ -89,7 +58,7 @@ object ExpressionCalculator {
       case LinkExpr(_, _)   => None // catalogValues.get(c.queryFieldName)
 
       case ConditionExpr(condition, positive, negative) =>
-        val x = evaluateCondition(condition, queryContext, internalRow, tryEval = true)
+        val x = evaluateExpression(condition, queryContext, internalRow)
           .getOrElse(false)
         if (x) {
           evaluateExpression(positive, queryContext, internalRow)
@@ -115,6 +84,24 @@ object ExpressionCalculator {
       case WindowFunctionExpr(_, e) =>
         evaluateExpression(e, queryContext, internalRow)
 
+      case InExpr(e, vs) =>
+        for {
+          eValue <- evaluateExpression(e, queryContext, internalRow)
+        } yield vs contains eValue
+
+      case NotInExpr(e, vs) =>
+        for {
+          eValue <- evaluateExpression(e, queryContext, internalRow)
+        } yield !vs.contains(eValue)
+
+      case AndExpr(cs) =>
+        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        executed.reduce((a, b) => a.flatMap(x => b.map(y => x && y)))
+
+      case OrExpr(cs) =>
+        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
+
       case TupleExpr(e1, e2) =>
         for {
           a <- evaluateExpression(e1, queryContext, internalRow)
@@ -137,6 +124,8 @@ object ExpressionCalculator {
         }
 
         if (success) Some(values) else None
+
+      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
