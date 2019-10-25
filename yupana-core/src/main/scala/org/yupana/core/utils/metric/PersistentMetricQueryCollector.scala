@@ -46,10 +46,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   override val createScans: PersistentMetricImpl = createMetric(createScansQualifier)
   override val loadTags: PersistentMetricImpl = createMetric(loadTagsQualifier)
   override val filterRows: PersistentMetricImpl = createMetric(filterRowsQualifier)
-  override val windowFunctionsCheck: PersistentMetricImpl = createMetric(windowFunctionsCheckQualifier)
   override val windowFunctions: PersistentMetricImpl = createMetric(windowFunctionsQualifier)
-  override val mapOperation: PersistentMetricImpl = createMetric(mapOperationQualifier)
-  override val postMapOperation: PersistentMetricImpl = createMetric(postMapOperationQualifier)
   override val reduceOperation: PersistentMetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: PersistentMetricImpl = createMetric(postFilterQualifier)
   override val collectResultRows: PersistentMetricImpl = createMetric(collectResultRowsQualifier)
@@ -89,10 +86,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       createScans,
       loadTags,
       filterRows,
-      windowFunctionsCheck,
       windowFunctions,
-      mapOperation,
-      postMapOperation,
       reduceOperation,
       postFilter,
       collectResultRows,

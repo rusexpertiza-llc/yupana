@@ -17,8 +17,33 @@
 package org.yupana.core.utils
 
 import scala.annotation.tailrec
+import scala.collection.mutable
+
+import scala.collection.JavaConverters._
 
 object CollectionUtils {
+
+  def reduceByKey[K, A](it: Iterator[(K, A)])(func: (A, A) => A): Iterator[(K, A)] = {
+    val map = new java.util.HashMap[K, A]()
+    it.foreach {
+      case (k, v) =>
+        val old = map.get(k)
+        val n = if (old != null) func(old, v) else v
+        map.put(k, n)
+    }
+    map.asScala.iterator
+  }
+
+//  def reduceByKey[K, A](it: Iterator[(K, A)])(func: (A, A) => A): Iterator[(K, A)] = {
+//    val map = collection.mutable.Map.empty[K, A]
+//    it.foreach {
+//      case (k, v) =>
+//        val old = map.get(k)
+//        val n = old.map(o => func(o, v)).getOrElse(v)
+//        map.put(k, n)
+//    }
+//    map.iterator
+//  }
 
   def crossJoin[T](list: List[List[T]]): List[List[T]] = {
 

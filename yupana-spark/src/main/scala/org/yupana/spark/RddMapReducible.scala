@@ -28,7 +28,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext) extends MapRedu
   override def map[A, B: ClassTag](rdd: RDD[A])(f: A => B): RDD[B] = rdd.map(f)
   override def flatMap[A, B: ClassTag](rdd: RDD[A])(f: A => Iterable[B]): RDD[B] = rdd.flatMap(f)
 
-  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A])(size: Int, f: Seq[A] => Seq[B]): RDD[B] = {
+  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => Iterator[B]): RDD[B] = {
     rdd.mapPartitions(_.sliding(size, size).flatMap(f))
   }
 
@@ -36,8 +36,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext) extends MapRedu
 
   override def reduce[A](rdd: RDD[A])(f: (A, A) => A): A = rdd.reduce(f)
   override def reduceByKey[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)])(f: (V, V) => V): RDD[(K, V)] = {
-    val numPartitions = math.max(rdd.partitions.length, 50)
-    rdd.reduceByKey(f, numPartitions)
+    rdd.reduceByKey(f)
   }
 
   override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {

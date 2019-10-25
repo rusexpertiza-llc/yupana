@@ -43,6 +43,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
   val FUZZY_FILTERS_LIMIT = 20
+  val EXTRACT_BATCH_SIZE = 100000
 
   def mr: MapReducible[Collection]
   def dictionaryProvider: DictionaryProvider
@@ -110,9 +111,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val filtered = mr.filter(rows)(rowFilter)
 
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
-    mr.batchFlatMap(filtered)(
-      10000,
-      rs => extractData(context, valueDataBuilder, rs, timeFilter, metricCollector)
+    mr.batchFlatMap(filtered, EXTRACT_BATCH_SIZE)(
+      rs => extractData(context, valueDataBuilder, rs, timeFilter, metricCollector).iterator
     )
   }
 

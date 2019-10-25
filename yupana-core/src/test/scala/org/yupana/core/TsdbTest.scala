@@ -2405,13 +2405,13 @@ class TsdbTest
     val r1 = results.next()
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
     r1.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
 
     val r2 = results.next()
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
     r2.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
   }
 

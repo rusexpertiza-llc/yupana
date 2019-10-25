@@ -30,10 +30,7 @@ trait MetricQueryCollector extends Serializable {
   val createScans: Metric = NoMetric
   val loadTags: Metric = NoMetric
   val filterRows: Metric = NoMetric
-  val windowFunctionsCheck: Metric = NoMetric
   val windowFunctions: Metric = NoMetric
-  val mapOperation: Metric = NoMetric
-  val postMapOperation: Metric = NoMetric
   val reduceOperation: Metric = NoMetric
   val postFilter: Metric = NoMetric
   val collectResultRows: Metric = NoMetric

@@ -34,10 +34,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
   override val createScans = MetricImpl("createScans")
   override val loadTags = MetricImpl("loadTags")
   override val filterRows = MetricImpl("filterRows")
-  override val windowFunctionsCheck = MetricImpl("windowFunctionsCheck")
   override val windowFunctions = MetricImpl("windowFunctions")
-  override val mapOperation = MetricImpl("mapOperation")
-  override val postMapOperation = MetricImpl("postMapOperation")
   override val reduceOperation = MetricImpl("reduceOperation")
   override val postFilter = MetricImpl("postFilter")
   override val collectResultRows = MetricImpl("collectResultRows")
@@ -57,10 +54,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
       createScans,
       loadTags,
       filterRows,
-      windowFunctionsCheck,
       windowFunctions,
-      mapOperation,
-      postMapOperation,
       reduceOperation,
       postFilter,
       collectResultRows,
