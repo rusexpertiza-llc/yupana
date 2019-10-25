@@ -113,6 +113,8 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
       }
       .toSet
 
+    logger.trace(s"Got ${keys.size} keys for prefix $prefix search")
+
     allValues(keys)
   }
 
@@ -131,12 +133,17 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
     val iterators = partial.map { case (_, key) => scanValues(key) }
 
-    val fetched = completed.map {
+    val fetched = completed.toList.flatMap {
       case (result, _) =>
-        SortedSetIterator(result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c))).toIterator)
+        result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c)))
     }
+    val ord = implicitly[DimOrdering[V]]
 
-    SortedSetIterator.unionAll(iterators ++ fetched)
+    val seq = fetched.distinct.sortWith(ord.lt)
+
+    val fetchedIterator = SortedSetIterator(seq: _*)
+
+    SortedSetIterator.unionAll(iterators :+ fetchedIterator)
   }
 
   private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
