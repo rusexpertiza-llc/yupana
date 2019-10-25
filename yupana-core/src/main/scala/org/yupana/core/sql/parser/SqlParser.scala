@@ -201,7 +201,6 @@ object SqlParser {
   }
 
   def selectFrom[_: P](fields: SqlFields): P[Select] = {
-    // Pass is required because FastParse 1.0.0 bug https://github.com/lihaoyi/fastparse/issues/88
     P(fromWord ~/ (nestedSelectFrom(fields) | normalSelectFrom(fields)))
   }
 
