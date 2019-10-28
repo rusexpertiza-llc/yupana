@@ -36,8 +36,9 @@ trait MetricQueryCollector extends Serializable {
   val collectResultRows: Metric = NoMetric
   val extractDataTags: Metric = NoMetric
   val extractDataComputation: Metric = NoMetric
-  val getResult: Metric = NoMetric
-  val parseResult: Metric = NoMetric
+  val readExternalLinks: Metric = NoMetric
+  val scan: Metric = NoMetric
+  val parseScanResult: Metric = NoMetric
 }
 
 object NoMetricCollector extends MetricQueryCollector {
@@ -52,9 +53,11 @@ object NoMetricCollector extends MetricQueryCollector {
 }
 
 trait Metric extends Serializable {
-  def measure[T](f: => T): T
+  def measure[T](count: Int)(f: => T): T
 }
 
 object NoMetric extends Metric {
-  override def measure[T](f: => T): T = f
+
+  @inline
+  override def measure[T](count: Int)(f: => T): T = f
 }

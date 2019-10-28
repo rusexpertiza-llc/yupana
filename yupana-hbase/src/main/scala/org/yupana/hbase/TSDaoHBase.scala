@@ -64,19 +64,30 @@ class TSDaoHBase(
     scan.setScanMetricsEnabled(metricCollector.isEnabled)
     val scanner = htable.getScanner(scan)
     val scannerIterator = scanner.iterator()
-    new AbstractIterator[TSDOutputRow[IdType]] {
-      override def hasNext: Boolean = metricCollector.getResult.measure {
-        val hasNext = scannerIterator.hasNext
-        if (!hasNext && scan.isScanMetricsEnabled) {
-          logger.info(s"query_uuid: ${metricCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}")
+    val batchIterator = scannerIterator.asScala.grouped(EXTRACT_BATCH_SIZE)
+
+    val resultIterator = new AbstractIterator[List[TSDOutputRow[IdType]]] {
+      override def hasNext: Boolean = {
+        metricCollector.scan.measure(1) {
+          val hasNext = batchIterator.hasNext
+          if (!hasNext && scan.isScanMetricsEnabled) {
+            logger.info(s"query_uuid: ${metricCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}")
+          }
+          hasNext
         }
-        hasNext
       }
 
-      override def next(): TSDOutputRow[IdType] = metricCollector.parseResult.measure {
-        getTsdRowFromResult(table, scannerIterator.next())
+      override def next(): List[TSDOutputRow[IdType]] = {
+        val batch = batchIterator.next()
+        metricCollector.parseScanResult.measure(batch.size) {
+          batch.map { hbaseResult =>
+            getTsdRowFromResult(table, hbaseResult)
+          }
+        }
       }
     }
+
+    resultIterator.flatten
   }
 
   override def put(dataPoints: Seq[DataPoint]): Unit = {

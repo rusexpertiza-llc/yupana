@@ -52,8 +52,8 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   override val collectResultRows: PersistentMetricImpl = createMetric(collectResultRowsQualifier)
   override val extractDataTags: PersistentMetricImpl = createMetric(extractDataTagsQualifier)
   override val extractDataComputation: PersistentMetricImpl = createMetric(extractDataComputationQualifier)
-  override val getResult: PersistentMetricImpl = createMetric(getResultQualifier)
-  override val parseResult: PersistentMetricImpl = createMetric(parseResultQualifier)
+  override val scan: PersistentMetricImpl = createMetric(getResultQualifier)
+  override val parseScanResult: PersistentMetricImpl = createMetric(parseResultQualifier)
 
   private val queryRowKey = collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
   logger.info(s"$queryRowKey - ${query.uuidLog}; operation: $operationName started, query: $query")
@@ -92,8 +92,8 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       collectResultRows,
       extractDataTags,
       extractDataComputation,
-      getResult,
-      parseResult
+      scan,
+      parseScanResult
     )
 
   def getAndResetMetricsData: Map[String, MetricData] = {
@@ -145,14 +145,14 @@ case class PersistentMetricImpl(
     time: LongAdder = new LongAdder()
 ) extends Metric {
 
-  override def measure[T](f: => T): T = {
+  override def measure[T](cnt: Int)(f: => T): T = {
     if (!collectorContext.queryActive) {
       throw new IllegalStateException(s"Metric $name: query $queryId was cancelled!")
     }
     try {
       val start = System.nanoTime()
       val result = f
-      count.add(1)
+      count.add(cnt)
       time.add(System.nanoTime() - start)
       result
     } catch {

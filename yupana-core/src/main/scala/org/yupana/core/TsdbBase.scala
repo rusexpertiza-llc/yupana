@@ -125,11 +125,14 @@ trait TsdbBase extends StrictLogging {
     val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.isInstanceOf[WindowFunctionExpr])
 
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
+      val batchSize = batch.size
       val c = processedRows.incrementAndGet()
-      if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c tsd rows")
-      val withExtLinks = readExternalLinks(queryContext, batch)
+      if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
+      val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
+        readExternalLinks(queryContext, batch)
+      }
 
-      metricCollector.extractDataComputation.measure {
+      metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
         val withValuesForFilter = it.map { row =>
           evaluateFilterExprs(queryContext, row, metricCollector)
@@ -150,7 +153,7 @@ trait TsdbBase extends StrictLogging {
     }
 
     val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
-      metricCollector.windowFunctions.measure {
+      metricCollector.windowFunctions.measure(1) {
         applyWindowFunctions(queryContext, keysAndValues)
       }
     } else {
@@ -159,9 +162,8 @@ trait TsdbBase extends StrictLogging {
 
     val reduced = if (queryContext.query.groupBy.nonEmpty && !isWindowFunctionPresent) {
       val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
-        metricCollector.reduceOperation.measure {
-          val it = batch.iterator
-          val mapped = it.map {
+        metricCollector.reduceOperation.measure(batch.size) {
+          val mapped = batch.iterator.map {
             case (key, row) =>
               val c = processedDataPoints.incrementAndGet()
               if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Extracted $c data points")
@@ -172,35 +174,33 @@ trait TsdbBase extends StrictLogging {
       }
 
       val r = mr.reduceByKey(keysAndMappedValues) { (a, b) =>
-        metricCollector.reduceOperation.measure {
+        metricCollector.reduceOperation.measure(1) {
           applyReduceOperation(queryContext, a, b)
         }
       }
 
       mr.batchFlatMap(r, extractBatchSize) { batch =>
-        metricCollector.reduceOperation.measure {
+        metricCollector.reduceOperation.measure(batch.size) {
           val it = batch.iterator
-          it.map {
-            case (key, row) =>
-              key -> applyPostMapOperation(queryContext, row)
+          it.map { row =>
+            applyPostMapOperation(queryContext, row)
           }
         }
       }
     } else {
-      keysAndValuesWinFunc
+      mr.map(keysAndValuesWinFunc)(_._2)
     }
 
-    val calculated = mr.map(reduced) {
-      case (k, v) => (k, evalExprsOnAggregatesAndWindows(queryContext, v))
+    val calculated = mr.map(reduced) { row =>
+      evalExprsOnAggregatesAndWindows(queryContext, row)
     }
 
     val postFiltered = queryContext.query.postFilter match {
       case Some(cond) =>
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
           val it = batch.iterator
-          it.filter {
-            case (_, row) =>
-              ExpressionCalculator.evaluateCondition(cond, queryContext, row).getOrElse(false)
+          it.filter { row =>
+            ExpressionCalculator.evaluateCondition(cond, queryContext, row).getOrElse(false)
           }
         }
       case None => calculated
@@ -209,15 +209,14 @@ trait TsdbBase extends StrictLogging {
     val limited = queryContext.query.limit.map(mr.limit(postFiltered)).getOrElse(postFiltered)
 
     val result = mr.batchFlatMap(limited, extractBatchSize) { batch =>
-      metricCollector.collectResultRows.measure {
-        batch.iterator.map {
-          case (_, row) =>
-            val c = resultRows.incrementAndGet()
-            val d = if (c <= 100000) 10000 else 100000
-            if (c % d == 0) {
-              logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
-            }
-            row.data
+      metricCollector.collectResultRows.measure(batch.size) {
+        batch.iterator.map { row =>
+          val c = resultRows.incrementAndGet()
+          val d = if (c <= 100000) 10000 else 100000
+          if (c % d == 0) {
+            logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
+          }
+          row.data
         }
       }
     }
@@ -240,15 +239,12 @@ trait TsdbBase extends StrictLogging {
       row: InternalRow,
       metricCollector: MetricQueryCollector
   ): InternalRow = {
-    metricCollector.extractDataComputation.measure {
-      queryContext.postConditionExprs.foreach { expr =>
-        row.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-        )
-      }
+    queryContext.postConditionExprs.foreach { expr =>
+      row.set(
+        queryContext.exprsIndex(expr),
+        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+      )
     }
-
     row
   }
 
@@ -257,20 +253,18 @@ trait TsdbBase extends StrictLogging {
       row: InternalRow,
       metricCollector: MetricQueryCollector
   ): InternalRow = {
-    metricCollector.extractDataComputation.measure {
-      queryContext.bottomExprs.foreach { expr =>
-        row.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-        )
-      }
+    queryContext.bottomExprs.foreach { expr =>
+      row.set(
+        queryContext.exprsIndex(expr),
+        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+      )
+    }
 
-      queryContext.topRowExprs.foreach { expr =>
-        row.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-        )
-      }
+    queryContext.topRowExprs.foreach { expr =>
+      row.set(
+        queryContext.exprsIndex(expr),
+        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+      )
     }
 
     row
@@ -334,7 +328,7 @@ trait TsdbBase extends StrictLogging {
 
     val substituted = linkServices.map(
       service =>
-        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure {
+        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
           service.condition(condition)
         }
     )

@@ -35,8 +35,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext) extends MapRedu
   override def fold[A](rdd: RDD[A])(zero: A)(f: (A, A) => A): A = rdd.fold(zero)(f)
 
   override def reduce[A](rdd: RDD[A])(f: (A, A) => A): A = rdd.reduce(f)
-  override def reduceByKey[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)])(f: (V, V) => V): RDD[(K, V)] = {
-    rdd.reduceByKey(f)
+  override def reduceByKey[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)])(f: (V, V) => V): RDD[V] = {
+    rdd.reduceByKey(f).map(_._2)
   }
 
   override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {

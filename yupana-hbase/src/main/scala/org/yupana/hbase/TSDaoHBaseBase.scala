@@ -43,7 +43,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
   val FUZZY_FILTERS_LIMIT = 20
-  val EXTRACT_BATCH_SIZE = 100000
+  val EXTRACT_BATCH_SIZE = 10000
 
   def mr: MapReducible[Collection]
   def dictionaryProvider: DictionaryProvider
@@ -79,7 +79,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
     val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
 
-    val filters = metricCollector.createDimensionFilters.measure {
+    val filters = metricCollector.createDimensionFilters.measure(1) {
       val c = if (condition.conditions.nonEmpty) Some(And(condition.conditions)) else None
       createFilters(c)
     }
@@ -378,7 +378,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     lazy val allTagValues = dimFields(rowsByTags, context)
 
-    metricCollector.extractDataComputation.measure {
+    metricCollector.extractDataComputation.measure(rows.size) {
       val maxTag = context.table.metrics.map(_.tag).max
 
       val rowValues = Array.ofDim[Option[Any]](maxTag + 1)

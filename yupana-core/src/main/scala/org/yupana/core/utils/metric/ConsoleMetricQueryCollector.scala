@@ -40,8 +40,8 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
   override val collectResultRows = MetricImpl("collectResultRows")
   override val extractDataTags = MetricImpl("extractData.tags")
   override val extractDataComputation = MetricImpl("extractData.computation")
-  override val getResult = MetricImpl("getResult")
-  override val parseResult = MetricImpl("parseResult")
+  override val scan = MetricImpl("getResult")
+  override val parseScanResult = MetricImpl("parseResult")
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
   private val startTime = System.nanoTime()
@@ -60,8 +60,8 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
       collectResultRows,
       extractDataTags,
       extractDataComputation,
-      getResult,
-      parseResult
+      scan,
+      parseScanResult
     )
 
   override def finish(): Unit = {
@@ -91,10 +91,10 @@ object ConsoleMetricQueryCollector {
 case class MetricImpl(name: String, count: AtomicLong = new AtomicLong(), time: LongAdder = new LongAdder())
     extends Metric {
 
-  override def measure[T](f: => T): T = {
+  override def measure[T](cnt: Int)(f: => T): T = {
     val start = System.nanoTime()
     val result = f
-    count.incrementAndGet()
+    count.addAndGet(cnt)
     time.add(System.nanoTime() - start)
     result
   }
