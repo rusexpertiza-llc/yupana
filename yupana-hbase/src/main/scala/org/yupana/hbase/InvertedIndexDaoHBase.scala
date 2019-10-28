@@ -143,7 +143,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
     val fetchedIterator = SortedSetIterator(seq: _*)
 
-    SortedSetIterator.unionAll(iterators :+ fetchedIterator)
+    SortedSetIterator.unionAll(fetchedIterator +: iterators)
   }
 
   private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
