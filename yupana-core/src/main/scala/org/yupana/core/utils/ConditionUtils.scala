@@ -16,14 +16,15 @@
 
 package org.yupana.core.utils
 
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 
 object ConditionUtils {
   def simplify(condition: Condition): Condition = {
     condition match {
-      case And(cs) => Condition.and(cs.flatMap(optimizeAnd))
-      case Or(cs)  => Condition.or(cs.flatMap(optimizeOr))
-      case c       => c
+      case AndExpr(cs) => and(cs.flatMap(optimizeAnd))
+      case OrExpr(cs)  => or(cs.flatMap(optimizeOr))
+      case c           => c
     }
   }
 
@@ -32,44 +33,44 @@ object ConditionUtils {
       xs.flatMap(
         x =>
           flatMap(x)(f) match {
-            case EmptyCondition => None
-            case nonEmpty       => Some(nonEmpty)
+            case ConstantExpr(true) => None
+            case nonEmpty           => Some(nonEmpty)
           }
       )
     }
 
     c match {
-      case And(cs) => Condition.and(doFlat(cs))
-      case Or(cs)  => Condition.or(doFlat(cs))
-      case x       => f(x)
+      case AndExpr(cs) => and(doFlat(cs))
+      case OrExpr(cs)  => or(doFlat(cs))
+      case x           => f(x)
     }
   }
 
   def merge(a: Condition, b: Condition): Condition = {
     (a, b) match {
-      case (EmptyCondition, x) => x
-      case (x, EmptyCondition) => x
-      case (And(as), And(bs))  => And((as ++ bs).distinct)
-      case (_, Or(_))          => throw new IllegalArgumentException("OR is not supported yet")
-      case (Or(_), _)          => throw new IllegalArgumentException("OR is not supported yet")
-      case (And(as), _)        => And((as :+ b).distinct)
-      case (_, And(bs))        => And((a +: bs).distinct)
-      case _                   => And(Seq(a, b))
+      case (ConstantExpr(true), x)    => x
+      case (x, ConstantExpr(true))    => x
+      case (AndExpr(as), AndExpr(bs)) => AndExpr((as ++ bs).distinct)
+      case (_, OrExpr(_))             => throw new IllegalArgumentException("OR is not supported yet")
+      case (OrExpr(_), _)             => throw new IllegalArgumentException("OR is not supported yet")
+      case (AndExpr(as), _)           => AndExpr((as :+ b).distinct)
+      case (_, AndExpr(bs))           => AndExpr((a +: bs).distinct)
+      case _                          => AndExpr(Seq(a, b))
     }
   }
 
   def split(c: Condition)(p: Condition => Boolean): (Condition, Condition) = {
     def doSplit(c: Condition): (Condition, Condition) = {
       c match {
-        case And(cs) =>
+        case AndExpr(cs) =>
           val (a, b) = cs.map(doSplit).unzip
-          (And(a), And(b))
+          (AndExpr(a), AndExpr(b))
 
-        case Or(cs) =>
+        case OrExpr(cs) =>
           val (a, b) = cs.map(doSplit).unzip
-          (Or(a), Or(b))
+          (OrExpr(a), OrExpr(b))
 
-        case x => if (p(x)) (x, EmptyCondition) else (EmptyCondition, x)
+        case x => if (p(x)) (x, ConstantExpr(true)) else (ConstantExpr(true), x)
       }
     }
 
@@ -80,15 +81,37 @@ object ConditionUtils {
 
   private def optimizeAnd(c: Condition): Seq[Condition] = {
     c match {
-      case And(cs) => cs.flatMap(optimizeAnd)
-      case x       => Seq(simplify(x))
+      case AndExpr(cs) => cs.flatMap(optimizeAnd)
+      case x           => Seq(simplify(x))
     }
   }
 
   private def optimizeOr(c: Condition): Seq[Condition] = {
     c match {
-      case Or(cs) => cs.flatMap(optimizeOr)
-      case x      => Seq(simplify(x))
+      case OrExpr(cs) => cs.flatMap(optimizeOr)
+      case x          => Seq(simplify(x))
+    }
+  }
+
+  private def and(conditions: Seq[Condition]): Condition = {
+    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    if (nonEmpty.size == 1) {
+      nonEmpty.head
+    } else if (nonEmpty.nonEmpty) {
+      AndExpr(nonEmpty)
+    } else {
+      ConstantExpr(true)
+    }
+  }
+
+  private def or(conditions: Seq[Condition]): Condition = {
+    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    if (nonEmpty.size == 1) {
+      nonEmpty.head
+    } else if (nonEmpty.nonEmpty) {
+      OrExpr(nonEmpty)
+    } else {
+      ConstantExpr(true)
     }
   }
 }

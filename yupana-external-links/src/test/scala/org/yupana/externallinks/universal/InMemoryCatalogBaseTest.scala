@@ -2,7 +2,8 @@ package org.yupana.externallinks.universal
 
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
-import org.yupana.api.query.{ Condition, DimensionExpr, Expression }
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.{ DimensionExpr, Expression }
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 

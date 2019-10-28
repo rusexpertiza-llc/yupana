@@ -19,6 +19,7 @@ package org.yupana.core
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
@@ -141,7 +142,7 @@ trait TsdbBase extends StrictLogging {
         val filtered = queryContext.postCondition match {
           case Some(cond) =>
             withValuesForFilter.filter(
-              row => ExpressionCalculator.evaluateCondition(cond, queryContext, row).getOrElse(false)
+              row => ExpressionCalculator.evaluateExpression(c, queryContext, values, tryEval = false).getOrElse(false)
             )
           case None => withValuesForFilter
         }
@@ -200,7 +201,7 @@ trait TsdbBase extends StrictLogging {
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
           val it = batch.iterator
           it.filter { row =>
-            ExpressionCalculator.evaluateCondition(cond, queryContext, row).getOrElse(false)
+            ExpressionCalculator.evaluateExpression(c, queryContext, kv._2, tryEval = false).getOrElse(false)
           }
         }
       case None => calculated
@@ -322,7 +323,7 @@ trait TsdbBase extends StrictLogging {
   }
 
   def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Condition = {
-    val linkServices = condition.exprs.flatMap(_.flatten).collect {
+    val linkServices = condition.flatten.collect {
       case LinkExpr(c, _) => linkService(c)
     }
 

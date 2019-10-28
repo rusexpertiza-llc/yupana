@@ -21,6 +21,7 @@ import java.util
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
@@ -80,7 +81,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
 
     val filters = metricCollector.createDimensionFilters.measure(1) {
-      val c = if (condition.conditions.nonEmpty) Some(And(condition.conditions)) else None
+      val c = if (condition.conditions.nonEmpty) Some(AndExpr(condition.conditions)) else None
       createFilters(c)
     }
 
@@ -260,17 +261,17 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Equ(ConstantExpr(c: Time), TimeExpr) =>
           filters.copy(incTime = DimensionFilter[Time](TIME, c) and filters.incTime)
 
-        case In(DimensionExpr(dim), consts) =>
+        case InExpr(DimensionExpr(dim), consts) =>
           val valFilter =
             if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
           filters.copy(incValues = valFilter and filters.incValues)
 
-        case In(_: TimeExpr.type, consts) =>
+        case InExpr(_: TimeExpr.type, consts) =>
           val valFilter =
             if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
           filters.copy(incTime = valFilter and filters.incTime)
 
-        case DimIdIn(DimensionExpr(dim), dimIds) =>
+        case DimIdInExpr(DimensionExpr(dim), dimIds) =>
           val idFilter = if (dimIds.nonEmpty) DimensionFilter(Map(dim -> dimIds)) else NoResult[IdType]()
           filters.copy(incIds = idFilter and filters.incIds)
 
@@ -286,34 +287,34 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Neq(ConstantExpr(c: Time), TimeExpr) =>
           filters.copy(excTime = DimensionFilter[Time](TIME, c).or(filters.excTime))
 
-        case NotIn(DimensionExpr(dim), consts) =>
+        case NotInExpr(DimensionExpr(dim), consts) =>
           val valFilter =
             if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
           filters.copy(excValues = valFilter or filters.excValues)
 
-        case NotIn(_: TimeExpr.type, consts) =>
+        case NotInExpr(_: TimeExpr.type, consts) =>
           val valFilter =
             if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
           filters.copy(excTime = valFilter or filters.excTime)
 
-        case DimIdNotIn(DimensionExpr(dim), dimIds) =>
+        case DimIdNotInExpr(DimensionExpr(dim), dimIds) =>
           val idFilter = if (dimIds.nonEmpty) DimensionFilter(dim, dimIds) else NoResult[IdType]()
           filters.copy(excIds = idFilter or filters.excIds)
 
-        case And(conditions) =>
+        case AndExpr(conditions) =>
           conditions.foldLeft(filters)((f, c) => createFilters(c, f))
 
-        case In(t: TupleExpr[_, _], vs) =>
-          val filters1 = createFilters(In(t.e1, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._1)), filters)
-          createFilters(In(t.e2, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._2)), filters1)
+        case InExpr(t: TupleExpr[_, _], vs) =>
+          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._1)), filters)
+          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._2)), filters1)
 
         case Equ(TupleExpr(e1, e2), ConstantExpr(v: (_, _))) =>
-          val filters1 = createFilters(In(e1.aux, Set(v._1.asInstanceOf[e1.Out])), filters)
-          createFilters(In(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
+          val filters1 = createFilters(InExpr(e1.aux, Set(v._1.asInstanceOf[e1.Out])), filters)
+          createFilters(InExpr(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
 
         case Equ(ConstantExpr(v: (_, _)), TupleExpr(e1, e2)) =>
-          val filters1 = createFilters(In(e1.aux, Set(v._1.asInstanceOf[e1.Out])), filters)
-          createFilters(In(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
+          val filters1 = createFilters(InExpr(e1.aux, Set(v._1.asInstanceOf[e1.Out])), filters)
+          createFilters(InExpr(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
 
         case c => filters.copy(other = c :: filters.other)
       }
@@ -331,7 +332,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         val cond = filters.other match {
           case Nil      => None
           case x :: Nil => Some(x)
-          case xs       => Some(And(xs.reverse))
+          case xs       => Some(AndExpr(xs.reverse))
         }
 
         Filters(includeFilter, excludeFilter, filters.incTime, filters.excTime, cond)
@@ -404,17 +405,17 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   override def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case SimpleCondition(BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_))) => true
-      case SimpleCondition(BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type)) => true
-      case _: DimIdIn                                                                 => true
-      case _: DimIdNotIn                                                              => true
-      case Equ(_: DimensionExpr, ConstantExpr(_))                                     => true
-      case Equ(ConstantExpr(_), _: DimensionExpr)                                     => true
-      case Neq(_: DimensionExpr, ConstantExpr(_))                                     => true
-      case Neq(ConstantExpr(_), _: DimensionExpr)                                     => true
-      case In(_: DimensionExpr, _)                                                    => true
-      case NotIn(_: DimensionExpr, _)                                                 => true
-      case _                                                                          => false
+      case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
+      case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
+      case _: DimIdInExpr                                            => true
+      case _: DimIdNotInExpr                                         => true
+      case Equ(_: DimensionExpr, ConstantExpr(_))                    => true
+      case Equ(ConstantExpr(_), _: DimensionExpr)                    => true
+      case Neq(_: DimensionExpr, ConstantExpr(_))                    => true
+      case Neq(ConstantExpr(_), _: DimensionExpr)                    => true
+      case InExpr(_: DimensionExpr, _)                               => true
+      case NotInExpr(_: DimensionExpr, _)                            => true
+      case _                                                         => false
     }
   }
 
