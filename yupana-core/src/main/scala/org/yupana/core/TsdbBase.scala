@@ -142,7 +142,7 @@ trait TsdbBase extends StrictLogging {
         val filtered = queryContext.postCondition match {
           case Some(cond) =>
             withValuesForFilter.filter(
-              row => ExpressionCalculator.evaluateExpression(c, queryContext, values, tryEval = false).getOrElse(false)
+              row => ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
             )
           case None => withValuesForFilter
         }
@@ -201,7 +201,7 @@ trait TsdbBase extends StrictLogging {
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
           val it = batch.iterator
           it.filter { row =>
-            ExpressionCalculator.evaluateExpression(c, queryContext, kv._2, tryEval = false).getOrElse(false)
+            ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
           }
         }
       case None => calculated
@@ -240,7 +240,7 @@ trait TsdbBase extends StrictLogging {
       row: InternalRow,
       metricCollector: MetricQueryCollector
   ): InternalRow = {
-    queryContext.postConditionExprs.foreach { expr =>
+    queryContext.postCondition.foreach { expr =>
       row.set(
         queryContext.exprsIndex(expr),
         ExpressionCalculator.evaluateExpression(expr, queryContext, row)

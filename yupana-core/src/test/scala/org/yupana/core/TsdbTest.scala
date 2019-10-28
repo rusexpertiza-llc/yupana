@@ -353,15 +353,15 @@ class TsdbTest
     val rows = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
     rows should have size 2
 
-    val row = rows(0)
-    row.fieldValueByName[Time]("time").value shouldBe Time(pointTime1)
-    row.fieldValueByName[Double]("testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test42"
+    val row1 = rows(0)
+    row1.fieldValueByName[Time]("time").value shouldBe Time(pointTime2)
+    row1.fieldValueByName[Double]("testField").value shouldBe 2d
+    row1.fieldValueByName[String]("TAG_A").value shouldBe "test24"
 
     val row2 = rows(1)
-    row2.fieldValueByName[Time]("time").value shouldBe Time(pointTime2)
-    row2.fieldValueByName[Double]("testField").value shouldBe 2d
-    row2.fieldValueByName[String]("TAG_A").value shouldBe "test24"
+    row2.fieldValueByName[Time]("time").value shouldBe Time(pointTime1)
+    row2.fieldValueByName[Double]("testField").value shouldBe 1d
+    row2.fieldValueByName[String]("TAG_A").value shouldBe "test42"
   }
 
   it should "support filter not equal for tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
