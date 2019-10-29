@@ -46,7 +46,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   val FUZZY_FILTERS_LIMIT = 20
   val EXTRACT_BATCH_SIZE = 10000
 
-  def mr: MapReducible[Collection]
+  def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Collection]
   def dictionaryProvider: DictionaryProvider
 
   case class Filters(
@@ -109,6 +109,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     )
     val rowFilter = createRowFilter(query.table, includeRowFilter, filters.excludeDims)
 
+    val mr = mapReduceEngine(metricCollector)
     val filtered = mr.filter(rows)(rowFilter)
 
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)

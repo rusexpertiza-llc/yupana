@@ -16,7 +16,6 @@
 
 package org.yupana.core.utils.metric
 
-import java.util.TimerTask
 import java.util.concurrent.atomic.LongAdder
 
 import com.typesafe.scalalogging.StrictLogging
@@ -39,7 +38,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   val uuid: String = query.uuid
 
   private def createMetric(qualifier: String): PersistentMetricImpl =
-    PersistentMetricImpl(collectorContext, qualifier, query.uuid)
+    PersistentMetricImpl(collectorContext, qualifier, query.uuid, this)
 
   override val createQueries: PersistentMetricImpl = createMetric(createQueriesQualifier)
   override val createDimensionFilters: PersistentMetricImpl = createMetric(createDimensionFiltersQualifier)
@@ -60,24 +59,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
 
   private val dynamicMetrics = mutable.Map.empty[String, PersistentMetricImpl]
   private val startTime = System.nanoTime()
-
-  if (!collectorContext.sparkQuery) {
-    collectorContext.timer.schedule(
-      new TimerTask {
-        override def run(): Unit = {
-          try {
-            updateQueryMetrics(QueryStates.Running)
-          } catch {
-            case _: Throwable =>
-              collectorContext.queryActive = false
-              collectorContext.timer.cancel()
-          }
-        }
-      },
-      0,
-      metricsUpdateInterval
-    )
-  }
+  private var lastSaveTime = startTime
 
   def getMetrics: Seq[PersistentMetricImpl] =
     Seq(
@@ -106,28 +88,46 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
     }.toMap
   }
 
-  private def totalDuration: Double = asSeconds(System.nanoTime() - startTime)
+  def saveMetricsIfItsTime(end: Long): Unit = {
+    if (asSeconds(end - lastSaveTime) > metricsUpdateInterval) {
+      saveQueryMetrics(QueryStates.Running)
+      lastSaveTime = end
+    }
+  }
 
-  private def updateQueryMetrics(state: QueryState): Unit = {
+  def saveQueryMetrics(state: QueryState): Unit = {
     val duration = totalDuration
     collectorContext
       .metricsDao()
       .updateQueryMetrics(queryRowKey, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
   }
 
+  private def totalDuration: Double = asSeconds(System.nanoTime() - startTime)
+
   override def finish(): Unit = {
-    if (!collectorContext.sparkQuery) {
-      collectorContext.timer.cancel()
-    }
+
     getMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
         s"$queryRowKey - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
       )
     }
-    updateQueryMetrics(QueryStates.Finished)
+    saveQueryMetrics(QueryStates.Finished)
     logger.info(
       s"$queryRowKey - ${query.uuidLog}; operation: $operationName finished; time: $totalDuration; query: $query"
     )
+  }
+
+  override def setRunningPartitions(partitions: Int): Unit = {
+    collectorContext.metricsDao().setRunningPartitions(queryRowKey, partitions)
+  }
+
+  override def finishPartition(): Unit = {
+    val restPartitions = collectorContext.metricsDao().decrementRunningPartitions(queryRowKey)
+    saveQueryMetrics(QueryStates.Running)
+
+    if (restPartitions <= 0) {
+      finish()
+    }
   }
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
@@ -141,6 +141,7 @@ case class PersistentMetricImpl(
     collectorContext: QueryCollectorContext,
     name: String,
     queryId: String,
+    metricCollector: PersistentMetricQueryCollector,
     count: LongAdder = new LongAdder(),
     time: LongAdder = new LongAdder()
 ) extends Metric {
@@ -153,7 +154,9 @@ case class PersistentMetricImpl(
       val start = System.nanoTime()
       val result = f
       count.add(cnt)
-      time.add(System.nanoTime() - start)
+      val end = System.nanoTime()
+      time.add(end - start)
+      metricCollector.saveMetricsIfItsTime(end)
       result
     } catch {
       case e: Throwable =>

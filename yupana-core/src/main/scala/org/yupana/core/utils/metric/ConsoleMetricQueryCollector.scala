@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.{ AtomicLong, LongAdder }
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
+import org.yupana.core.model.QueryStates
 
 import scala.collection.{ Seq, mutable }
 
@@ -78,6 +79,12 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
       s"${query.uuidLog}; operation: $operationName finished; time: ${formatNanoTime(resultTime)}; query: $query"
     )
   }
+
+  override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {}
+
+  override def setRunningPartitions(getNumPartitions: Int): Unit = {}
+
+  override def finishPartition(): Unit = {}
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, MetricImpl(name))
 }

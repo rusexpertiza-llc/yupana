@@ -42,7 +42,7 @@ class TSDB(
 
   private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
-  override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
+  override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Iterator] = MapReducible.iteratorMR
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
     catalogs += (catalog -> catalogService)

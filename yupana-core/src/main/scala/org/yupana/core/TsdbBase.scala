@@ -42,7 +42,7 @@ trait TsdbBase extends StrictLogging {
   type Collection[_]
   type Result <: TsdbResultBase[Collection]
 
-  def mr: MapReducible[Collection]
+  def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection]
 
   // TODO: it should work with different DAO Id types
   def dao: TSReadingDao[Collection, Long]
@@ -124,6 +124,8 @@ trait TsdbBase extends StrictLogging {
     val resultRows = new AtomicInteger(0)
 
     val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.isInstanceOf[WindowFunctionExpr])
+
+    val mr = mapReduceEngine(metricCollector)
 
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
       val batchSize = batch.size

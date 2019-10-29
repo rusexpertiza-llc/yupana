@@ -16,7 +16,10 @@
 
 package org.yupana.core.utils.metric
 
+import org.yupana.core.model.QueryStates.QueryState
+
 trait MetricQueryCollector extends Serializable {
+
   def uuid: String
 
   def dynamicMetric(name: String): Metric
@@ -24,6 +27,10 @@ trait MetricQueryCollector extends Serializable {
   def finish(): Unit
 
   def isEnabled: Boolean
+
+  def saveQueryMetrics(state: QueryState): Unit
+  def setRunningPartitions(getNumPartitions: Int): Unit
+  def finishPartition(): Unit
 
   val createQueries: Metric = NoMetric
   val createDimensionFilters: Metric = NoMetric
@@ -46,6 +53,12 @@ object NoMetricCollector extends MetricQueryCollector {
   override def dynamicMetric(name: String): Metric = NoMetric
 
   override def finish(): Unit = {}
+
+  override def saveQueryMetrics(state: QueryState): Unit = {}
+
+  override def setRunningPartitions(getNumPartitions: Int): Unit = {}
+
+  override def finishPartition(): Unit = {}
 
   override val uuid: String = ""
 

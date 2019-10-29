@@ -32,7 +32,9 @@ class TsDaoHBaseSpark(
 ) extends TSDaoHBaseBase[RDD]
     with Serializable {
 
-  override val mr: MapReducible[RDD] = new RddMapReducible(sparkContext)
+  override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[RDD] = {
+    new RddMapReducible(sparkContext, metricQueryCollector)
+  }
 
   override def executeScans(
       queryContext: InternalQueryContext,

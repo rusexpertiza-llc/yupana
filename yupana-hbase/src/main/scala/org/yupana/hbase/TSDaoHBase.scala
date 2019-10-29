@@ -38,7 +38,8 @@ class TSDaoHBase(
 ) extends TSDaoHBaseBase[Iterator]
     with TSDao[Iterator, Long] {
 
-  override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
+  override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
+    MapReducible.iteratorMR
 
   override def executeScans(
       queryContext: InternalQueryContext,

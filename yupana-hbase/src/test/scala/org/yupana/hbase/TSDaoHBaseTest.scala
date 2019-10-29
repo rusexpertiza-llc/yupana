@@ -1023,7 +1023,8 @@ class TSDaoHBaseTest
 
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
       extends TSDaoHBaseBase[Iterator] {
-    override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
+    override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
+      MapReducible.iteratorMR
 
     override def executeScans(
         queryContext: InternalQueryContext,

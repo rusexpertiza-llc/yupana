@@ -19,27 +19,71 @@ package org.yupana.spark
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.core.MapReducible
+import org.yupana.core.model.QueryStates
+import org.yupana.core.utils.metric.MetricQueryCollector
 
+import scala.collection.AbstractIterator
 import scala.reflect.ClassTag
 
-class RddMapReducible(@transient val sparkContext: SparkContext) extends MapReducible[RDD] with Serializable {
-  override def filter[A](rdd: RDD[A])(f: A => Boolean): RDD[A] = rdd.filter(f)
+class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector: MetricQueryCollector)
+    extends MapReducible[RDD]
+    with Serializable {
 
-  override def map[A, B: ClassTag](rdd: RDD[A])(f: A => B): RDD[B] = rdd.map(f)
-  override def flatMap[A, B: ClassTag](rdd: RDD[A])(f: A => Iterable[B]): RDD[B] = rdd.flatMap(f)
-
-  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => Iterator[B]): RDD[B] = {
-    rdd.mapPartitions(_.sliding(size, size).flatMap(f))
+  override def filter[A: ClassTag](rdd: RDD[A])(f: A => Boolean): RDD[A] = {
+    val filtered = rdd.filter(f)
+    saveMetricOnCompleteRdd(filtered)
   }
 
-  override def fold[A](rdd: RDD[A])(zero: A)(f: (A, A) => A): A = rdd.fold(zero)(f)
+  override def map[A: ClassTag, B: ClassTag](rdd: RDD[A])(f: A => B): RDD[B] = {
+    val mapped = rdd.map(f)
+    saveMetricOnCompleteRdd(mapped)
+  }
 
-  override def reduce[A](rdd: RDD[A])(f: (A, A) => A): A = rdd.reduce(f)
+  override def flatMap[A: ClassTag, B: ClassTag](rdd: RDD[A])(f: A => Iterable[B]): RDD[B] = {
+    val r = rdd.flatMap(f)
+    saveMetricOnCompleteRdd(r)
+  }
+
+  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => Iterator[B]): RDD[B] = {
+    val r = rdd.mapPartitions(_.grouped(size).flatMap(f))
+    saveMetricOnCompleteRdd(r)
+  }
+
+  override def fold[A: ClassTag](rdd: RDD[A])(zero: A)(f: (A, A) => A): A = {
+    saveMetricOnCompleteRdd(rdd).fold(zero)(f)
+  }
+
+  override def reduce[A: ClassTag](rdd: RDD[A])(f: (A, A) => A): A = {
+    saveMetricOnCompleteRdd(rdd).reduce(f)
+  }
+
   override def reduceByKey[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)])(f: (V, V) => V): RDD[V] = {
-    rdd.reduceByKey(f).map(_._2)
+    val r = rdd.reduceByKey(f).map(_._2)
+    saveMetricOnCompleteRdd(r)
   }
 
   override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {
-    sparkContext.parallelize(c.take(n))
+    val rdd = saveMetricOnCompleteRdd(c)
+    val r = sparkContext.parallelize(rdd.take(n))
+    saveMetricOnCompleteRdd(r)
+  }
+
+  private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]) = {
+    rdd.mapPartitions { it =>
+      new SaveMetricIterator[A](it)
+    }
+  }
+
+  class SaveMetricIterator[A: ClassTag](it: Iterator[A]) extends AbstractIterator[A] {
+    override def hasNext: Boolean = {
+      if (it.hasNext) {
+        true
+      } else {
+        metricCollector.saveQueryMetrics(QueryStates.Running)
+        false
+      }
+    }
+
+    override def next(): A = it.next
   }
 }
