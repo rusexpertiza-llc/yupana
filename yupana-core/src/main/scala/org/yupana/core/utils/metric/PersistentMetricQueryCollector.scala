@@ -40,19 +40,18 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   private def createMetric(qualifier: String): PersistentMetricImpl =
     PersistentMetricImpl(collectorContext, qualifier, query.uuid, this)
 
-  override val createQueries: PersistentMetricImpl = createMetric(createQueriesQualifier)
   override val createDimensionFilters: PersistentMetricImpl = createMetric(createDimensionFiltersQualifier)
   override val createScans: PersistentMetricImpl = createMetric(createScansQualifier)
-  override val loadTags: PersistentMetricImpl = createMetric(loadTagsQualifier)
+  override val scan: PersistentMetricImpl = createMetric(scanQualifier)
+  override val parseScanResult: PersistentMetricImpl = createMetric(parseScanResultQualifier)
+  override val dimensionValuesForIds: PersistentMetricImpl = createMetric(dimensionValuesForIdsQualifier)
+  override val readExternalLinks: PersistentMetricImpl = createMetric(readExternalLinksQualifier)
+  override val extractDataComputation: PersistentMetricImpl = createMetric(extractDataComputationQualifier)
   override val filterRows: PersistentMetricImpl = createMetric(filterRowsQualifier)
   override val windowFunctions: PersistentMetricImpl = createMetric(windowFunctionsQualifier)
   override val reduceOperation: PersistentMetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: PersistentMetricImpl = createMetric(postFilterQualifier)
   override val collectResultRows: PersistentMetricImpl = createMetric(collectResultRowsQualifier)
-  override val extractDataTags: PersistentMetricImpl = createMetric(extractDataTagsQualifier)
-  override val extractDataComputation: PersistentMetricImpl = createMetric(extractDataComputationQualifier)
-  override val scan: PersistentMetricImpl = createMetric(getResultQualifier)
-  override val parseScanResult: PersistentMetricImpl = createMetric(parseResultQualifier)
 
   private val queryRowKey = collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
   logger.info(s"$queryRowKey - ${query.uuidLog}; operation: $operationName started, query: $query")
@@ -63,19 +62,18 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
 
   def getMetrics: Seq[PersistentMetricImpl] =
     Seq(
-      createQueries,
       createDimensionFilters,
       createScans,
-      loadTags,
+      scan,
+      parseScanResult,
+      dimensionValuesForIds,
+      readExternalLinks,
+      extractDataComputation,
       filterRows,
       windowFunctions,
       reduceOperation,
       postFilter,
-      collectResultRows,
-      extractDataTags,
-      extractDataComputation,
-      scan,
-      parseScanResult
+      collectResultRows
     )
 
   def getAndResetMetricsData: Map[String, MetricData] = {

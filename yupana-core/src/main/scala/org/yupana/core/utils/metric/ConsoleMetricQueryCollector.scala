@@ -30,19 +30,18 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   val uuid: String = query.uuid
 
-  override val createQueries = MetricImpl("createQueries")
   override val createDimensionFilters = MetricImpl("createQueries.tags")
   override val createScans = MetricImpl("createScans")
-  override val loadTags = MetricImpl("loadTags")
+  override val scan = MetricImpl("scan")
+  override val parseScanResult = MetricImpl("parseScanResult")
+  override val dimensionValuesForIds = MetricImpl("dimensionValuesForIds")
+  override val readExternalLinks = MetricImpl("readExternalLinks")
+  override val extractDataComputation = MetricImpl("extractDataComputation")
   override val filterRows = MetricImpl("filterRows")
   override val windowFunctions = MetricImpl("windowFunctions")
   override val reduceOperation = MetricImpl("reduceOperation")
   override val postFilter = MetricImpl("postFilter")
   override val collectResultRows = MetricImpl("collectResultRows")
-  override val extractDataTags = MetricImpl("extractData.tags")
-  override val extractDataComputation = MetricImpl("extractData.computation")
-  override val scan = MetricImpl("getResult")
-  override val parseScanResult = MetricImpl("parseResult")
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
   private val startTime = System.nanoTime()
@@ -50,19 +49,18 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   def getMetrics: Seq[MetricImpl] =
     Seq(
-      createQueries,
       createDimensionFilters,
       createScans,
-      loadTags,
+      scan,
+      parseScanResult,
+      dimensionValuesForIds,
+      readExternalLinks,
+      extractDataComputation,
       filterRows,
       windowFunctions,
       reduceOperation,
       postFilter,
-      collectResultRows,
-      extractDataTags,
-      extractDataComputation,
-      scan,
-      parseScanResult
+      collectResultRows
     )
 
   override def finish(): Unit = {

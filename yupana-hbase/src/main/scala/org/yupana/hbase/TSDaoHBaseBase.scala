@@ -61,8 +61,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       queryContext: InternalQueryContext,
       from: Long,
       to: Long,
-      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
-      metricCollector: MetricQueryCollector
+      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
   ): Collection[TSDOutputRow[IdType]]
 
   override def query(
@@ -87,9 +86,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val dimFilter = filters.includeDims exclude filters.excludeDims
 
-    logger.trace("Prefetch dimension iterators")
     val prefetchedDimIterators = dimFilter.toMap.map { case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT) }
-    logger.trace("dimension iterators is prefetched")
 
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
@@ -100,22 +97,24 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         rangeScanFilters(query, from, to, rangeScanDimIterators)
     }
 
-    val context = InternalQueryContext(query)
+    val context = InternalQueryContext(query, metricCollector)
 
-    val rows = executeScans(context, from, to, rangeScanDimIds, metricCollector)
+    val rows = executeScans(context, from, to, rangeScanDimIds)
 
     val includeRowFilter = DimensionFilter(
       prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
     )
     val rowFilter = createRowFilter(query.table, includeRowFilter, filters.excludeDims)
+    val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
 
     val mr = mapReduceEngine(metricCollector)
-    val filtered = mr.filter(rows)(rowFilter)
 
-    val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
-    mr.batchFlatMap(filtered, EXTRACT_BATCH_SIZE)(
-      rs => extractData(context, valueDataBuilder, rs, timeFilter, metricCollector).iterator
-    )
+    mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
+      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+        rs.filter(rowFilter)
+      }
+      extractData(context, valueDataBuilder, filtered, timeFilter).iterator
+    }
   }
 
   override def idsToValues(dimension: Dimension, ids: Set[IdType]): Map[IdType, String] = {
@@ -370,17 +369,17 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       context: InternalQueryContext,
       valueDataBuilder: InternalRowBuilder,
       rows: Seq[TSDOutputRow[IdType]],
-      timeFilter: TimeFilter,
-      metricCollector: MetricQueryCollector
+      timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
     val indexedRows = rows.zipWithIndex
 
-    val rowsByTags = rowsForDims(indexedRows, context)
+    lazy val allTagValues = context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
+      val rowsByTags = rowsForDims(indexedRows, context)
+      dimFields(rowsByTags, context)
+    }
 
-    lazy val allTagValues = dimFields(rowsByTags, context)
-
-    metricCollector.extractDataComputation.measure(rows.size) {
+    context.metricsCollector.extractDataComputation.measure(rows.size) {
       val maxTag = context.table.metrics.map(_.tag).max
 
       val rowValues = Array.ofDim[Option[Any]](maxTag + 1)
@@ -437,9 +436,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   private def dimFields(
       dimTable: SparseTable[Dimension, IdType, Seq[Int]],
-      schemaContext: InternalQueryContext
+      context: InternalQueryContext
   ): SparseTable[Int, Dimension, String] = {
-    val allValues = schemaContext.requiredDims.map { dim =>
+    val allValues = context.requiredDims.map { dim =>
       val dimIdRows = dimTable.row(dim)
       val dimValues = idsToValues(dim, dimIdRows.keySet)
       val data = dimValues.flatMap {

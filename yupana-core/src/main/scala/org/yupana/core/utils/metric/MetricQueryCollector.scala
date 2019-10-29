@@ -32,16 +32,14 @@ trait MetricQueryCollector extends Serializable {
   def setRunningPartitions(getNumPartitions: Int): Unit
   def finishPartition(): Unit
 
-  val createQueries: Metric = NoMetric
   val createDimensionFilters: Metric = NoMetric
   val createScans: Metric = NoMetric
-  val loadTags: Metric = NoMetric
   val filterRows: Metric = NoMetric
   val windowFunctions: Metric = NoMetric
   val reduceOperation: Metric = NoMetric
   val postFilter: Metric = NoMetric
   val collectResultRows: Metric = NoMetric
-  val extractDataTags: Metric = NoMetric
+  val dimensionValuesForIds: Metric = NoMetric
   val extractDataComputation: Metric = NoMetric
   val readExternalLinks: Metric = NoMetric
   val scan: Metric = NoMetric
