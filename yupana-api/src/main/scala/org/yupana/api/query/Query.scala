@@ -16,8 +16,12 @@
 
 package org.yupana.api.query
 
+import java.util.UUID
+
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
+import org.yupana.api.types.BinaryOperation
 
 /**
   * Query to TSDB
@@ -38,7 +42,7 @@ case class Query(
     postFilter: Option[Condition] = None
 ) {
 
-  val uuid: String = System.nanoTime().toString
+  val uuid: String = UUID.randomUUID().toString
   val uuidLog: String = s"query_uuid: $uuid"
 
   override def toString: String = {
@@ -84,7 +88,13 @@ object Query {
       postFilter: Option[Condition]
   ): Query = {
 
-    val newCondition = Condition.timeAndCondition(from, to, filter)
+    val newCondition = AndExpr(
+      Seq(
+        BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, from),
+        BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, to)
+      ) ++ filter
+    )
+
     new Query(table, fields, newCondition, groupBy, limit, postFilter)
   }
 

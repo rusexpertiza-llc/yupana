@@ -16,7 +16,7 @@
 
 package org.yupana.core.dao
 
-import org.yupana.api.query.Condition
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Dimension
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }

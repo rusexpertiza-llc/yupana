@@ -891,19 +891,41 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "parse SHOW QUERIES statements" in {
-    parser.parse("SHOW QUERIES") shouldBe Right(ShowQueries(None, None))
+    parser.parse("SHOW QUERIES") shouldBe Right(ShowQueryMetrics(None, None))
   }
 
   it should "parse SHOW QUERIES statements with limit" in {
-    parser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueries(None, Some(1)))
+    parser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueryMetrics(None, Some(1)))
   }
 
-  it should "parse SHOW QUERIES statements with id" in {
-    parser.parse("SHOW QUERIES WHERE ID = '1'") shouldBe Right(ShowQueries(Some("1"), None))
+  it should "parse SHOW QUERIES statements with query_id" in {
+    parser.parse("SHOW QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
+      ShowQueryMetrics(Some(MetricsFilter(queryId = Some("1"))), None)
+    )
   }
 
-  it should "parse KILL QUERY statements with id" in {
-    parser.parse("KILL QUERY WHERE id = '1'") shouldBe Right(KillQuery("1"))
+  it should "parse SHOW QUERIES statements with state" in {
+    parser.parse("SHOW QUERIES WHERE STATE = 'RUNNING'") shouldBe Right(
+      ShowQueryMetrics(Some(MetricsFilter(state = Some("RUNNING"))), None)
+    )
+  }
+
+  it should "parse KILL QUERY statements with query_id" in {
+    parser.parse("KILL QUERY WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+      KillQuery(MetricsFilter(queryId = Some("qwe123")))
+    )
+  }
+
+  it should "parse DELETE QUERIES statements with query_id" in {
+    parser.parse("DELETE QUERIES WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(queryId = Some("qwe123")))
+    )
+  }
+
+  it should "parse DELETE QUERIES statements with state" in {
+    parser.parse("DELETE QUERIES WHERE STATE = 'FINISHED'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(state = Some("FINISHED")))
+    )
   }
 
   it should "support functions as conditions" in {
@@ -1014,7 +1036,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect SELECT | SHOW | KILL, but got "INSERT""")
+        msg should include("""Expect SELECT | SHOW | KILL | DELETE, but got "INSERT""")
     }
   }
 

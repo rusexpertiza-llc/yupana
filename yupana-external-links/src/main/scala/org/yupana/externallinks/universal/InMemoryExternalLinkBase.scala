@@ -17,6 +17,7 @@
 package org.yupana.externallinks.universal
 
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
@@ -94,12 +95,12 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
-    In(keyExpr, keyValues)
+    InExpr(keyExpr, keyValues)
   }
 
   override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
-    NotIn(keyExpr, keyValues)
+    NotInExpr(keyExpr, keyValues)
   }
 
   private def keyValuesForFieldValues(

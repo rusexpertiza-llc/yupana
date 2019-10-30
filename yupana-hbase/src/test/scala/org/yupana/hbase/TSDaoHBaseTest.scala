@@ -9,7 +9,7 @@ import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimIdIn, DimIdNotIn, Expression }
+import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Expression }
 import org.yupana.api.schema.Dimension
 import org.yupana.api.types.Writable
 import org.yupana.api.utils.SortedSetIterator
@@ -763,7 +763,7 @@ class TSDaoHBaseTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdIn(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+            DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
           )
         ),
         valueDataBuilder,
@@ -824,7 +824,7 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-            DimIdNotIn(dimension(TestDims.TAG_A), SortedSetIterator(2, 5)),
+            DimIdNotInExpr(dimension(TestDims.TAG_A), SortedSetIterator(2, 5)),
             neq(dimension(TestDims.TAG_A), const("test14"))
           )
         ),
