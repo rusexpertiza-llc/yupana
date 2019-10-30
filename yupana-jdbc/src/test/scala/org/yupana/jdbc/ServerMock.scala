@@ -14,14 +14,18 @@ class ServerMock {
   def port: Int = serverSock.getLocalAddress.asInstanceOf[InetSocketAddress].getPort
 
   def readBytesSendResponseChunked(response: Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponse(response, ServerMock.chunked)
+    readBytesSendResponses(Seq(response), ServerMock.chunked)
+  }
+
+  def readBytesSendResponsesChunked(responses: Seq[Array[Byte]]): Future[Array[Byte]] = {
+    readBytesSendResponses(responses, ServerMock.chunked)
   }
 
   def readBytesSendResponse(response: Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponse(response, ServerMock.raw)
+    readBytesSendResponses(Seq(response), ServerMock.raw)
   }
 
-  def readBytesSendResponse(response: Array[Byte], pack: Array[Byte] => ByteBuffer): Future[Array[Byte]] = {
+  def readBytesSendResponses(responses: Seq[Array[Byte]], pack: Array[Byte] => ByteBuffer): Future[Array[Byte]] = {
     val p = Promise[Array[Byte]]()
 
     serverSock.accept(
@@ -34,8 +38,10 @@ class ServerMock {
           val reqSize = bb.getInt()
           val bytes = new Array[Byte](reqSize)
           bb.get(bytes)
-          val resp = pack(response)
-          v.write(resp).get(1, TimeUnit.SECONDS)
+          responses foreach { response =>
+            val resp = pack(response)
+            v.write(resp).get(1, TimeUnit.SECONDS)
+          }
           p.success(bytes)
         }
 
