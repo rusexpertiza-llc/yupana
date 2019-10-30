@@ -209,7 +209,7 @@ lazy val examples = (project in file("yupana-examples"))
 lazy val docs = (project in file("yupana-docs"))
   .settings(
     name := "Yupana",
-    paradoxTheme := Some(builtinParadoxTheme("generic"))
+    paradoxTheme := None
   )
   .enablePlugins(ParadoxSitePlugin)
 

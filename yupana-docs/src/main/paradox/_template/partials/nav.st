@@ -1,0 +1,2 @@
+$page.groups$
+$page.navigation$
