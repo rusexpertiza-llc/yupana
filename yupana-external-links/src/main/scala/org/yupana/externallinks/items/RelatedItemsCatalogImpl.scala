@@ -20,6 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.core.model.InternalRow
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
 import org.yupana.schema.{ Dimensions, Tables }
@@ -100,14 +101,14 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     val timeIdx = result.queryContext.exprsIndex(time)
     val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID_TAG))
 
-    val extracted = tsdb.mr.flatMap(result.rows) { a =>
+    val extracted = tsdb.mapReduceEngine(NoMetricCollector).flatMap(result.rows) { a =>
       for {
         kkmId <- a(kkmIdIdx)
         time <- a(timeIdx)
       } yield Set((time.asInstanceOf[Time], kkmId.asInstanceOf[String]))
     }
 
-    tsdb.mr.fold(extracted)(Set.empty)(_ ++ _).toSeq
+    tsdb.mapReduceEngine(NoMetricCollector).fold(extracted)(Set.empty)(_ ++ _).toSeq
   }
 
   override def setLinkedValues(

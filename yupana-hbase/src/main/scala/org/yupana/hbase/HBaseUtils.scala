@@ -20,6 +20,7 @@ import java.nio.ByteBuffer
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
+import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Table => _, _ }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
@@ -31,6 +32,7 @@ import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
+import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
 import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
@@ -138,6 +140,47 @@ object HBaseUtils extends StrictLogging {
 
     familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
     scan
+  }
+
+  def executeScan(
+      connection: Connection,
+      namespace: String,
+      scan: Scan,
+      context: InternalQueryContext,
+      batchSize: Int
+  ): Iterator[TSDOutputRow[Long]] = {
+
+    val htable = connection.getTable(tableName(namespace, context.table))
+    scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
+    val scanner = htable.getScanner(scan)
+
+    val scannerIterator = scanner.iterator()
+    val batchIterator = scannerIterator.asScala.grouped(batchSize)
+
+    val resultIterator = new AbstractIterator[List[TSDOutputRow[Long]]] {
+      override def hasNext: Boolean = {
+        context.metricsCollector.scan.measure(1) {
+          val hasNext = batchIterator.hasNext
+          if (!hasNext && scan.isScanMetricsEnabled) {
+            logger.info(
+              s"query_uuid: ${context.metricsCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
+            )
+          }
+          hasNext
+        }
+      }
+
+      override def next(): List[TSDOutputRow[Long]] = {
+        val batch = batchIterator.next()
+        context.metricsCollector.parseScanResult.measure(batch.size) {
+          batch.map { hbaseResult =>
+            getTsdRowFromResult(context.table, hbaseResult)
+          }
+        }
+      }
+    }
+
+    resultIterator.flatten
   }
 
   def multiRowRangeFilter(
@@ -463,6 +506,11 @@ object HBaseUtils extends StrictLogging {
     }.toArray
 
     TSDRowKey(HBaseUtils.baseTime(dataPoint.time, table), dimIds)
+  }
+
+  private def scanMetricsToString(metrics: ScanMetrics): String = {
+    import scala.collection.JavaConverters._
+    metrics.getMetricsMap.asScala.map { case (k, v) => s""""$k":"$v"""" }.mkString("{", ",", "}")
   }
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes

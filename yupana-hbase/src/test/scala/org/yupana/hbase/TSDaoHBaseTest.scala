@@ -1023,14 +1023,14 @@ class TSDaoHBaseTest
 
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
       extends TSDaoHBaseBase[Iterator] {
-    override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
+    override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
+      MapReducible.iteratorMR
 
     override def executeScans(
         queryContext: InternalQueryContext,
         from: IdType,
         to: IdType,
-        rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
-        metricCollector: MetricQueryCollector
+        rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
     ): Iterator[TSDOutputRow[IdType]] = {
       val scans = rangeScanDims.map { dimIds =>
         val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)

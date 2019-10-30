@@ -17,7 +17,6 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.CellUtil
-import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Connection, Get, Put, Scan }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
@@ -27,7 +26,6 @@ import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
 
-import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 
 class TSDaoHBase(
@@ -38,44 +36,26 @@ class TSDaoHBase(
 ) extends TSDaoHBaseBase[Iterator]
     with TSDao[Iterator, Long] {
 
-  override val mr: MapReducible[Iterator] = MapReducible.iteratorMR
+  override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
+    MapReducible.iteratorMR
 
   override def executeScans(
       queryContext: InternalQueryContext,
       from: IdType,
       to: IdType,
-      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]],
-      metricCollector: MetricQueryCollector
+      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
   ): Iterator[TSDOutputRow[IdType]] = {
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
-        val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
-        val scan = createScan(queryContext, filter, Seq.empty, from, to)
-        executeScan(connection, scan, queryContext.table, metricCollector)
+        val scan = queryContext.metricsCollector.createScans.measure(1) {
+          val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
+          createScan(queryContext, filter, Seq.empty, from, to)
+        }
+        executeScan(connection, namespace, scan, queryContext, EXTRACT_BATCH_SIZE)
       }
     } else {
       Iterator.empty
-    }
-  }
-
-  def executeScan(connection: Connection, scan: Scan, table: Table, metricCollector: MetricQueryCollector) = {
-    val htable = connection.getTable(tableName(namespace, table))
-    scan.setScanMetricsEnabled(metricCollector.isEnabled)
-    val scanner = htable.getScanner(scan)
-    val scannerIterator = scanner.iterator()
-    new AbstractIterator[TSDOutputRow[IdType]] {
-      override def hasNext: Boolean = metricCollector.getResult.measure {
-        val hasNext = scannerIterator.hasNext
-        if (!hasNext && scan.isScanMetricsEnabled) {
-          logger.info(s"query_uuid: ${metricCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}")
-        }
-        hasNext
-      }
-
-      override def next(): TSDOutputRow[IdType] = metricCollector.parseResult.measure {
-        getTsdRowFromResult(table, scannerIterator.next())
-      }
     }
   }
 
@@ -154,8 +134,4 @@ class TSDaoHBase(
     hbaseTable.put(put)
   }
 
-  private def scanMetricsToString(metrics: ScanMetrics): String = {
-    import scala.collection.JavaConverters._
-    metrics.getMetricsMap.asScala.map { case (k, v) => s""""$k":"$v"""" }.mkString("{", ",", "}")
-  }
 }

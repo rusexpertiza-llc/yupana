@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.{ AtomicLong, LongAdder }
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
+import org.yupana.core.model.QueryStates
 
 import scala.collection.{ Seq, mutable }
 
@@ -29,22 +30,18 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   val uuid: String = query.uuid
 
-  override val createQueries = MetricImpl("createQueries")
   override val createDimensionFilters = MetricImpl("createQueries.tags")
   override val createScans = MetricImpl("createScans")
-  override val loadTags = MetricImpl("loadTags")
+  override val scan = MetricImpl("scan")
+  override val parseScanResult = MetricImpl("parseScanResult")
+  override val dimensionValuesForIds = MetricImpl("dimensionValuesForIds")
+  override val readExternalLinks = MetricImpl("readExternalLinks")
+  override val extractDataComputation = MetricImpl("extractDataComputation")
   override val filterRows = MetricImpl("filterRows")
-  override val windowFunctionsCheck = MetricImpl("windowFunctionsCheck")
   override val windowFunctions = MetricImpl("windowFunctions")
-  override val mapOperation = MetricImpl("mapOperation")
-  override val postMapOperation = MetricImpl("postMapOperation")
   override val reduceOperation = MetricImpl("reduceOperation")
   override val postFilter = MetricImpl("postFilter")
   override val collectResultRows = MetricImpl("collectResultRows")
-  override val extractDataTags = MetricImpl("extractData.tags")
-  override val extractDataComputation = MetricImpl("extractData.computation")
-  override val getResult = MetricImpl("getResult")
-  override val parseResult = MetricImpl("parseResult")
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
   private val startTime = System.nanoTime()
@@ -52,22 +49,18 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   def getMetrics: Seq[MetricImpl] =
     Seq(
-      createQueries,
       createDimensionFilters,
       createScans,
-      loadTags,
+      scan,
+      parseScanResult,
+      dimensionValuesForIds,
+      readExternalLinks,
+      extractDataComputation,
       filterRows,
-      windowFunctionsCheck,
       windowFunctions,
-      mapOperation,
-      postMapOperation,
       reduceOperation,
       postFilter,
-      collectResultRows,
-      extractDataTags,
-      extractDataComputation,
-      getResult,
-      parseResult
+      collectResultRows
     )
 
   override def finish(): Unit = {
@@ -85,6 +78,12 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
     )
   }
 
+  override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {}
+
+  override def setRunningPartitions(partitions: Int): Unit = {}
+
+  override def finishPartition(): Unit = {}
+
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, MetricImpl(name))
 }
 
@@ -97,10 +96,10 @@ object ConsoleMetricQueryCollector {
 case class MetricImpl(name: String, count: AtomicLong = new AtomicLong(), time: LongAdder = new LongAdder())
     extends Metric {
 
-  override def measure[T](f: => T): T = {
+  override def measure[T](cnt: Int)(f: => T): T = {
     val start = System.nanoTime()
     val result = f
-    count.incrementAndGet()
+    count.addAndGet(cnt)
     time.add(System.nanoTime() - start)
     result
   }
