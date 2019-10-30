@@ -123,7 +123,7 @@ trait TsdbBase extends StrictLogging {
     val processedDataPoints = new AtomicInteger(0)
     val resultRows = new AtomicInteger(0)
 
-    val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.isInstanceOf[WindowFunctionExpr])
+    val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
 
     val mr = mapReduceEngine(metricCollector)
 
