@@ -51,10 +51,6 @@ object SortedSetIterator {
     new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](it))
   }
 
-  def apply[A: DimOrdering](): SortedSetIterator[A] = {
-    new SortedSetIteratorImpl(new SingleSortedIteratorImpl(Iterator.empty))
-  }
-
   def intersectAll[A: DimOrdering](ids: Seq[SortedSetIterator[A]]): SortedSetIterator[A] = {
     if (ids.nonEmpty) new IntersectSortedIteratorImpl[A](ids) else SortedSetIterator.empty
   }
