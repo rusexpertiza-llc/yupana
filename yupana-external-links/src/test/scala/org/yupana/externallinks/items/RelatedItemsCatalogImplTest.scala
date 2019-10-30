@@ -4,7 +4,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.core.{ QueryContext, TSDB, TsdbServerResult }
+import org.yupana.core.{ MapReducible, QueryContext, TSDB, TsdbServerResult }
 import org.yupana.schema.{ Dimensions, Tables }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 
@@ -24,6 +24,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
     )
 
     val qc1 = QueryContext(expQuery1, const(true))
+
+    (tsdb.mapReduceEngine _).expects(*).returning(MapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery1)
@@ -96,6 +98,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
     )
 
     val qc = QueryContext(expQuery, const(true))
+
+    (tsdb.mapReduceEngine _).expects(*).returning(MapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery)
