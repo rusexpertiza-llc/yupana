@@ -80,7 +80,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {}
 
-  override def setRunningPartitions(getNumPartitions: Int): Unit = {}
+  override def setRunningPartitions(partitions: Int): Unit = {}
 
   override def finishPartition(): Unit = {}
 

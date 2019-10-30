@@ -57,8 +57,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(rdd).reduce(f)
   }
 
-  override def reduceByKey[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)])(f: (V, V) => V): RDD[V] = {
-    val r = rdd.reduceByKey(f).map(_._2)
+  override def reduceByKey[K: ClassTag, V: ClassTag](rdd: RDD[(K, V)])(f: (V, V) => V): RDD[(K, V)] = {
+    val r = rdd.reduceByKey(f)
     saveMetricOnCompleteRdd(r)
   }
 

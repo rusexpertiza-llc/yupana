@@ -29,7 +29,7 @@ trait MetricQueryCollector extends Serializable {
   def isEnabled: Boolean
 
   def saveQueryMetrics(state: QueryState): Unit
-  def setRunningPartitions(getNumPartitions: Int): Unit
+  def setRunningPartitions(partitions: Int): Unit
   def finishPartition(): Unit
 
   val createDimensionFilters: Metric = NoMetric
@@ -54,7 +54,7 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override def saveQueryMetrics(state: QueryState): Unit = {}
 
-  override def setRunningPartitions(getNumPartitions: Int): Unit = {}
+  override def setRunningPartitions(partitions: Int): Unit = {}
 
   override def finishPartition(): Unit = {}
 

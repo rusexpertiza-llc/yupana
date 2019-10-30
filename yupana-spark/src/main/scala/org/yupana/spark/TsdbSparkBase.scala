@@ -35,11 +35,10 @@ import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.utils.OnFinishIterator
 import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
-
-import scala.collection.AbstractIterator
 
 object TsdbSparkBase {
   @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
@@ -110,18 +109,7 @@ abstract class TsdbSparkBase(
   ): DataRowRDD = {
     metricCollector.setRunningPartitions(data.getNumPartitions)
     val rdd = data.mapPartitions { it =>
-      new AbstractIterator[Array[Option[Any]]] {
-        override def hasNext: Boolean = {
-          if (it.hasNext) {
-            true
-          } else {
-            metricCollector.finishPartition()
-            false
-          }
-        }
-
-        override def next(): Array[Option[Any]] = it.next
-      }
+      new OnFinishIterator(it, metricCollector.finishPartition)
     }
     new DataRowRDD(rdd, queryContext)
   }

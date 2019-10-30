@@ -34,7 +34,7 @@ trait MapReducible[Collection[_]] extends Serializable {
 
   def fold[A: ClassTag](c: Collection[A])(zero: A)(f: (A, A) => A): A
   def reduce[A: ClassTag](c: Collection[A])(f: (A, A) => A): A
-  def reduceByKey[K: ClassTag, V: ClassTag](c: Collection[(K, V)])(f: (V, V) => V): Collection[V]
+  def reduceByKey[K: ClassTag, V: ClassTag](c: Collection[(K, V)])(f: (V, V) => V): Collection[(K, V)]
 
   def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
 }
@@ -54,8 +54,8 @@ object MapReducible {
 
     override def reduce[A: ClassTag](it: Iterator[A])(f: (A, A) => A): A = it.reduce(f)
 
-    override def reduceByKey[K: ClassTag, V: ClassTag](it: Iterator[(K, V)])(f: (V, V) => V): Iterator[V] = {
-      CollectionUtils.reduceByKey(it)(f).map(_._2)
+    override def reduceByKey[K: ClassTag, V: ClassTag](it: Iterator[(K, V)])(f: (V, V) => V): Iterator[(K, V)] = {
+      CollectionUtils.reduceByKey(it)(f)
     }
 
     override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)

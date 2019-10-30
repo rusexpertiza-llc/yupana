@@ -185,8 +185,9 @@ trait TsdbBase extends StrictLogging {
       mr.batchFlatMap(r, extractBatchSize) { batch =>
         metricCollector.reduceOperation.measure(batch.size) {
           val it = batch.iterator
-          it.map { row =>
-            applyPostMapOperation(queryContext, row)
+          it.map {
+            case (key, row) =>
+              applyPostMapOperation(queryContext, row)
           }
         }
       }

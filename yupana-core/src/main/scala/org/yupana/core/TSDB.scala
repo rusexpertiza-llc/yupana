@@ -22,9 +22,8 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.utils.OnFinishIterator
 import org.yupana.core.utils.metric._
-
-import scala.collection.AbstractIterator
 
 // NOTE: dao is TSDaoHBase because TSDB has put and rollup related method.  Possible it better to not have them here
 class TSDB(
@@ -69,26 +68,10 @@ class TSDB(
       data: Iterator[Array[Option[Any]]],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
-    val it = new AbstractIterator[Array[Option[Any]]] {
-      var hasEnded = false
 
-      override def hasNext: Boolean = {
-        val n = data.hasNext
-        if (!n && !hasEnded) {
-          hasEnded = true
-          metricCollector.finish()
-          // TODO: Get statistics somehow
-          //          logger.trace(s"${queryContext.query.uuidLog}, End query. Processed rows: $processedRows, " +
-          //            s"dataPoints: $processedDataPoints, resultRows: $resultRows, " +
-          //            s"time: ${System.currentTimeMillis() - startProcessingTime}")
-        }
-        n
-      }
-
-      override def next(): Array[Option[Any]] = data.next()
-    }
-
+    val it = new OnFinishIterator(data, metricCollector.finish)
     new TsdbServerResult(queryContext, it)
+
   }
 
   override def applyWindowFunctions(
