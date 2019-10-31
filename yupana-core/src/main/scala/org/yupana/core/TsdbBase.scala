@@ -19,12 +19,13 @@ package org.yupana.core
 import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.operations.Operations
-import org.yupana.core.utils.ConditionUtils
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.language.higherKinds
@@ -41,7 +42,7 @@ trait TsdbBase extends StrictLogging {
   type Collection[_]
   type Result <: TsdbResultBase[Collection]
 
-  def mr: MapReducible[Collection]
+  def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection]
 
   // TODO: it should work with different DAO Id types
   def dao: TSReadingDao[Collection, Long]
@@ -122,37 +123,40 @@ trait TsdbBase extends StrictLogging {
     val processedDataPoints = new AtomicInteger(0)
     val resultRows = new AtomicInteger(0)
 
-    val withExternalFields = mr.batchFlatMap(rows)(
-      extractBatchSize,
-      values => {
-        val c = processedRows.incrementAndGet()
-        if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c tsd rows")
-        readExternalLinks(queryContext, values)
+    val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
+
+    val mr = mapReduceEngine(metricCollector)
+
+    val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
+      val batchSize = batch.size
+      val c = processedRows.incrementAndGet()
+      if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
+      val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
+        readExternalLinks(queryContext, batch)
       }
-    )
 
-    val filterValuesEvaluated =
-      mr.map(withExternalFields)(values => evaluateFilterExprs(queryContext, values, metricCollector))
+      metricCollector.extractDataComputation.measure(batchSize) {
+        val it = withExtLinks.iterator
+        val withValuesForFilter = it.map { row =>
+          evaluateFilterExprs(queryContext, row, metricCollector)
+        }
 
-    val valuesFiltered = queryContext.postCondition
-      .map(
-        c =>
-          mr.filter(filterValuesEvaluated)(
-            values => ExpressionCalculator.evaluateCondition(c, queryContext, values).getOrElse(false)
-          )
-      )
-      .getOrElse(filterValuesEvaluated)
+        val filtered = queryContext.postCondition match {
+          case Some(cond) =>
+            withValuesForFilter.filter(
+              row => ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+            )
+          case None => withValuesForFilter
+        }
 
-    val valuesEvaluated = mr.map(valuesFiltered)(values => evaluateExpressions(queryContext, values, metricCollector))
+        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
 
-    val keysAndValues = mr.map(valuesEvaluated)(row => new KeyData(queryContext, row) -> row)
-
-    val isWindowFunctionPresent = metricCollector.windowFunctionsCheck.measure {
-      queryContext.query.fields.exists(_.expr.isInstanceOf[WindowFunctionExpr])
+        withExprValues.map(row => new KeyData(queryContext, row) -> row)
+      }
     }
 
     val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
-      metricCollector.windowFunctions.measure {
+      metricCollector.windowFunctions.measure(1) {
         applyWindowFunctions(queryContext, keysAndValues)
       }
     } else {
@@ -160,58 +164,67 @@ trait TsdbBase extends StrictLogging {
     }
 
     val reduced = if (queryContext.query.groupBy.nonEmpty && !isWindowFunctionPresent) {
-      val keysAndMappedValues = mr.map(keysAndValuesWinFunc) {
-        case (key, values) =>
-          key -> metricCollector.mapOperation.measure {
-            val c = processedDataPoints.incrementAndGet()
-            if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Extracted $c data points")
-
-            applyMapOperation(queryContext, values)
+      val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
+        metricCollector.reduceOperation.measure(batch.size) {
+          val mapped = batch.iterator.map {
+            case (key, row) =>
+              val c = processedDataPoints.incrementAndGet()
+              if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Extracted $c data points")
+              key -> applyMapOperation(queryContext, row)
           }
+          CollectionUtils.reduceByKey(mapped)((a, b) => applyReduceOperation(queryContext, a, b))
+        }
       }
 
-      val r = mr.reduceByKey(keysAndMappedValues)(
-        (a, b) =>
-          metricCollector.reduceOperation.measure {
-            applyReduceOperation(queryContext, a, b)
-          }
-      )
+      val r = mr.reduceByKey(keysAndMappedValues) { (a, b) =>
+        metricCollector.reduceOperation.measure(1) {
+          applyReduceOperation(queryContext, a, b)
+        }
+      }
 
-      mr.map(r)(
-        kv =>
-          metricCollector.postMapOperation.measure {
-            kv._1 -> applyPostMapOperation(queryContext, kv._2)
+      mr.batchFlatMap(r, extractBatchSize) { batch =>
+        metricCollector.reduceOperation.measure(batch.size) {
+          val it = batch.iterator
+          it.map {
+            case (key, row) =>
+              applyPostMapOperation(queryContext, row)
           }
-      )
+        }
+      }
     } else {
-      keysAndValuesWinFunc
+      mr.map(keysAndValuesWinFunc)(_._2)
     }
 
-    val calculated = mr.map(reduced) {
-      case (k, v) => (k, evalExprsOnAggregatesAndWindows(queryContext, v))
+    val calculated = mr.map(reduced) { row =>
+      evalExprsOnAggregatesAndWindows(queryContext, row)
     }
 
-    val postFiltered = queryContext.query.postFilter
-      .map(
-        c =>
-          metricCollector.postFilter.measure {
-            mr.filter(calculated)(kv => ExpressionCalculator.evaluateCondition(c, queryContext, kv._2).getOrElse(false))
+    val postFiltered = queryContext.query.postFilter match {
+      case Some(cond) =>
+        mr.batchFlatMap(calculated, extractBatchSize) { batch =>
+          metricCollector.postFilter.measure(batch.size) {
+            val it = batch.iterator
+            it.filter { row =>
+              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+            }
           }
-      )
-      .getOrElse(calculated)
+        }
+      case None => calculated
+    }
 
     val limited = queryContext.query.limit.map(mr.limit(postFiltered)).getOrElse(postFiltered)
 
-    val result = mr.map(limited) {
-      case (_, valueData) =>
-        metricCollector.collectResultRows.measure {
+    val result = mr.batchFlatMap(limited, extractBatchSize) { batch =>
+      metricCollector.collectResultRows.measure(batch.size) {
+        batch.iterator.map { row =>
           val c = resultRows.incrementAndGet()
           val d = if (c <= 100000) 10000 else 100000
           if (c % d == 0) {
             logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
           }
-          valueData.data
+          row.data
         }
+      }
     }
 
     finalizeQuery(queryContext, result, metricCollector)
@@ -232,15 +245,12 @@ trait TsdbBase extends StrictLogging {
       row: InternalRow,
       metricCollector: MetricQueryCollector
   ): InternalRow = {
-    metricCollector.extractDataComputation.measure {
-      queryContext.postConditionExprs.foreach { expr =>
-        row.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-        )
-      }
+    queryContext.postCondition.foreach { expr =>
+      row.set(
+        queryContext.exprsIndex(expr),
+        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+      )
     }
-
     row
   }
 
@@ -249,20 +259,18 @@ trait TsdbBase extends StrictLogging {
       row: InternalRow,
       metricCollector: MetricQueryCollector
   ): InternalRow = {
-    metricCollector.extractDataComputation.measure {
-      queryContext.bottomExprs.foreach { expr =>
-        row.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-        )
-      }
+    queryContext.bottomExprs.foreach { expr =>
+      row.set(
+        queryContext.exprsIndex(expr),
+        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+      )
+    }
 
-      queryContext.topRowExprs.foreach { expr =>
-        row.set(
-          queryContext.exprsIndex(expr),
-          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-        )
-      }
+    queryContext.topRowExprs.foreach { expr =>
+      row.set(
+        queryContext.exprsIndex(expr),
+        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+      )
     }
 
     row
@@ -320,13 +328,13 @@ trait TsdbBase extends StrictLogging {
   }
 
   def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Condition = {
-    val linkServices = condition.exprs.flatMap(_.flatten).collect {
+    val linkServices = condition.flatten.collect {
       case LinkExpr(c, _) => linkService(c)
     }
 
     val substituted = linkServices.map(
       service =>
-        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure {
+        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
           service.condition(condition)
         }
     )

@@ -20,6 +20,8 @@ import java.io.{ ObjectInputStream, ObjectOutputStream }
 
 import org.yupana.core.QueryContext
 
+import scala.util.hashing.MurmurHash3
+
 class KeyData(@transient val queryContext: QueryContext, @transient val row: InternalRow) extends Serializable {
 
   private var data: Array[Option[Any]] = _
@@ -28,7 +30,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     import scala.util.hashing.MurmurHash3._
 
     if (queryContext != null) {
-      val h = queryContext.groupByExprs.foldLeft(0xe73b8c13) { (h, e) =>
+      val h = queryContext.groupByExprs.foldLeft(MurmurHash3.arraySeed) { (h, e) =>
         mix(h, row.get(queryContext, e).##)
       }
       finalizeHash(h, queryContext.groupByExprs.length)
@@ -52,7 +54,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
             .forall(idx => this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
         } else if (that.queryContext != null) {
           that.queryContext.groupByExprs.indices
-            .forall(idx => that.row.get(queryContext, queryContext.groupByExprs(idx)) == this.data(idx))
+            .forall(idx => that.row.get(that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
         } else {
           this.data sameElements that.data
         }

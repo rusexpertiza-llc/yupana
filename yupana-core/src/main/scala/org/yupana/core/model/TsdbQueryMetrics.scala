@@ -20,18 +20,20 @@ import org.joda.time.DateTime
 import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
+    rowKey: Long,
     queryId: String,
     startDate: DateTime,
     totalDuration: Double = 0.0,
     query: String,
     state: QueryState,
+    engine: String,
     metrics: Map[String, MetricData]
 )
 
 object TsdbQueryMetrics {
-  val createQueriesQualifier = "create_queries"
   val createDimensionFiltersQualifier = "create_dimensions_filters"
   val createScansQualifier = "create_scans"
+  val scanQualifier = "scan"
   val loadTagsQualifier = "load_tags"
   val filterRowsQualifier = "filter_rows"
   val windowFunctionsCheckQualifier = "window_functions_check"
@@ -41,13 +43,15 @@ object TsdbQueryMetrics {
   val reduceOperationQualifier = "reduce_operation"
   val postFilterQualifier = "post_filter"
   val collectResultRowsQualifier = "collect_result_rows"
-  val extractDataTagsQualifier = "extract_data_tags"
+  val dimensionValuesForIdsQualifier = "dimension_values_for_ids"
+  val readExternalLinksQualifier: String = "read_external_links"
   val extractDataComputationQualifier = "extract_data_computation"
-  val getResultQualifier = "get_result"
-  val parseResultQualifier = "parse_result"
+  val parseScanResultQualifier = "parse_scan_result"
 
+  val idColumn = "id"
   val queryIdColumn = "query_id"
   val stateColumn = "state"
+  val engineColumn = "engine"
   val queryColumn = "query"
   val startDateColumn = "start_date"
   val totalDurationColumn = "total_duration"
@@ -57,9 +61,9 @@ object TsdbQueryMetrics {
   val metricSpeed = "speed"
 
   val qualifiers = List(
-    createQueriesQualifier,
     createDimensionFiltersQualifier,
     createScansQualifier,
+    scanQualifier,
     loadTagsQualifier,
     filterRowsQualifier,
     windowFunctionsCheckQualifier,
@@ -69,10 +73,10 @@ object TsdbQueryMetrics {
     reduceOperationQualifier,
     postFilterQualifier,
     collectResultRowsQualifier,
-    extractDataTagsQualifier,
+    dimensionValuesForIdsQualifier,
+    readExternalLinksQualifier,
     extractDataComputationQualifier,
-    getResultQualifier,
-    parseResultQualifier
+    parseScanResultQualifier
   )
 }
 

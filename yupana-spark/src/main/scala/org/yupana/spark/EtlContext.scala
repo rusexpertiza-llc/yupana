@@ -40,6 +40,7 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
       hBaseConnection,
       ItemsInvertedIndexImpl.TABLE_NAME,
       InvertedIndexDaoHBase.stringSerializer,
+      InvertedIndexDaoHBase.stringDeserializer,
       InvertedIndexDaoHBase.longSerializer,
       InvertedIndexDaoHBase.longDeserializer
     )

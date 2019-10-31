@@ -42,6 +42,7 @@ class ExternalLinkRegistrator(
     hBaseConnection,
     ItemsInvertedIndexImpl.TABLE_NAME,
     InvertedIndexDaoHBase.stringSerializer,
+    InvertedIndexDaoHBase.stringDeserializer,
     InvertedIndexDaoHBase.longSerializer,
     InvertedIndexDaoHBase.longDeserializer
   )

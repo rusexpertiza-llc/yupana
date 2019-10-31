@@ -19,6 +19,7 @@ package org.yupana.core.sql
 import org.yupana.core.utils.CollectionUtils
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, Metric, Schema, Table }
 import org.yupana.api.types._
@@ -317,7 +318,7 @@ object SqlQueryProcessor extends QueryValidator {
         l <- createExpr(table, state, nameResolver, a, ExprType.Cmp).right
         r <- createExpr(table, state, nameResolver, b, ExprType.Cmp).right
         op <- createBooleanExpr(l, r, cmpName).right
-      } yield SimpleCondition(op)
+      } yield op
     }
 
     c match {
@@ -331,35 +332,35 @@ object SqlQueryProcessor extends QueryValidator {
       case parser.IsNull(e) =>
         for {
           ne <- createExpr(table, state, nameResolver, e, ExprType.Math).right
-        } yield SimpleCondition(UnaryOperationExpr(UnaryOperation.isNull, ne.aux))
+        } yield UnaryOperationExpr(UnaryOperation.isNull, ne.aux)
 
       case parser.IsNotNull(e) =>
         for {
           nne <- createExpr(table, state, nameResolver, e, ExprType.Math).right
-        } yield SimpleCondition(UnaryOperationExpr(UnaryOperation.isNotNull, nne.aux))
+        } yield UnaryOperationExpr(UnaryOperation.isNotNull, nne.aux)
 
       case parser.In(e, vs) =>
         for {
           ce <- createExpr(table, state, nameResolver, e, ExprType.Cmp).right
           cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield In(ce.aux, cvs.toSet).asInstanceOf[Condition]
+        } yield InExpr(ce.aux, cvs.toSet).aux
 
       case parser.NotIn(e, vs) =>
         for {
           ce <- createExpr(table, state, nameResolver, e, ExprType.Cmp).right
           cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield NotIn(ce.aux, cvs.toSet)
+        } yield NotInExpr(ce.aux, cvs.toSet).aux
 
       case parser.And(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(table, state, nameResolver, c))).right.map(And)
+        CollectionUtils.collectErrors(cs.map(c => createCondition(table, state, nameResolver, c))).right.map(AndExpr)
 
       case parser.Or(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(table, state, nameResolver, c))).right.map(Or)
+        CollectionUtils.collectErrors(cs.map(c => createCondition(table, state, nameResolver, c))).right.map(OrExpr)
 
       case parser.ExprCondition(e) =>
         createExpr(table, state, nameResolver, e, ExprType.Cmp).right.flatMap { ex =>
           if (ex.dataType == DataType[Boolean]) {
-            Right(SimpleCondition(ex.asInstanceOf[Expression.Aux[Boolean]]))
+            Right(ex.asInstanceOf[Expression.Aux[Boolean]])
           } else {
             Left(s"$ex has type ${ex.dataType}, but BOOLEAN is required")
           }

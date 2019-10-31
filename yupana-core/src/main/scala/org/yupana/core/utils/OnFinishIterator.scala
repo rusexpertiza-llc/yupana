@@ -14,13 +14,23 @@
  * limitations under the License.
  */
 
-package org.yupana.api.query.syntax
+package org.yupana.core.utils
 
-trait All
-    extends ExpressionSyntax
-    with DataTypeConverterSyntax
-    with AggregationSyntax
-    with UnaryOperationSyntax
-    with BinaryOperationSyntax
+import scala.collection.AbstractIterator
 
-object All extends All
+class OnFinishIterator[T](it: Iterator[T], finishAction: () => Unit) extends AbstractIterator[T] {
+
+  var hasEnded = false
+
+  override def hasNext: Boolean = {
+    val n = it.hasNext
+    if (!n && !hasEnded) {
+      hasEnded = true
+      finishAction()
+    }
+    n
+  }
+
+  override def next(): T = it.next()
+
+}

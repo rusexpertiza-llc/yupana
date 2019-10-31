@@ -18,6 +18,7 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client.{ Get, Put, ResultScanner, Scan }
+import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
@@ -64,6 +65,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     connection: ExternalLinkHBaseConnection,
     tableName: String,
     keySerializer: K => Array[Byte],
+    keyDeserializer: Array[Byte] => K,
     valueSerializer: V => Array[Byte],
     valueDeserializer: Array[Byte] => V
 ) extends InvertedIndexDao[K, V]
@@ -90,26 +92,30 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     table.put(puts.toSeq.asJava)
   }
 
-  private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
-    val it = result.iterator().asScala.flatMap { result =>
-      result.rawCells().map { cell =>
-        valueDeserializer(CellUtil.cloneQualifier(cell))
-      }
-    }
-    SortedSetIterator(it)
-  }
-
-  def values(key: K): SortedSetIterator[V] = {
+  override def values(key: K): SortedSetIterator[V] = {
     allValues(Set(key))
   }
 
-  private def scanValues(key: K): SortedSetIterator[V] = {
-    logger.trace(s"scan values for key $key")
-    val skey = keySerializer(key)
+  override def valuesByPrefix(prefix: K): SortedSetIterator[V] = {
+    val skey = keySerializer(prefix)
+
+    val filters = new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter())
+
+    val scan = new Scan().setRowPrefixFilter(skey).setFilter(filters)
     val table = connection.getTable(tableName)
-    val scan = new Scan(skey, Bytes.padTail(skey, 1)).addFamily(FAMILY).setBatch(BATCH_SIZE)
     val scanner = table.getScanner(scan)
-    toIterator(scanner)
+
+    val keys = scanner
+      .iterator()
+      .asScala
+      .map { result =>
+        keyDeserializer(result.getRow)
+      }
+      .toSet
+
+    logger.trace(s"Got ${keys.size} keys for prefix $prefix search")
+
+    allValues(keys)
   }
 
   def allValues(keys: Set[K]): SortedSetIterator[V] = {
@@ -123,15 +129,38 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     }
 
     val results = table.get(gets.asJava).zip(keySeq)
-    val (completed, partial) = results.partition { case (res, key) => res.rawCells().length < BATCH_SIZE }
+    val (completed, partial) = results.partition { case (res, _) => res.rawCells().length < BATCH_SIZE }
 
     val iterators = partial.map { case (_, key) => scanValues(key) }
 
-    val fetched = completed.map {
+    val fetched = completed.toList.flatMap {
       case (result, _) =>
-        SortedSetIterator(result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c))).toIterator)
+        result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c)))
     }
+    val ord = implicitly[DimOrdering[V]]
 
-    SortedSetIterator.unionAll(iterators ++ fetched)
+    val seq = fetched.distinct.sortWith(ord.lt)
+
+    val fetchedIterator = SortedSetIterator(seq: _*)
+
+    SortedSetIterator.unionAll(fetchedIterator +: iterators)
+  }
+
+  private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
+    val it = result.iterator().asScala.flatMap { result =>
+      result.rawCells().map { cell =>
+        valueDeserializer(CellUtil.cloneQualifier(cell))
+      }
+    }
+    SortedSetIterator(it)
+  }
+
+  private def scanValues(key: K): SortedSetIterator[V] = {
+    logger.trace(s"scan values for key $key")
+    val skey = keySerializer(key)
+    val table = connection.getTable(tableName)
+    val scan = new Scan(skey, Bytes.padTail(skey, 1)).addFamily(FAMILY).setBatch(BATCH_SIZE)
+    val scanner = table.getScanner(scan)
+    toIterator(scanner)
   }
 }

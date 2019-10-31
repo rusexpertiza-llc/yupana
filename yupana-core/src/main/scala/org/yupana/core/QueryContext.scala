@@ -17,6 +17,7 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 
 import scala.collection.mutable
@@ -24,7 +25,6 @@ import scala.collection.mutable
 case class QueryContext(
     query: Query,
     postCondition: Option[Condition],
-    postConditionExprs: Array[Expression],
     exprsIndex: mutable.HashMap[Expression, Int],
     aggregateExprs: Array[AggregateExpr],
     topRowExprs: Array[Expression],
@@ -37,33 +37,33 @@ case class QueryContext(
 object QueryContext extends StrictLogging {
 
   def apply(query: Query, postCondition: Condition): QueryContext = {
-    val conditionExprs = postCondition.exprs
+    import org.yupana.core.utils.QueryUtils.{ requiredDimensions, requiredLinks }
 
-    val requiredTags = query.groupBy.flatMap(_.requiredDimensions).toSet ++
-      query.fields.flatMap(_.expr.requiredDimensions).toSet ++
-      conditionExprs.flatMap(_.requiredDimensions) ++
-      query.postFilter.toSeq.flatMap(_.exprs.flatMap(_.requiredDimensions))
+    val requiredTags = query.groupBy.flatMap(requiredDimensions).toSet ++
+      query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
+      requiredDimensions(postCondition) ++
+      query.postFilter.toSeq.flatMap(requiredDimensions)
 
     val requiredDimExprs = requiredTags.map(DimensionExpr(_))
 
-    val groupByExternalLinks = query.groupBy.flatMap(_.requiredLinks)
-    val fieldsExternalLinks = query.fields.flatMap(_.expr.requiredLinks)
-    val dataFiltersExternalLinks = conditionExprs.flatMap(_.requiredLinks)
-    val havingExternalLinks = query.postFilter.toSeq.flatMap(_.exprs.flatMap(_.requiredLinks))
+    val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
+    val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))
+    val dataFiltersExternalLinks = requiredLinks(postCondition)
+    val havingExternalLinks = query.postFilter.toSeq.flatMap(requiredLinks)
 
     val linkExprs =
       (groupByExternalLinks ++ fieldsExternalLinks ++ dataFiltersExternalLinks ++ havingExternalLinks).distinct
 
     val topExprs: Set[Expression] = query.fields.map(_.expr).toSet ++
       (query.groupBy.toSet ++
-        conditionExprs ++
         requiredDimExprs ++
-        query.postFilter.map(_.exprs).getOrElse(Set.empty) +
+        query.postFilter.toSet +
+        postCondition +
         TimeExpr).filterNot(_.isInstanceOf[ConstantExpr])
 
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr] && (
-        (!expr.containsAggregates && !expr.containsWindows) ||
+        (!containsAggregates(expr) && !containsWindows(expr)) ||
         expr.isInstanceOf[AggregateExpr] ||
         expr.isInstanceOf[WindowFunctionExpr]
       )
@@ -79,12 +79,12 @@ object QueryContext extends StrictLogging {
 
     val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
 
-    val optionPost = if (postCondition == EmptyCondition) None else Some(postCondition)
+    val optionPost = if (postCondition == ConstantExpr(true)) None else Some(postCondition)
 
     new QueryContext(
       query,
       optionPost,
-      postCondition.exprs.toArray,
+//      postCondition.exprs.toArray,
       exprsIndex,
       aggregateExprs.toArray,
       (topRowExprs -- bottomExprs).toArray,
@@ -95,10 +95,10 @@ object QueryContext extends StrictLogging {
     )
   }
 
-  def collectBottomExprs(exprs: Set[Expression]): Set[Expression] =
+  private def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = {
     exprs.collect {
       case a @ AggregateExpr(_, e)        => Set(a, e)
-      case ConditionExpr(condition, _, _) => condition.exprs.flatMap(_.flatten)
+      case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
       case t: DimensionExpr               => Set(t)
       case c: LinkExpr                    => Set(c)
@@ -106,4 +106,15 @@ object QueryContext extends StrictLogging {
       case TimeExpr                       => Set(TimeExpr)
       case _                              => Set.empty
     }.flatten
+  }
+
+  private def containsAggregates(e: Expression): Boolean = e.flatten.exists {
+    case _: AggregateExpr => true
+    case _                => false
+  }
+
+  private def containsWindows(e: Expression): Boolean = e.flatten.exists {
+    case _: WindowFunctionExpr => true
+    case _                     => false
+  }
 }

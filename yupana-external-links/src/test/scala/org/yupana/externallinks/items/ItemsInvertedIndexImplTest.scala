@@ -3,8 +3,8 @@ package org.yupana.externallinks.items
 import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Matchers }
-import org.yupana.api.query.{ DimIdIn, DimIdNotIn }
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Inside, Matchers }
+import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ Dictionary, TSDB }
 import org.yupana.core.cache.CacheFactory
@@ -17,7 +17,8 @@ class ItemsInvertedIndexImplTest
     with Matchers
     with MockFactory
     with BeforeAndAfterAll
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with Inside {
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -47,14 +48,14 @@ class ItemsInvertedIndexImplTest
         ),
         neq(
           link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
-          const("хол.копчения")
+          const("хол копчения")
         )
       )
     )
 
     actual shouldEqual and(
-      DimIdIn(dimension(Dimensions.ITEM_TAG), SortedSetIterator(4, 5, 42)),
-      DimIdNotIn(dimension(Dimensions.ITEM_TAG), SortedSetIterator(2))
+      DimIdInExpr(dimension(Dimensions.ITEM_TAG), SortedSetIterator(4, 5, 42)),
+      DimIdNotInExpr(dimension(Dimensions.ITEM_TAG), SortedSetIterator(2))
     )
   }
 
@@ -75,6 +76,40 @@ class ItemsInvertedIndexImplTest
     })
 
     index.putItemNames(Set("сигареты легкие", "папиросы", "молоко"))
+  }
+
+  it should "ignore handle prefixes" in withMocks { (index, dao, _) =>
+    import org.yupana.api.query.syntax.All._
+
+    (dao.values _).expects("krasn").returning(SortedSetIterator(1, 2, 3))
+    (dao.values _).expects("yablok").returning(SortedSetIterator(2, 3, 5))
+    (dao.values _).expects("zhelt").returning(SortedSetIterator(6))
+    (dao.valuesByPrefix _).expects("banan").returning(SortedSetIterator(6, 7))
+    val res = index.condition(
+      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("красное яблоко", "банан% желтый"))
+    )
+
+    inside(res) {
+      case DimIdInExpr(d, vs) =>
+        d shouldEqual dimension(Dimensions.ITEM_TAG)
+        vs.toSeq should contain theSameElementsInOrderAs Seq(2L, 3L, 6L)
+    }
+  }
+
+  it should "ignore empty prefixes" in withMocks { (index, dao, _) =>
+    import org.yupana.api.query.syntax.All._
+
+    (dao.values _).expects("sigaret").returning(SortedSetIterator(1, 3))
+
+    val res = index.condition(
+      notIn(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("сигареты %"))
+    )
+
+    inside(res) {
+      case DimIdNotInExpr(d, vs) =>
+        d shouldEqual dimension(Dimensions.ITEM_TAG)
+        vs.toSeq should contain theSameElementsInOrderAs Seq(1L, 3L)
+    }
   }
 
   def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, Long], TSDB) => Unit): Unit = {

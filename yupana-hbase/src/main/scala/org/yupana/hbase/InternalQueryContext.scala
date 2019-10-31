@@ -19,6 +19,7 @@ package org.yupana.hbase
 import org.yupana.api.query.{ DimensionExpr, Expression }
 import org.yupana.core.model.InternalQuery
 import org.yupana.api.schema.{ Dimension, Metric, Table }
+import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.mutable
 
@@ -27,11 +28,12 @@ case class InternalQueryContext(
     exprs: Set[Expression],
     fieldIndexMap: mutable.HashMap[Byte, Metric],
     dimIndexMap: mutable.Map[Dimension, Int],
-    requiredDims: Set[Dimension]
+    requiredDims: Set[Dimension],
+    metricsCollector: MetricQueryCollector
 )
 
 object InternalQueryContext {
-  def apply(query: InternalQuery): InternalQueryContext = {
+  def apply(query: InternalQuery, metricCollector: MetricQueryCollector): InternalQueryContext = {
     val fieldIndexMap = mutable.HashMap(query.table.metrics.map(f => f.tag -> f): _*)
 
     val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
@@ -40,6 +42,6 @@ object InternalQueryContext {
       case DimensionExpr(tag) => tag
     }
 
-    new InternalQueryContext(query.table, query.exprs, fieldIndexMap, dimIndexMap, requiredTags)
+    new InternalQueryContext(query.table, query.exprs, fieldIndexMap, dimIndexMap, requiredTags, metricCollector)
   }
 }
