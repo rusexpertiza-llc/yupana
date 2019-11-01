@@ -18,6 +18,7 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
+import org.apache.hadoop.hbase.filter.{ CompareFilter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
 import org.joda.time.DateTime
