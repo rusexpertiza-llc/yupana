@@ -269,7 +269,7 @@ val publishSettings = Seq(
     if (isSnapshot.value)
       Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
     else
-      Some("Sonatype OSS releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
+      sonatypePublishToBundle.value
   },
   Test / publishArtifact := false,
   pomIncludeRepository := { _ => false },
