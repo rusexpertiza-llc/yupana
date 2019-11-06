@@ -34,7 +34,7 @@ object ItemsInvertedIndexImpl {
     items
       .flatMap {
         case (id, n) =>
-          val words = itemsStemmer.words(n)
+          val words = itemsStemmer.words(n).map(Transliterator.transliterate)
           words.map(_ -> id)
       }
       .groupBy {
