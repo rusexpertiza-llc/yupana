@@ -11,6 +11,7 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, InvertedIndexDao }
 import org.yupana.schema.Dimensions
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.utils.ItemsStemmer
 
 class ItemsInvertedIndexImplTest
     extends FlatSpec
@@ -116,7 +117,7 @@ class ItemsInvertedIndexImplTest
 
     val dao = mock[InvertedIndexDao[String, Long]]
     val tsdb = mock[TSDB]
-    val index = new ItemsInvertedIndexImpl(tsdb, dao, ItemsInvertedIndex)
+    val index = new ItemsInvertedIndexImpl(tsdb, dao, ItemsStemmer, ItemsInvertedIndex)
 
     body(index, dao, tsdb)
   }

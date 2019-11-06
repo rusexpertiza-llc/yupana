@@ -23,6 +23,7 @@ import org.yupana.api.schema.MetricValue
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
 import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
+import org.yupana.utils.ItemsStemmer
 
 object ETL {
 
@@ -33,7 +34,7 @@ object ETL {
     val sc = SparkContext.getOrCreate(conf)
 
     val cfg = new EtlConfig(conf)
-    val ctx = new EtlContext(cfg, ExampleSchema.schema)
+    val ctx = new EtlContext(cfg, ExampleSchema.schema, ItemsStemmer)
 
     import org.yupana.spark.ETLFunctions._
 

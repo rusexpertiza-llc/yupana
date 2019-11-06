@@ -20,7 +20,7 @@ import org.apache.lucene.analysis.ru.RussianLightStemmer
 
 import scala.collection.mutable
 
-object ItemsStemmer extends Serializable {
+trait ItemsStemmer extends Serializable {
   private val stemmer = new RussianLightStemmer()
   private val charSet = mutable.Set(
     '/', '.', ',', '\\', '%', '*'
@@ -147,3 +147,5 @@ object ItemsStemmer extends Serializable {
     wordsList
   }
 }
+
+object ItemsStemmer extends ItemsStemmer

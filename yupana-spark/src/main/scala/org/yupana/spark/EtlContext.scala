@@ -23,8 +23,9 @@ import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, TSDBHbase }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.utils.ItemsStemmer
 
-class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
+class EtlContext(val cfg: EtlConfig, schema: Schema, itemsStemmer: ItemsStemmer) extends Serializable {
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
@@ -44,7 +45,7 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
       InvertedIndexDaoHBase.longSerializer,
       InvertedIndexDaoHBase.longDeserializer
     )
-    val itemsInvertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, ItemsInvertedIndex)
+    val itemsInvertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, itemsStemmer, ItemsInvertedIndex)
     tsdb.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
     EtlContext.tsdb = Some(tsdb)
     EtlContext.itemsInvertedIndex = Some(itemsInvertedIndex)

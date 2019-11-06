@@ -27,20 +27,14 @@ import org.yupana.schema.Dimensions
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.{ ItemsStemmer, Transliterator }
 
-import scala.collection.mutable
-
 object ItemsInvertedIndexImpl {
-
   val TABLE_NAME: String = "ts_items_reverse_index"
-  val VALUE: Array[Byte] = Array.emptyByteArray
-  val CACHE_NAME = "items-reverse-index"
-  val CACHE_MAX_IDS_FOR_WORD = 100000
 
-  def indexItems(items: Seq[(Long, String)]): Map[String, Seq[Long]] =
+  def indexItems(items: Seq[(Long, String)], itemsStemmer: ItemsStemmer): Map[String, Seq[Long]] = {
     items
       .flatMap {
         case (id, n) =>
-          val words = stemmed(n)
+          val words = itemsStemmer.words(n)
           words.map(_ -> id)
       }
       .groupBy {
@@ -51,46 +45,17 @@ object ItemsInvertedIndexImpl {
         case (word, group) =>
           (word, group.map(_._2))
       }
-
-  def stemmed(text: String): Seq[String] = {
-    val words = ItemsStemmer.words(text)
-
-    val separators = Set(',', '.')
-    val excluded = new mutable.HashSet[String]()
-    words.foreach { word =>
-      separators.foreach { sep =>
-        if (word.contains(sep)) {
-          excluded ++= word.split(sep)
-          excluded += word
-        }
-      }
-    }
-
-    val filtered = new mutable.ListBuffer[String]()
-    words.foreach { word =>
-      if (excluded.contains(word)) {
-        excluded -= word
-      } else {
-        filtered += word
-      }
-      ()
-    }
-
-    filtered
-      .map(Transliterator.transliterate)
-      .filter(_.nonEmpty)
-      .sorted
   }
 }
 
 class ItemsInvertedIndexImpl(
     tsdb: TsdbBase,
     invertedIndexDao: InvertedIndexDao[String, Long],
+    itemsStemmer: ItemsStemmer,
     override val externalLink: ItemsInvertedIndex
 ) extends DimIdBasedExternalLinkService[ItemsInvertedIndex](tsdb)
     with StrictLogging {
 
-  import ItemsInvertedIndexImpl._
   import externalLink._
 
   private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[Long]]("dim_ids_by_word")
@@ -98,7 +63,7 @@ class ItemsInvertedIndexImpl(
   def putItemNames(names: Set[String]): Unit = {
     val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)
     val items = itemIds.map(_.swap)
-    val wordIdMap = indexItems(items.toSeq)
+    val wordIdMap = ItemsInvertedIndexImpl.indexItems(items.toSeq, itemsStemmer)
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 
