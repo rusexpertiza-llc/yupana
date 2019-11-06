@@ -36,7 +36,12 @@ import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.OnFinishIterator
-import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext }
+import org.yupana.core.utils.metric.{
+  MetricQueryCollector,
+  NoMetricCollector,
+  PersistentMetricQueryCollector,
+  QueryCollectorContext
+}
 import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
@@ -93,13 +98,17 @@ abstract class TsdbSparkBase(
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
-    val queryCollectorContext: QueryCollectorContext = new QueryCollectorContext(
-      metricsDao = getMetricsDao,
-      operationName = "spark query",
-      metricsUpdateInterval = conf.metricsUpdateInterval,
-      sparkQuery = true
-    )
-    new PersistentMetricQueryCollector(queryCollectorContext, query)
+    if (conf.collectMetrics) {
+      val queryCollectorContext: QueryCollectorContext = new QueryCollectorContext(
+        metricsDao = getMetricsDao,
+        operationName = "spark query",
+        metricsUpdateInterval = conf.metricsUpdateInterval,
+        sparkQuery = true
+      )
+      new PersistentMetricQueryCollector(queryCollectorContext, query)
+    } else {
+      NoMetricCollector
+    }
   }
 
   override def finalizeQuery(
