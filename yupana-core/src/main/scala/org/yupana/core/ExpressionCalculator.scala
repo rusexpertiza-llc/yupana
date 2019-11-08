@@ -30,20 +30,15 @@ object ExpressionCalculator {
       internalRow: InternalRow,
       tryEval: Boolean = true
   ): Option[expr.Out] = {
-    expr match {
-      case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
-
-      case e =>
-        val res = if (queryContext != null && queryContext.exprsIndex.contains(e)) {
-          internalRow.get[expr.Out](queryContext, e)
-        } else {
-          None
-        }
-        if (res.isEmpty && tryEval) {
-          eval(expr, queryContext, internalRow)
-        } else {
-          res
-        }
+    val res = if (queryContext != null && queryContext.exprsIndex.contains(expr)) {
+      internalRow.get[expr.Out](queryContext, expr)
+    } else {
+      None
+    }
+    if (res.isEmpty && tryEval) {
+      eval(expr, queryContext, internalRow)
+    } else {
+      res
     }
   }
 
