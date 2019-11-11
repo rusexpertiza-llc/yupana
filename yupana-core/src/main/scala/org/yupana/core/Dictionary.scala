@@ -117,7 +117,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
       dao
         .getIdByValue(dimension, v)
         .getOrElse(
-          throw new IllegalStateException(s"Can't put value to $v dictionary ${dimension.name}")
+          throw new IllegalStateException(s"Can't put value $v to dictionary ${dimension.name}")
         )
     }
     updateReverseCache(v, id)
