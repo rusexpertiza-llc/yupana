@@ -33,15 +33,15 @@ object ItemDimension {
 
   def hash(item: String): Int = {
 
-    val stemmed = Tokenizer.transliteratedTokens(item).toArray
+    val tokens = Tokenizer.transliteratedTokens(item).toArray
 
-    val words = stemmed.filterNot(stopWords.contains).filter(i => i.length > 1 && i.forall(_.isLetter))
+    val filteredTokens = tokens.filterNot(stopWords.contains).filter(i => i.length > 1 && i.forall(_.isLetter))
 
     (0 until numOfChars).foldLeft(0) { (h, pos) =>
       val code = if (pos == 0) {
-        encode(chars(words, pos), charIdx8, 8)
+        encode(chars(filteredTokens, pos), charIdx8, 8)
       } else {
-        math.abs(new String(chars(words, pos - 1).sorted).hashCode) % 255
+        math.abs(new String(chars(filteredTokens, pos - 1).sorted).hashCode) % 255
       }
       (h << 8) | code
     }
