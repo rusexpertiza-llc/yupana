@@ -25,22 +25,17 @@ import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.DimIdBasedExternalLinkService
 import org.yupana.schema.Dimensions
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.utils.{ ItemsStemmer, Transliterator }
-
-import scala.collection.mutable
+import org.yupana.utils.{ Tokenizer, Transliterator }
 
 object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
-  val VALUE: Array[Byte] = Array.emptyByteArray
-  val CACHE_NAME = "items-reverse-index"
-  val CACHE_MAX_IDS_FOR_WORD = 100000
 
   def indexItems(items: Seq[(Long, String)]): Map[String, Seq[Long]] =
     items
       .flatMap {
         case (id, n) =>
-          val words = stemmed(n)
+          val words = Tokenizer.transliteratedTokens(n)
           words.map(_ -> id)
       }
       .groupBy {
@@ -51,36 +46,6 @@ object ItemsInvertedIndexImpl {
         case (word, group) =>
           (word, group.map(_._2))
       }
-
-  def stemmed(text: String): Seq[String] = {
-    val words = ItemsStemmer.words(text)
-
-    val separators = Set(',', '.')
-    val excluded = new mutable.HashSet[String]()
-    words.foreach { word =>
-      separators.foreach { sep =>
-        if (word.contains(sep)) {
-          excluded ++= word.split(sep)
-          excluded += word
-        }
-      }
-    }
-
-    val filtered = new mutable.ListBuffer[String]()
-    words.foreach { word =>
-      if (excluded.contains(word)) {
-        excluded -= word
-      } else {
-        filtered += word
-      }
-      ()
-    }
-
-    filtered
-      .map(Transliterator.transliterate)
-      .filter(_.nonEmpty)
-      .sorted
-  }
 }
 
 class ItemsInvertedIndexImpl(
@@ -145,7 +110,7 @@ class ItemsInvertedIndexImpl(
   def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
-    val stemmedWords = words.map(ItemsStemmer.stem).map(Transliterator.transliterate)
+    val stemmedWords = words.map(Tokenizer.stem).map(Transliterator.transliterate)
 
     val idsPerWord = stemmedWords.map(dimIdsForStemmedWord)
 
