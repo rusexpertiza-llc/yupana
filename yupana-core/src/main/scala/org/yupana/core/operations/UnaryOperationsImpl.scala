@@ -19,7 +19,7 @@ package org.yupana.core.operations
 import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.types.UnaryOperations
-import org.yupana.utils.{ ItemsStemmer, Transliterator }
+import org.yupana.utils.Tokenizer
 
 import scala.collection.AbstractIterator
 
@@ -62,7 +62,7 @@ trait UnaryOperationsImpl extends UnaryOperations {
     time.map(t => Time(t.toDateTime.property(interval).roundFloorCopy().getMillis))
   }
 
-  private def stem(s: String): Array[String] = ItemsStemmer.words(s).map(Transliterator.transliterate).toArray
+  private def stem(s: String): Array[String] = Tokenizer.transliteratedTokens(s).toArray
 
   private def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
     private val len = s.length

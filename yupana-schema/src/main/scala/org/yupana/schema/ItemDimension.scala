@@ -17,13 +17,9 @@
 package org.yupana.schema
 
 import org.yupana.api.schema.Dimension
-import org.yupana.utils.{ ItemsStemmer, Transliterator }
+import org.yupana.utils.Tokenizer
 
 object ItemDimension {
-
-  def stem(text: String): Seq[String] = {
-    ItemsStemmer.words(text).map(Transliterator.transliterate)
-  }
 
   def apply(name: String): Dimension = {
     Dimension(name, Some(hash))
@@ -37,7 +33,7 @@ object ItemDimension {
 
   def hash(item: String): Int = {
 
-    val stemmed = stem(item).toArray
+    val stemmed = Tokenizer.transliteratedTokens(item).toArray
 
     val words = stemmed.filterNot(stopWords.contains).filter(i => i.length > 1 && i.forall(_.isLetter))
 

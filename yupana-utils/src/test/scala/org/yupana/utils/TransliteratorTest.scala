@@ -31,7 +31,7 @@ class TransliteratorTest extends FlatSpec with Matchers with TableDrivenProperty
     )
 
     forAll(data) { (item, expected) =>
-      val stemmed = ItemsStemmer.stemString(item)
+      val stemmed = Tokenizer.tokens(item) mkString " "
       Transliterator.transliterate(stemmed) shouldEqual expected
     }
   }
