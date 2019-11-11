@@ -198,8 +198,8 @@ class DictionaryTest
     (dictionaryDaoMock.getIdByValue _).expects(testDim, "value").returning(None).twice()
     (dictionaryDaoMock.createSeqId _).expects(testDim).returning(42)
     (dictionaryDaoMock.checkAndPut _).expects(testDim, 42, "value").returning(false)
-    val thrown = the [IllegalStateException] thrownBy dictionary.id("value")
-    thrown.getMessage should equal (s"Can't put value value to dictionary ${testDim.name}")
+    val thrown = the[IllegalStateException] thrownBy dictionary.id("value")
+    thrown.getMessage should equal(s"Can't put value value to dictionary ${testDim.name}")
   }
 
 }
