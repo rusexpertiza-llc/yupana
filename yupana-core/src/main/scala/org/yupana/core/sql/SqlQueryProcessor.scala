@@ -16,14 +16,15 @@
 
 package org.yupana.core.sql
 
-import org.yupana.core.utils.CollectionUtils
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric, Schema, Table }
+import org.yupana.api.schema.{ Metric, Schema, Table }
 import org.yupana.api.types._
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
+import org.yupana.core.utils.CollectionUtils
 
 class SqlQueryProcessor(schema: Schema) {
 
@@ -32,19 +33,19 @@ class SqlQueryProcessor(schema: Schema) {
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)
     val query = for {
-      schema <- getSchema(select.schemaName).right
-      fields <- getFields(schema, select, state).right
-      filter <- getFilter(schema, fields, select.condition, state).right
-      groupBy <- getGroupBy(select, schema, state).right
-      pf <- getPostFilter(schema, fields, select.having, state).right
+      table <- getTable(select.schemaName).right
+      fields <- getFields(table, select, state).right
+      filter <- getFilter(table, fields, select.condition, state).right
+      groupBy <- getGroupBy(select, table, state).right
+      pf <- getPostFilter(table, fields, select.having, state).right
     } yield {
-      Query(schema, fields, filter, groupBy, select.limit, pf)
+      Query(table, fields, filter, groupBy, select.limit, pf)
     }
 
     query.right.flatMap(validateQuery)
   }
 
-  private def getSchema(schemaName: String): Either[String, Table] = {
+  private def getTable(schemaName: String): Either[String, Table] = {
     schema.getTable(schemaName).toRight(s"Unknown table '$schemaName'")
   }
 }
@@ -103,7 +104,7 @@ object SqlQueryProcessor extends QueryValidator {
   private def getField(table: Table, field: parser.SqlField, state: BuilderState): Either[String, QueryField] = {
     val fieldName = state.fieldName(field)
 
-    createExpr(table, state, fieldByName(table), field.expr, ExprType.Math).right.map(_.as(fieldName))
+    createExpr(state, fieldByName(table), field.expr, ExprType.Math).right.map(_.as(fieldName))
   }
 
   private def fieldByRef(table: Table, fields: Seq[QueryField])(name: String): Option[Expression] = {
@@ -111,7 +112,6 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def createExpr(
-      table: Table,
       state: BuilderState,
       nameResolver: NameResolver,
       expr: parser.SqlExpr,
@@ -122,12 +122,12 @@ object SqlQueryProcessor extends QueryValidator {
         val converted = CollectionUtils.collectErrors(cs.map {
           case (condition, value) =>
             for {
-              et <- createExpr(table, state, nameResolver, value, exprType).right
-              c <- createCondition(table, state, nameResolver, condition.simplify).right
+              et <- createExpr(state, nameResolver, value, exprType).right
+              c <- createCondition(state, nameResolver, condition.simplify).right
             } yield (c, et)
         })
 
-        createExpr(table, state, nameResolver, default, exprType).right.flatMap(
+        createExpr(state, nameResolver, default, exprType).right.flatMap(
           ve =>
             converted.right.flatMap { conv =>
               conv.foldRight(Right(ve): Either[String, Expression]) {
@@ -148,46 +148,45 @@ object SqlQueryProcessor extends QueryValidator {
       case parser.Constant(v) => convertValue(state, v, exprType)
 
       case parser.UMinus(a) =>
-        createUMinus(table, state, nameResolver, a, ExprType.Math)
+        createUMinus(state, nameResolver, a, ExprType.Math)
 
       case parser.Plus(l, r) =>
-        createBinary(table, state, nameResolver, l, r, BinaryOperation.PLUS, ExprType.Math)
+        createBinary(state, nameResolver, l, r, BinaryOperation.PLUS, ExprType.Math)
 
       case parser.Minus(l, r) =>
-        createBinary(table, state, nameResolver, l, r, BinaryOperation.MINUS, ExprType.Math)
+        createBinary(state, nameResolver, l, r, BinaryOperation.MINUS, ExprType.Math)
 
       case parser.Multiply(l, r) =>
-        createBinary(table, state, nameResolver, l, r, BinaryOperation.MULTIPLY, ExprType.Math)
+        createBinary(state, nameResolver, l, r, BinaryOperation.MULTIPLY, ExprType.Math)
 
       case parser.Divide(l, r) =>
-        createBinary(table, state, nameResolver, l, r, BinaryOperation.DIVIDE, ExprType.Math)
+        createBinary(state, nameResolver, l, r, BinaryOperation.DIVIDE, ExprType.Math)
 
       case parser.FunctionCall(f, Nil) =>
         function0Registry.get(f).map(_(state)).toRight(s"Unknown nullary function $f")
 
       case parser.FunctionCall(f, e :: Nil) =>
         for {
-          ex <- createExpr(table, state, nameResolver, e, exprType).right
+          ex <- createExpr(state, nameResolver, e, exprType).right
           fexpr <- createFunctionExpr(f, ex).right
         } yield fexpr
 
       case parser.FunctionCall(f, e1 :: e2 :: Nil) =>
         for {
-          a <- createExpr(table, state, nameResolver, e1, exprType).right
-          b <- createExpr(table, state, nameResolver, e2, exprType).right
+          a <- createExpr(state, nameResolver, e1, exprType).right
+          b <- createExpr(state, nameResolver, e2, exprType).right
           fexpr <- createFunction2Expr(f, a, b).right
         } yield fexpr
 
       case parser.FunctionCall(f, es) =>
         for {
-          vs <- CollectionUtils.collectErrors(es.map(e => createExpr(table, state, nameResolver, e, exprType))).right
+          vs <- CollectionUtils.collectErrors(es.map(e => createExpr(state, nameResolver, e, exprType))).right
           fexpr <- createArrayUnaryFunctionExpr(f, vs).right
         } yield fexpr
     }
   }
 
   private def createUMinus(
-      table: Table,
       state: SqlQueryProcessor.BuilderState,
       resolver: NameResolver,
       expr: parser.SqlExpr,
@@ -198,7 +197,7 @@ object SqlQueryProcessor extends QueryValidator {
       case parser.Constant(parser.NumericValue(n)) => Right(ConstantExpr(-n))
       case x =>
         for {
-          e <- createExpr(table, state, resolver, expr, exprType).right
+          e <- createExpr(state, resolver, expr, exprType).right
           u <- createUnaryFunctionExpr("-", e).right
         } yield u
     }
@@ -264,7 +263,6 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def createBinary(
-      table: Table,
       state: BuilderState,
       nameResolver: NameResolver,
       l: parser.SqlExpr,
@@ -273,8 +271,8 @@ object SqlQueryProcessor extends QueryValidator {
       exprType: ExprType
   ): Either[String, Expression] =
     for {
-      le <- createExpr(table, state, nameResolver, l, exprType).right
-      re <- createExpr(table, state, nameResolver, r, exprType).right
+      le <- createExpr(state, nameResolver, l, exprType).right
+      re <- createExpr(state, nameResolver, r, exprType).right
       biFunction <- createBiFunction(fun, le, re).right
     } yield biFunction
 
@@ -306,7 +304,6 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def createCondition(
-      table: Table,
       state: BuilderState,
       nameResolver: NameResolver,
       c: parser.Condition
@@ -314,10 +311,10 @@ object SqlQueryProcessor extends QueryValidator {
 
     def construct(cmpName: String, a: parser.SqlExpr, b: parser.SqlExpr): Either[String, Condition] = {
       for {
-        l <- createExpr(table, state, nameResolver, a, ExprType.Cmp).right
-        r <- createExpr(table, state, nameResolver, b, ExprType.Cmp).right
+        l <- createExpr(state, nameResolver, a, ExprType.Cmp).right
+        r <- createExpr(state, nameResolver, b, ExprType.Cmp).right
         op <- createBooleanExpr(l, r, cmpName).right
-      } yield SimpleCondition(op)
+      } yield op
     }
 
     c match {
@@ -330,44 +327,42 @@ object SqlQueryProcessor extends QueryValidator {
 
       case parser.IsNull(e) =>
         for {
-          ne <- createExpr(table, state, nameResolver, e, ExprType.Math).right
-        } yield SimpleCondition(UnaryOperationExpr(UnaryOperation.isNull, ne.aux))
+          ne <- createExpr(state, nameResolver, e, ExprType.Math).right
+        } yield UnaryOperationExpr(UnaryOperation.isNull, ne.aux)
 
       case parser.IsNotNull(e) =>
         for {
-          nne <- createExpr(table, state, nameResolver, e, ExprType.Math).right
-        } yield SimpleCondition(UnaryOperationExpr(UnaryOperation.isNotNull, nne.aux))
+          nne <- createExpr(state, nameResolver, e, ExprType.Math).right
+        } yield UnaryOperationExpr(UnaryOperation.isNotNull, nne.aux)
 
       case parser.In(e, vs) =>
         for {
-          ce <- createExpr(table, state, nameResolver, e, ExprType.Cmp).right
+          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
           cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield In(ce.aux, cvs.toSet).asInstanceOf[Condition]
+        } yield InExpr(ce.aux, cvs.toSet).aux
 
       case parser.NotIn(e, vs) =>
         for {
-          ce <- createExpr(table, state, nameResolver, e, ExprType.Cmp).right
+          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
           cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield NotIn(ce.aux, cvs.toSet)
+        } yield NotInExpr(ce.aux, cvs.toSet).aux
 
       case parser.And(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(table, state, nameResolver, c))).right.map(And)
+        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).right.map(AndExpr)
 
       case parser.Or(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(table, state, nameResolver, c))).right.map(Or)
+        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).right.map(OrExpr)
 
       case parser.ExprCondition(e) =>
-        createExpr(table, state, nameResolver, e, ExprType.Cmp).right.flatMap { ex =>
+        createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap { ex =>
           if (ex.dataType == DataType[Boolean]) {
-            Right(SimpleCondition(ex.asInstanceOf[Expression.Aux[Boolean]]))
+            Right(ex.asInstanceOf[Expression.Aux[Boolean]])
           } else {
             Left(s"$ex has type ${ex.dataType}, but BOOLEAN is required")
           }
         }
     }
   }
-
-  class TypedValue[T](v: T, dataType: DataType.Aux[T])
 
   private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
     convertValue(state, v, ExprType.Cmp) match {
@@ -422,7 +417,7 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Condition] = {
     condition match {
       case Some(c) =>
-        createCondition(table, state, fieldByRef(table, fields), c.simplify)
+        createCondition(state, fieldByRef(table, fields), c.simplify)
       case None => Left("WHERE condition should be non-empty")
     }
   }
@@ -435,7 +430,7 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Option[Condition]] = {
     condition match {
       case Some(c) =>
-        createCondition(table, state, fieldByRef(table, fields), c.simplify).right.map(Some(_))
+        createCondition(state, fieldByRef(table, fields), c.simplify).right.map(Some(_))
       case None => Right(None)
     }
   }
@@ -455,31 +450,10 @@ object SqlQueryProcessor extends QueryValidator {
     val filled = substituteGroupings(select)
 
     val groupBy = filled.map { sqlExpr =>
-      createExpr(table, state, fieldByName(table), sqlExpr, ExprType.Math)
+      createExpr(state, fieldByName(table), sqlExpr, ExprType.Math)
     }
 
     CollectionUtils.collectErrors(groupBy)
-  }
-
-  private def findCatalogField(table: Table, field: String): Option[(ExternalLink, String)] = {
-    val pos = field.indexOf('_')
-
-    if (pos > 0) {
-      val catName = field.substring(0, pos)
-      val catField = field.substring(pos + 1)
-      for {
-        c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
-        f <- c.fieldsNames
-          .find(_ equalsIgnoreCase catField)
-          .orElse(if (c.hasDynamicFields) Some(catField) else None)
-      } yield (c, f)
-    } else {
-      None
-    }
-  }
-
-  private def findDimension(table: Table, name: String): Option[Dimension] = {
-    table.dimensionSeq.find(_.name.toLowerCase == name)
   }
 
   private def fieldByName(table: Table)(name: String): Option[Expression] = {
@@ -487,7 +461,7 @@ object SqlQueryProcessor extends QueryValidator {
     if (lowerName == TIME_FIELD) {
       Some(TimeExpr)
     } else {
-      getMetricExpr(table, lowerName) orElse getTagExpr(table, lowerName) orElse getCatalogExpr(table, name)
+      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(table, name)
     }
   }
 
@@ -495,11 +469,26 @@ object SqlQueryProcessor extends QueryValidator {
     table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.asInstanceOf[Metric.Aux[f.T]]))
   }
 
-  private def getTagExpr(table: Table, fieldName: String): Option[DimensionExpr] = {
-    findDimension(table, fieldName).map(new DimensionExpr(_))
+  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr] = {
+    table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(new DimensionExpr(_))
   }
 
-  private def getCatalogExpr(table: Table, fieldName: String): Option[LinkExpr] = {
-    findCatalogField(table, fieldName).map { case (catalog, field) => new LinkExpr(catalog, field) }
+  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr] = {
+
+    val pos = fieldName.indexOf('_')
+
+    if (pos > 0) {
+      val catName = fieldName.substring(0, pos)
+      val catField = fieldName.substring(pos + 1)
+      for {
+        c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
+        f <- c.fieldsNames
+          .find(_ equalsIgnoreCase catField)
+          .orElse(if (c.hasDynamicFields) Some(catField) else None)
+      } yield new LinkExpr(c, f)
+    } else {
+      None
+    }
   }
+
 }

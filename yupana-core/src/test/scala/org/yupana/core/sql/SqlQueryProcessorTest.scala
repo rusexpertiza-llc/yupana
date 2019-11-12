@@ -325,12 +325,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
-        expr(
-          bi(
-            BinaryOperation.containsAny[String],
-            function(UnaryOperation.stem, dimension(TAG_A)),
-            function(UnaryOperation.stem, const("вода"))
-          )
+        bi(
+          BinaryOperation.containsAny[String],
+          function(UnaryOperation.stem, dimension(TAG_A)),
+          function(UnaryOperation.stem, const("вода"))
         )
       )
     }
@@ -353,30 +351,24 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.table.name shouldEqual "test_table"
 
       val colorExpr = condition(
-        expr(
-          bi(
-            BinaryOperation.containsAny[String],
-            function(UnaryOperation.stem, dimension(TAG_A)),
-            function(UnaryOperation.stem, const("крыжовник"))
-          )
+        bi(
+          BinaryOperation.containsAny[String],
+          function(UnaryOperation.stem, dimension(TAG_A)),
+          function(UnaryOperation.stem, const("крыжовник"))
         ),
         const("зеленые"),
         condition(
-          expr(
-            bi(
-              BinaryOperation.containsAny[String],
-              function(UnaryOperation.stem, dimension(TAG_A)),
-              function(UnaryOperation.stemArray, array(const("клубника"), const("малина")))
-            )
+          bi(
+            BinaryOperation.containsAny[String],
+            function(UnaryOperation.stem, dimension(TAG_A)),
+            function(UnaryOperation.stemArray, array(const("клубника"), const("малина")))
           ),
           const("красные"),
           condition(
-            expr(
-              bi(
-                BinaryOperation.containsAny[String],
-                function(UnaryOperation.stem, dimension(TAG_A)),
-                function(UnaryOperation.stemArray, array(const("черника"), const("ежевика"), const("ирга")))
-              )
+            bi(
+              BinaryOperation.containsAny[String],
+              function(UnaryOperation.stem, dimension(TAG_A)),
+              function(UnaryOperation.stemArray, array(const("черника"), const("ежевика"), const("ирга")))
             ),
             const("черные"),
             const("прочие")
@@ -795,14 +787,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       """.stripMargin) { q =>
       q.table.name shouldEqual "test_table"
       inside(q.filter) {
-        case And(Seq(from, to)) =>
+        case AndExpr(Seq(from, to)) =>
           inside(from) {
-            case SimpleCondition(
-                BinaryOperationExpr(
-                  cmp,
-                  te,
-                  UnaryOperationExpr(uo, BinaryOperationExpr(op, ConstantExpr(t), ConstantExpr(p)))
-                )
+            case BinaryOperationExpr(
+                cmp,
+                te,
+                UnaryOperationExpr(uo, BinaryOperationExpr(op, ConstantExpr(t), ConstantExpr(p)))
                 ) =>
               cmp.name shouldEqual BinaryOperation.ge[Time].name
               te shouldEqual TimeExpr
@@ -812,7 +802,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
               p shouldEqual Period.months(3)
           }
           inside(to) {
-            case SimpleCondition(BinaryOperationExpr(cmp, te, UnaryOperationExpr(uo, ConstantExpr(t)))) =>
+            case BinaryOperationExpr(cmp, te, UnaryOperationExpr(uo, ConstantExpr(t))) =>
               cmp.name shouldEqual BinaryOperation.lt[Time].name
               te shouldEqual TimeExpr
               uo shouldEqual UnaryOperation.truncDay

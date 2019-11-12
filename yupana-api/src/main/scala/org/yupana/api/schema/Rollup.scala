@@ -17,6 +17,7 @@
 package org.yupana.api.schema
 
 import org.joda.time.DateTimeFieldType
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.UnaryOperation
 

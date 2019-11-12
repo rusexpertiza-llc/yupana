@@ -65,6 +65,12 @@ class DictionaryTest
     dictionary.values(Set(1, 2, 3)) shouldEqual Map(1 -> "value 1", 3 -> "value 3")
   }
 
+  it should "return empty map for empty ids set in values method" in {
+    val dictionaryDaoMock = mock[DictionaryDao]
+    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
+    dictionary.values(Set.empty) shouldBe Map.empty
+  }
+
   it should "use caches in values method" in {
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
@@ -95,6 +101,13 @@ class DictionaryTest
     dictionary.findIdByValue("value") shouldEqual Some(1)
   }
 
+  it should "treat null values as empty strings in find methods" in {
+    val dictionaryDaoMock = mock[DictionaryDao]
+    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
+    (dictionaryDaoMock.getIdByValue _).expects(testDim, "").returning(None).once()
+    dictionary.findIdByValue(null) shouldEqual None
+  }
+
   it should "use DAO in findIdsByValues method" in {
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
@@ -122,8 +135,14 @@ class DictionaryTest
       .once()
 
     dictionary.findIdsByValues(Set("value 1", "value 2", "value 3")) shouldEqual Map("value 1" -> 1, "value 3" -> 3)
-
     dictionary.findIdsByValues(Set("value 2", "value 3", "value 4")) shouldEqual Map("value 4" -> 4, "value 3" -> 3)
+    dictionary.findIdsByValues(Set("value 3", "value 4")) shouldEqual Map("value 4" -> 4, "value 3" -> 3)
+  }
+
+  it should "return empty map for empty set of values" in {
+    val dictionaryDaoMock = mock[DictionaryDao]
+    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
+    dictionary.findIdsByValues(Set.empty) shouldEqual Map.empty
   }
 
   it should "read existing values in id method" in {
@@ -135,7 +154,7 @@ class DictionaryTest
     dictionary.id("value") shouldEqual 1
   }
 
-  it should "read create new ids for unknown values in id method" in {
+  it should "create new ids for unknown values in id method" in {
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
@@ -170,6 +189,17 @@ class DictionaryTest
     (dictionaryDaoMock.createSeqId _).expects(testDim).returning(33)
     (dictionaryDaoMock.checkAndPut _).expects(testDim, 33, "value 2").returning(true)
     dictionary.getOrCreateIdsForValues(Set("value 1", "value 2")) shouldEqual Map("value 1" -> 1, "value 2" -> 33)
+  }
+
+  it should "throw exception if something went wrong while trying to create new id for unknown value in id method" in {
+    val dictionaryDaoMock = mock[DictionaryDao]
+    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
+
+    (dictionaryDaoMock.getIdByValue _).expects(testDim, "value").returning(None).twice()
+    (dictionaryDaoMock.createSeqId _).expects(testDim).returning(42)
+    (dictionaryDaoMock.checkAndPut _).expects(testDim, 42, "value").returning(false)
+    val thrown = the[IllegalStateException] thrownBy dictionary.id("value")
+    thrown.getMessage should equal(s"Can't put value value to dictionary ${testDim.name}")
   }
 
 }

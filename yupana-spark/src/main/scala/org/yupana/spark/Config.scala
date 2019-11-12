@@ -33,6 +33,8 @@ class Config(@transient val sparkConf: SparkConf) extends Serializable {
 
   val rowKeyBatchSize: Int = sparkConf.getInt("analytics.tsdb.row-key-batch-size", 50000)
 
+  val collectMetrics: Boolean = sparkConf.getBoolean("analytics.tsdb.collect-metrics", defaultValue = true)
+
   val metricsUpdateInterval: Int = sparkConf.getInt("analytics.tsdb.metrics-update-interval", 30000)
 
   val properties: Properties = propsWithPrefix("")

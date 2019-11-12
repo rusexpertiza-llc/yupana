@@ -35,7 +35,13 @@ import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext }
+import org.yupana.core.utils.OnFinishIterator
+import org.yupana.core.utils.metric.{
+  MetricQueryCollector,
+  NoMetricCollector,
+  PersistentMetricQueryCollector,
+  QueryCollectorContext
+}
 import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
@@ -73,7 +79,9 @@ abstract class TsdbSparkBase(
     schema
   )
 
-  override val mr: MapReducible[RDD] = new RddMapReducible(sparkContext)
+  override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[RDD] = {
+    new RddMapReducible(sparkContext, metricCollector)
+  }
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
@@ -90,13 +98,17 @@ abstract class TsdbSparkBase(
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
-    val queryCollectorContext: QueryCollectorContext = new QueryCollectorContext(
-      metricsDao = getMetricsDao,
-      operationName = "spark query",
-      metricsUpdateInterval = conf.metricsUpdateInterval,
-      sparkQuery = true
-    )
-    new PersistentMetricQueryCollector(queryCollectorContext, query)
+    if (conf.collectMetrics) {
+      val queryCollectorContext: QueryCollectorContext = new QueryCollectorContext(
+        metricsDao = getMetricsDao,
+        operationName = "spark query",
+        metricsUpdateInterval = conf.metricsUpdateInterval,
+        sparkQuery = true
+      )
+      new PersistentMetricQueryCollector(queryCollectorContext, query)
+    } else {
+      NoMetricCollector
+    }
   }
 
   override def finalizeQuery(
@@ -104,7 +116,11 @@ abstract class TsdbSparkBase(
       data: RDD[Array[Option[Any]]],
       metricCollector: MetricQueryCollector
   ): DataRowRDD = {
-    new DataRowRDD(data, queryContext)
+    metricCollector.setRunningPartitions(data.getNumPartitions)
+    val rdd = data.mapPartitions { it =>
+      new OnFinishIterator(it, metricCollector.finishPartition)
+    }
+    new DataRowRDD(rdd, queryContext)
   }
 
   /**

@@ -1,6 +1,7 @@
 package org.yupana.core
 
 import org.scalamock.scalatest.MockFactory
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMetricsDao }
@@ -26,12 +27,12 @@ trait TsdbMocks extends MockFactory {
       .onCall(
         (condition: Condition) =>
           condition match {
-            case SimpleCondition(BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_)))
+            case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
                 if Set("==", "!=").contains(op.name) && c.linkName == catalog.linkName =>
               true
-            case In(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
-            case NotIn(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
-            case _                                                          => false
+            case InExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
+            case NotInExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
+            case _                                                              => false
           }
       )
 
@@ -46,19 +47,17 @@ trait TsdbMocks extends MockFactory {
       .onCall(
         (c: Condition) =>
           c match {
-            case SimpleCondition(BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_))) => true
-            case SimpleCondition(BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type)) => true
-            case _: DimIdIn                                                                 => true
-            case _: DimIdNotIn                                                              => true
-            case SimpleCondition(BinaryOperationExpr(op, _: DimensionExpr, ConstantExpr(_)))
-                if Set("==", "!=").contains(op.name) =>
+            case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
+            case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
+            case _: DimIdInExpr                                            => true
+            case _: DimIdNotInExpr                                         => true
+            case BinaryOperationExpr(op, _: DimensionExpr, ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
               true
-            case SimpleCondition(BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr))
-                if Set("==", "!=").contains(op.name) =>
+            case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr) if Set("==", "!=").contains(op.name) =>
               true
-            case In(_: DimensionExpr, _)    => true
-            case NotIn(_: DimensionExpr, _) => true
-            case _                          => false
+            case InExpr(_: DimensionExpr, _)    => true
+            case NotInExpr(_: DimensionExpr, _) => true
+            case _                              => false
           }
       )
       .anyNumberOfTimes()

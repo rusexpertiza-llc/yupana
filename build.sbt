@@ -277,7 +277,7 @@ val publishSettings = Seq(
     if (isSnapshot.value)
       Some("nexus common snapshots" at "https://nexus.esc-hq.ru/nexus/content/repositories/common-snapshots/")
     else
-      Some("Sonatype OSS releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2")
+      sonatypePublishToBundle.value
   },
   Test / publishArtifact := false,
   pomIncludeRepository := { _ =>
@@ -304,8 +304,6 @@ val pbSettings = Seq(
 )
 
 val releaseSettings = Seq(
-  releaseCrossBuild := true,
-  releasePublishArtifactsAction := PgpKeys.publishSigned.value,
   releaseProcess := Seq[ReleaseStep](
     checkSnapshotDependencies,
     inquireVersions,
@@ -314,7 +312,7 @@ val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-    publishArtifacts,
+    releaseStepCommandAndRemaining("+publishSigned"),
     releaseStepCommand("sonatypeBundleRelease"),
 //    setNextVersion,
 //    commitNextVersion,
