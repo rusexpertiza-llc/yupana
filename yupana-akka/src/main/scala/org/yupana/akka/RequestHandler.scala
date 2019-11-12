@@ -103,7 +103,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       case (name, rt) =>
         proto.ResultField(name, rt.meta.sqlTypeName)
     }
-    val header = proto.Response(proto.Response.Resp.ResultHeader(proto.ResultHeader(resultFields)))
+    val header = proto.Response(proto.Response.Resp.ResultHeader(proto.ResultHeader(resultFields, Some(result.name))))
     logger.debug("Response header: " + header)
     val footer = proto.Response(proto.Response.Resp.ResultStatistics(proto.ResultStatistics(-1, -1)))
     Iterator(header) ++ results ++ Iterator(footer)

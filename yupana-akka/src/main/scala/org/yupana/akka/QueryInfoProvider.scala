@@ -72,16 +72,16 @@ object QueryInfoProvider {
     ) ++
       (0 until qualifiers.size * 3).map(_ => DataType[Double])
 
-    SimpleResult(queryFieldNames, queryFieldTypes, data)
+    SimpleResult("QUERIES", queryFieldNames, queryFieldTypes, data)
   }
 
   def handleKillQuery(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
     tsdb.metricsDao.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
-    SimpleResult(List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
+    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
   }
 
   def handleDeleteQueryMetrics(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
     val deleted = tsdb.metricsDao.deleteMetrics(getFilter(sqlFilter))
-    SimpleResult(List("DELETED"), List(DataType[Int]), Iterator(Array(Some(deleted))))
+    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(Some(deleted))))
   }
 }
