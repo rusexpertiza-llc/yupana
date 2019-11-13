@@ -48,7 +48,7 @@ trait UnaryOperation[T] extends Serializable {
 object UnaryOperation {
 
   val LENGTH = "length"
-  val STEM = "stem"
+  val TOKENS = "tokens"
   val SPLIT = "split"
 
   val IS_NULL = "is_null"
@@ -110,13 +110,14 @@ object UnaryOperation {
   val truncWeek: UnaryOperation.Aux[Time, Time] = create(_.truncWeek, TRUNC_WEEK, DataType[Time])
 
   val length: UnaryOperation.Aux[String, Int] = create(_.stringLength, LENGTH, DataType[Int])
-  val stem: UnaryOperation.Aux[String, Array[String]] = create(_.stemString, STEM, DataType[Array[String]])
+  val tokens: UnaryOperation.Aux[String, Array[String]] = create(_.tokens, TOKENS, DataType[Array[String]])
   val splitString: UnaryOperation.Aux[String, Array[String]] = create(_.splitString, SPLIT, DataType[Array[String]])
 
   def arrayToString[T]: UnaryOperation.Aux[Array[T], String] =
     create(_.arrayToString[T], ARRAY_TO_STRING, DataType[String])
   def arrayLength[T]: UnaryOperation.Aux[Array[T], Int] = create(_.arrayLength[T], LENGTH, DataType[Int])
-  val stemArray: UnaryOperation.Aux[Array[String], Array[String]] = create(_.stemArray, STEM, DataType[Array[String]])
+  val tokenizeArray: UnaryOperation.Aux[Array[String], Array[String]] =
+    create(_.tokenizeArray, TOKENS, DataType[Array[String]])
 
   def create[T, U](
       fun: UnaryOperations => Option[T] => Option[U],
@@ -131,7 +132,7 @@ object UnaryOperation {
 
   val stringOperations: Map[String, UnaryOperation[String]] = Map(
     LENGTH -> length,
-    STEM -> stem,
+    TOKENS -> tokens,
     SPLIT -> splitString
   )
 
@@ -172,7 +173,7 @@ object UnaryOperation {
   )
 
   val stringArrayOperations: Map[String, UnaryOperation[Array[String]]] = Map(
-    STEM -> stemArray
+    TOKENS -> tokenizeArray
   )
 
   def tupleOperations[A, B](
@@ -225,12 +226,12 @@ trait UnaryOperations {
   def truncSecond(t: Option[Time]): Option[Time]
 
   def stringLength(s: Option[String]): Option[Int]
-  def stemString(s: Option[String]): Option[Array[String]]
+  def tokens(s: Option[String]): Option[Array[String]]
   def splitString(s: Option[String]): Option[Array[String]]
 
   def arrayToString[T](a: Option[Array[T]]): Option[String]
   def arrayLength[T](a: Option[Array[T]]): Option[Int]
-  def stemArray(a: Option[Array[String]]): Option[Array[String]]
+  def tokenizeArray(a: Option[Array[String]]): Option[Array[String]]
 }
 
 trait Operations {

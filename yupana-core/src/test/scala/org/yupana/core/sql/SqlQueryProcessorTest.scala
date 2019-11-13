@@ -312,23 +312,23 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support functions as conditions" in {
     testQuery(
       """
-        |SELECT tag_a, array_to_string(stem(tag_a))
+        |SELECT tag_a, array_to_string(tokens(tag_a))
         |  FROM test_table
-        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(stem(tag_a), stem('вода'))
+        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(tag_a), tokens('вода'))
       """.stripMargin
     ) { q =>
       q.table.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(TAG_A) as "tag_a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.stem, dimension(TAG_A))) as "array_to_string(stem(tag_a))"
+        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(TAG_A))) as "array_to_string(tokens(tag_a))"
       )
       q.filter shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
         bi(
           BinaryOperation.containsAny[String],
-          function(UnaryOperation.stem, dimension(TAG_A)),
-          function(UnaryOperation.stem, const("вода"))
+          function(UnaryOperation.tokens, dimension(TAG_A)),
+          function(UnaryOperation.tokens, const("вода"))
         )
       )
     }
@@ -339,9 +339,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |SELECT
         |  tag_b,
         |  case
-        |    when contains_any(stem(tag_a), stem('крыжовник')) then 'зеленые'
-        |    when contains_any(stem(tag_a), stem('клубника', 'малина')) then 'красные'
-        |    when contains_any(stem(tag_a), stem('черника', 'ежевика', 'ирга')) then 'черные'
+        |    when contains_any(tokens(tag_a), tokens('крыжовник')) then 'зеленые'
+        |    when contains_any(tokens(tag_a), tokens('клубника', 'малина')) then 'красные'
+        |    when contains_any(tokens(tag_a), tokens('черника', 'ежевика', 'ирга')) then 'черные'
         |    else 'прочие' as color,
         |  sum(testField)
         |FROM test_table
@@ -353,22 +353,22 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       val colorExpr = condition(
         bi(
           BinaryOperation.containsAny[String],
-          function(UnaryOperation.stem, dimension(TAG_A)),
-          function(UnaryOperation.stem, const("крыжовник"))
+          function(UnaryOperation.tokens, dimension(TAG_A)),
+          function(UnaryOperation.tokens, const("крыжовник"))
         ),
         const("зеленые"),
         condition(
           bi(
             BinaryOperation.containsAny[String],
-            function(UnaryOperation.stem, dimension(TAG_A)),
-            function(UnaryOperation.stemArray, array(const("клубника"), const("малина")))
+            function(UnaryOperation.tokens, dimension(TAG_A)),
+            function(UnaryOperation.tokenizeArray, array(const("клубника"), const("малина")))
           ),
           const("красные"),
           condition(
             bi(
               BinaryOperation.containsAny[String],
-              function(UnaryOperation.stem, dimension(TAG_A)),
-              function(UnaryOperation.stemArray, array(const("черника"), const("ежевика"), const("ирга")))
+              function(UnaryOperation.tokens, dimension(TAG_A)),
+              function(UnaryOperation.tokenizeArray, array(const("черника"), const("ежевика"), const("ирга")))
             ),
             const("черные"),
             const("прочие")
@@ -531,18 +531,18 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "support named binary functions" in {
     testQuery("""
-        |SELECT tag_a, array_to_string(stem(tag_a)), contains_any(stem(tag_a), stem('вода')) as is_water
+        |SELECT tag_a, array_to_string(tokens(tag_a)), contains_any(tokens(tag_a), tokens('вода')) as is_water
         |  FROM test_table
         |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15'
       """.stripMargin) { q =>
       q.table.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(TAG_A) as "tag_a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.stem, dimension(TAG_A))) as "array_to_string(stem(tag_a))",
+        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(TAG_A))) as "array_to_string(tokens(tag_a))",
         bi(
           BinaryOperation.containsAny[String],
-          function(UnaryOperation.stem, dimension(TAG_A)),
-          function(UnaryOperation.stem, const("вода"))
+          function(UnaryOperation.tokens, dimension(TAG_A)),
+          function(UnaryOperation.tokens, const("вода"))
         ) as "is_water"
       )
       q.filter shouldBe and(

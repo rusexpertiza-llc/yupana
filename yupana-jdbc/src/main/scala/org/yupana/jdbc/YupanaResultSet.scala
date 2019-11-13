@@ -28,8 +28,7 @@ import org.yupana.api.{ Time => ApiTime }
 
 class YupanaResultSet protected[jdbc] (
     var statement: Statement,
-    result: Result,
-    tableName: String
+    result: Result
 ) extends ResultSet
     with ResultSetMetaData {
 
@@ -781,13 +780,13 @@ class YupanaResultSet protected[jdbc] (
 
   override def isCaseSensitive(column: Int): Boolean = false
 
-  override def getTableName(column: Int): String = tableName
+  override def getTableName(column: Int): String = result.name
 
   override def isDefinitelyWritable(column: Int): Boolean = false
 
   override def getColumnDisplaySize(column: Int): Int = dataTypes(column - 1).meta.displaySize
 
-  override def getSchemaName(column: Int): String = tableName
+  override def getSchemaName(column: Int): String = result.name
 
   override def getColumnName(column: Int): String = columns(column - 1)
 

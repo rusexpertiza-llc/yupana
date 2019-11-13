@@ -22,6 +22,8 @@ import scala.collection.immutable
 
 trait Result extends immutable.Iterable[DataRow] {
 
+  def name: String
+
   def fieldNames: Seq[String]
   def dataTypes: Seq[DataType]
   def dataIndexForFieldName(name: String): Int
@@ -36,6 +38,7 @@ trait Result extends immutable.Iterable[DataRow] {
 
 object Result {
   val empty: Result = new Result {
+    override val name = "EMPTY"
 
     override val dataTypes: Seq[DataType] = Seq.empty
 
@@ -49,8 +52,12 @@ object Result {
   }
 }
 
-case class SimpleResult(fieldNames: Seq[String], dataTypes: Seq[DataType], rows: Iterator[Array[Option[Any]]])
-    extends Result {
+case class SimpleResult(
+    override val name: String,
+    fieldNames: Seq[String],
+    dataTypes: Seq[DataType],
+    rows: Iterator[Array[Option[Any]]]
+) extends Result {
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap
 

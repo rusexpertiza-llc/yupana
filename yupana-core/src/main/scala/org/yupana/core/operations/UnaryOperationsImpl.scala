@@ -19,7 +19,7 @@ package org.yupana.core.operations
 import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.types.UnaryOperations
-import org.yupana.utils.{ ItemsStemmer, Transliterator }
+import org.yupana.utils.Tokenizer
 
 import scala.collection.AbstractIterator
 
@@ -50,19 +50,19 @@ trait UnaryOperationsImpl extends UnaryOperations {
 
   override def stringLength(s: Option[String]): Option[Int] = s.map(_.length)
 
-  override def stemString(s: Option[String]): Option[Array[String]] = s.map(stem)
+  override def tokens(s: Option[String]): Option[Array[String]] = s.map(tokenize)
   override def splitString(s: Option[String]): Option[Array[String]] =
     s.map(v => splitBy(v, !_.isLetterOrDigit).toArray)
 
   override def arrayToString[T](a: Option[Array[T]]): Option[String] = a.map(_.mkString("(", ", ", ")"))
   override def arrayLength[T](a: Option[Array[T]]): Option[Int] = a.map(_.length)
-  override def stemArray(a: Option[Array[String]]): Option[Array[String]] = a.map(_.flatMap(stem))
+  override def tokenizeArray(a: Option[Array[String]]): Option[Array[String]] = a.map(_.flatMap(tokenize))
 
   private def truncateTime(time: Option[Time], interval: DateTimeFieldType): Option[Time] = {
     time.map(t => Time(t.toDateTime.property(interval).roundFloorCopy().getMillis))
   }
 
-  private def stem(s: String): Array[String] = ItemsStemmer.words(s).map(Transliterator.transliterate).toArray
+  private def tokenize(s: String): Array[String] = Tokenizer.transliteratedTokens(s).toArray
 
   private def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
     private val len = s.length
