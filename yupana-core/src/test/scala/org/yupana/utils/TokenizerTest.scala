@@ -174,4 +174,14 @@ class TokenizerTest extends FlatSpec with Matchers {
     Tokenizer.tokens("44.80") should contain theSameElementsAs List("44.80")
     Tokenizer.tokens("76,51") should contain theSameElementsAs List("76,51")
   }
+
+  it should "remove empty tokens after transliteration" in {
+    Tokenizer.transliteratedTokens("а и ь сидели на ъ-трубе") should contain theSameElementsAs List(
+      "a",
+      "i",
+      "sidel",
+      "na",
+      "trub"
+    )
+  }
 }
