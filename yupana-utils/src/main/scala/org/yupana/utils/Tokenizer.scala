@@ -47,7 +47,7 @@ object Tokenizer extends Serializable {
   }
 
   def transliteratedTokens(item: String): Seq[String] = {
-    tokens(item).map(Transliterator.transliterate)
+    tokens(item).map(Transliterator.transliterate).filterNot(_.isEmpty)
   }
 
   def tokens(item: String): Seq[String] = {
