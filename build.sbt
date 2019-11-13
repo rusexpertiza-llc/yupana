@@ -118,10 +118,11 @@ lazy val akka = (project in file("yupana-akka"))
       "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
       "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
       "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
+      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test,
       "com.typesafe.akka"             %% "akka-stream-testkit"        % versions.akka                     % Test
     )
   )
-  .dependsOn(proto, core)
+  .dependsOn(proto, core, schema % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val spark = (project in file("yupana-spark"))
@@ -219,7 +220,7 @@ lazy val versions = new {
   val hbase = "1.3.1"
   val hadoop = "2.8.3"
   val spark = "2.4.3"
-  val akka = "2.5.25"
+  val akka = "2.5.26"
 
   val lucene = "6.6.0"
   val ignite = "2.7.0"

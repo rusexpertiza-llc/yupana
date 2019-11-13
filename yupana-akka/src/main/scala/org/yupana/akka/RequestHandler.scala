@@ -74,16 +74,25 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       majorVersion: Int,
       minorVersion: Int,
       version: String
-  ): Future[Either[String, Iterator[proto.Response]]] = {
+  ): Either[String, Iterator[proto.Response]] = {
     logger.debug(s"Processing Ping request: $ping")
 
-    val pong = proto.Pong(
-      ping.reqTime,
-      System.currentTimeMillis(),
-      Some(proto.Version(ProtocolVersion.value, majorVersion, minorVersion, version))
-    )
+    if (ping.getVersion.protocol != ProtocolVersion.value) {
+      logger.error(
+        s"Incompatible protocols: driver protocol ${ping.getVersion.protocol}, server protocol ${ProtocolVersion.value}"
+      )
+      Left(
+        s"Incompatible protocols: driver protocol ${ping.getVersion.protocol}, server protocol ${ProtocolVersion.value}"
+      )
+    } else {
+      val pong = proto.Pong(
+        ping.reqTime,
+        System.currentTimeMillis(),
+        Some(proto.Version(ProtocolVersion.value, majorVersion, minorVersion, version))
+      )
 
-    Future.successful(Right(Iterator(proto.Response(proto.Response.Resp.Pong(pong)))))
+      Right(Iterator(proto.Response(proto.Response.Resp.Pong(pong))))
+    }
   }
 
   private def resultToProto(result: Result): Iterator[proto.Response] = {
