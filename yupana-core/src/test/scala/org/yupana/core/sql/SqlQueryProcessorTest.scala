@@ -6,17 +6,17 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Dimension
 import org.yupana.api.types._
+import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
 
 class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
-  private val sqlParser = new parser.SqlParser
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
-    sqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql).right flatMap {
       case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
       case x                => fail(s"Select expected but got $x")
     }

@@ -5,59 +5,59 @@ import org.scalactic.source
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{ FlatSpec, Inside, Matchers }
 
+import fastparse._
+
 class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues with TableDrivenPropertyChecks {
 
-  val parser = new SqlParser
-
   "Value parser" should "parse strings" in {
-    parser.value.parse("''").value shouldEqual StringValue("")
-    parser.value.parse("'test me'").value shouldEqual StringValue("test me")
-    parser.value.parse("' with spaces '").value shouldEqual StringValue(" with spaces ")
+    parse("''", ValueParser.value(_)).value shouldEqual StringValue("")
+    parse("'test me'", ValueParser.value(_)).value shouldEqual StringValue("test me")
+    parse("' with spaces '", ValueParser.value(_)).value shouldEqual StringValue(" with spaces ")
   }
 
   it should "support escaped text" in {
-    parser.value.parse("'slash \\\\'").value shouldEqual StringValue("slash \\")
-    parser.value.parse("'\\'escaped\\' quotes'").value shouldEqual StringValue("'escaped' quotes")
+    parse("'slash \\\\'", ValueParser.value(_)).value shouldEqual StringValue("slash \\")
+    parse("'\\'escaped\\' quotes'", ValueParser.value(_)).value shouldEqual StringValue("'escaped' quotes")
   }
 
   it should "parse integer numbers" in {
-    parser.value.parse("1234567").value shouldEqual NumericValue(1234567)
+    parse("1234567", ValueParser.value(_)).value shouldEqual NumericValue(1234567)
   }
 
   it should "parse decimal values" in {
-    parser.value.parse("1234567.89").value shouldEqual NumericValue(1234567.89)
+    parse("1234567.89", ValueParser.value(_)).value shouldEqual NumericValue(1234567.89)
   }
 
   it should "parse timestamps" in {
-    parser.value.parse("TIMESTAMP '2017-08-23 12:44:02.000'").value shouldEqual TimestampValue(
+    parse("TIMESTAMP '2017-08-23 12:44:02.000'", ValueParser.value(_)).value shouldEqual TimestampValue(
       new LocalDateTime(2017, 8, 23, 12, 44, 2, 0)
     )
 
-    parser.value.parse("TIMESTAMP '2017-08-23'").value shouldEqual TimestampValue(
+    parse("TIMESTAMP '2017-08-23'", ValueParser.value(_)).value shouldEqual TimestampValue(
       new LocalDateTime(2017, 8, 23, 0, 0)
     )
 
-    parser.value.parse("TIMESTAMP '2018-08-4 22:25:51.03'").value shouldEqual TimestampValue(
+    parse("TIMESTAMP '2018-08-4 22:25:51.03'", ValueParser.value(_)).value shouldEqual TimestampValue(
       new LocalDateTime(2018, 8, 4, 22, 25, 51, 30)
     )
   }
 
   it should "support alternative timestamp syntax" in {
-    parser.value.parse("{TS '2017-10-31 00:00:00' }").value shouldEqual TimestampValue(
+    parse("{TS '2017-10-31 00:00:00' }", ValueParser.value(_)).value shouldEqual TimestampValue(
       new LocalDateTime(2017, 10, 31, 0, 0, 0)
     )
   }
 
   it should "support simple format intervals" in {
-    parser.value.parse("INTERVAL '3:15:20'").value shouldEqual PeriodValue(
+    parse("INTERVAL '3:15:20'", ValueParser.value(_)).value shouldEqual PeriodValue(
       new Period(3, 15, 20, 0)
     )
 
-    parser.value.parse("INTERVAL '0:6:50.123'").value shouldEqual PeriodValue(
+    parse("INTERVAL '0:6:50.123'", ValueParser.value(_)).value shouldEqual PeriodValue(
       new Period(0, 6, 50, 123)
     )
 
-    parser.value.parse("INTERVAL '10 12:00:00'").value shouldEqual PeriodValue(
+    parse("INTERVAL '10 12:00:00'", ValueParser.value(_)).value shouldEqual PeriodValue(
       new Period(0, 0, 0, 10, 12, 0, 0, 0)
     )
   }
@@ -75,7 +75,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
 
     forAll(cases) { (sql, period) =>
-      parser.value.parse(sql).value shouldEqual PeriodValue(period)
+      parse(sql, ValueParser.value(_)).value shouldEqual PeriodValue(period)
     }
   }
 
@@ -93,7 +93,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
 
     forAll(cases) { (sql, period) =>
-      parser.value.parse(sql).value shouldEqual PeriodValue(period)
+      parse(sql, ValueParser.value(_)).value shouldEqual PeriodValue(period)
     }
   }
 
@@ -883,47 +883,47 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "parse SHOW TABLES statements" in {
-    parser.parse("SHOW TABLES") shouldBe Right(ShowTables)
+    SqlParser.parse("SHOW TABLES") shouldBe Right(ShowTables)
   }
 
   it should "parse SHOW COLUMNS statements" in {
-    parser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
+    SqlParser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
 
   it should "parse SHOW QUERIES statements" in {
-    parser.parse("SHOW QUERIES") shouldBe Right(ShowQueryMetrics(None, None))
+    SqlParser.parse("SHOW QUERIES") shouldBe Right(ShowQueryMetrics(None, None))
   }
 
   it should "parse SHOW QUERIES statements with limit" in {
-    parser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueryMetrics(None, Some(1)))
+    SqlParser.parse("SHOW QUERIES LIMIT 1") shouldBe Right(ShowQueryMetrics(None, Some(1)))
   }
 
   it should "parse SHOW QUERIES statements with query_id" in {
-    parser.parse("SHOW QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
+    SqlParser.parse("SHOW QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
       ShowQueryMetrics(Some(MetricsFilter(queryId = Some("1"))), None)
     )
   }
 
   it should "parse SHOW QUERIES statements with state" in {
-    parser.parse("SHOW QUERIES WHERE STATE = 'RUNNING'") shouldBe Right(
+    SqlParser.parse("SHOW QUERIES WHERE STATE = 'RUNNING'") shouldBe Right(
       ShowQueryMetrics(Some(MetricsFilter(state = Some("RUNNING"))), None)
     )
   }
 
   it should "parse KILL QUERY statements with query_id" in {
-    parser.parse("KILL QUERY WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+    SqlParser.parse("KILL QUERY WHERE QUERY_ID = 'qwe123'") shouldBe Right(
       KillQuery(MetricsFilter(queryId = Some("qwe123")))
     )
   }
 
   it should "parse DELETE QUERIES statements with query_id" in {
-    parser.parse("DELETE QUERIES WHERE QUERY_ID = 'qwe123'") shouldBe Right(
+    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = 'qwe123'") shouldBe Right(
       DeleteQueryMetrics(MetricsFilter(queryId = Some("qwe123")))
     )
   }
 
   it should "parse DELETE QUERIES statements with state" in {
-    parser.parse("DELETE QUERIES WHERE STATE = 'FINISHED'") shouldBe Right(
+    SqlParser.parse("DELETE QUERIES WHERE STATE = 'FINISHED'") shouldBe Right(
       DeleteQueryMetrics(MetricsFilter(state = Some("FINISHED")))
     )
   }
@@ -1029,40 +1029,40 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error message when FROM statement is missing" in {
     errorMessage("""SELECT field, sum(sum) sum WHERE time > TIMESTAMP '2017-01-03'""") {
       case msg =>
-        msg should include("""Expect "FROM", but got "WHERE time"""")
+        msg should include("""Expect ("," | "FROM"), but got "WHERE time"""")
     }
   }
 
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect SELECT | SHOW | KILL | DELETE, but got "INSERT""")
+        msg should include("""Expect ("SELECT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
     }
   }
 
   it should "produce error on unknown show" in {
     errorMessage("SHOW functions") {
       case msg =>
-        msg should include("""Expect COLUMNS | TABLES | QUERIES, but got "functions""")
+        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES"), but got "functions""")
     }
   }
 
   it should "it should properly identify error position" in {
     errorMessage("""SELECT x + y z - 1 from y""") {
       case msg =>
-        msg should include("""Expect "FROM", but got "- 1""")
+        msg should include("""Expect ("," | "FROM"), but got "- 1""")
     }
   }
 
   def parsed[U](statement: String)(pf: PartialFunction[Statement, U])(implicit pos: source.Position): U = {
-    inside(parser.parse(statement)) {
+    inside(SqlParser.parse(statement)) {
       case Right(x)  => pf(x)
       case Left(msg) => fail(msg)
     }
   }
 
   def errorMessage[U](statement: String)(pf: PartialFunction[String, U]): U = {
-    inside(parser.parse(statement)) {
+    inside(SqlParser.parse(statement)) {
       case Left(msg) => pf(msg)
       case Right(s)  => fail(s"Error message expected, byt got statement: $s")
     }

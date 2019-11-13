@@ -30,7 +30,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class RequestHandler(schema: Schema) extends StrictLogging {
 
-  val parser = new SqlParser
   val sqlQueryProcessor = new SqlQueryProcessor(schema)
   val metadataProvider = new JdbcMetadataProvider(schema)
 
@@ -43,7 +42,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
     Future {
 
-      parser.parse(sqlQuery.sql).right flatMap {
+      SqlParser.parse(sqlQuery.sql).right flatMap {
 
         case select: Select =>
           val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap

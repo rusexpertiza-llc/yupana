@@ -60,7 +60,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   .enablePlugins(AssemblyPlugin)
   .dependsOn(api, proto)
 
-lazy val utils = (project in file ("yupana-utils"))
+lazy val utils = (project in file("yupana-utils"))
   .settings(
     name := "yupana-utils",
     allSettings,
@@ -70,13 +70,13 @@ lazy val utils = (project in file ("yupana-utils"))
     )
   )
 
-lazy val core = (project in file ("yupana-core"))
+lazy val core = (project in file("yupana-core"))
   .settings(
     name := "yupana-core",
     allSettings,
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
-      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse,
+      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse.value,
       "org.apache.ignite"           %  "ignite-core"                  % versions.ignite,
       "org.apache.ignite"           %  "ignite-slf4j"                 % versions.ignite,
       "org.ehcache"                 %  "ehcache"                      % versions.ehcache,
@@ -189,12 +189,12 @@ lazy val examples = (project in file("yupana-examples"))
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
     ),
     assembly / assemblyMergeStrategy := {
-      case PathList("org", "apache", "jasper", _*) => MergeStrategy.last
+      case PathList("org", "apache", "jasper", _*)  => MergeStrategy.last
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
-      case PathList("javax", "servlet", _*) => MergeStrategy.last
-      case PathList("javax", "el", _*) => MergeStrategy.last
-      case PathList("org", "slf4j", "impl", _*) => MergeStrategy.first
-      case x => (assembly / assemblyMergeStrategy).value(x)
+      case PathList("javax", "servlet", _*)         => MergeStrategy.last
+      case PathList("javax", "el", _*)              => MergeStrategy.last
+      case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
+      case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
       val outputFile = target.value / "assemblyname.sh"
@@ -213,7 +213,8 @@ lazy val versions = new {
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.2"
-  val fastparse = "1.0.0"
+  val fastparse212 = "2.1.3"
+  val fastparse211 = "2.1.2"
 
   val hbase = "1.3.1"
   val hadoop = "2.8.3"
@@ -237,6 +238,14 @@ lazy val versions = new {
   val scalaCheck = "1.14.2"
   val scalaMock = "4.4.0"
   val sparkTesting = s"${spark}_0.12.0"
+
+  val fastparse = Def.setting(
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => fastparse211
+      case Some((2, 12)) => fastparse212
+      case _             => sys.error(s"Unsupported Scala version ${scalaVersion.value}")
+    }
+  )
 }
 
 val commonSettings = Seq(
@@ -272,7 +281,9 @@ val publishSettings = Seq(
       sonatypePublishToBundle.value
   },
   Test / publishArtifact := false,
-  pomIncludeRepository := { _ => false },
+  pomIncludeRepository := { _ =>
+    false
+  },
   licenses += ("Apache 2.0 License", url("http://www.apache.org/licenses/LICENSE-2.0")),
   homepage := Some(url("https://github.com/rusexpertiza-llc/yupana")),
   scmInfo := Some(
@@ -288,7 +299,7 @@ val publishSettings = Seq(
 
 val pbSettings = Seq(
   PB.protocVersion := "-v261",
-  Compile / PB.targets := Seq (
+  Compile / PB.targets := Seq(
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )
 )

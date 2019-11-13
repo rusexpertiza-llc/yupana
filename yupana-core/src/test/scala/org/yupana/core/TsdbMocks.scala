@@ -83,11 +83,10 @@ trait TsdbMocks extends MockFactory {
     }
   }
 
-  private val parser = new SqlParser
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   def createQuery(sql: String): Query = {
-    parser
+    SqlParser
       .parse(sql)
       .right
       .flatMap {

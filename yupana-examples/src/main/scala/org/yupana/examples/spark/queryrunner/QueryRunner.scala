@@ -45,7 +45,7 @@ object QueryRunner {
   }
 
   def executeQuery(sql: String, tsdbSpark: TsdbSpark): Either[String, DataRowRDD] = {
-    new SqlParser().parse(sql).right flatMap {
+    SqlParser.parse(sql).right flatMap {
       case s: Select =>
         new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).right.map { q =>
           tsdbSpark.query(q)
