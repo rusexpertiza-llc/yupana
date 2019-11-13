@@ -20,7 +20,7 @@ import org.apache.lucene.analysis.ru.RussianLightStemmer
 
 import scala.collection.mutable
 
-object ItemsStemmer extends Serializable {
+object Tokenizer extends Serializable {
   private val stemmer = new RussianLightStemmer()
   private val charSet = mutable.Set(
     '/', '.', ',', '\\', '%', '*'
@@ -36,10 +36,6 @@ object ItemsStemmer extends Serializable {
     includedChars(s) = true
   }
 
-  def stemString(item: String): String = {
-    words(item) mkString " "
-  }
-
   private def isCharIncluded(ch: Char): Boolean = {
     ch >= includedChars.length || includedChars(ch)
   }
@@ -50,7 +46,11 @@ object ItemsStemmer extends Serializable {
     new String(w, 0, len)
   }
 
-  def words(item: String): Seq[String] = {
+  def transliteratedTokens(item: String): Seq[String] = {
+    tokens(item).map(Transliterator.transliterate)
+  }
+
+  def tokens(item: String): Seq[String] = {
     val wordsList = new mutable.ListBuffer[String]()
 
     def sliceStemAppend(from: Int, to: Int, offset: Int, updated: Array[Char]): Unit = {
@@ -105,7 +105,7 @@ object ItemsStemmer extends Serializable {
           // Разделители с сохранением оригинала и разделителя
           sliceStemAppend(from, i, offset, updated)
           from = i
-        } else if (ch == '/' || ch == ',' || ch == '%' || ch == '\\' || ((ch == '.' || ch == '*') && prevIsDigit && nextIsDigit)) {
+        } else if (ch == '/' || ch == '%' || ch == '\\' || (ch == ',' && !(prevIsDigit && nextIsDigit)) || (ch == '*' && prevIsDigit && nextIsDigit)) {
           // Разделители с сохранением оригинала и исключением самого разделителя
           sliceStemAppend(from, i, offset, updated)
           if (from != originFrom) {
@@ -123,7 +123,7 @@ object ItemsStemmer extends Serializable {
           }
           from = i + 1
           originFrom = i + 1
-        } else if (!charIncluded || (ch == '*' && (!prevIsDigit || !nextIsDigit)) || ch == '.') {
+        } else if (!charIncluded || ((ch == '*' || ch == '.') && (!prevIsDigit || !nextIsDigit))) {
           // Разделители с исключением оригинала и разделителя
           sliceStemAppend(from, i, offset, updated)
           if (from != originFrom) {
