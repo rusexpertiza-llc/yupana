@@ -842,23 +842,6 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     }
   }
 
-  it should "contains camel case in catalog" in {
-    testQuery("""
-        | SELECT DynamicLink_someField FROM test_table_2
-        |   WHERE time >= TIMESTAMP '2018-01-01' and time < TIMESTAMP '2018-01-30'
-        | """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table_2"
-      q.filter shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 1, 30, 0, 0, DateTimeZone.UTC))))
-      )
-      q.groupBy shouldBe empty
-      q.fields should contain theSameElementsInOrderAs List(
-        link(TestLinks.DYNAMIC_LINK, "someField") as "DynamicLink_someField"
-      )
-    }
-  }
-
   it should "handle IS NULL and IS NOT NULL conditions" in {
     testQuery("""
         |SELECT sum(testField), day(time) as d FROM test_table

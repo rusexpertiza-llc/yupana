@@ -32,9 +32,6 @@ trait ExternalLink extends Serializable {
   /** Set of field names for this link */
   val fieldsNames: Set[String]
 
-  /** Specifies if there might be extra fields, not defined in [[org.yupana.api.schema.ExternalLink.fieldsNames]] */
-  val hasDynamicFields: Boolean = false
-
   override def hashCode(): Int = linkName.hashCode
 
   override def equals(obj: Any): Boolean = obj match {

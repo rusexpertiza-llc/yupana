@@ -482,9 +482,7 @@ object SqlQueryProcessor extends QueryValidator {
       val catField = fieldName.substring(pos + 1)
       for {
         c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
-        f <- c.fieldsNames
-          .find(_ equalsIgnoreCase catField)
-          .orElse(if (c.hasDynamicFields) Some(catField) else None)
+        f <- c.fieldsNames.find(_ equalsIgnoreCase catField)
       } yield new LinkExpr(c, f)
     } else {
       None
