@@ -7,9 +7,6 @@ before_install:
 install:
   - pip install --user codecov
 
-scala:
-  - 2.12.10
-  - 2.11.12
 
 jdk:
   - openjdk8
@@ -32,13 +29,11 @@ jobs:
         sbt headerCheck scalafmtCheckAll
     - stage: test
       script:
-        - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
-        - if [[ "$TRAVIS_SCALA_VERSION" == 2.12.* ]];
-          then
-            sbt ++$TRAVIS_SCALA_VERSION coverageReport && codecov;
-          else
-            echo "Skipping coverage report for Scala != 2.12.x";
-          fi
+        - sbt ++2.12.10 clean coverage test coverageReport
+        - codecov
+    - stage: test
+      script:
+        sbt ++2.11.12 clean test
     - stage: release
       script:
         sbt +clean +publishSigned sonatypeReleaseAll
