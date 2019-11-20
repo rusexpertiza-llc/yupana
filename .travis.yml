@@ -22,7 +22,7 @@ stages:
   - name: check
   - name: test
   - name: release
-    if: (branch = master AND tag IS present)
+    if: branch = master AND type = push AND NOT fork
 
 jobs:
   include:
@@ -42,9 +42,13 @@ jobs:
       script:
         sbt +clean +publishSigned sonatypeReleaseAll
 
+branches:
+  except:
+    - /^v[0-9]/
+
 env:
   global:
-    # PGP_PASS
+    # PGP_PASSPHRASE
     secure: yhVxLgN0NHoDtNyZ2JeHQkHOMsv1k4ariPfIY48q7PjqthbiYRQlONWen/TF0dJwc3FKQiJsXcoWiV63miaDYd8CaATlXtV20+oWN8storbgzN0U64lbX055ZYHAbgpX+GSAcc8OqE+tuWkp7S2+Gp4FLuXuKgMcly76iaiHyRezaRcMr9xzZ/otxBnz5qJvyjAMzlmNGKii0KcWndNJ+7+Mpryhj1BPcDbOnPcFTyTX9W1P+hBTxGPF9NfMgbjC4ClT2JYMh208pDjoeuJVgj2psOcRnOtE+fYBCkMB013jgGH+oMQ2gd59iDn9SkaAOwP7Cinlwtg9KRMpw0m3d+MWqMRuNE1dDJO//+0dTU1V2IHAs8Y0QTu9piwTbx1fS0uVTxNtli1s4mN2/hgC+reklFGv8EfwaP/+/RdkUUDQfj8G0Pmb+ElWRLOFBTYSfFWTRHBsAbq9eE+UmSI8/ocKw2t0INQO5w1/rr7qT4pKtjtKnSV61iJwbMvQ2aawomPCpIkvCWUwUo+PKJw6uQ6eoceU+7zdyc5YinRlYpchGjzyqxe+0T7FxE+9r8MW0BpzM4mbQcSiii5lg5lkchbWLvhVavId6dx8Of3r64jA6LL067igIuz8PdSOHWHxjcQ3zQVmagB5EJYcv/hCaprwMm0hxZ9wfJEqbdE8JCs=
     # SONATYPE_USERNAME
     secure: T7CrLrUPhBqUmyFEF/i0x1wkeWy5WkQfji7xeDJAuIhCPBp1V0wCEQqViUD1ojs/ClcurBI/aAKVjh/k99/D28ZUXFQ2WfMp2dpi0T9cxHMpqkUt3r/stl9Rvo8KfqF0rrPJOoRpWRkJg8b/RgjDAnZnDH1UGmkn9tNFnZBcUw/9/9wlAGuhZnkxWIw/ZGjSXnLlQnc8w8pLjibuqS58yKRNsJtOHvr2oQlg31rhwF+xy0R5HeT/htUkvUFq+LcdiqL7Q0kjTUNCxfPQ26ahhKttOIQVeoyFtDKUhJ2mAfOH9v2iC0zqrHt7a4oIPcqaG5FiHjZP0l9sXdUHpZAp18p5oP3k81SyRfgfL0mja0WI74XSnoeY2njFLpK4Hfq9I1RSzeaEdM5kU+P4gDpFOYH+nagq9cZKEcpSIdHyO9SBLbSRQ1ifpvrUAfPeJEybQoYSzWQDxFOvWfFjBWHq6MAib6ocxQtJJqDJMSdLXLiWhZIzamI7o9Kose8CzcOowE74oc9OJ79NMxAycMO1D1k/l/OUm/naGc5JbhU2yYbGQABxdDVwkumZvQtLlMwN0QBIzk+iCQ3krd4KSiXQpt9OgjAIPmSmp0EOTR6CwPNFrC7OCY95p5jjGcE0tnaR/czGs7mMWHjvMlOZq3WUURKybffbCQCm3mkoNZzdyIc=
