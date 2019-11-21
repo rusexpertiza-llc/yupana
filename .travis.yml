@@ -1,25 +1,57 @@
 language: scala
 
+before_install:
+  - openssl aes-256-cbc -K $encrypted_2197b9b29ce6_key -iv $encrypted_2197b9b29ce6_iv -in .travis/secret-key.asc.enc -out .travis/secret-key.asc -d
+  - echo $PGP_PASSPHRASE | gpg --passphrase-fd 0 --batch --yes --import .travis/secret-key.asc
+  - echo -e "realm=Dummy\nhost=example.com\nuser=user\npassword=password" > "$HOME/.ivy2/.credentials_nexus"
+
 install:
   - pip install --user codecov
 
 scala:
   - 2.12.10
-  - 2.11.12
 
 jdk:
   - openjdk8
 
 cache:
   directories:
-    - $HOME/.ivy2/cache
-    - $HOME/.sbt
+  - "$HOME/.ivy2/cache"
+  - "$HOME/.sbt"
 
-script:
-  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test
-  - if [[ "$TRAVIS_SCALA_VERSION" == 2.12.* ]];
-    then
-      sbt ++$TRAVIS_SCALA_VERSION coverageReport && codecov;
-    else
-      echo "Skipping coverage report for Scala != 2.12.x";
-    fi
+stages:
+  - name: check
+  - name: test
+  - name: release
+    if: branch = master AND type = push AND NOT fork
+
+jobs:
+  include:
+    - stage: check
+      script:
+        sbt headerCheck scalafmtCheckAll
+    - stage: test
+      script:
+        - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport
+        - codecov
+    - stage: test
+      scala:
+        - 2.11.12
+      script:
+        sbt ++$TRAVIS_SCALA_VERSION clean test
+    - stage: release
+      script:
+        sbt +clean +publishSigned sonatypeBundleRelease
+
+branches:
+  except:
+    - /^v[0-9]/
+
+env:
+  global:
+    # PGP_PASSPHRASE
+    - secure: uidMmccpQm2CV2V0jpaXkTq+idM+9EkN44VtpV2dVqhJWyy80k93fo55EvSG2iiy4/lDx7otPGeFKS9+IsQqq+NT1kbNXbUbpR9mTM9fw11+gaOnahEBzt9tUJN3Dm/xkPK4wDiqTPdtwrRGW5lSfhrZNXvxR786pp6l/OIUoQ/hBqz1xxPt3q7CNKP3yluZRQ6RABkdeEUdmIOP1+6KgS8OBGZ7UadV0EDG7W+OrvfTSA6xlbD6jAvjo8/jQ5dWSiqcpqvcLlS4Dk0zwBOHJCsnBLTbTKD7cF860k2KHaspoIeJA2k8dTGGX6Eb0iznmP1pdlAFzhWWZg9gpOcRN8MfDa+2AUOYfXyibQNt8qEMQMQ7uWrwXXZiY6a6asPQq3x/xp7gS/okpZ/PP+UDJDEJESZ9ZfO2aXpnIDN22JlDaWxTizNr6LK1nHgJWK8Ludeyqs4fjmQjVpwaaz5nJUvemztCQTAMmWgGW9HcYvbhJi18XivxQn74Tw1m0JoLoDywjD+Sw+/0bmlOnMO8i0888H6SXDq/zTd31w8OkUd5IPyln/PXOyI3Ht0VUqjvFRBAiq4zM62zvTNZDox/DmbaPrpZTZFNa/s/Kjl74getC9N2qDckyi5bGKTkIFdugs9ZSYLaEF2DGw92+zaAYLQTaLK0qgpvkq4JCI9TrHM=
+    # SONATYPE_USERNAME
+    - secure: T7CrLrUPhBqUmyFEF/i0x1wkeWy5WkQfji7xeDJAuIhCPBp1V0wCEQqViUD1ojs/ClcurBI/aAKVjh/k99/D28ZUXFQ2WfMp2dpi0T9cxHMpqkUt3r/stl9Rvo8KfqF0rrPJOoRpWRkJg8b/RgjDAnZnDH1UGmkn9tNFnZBcUw/9/9wlAGuhZnkxWIw/ZGjSXnLlQnc8w8pLjibuqS58yKRNsJtOHvr2oQlg31rhwF+xy0R5HeT/htUkvUFq+LcdiqL7Q0kjTUNCxfPQ26ahhKttOIQVeoyFtDKUhJ2mAfOH9v2iC0zqrHt7a4oIPcqaG5FiHjZP0l9sXdUHpZAp18p5oP3k81SyRfgfL0mja0WI74XSnoeY2njFLpK4Hfq9I1RSzeaEdM5kU+P4gDpFOYH+nagq9cZKEcpSIdHyO9SBLbSRQ1ifpvrUAfPeJEybQoYSzWQDxFOvWfFjBWHq6MAib6ocxQtJJqDJMSdLXLiWhZIzamI7o9Kose8CzcOowE74oc9OJ79NMxAycMO1D1k/l/OUm/naGc5JbhU2yYbGQABxdDVwkumZvQtLlMwN0QBIzk+iCQ3krd4KSiXQpt9OgjAIPmSmp0EOTR6CwPNFrC7OCY95p5jjGcE0tnaR/czGs7mMWHjvMlOZq3WUURKybffbCQCm3mkoNZzdyIc=
+    # SONATYPE_PASSWORD
+    - secure: eh3lVMgtBSlvaGs+iL5IulEWk6oerkEw1QmslOwzZfK5MjkdTC51orqCGz0t1R3iu7gpX7NkEFtiCXSB+Tpn7L3Yl2FjNJ/I4HvaOggys6Xc6TtvQYdFIzdkxNau4wDKx/H0NqE9UNx25DAvun+WVfnxJNKDsrtaY0mI07DmuP9o2peX44YYiTzMW3zwDW7ZG5zl9QiCq7LugCoJM+pM1Wr68jDN0HAB/YLToWaRefH3S2jZ2rZ/fCHorjo0kfaWzzQUCRe3xFEqhf49Zry9V18FW8oyVI0t7XdjxELoWXIe9noZrZpm4zIEpeg42TKtOjca92HFycesq7qXNXX1PhrNdzAESAme3tzAzcGvzh5uOuzk63lZf/dx/hW1eej9eiHl4nXaJaS/Fdy+YvOFjifGACK26K2VnX4eNPlQidK0rl9jcaRn4jdFYHzAeI7oF2MDlpKSQfemVgo7gDe0ieOAKYIjyIrtSShvXCB+I9c/SXkMZqd332hic+kp2U4yjSqWhXZojYUhcacb80nRMeyzVrDgIZZWJKySP5+6pxQ0Xqd3Wisp+6wYkgCauvNZn1GGJ4Q11VVyy1pE456iBlQ0moKE93Y/1Xe1J4YHDfgIHDnVA5S2BvrzmZRcFcxtZZl0sx8OzjjVuAzRDfB7kn8cfxzfzZFLTvbd4MNt0aQ=

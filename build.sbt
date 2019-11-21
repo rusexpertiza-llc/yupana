@@ -314,8 +314,8 @@ val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-    releaseStepCommandAndRemaining("+publishSigned"),
-    releaseStepCommand("sonatypeBundleRelease"),
+//    releaseStepCommandAndRemaining("+publishSigned"),
+//    releaseStepCommand("sonatypeBundleRelease"),
 //    setNextVersion,
 //    commitNextVersion,
     pushChanges
@@ -323,3 +323,8 @@ val releaseSettings = Seq(
 )
 
 val allSettings = commonSettings ++ publishSettings ++ releaseSettings
+
+credentials in ThisBuild ++= (for {
+  username <- Option(System.getenv().get("SONATYPE_USERNAME"))
+  password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
+} yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)).toSeq
