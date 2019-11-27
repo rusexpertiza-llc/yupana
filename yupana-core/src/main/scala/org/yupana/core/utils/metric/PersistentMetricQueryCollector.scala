@@ -100,7 +100,11 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       .updateQueryMetrics(queryRowKey, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
   }
 
-  private def totalDuration: Double = asSeconds(System.nanoTime() - startTime)
+  private def totalDuration: Double = {
+    val currentTime = System.nanoTime()
+    if (currentTime > startTime) asSeconds(currentTime - startTime)
+    else asSeconds(startTime - currentTime)
+  }
 
   override def finish(): Unit = {
 
