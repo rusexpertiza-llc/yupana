@@ -1010,7 +1010,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
     inside(createQuery(q)) {
       case Left(msg) =>
-        msg shouldBe "Invalid expression 'max(metric(testField)) - const(2) * metric(testField3)' for field strange_result"
+        msg shouldBe "Invalid expression 'max(metric(testField)) - const(2:BigDecimal) * metric(testField3)' for field strange_result"
     }
   }
 
