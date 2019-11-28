@@ -20,12 +20,11 @@ import java.util.concurrent.atomic.LongAdder
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
-import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.core.model.QueryStates.{Finished, QueryState}
 import org.yupana.core.model.TsdbQueryMetrics._
-import org.yupana.core.model.{ MetricData, QueryStates }
-import org.yupana.core.utils.metric.PersistentMetricQueryCollector._
+import org.yupana.core.model.{MetricData, QueryStates}
 
-import scala.collection.{ Seq, mutable }
+import scala.collection.{Seq, mutable}
 
 class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, query: Query)
     extends MetricQueryCollector
@@ -59,6 +58,8 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   private val dynamicMetrics = mutable.Map.empty[String, PersistentMetricImpl]
   private val startTime = System.nanoTime()
   private var lastSaveTime = startTime
+
+  def asSeconds(n: Long): Double = n / 1000000000.0
 
   def getMetrics: Seq[PersistentMetricImpl] =
     Seq(
@@ -94,20 +95,19 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   }
 
   def saveQueryMetrics(state: QueryState): Unit = {
-    val duration = totalDuration
+    val metricsData = getAndResetMetricsData
+    val duration = if (state == Finished) {
+      metricsData.values.map(_.time).sum
+    } else totalDuration
+
     collectorContext
       .metricsDao()
-      .updateQueryMetrics(queryRowKey, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
+      .updateQueryMetrics(queryRowKey, state, duration, metricsData, collectorContext.sparkQuery)
   }
 
-  private def totalDuration: Double = {
-    val currentTime = System.nanoTime()
-    if (currentTime > startTime) asSeconds(currentTime - startTime)
-    else asSeconds(startTime - currentTime)
-  }
+  private def totalDuration: Double = asSeconds(System.nanoTime() - startTime)
 
   override def finish(): Unit = {
-
     getMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
         s"$queryRowKey - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
@@ -133,10 +133,6 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   }
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
-}
-
-object PersistentMetricQueryCollector {
-  def asSeconds(n: Long): Double = n / 1000000000.0
 }
 
 case class PersistentMetricImpl(
