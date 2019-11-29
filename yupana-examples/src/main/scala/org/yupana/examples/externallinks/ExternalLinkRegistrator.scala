@@ -54,10 +54,10 @@ class ExternalLinkRegistrator(
       case c: SQLExternalLink  => createSqlService(c, tsdb)
       case ItemsInvertedIndex  => invertedIndex
       case RelatedItemsCatalog => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
-      case AddressCatalog      => new AddressCatalogImpl(tsdb, AddressCatalog)
+      case AddressCatalog      => new AddressCatalogImpl(AddressCatalog)
       case OrganisationCatalog =>
         val jdbcTemplate = createConnection(OrganisationCatalogImpl.connection(properties))
-        new OrganisationCatalogImpl(tsdb, jdbcTemplate)
+        new OrganisationCatalogImpl(jdbcTemplate)
     }
 
     tsdb.registerExternalLink(link, service)
@@ -80,6 +80,6 @@ class ExternalLinkRegistrator(
 
   def createSqlService(link: SQLExternalLink, tsdb: TsdbBase): SQLSourcedExternalLinkService = {
     val jdbc = createConnection(link.config.connection)
-    new SQLSourcedExternalLinkService(link, link.config.description, jdbc, tsdb)
+    new SQLSourcedExternalLinkService(link, link.config.description, jdbc)
   }
 }

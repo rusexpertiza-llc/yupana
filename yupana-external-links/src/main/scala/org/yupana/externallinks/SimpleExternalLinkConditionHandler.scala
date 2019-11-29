@@ -32,7 +32,7 @@ trait SimpleExternalLinkConditionHandler[T <: ExternalLink] extends ExternalLink
     val tbcs = TimeBoundedCondition(condition)
 
     val r = tbcs.map { tbc =>
-      val (includeValues, excludeValues, other) = ExternalLinkService.extractCatalogFields(tbc, externalLink.linkName)
+      val (includeValues, excludeValues, other) = ExternalLinkUtils.extractCatalogFields(tbc, externalLink.linkName)
 
       val include = if (includeValues.nonEmpty) {
         includeCondition(includeValues)

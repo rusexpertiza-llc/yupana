@@ -38,16 +38,16 @@ trait SimpleExternalLinkValueExtractor[T <: ExternalLink] extends ExternalLinkSe
 
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
-      valueData: Seq[InternalRow],
+      rows: Seq[InternalRow],
       exprs: Set[LinkExpr]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension)
     val fields = exprs.map(_.linkField)
-    val dimValues = valueData.flatMap(_.get[String](exprIndex, dimExpr)).toSet
+    val dimValues = rows.flatMap(_.get[String](exprIndex, dimExpr)).toSet
 
     val allFieldValues = fieldValuesForDimValues(fields, dimValues)
 
-    valueData.foreach { vd =>
+    rows.foreach { vd =>
       vd.get[String](exprIndex, dimExpr).foreach { dimValue =>
         allFieldValues.row(dimValue).foreach {
           case (field, value) =>

@@ -26,7 +26,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val externalLink = SQLExternalLink(config, Dimensions.KKM_ID_TAG)
 
-    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc, null)
+    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
   }
 
   "SQLSourcedCatalog" should "work as defined in json" in {

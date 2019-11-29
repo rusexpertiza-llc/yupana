@@ -27,7 +27,7 @@ class SimpleExternalLinkConditionHandlerTest extends FlatSpec with Matchers {
 
     override def setLinkedValues(
         exprIndex: collection.Map[Expression, Int],
-        valueData: Seq[InternalRow],
+        rows: Seq[InternalRow],
         exprs: Set[LinkExpr]
     ): Unit = {}
   }
