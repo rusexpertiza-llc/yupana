@@ -82,7 +82,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         )
       )
 
-    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 2.seconds).right.value
+    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 5.seconds).right.value
 
     resp.next() shouldEqual Response(
       Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("item", "VARCHAR")), Some("items_kkm")))
