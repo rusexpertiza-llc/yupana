@@ -5,6 +5,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.InternalRow
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 
@@ -12,14 +13,19 @@ class SimpleExternalLinkConditionHandlerTest extends FlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 
-  class TestExternalLink(override val externalLink: TestLink) extends SimpleExternalLinkConditionHandler[TestLink] {
-    override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  class TestExternalLink(override val externalLink: TestLink) extends ExternalLinkService[TestLink] {
+
+    override def condition(condition: Condition): Condition = {
+      ExternalLinkUtils.transformCondition(externalLink.linkName, condition, includeCondition, excludeCondition)
+    }
+
+    private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
       and(values.map {
         case (field, vs) => in(dimension(externalLink.dimension), vs.map(v => field + "_" + v))
       }: _*)
     }
 
-    override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+    private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
       and(values.map {
         case (field, vs) => notIn(dimension(externalLink.dimension), vs.map(v => field + "_" + v))
       }: _*)
