@@ -7,13 +7,15 @@ import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
-import org.scalatest._
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, OptionValues }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
-import org.yupana.api.query.{ Expression, DimensionExpr }
+import org.yupana.api.query.{ DimensionExpr, Expression }
 
 class TsdbDataFilterTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with TsdbMocks
     with OptionValues

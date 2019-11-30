@@ -3,12 +3,13 @@ package org.yupana.core.model
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ Query, TimeExpr }
 import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 
-class KeyDataTest extends FlatSpec with Matchers {
+class KeyDataTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 

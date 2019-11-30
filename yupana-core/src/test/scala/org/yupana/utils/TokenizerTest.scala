@@ -1,8 +1,9 @@
 package org.yupana.utils
 
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TokenizerTest extends FlatSpec with Matchers {
+class TokenizerTest extends AnyFlatSpec with Matchers {
   "Stemmer" should "split numbers and words" in {
     Tokenizer.tokens("95пульсар") should contain theSameElementsAs List("95пульсар", "95", "пульсар")
 

@@ -1,9 +1,10 @@
 package org.yupana.core.dao
 
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.schema.Dimension
 
-class DimensionFilterTest extends FlatSpec with Matchers {
+class DimensionFilterTest extends AnyFlatSpec with Matchers {
 
   implicit class RichFilters[A](f: DimensionFilter[A]) {
     def mat: Map[String, Set[A]] = f.toMap.map { case (k, v) => k.name -> v.toSet }

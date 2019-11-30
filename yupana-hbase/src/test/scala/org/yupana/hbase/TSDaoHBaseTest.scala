@@ -20,9 +20,11 @@ import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
 
 import scala.collection.JavaConverters._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class TSDaoHBaseTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with BeforeAndAfterAll

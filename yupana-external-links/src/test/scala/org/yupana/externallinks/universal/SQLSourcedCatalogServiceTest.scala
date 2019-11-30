@@ -4,14 +4,16 @@ import java.util.Properties
 
 import org.flywaydb.core.Flyway
 import org.scalatest.exceptions.TestFailedException
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
+import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.yupana.core.cache.CacheFactory
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
+class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
   val dbUrl = "jdbc:h2:mem:yupana;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
   val dbUser = "test"
   val dbPass = "secret"

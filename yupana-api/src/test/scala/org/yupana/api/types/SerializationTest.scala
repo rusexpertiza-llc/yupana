@@ -1,13 +1,14 @@
 package org.yupana.api.types
 
 import org.scalacheck.Arbitrary
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.Time
 
 class SerializationTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with ScalaCheckDrivenPropertyChecks
     with TableDrivenPropertyChecks {

@@ -1,13 +1,14 @@
 package org.yupana.core
 
-import org.scalatest.{ Matchers, WordSpecLike }
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.yupana.api.query.{ DimensionExpr, LinkExpr, MetricExpr, TimeExpr }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
 import org.yupana.core.model.InternalRow
 
 import scala.collection.mutable
 
-class ExpressionCalculatorTest extends WordSpecLike with Matchers {
+class ExpressionCalculatorTest extends AnyWordSpecLike with Matchers {
 
   "Expression calculator" should {
 

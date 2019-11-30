@@ -1,9 +1,10 @@
 package org.yupana.api.utils
 
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class SortedIteratorTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
+class SortedIteratorTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   implicit val ord: Ordering[Long] = Ordering.fromLessThan((a, b) => java.lang.Long.compareUnsigned(a, b) < 0)
 

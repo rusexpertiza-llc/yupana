@@ -4,12 +4,14 @@ import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.schema.Dimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 
 class DictionaryTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with OptionValues

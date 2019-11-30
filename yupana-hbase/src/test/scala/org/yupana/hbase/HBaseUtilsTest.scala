@@ -6,13 +6,15 @@ import java.util.Properties
 import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers, OptionValues }
+import org.scalatest.OptionValues
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Table }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
+class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with OptionValues {
 
   "HBaseUtils" should "serialize and parse row TSROW keys" in {
 

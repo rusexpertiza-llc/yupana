@@ -3,7 +3,7 @@ package org.yupana.externallinks.items
 import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Inside, Matchers }
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, Inside }
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ Dictionary, TSDB }
@@ -11,9 +11,11 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, InvertedIndexDao }
 import org.yupana.schema.Dimensions
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class ItemsInvertedIndexImplTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with BeforeAndAfterAll

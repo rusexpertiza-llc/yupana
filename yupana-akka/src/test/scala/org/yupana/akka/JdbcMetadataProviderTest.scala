@@ -1,10 +1,12 @@
 package org.yupana.akka
 
-import org.scalatest.{ FlatSpec, Matchers, OptionValues }
+import org.scalatest.OptionValues
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues {
+class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues {
 
   val metadataProvider = new JdbcMetadataProvider(TS.schema)
 

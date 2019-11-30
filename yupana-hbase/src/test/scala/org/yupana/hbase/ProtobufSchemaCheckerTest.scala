@@ -1,10 +1,12 @@
 package org.yupana.hbase
 
-import org.scalatest.{ FlatSpec, Inside, Matchers }
+import org.scalatest.Inside
 import org.yupana.api.schema._
 import org.yupana.hbase.proto.SchemaRegistry
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
+class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
   val TAG_A = Dimension("tag_a")
   val TAG_B = Dimension("tag_b")

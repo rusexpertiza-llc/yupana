@@ -5,13 +5,14 @@ import java.sql.Timestamp
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.apache.spark.sql.types._
 import org.joda.time.LocalDateTime
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.core.QueryContext
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
+class DataRowRDDTest extends AnyFlatSpec with Matchers with DataFrameSuiteBase {
 
   import org.yupana.api.query.syntax.All._
 

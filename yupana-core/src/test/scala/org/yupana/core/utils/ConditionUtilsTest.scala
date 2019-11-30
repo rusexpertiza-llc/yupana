@@ -1,12 +1,13 @@
 package org.yupana.core.utils
 
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Dimension
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ConditionUtilsTest extends FlatSpec with Matchers {
+class ConditionUtilsTest extends AnyFlatSpec with Matchers {
   import org.yupana.api.query.syntax.All._
 
   "ConditionUtils.simplify" should "keep simple condition as is" in {

@@ -16,6 +16,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
+      "org.scalatestplus"      %% "scalacheck-1-14"      % versions.scalaTestCheck    % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
     )
   )
@@ -101,8 +102,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
       "org.scalatest"               %% "scalatest"                    % versions.scalaTest                % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test
+      "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test
     )
   )
   .dependsOn(core % "compile->compile ; test->test")
@@ -235,7 +235,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.199"
   val postgresqlJdbc = "42.2.6"
 
-  val scalaTest = "3.0.8"
+  val scalaTest = "3.1.0"
+  val scalaTestCheck = "3.1.0.0"
   val scalaCheck = "1.14.2"
   val scalaMock = "4.4.0"
   val sparkTesting = s"${spark}_0.12.0"

@@ -1,14 +1,15 @@
 package org.yupana.externallinks.items
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.core.{ MapReducible, QueryContext, TSDB, TsdbServerResult }
 import org.yupana.schema.{ Dimensions, Tables }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactory {
+class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {

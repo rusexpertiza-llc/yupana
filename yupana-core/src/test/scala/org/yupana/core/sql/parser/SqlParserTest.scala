@@ -3,11 +3,12 @@ package org.yupana.core.sql.parser
 import org.joda.time._
 import org.scalactic.source
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{ FlatSpec, Inside, Matchers }
-
 import fastparse._
+import org.scalatest.Inside
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues with TableDrivenPropertyChecks {
+class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedValues with TableDrivenPropertyChecks {
 
   "Value parser" should "parse strings" in {
     parse("''", ValueParser.value(_)).value shouldEqual StringValue("")

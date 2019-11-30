@@ -1,7 +1,9 @@
 package org.yupana.core.sql
 
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime, Period }
-import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
+import org.scalatest.{ Inside, OptionValues }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Dimension
@@ -9,7 +11,7 @@ import org.yupana.api.types._
 import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
 
-class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with OptionValues {
+class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
