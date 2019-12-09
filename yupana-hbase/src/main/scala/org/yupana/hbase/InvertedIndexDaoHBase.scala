@@ -31,13 +31,6 @@ object InvertedIndexDaoHBase {
   val VALUE: Array[Byte] = Array.emptyByteArray
   val BATCH_SIZE = 500000
 
-  def stringSerializer(str: String): Array[Byte] = Bytes.toBytes(str)
-  def stringDeserializer(bytes: Array[Byte]): String = Bytes.toString(bytes)
-  def intSerializer(v: Int): Array[Byte] = Bytes.toBytes(v)
-  def intDeserializer(bytes: Array[Byte]): Int = Bytes.toInt(bytes)
-  def longSerializer(v: Long): Array[Byte] = Bytes.toBytes(v)
-  def longDeserializer(bytes: Array[Byte]): Long = Bytes.toLong(bytes)
-
   def checkTableExistsElseCreate(hBaseConnection: ExternalLinkHBaseConnection, tableName: String) {
     val desc = new HTableDescriptor(hBaseConnection.getTableName(tableName))
       .addFamily(new HColumnDescriptor(InvertedIndexDaoHBase.FAMILY))

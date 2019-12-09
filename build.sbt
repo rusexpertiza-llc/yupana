@@ -102,7 +102,17 @@ lazy val hbase = (project in file("yupana-hbase"))
       "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
       "org.scalatest"               %% "scalatest"                    % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test
+      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test,
+      "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase                    % Test classifier "tests",
+      "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test,
+      "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test classifier "tests",
+      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop                   % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests"
     )
   )
   .dependsOn(core % "compile->compile ; test->test")
