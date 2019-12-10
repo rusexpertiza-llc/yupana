@@ -16,7 +16,8 @@
 
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{ Get, Put }
+import org.apache.hadoop.hbase.client.{ Get, Put, Scan }
+import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor }
 
@@ -26,6 +27,7 @@ class BTreeIndexDaoHBase[K, V](
     connection: ExternalLinkHBaseConnection,
     tableName: String,
     keySerializer: K => Array[Byte],
+    keyDeserializer: Array[Byte] => K,
     valueSerializer: V => Array[Byte],
     valueDeserializer: Array[Byte] => V
 ) {
@@ -59,14 +61,30 @@ class BTreeIndexDaoHBase[K, V](
   }
 
   def get(keys: Seq[K]): Map[K, V] = {
-    val gets = keys.map(key => new Get(keySerializer(key)).addColumn(FAMILY, QUALIFIER))
     val table = connection.getTable(tableName)
-    val result = table.get(gets.asJava)
-    keys
-      .zip(result)
-      .flatMap {
-        case (k, v) =>
-          Option(v.getValue(FAMILY, QUALIFIER)).map(b => k -> valueDeserializer(b))
+
+    val ranges = keys.map { id =>
+      val key = keySerializer(id)
+      new MultiRowRangeFilter.RowRange(key, true, key, true)
+    }
+
+    val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+    val start = filter.getRowRanges.asScala.head.getStartRow
+    val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
+
+    val scan = new Scan(start, end)
+      .addFamily(FAMILY)
+      .addColumn(FAMILY, QUALIFIER)
+      .setFilter(filter)
+
+    val scanner = table.getScanner(scan)
+    scanner
+      .iterator()
+      .asScala
+      .map { r =>
+        val id = keyDeserializer(r.getRow)
+        val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
+        id -> value
       }
       .toMap
   }
