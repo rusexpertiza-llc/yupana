@@ -69,13 +69,12 @@ object TimeBoundedCondition {
 
     val from = conditions.head.from
     val to = conditions.head.to
-    val cs = conditions.foldLeft(Seq.empty[Condition])(
-      (a, c) =>
-        if (c.from == from && c.to == to) {
-          a ++ c.conditions
-        } else {
-          throw new IllegalArgumentException("Conditions must have same time limits.")
-        }
+    val cs = conditions.foldLeft(Seq.empty[Condition])((a, c) =>
+      if (c.from == from && c.to == to) {
+        a ++ c.conditions
+      } else {
+        throw new IllegalArgumentException("Conditions must have same time limits.")
+      }
     )
     TimeBoundedCondition(from, to, cs)
   }

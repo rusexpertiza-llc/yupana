@@ -114,11 +114,10 @@ object ValueParser {
         val p = vs
           .map(p => () => p.parser() ~ p.separator())
           .reduceRight((a, b) => () => P(b() ~ a()).map { case (x, y) => x plus y })
-        Some(
-          () =>
-            P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
-              .map { case (x, y) => x plus y }
-              .opaque(s"${vs.last.name} TO ${v.name}")
+        Some(() =>
+          P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
+            .map { case (x, y) => x plus y }
+            .opaque(s"${vs.last.name} TO ${v.name}")
         )
 
       case Nil => None
