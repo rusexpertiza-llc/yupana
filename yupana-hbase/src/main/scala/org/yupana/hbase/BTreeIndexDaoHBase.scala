@@ -89,6 +89,12 @@ class BTreeIndexDaoHBase[K, V](
       .toMap
   }
 
+  def exists(keys: Seq[K]): Map[K, Boolean] = {
+    val gets = keys.map(key => new Get(keySerializer(key)).addColumn(FAMILY, QUALIFIER))
+    val table = connection.getTable(tableName)
+    keys.zip(table.existsAll(gets.asJava)).toMap
+  }
+
   private def checkTableExistsElseCreate() {
     val descriptor = new HTableDescriptor(connection.getTableName(tableName))
       .addFamily(new HColumnDescriptor(FAMILY))
