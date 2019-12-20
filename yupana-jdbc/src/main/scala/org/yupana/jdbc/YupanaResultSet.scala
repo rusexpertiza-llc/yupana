@@ -72,8 +72,7 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def beforeFirst(): Unit = {
-    currentIdx = -1
-    it = result.iterator
+    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
   }
 
   @throws[SQLException]
@@ -84,9 +83,7 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def first: Boolean = {
-    currentIdx = -1
-    it = result.iterator
-    next
+    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
   }
 
   @throws[SQLException]
@@ -102,25 +99,31 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def absolute(row: Int): Boolean = {
-    it = result.iterator.drop(row - 1)
+    if (row < currentIdx) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    it = result.iterator.drop(row - currentIdx)
     currentIdx = row - 1
     true
   }
 
   @throws[SQLException]
   override def relative(rows: Int): Boolean = {
+    if (rows < 0) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    it = result.iterator.drop(rows)
     currentIdx = currentIdx + rows
     true
   }
 
   @throws[SQLException]
   override def previous: Boolean = {
-    currentIdx -= 1
-    true
+    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
   }
 
   @throws[SQLException]
-  override def setFetchDirection(direction: Int): Unit = {}
+  override def setFetchDirection(direction: Int): Unit = {
+    if (direction != ResultSet.FETCH_FORWARD) {
+      throw new SQLException("Only FETCH_FORWARD is supported")
+    }
+  }
 
   @throws[SQLException]
   override def getFetchDirection: Int = ResultSet.FETCH_FORWARD
