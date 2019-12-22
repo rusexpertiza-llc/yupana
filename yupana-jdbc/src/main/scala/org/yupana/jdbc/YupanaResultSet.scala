@@ -71,18 +71,24 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def beforeFirst(): Unit = {
-    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    if (!isBeforeFirst) {
+      throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    }
   }
 
   @throws[SQLException]
   override def afterLast(): Unit = {
-    currentIdx = result.size
-    it = Iterator.empty
+    last()
+    next()
   }
 
   @throws[SQLException]
   override def first: Boolean = {
-    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    if (isBeforeFirst) {
+      next()
+    } else if (!isFirst) {
+      throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    } else true
   }
 
   @throws[SQLException]
@@ -131,10 +137,10 @@ class YupanaResultSet protected[jdbc] (
   override def getFetchDirection: Int = ResultSet.FETCH_FORWARD
 
   @throws[SQLException]
-  override def setFetchSize(i: Int): Unit = {}
+  override def setFetchSize(i: Int): Unit = throw new SQLFeatureNotSupportedException("Fetch size is not supported")
 
   @throws[SQLException]
-  override def getFetchSize: Int = result.size
+  override def getFetchSize: Int = 0
 
   @throws[SQLException]
   override def close(): Unit = {}

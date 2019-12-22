@@ -28,6 +28,11 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getType shouldEqual ResultSet.TYPE_FORWARD_ONLY
     resultSet.getConcurrency shouldEqual ResultSet.CONCUR_READ_ONLY
 
+    an[SQLException] should be thrownBy resultSet.setFetchDirection(ResultSet.FETCH_REVERSE)
+
+    resultSet.setFetchDirection(ResultSet.FETCH_FORWARD)
+    resultSet.getFetchDirection shouldEqual ResultSet.FETCH_FORWARD
+
     resultSet.getStatement shouldEqual statement
 
     resultSet.findColumn("string") shouldEqual 2
@@ -59,13 +64,18 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.isAfterLast shouldBe false
     an[SQLException] should be thrownBy resultSet.getInt(1)
 
-    resultSet.next shouldBe true
+    resultSet.beforeFirst()
+    resultSet.isBeforeFirst shouldBe true
+
+    resultSet.first shouldBe true
     resultSet.isBeforeFirst shouldBe false
     resultSet.isFirst shouldBe true
     resultSet.isLast shouldBe false
     resultSet.isAfterLast shouldBe false
     resultSet.getRow shouldEqual 1
     resultSet.getInt(1) shouldEqual 1
+
+    an[SQLException] should be thrownBy resultSet.beforeFirst()
 
     resultSet.relative(2) shouldBe true
     resultSet.isBeforeFirst shouldBe false
@@ -74,6 +84,9 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.isAfterLast shouldBe false
     resultSet.getRow shouldEqual 3
     resultSet.getInt(1) shouldEqual 3
+
+    an[SQLException] should be thrownBy resultSet.first()
+    an[SQLException] should be thrownBy resultSet.previous()
 
     an[SQLException] should be thrownBy resultSet.relative(-2)
     resultSet.getRow shouldEqual 3
@@ -105,6 +118,36 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.isLast shouldBe false
     resultSet.isAfterLast shouldBe true
     resultSet.getRow shouldEqual 7
+    an[SQLException] should be thrownBy resultSet.getInt(1)
+  }
+
+  it should "support last and afterLast" in {
+    val statement = mock[Statement]
+    val result = SimpleResult(
+      "test",
+      Seq("int", "string"),
+      Seq(DataType[Int], DataType[String]),
+      Iterator(
+        Array[Option[Any]](Some(1), Some("aaa")),
+        Array[Option[Any]](Some(2), Some("bbb"))
+      )
+    )
+
+    val resultSet = new YupanaResultSet(statement, result)
+
+    resultSet.last()
+    resultSet.isBeforeFirst shouldBe false
+    resultSet.isFirst shouldBe false
+    resultSet.isLast shouldBe true
+    resultSet.isAfterLast shouldBe false
+    resultSet.getRow shouldEqual 2
+    resultSet.getInt(1) shouldEqual 2
+
+    resultSet.afterLast()
+    resultSet.isBeforeFirst shouldBe false
+    resultSet.isFirst shouldBe false
+    resultSet.isLast shouldBe false
+    resultSet.isAfterLast shouldBe true
     an[SQLException] should be thrownBy resultSet.getInt(1)
   }
 
