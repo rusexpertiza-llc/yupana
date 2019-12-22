@@ -1,10 +1,10 @@
 package org.yupana.jdbc
 
-import java.sql.{Array => _, _}
+import java.sql.{ Array => _, _ }
 
 import org.joda.time.LocalDateTime
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
@@ -151,7 +151,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("time", "bool", "int", "string", "double", "long"),
       Seq(DataType[Time], DataType[Boolean], DataType[Int], DataType[String], DataType[Double], DataType[Long]),
       Iterator(
-        Array[Option[Any]](Some(Time(time)), Some(false), Some(42), Some("foo"), Some(55.5D), Some(10L)),
+        Array[Option[Any]](Some(Time(time)), Some(false), Some(42), Some("foo"), Some(55.5d), Some(10L)),
         Array[Option[Any]](None, None, None, None, None, None)
       )
     )
@@ -161,6 +161,12 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     resultSet.getTimestamp(1) shouldEqual new Timestamp(time.toDateTime.getMillis)
     resultSet.getTimestamp("time") shouldEqual new Timestamp(time.toDateTime.getMillis)
+
+    resultSet.getDate(1) shouldEqual new Date(time.toDateTime.getMillis)
+    resultSet.getDate("time") shouldEqual new Date(time.toDateTime.getMillis)
+
+    resultSet.getTime(1) shouldEqual new java.sql.Time(time.toDateTime.getMillis)
+    resultSet.getTime("time") shouldEqual new java.sql.Time(time.toDateTime.getMillis)
 
     resultSet.getBoolean(2) shouldEqual false
     resultSet.getBoolean("bool") shouldEqual false
