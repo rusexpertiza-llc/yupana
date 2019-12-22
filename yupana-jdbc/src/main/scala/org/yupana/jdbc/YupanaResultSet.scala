@@ -88,9 +88,10 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def last: Boolean = {
-    currentIdx = result.size - 1
-    it = it.dropWhile(_ => it.hasNext)
-    currentRow = it.next()
+    while (it.hasNext) {
+      currentIdx += 1
+      currentRow = it.next()
+    }
     true
   }
 
@@ -99,8 +100,9 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def absolute(row: Int): Boolean = {
-    if (row < currentIdx) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
-    it = result.iterator.drop(row - currentIdx)
+    if (row < currentIdx + 1) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    it = result.iterator.drop(row - currentIdx - 2)
+    currentRow = it.next()
     currentIdx = row - 1
     true
   }
@@ -108,7 +110,8 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def relative(rows: Int): Boolean = {
     if (rows < 0) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
-    it = result.iterator.drop(rows)
+    it = result.iterator.drop(rows - 1)
+    currentRow = it.next()
     currentIdx = currentIdx + rows
     true
   }
@@ -144,7 +147,9 @@ class YupanaResultSet protected[jdbc] (
   override def clearWarnings(): Unit = {}
 
   @throws[SQLException]
-  override def getCursorName: String = null
+  override def getCursorName: String = {
+    throw new SQLFeatureNotSupportedException("Cursor names are not supported")
+  }
 
   @throws[SQLException]
   override def getMetaData: ResultSetMetaData = this
