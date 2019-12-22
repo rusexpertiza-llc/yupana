@@ -49,26 +49,25 @@ class YupanaResultSet protected[jdbc] (
   override def next: Boolean = {
     if (it.hasNext) {
       currentIdx += 1
-      try {
-        currentRow = it.next()
-      } catch {
-        case e: IllegalArgumentException => throw new SQLException(e.getMessage)
-      }
+      currentRow = it.next()
       true
-    } else false
+    } else {
+      currentRow = null
+      false
+    }
   }
 
   @throws[SQLException]
   override def isBeforeFirst: Boolean = currentIdx == -1
 
   @throws[SQLException]
-  override def isAfterLast: Boolean = !it.hasNext
+  override def isAfterLast: Boolean = !it.hasNext && currentRow == null
 
   @throws[SQLException]
   override def isFirst: Boolean = currentIdx == 0
 
   @throws[SQLException]
-  override def isLast: Boolean = currentIdx == result.size - 1
+  override def isLast: Boolean = !it.hasNext && currentRow != null
 
   @throws[SQLException]
   override def beforeFirst(): Unit = {
@@ -157,7 +156,18 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def findColumn(s: String): Int = columnNameIndex.getOrElse(s, throw new SQLException(s"Unknown column $s"))
 
+  private def checkRow(): Unit = {
+    if (currentRow == null) {
+      if (currentIdx == -1) {
+        throw new SQLException("Trying to read before next call")
+      } else {
+        throw new SQLException("Reading after the last row")
+      }
+    }
+  }
+
   private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
+    checkRow()
     val cell = currentRow.fieldByIndex(i - 1)
     wasNullValue = cell.isEmpty
     cell.getOrElse(default)
@@ -168,6 +178,7 @@ class YupanaResultSet protected[jdbc] (
   }
 
   private def getReference[T >: Null](i: Int, f: Any => T): T = {
+    checkRow()
     val cell = currentRow.fieldByIndex[T](i - 1)
     wasNullValue = cell.isEmpty
     cell match {
