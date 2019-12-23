@@ -145,4 +145,17 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       )
     ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("aaa", "foo"))
   }
+
+  it should "validate data" in {
+    testCatalog.validate()
+
+    val invalidData = Array(
+      Array("foo", "bar", "baz"),
+      Array("foo", "quux"),
+      Array("bar", "bar", "look")
+    )
+
+    val link = new TestExternalLink(invalidData, testExternalLink)
+    the[IllegalArgumentException] thrownBy link.validate() should have message "Data must have exactly 3 columns"
+  }
 }
