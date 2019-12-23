@@ -16,8 +16,8 @@ addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.9.2")
 
 addSbtPlugin("io.github.davidmweber" % "flyway-sbt" % "5.2.0")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.0")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.6.1")
 
-addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.2.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.3.1")
 
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.2.1")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.3.0")

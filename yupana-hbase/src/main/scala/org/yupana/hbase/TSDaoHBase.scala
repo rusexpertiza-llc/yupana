@@ -93,10 +93,9 @@ class TSDaoHBase(
   override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
     val hbaseTable = connection.getTable(tableName(namespace, table))
-    val puts = statuses.map(
-      status =>
-        new Put(Bytes.toBytes(status._1))
-          .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
+    val puts = statuses.map(status =>
+      new Put(Bytes.toBytes(status._1))
+        .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
     )
     hbaseTable.put(puts.asJava)
   }

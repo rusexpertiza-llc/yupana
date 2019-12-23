@@ -50,12 +50,11 @@ object Main extends StrictLogging {
     val schema = ExampleSchema.schema
     val jsonLinks = Option(config.properties.getProperty("yupana.json-catalogs-declaration"))
     val schemaWithJson = jsonLinks
-      .map(
-        json =>
-          JsonExternalLinkDeclarationsParser
-            .parse(schema, json)
-            .right
-            .map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
+      .map(json =>
+        JsonExternalLinkDeclarationsParser
+          .parse(schema, json)
+          .right
+          .map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
       )
       .getOrElse(Right(schema))
       .fold(msg => throw new RuntimeException(s"Cannot register JSON catalogs: $msg"), identity)

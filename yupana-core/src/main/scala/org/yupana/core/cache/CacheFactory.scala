@@ -57,11 +57,10 @@ object CacheFactory extends StrictLogging {
     val props = propsForPrefix("analytics.caches." + name)
     val engine = props
       .get("engine")
-      .map(
-        engineName =>
-          CacheEngine.values
-            .find(_.toString == engineName)
-            .getOrElse(throw new IllegalArgumentException(s"Unknown cache engine $engineName for cache $name"))
+      .map(engineName =>
+        CacheEngine.values
+          .find(_.toString == engineName)
+          .getOrElse(throw new IllegalArgumentException(s"Unknown cache engine $engineName for cache $name"))
       )
       .getOrElse(defaultEngine)
 

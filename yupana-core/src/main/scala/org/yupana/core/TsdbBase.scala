@@ -143,8 +143,8 @@ trait TsdbBase extends StrictLogging {
 
         val filtered = queryContext.postCondition match {
           case Some(cond) =>
-            withValuesForFilter.filter(
-              row => ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+            withValuesForFilter.filter(row =>
+              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
             )
           case None => withValuesForFilter
         }
@@ -332,11 +332,10 @@ trait TsdbBase extends StrictLogging {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val substituted = linkServices.map(
-      service =>
-        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-          service.condition(condition)
-        }
+    val substituted = linkServices.map(service =>
+      metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
+        service.condition(condition)
+      }
     )
 
     if (substituted.nonEmpty) {
