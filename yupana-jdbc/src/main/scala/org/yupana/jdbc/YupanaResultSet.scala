@@ -57,6 +57,9 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
+  private def onlyForwardException(): Boolean =
+    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+
   @throws[SQLException]
   override def isBeforeFirst: Boolean = currentIdx == -1
 
@@ -72,7 +75,7 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def beforeFirst(): Unit = {
     if (!isBeforeFirst) {
-      throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+      onlyForwardException()
     }
   }
 
@@ -87,12 +90,14 @@ class YupanaResultSet protected[jdbc] (
     if (isBeforeFirst) {
       next()
     } else if (!isFirst) {
-      throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+      onlyForwardException()
     } else true
   }
 
   @throws[SQLException]
   override def last: Boolean = {
+    if (isAfterLast) onlyForwardException()
+
     while (it.hasNext) {
       currentIdx += 1
       currentRow = it.next()
@@ -105,7 +110,7 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def absolute(row: Int): Boolean = {
-    if (row < currentIdx + 1) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    if (row < currentIdx + 1) onlyForwardException()
     it = result.iterator.drop(row - currentIdx - 2)
     currentRow = it.next()
     currentIdx = row - 1
@@ -114,7 +119,7 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def relative(rows: Int): Boolean = {
-    if (rows < 0) throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    if (rows < 0) onlyForwardException()
     it = result.iterator.drop(rows - 1)
     currentRow = it.next()
     currentIdx = currentIdx + rows
@@ -123,7 +128,7 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def previous: Boolean = {
-    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
+    onlyForwardException()
   }
 
   @throws[SQLException]

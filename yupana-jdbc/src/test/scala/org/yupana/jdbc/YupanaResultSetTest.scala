@@ -119,6 +119,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.isAfterLast shouldBe true
     resultSet.getRow shouldEqual 7
     an[SQLException] should be thrownBy resultSet.getInt(1)
+    an[SQLException] should be thrownBy resultSet.last
   }
 
   it should "support last and afterLast" in {
