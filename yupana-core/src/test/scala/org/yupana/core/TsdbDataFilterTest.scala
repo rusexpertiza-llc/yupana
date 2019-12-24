@@ -65,20 +65,19 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime + 100)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime + 100)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset()
+        )
       )
 
     val rows = tsdb.query(query).toList
@@ -118,20 +117,19 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("VB1"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime + 100)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("VB1"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("VB1"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime + 100)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("VB1"))
+            .buildAndReset()
+        )
       )
 
     val rows = tsdb.query(query).toList
@@ -169,20 +167,19 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime + 100)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime + 100)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset()
+        )
       )
 
     val rows = tsdb.query(query).toList
@@ -221,22 +218,21 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
-              .set(dimension(TestDims.TAG_A), Some("test11"))
-              .set(dimension(TestDims.TAG_B), Some("test12"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime + 100)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-              .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
+            .set(dimension(TestDims.TAG_A), Some("test11"))
+            .set(dimension(TestDims.TAG_B), Some("test12"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime + 100)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
+            .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset()
+        )
       )
 
     val rows = tsdb.query(query).toList
@@ -274,20 +270,19 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1014d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1014d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset()
+        )
       )
 
     val iterator = tsdb.query(query).iterator
@@ -361,27 +356,26 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), Some("asdsadasd"))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-              .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Str@!"))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-              .set(dimension(TestDims.TAG_A), Some("test1"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("asdsadasd"))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Str@!"))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
+            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .buildAndReset()
+        )
       )
 
     val rows = tsdb.query(query).toList
@@ -411,14 +405,13 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall(
-        (qc, datas, _) =>
-          setCatalogValueByTag(
-            qc,
-            datas,
-            TestLinks.TEST_LINK,
-            SparseTable("test2a" -> Map("testField" -> "some-value"))
-          )
+      .onCall((qc, datas, _) =>
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable("test2a" -> Map("testField" -> "some-value"))
+        )
       )
 
     val pointTime1 = from.getMillis + 10
@@ -438,20 +431,19 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(10d))
-              .set(dimension(TestDims.TAG_A), Some("test1a"))
-              .set(dimension(TestDims.TAG_B), Some("test2b"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(30d))
-              .set(dimension(TestDims.TAG_A), Some("test2a"))
-              .set(dimension(TestDims.TAG_B), Some("test3b"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime1)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(10d))
+            .set(dimension(TestDims.TAG_A), Some("test1a"))
+            .set(dimension(TestDims.TAG_B), Some("test2b"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime1)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(30d))
+            .set(dimension(TestDims.TAG_A), Some("test2a"))
+            .set(dimension(TestDims.TAG_B), Some("test3b"))
+            .buildAndReset()
+        )
       )
 
     val results = tsdb.query(query).toList
@@ -481,14 +473,13 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall(
-        (qc, datas, _) =>
-          setCatalogValueByTag(
-            qc,
-            datas,
-            TestLinks.TEST_LINK,
-            SparseTable("test2a" -> Map("testField" -> "some-value"))
-          )
+      .onCall((qc, datas, _) =>
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable("test2a" -> Map("testField" -> "some-value"))
+        )
       )
 
     val pointTime1 = from.getMillis + 10
@@ -508,20 +499,19 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(10d))
-              .set(dimension(TestDims.TAG_A), Some("test1a"))
-              .set(dimension(TestDims.TAG_B), Some("test2b"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(30d))
-              .set(dimension(TestDims.TAG_A), Some("test2a"))
-              .set(dimension(TestDims.TAG_B), Some("test3b"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime1)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(10d))
+            .set(dimension(TestDims.TAG_A), Some("test1a"))
+            .set(dimension(TestDims.TAG_B), Some("test2b"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime1)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(30d))
+            .set(dimension(TestDims.TAG_A), Some("test2a"))
+            .set(dimension(TestDims.TAG_B), Some("test3b"))
+            .buildAndReset()
+        )
       )
 
     val results = tsdb.query(query).toList
@@ -560,26 +550,24 @@ class TsdbDataFilterTest
 
       (testCatalogServiceMock.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-        .onCall(
-          (qc, datas, _) =>
-            setCatalogValueByTag(
-              qc,
-              datas,
-              TestLinks.TEST_LINK,
-              SparseTable("test2a" -> Map("testField" -> "some-value"))
-            )
+        .onCall((qc, datas, _) =>
+          setCatalogValueByTag(
+            qc,
+            datas,
+            TestLinks.TEST_LINK,
+            SparseTable("test2a" -> Map("testField" -> "some-value"))
+          )
         )
 
       (testCatalogServiceMock2.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")))
-        .onCall(
-          (qc, datas, _) =>
-            setCatalogValueByTag(
-              qc,
-              datas,
-              TestLinks.TEST_LINK2,
-              SparseTable("test1a" -> Map("testField2" -> "c2-value"), "test2a" -> Map("testField2" -> "some-value"))
-            )
+        .onCall((qc, datas, _) =>
+          setCatalogValueByTag(
+            qc,
+            datas,
+            TestLinks.TEST_LINK2,
+            SparseTable("test1a" -> Map("testField2" -> "c2-value"), "test2a" -> Map("testField2" -> "some-value"))
+          )
         )
 
       val pointTime1 = from.getMillis + 10
@@ -599,30 +587,29 @@ class TsdbDataFilterTest
           *,
           *
         )
-        .onCall(
-          (_, b, _) =>
-            Iterator(
-              b.set(time, Some(Time(pointTime1)))
-                .set(metric(TestTableFields.TEST_FIELD), Some(1001d))
-                .set(dimension(TestDims.TAG_A), Some("test2a"))
-                .set(dimension(TestDims.TAG_B), Some("testB2"))
-                .buildAndReset(),
-              b.set(time, Some(Time(pointTime1 + 10)))
-                .set(metric(TestTableFields.TEST_FIELD), Some(1002d))
-                .set(dimension(TestDims.TAG_A), Some("test2a"))
-                .set(dimension(TestDims.TAG_B), Some("testB2"))
-                .buildAndReset(),
-              b.set(time, Some(Time(pointTime1 + 10)))
-                .set(metric(TestTableFields.TEST_FIELD), Some(103d))
-                .set(dimension(TestDims.TAG_A), Some("test2a"))
-                .set(dimension(TestDims.TAG_B), Some("testB2"))
-                .buildAndReset(),
-              b.set(time, Some(Time(pointTime1 + 10)))
-                .set(metric(TestTableFields.TEST_FIELD), Some(1003d))
-                .set(dimension(TestDims.TAG_A), Some("test1a"))
-                .set(dimension(TestDims.TAG_B), Some("testB2"))
-                .buildAndReset()
-            )
+        .onCall((_, b, _) =>
+          Iterator(
+            b.set(time, Some(Time(pointTime1)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1001d))
+              .set(dimension(TestDims.TAG_A), Some("test2a"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1 + 10)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1002d))
+              .set(dimension(TestDims.TAG_A), Some("test2a"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1 + 10)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(103d))
+              .set(dimension(TestDims.TAG_A), Some("test2a"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .buildAndReset(),
+            b.set(time, Some(Time(pointTime1 + 10)))
+              .set(metric(TestTableFields.TEST_FIELD), Some(1003d))
+              .set(dimension(TestDims.TAG_A), Some("test1a"))
+              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .buildAndReset()
+          )
         )
 
       val results = tsdb.query(query).toList
@@ -646,9 +633,8 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall(
-        (qc, datas, _) =>
-          setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test1a" -> Map("testField" -> "c1-value")))
+      .onCall((qc, datas, _) =>
+        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test1a" -> Map("testField" -> "c1-value")))
       )
 
     (testCatalogServiceMock2.condition _)
@@ -684,18 +670,17 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1011d))
-              .set(dimension(TestDims.TAG_A), Some("test1a"))
-              .buildAndReset(),
-            b.set(time, Some(Time(pointTime2)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(3001d))
-              .set(dimension(TestDims.TAG_A), Some("test2a"))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime1)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(1011d))
+            .set(dimension(TestDims.TAG_A), Some("test1a"))
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime2)))
+            .set(metric(TestTableFields.TEST_FIELD), Some(3001d))
+            .set(dimension(TestDims.TAG_A), Some("test2a"))
+            .buildAndReset()
+        )
       )
 
     val results = tsdb.query(query).toList
@@ -726,14 +711,13 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall(
-        (_, b, _) =>
-          Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTable2Fields.TEST_FIELD2), Some(0d))
-              .set(metric(TestTable2Fields.TEST_FIELD3), Some(BigDecimal(5)))
-              .buildAndReset()
-          )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime)))
+            .set(metric(TestTable2Fields.TEST_FIELD2), Some(0d))
+            .set(metric(TestTable2Fields.TEST_FIELD3), Some(BigDecimal(5)))
+            .buildAndReset()
+        )
       )
 
     val results = tsdb.query(query).toList

@@ -61,32 +61,39 @@ class BTreeIndexDaoHBase[K, V](
   }
 
   def get(keys: Seq[K]): Map[K, V] = {
-    val table = connection.getTable(tableName)
+    if (keys.nonEmpty) {
+      val table = connection.getTable(tableName)
 
-    val ranges = keys.map { id =>
-      val key = keySerializer(id)
-      new MultiRowRangeFilter.RowRange(key, true, key, true)
-    }
-
-    val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
-    val start = filter.getRowRanges.asScala.head.getStartRow
-    val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
-
-    val scan = new Scan(start, end)
-      .addFamily(FAMILY)
-      .addColumn(FAMILY, QUALIFIER)
-      .setFilter(filter)
-
-    val scanner = table.getScanner(scan)
-    scanner
-      .iterator()
-      .asScala
-      .map { r =>
-        val id = keyDeserializer(r.getRow)
-        val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
-        id -> value
+      val ranges = keys.map { id =>
+        val key = keySerializer(id)
+        new MultiRowRangeFilter.RowRange(key, true, key, true)
       }
-      .toMap
+
+      val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+      val start = filter.getRowRanges.asScala.head.getStartRow
+      val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
+
+      val scan = new Scan(start, end)
+        .addFamily(FAMILY)
+        .addColumn(FAMILY, QUALIFIER)
+        .setFilter(filter)
+
+      val scanner = table.getScanner(scan)
+      scanner
+        .iterator()
+        .asScala
+        .map { r =>
+          val id = keyDeserializer(r.getRow)
+          val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
+          id -> value
+        }
+        .toMap
+    } else Map.empty
+  }
+
+  def exists(keys: Seq[K]): Map[K, Boolean] = {
+    val result = get(keys)
+    keys.map(k => k -> result.contains(k)).toMap
   }
 
   private def checkTableExistsElseCreate() {

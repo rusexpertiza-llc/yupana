@@ -49,51 +49,59 @@ class YupanaResultSet protected[jdbc] (
   override def next: Boolean = {
     if (it.hasNext) {
       currentIdx += 1
-      try {
-        currentRow = it.next()
-      } catch {
-        case e: IllegalArgumentException => throw new SQLException(e.getMessage)
-      }
+      currentRow = it.next()
       true
-    } else false
+    } else {
+      currentRow = null
+      false
+    }
   }
+
+  private def onlyForwardException(): Boolean =
+    throw new SQLException("FORWARD_ONLY result set cannot be scrolled back")
 
   @throws[SQLException]
   override def isBeforeFirst: Boolean = currentIdx == -1
 
   @throws[SQLException]
-  override def isAfterLast: Boolean = !it.hasNext
+  override def isAfterLast: Boolean = !it.hasNext && currentRow == null
 
   @throws[SQLException]
   override def isFirst: Boolean = currentIdx == 0
 
   @throws[SQLException]
-  override def isLast: Boolean = currentIdx == result.size - 1
+  override def isLast: Boolean = !it.hasNext && currentRow != null
 
   @throws[SQLException]
   override def beforeFirst(): Unit = {
-    currentIdx = -1
-    it = result.iterator
+    if (!isBeforeFirst) {
+      onlyForwardException()
+    }
   }
 
   @throws[SQLException]
   override def afterLast(): Unit = {
-    currentIdx = result.size
-    it = Iterator.empty
+    last()
+    next()
   }
 
   @throws[SQLException]
   override def first: Boolean = {
-    currentIdx = -1
-    it = result.iterator
-    next
+    if (isBeforeFirst) {
+      next()
+    } else if (!isFirst) {
+      onlyForwardException()
+    } else true
   }
 
   @throws[SQLException]
   override def last: Boolean = {
-    currentIdx = result.size - 1
-    it = it.dropWhile(_ => it.hasNext)
-    currentRow = it.next()
+    if (isAfterLast) onlyForwardException()
+
+    while (it.hasNext) {
+      currentIdx += 1
+      currentRow = it.next()
+    }
     true
   }
 
@@ -102,34 +110,42 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def absolute(row: Int): Boolean = {
-    it = result.iterator.drop(row - 1)
+    if (row < currentIdx + 1) onlyForwardException()
+    it = result.iterator.drop(row - currentIdx - 2)
+    currentRow = it.next()
     currentIdx = row - 1
     true
   }
 
   @throws[SQLException]
   override def relative(rows: Int): Boolean = {
+    if (rows < 0) onlyForwardException()
+    it = result.iterator.drop(rows - 1)
+    currentRow = it.next()
     currentIdx = currentIdx + rows
     true
   }
 
   @throws[SQLException]
   override def previous: Boolean = {
-    currentIdx -= 1
-    true
+    onlyForwardException()
   }
 
   @throws[SQLException]
-  override def setFetchDirection(direction: Int): Unit = {}
+  override def setFetchDirection(direction: Int): Unit = {
+    if (direction != ResultSet.FETCH_FORWARD) {
+      throw new SQLException("Only FETCH_FORWARD is supported")
+    }
+  }
 
   @throws[SQLException]
   override def getFetchDirection: Int = ResultSet.FETCH_FORWARD
 
   @throws[SQLException]
-  override def setFetchSize(i: Int): Unit = {}
+  override def setFetchSize(i: Int): Unit = throw new SQLFeatureNotSupportedException("Fetch size is not supported")
 
   @throws[SQLException]
-  override def getFetchSize: Int = result.size
+  override def getFetchSize: Int = 0
 
   @throws[SQLException]
   override def close(): Unit = {}
@@ -141,7 +157,9 @@ class YupanaResultSet protected[jdbc] (
   override def clearWarnings(): Unit = {}
 
   @throws[SQLException]
-  override def getCursorName: String = null
+  override def getCursorName: String = {
+    throw new SQLFeatureNotSupportedException("Cursor names are not supported")
+  }
 
   @throws[SQLException]
   override def getMetaData: ResultSetMetaData = this
@@ -149,7 +167,18 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def findColumn(s: String): Int = columnNameIndex.getOrElse(s, throw new SQLException(s"Unknown column $s"))
 
+  private def checkRow(): Unit = {
+    if (currentRow == null) {
+      if (currentIdx == -1) {
+        throw new SQLException("Trying to read before next call")
+      } else {
+        throw new SQLException("Reading after the last row")
+      }
+    }
+  }
+
   private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
+    checkRow()
     val cell = currentRow.fieldByIndex(i - 1)
     wasNullValue = cell.isEmpty
     cell.getOrElse(default)
@@ -160,6 +189,7 @@ class YupanaResultSet protected[jdbc] (
   }
 
   private def getReference[T >: Null](i: Int, f: Any => T): T = {
+    checkRow()
     val cell = currentRow.fieldByIndex[T](i - 1)
     wasNullValue = cell.isEmpty
     cell match {

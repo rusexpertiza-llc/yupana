@@ -127,19 +127,18 @@ object SqlQueryProcessor extends QueryValidator {
             } yield (c, et)
         })
 
-        createExpr(state, nameResolver, default, exprType).right.flatMap(
-          ve =>
-            converted.right.flatMap { conv =>
-              conv.foldRight(Right(ve): Either[String, Expression]) {
-                case ((condition, value), Right(e)) =>
-                  ExprPair
-                    .alignTypes(value, e)
-                    .right
-                    .map(pair => ConditionExpr(condition, pair.a, pair.b).asInstanceOf[Expression])
+        createExpr(state, nameResolver, default, exprType).right.flatMap(ve =>
+          converted.right.flatMap { conv =>
+            conv.foldRight(Right(ve): Either[String, Expression]) {
+              case ((condition, value), Right(e)) =>
+                ExprPair
+                  .alignTypes(value, e)
+                  .right
+                  .map(pair => ConditionExpr(condition, pair.a, pair.b).asInstanceOf[Expression])
 
-                case (_, Left(msg)) => Left(msg)
-              }
+              case (_, Left(msg)) => Left(msg)
             }
+          }
         )
 
       case parser.FieldName(name) =>
@@ -257,8 +256,8 @@ object SqlQueryProcessor extends QueryValidator {
       .unaryOperation(fun)
       .toRight(s"Function $fun is not defined on type ${expr.dataType}")
       .right
-    uf.map(
-      f => UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
+    uf.map(f =>
+      UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
     )
   }
 

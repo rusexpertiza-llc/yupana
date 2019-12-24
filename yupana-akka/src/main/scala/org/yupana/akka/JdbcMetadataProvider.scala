@@ -62,8 +62,8 @@ class JdbcMetadataProvider(schema: Schema) {
       val timeColumn = columnsArray(table.name, "time", DataTypeMeta.timestampMeta)
 
       val catalogColumns = table.externalLinks.flatMap(catalog => {
-        catalog.fieldsNames.map(
-          field => columnsArray(table.name, catalog.linkName + "_" + field, DataTypeMeta.stringMeta)
+        catalog.fieldsNames.map(field =>
+          columnsArray(table.name, catalog.linkName + "_" + field, DataTypeMeta.stringMeta)
         )
       })
 

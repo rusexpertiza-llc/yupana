@@ -399,20 +399,25 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
+
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
+
     if (connection.getAdmin.tableExists(metaTableName)) {
       ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+
     } else {
+
+      val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
+      ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
+
       logger.info(s"Writing TSDB Schema definition to namespace $namespace")
+
       val tableDesc = new HTableDescriptor(metaTableName)
         .addFamily(
           new HColumnDescriptor(tsdbSchemaFamily)
             .setDataBlockEncoding(DataBlockEncoding.PREFIX)
         )
       connection.getAdmin.createTable(tableDesc)
-
-      val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
-
       val table = connection.getTable(metaTableName)
       val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, tsdbSchemaBytes)
       table.put(put)
