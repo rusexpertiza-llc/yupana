@@ -18,8 +18,9 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.{ Query, Result }
+import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.schema.Schema
+import org.yupana.api.types.DataType
 import org.yupana.core.TSDB
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -30,8 +31,10 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class RequestHandler(schema: Schema) extends StrictLogging {
 
-  val sqlQueryProcessor = new SqlQueryProcessor(schema)
-  val metadataProvider = new JdbcMetadataProvider(schema)
+  private val sqlQueryProcessor = new SqlQueryProcessor(schema)
+  private val metadataProvider = new JdbcMetadataProvider(schema)
+
+  private val ok = SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
 
   def handleQuery(tsdb: TSDB, sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
@@ -50,6 +53,14 @@ class RequestHandler(schema: Schema) extends StrictLogging {
           tsdbQuery.right flatMap { query =>
             val rs = tsdb.query(query)
             Right(resultToProto(rs))
+          }
+
+        case upsert: Upsert =>
+          val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
+          val dp = sqlQueryProcessor.createDataPoint(upsert, params)
+          dp.right flatMap { dp =>
+            tsdb.put(Seq(dp))
+            Right(resultToProto(ok))
           }
 
         case ShowTables => Right(resultToProto(metadataProvider.listTables))

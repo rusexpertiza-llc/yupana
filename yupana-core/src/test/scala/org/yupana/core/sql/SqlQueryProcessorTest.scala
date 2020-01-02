@@ -4,7 +4,7 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime, Period }
 import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.types._
 import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
@@ -14,13 +14,6 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   import org.yupana.api.query.syntax.All._
 
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
-
-  private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
-    SqlParser.parse(sql).right flatMap {
-      case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
-      case x                => fail(s"Select expected but got $x")
-    }
-  }
 
   val TAG_A = Dimension("TAG_A")
   val TAG_B = Dimension("TAG_B")
@@ -1054,6 +1047,55 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         le(time, const(Time(new DateTime(2019, 4, 11, 0, 0, DateTimeZone.UTC)))),
         lt[BigDecimal](long2BigDecimal(minus(metric(TestTableFields.TEST_LONG_FIELD))), const(BigDecimal(-100)))
       )
+    }
+  }
+
+  it should "transform upsert into data points" in {
+    MetricValue(TestTableFields.TEST_STRING_FIELD, "baz") shouldEqual MetricValue(
+      TestTableFields.TEST_STRING_FIELD,
+      "baz"
+    )
+
+    createUpsert("""UPSERT INTO test_table(time, tag_b, tag_a, testField, testStringField)
+        |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 'foo', 'bar', 55, 'baz')""".stripMargin) match {
+      case Right(dp) =>
+        dp.table shouldEqual TestSchema.testTable
+        dp.time shouldEqual new DateTime(2020, 1, 2, 23, 25, 40, DateTimeZone.UTC).getMillis
+        dp.dimensions shouldEqual Map(TestDims.TAG_B -> "foo", TestDims.TAG_A -> "bar")
+        dp.metrics should contain theSameElementsAs Seq(
+          MetricValue(TestTableFields.TEST_FIELD, 55d),
+          MetricValue(TestTableFields.TEST_STRING_FIELD, "baz")
+        )
+
+      case Left(e) => fail(e)
+    }
+  }
+
+  it should "fail upsert if number of fields and values mismatch" in {
+    createUpsert("UPSERT INTO test_table (tag_a, time) VALUES ('bar')") match {
+      case Left(e)  => e shouldEqual "There are 2 fields, but 1 values"
+      case Right(d) => fail(s"Data point $d was created, but shouldn't")
+    }
+  }
+
+  it should "fail upsert on data type mismatch" in {
+    createUpsert("UPSERT INTO test_table (tag_a, time, testField) VALUES (5, 'foo', 'bar')") match {
+      case Left(e)  => e shouldEqual "Cannot convert VARCHAR to TIMESTAMP"
+      case Right(d) => fail(s"Data point $d was created, but shouldn't")
+    }
+  }
+
+  private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
+    SqlParser.parse(sql).right flatMap {
+      case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
+      case x                => Left(s"Select expected but got $x")
+    }
+  }
+
+  private def createUpsert(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, DataPoint] = {
+    SqlParser.parse(sql).right flatMap {
+      case u: parser.Upsert => sqlQueryProcessor.createDataPoint(u, params)
+      case x                => Left(s"Select expected but got $x")
     }
   }
 

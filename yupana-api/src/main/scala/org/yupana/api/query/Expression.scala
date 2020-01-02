@@ -29,7 +29,7 @@ sealed trait Expression extends Serializable {
 
   def kind: ExprKind
 
-  def as(name: String) = QueryField(name, this)
+  def as(name: String): QueryField = QueryField(name, this)
 
   def encode: String
 
@@ -144,7 +144,7 @@ case object TimeExpr extends Expression {
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
   override def encode: String = s"time()"
-  def toField = QueryField("time", this)
+  def toField: QueryField = QueryField("time", this)
 }
 
 class DimensionExpr(val dimension: Dimension) extends Expression {
@@ -155,7 +155,7 @@ class DimensionExpr(val dimension: Dimension) extends Expression {
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
   override def encode: String = s"dim(${dimension.name})"
-  def toField = QueryField(dimension.name, this)
+  def toField: QueryField = QueryField(dimension.name, this)
 }
 
 object DimensionExpr {
@@ -171,7 +171,7 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
   override def encode: String = s"metric(${metric.name})"
-  def toField = QueryField(metric.name, this)
+  def toField: QueryField = QueryField(metric.name, this)
 }
 
 class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression {
@@ -183,7 +183,7 @@ class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression
 
   override def encode: String = s"link(${link.linkName}, $linkField)"
   def queryFieldName: String = link.linkName + "_" + linkField
-  def toField = QueryField(queryFieldName, this)
+  def toField: QueryField = QueryField(queryFieldName, this)
 }
 
 object LinkExpr {

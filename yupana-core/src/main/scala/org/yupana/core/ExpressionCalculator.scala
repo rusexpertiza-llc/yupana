@@ -24,6 +24,11 @@ object ExpressionCalculator {
 
   implicit private val operations: Operations = Operations
 
+  def evaluateConstant(expr: Expression): Option[expr.Out] = {
+    assert(expr.kind == Const)
+    evaluateExpression(expr, null, null)
+  }
+
   def evaluateExpression(
       expr: Expression,
       queryContext: QueryContext,

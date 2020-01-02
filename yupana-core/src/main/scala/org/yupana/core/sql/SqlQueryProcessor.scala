@@ -20,8 +20,9 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Metric, Schema, Table }
+import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Schema, Table }
 import org.yupana.api.types._
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 import org.yupana.core.utils.CollectionUtils
@@ -33,16 +34,38 @@ class SqlQueryProcessor(schema: Schema) {
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)
     val query = for {
-      table <- getTable(select.schemaName).right
-      fields <- getFields(table, select, state).right
-      filter <- getFilter(table, fields, select.condition, state).right
-      groupBy <- getGroupBy(select, table, state).right
-      pf <- getPostFilter(table, fields, select.having, state).right
+      table <- getTable(select.schemaName)
+      fields <- getFields(table, select, state)
+      filter <- getFilter(table, fields, select.condition, state)
+      groupBy <- getGroupBy(select, table, state)
+      pf <- getPostFilter(table, fields, select.having, state)
     } yield {
       Query(table, fields, filter, groupBy, select.limit, pf)
     }
 
-    query.right.flatMap(validateQuery)
+    query.flatMap(validateQuery)
+  }
+
+  def createDataPoint(
+      upsert: parser.Upsert,
+      parameters: Map[Int, parser.Value] = Map.empty
+  ): Either[String, DataPoint] = {
+    if (upsert.values.size == upsert.fieldNames.size) {
+      val state = new BuilderState(parameters)
+
+      for {
+        table <- getTable(upsert.schemaName)
+        fieldMap <- getFieldMap(table, upsert.fieldNames)
+        values <- getValues(state, table, upsert.values)
+        time <- getTimeValue(fieldMap, values)
+        dimensions <- getDimensionValues(table, fieldMap, values)
+        metrics <- getMetricValues(table, fieldMap, values)
+      } yield {
+        DataPoint(table, time, dimensions, metrics)
+      }
+    } else {
+      Left(s"There are ${upsert.fieldNames.size} fields, but ${upsert.values.size} values")
+    }
   }
 
   private def getTable(schemaName: String): Either[String, Table] = {
@@ -363,24 +386,22 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
-    convertValue(state, v, ExprType.Cmp) match {
-      case Right(const) =>
-        if (const.dataType == dataType) {
-          Right(const.v.asInstanceOf[dataType.T])
-        } else {
-          TypeConverter(const.dataType, dataType.aux)
-            .map(conv => conv.direct(const.v))
-            .orElse(
-              TypeConverter(dataType.aux, const.dataType)
-                .flatMap(conv => conv.reverse(const.v))
-            )
-            .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
-        }
-
-      case Left(e) => Left(e)
+  private def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
+    if (const.dataType == dataType) {
+      Right(const.v.asInstanceOf[dataType.T])
+    } else {
+      TypeConverter(const.dataType, dataType.aux)
+        .map(conv => conv.direct(const.v))
+        .orElse(
+          TypeConverter(dataType.aux, const.dataType)
+            .flatMap(conv => conv.reverse(const.v))
+        )
+        .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
     }
+  }
 
+  private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
+    convertValue(state, v, ExprType.Cmp).flatMap(const => constCast(const, dataType))
   }
 
   private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
@@ -488,4 +509,68 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
+  private def getFieldMap(table: Table, fieldNames: Seq[String]): Either[String, Map[Expression, Int]] = {
+    val exprs = CollectionUtils.collectErrors(
+      fieldNames.map { name =>
+        fieldByName(table)(name) match {
+          case Some(LinkExpr(_, _)) => Left(s"external link $name cannot be upserted")
+          case Some(x)              => Right(x)
+          case None                 => Left(s"Unknown field $name")
+        }
+      }
+    )
+    exprs.map(_.zipWithIndex.toMap)
+  }
+
+  private def getValues(
+      state: BuilderState,
+      table: Table,
+      values: Seq[parser.SqlExpr]
+  ): Either[String, Array[ConstantExpr]] = {
+    val vs = values.map { v =>
+      createExpr(state, fieldByName(table), v, ExprType.Math) match {
+        case Right(e) if (e.kind == Const) =>
+          ExpressionCalculator.evaluateConstant(e) match {
+            case Some(v) => Right(ConstantExpr(v)(e.dataType).asInstanceOf[ConstantExpr])
+            case None    => Left(s"Cannon evaluate $e")
+          }
+        case Right(e) => Left(s"$e is not constant")
+
+        case Left(m) => Left(m)
+      }
+    }
+
+    CollectionUtils.collectErrors(vs).map(_.toArray)
+  }
+
+  private def getTimeValue(fieldMap: Map[Expression, Int], values: Array[ConstantExpr]): Either[String, Long] = {
+    val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
+    idx.map(values).flatMap(c => constCast(c, DataType[Time])).map(_.millis)
+  }
+
+  private def getDimensionValues(
+      table: Table,
+      fieldMap: Map[Expression, Int],
+      values: Seq[ConstantExpr]
+  ): Either[String, Map[Dimension, String]] = {
+    val dimValues = table.dimensionSeq.map { dim =>
+      val idx = fieldMap.get(DimensionExpr(dim)).toRight(s"${dim.name} is not defined")
+      idx.map(values).flatMap(c => constCast(c, DataType[String])).map(dim -> _)
+    }
+
+    CollectionUtils.collectErrors(dimValues).map(_.toMap)
+  }
+
+  private def getMetricValues(
+      table: Table,
+      fieldMap: Map[Expression, Int],
+      values: Seq[ConstantExpr]
+  ): Either[String, Seq[MetricValue]] = {
+    val vs = fieldMap.collect {
+      case (MetricExpr(m), idx) =>
+        constCast(values(idx), m.dataType).map(v => MetricValue(m, v))
+    }
+
+    CollectionUtils.collectErrors(vs.toSeq)
+  }
 }

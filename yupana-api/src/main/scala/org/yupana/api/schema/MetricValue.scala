@@ -24,6 +24,17 @@ trait MetricValue {
   val value: metric.T
 
   override def toString: String = s"MetricValue(${metric.name}, $value)"
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: MetricValue => this.metric == that.metric && this.value == that.value
+      case _                 => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    31 * (31 + metric.hashCode()) + value.hashCode()
+  }
 }
 
 object MetricValue {
