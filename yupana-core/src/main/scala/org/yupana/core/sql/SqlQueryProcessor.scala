@@ -34,16 +34,16 @@ class SqlQueryProcessor(schema: Schema) {
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)
     val query = for {
-      table <- getTable(select.schemaName)
-      fields <- getFields(table, select, state)
-      filter <- getFilter(table, fields, select.condition, state)
-      groupBy <- getGroupBy(select, table, state)
-      pf <- getPostFilter(table, fields, select.having, state)
+      table <- getTable(select.schemaName).right
+      fields <- getFields(table, select, state).right
+      filter <- getFilter(table, fields, select.condition, state).right
+      groupBy <- getGroupBy(select, table, state).right
+      pf <- getPostFilter(table, fields, select.having, state).right
     } yield {
       Query(table, fields, filter, groupBy, select.limit, pf)
     }
 
-    query.flatMap(validateQuery)
+    query.right.flatMap(validateQuery)
   }
 
   def createDataPoint(
@@ -54,12 +54,12 @@ class SqlQueryProcessor(schema: Schema) {
       val state = new BuilderState(parameters)
 
       for {
-        table <- getTable(upsert.schemaName)
-        fieldMap <- getFieldMap(table, upsert.fieldNames)
-        values <- getValues(state, table, upsert.values)
-        time <- getTimeValue(fieldMap, values)
-        dimensions <- getDimensionValues(table, fieldMap, values)
-        metrics <- getMetricValues(table, fieldMap, values)
+        table <- getTable(upsert.schemaName).right
+        fieldMap <- getFieldMap(table, upsert.fieldNames).right
+        values <- getValues(state, table, upsert.values).right
+        time <- getTimeValue(fieldMap, values).right
+        dimensions <- getDimensionValues(table, fieldMap, values).right
+        metrics <- getMetricValues(table, fieldMap, values).right
       } yield {
         DataPoint(table, time, dimensions, metrics)
       }
@@ -401,7 +401,7 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
-    convertValue(state, v, ExprType.Cmp).flatMap(const => constCast(const, dataType))
+    convertValue(state, v, ExprType.Cmp).right.flatMap(const => constCast(const, dataType))
   }
 
   private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
@@ -519,7 +519,7 @@ object SqlQueryProcessor extends QueryValidator {
         }
       }
     )
-    exprs.map(_.zipWithIndex.toMap)
+    exprs.right.map(_.zipWithIndex.toMap)
   }
 
   private def getValues(
@@ -540,12 +540,12 @@ object SqlQueryProcessor extends QueryValidator {
       }
     }
 
-    CollectionUtils.collectErrors(vs).map(_.toArray)
+    CollectionUtils.collectErrors(vs).right.map(_.toArray)
   }
 
   private def getTimeValue(fieldMap: Map[Expression, Int], values: Array[ConstantExpr]): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
-    idx.map(values).flatMap(c => constCast(c, DataType[Time])).map(_.millis)
+    idx.right.map(values).right.flatMap(c => constCast(c, DataType[Time])).right.map(_.millis)
   }
 
   private def getDimensionValues(
@@ -555,10 +555,10 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Map[Dimension, String]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim)).toRight(s"${dim.name} is not defined")
-      idx.map(values).flatMap(c => constCast(c, DataType[String])).map(dim -> _)
+      idx.right.map(values).right.flatMap(c => constCast(c, DataType[String])).right.map(dim -> _)
     }
 
-    CollectionUtils.collectErrors(dimValues).map(_.toMap)
+    CollectionUtils.collectErrors(dimValues).right.map(_.toMap)
   }
 
   private def getMetricValues(
@@ -568,7 +568,7 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        constCast(values(idx), m.dataType).map(v => MetricValue(m, v))
+        constCast(values(idx), m.dataType).right.map(v => MetricValue(m, v))
     }
 
     CollectionUtils.collectErrors(vs.toSeq)
