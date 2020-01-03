@@ -56,7 +56,7 @@ class SqlQueryProcessor(schema: Schema) {
       (for {
         table <- getTable(upsert.schemaName).right
         fieldMap <- getFieldMap(table, upsert.fieldNames).right
-      } yield (table, fieldMap)).flatMap {
+      } yield (table, fieldMap)).right.flatMap {
         case (table, fieldMap) =>
           val dps = params.map { ps =>
             val state = new BuilderState(ps)
