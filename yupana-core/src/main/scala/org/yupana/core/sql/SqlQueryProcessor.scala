@@ -46,22 +46,31 @@ class SqlQueryProcessor(schema: Schema) {
     query.right.flatMap(validateQuery)
   }
 
-  def createDataPoint(
+  def createDataPoints(
       upsert: parser.Upsert,
-      parameters: Map[Int, parser.Value] = Map.empty
-  ): Either[String, DataPoint] = {
-    if (upsert.values.size == upsert.fieldNames.size) {
-      val state = new BuilderState(parameters)
+      parameters: Seq[Map[Int, parser.Value]]
+  ): Either[String, Seq[DataPoint]] = {
+    val params = if (parameters.isEmpty) Seq(Map.empty[Int, parser.Value]) else parameters
 
-      for {
+    if (upsert.values.size == upsert.fieldNames.size) {
+      (for {
         table <- getTable(upsert.schemaName).right
         fieldMap <- getFieldMap(table, upsert.fieldNames).right
-        values <- getValues(state, table, upsert.values).right
-        time <- getTimeValue(fieldMap, values).right
-        dimensions <- getDimensionValues(table, fieldMap, values).right
-        metrics <- getMetricValues(table, fieldMap, values).right
-      } yield {
-        DataPoint(table, time, dimensions, metrics)
+      } yield (table, fieldMap)).flatMap {
+        case (table, fieldMap) =>
+          val dps = params.map { ps =>
+            val state = new BuilderState(ps)
+
+            for {
+              values <- getValues(state, table, upsert.values).right
+              time <- getTimeValue(fieldMap, values).right
+              dimensions <- getDimensionValues(table, fieldMap, values).right
+              metrics <- getMetricValues(table, fieldMap, values).right
+            } yield {
+              DataPoint(table, time, dimensions, metrics)
+            }
+          }
+          CollectionUtils.collectErrors(dps)
       }
     } else {
       Left(s"There are ${upsert.fieldNames.size} fields, but ${upsert.values.size} values")

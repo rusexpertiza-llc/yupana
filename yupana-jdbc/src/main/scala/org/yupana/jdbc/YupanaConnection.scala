@@ -43,6 +43,15 @@ class YupanaConnection(val url: String, properties: Properties) extends Connecti
     }
   }
 
+  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
+    try {
+      tcpClient.batchQuery(query, params)
+    } catch {
+      case e: Throwable =>
+        throw new SQLException(e)
+    }
+  }
+
   @throws[SQLException]
   override def createStatement: Statement = {
     new YupanaStatement(this)

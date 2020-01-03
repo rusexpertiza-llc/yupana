@@ -1058,7 +1058,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
     createUpsert("""UPSERT INTO test_table(time, tag_b, tag_a, testField, testStringField)
         |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 'foo', 'bar', 55, 'baz')""".stripMargin) match {
-      case Right(dp) =>
+      case Right(dps) =>
+        dps should have size 1
+        val dp = dps.head
         dp.table shouldEqual TestSchema.testTable
         dp.time shouldEqual new DateTime(2020, 1, 2, 23, 25, 40, DateTimeZone.UTC).getMillis
         dp.dimensions shouldEqual Map(TestDims.TAG_B -> "foo", TestDims.TAG_A -> "bar")
@@ -1085,6 +1087,69 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     }
   }
 
+  it should "handle upsert in batch" in {
+    val t1 = LocalDateTime.now().minusDays(1)
+    val t2 = t1.plusMinutes(15)
+    createUpsert(
+      "UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES (?, ?, ?, ?)",
+      Seq(
+        Map(
+          1 -> parser.StringValue("aaa"),
+          2 -> parser.StringValue("bbb"),
+          3 -> parser.TimestampValue(t1),
+          4 -> parser.NumericValue(1.1)
+        ),
+        Map(
+          1 -> parser.StringValue("ccc"),
+          2 -> parser.StringValue("ddd"),
+          3 -> parser.TimestampValue(t2),
+          4 -> parser.NumericValue(2.2)
+        )
+      )
+    ) match {
+      case Right(dps) =>
+        dps should have size 2
+        val dp1 = dps(0)
+        dp1.table shouldEqual TestSchema.testTable
+        dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
+        dp1.dimensions shouldEqual Map(TestDims.TAG_B -> "bbb", TestDims.TAG_A -> "aaa")
+        dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.1d))
+
+        val dp2 = dps(1)
+        dp2.table shouldEqual TestSchema.testTable
+        dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
+        dp2.dimensions shouldEqual Map(TestDims.TAG_B -> "ddd", TestDims.TAG_A -> "ccc")
+        dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
+
+      case Left(e) => fail(e)
+    }
+  }
+
+  it should "fail whole batch if there is incorrect element" in {
+    val t1 = LocalDateTime.now().minusDays(1)
+    val t2 = t1.plusMinutes(15)
+    createUpsert(
+      "UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES (?, ?, ?, ?)",
+      Seq(
+        Map(
+          1 -> parser.StringValue("aaa"),
+          2 -> parser.StringValue("bbb"),
+          3 -> parser.TimestampValue(t1),
+          4 -> parser.NumericValue(1.1)
+        ),
+        Map(
+          1 -> parser.StringValue("ccc"),
+          2 -> parser.StringValue("ddd"),
+          3 -> parser.TimestampValue(t2),
+          4 -> parser.StringValue("2.2")
+        )
+      )
+    ) match {
+      case Left(msg) => msg shouldEqual "Cannot convert VARCHAR to DOUBLE"
+      case Right(d)  => fail(s"Data point $d was created, but shouldn't")
+    }
+  }
+
   private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     SqlParser.parse(sql).right flatMap {
       case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
@@ -1092,9 +1157,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     }
   }
 
-  private def createUpsert(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, DataPoint] = {
+  private def createUpsert(
+      sql: String,
+      params: Seq[Map[Int, parser.Value]] = Seq.empty
+  ): Either[String, Seq[DataPoint]] = {
     SqlParser.parse(sql).right flatMap {
-      case u: parser.Upsert => sqlQueryProcessor.createDataPoint(u, params)
+      case u: parser.Upsert => sqlQueryProcessor.createDataPoints(u, params)
       case x                => Left(s"Select expected but got $x")
     }
   }

@@ -40,8 +40,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
 
-    val queryLog = s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}"""
-    logger.debug(queryLog)
+    logger.debug(s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}""")
 
     Future {
 
@@ -57,9 +56,8 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
         case upsert: Upsert =>
           val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
-          val dp = sqlQueryProcessor.createDataPoint(upsert, params)
-          dp.right flatMap { dp =>
-            tsdb.put(Seq(dp))
+          sqlQueryProcessor.createDataPoints(upsert, Seq(params)).right.flatMap { dps =>
+            tsdb.put(dps)
             Right(resultToProto(ok))
           }
 
@@ -75,6 +73,25 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
         case DeleteQueryMetrics(filter) =>
           Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(tsdb, filter)))
+      }
+    }
+  }
+
+  def handleBatchQuery(tsdb: TSDB, batchSqlQuery: proto.BatchSqlQuery)(
+      implicit ec: ExecutionContext
+  ): Future[Either[String, Iterator[proto.Response]]] = {
+    logger.debug(s"Processing batch SQL ${batchSqlQuery.sql} with ${batchSqlQuery.batch.size}")
+
+    Future {
+      SqlParser.parse(batchSqlQuery.sql).right.flatMap {
+        case upsert: Upsert =>
+          val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
+          sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
+            tsdb.put(dps)
+            Right(resultToProto(ok))
+          }
+
+        case _ => Left(s"Only UPSERT can have batch parameters, but got ${batchSqlQuery.sql}")
       }
     }
   }

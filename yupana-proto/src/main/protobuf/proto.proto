@@ -6,6 +6,7 @@ message Request {
     oneof req {
         Ping ping = 2;
         SqlQuery sqlQuery = 3;
+        BatchSqlQuery batchSqlQuery = 4;
     }
 }
 
@@ -24,6 +25,15 @@ message Version {
 message SqlQuery {
     required string sql = 1;
     repeated ParameterValue parameters = 2;
+}
+
+message BatchSqlQuery {
+    required string sql = 1;
+    repeated ParameterValues batch = 2;
+}
+
+message ParameterValues {
+    repeated ParameterValue parameters = 1;
 }
 
 message ParameterValue {

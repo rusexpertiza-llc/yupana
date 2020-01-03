@@ -22,6 +22,8 @@ import java.sql.{ Array => SqlArray, _ }
 import java.util.Calendar
 import java.util.logging.{ Level, Logger }
 
+import scala.collection.mutable.ArrayBuffer
+
 object YupanaPreparedStatement {
   private val LOGGER: Logger = Logger.getLogger(classOf[YupanaPreparedStatement].getName)
 }
@@ -32,16 +34,21 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
     with PreparedStatement {
 
   private var parameters = Map.empty[Int, ParameterValue]
+  private val batch = ArrayBuffer.empty[Map[Int, ParameterValue]]
 
   private def setParameter(idx: Int, v: ParameterValue): Unit = {
     parameters += idx -> v
   }
 
   @throws[SQLException]
-  override def addBatch(): Unit = {}
+  override def addBatch(): Unit = {
+    batch += parameters
+    parameters = Map.empty
+  }
 
   @throws[SQLException]
   override def clearParameters(): Unit = {
+    batch.clear()
     parameters = Map.empty
   }
 
@@ -51,6 +58,15 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
     val result = connection.runQuery(templateQuery, parameters)
     lastResultSet = new YupanaResultSet(this, result)
     true
+  }
+
+  @throws[SQLException]
+  override def executeBatch: Array[Int] = {
+    YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
+    if (batch.isEmpty) throw new SQLException("Batch is not defined")
+    val result = connection.runBatchQuery(templateQuery, batch)
+    lastResultSet = new YupanaResultSet(this, result)
+    Array.fill(batch.size)(1)
   }
 
   @throws[SQLException]
