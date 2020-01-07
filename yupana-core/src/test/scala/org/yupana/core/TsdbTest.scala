@@ -682,10 +682,12 @@ class TsdbTest
     val to = qtime.plusDays(1).getMillis
 
     val query = Query(
-      filter = AndExpr(
-        Seq(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to)))
+      filter = Some(
+        AndExpr(
+          Seq(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
         )
       ),
       groupBy = Seq(function(UnaryOperation.truncDay, time)),
@@ -693,7 +695,7 @@ class TsdbTest
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField"
       ),
       limit = None,
-      table = TestSchema.testTable
+      table = Some(TestSchema.testTable)
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2479,7 +2481,7 @@ class TsdbTest
     val to = qtime.plusDays(1).getMillis
 
     val query = Query(
-      TestSchema.testTable,
+      Some(TestSchema.testTable),
       Seq(
         time as "time_time",
         windowFunction(WindowOperation.lag[Time], time) as "lag_time_time",
@@ -2487,10 +2489,12 @@ class TsdbTest
         dimension(TestDims.TAG_A) as "TAG_A",
         dimension(TestDims.TAG_B) as "TAG_B"
       ),
-      AndExpr(
-        Seq(
-          BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime))),
-          BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1))))
+      Some(
+        AndExpr(
+          Seq(
+            BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime))),
+            BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1))))
+          )
         )
       ),
       Seq(dimension(TestDims.TAG_B)),
@@ -2907,5 +2911,33 @@ class TsdbTest
 
     val r1 = results.head
     r1.fieldValueByName[Double]("salesTicketsCount").value shouldBe 1
+  }
+
+  it should "support queries without tables" in withTsdbMock { (tsdb, _) =>
+    val res = tsdb
+      .query(
+        Query(
+          None,
+          Seq(minus(const(10), const(3)) as "seven"),
+          None
+        )
+      )
+      .toList
+
+    res should have size 1
+    res.head.fieldValueByName[BigDecimal]("seven").value shouldEqual BigDecimal(7)
+  }
+
+  it should "be able to filter without table" in withTsdbMock { (tsdb, _) =>
+    val res = tsdb
+      .query(
+        Query(
+          None,
+          Seq(minus(const(10), const(3)) as "seven"),
+          Some(le(minus(const(10), const(3)), const(5)))
+        )
+      )
+
+    res shouldBe empty
   }
 }

@@ -45,8 +45,13 @@ class SqlQueryProcessor(schema: Schema) {
     query.right.flatMap(validateQuery)
   }
 
-  private def getTable(schemaName: String): Either[String, Table] = {
-    schema.getTable(schemaName).toRight(s"Unknown table '$schemaName'")
+  private def getTable(schemaName: Option[String]): Either[String, Option[Table]] = {
+    schemaName match {
+      case Some(name) =>
+        schema.getTable(name).map(Some(_)).toRight(s"Unknown table '$schemaName'")
+      case None =>
+        Right(None)
+    }
   }
 }
 
@@ -90,7 +95,11 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def getFields(table: Table, select: parser.Select, state: BuilderState): Either[String, Seq[QueryField]] = {
+  private def getFields(
+      table: Option[Table],
+      select: parser.Select,
+      state: BuilderState
+  ): Either[String, Seq[QueryField]] = {
     select.fields match {
       case SqlFieldList(fs) =>
         val fields = fs.map(f => getField(table, f, state))
@@ -101,14 +110,24 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def getField(table: Table, field: parser.SqlField, state: BuilderState): Either[String, QueryField] = {
+  private def getField(
+      table: Option[Table],
+      field: parser.SqlField,
+      state: BuilderState
+  ): Either[String, QueryField] = {
     val fieldName = state.fieldName(field)
 
-    createExpr(state, fieldByName(table), field.expr, ExprType.Math).right.map(_.as(fieldName))
+    val resolver = table.map(fieldByName).getOrElse(constOnly)
+
+    createExpr(state, resolver, field.expr, ExprType.Math).right.map(_.as(fieldName))
   }
 
   private def fieldByRef(table: Table, fields: Seq[QueryField])(name: String): Option[Expression] = {
     fields.find(_.name == name).map(f => f.expr).orElse(fieldByName(table)(name))
+  }
+
+  private def constOrRef(fields: Seq[QueryField])(name: String): Option[Expression] = {
+    fields.find(_.name == name).map(f => f.expr).orElse(constOnly(name))
   }
 
   private def createExpr(
@@ -409,27 +428,29 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def getFilter(
-      table: Table,
-      fields: Seq[QueryField],
-      condition: Option[parser.Condition],
-      state: BuilderState
-  ): Either[String, Condition] = {
-    condition match {
-      case Some(c) =>
-        createCondition(state, fieldByRef(table, fields), c.simplify)
-      case None => Left("WHERE condition should be non-empty")
-    }
-  }
-
-  private def getPostFilter(
-      table: Table,
+      table: Option[Table],
       fields: Seq[QueryField],
       condition: Option[parser.Condition],
       state: BuilderState
   ): Either[String, Option[Condition]] = {
+    val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
     condition match {
       case Some(c) =>
-        createCondition(state, fieldByRef(table, fields), c.simplify).right.map(Some(_))
+        createCondition(state, resolver, c.simplify).map(Some(_))
+      case None => Right(None)
+    }
+  }
+
+  private def getPostFilter(
+      table: Option[Table],
+      fields: Seq[QueryField],
+      condition: Option[parser.Condition],
+      state: BuilderState
+  ): Either[String, Option[Condition]] = {
+    val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
+    condition match {
+      case Some(c) =>
+        createCondition(state, resolver, c.simplify).right.map(Some(_))
       case None => Right(None)
     }
   }
@@ -445,15 +466,22 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def getGroupBy(select: parser.Select, table: Table, state: BuilderState): Either[String, Seq[Expression]] = {
+  private def getGroupBy(
+      select: parser.Select,
+      table: Option[Table],
+      state: BuilderState
+  ): Either[String, Seq[Expression]] = {
     val filled = substituteGroupings(select)
+    val resolver = table.map(fieldByName).getOrElse(constOnly)
 
     val groupBy = filled.map { sqlExpr =>
-      createExpr(state, fieldByName(table), sqlExpr, ExprType.Math)
+      createExpr(state, resolver, sqlExpr, ExprType.Math)
     }
 
     CollectionUtils.collectErrors(groupBy)
   }
+
+  private val constOnly: String => Option[Expression] = _ => None
 
   private def fieldByName(table: Table)(name: String): Option[Expression] = {
     val lowerName = name.toLowerCase
