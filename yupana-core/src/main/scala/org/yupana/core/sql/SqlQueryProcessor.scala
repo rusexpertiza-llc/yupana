@@ -436,7 +436,7 @@ object SqlQueryProcessor extends QueryValidator {
     val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
     condition match {
       case Some(c) =>
-        createCondition(state, resolver, c.simplify).map(Some(_))
+        createCondition(state, resolver, c.simplify).right.map(Some(_))
       case None => Right(None)
     }
   }
