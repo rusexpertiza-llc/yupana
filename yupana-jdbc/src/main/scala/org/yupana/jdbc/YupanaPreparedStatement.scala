@@ -48,8 +48,12 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def clearParameters(): Unit = {
-    batch.clear()
     parameters = Map.empty
+  }
+
+  @throws[SQLException]
+  override def clearBatch(): Unit = {
+    batch.clear()
   }
 
   @throws[SQLException]
