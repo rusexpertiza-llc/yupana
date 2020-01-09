@@ -34,8 +34,6 @@ class RequestHandler(schema: Schema) extends StrictLogging {
   private val sqlQueryProcessor = new SqlQueryProcessor(schema)
   private val metadataProvider = new JdbcMetadataProvider(schema)
 
-  private val ok = SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
-
   def handleQuery(tsdb: TSDB, sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
@@ -55,11 +53,8 @@ class RequestHandler(schema: Schema) extends StrictLogging {
           }
 
         case upsert: Upsert =>
-          val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
-          sqlQueryProcessor.createDataPoints(upsert, Seq(params)).right.flatMap { dps =>
-            tsdb.put(dps)
-            Right(resultToProto(ok))
-          }
+          val params = Seq(sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap)
+          doUpsert(tsdb, upsert, params)
 
         case ShowTables => Right(resultToProto(metadataProvider.listTables))
 
@@ -86,10 +81,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       SqlParser.parse(batchSqlQuery.sql).right.flatMap {
         case upsert: Upsert =>
           val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
-          sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
-            tsdb.put(dps)
-            Right(resultToProto(ok))
-          }
+          doUpsert(tsdb, upsert, params)
 
         case _ => Left(s"Only UPSERT can have batch parameters, but got ${batchSqlQuery.sql}")
       }
@@ -120,6 +112,17 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       )
 
       Right(Iterator(proto.Response(proto.Response.Resp.Pong(pong))))
+    }
+  }
+
+  private def doUpsert(
+      tsdb: TSDB,
+      upsert: Upsert,
+      params: Seq[Map[Int, Value]]
+  ): Either[String, Iterator[proto.Response]] = {
+    sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
+      tsdb.put(dps)
+      Right(resultToProto(SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))))
     }
   }
 

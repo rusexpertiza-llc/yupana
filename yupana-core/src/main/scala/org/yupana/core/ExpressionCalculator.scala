@@ -26,7 +26,7 @@ object ExpressionCalculator {
 
   def evaluateConstant(expr: Expression): Option[expr.Out] = {
     assert(expr.kind == Const)
-    evaluateExpression(expr, null, null)
+    eval(expr, null, null)
   }
 
   def evaluateExpression(
