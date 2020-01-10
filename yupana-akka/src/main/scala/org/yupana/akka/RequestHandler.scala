@@ -29,7 +29,7 @@ import org.yupana.proto.util.ProtocolVersion
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class RequestHandler(schema: Schema) extends StrictLogging {
+class RequestHandler(schema: Schema, upsertEnabled: Boolean) extends StrictLogging {
 
   private val sqlQueryProcessor = new SqlQueryProcessor(schema)
   private val metadataProvider = new JdbcMetadataProvider(schema)
@@ -120,9 +120,15 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
   ): Either[String, Iterator[proto.Response]] = {
-    sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
-      tsdb.put(dps)
-      Right(resultToProto(SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))))
+    if (upsertEnabled) {
+      sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
+        tsdb.put(dps)
+        Right(
+          resultToProto(SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK")))))
+        )
+      }
+    } else {
+      Left("Upsert is prohibited")
     }
   }
 

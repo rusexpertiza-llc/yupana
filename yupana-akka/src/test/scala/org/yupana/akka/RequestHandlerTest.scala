@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 
 class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
-  val requestHandler = new RequestHandler(SchemaRegistry.defaultSchema)
+  val requestHandler = new RequestHandler(SchemaRegistry.defaultSchema, true)
 
   "RequestHandler" should "send version on ping" in {
     val tsdb = mock[TSDB]
@@ -180,7 +180,62 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))),
       Response(Response.Resp.ResultStatistics(ResultStatistics(-1, -1)))
     )
+  }
 
+  it should "be able to disable upsert" in {
+    val rh = new RequestHandler(SchemaRegistry.defaultSchema, false)
+    val tsdb = mock[TSDB]
+
+    val resp = Await.result(
+      rh.handleQuery(
+        tsdb,
+        SqlQuery(
+          "UPSERT INTO items_kkm (kkmId, item, operation_type, position, time, sum, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          Seq(
+            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
+            ParameterValue(3, Value(Value.Value.TextValue("1"))),
+            ParameterValue(4, Value(Value.Value.TextValue("2"))),
+            ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
+            ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
+            ParameterValue(7, Value(Value.Value.DecimalValue("2")))
+          )
+        )
+      ),
+      1.second
+    )
+
+    resp.left.value shouldEqual "Upsert is prohibited"
+  }
+
+  it should "be able to disable batch upsert" in {
+    val rh = new RequestHandler(SchemaRegistry.defaultSchema, false)
+    val tsdb = mock[TSDB]
+
+    val resp = Await.result(
+      rh.handleBatchQuery(
+        tsdb,
+        BatchSqlQuery(
+          "UPSERT INTO items_kkm (kkmId, item, operation_type, position, time, sum, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          Seq(
+            ParameterValues(
+              Seq(
+                ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+                ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
+                ParameterValue(3, Value(Value.Value.TextValue("1"))),
+                ParameterValue(4, Value(Value.Value.TextValue("2"))),
+                ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
+                ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
+                ParameterValue(7, Value(Value.Value.DecimalValue("2")))
+              )
+            )
+          )
+        )
+      ),
+      1.second
+    )
+
+    resp.left.value shouldEqual "Upsert is prohibited"
   }
 
   it should "fail on invalid SQL" in {
