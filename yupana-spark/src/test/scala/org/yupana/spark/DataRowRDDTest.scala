@@ -27,7 +27,7 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = QueryContext(query, const(true))
+    val queryContext = QueryContext(query, None)
 
     val theTime = LocalDateTime.now().minusHours(1)
 

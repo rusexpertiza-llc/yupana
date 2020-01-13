@@ -180,7 +180,7 @@ object SqlParser {
   def selectFields[_: P]: P[SqlFields] = P(selectWord ~/ (fieldList | allFields))
 
   def nestedSelectFrom[_: P](fields: SqlFields): P[Select] = {
-    P("(" ~ select ~ ")" ~/ (asWord.? ~ notKeyword).?).map {
+    P(fromWord ~ "(" ~/ select ~ ")" ~/ (asWord.? ~ notKeyword).?).map {
       case (sel, _) =>
         fields match {
           case SqlFieldsAll => sel
@@ -198,13 +198,13 @@ object SqlParser {
   }
 
   def normalSelectFrom[_: P](fields: SqlFields): P[Select] = {
-    P(schemaName ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
+    P((fromWord ~ schemaName).? ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
       case (s, c, gs, h, l) => Select(s, fields, c, gs.getOrElse(Seq.empty), h, l)
     }
   }
 
   def selectFrom[_: P](fields: SqlFields): P[Select] = {
-    P(fromWord ~/ (nestedSelectFrom(fields) | normalSelectFrom(fields)))
+    P(nestedSelectFrom(fields) | normalSelectFrom(fields))
   }
 
   def select[_: P]: P[Select] = P(selectFields.flatMap(selectFrom))

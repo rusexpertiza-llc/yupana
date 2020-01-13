@@ -25,8 +25,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     testQuery("""SELECT MAX(testField) FROM test_table
         |   WHERE time >= TIMESTAMP '2017-06-12' AND time < TIMESTAMP '2017-06-30' and tag_a = '223322'
         |   GROUP BY day(time)""".stripMargin) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldEqual and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldEqual and(
         ge[Time](time, const(Time(new DateTime(2017, 6, 12, 0, 0, DateTimeZone.UTC)))),
         lt[Time](time, const(Time(new DateTime(2017, 6, 30, 0, 0, DateTimeZone.UTC)))),
         equ(dimension(TAG_A), const("223322"))
@@ -44,8 +44,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |   WHERE time >= TIMESTAMP '2018-01-01' and time < TIMESTAMP '2018-01-30'
         |   GROUP BY day(time), i
         | """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 1, 30, 0, 0, DateTimeZone.UTC))))
       )
@@ -66,8 +66,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  WHERE time > {ts '2017-06-12'} and time <= { ts '2017-06-13' }
       """.stripMargin
     ) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldBe and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldBe and(
         gt(time, const(Time(new DateTime(2017, 6, 12, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2017, 6, 13, 0, 0, DateTimeZone.UTC))))
       )
@@ -81,8 +81,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support case classes in metrics" in {
     testQuery("""SELECT testField FROM test_table
         |  where time >= TIMESTAMP '2017-08-23' and time < TIMESTAMP '2017-08-23 17:41:00.123'""".stripMargin) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldEqual and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2017, 8, 23, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 23, 17, 41, 0, 123, DateTimeZone.UTC))))
       )
@@ -97,8 +97,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND tag_b = 'простокваша'
         |  GROUP BY day(time)
       """.stripMargin) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldEqual and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
         equ(dimension(TAG_B), const("простокваша"))
@@ -119,8 +119,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | GROUP BY d
       """.stripMargin
     ) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 10, 18, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2017, 10, 28, 0, 0, DateTimeZone.UTC))))
       )
@@ -142,8 +142,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | GROUP BY "receipt"."time", tag_a
       """.stripMargin
     ) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldBe and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 10, 30, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -162,8 +162,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  GROUP BY d, tag_a
       """.stripMargin
     ) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldBe and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 8, 10, 30, DateTimeZone.UTC))))
       )
@@ -182,8 +182,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  GROUP BY day(time), word
       """.stripMargin
     ) { x =>
-      x.table.name shouldEqual "test_table"
-      x.filter shouldEqual and(
+      x.table.value.name shouldEqual "test_table"
+      x.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
         equ(link(TestLinks.TEST_LINK, "testField"), const("простокваша")),
@@ -203,8 +203,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND testLongField > 1000
         | GROUP BY day(time)
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
         gt(long2BigDecimal(metric(TestTableFields.TEST_LONG_FIELD)), const(BigDecimal(1000)))
@@ -222,8 +222,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND testField > 10
         | GROUP BY day(time)
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
         gt(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(10)))
@@ -244,8 +244,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  GROUP BY d, tag_b
       """.stripMargin
     ) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 3, 26, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 3, 27, 0, 0, DateTimeZone.UTC)))),
         in(dimension(TAG_A), Set("123", "456", "789"))
@@ -267,8 +267,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  GROUP BY d, TAG_B
       """.stripMargin
     ) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 3, 26, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 3, 27, 0, 0, DateTimeZone.UTC)))),
         in(metric(TestTableFields.TEST_FIELD2), Set(123d, 456d, 789d))
@@ -288,8 +288,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |   WHERE time >= TIMESTAMP '2019-03-30' and time < TIMESTAMP '2019-03-31' AND testField2 NOT IN (5, 6, 7)
         |   GROUP BY m
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldEqual and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2019, 3, 30, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 31, 0, 0, DateTimeZone.UTC)))),
         notIn(metric(TestTableFields.TEST_FIELD2), Set(5d, 6d, 7d))
@@ -310,12 +310,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(tag_a), tokens('вода'))
       """.stripMargin
     ) { q =>
-      q.table.name shouldEqual "test_table"
+      q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(TAG_A) as "tag_a",
         function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(TAG_A))) as "array_to_string(tokens(tag_a))"
       )
-      q.filter shouldBe and(
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
         bi(
@@ -341,7 +341,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |WHERE time >= timestamp '2019-03-14' AND time < timestamp '2019-03-26' AND TestLink_testField = 'ягода'
         |GROUP BY tag_b, color
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
+      q.table.value.name shouldEqual "test_table"
 
       val colorExpr = condition(
         bi(
@@ -375,7 +375,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         sum(metric(TestTableFields.TEST_FIELD)) as "sum(testField)"
       )
 
-      q.filter shouldEqual and(
+      q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 26, 0, 0, DateTimeZone.UTC)))),
         equ(link(TestLinks.TEST_LINK, "testField"), const("ягода"))
@@ -402,8 +402,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
     ) {
       case Right(q) =>
-        q.table.name shouldEqual "test_table"
-        q.filter shouldBe and(
+        q.table.value.name shouldEqual "test_table"
+        q.filter.value shouldBe and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           equ(dimension(TAG_A), const("123456789"))
@@ -428,8 +428,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |    "receipt"."time"
     """.stripMargin
     ) { q =>
-      q.table.name shouldEqual "test_table_2"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table_2"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 10, 23, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2017, 11, 2, 0, 0, DateTimeZone.UTC)))),
         equ(dimension(TAG_X), const("0001388410039121"))
@@ -456,8 +456,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |   GROUP BY d, TAG_A
         | ) "Query"
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 2, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -485,8 +485,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
     ) {
       case Right(q) =>
-        q.table.name shouldEqual "test_table"
-        q.filter shouldBe and(
+        q.table.value.name shouldEqual "test_table"
+        q.filter.value shouldBe and(
           ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
           lt(time, const(Time(new DateTime(2018, 1, 23, 16, 44, 20, DateTimeZone.UTC))))
         )
@@ -508,8 +508,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |   WHERE time > TIMESTAMP '2017-11-01' AND time < TIMESTAMP '2017-12-01'
         |   GROUP BY day(time)
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         gt(time, const(Time(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 12, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -528,7 +528,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  FROM test_table
         |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15'
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
+      q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(TAG_A) as "tag_a",
         function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(TAG_A))) as "array_to_string(tokens(tag_a))",
@@ -538,7 +538,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
           function(UnaryOperation.tokens, const("вода"))
         ) as "is_water"
       )
-      q.filter shouldBe and(
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC))))
       )
@@ -552,8 +552,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |   WHERE time > TIMESTAMP '2017-11-01' AND time < TIMESTAMP '2017-12-01'
         |   GROUP BY tag_a
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         gt(time, const(Time(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 12, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -578,8 +578,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | FROM test_table_2
         |   WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1' AND TAG_X = '1234567890'
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table_2"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table_2"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
         equ(dimension(TAG_X), const("1234567890"))
@@ -612,8 +612,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  WHERE time >= TIMESTAMP '2018-1-1' and time < TIMESTAMP '2018-2-1'
         |  GROUP BY time
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -647,8 +647,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  WHERE time >= TIMESTAMP '2018-1-1' and time < TIMESTAMP '2018-2-1'
         |  GROUP BY time
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table_2"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table_2"
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -686,8 +686,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  ((lagTime - t) > INTERVAL '2:00:00' AND extract_hour(t) >= 8 AND extract_hour(t) <= 18) OR
         |  ((lagTime - t) > INTERVAL '4:00:00' AND (extract_hour(t) > 18 OR extract_hour(t) < 8))
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
         gt(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -745,8 +745,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | GROUP BY tag_a
         | HAVING (lagTime - t) >= INTERVAL '5' DAY
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      q.filter shouldBe and(
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldBe and(
         lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, 0, 0, DateTimeZone.UTC)))),
         ge(time, const(Time(new DateTime(2018, 7, 1, 0, 0, 0, 0, DateTimeZone.UTC))))
       )
@@ -778,8 +778,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  WHERE time >= trunc_day(now() - INTERVAL '3' MONTH) AND TIME < trunc_day(now())
         |  GROUP BY d, tag_a
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
-      inside(q.filter) {
+      q.table.value.name shouldEqual "test_table"
+      inside(q.filter.value) {
         case AndExpr(Seq(from, to)) =>
           inside(from) {
             case BinaryOperationExpr(
@@ -821,7 +821,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |WHERE time >= TIMESTAMP '2018-09-03 14:08:05' AND time < TIMESTAMP '2018-09-03 14:08:17'
         |GROUP BY d;
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
+      q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsAs Seq(
         sum(
           condition(
@@ -842,12 +842,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  AND time < TIMESTAMP '2018-08-01' AND time >= TIMESTAMP '2018-07-01'
         |  GROUP BY d, TAG_A
       """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table"
+      q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsAs Seq(
         sum(metric(TestTableFields.TEST_FIELD)) as "sum(testField)",
         truncDay(time) as "d"
       )
-      q.filter shouldEqual and(
+      q.filter.value shouldEqual and(
         isNull(link(TestLinks.TEST_LINK, "testField")),
         isNotNull(metric(TestTableFields.TEST_FIELD2)),
         lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
@@ -869,7 +869,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  GROUP BY d
       """.stripMargin
     ) { q =>
-      q.table.name shouldEqual "test_table"
+      q.table.value.name shouldEqual "test_table"
       val condExpr = condition(
         isNotNull(link(TestLinks.TEST_LINK, "testField")),
         double2bigDecimal(metric(TestTableFields.TEST_FIELD)),
@@ -879,7 +879,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         sum(condExpr) as "quantity",
         truncDay(time) as "d"
       )
-      q.filter shouldBe and(
+      q.filter.value shouldBe and(
         equ(link(TestLinks.TEST_LINK2, "testField2"), const("464")),
         lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
         ge(time, const(Time(new DateTime(2018, 7, 1, 0, 0, DateTimeZone.UTC))))
@@ -915,7 +915,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         truncMonth(time) as "d"
       )
 
-      q.filter shouldBe and(
+      q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 9, 1, 0, 0, DateTimeZone.UTC)))),
         lt[BigDecimal](double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(50000))),
@@ -1027,7 +1027,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
                 |AND -testLongField < -100
                 |GROUP BY testStringField
                 |""".stripMargin) { q =>
-      q.table shouldEqual TestSchema.testTable
+      q.table.value shouldEqual TestSchema.testTable
       q.fields should contain theSameElementsInOrderAs Seq(
         sum(abs(minus(metric(TestTableFields.TEST_LONG_FIELD)))) as "abs1",
         abs(
@@ -1042,11 +1042,33 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         metric(TestTableFields.TEST_STRING_FIELD).toField
       )
 
-      q.filter shouldEqual and(
+      q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2019, 4, 10, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2019, 4, 11, 0, 0, DateTimeZone.UTC)))),
         lt[BigDecimal](long2BigDecimal(minus(metric(TestTableFields.TEST_LONG_FIELD))), const(BigDecimal(-100)))
       )
+    }
+  }
+
+  it should "handle standard health check" in {
+    testQuery("SELECT 1 as one") { q =>
+      q.table shouldBe empty
+      q.fields should contain theSameElementsAs List(const(BigDecimal(1)) as "one")
+    }
+  }
+
+  it should "handle conditions without tables" in {
+    testQuery("SELECT 10 / 2 as five, 5 + 2 as seven WHERE five <= seven") { q =>
+      q.table shouldBe empty
+      q.fields should contain theSameElementsInOrderAs Seq(
+        divFrac(const(BigDecimal(10)), const(BigDecimal(2))) as "five",
+        plus(const(BigDecimal(5)), const(BigDecimal(2))) as "seven"
+      )
+      q.filter.value shouldEqual le(
+        divFrac(const(BigDecimal(10)), const(BigDecimal(2))),
+        plus(const(BigDecimal(5)), const(BigDecimal(2)))
+      )
+
     }
   }
 

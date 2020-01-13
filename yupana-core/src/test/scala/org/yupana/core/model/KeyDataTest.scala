@@ -27,7 +27,7 @@ class KeyDataTest extends FlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.TAG_A))
     )
-    val context = QueryContext(query, const(true))
+    val context = QueryContext(query, None)
 
     val builder = new InternalRowBuilder(context)
 
@@ -60,7 +60,7 @@ class KeyDataTest extends FlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
     )
-    val context = QueryContext(query, const(true))
+    val context = QueryContext(query, None)
 
     val builder = new InternalRowBuilder(context)
 

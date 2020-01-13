@@ -34,9 +34,9 @@ import org.yupana.api.types.BinaryOperation
   * @param postFilter filter applied after aggregation stage (HAVING statement in SQL).
   */
 case class Query(
-    table: Table,
+    table: Option[Table],
     fields: Seq[QueryField],
-    filter: Condition,
+    filter: Option[Condition],
     groupBy: Seq[Expression] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None
@@ -51,10 +51,13 @@ case class Query(
     val builder = StringBuilder.newBuilder
     builder.append(s"""Query(
          |  $uuidLog
-         |  TABLE: ${table.name}
          |  FIELDS:
          |    $fs
          |""".stripMargin)
+
+    table.foreach { t =>
+      builder.append(s"  FROM: ${t.name}")
+    }
 
     builder.append(s"""  FILTER:
         |    $filter
@@ -95,7 +98,7 @@ object Query {
       ) ++ filter
     )
 
-    new Query(table, fields, newCondition, groupBy, limit, postFilter)
+    new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter)
   }
 
   def apply(table: Table, from: Expression.Aux[Time], to: Expression.Aux[Time], fields: Seq[QueryField]): Query =

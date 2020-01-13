@@ -59,18 +59,20 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     )
 
     val expected = Query(
-      table = Tables.itemsKkmTable,
+      table = Some(Tables.itemsKkmTable),
       fields = Seq(dimension(Dimensions.ITEM_TAG).toField),
-      filter = and(
-        ge(time, const(Time(1234567L))),
-        lt(time, const(Time(2345678L))),
-        equ(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), const("деталь")),
-        equ(metric(ItemTableMetrics.sumField), const(BigDecimal(300)))
+      filter = Some(
+        and(
+          ge(time, const(Time(1234567L))),
+          lt(time, const(Time(2345678L))),
+          equ(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), const("деталь")),
+          equ(metric(ItemTableMetrics.sumField), const(BigDecimal(300)))
+        )
       ),
       groupBy = Seq(dimension(Dimensions.ITEM_TAG))
     )
 
-    val qc = QueryContext(expected, const(true))
+    val qc = QueryContext(expected, None)
 
     (tsdb.query _)
       .expects(expected)
