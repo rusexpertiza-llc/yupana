@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.spark
+package org.yupana.core
 
-import org.apache.spark.SparkConf
-
-class EtlConfig(sparkConf: SparkConf) extends Config(sparkConf) {
-  val loadInvertedIndex: Boolean = sparkConf.getBoolean("tsd.etl.load-inverted-index", defaultValue = true)
-
-  val hbaseWriteBufferSize: Option[Long] =
-    sparkConf.getOption("hbase.write.buffer").map(_.trim).filter(_.nonEmpty).map(_.toLong)
-
-  override val putEnabled: Boolean = true
+trait TsdbConfig {
+  val collectMetrics: Boolean
+  val metricsUpdateInterval: Int
+  val extractBatchSize: Int
+  val putEnabled: Boolean
 }
+
+case class SimpleTsdbConfig(
+    collectMetrics: Boolean = false,
+    metricsUpdateInterval: Int = 30000,
+    extractBatchSize: Int = 10000,
+    putEnabled: Boolean = false
+) extends TsdbConfig

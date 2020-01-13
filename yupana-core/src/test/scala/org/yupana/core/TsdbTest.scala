@@ -48,7 +48,7 @@ class TsdbTest
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity)
+    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig(putEnabled = true))
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
     val tags = Map(TestDims.TAG_A -> "test1", TestDims.TAG_B -> "test2")
@@ -62,6 +62,23 @@ class TsdbTest
     (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Seq(dp1, dp2, dp3))
+  }
+
+  it should "not allow put if disabled" in {
+    val tsdbDaoMock = mock[TSTestDao]
+    val metricsDaoMock = mock[TsdbQueryMetricsDao]
+    val dictionaryDaoMock = mock[DictionaryDao]
+    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
+    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
+
+    val dp = DataPoint(
+      TestSchema.testTable,
+      123456789L,
+      Map(TestDims.TAG_A -> "test1", TestDims.TAG_B -> "test2"),
+      Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0))
+    )
+
+    an[IllegalAccessException] should be thrownBy tsdb.put(Seq(dp))
   }
 
   it should "execute query with filter by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>

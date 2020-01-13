@@ -10,7 +10,7 @@ import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Writable
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
-import org.yupana.core.{ QueryContext, TSDB, TsdbServerResult }
+import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.proto._
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -22,7 +22,7 @@ import scala.concurrent.duration._
 
 class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
-  val requestHandler = new RequestHandler(SchemaRegistry.defaultSchema, true)
+  val requestHandler = new RequestHandler(SchemaRegistry.defaultSchema)
 
   "RequestHandler" should "send version on ping" in {
     val tsdb = mock[TSDB]
@@ -182,62 +182,6 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     )
   }
 
-  it should "be able to disable upsert" in {
-    val rh = new RequestHandler(SchemaRegistry.defaultSchema, false)
-    val tsdb = mock[TSDB]
-
-    val resp = Await.result(
-      rh.handleQuery(
-        tsdb,
-        SqlQuery(
-          "UPSERT INTO items_kkm (kkmId, item, operation_type, position, time, sum, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          Seq(
-            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
-            ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
-            ParameterValue(3, Value(Value.Value.TextValue("1"))),
-            ParameterValue(4, Value(Value.Value.TextValue("2"))),
-            ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
-            ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
-            ParameterValue(7, Value(Value.Value.DecimalValue("2")))
-          )
-        )
-      ),
-      1.second
-    )
-
-    resp.left.value shouldEqual "Upsert is prohibited"
-  }
-
-  it should "be able to disable batch upsert" in {
-    val rh = new RequestHandler(SchemaRegistry.defaultSchema, false)
-    val tsdb = mock[TSDB]
-
-    val resp = Await.result(
-      rh.handleBatchQuery(
-        tsdb,
-        BatchSqlQuery(
-          "UPSERT INTO items_kkm (kkmId, item, operation_type, position, time, sum, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          Seq(
-            ParameterValues(
-              Seq(
-                ParameterValue(1, Value(Value.Value.TextValue("12345"))),
-                ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
-                ParameterValue(3, Value(Value.Value.TextValue("1"))),
-                ParameterValue(4, Value(Value.Value.TextValue("2"))),
-                ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
-                ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
-                ParameterValue(7, Value(Value.Value.DecimalValue("2")))
-              )
-            )
-          )
-        )
-      ),
-      1.second
-    )
-
-    resp.left.value shouldEqual "Upsert is prohibited"
-  }
-
   it should "fail on invalid SQL" in {
     val tsdb = mock[TSDB]
     val query = SqlQuery("INSERT 'сосиски' INTO kkm_items")
@@ -255,7 +199,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
 
-  class MockedTsdb(metricsDao: TsdbQueryMetricsDao) extends TSDB(null, metricsDao, null, identity)
+  class MockedTsdb(metricsDao: TsdbQueryMetricsDao) extends TSDB(null, metricsDao, null, identity, SimpleTsdbConfig())
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
