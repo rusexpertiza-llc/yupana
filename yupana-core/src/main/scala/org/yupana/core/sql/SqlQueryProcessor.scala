@@ -55,7 +55,7 @@ class SqlQueryProcessor(schema: Schema) {
     if (upsert.values.size == upsert.fieldNames.size) {
       (for {
         mayBeTable <- getTable(Some(upsert.schemaName)).right
-        table <- mayBeTable.toRight("Table is not defined")
+        table <- mayBeTable.toRight("Table is not defined").right
         fieldMap <- getFieldMap(table, upsert.fieldNames).right
       } yield (table, fieldMap)).right.flatMap {
         case (table, fieldMap) =>
