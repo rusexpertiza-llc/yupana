@@ -19,7 +19,7 @@ package org.yupana.core.sql.parser
 sealed trait Statement
 
 case class Select(
-    schemaName: String,
+    schemaName: Option[String],
     fields: SqlFields,
     condition: Option[Condition],
     groupings: Seq[SqlExpr],
