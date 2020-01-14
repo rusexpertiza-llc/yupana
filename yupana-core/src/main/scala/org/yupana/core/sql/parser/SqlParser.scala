@@ -84,7 +84,7 @@ object SqlParser {
 
   def notKeyword[_: P]: P[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
 
-  def alias[_: P]: P[String] = P(asWord.? ~ notKeyword)
+  def alias[_: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
 
   def functionCallExpr[_: P]: P[FunctionCall] = P(name ~ "(" ~ expr.rep(sep = ",") ~ ")").map {
     case (f, vs) => FunctionCall(f.toLowerCase, vs.toList)
@@ -118,7 +118,7 @@ object SqlParser {
 
   def mathFactor[_: P]: P[SqlExpr] = P(functionCallExpr | caseExpr | constExpr | fieldNameExpr | "(" ~ expr ~ ")")
 
-  def field[_: P]: P[SqlField] = P(expr ~ alias.?).map(SqlField.tupled)
+  def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
 
   def fieldList[_: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
   def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
