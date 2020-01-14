@@ -287,6 +287,15 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "require space between expression and alias" in {
+    errorMessage("SELECT 2x2") {
+      case msg =>
+        msg should include(
+          """Expect ("." | "*" | "/" | "+" | "-" | [ \t\n] | "," | "FROM" | "WHERE" | "GROUP" | "HAVING" | "LIMIT" | ";" | end-of-input), but got "x2""""
+        )
+    }
+  }
+
   it should "parse SQL statements with aliases" in {
     val statement = "SELECT SUM(quantity), day(time) d FROM tickets WHERE sum <= 1000 GROUP BY d "
     parsed(statement) {
