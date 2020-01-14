@@ -20,6 +20,7 @@ trait TsdbConfig {
   val collectMetrics: Boolean
   val metricsUpdateInterval: Int
   val extractBatchSize: Int
+  val putBatchSize: Int
   val putEnabled: Boolean
 }
 
@@ -27,5 +28,6 @@ case class SimpleTsdbConfig(
     collectMetrics: Boolean = false,
     metricsUpdateInterval: Int = 30000,
     extractBatchSize: Int = 10000,
+    putBatchSize: Int = 1000,
     putEnabled: Boolean = false
 ) extends TsdbConfig

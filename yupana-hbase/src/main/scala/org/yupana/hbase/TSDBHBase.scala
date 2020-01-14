@@ -39,11 +39,10 @@ object TSDBHBase {
     HBaseUtils.initStorage(connection, namespace, schema)
 
     CacheFactory.init(properties, namespace)
-    val putsBatchSize = Option(properties.getProperty("analytics.tsdb.put-batch-size")).map(_.toInt).getOrElse(1000)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
-    val dao = new TSDaoHBase(connection, namespace, dictProvider, putsBatchSize)
+    val dao = new TSDaoHBase(connection, namespace, dictProvider, tsdbConfig.putBatchSize)
 
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
     new TSDB(dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
