@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
 import org.yupana.core.dao.DictionaryDao
+import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.JavaConverters._
 
@@ -71,38 +72,44 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def getValuesByIds(dimension: Dimension, ids: Set[Long]): Map[Long, String] = {
-    logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
-    checkTablesExistsElseCreate(dimension)
-    val table = getTable(dimension.name)
-    val r = ids.toSeq
-      .grouped(BATCH_SIZE)
-      .flatMap { idsSeq =>
-        val ranges = idsSeq.map { id =>
-          val key = Bytes.toBytes(id)
-          new MultiRowRangeFilter.RowRange(key, true, key, true)
+  override def getValuesByIds(
+      dimension: Dimension,
+      ids: Set[Long],
+      metricCollector: MetricQueryCollector
+  ): Map[Long, String] = {
+    metricCollector.dictionaryScan.measure(ids.size) {
+      logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
+      checkTablesExistsElseCreate(dimension)
+      val table = getTable(dimension.name)
+      val r = ids.toSeq
+        .grouped(BATCH_SIZE)
+        .flatMap { idsSeq =>
+          val ranges = idsSeq.map { id =>
+            val key = Bytes.toBytes(id)
+            new MultiRowRangeFilter.RowRange(key, true, key, true)
+          }
+
+          val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+          val start = filter.getRowRanges.asScala.head.getStartRow
+          val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
+
+          val scan = new Scan(start, end)
+            .addFamily(directFamily)
+            .setFilter(filter)
+
+          logger.trace(s"--- Send request to HBase")
+          val scanner = table.getScanner(scan)
+
+          scanner.iterator().asScala.map { result =>
+            val id = Bytes.toLong(result.getRow)
+            val value = Bytes.toString(result.getValue(directFamily, column))
+            id -> value
+          }
         }
-
-        val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
-        val start = filter.getRowRanges.asScala.head.getStartRow
-        val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
-
-        val scan = new Scan(start, end)
-          .addFamily(directFamily)
-          .setFilter(filter)
-
-        logger.trace(s"--- Send request to HBase")
-        val scanner = table.getScanner(scan)
-
-        scanner.iterator().asScala.map { result =>
-          val id = Bytes.toLong(result.getRow)
-          val value = Bytes.toString(result.getValue(directFamily, column))
-          id -> value
-        }
-      }
-      .toMap
-    logger.trace(s"--- Dictionary values extracted")
-    r
+        .toMap
+      logger.trace(s"--- Dictionary values extracted")
+      r
+    }
   }
 
   override def getIdByValue(dimension: Dimension, value: String): Option[Long] = {

@@ -6,6 +6,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 
 class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
@@ -21,7 +22,11 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
     override def keyIndex: Int = 0
 
-    override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
+    override def fillKeyValues(
+        indexMap: collection.Map[Expression, Int],
+        valueData: Seq[InternalRow],
+        metricCollector: MetricQueryCollector
+    ): Unit = {
       valueData.foreach { vd =>
         vd.get[String](indexMap, DimensionExpr(externalLink.dimension)).foreach { tagValue =>
           val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
@@ -87,7 +92,8 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
         link(testExternalLink, TestExternalLink.testField1),
         link(testExternalLink, TestExternalLink.testField2),
         link(testExternalLink, TestExternalLink.testField3)
-      )
+      ),
+      NoMetricCollector
     )
 
     val r1 = valueData(0)

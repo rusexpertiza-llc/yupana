@@ -270,12 +270,15 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   }
 
   private def toMetric(result: Result): TsdbQueryMetrics = {
-    val metrics = TsdbQueryMetrics.qualifiers.map { qualifier =>
-      qualifier -> MetricData(
-        Bytes.toLong(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount))),
-        Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime))),
-        Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricSpeed)))
-      )
+    val metrics = TsdbQueryMetrics.qualifiers.collect {
+      case qualifier if result.containsColumn(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount)) =>
+        qualifier -> {
+          MetricData(
+            Bytes.toLong(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount))),
+            Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime))),
+            Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricSpeed)))
+          )
+        }
     }.toMap
     TsdbQueryMetrics(
       rowKey = Bytes.toLong(result.getRow),

@@ -7,6 +7,7 @@ import org.scalatest._
 import org.yupana.api.schema.Dimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
+import org.yupana.core.utils.metric.NoMetricCollector
 
 class DictionaryTest
     extends FlatSpec
@@ -59,16 +60,16 @@ class DictionaryTest
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
     (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(1L, 2L, 3L))
+      .expects(testDim, Set(1L, 2L, 3L), NoMetricCollector)
       .returning(Map(1L -> "value 1", 3L -> "value 3"))
       .once()
-    dictionary.values(Set(1, 2, 3)) shouldEqual Map(1 -> "value 1", 3 -> "value 3")
+    dictionary.values(Set(1, 2, 3), NoMetricCollector) shouldEqual Map(1 -> "value 1", 3 -> "value 3")
   }
 
   it should "return empty map for empty ids set in values method" in {
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-    dictionary.values(Set.empty) shouldBe Map.empty
+    dictionary.values(Set.empty, NoMetricCollector) shouldBe Map.empty
   }
 
   it should "use caches in values method" in {
@@ -76,12 +77,15 @@ class DictionaryTest
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
     (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(1L, 2L, 3L))
+      .expects(testDim, Set(1L, 2L, 3L), NoMetricCollector)
       .returning(Map(1L -> "value 1", 3L -> "value 3"))
       .once()
-    (dictionaryDaoMock.getValuesByIds _).expects(testDim, Set(4L)).returning(Map(4L -> "value 4")).once()
-    dictionary.values(Set(1L, 2L, 3L)) shouldEqual Map(1L -> "value 1", 3L -> "value 3")
-    dictionary.values(Set(2L, 3L, 4L)) shouldEqual Map(4L -> "value 4", 3L -> "value 3")
+    (dictionaryDaoMock.getValuesByIds _)
+      .expects(testDim, Set(4L), NoMetricCollector)
+      .returning(Map(4L -> "value 4"))
+      .once()
+    dictionary.values(Set(1L, 2L, 3L), NoMetricCollector) shouldEqual Map(1L -> "value 1", 3L -> "value 3")
+    dictionary.values(Set(2L, 3L, 4L), NoMetricCollector) shouldEqual Map(4L -> "value 4", 3L -> "value 3")
   }
 
   it should "use DAO in findIdByValue method" in {

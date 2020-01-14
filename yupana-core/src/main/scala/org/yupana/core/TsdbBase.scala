@@ -143,7 +143,7 @@ trait TsdbBase extends StrictLogging {
       val c = processedRows.incrementAndGet()
       if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
       val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
-        readExternalLinks(queryContext, batch)
+        readExternalLinks(queryContext, batch, metricCollector)
       }
 
       metricCollector.extractDataComputation.measure(batchSize) {
@@ -241,11 +241,15 @@ trait TsdbBase extends StrictLogging {
     finalizeQuery(queryContext, result, metricCollector)
   }
 
-  def readExternalLinks(queryContext: QueryContext, rows: Seq[InternalRow]): Seq[InternalRow] = {
+  def readExternalLinks(
+      queryContext: QueryContext,
+      rows: Seq[InternalRow],
+      metricCollector: MetricQueryCollector
+  ): Seq[InternalRow] = {
     queryContext.linkExprs.groupBy(_.link).foreach {
       case (c, exprs) =>
         val catalog = linkService(c)
-        catalog.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet)
+        catalog.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet, metricCollector)
     }
 
     rows

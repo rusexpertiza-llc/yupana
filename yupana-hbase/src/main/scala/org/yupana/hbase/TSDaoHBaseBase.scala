@@ -117,8 +117,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  override def idsToValues(dimension: Dimension, ids: Set[IdType]): Map[IdType, String] = {
-    dictionaryProvider.dictionary(dimension).values(ids)
+  override def idsToValues(
+      dimension: Dimension,
+      ids: Set[IdType],
+      metricCollector: MetricQueryCollector
+  ): Map[IdType, String] = {
+    dictionaryProvider.dictionary(dimension).values(ids, metricCollector)
   }
 
   override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
@@ -440,7 +444,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   ): SparseTable[Int, Dimension, String] = {
     val allValues = context.requiredDims.map { dim =>
       val dimIdRows = dimTable.row(dim)
-      val dimValues = idsToValues(dim, dimIdRows.keySet)
+      val dimValues = idsToValues(dim, dimIdRows.keySet, context.metricsCollector)
       val data = dimValues.flatMap {
         case (dimId, dimValue) =>
           dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))

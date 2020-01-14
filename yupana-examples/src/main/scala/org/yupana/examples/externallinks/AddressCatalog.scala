@@ -18,6 +18,7 @@ package org.yupana.examples.externallinks
 
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.TsdbBase
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table }
 import org.yupana.externallinks.DimValueBasedExternalLinkService
 import org.yupana.schema.Dimensions
@@ -55,7 +56,11 @@ class AddressCatalogImpl(tsdb: TsdbBase, override val externalLink: AddressCatal
     ids.fold(Set.empty)(_ union _)
   }
 
-  override def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[String]): Table[String, String, String] = {
+  override def fieldValuesForDimValues(
+      fields: Set[String],
+      kkmIds: Set[String],
+      metricCollector: MetricQueryCollector
+  ): Table[String, String, String] = {
     val unknownFields = fields.filterNot(_ == AddressCatalog.CITY)
     if (unknownFields.nonEmpty) throw new IllegalArgumentException(s"Unknown fields $unknownFields")
 

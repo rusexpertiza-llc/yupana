@@ -22,6 +22,7 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -37,7 +38,8 @@ trait ExternalLinkService[T <: ExternalLink] {
   def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr],
+      metricCollector: MetricQueryCollector
   ): Unit
 
   /**

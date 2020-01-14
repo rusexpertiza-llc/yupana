@@ -44,6 +44,7 @@ trait MetricQueryCollector extends Serializable {
   val readExternalLinks: Metric = NoMetric
   val scan: Metric = NoMetric
   val parseScanResult: Metric = NoMetric
+  val dictionaryScan: Metric = NoMetric
 }
 
 object NoMetricCollector extends MetricQueryCollector {

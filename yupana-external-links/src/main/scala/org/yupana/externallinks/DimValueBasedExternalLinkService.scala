@@ -19,6 +19,7 @@ package org.yupana.externallinks
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, InExpr, NotInExpr }
 import org.yupana.api.schema.ExternalLink
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.core.{ Dictionary, TsdbBase }
 
@@ -40,10 +41,14 @@ abstract class DimValueBasedExternalLinkService[T <: ExternalLink](val tsdb: Tsd
     dictionary.findIdsByValues(dimValuesForAnyFieldsValues(fieldsValues)).values.toSeq
   }
 
-  override def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, String] = {
-    val values = dictionary.values(tagIds).map(_.swap)
+  override def fieldValuesForDimIds(
+      fields: Set[String],
+      tagIds: Set[Long],
+      metricCollector: MetricQueryCollector
+  ): Table[Long, String, String] = {
+    val values = dictionary.values(tagIds, metricCollector).map(_.swap)
     if (values.nonEmpty) {
-      fieldValuesForDimValues(fields, values.keySet).mapRowKeys(values)
+      fieldValuesForDimValues(fields, values.keySet, metricCollector).mapRowKeys(values)
     } else {
       SparseTable.empty
     }

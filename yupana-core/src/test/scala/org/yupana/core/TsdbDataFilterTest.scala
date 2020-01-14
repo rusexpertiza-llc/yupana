@@ -10,7 +10,8 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
-import org.yupana.api.query.{ Expression, DimensionExpr }
+import org.yupana.api.query.{ DimensionExpr, Expression }
+import org.yupana.core.utils.metric.NoMetricCollector
 
 class TsdbDataFilterTest
     extends FlatSpec
@@ -404,8 +405,8 @@ class TsdbDataFilterTest
     (testCatalogServiceMock.condition _).expects(condition).returning(condition)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall((qc, datas, _) =>
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
+      .onCall((qc, datas, NoMetricCollector, _) =>
         setCatalogValueByTag(
           qc,
           datas,
@@ -472,8 +473,8 @@ class TsdbDataFilterTest
     (testCatalogServiceMock.condition _).expects(condition).returning(condition)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall((qc, datas, _) =>
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
+      .onCall((qc, datas, NoMetricCollector, _) =>
         setCatalogValueByTag(
           qc,
           datas,
@@ -549,8 +550,8 @@ class TsdbDataFilterTest
       (testCatalogServiceMock2.condition _).expects(condition).returning(condition)
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-        .onCall((qc, datas, _) =>
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
+        .onCall((qc, datas, NoMetricCollector, _) =>
           setCatalogValueByTag(
             qc,
             datas,
@@ -560,8 +561,8 @@ class TsdbDataFilterTest
         )
 
       (testCatalogServiceMock2.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")))
-        .onCall((qc, datas, _) =>
+        .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")), NoMetricCollector)
+        .onCall((qc, datas, NoMetricCollector, _) =>
           setCatalogValueByTag(
             qc,
             datas,
@@ -632,8 +633,8 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
-      .onCall((qc, datas, _) =>
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
+      .onCall((qc, datas, NoMetricCollector, _) =>
         setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test1a" -> Map("testField" -> "c1-value")))
       )
 
