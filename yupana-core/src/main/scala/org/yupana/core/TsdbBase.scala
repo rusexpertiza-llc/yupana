@@ -147,23 +147,23 @@ trait TsdbBase extends StrictLogging {
       }
 
       //metricCollector.extractDataComputation.measure(batchSize) {
-        val it = withExtLinks.iterator
-        val withValuesForFilter = it.map { row =>
-          evaluateFilterExprs(queryContext, row, metricCollector)
-        }
+      val it = withExtLinks.iterator
+      val withValuesForFilter = it.map { row =>
+        evaluateFilterExprs(queryContext, row, metricCollector)
+      }
 
-        val filtered = queryContext.postCondition match {
-          case Some(cond) =>
-            withValuesForFilter.filter(row =>
-              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
-            )
-          case None => withValuesForFilter
-        }
+      val filtered = queryContext.postCondition match {
+        case Some(cond) =>
+          withValuesForFilter.filter(row =>
+            ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+          )
+        case None => withValuesForFilter
+      }
 
-        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
+      val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
 
-        withExprValues.map(row => new KeyData(queryContext, row) -> row)
-      //}
+      withExprValues.map(row => new KeyData(queryContext, row) -> row)
+    //}
     }
 
     val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
