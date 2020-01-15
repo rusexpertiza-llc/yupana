@@ -2,7 +2,6 @@ package org.yupana.hbase
 
 import org.scalatest.{ FlatSpec, Inside, Matchers }
 import org.yupana.api.schema._
-import org.yupana.hbase.proto.SchemaRegistry
 
 class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 

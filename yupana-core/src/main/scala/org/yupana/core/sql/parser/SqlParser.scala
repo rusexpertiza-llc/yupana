@@ -49,6 +49,9 @@ object SqlParser {
   private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
   private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
+  private def upsertWord[_: P] = P(IgnoreCase("UPSERT"))
+  private def intoWord[_: P] = P(IgnoreCase("INTO"))
+  private def valuesWord[_: P] = P(IgnoreCase("VALUES"))
   private val keywords = Set(
     "select",
     "from",
@@ -246,7 +249,14 @@ object SqlParser {
   def delete[_: P]: P[DeleteQueryMetrics] =
     P(deleteWord ~/ queriesWord ~/ queryMetricsFilter).map(DeleteQueryMetrics)
 
-  def statement[_: P]: P[Statement] = P((select | show | kill | delete) ~ ";".? ~ End)
+  def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
+
+  def values[_: P]: P[Seq[SqlExpr]] = "(" ~/ expr.rep(1, sep = ",") ~ ")"
+
+  def upsert[_: P]: P[Upsert] =
+    P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord ~/ values).map(Upsert.tupled)
+
+  def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {

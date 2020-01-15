@@ -1046,10 +1046,19 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "handle UPSERT statements" in {
+    parsed("""UPSERT INTO foo (bar, baz) VALUES ('bar value', 42);""") {
+      case Upsert(s, fs, vs) =>
+        s shouldEqual "foo"
+        fs should contain theSameElementsInOrderAs List("bar", "baz")
+        vs should contain theSameElementsInOrderAs List(Constant(StringValue("bar value")), Constant(NumericValue(42)))
+    }
+  }
+
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect ("SELECT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
+        msg should include("""Expect ("SELECT" | "UPSERT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
     }
   }
 

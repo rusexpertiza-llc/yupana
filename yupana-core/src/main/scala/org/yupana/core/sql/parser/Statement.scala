@@ -27,6 +27,12 @@ case class Select(
     limit: Option[Int]
 ) extends Statement
 
+case class Upsert(
+    schemaName: String,
+    fieldNames: Seq[String],
+    values: Seq[SqlExpr]
+) extends Statement
+
 case object ShowTables extends Statement
 
 case class ShowColumns(table: String) extends Statement

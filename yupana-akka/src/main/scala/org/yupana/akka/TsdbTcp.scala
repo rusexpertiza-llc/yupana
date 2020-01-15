@@ -94,6 +94,9 @@ class TsdbTcp(
         case Request(Request.Req.SqlQuery(sqlQuery)) =>
           requestHandler.handleQuery(tsdb, sqlQuery)
 
+        case Request(Request.Req.BatchSqlQuery(batchSqlQuery)) =>
+          requestHandler.handleBatchQuery(tsdb, batchSqlQuery)
+
         case Request(Request.Req.Empty) =>
           val error = "Got empty request"
           logger.error(error)

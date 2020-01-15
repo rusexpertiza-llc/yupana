@@ -5,11 +5,12 @@ import org.joda.time.DateTime
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ EitherValues, FlatSpec, Inside, Matchers }
 import org.yupana.api.Time
-import org.yupana.api.query.Query
+import org.yupana.api.query.{ DataPoint, Query }
+import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Writable
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
-import org.yupana.core.{ QueryContext, TSDB, TsdbServerResult }
+import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.proto._
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -92,13 +93,95 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     val data = resp.next()
     data shouldEqual Response(
-      Response.Resp
-        .Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("деталь от паровоза")))))
+      Response.Resp.Result(
+        ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("деталь от паровоза"))))
+      )
     )
 
     resp.next() shouldEqual Response(Response.Resp.ResultStatistics(ResultStatistics(-1, -1)))
 
     resp shouldBe empty
+  }
+
+  it should "fail on empty values" in {
+    val tsdb = mock[TSDB]
+    val query = SqlQuery(
+      "SELECT item FROM items_kkm WHERE time >= ? AND time < ? AND ItemsInvertedIndex_phrase = ? AND sum = ? GROUP BY item",
+      Seq(
+        ParameterValue(1, Value(Value.Value.TimeValue(1234567L))),
+        ParameterValue(2, Value(Value.Value.TimeValue(2345678L))),
+        ParameterValue(4, Value(Value.Value.Empty)),
+        ParameterValue(3, Value(Value.Value.TextValue("деталь")))
+      )
+    )
+
+    an[IllegalArgumentException] should be thrownBy Await.result(requestHandler.handleQuery(tsdb, query), 1.second)
+  }
+
+  it should "handle batch upserts" in {
+    val tsdb = mock[TSDB]
+    val query = BatchSqlQuery(
+      "UPSERT INTO items_kkm (kkmId, item, operation_type, position, time, sum, quantity) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      Seq(
+        ParameterValues(
+          Seq(
+            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(2, Value(Value.Value.TextValue("thing one"))),
+            ParameterValue(3, Value(Value.Value.TextValue("1"))),
+            ParameterValue(4, Value(Value.Value.TextValue("1"))),
+            ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
+            ParameterValue(6, Value(Value.Value.DecimalValue("100"))),
+            ParameterValue(7, Value(Value.Value.DecimalValue("1")))
+          )
+        ),
+        ParameterValues(
+          Seq(
+            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
+            ParameterValue(3, Value(Value.Value.TextValue("1"))),
+            ParameterValue(4, Value(Value.Value.TextValue("2"))),
+            ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
+            ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
+            ParameterValue(7, Value(Value.Value.DecimalValue("2")))
+          )
+        )
+      )
+    )
+
+    (tsdb.put _).expects(
+      Seq(
+        DataPoint(
+          Tables.itemsKkmTable,
+          1578426233000L,
+          Map(
+            Dimensions.ITEM_TAG -> "thing one",
+            Dimensions.KKM_ID_TAG -> "12345",
+            Dimensions.POSITION_TAG -> "1",
+            Dimensions.OPERATION_TYPE_TAG -> "1"
+          ),
+          Seq(MetricValue(ItemTableMetrics.quantityField, 1d), MetricValue(ItemTableMetrics.sumField, BigDecimal(100)))
+        ),
+        DataPoint(
+          Tables.itemsKkmTable,
+          1578426233000L,
+          Map(
+            Dimensions.ITEM_TAG -> "thing two",
+            Dimensions.KKM_ID_TAG -> "12345",
+            Dimensions.POSITION_TAG -> "2",
+            Dimensions.OPERATION_TYPE_TAG -> "1"
+          ),
+          Seq(MetricValue(ItemTableMetrics.quantityField, 2d), MetricValue(ItemTableMetrics.sumField, BigDecimal(300)))
+        )
+      )
+    )
+
+    val resp = Await.result(requestHandler.handleBatchQuery(tsdb, query), 1.second).right.value.toList
+
+    resp should contain theSameElementsInOrderAs Seq(
+      Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
+      Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))),
+      Response(Response.Resp.ResultStatistics(ResultStatistics(-1, -1)))
+    )
   }
 
   it should "fail on invalid SQL" in {
@@ -118,7 +201,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
 
-  class MockedTsdb(metricsDao: TsdbQueryMetricsDao) extends TSDB(null, metricsDao, null, identity)
+  class MockedTsdb(metricsDao: TsdbQueryMetricsDao) extends TSDB(null, metricsDao, null, identity, SimpleTsdbConfig())
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
@@ -200,5 +283,4 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[Int]].write(8)))))
     )
   }
-
 }

@@ -44,7 +44,7 @@ public class YupanaDriver implements Driver {
         p.putAll(urlProps);
         p.putAll(properties);
         try {
-            return new YupanaConnection(url, p);
+            return new YupanaConnectionImpl(url, p);
         } catch (Throwable t) {
             throw new SQLException("Yupana connection failed", t);
         }
