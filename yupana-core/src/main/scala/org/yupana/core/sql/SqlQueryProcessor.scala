@@ -551,7 +551,7 @@ object SqlQueryProcessor extends QueryValidator {
     val exprs = CollectionUtils.collectErrors(
       fieldNames.map { name =>
         fieldByName(table)(name) match {
-          case Some(LinkExpr(_, _)) => Left(s"external link $name cannot be upserted")
+          case Some(LinkExpr(_, _)) => Left(s"External link field $name cannot be upserted")
           case Some(x)              => Right(x)
           case None                 => Left(s"Unknown field $name")
         }

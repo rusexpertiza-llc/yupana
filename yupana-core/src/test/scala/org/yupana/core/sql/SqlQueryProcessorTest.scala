@@ -1163,7 +1163,25 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
     ) match {
       case Left(msg) => msg shouldEqual "Cannot convert VARCHAR to DOUBLE"
-      case Right(d)  => fail(s"Data point $d was created, but shouldn't")
+      case Right(d)  => fail(s"Data points $d were created, but shouldn't")
+    }
+  }
+
+  it should "fail if upserting external field" in {
+    createUpsert(
+      "UPSERT INTO test_table (tag_a, tag_b, time, testField, testLink_testfield) VALUES (?, ?, ?, ?, ?)",
+      Seq(
+        Map(
+          1 -> parser.StringValue("aaa"),
+          2 -> parser.StringValue("bbb"),
+          3 -> parser.TimestampValue(LocalDateTime.now()),
+          4 -> parser.NumericValue(1.1),
+          5 -> parser.StringValue("ccc")
+        )
+      )
+    ) match {
+      case Left(msg) => msg shouldEqual "External link field testLink_testfield cannot be upserted"
+      case Right(d)  => fail(s"Data points $d were created, but shouldn't")
     }
   }
 
