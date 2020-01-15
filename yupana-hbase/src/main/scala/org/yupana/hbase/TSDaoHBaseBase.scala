@@ -427,7 +427,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       indexedRows: Seq[(TSDOutputRow[IdType], Int)],
       context: InternalQueryContext
   ): SparseTable[Dimension, IdType, Seq[Int]] = {
-    val dimRowMap = context.metricsCollector.dimRowMap.measure(indexedRows.size){
+    val dimRowMap = context.metricsCollector.dimRowMap.measure(indexedRows.size) {
       context.requiredDims.map { dim =>
         val dimIndex = context.dimIndexMap(dim)
         dim -> indexedRows
@@ -437,7 +437,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       }.toMap
     }
 
-    context.metricsCollector.dimRowSparse.measure(dimRowMap.size){
+    context.metricsCollector.dimRowSparse.measure(dimRowMap.size) {
       SparseTable(dimRowMap)
     }
   }
@@ -447,11 +447,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       context: InternalQueryContext
   ): SparseTable[Int, Dimension, String] = {
     val allValues = context.requiredDims.map { dim =>
-      val dimIdRows = context.metricsCollector.dimIdRows.measure(dimTable.values.size){
+      val dimIdRows = context.metricsCollector.dimIdRows.measure(dimTable.values.size) {
         dimTable.row(dim)
       }
       val dimValues = idsToValues(dim, dimIdRows.keySet, context.metricsCollector)
-      context.metricsCollector.handleDimValues.measure(dimValues.size){
+      context.metricsCollector.handleDimValues.measure(dimValues.size) {
         val data = dimValues.flatMap {
           case (dimId, dimValue) =>
             dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))
@@ -460,7 +460,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       }
     }
 
-    context.metricsCollector.handleAllValues.measure(allValues.size){
+    context.metricsCollector.handleAllValues.measure(allValues.size) {
       allValues.foldLeft(SparseTable.empty[Int, Dimension, String])(_ ++ _)
     }
   }
