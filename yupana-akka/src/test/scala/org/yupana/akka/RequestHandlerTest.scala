@@ -141,7 +141,12 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       "read_external_links",
       "extract_data_computation",
       "parse_scan_result",
-      "dictionary_scan"
+      "dictionary_scan",
+      "dim_id_rows",
+      "handle_dim_values",
+      "handle_all_values",
+      "dim_row_map",
+      "dim_row_sparse"
     )
 
     (metricsDao.queriesByFilter _)
