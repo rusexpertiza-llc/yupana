@@ -146,7 +146,7 @@ trait TsdbBase extends StrictLogging {
         readExternalLinks(queryContext, batch, metricCollector)
       }
 
-      metricCollector.extractDataComputation.measure(batchSize) {
+      //metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
         val withValuesForFilter = it.map { row =>
           evaluateFilterExprs(queryContext, row, metricCollector)
@@ -163,7 +163,7 @@ trait TsdbBase extends StrictLogging {
         val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
 
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
-      }
+      //}
     }
 
     val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
