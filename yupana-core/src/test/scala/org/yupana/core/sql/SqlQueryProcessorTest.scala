@@ -1073,11 +1073,6 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   }
 
   it should "transform upsert into data points" in {
-    MetricValue(TestTableFields.TEST_STRING_FIELD, "baz") shouldEqual MetricValue(
-      TestTableFields.TEST_STRING_FIELD,
-      "baz"
-    )
-
     createUpsert("""UPSERT INTO test_table(time, tag_b, tag_a, testField, testStringField)
         |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 'foo', 'bar', 55, 'baz')""".stripMargin) match {
       case Right(dps) =>
@@ -1185,7 +1180,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   ): Either[String, Seq[DataPoint]] = {
     SqlParser.parse(sql).right flatMap {
       case u: parser.Upsert => sqlQueryProcessor.createDataPoints(u, params)
-      case x                => Left(s"Select expected but got $x")
+      case x                => Left(s"Upsert expected but got $x")
     }
   }
 
