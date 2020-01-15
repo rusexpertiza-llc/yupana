@@ -427,15 +427,19 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       indexedRows: Seq[(TSDOutputRow[IdType], Int)],
       context: InternalQueryContext
   ): SparseTable[Dimension, IdType, Seq[Int]] = {
-    val dimRowMap = context.requiredDims.map { dim =>
-      val dimIndex = context.dimIndexMap(dim)
-      dim -> indexedRows
-        .flatMap { case (row, index) => row.key.dimIds(dimIndex).map(index -> _) }
-        .groupBy(_._2)
-        .mapValues(_.map(_._1))
-    }.toMap
+    val dimRowMap = context.metricsCollector.dimRowMap.measure(indexedRows.size){
+      context.requiredDims.map { dim =>
+        val dimIndex = context.dimIndexMap(dim)
+        dim -> indexedRows
+          .flatMap { case (row, index) => row.key.dimIds(dimIndex).map(index -> _) }
+          .groupBy(_._2)
+          .mapValues(_.map(_._1))
+      }.toMap
+    }
 
-    SparseTable(dimRowMap)
+    context.metricsCollector.dimRowSparse.measure(dimRowMap.size){
+      SparseTable(dimRowMap)
+    }
   }
 
   private def dimFields(
@@ -443,15 +447,21 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       context: InternalQueryContext
   ): SparseTable[Int, Dimension, String] = {
     val allValues = context.requiredDims.map { dim =>
-      val dimIdRows = dimTable.row(dim)
-      val dimValues = idsToValues(dim, dimIdRows.keySet, context.metricsCollector)
-      val data = dimValues.flatMap {
-        case (dimId, dimValue) =>
-          dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))
+      val dimIdRows = context.metricsCollector.dimIdRows.measure(dimTable.values.size){
+        dimTable.row(dim)
       }
-      SparseTable(data)
+      val dimValues = idsToValues(dim, dimIdRows.keySet, context.metricsCollector)
+      context.metricsCollector.handleDimValues.measure(dimValues.size){
+        val data = dimValues.flatMap {
+          case (dimId, dimValue) =>
+            dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))
+        }
+        SparseTable(data)
+      }
     }
 
-    allValues.foldLeft(SparseTable.empty[Int, Dimension, String])(_ ++ _)
+    context.metricsCollector.handleAllValues.measure(allValues.size){
+      allValues.foldLeft(SparseTable.empty[Int, Dimension, String])(_ ++ _)
+    }
   }
 }
