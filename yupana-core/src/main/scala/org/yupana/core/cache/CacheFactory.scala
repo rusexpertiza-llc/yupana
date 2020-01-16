@@ -19,6 +19,7 @@ package org.yupana.core.cache
 import java.util.Properties
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.caffeine.CaffeineCacheFactory
 import org.yupana.ignite.cache.IgniteCacheFactory
 import org.yupana.core.cache.CacheFactory.CacheEngine.CacheEngine
 import org.yupana.ehcache.EhCacheFactory
@@ -35,12 +36,13 @@ object CacheFactory extends StrictLogging {
 
   object CacheEngine extends Enumeration {
     type CacheEngine = Value
-    val EhCache, Ignite, Disabled = Value
+    val EhCache, Caffeine, Ignite, Disabled = Value
   }
 
   private val factories = Map(
     CacheEngine.EhCache -> new EhCacheFactory,
     CacheEngine.Ignite -> new IgniteCacheFactory,
+    CacheEngine.Caffeine -> new CaffeineCacheFactory,
     CacheEngine.Disabled -> new DisabledCacheFactory
   )
 
