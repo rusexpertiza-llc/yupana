@@ -49,26 +49,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
   }
 
   def values(ids: Set[Long], metricCollector: MetricQueryCollector): Map[Long, String] = {
-    val fromCache = cache.getAll(ids)
-
-    val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
-
-    val fromDB = if (idsToGet.nonEmpty) {
-      val gotValues = dao.getValuesByIds(dimension, idsToGet, metricCollector)
-
-      idsToGet.foreach { id =>
-        if (gotValues.get(id).isEmpty) {
-          markAsAbsent(id)
-        }
-      }
-
-      cache.putAll(gotValues)
-
-      gotValues
-    } else {
-      Map.empty
-    }
-    fromCache ++ fromDB
+    dao.getValuesByIds(dimension, ids, metricCollector)
   }
 
   def findIdByValue(value: String): Option[Long] = {
