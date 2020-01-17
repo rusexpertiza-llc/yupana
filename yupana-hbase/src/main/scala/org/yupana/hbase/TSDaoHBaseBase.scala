@@ -29,7 +29,7 @@ import org.yupana.core.MapReducible
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.utils.{ SparseTable, TimeBoundedCondition }
+import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.hbase.Filtration.TimeFilter
 
 import scala.language.higherKinds
@@ -400,7 +400,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
             val dimIds = rows.flatMap(_.key.dimIds(dimIdx)).toSet
             val dimValues = idsToValues(e.dimension, dimIds)
             accRows.map { row =>
-              val dimVal = row.get[Long](valueDataBuilder.exprIndex, e).map(id => dimValues.get(id))
+              val dimVal = row.get[Long](valueDataBuilder.exprIndex, e).flatMap(id => dimValues.get(id))
               row.set(valueDataBuilder.exprIndex, e, dimVal)
             }
 
