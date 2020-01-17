@@ -117,12 +117,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  override def idsToValues(
-      dimension: Dimension,
-      ids: Set[IdType],
-      metricCollector: MetricQueryCollector
-  ): Map[IdType, String] = {
-    dictionaryProvider.dictionary(dimension).values(ids, metricCollector)
+  override def idsToValues(dimension: Dimension, ids: Set[IdType]): Map[IdType, String] = {
+    dictionaryProvider.dictionary(dimension).values(ids)
   }
 
   override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
@@ -376,33 +372,40 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
-    val indexedRows = rows.zipWithIndex
-
-    lazy val allTagValues = context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
-      val rowsByTags = rowsForDims(indexedRows, context)
-      dimFields(rowsByTags, context)
-    }
-
     context.metricsCollector.extractDataComputation.measure(rows.size) {
       val maxTag = context.table.metrics.map(_.tag).max
 
       val rowValues = Array.ofDim[Option[Any]](maxTag + 1)
 
-      for {
-        (row, idx) <- indexedRows
-        tagValues = allTagValues.row(idx)
+      val intRows = for {
+        row <- rows
         (offset, bytes) <- row.values.toSeq
         time = row.key.baseTime + offset if timeFilter(time) && readRow(context, bytes, rowValues, time)
       } yield {
 
         context.exprs.foreach {
-          case e @ DimensionExpr(dim) => valueDataBuilder.set(e, tagValues.get(dim))
+          case e @ DimensionExpr(dim) => valueDataBuilder.set(e, row.key.dimIds(context.dimIndexMap(dim)))
           case e @ MetricExpr(field)  => valueDataBuilder.set(e, rowValues(field.tag))
           case TimeExpr               => valueDataBuilder.set(TimeExpr, Some(Time(time)))
           case e                      => throw new IllegalArgumentException(s"Unsupported expression $e passed to DAO")
         }
 
         valueDataBuilder.buildAndReset()
+      }
+
+      context.exprs.foldLeft(intRows) { (accRows, expr) =>
+        expr match {
+          case e: DimensionExpr =>
+            val dimIdx = context.dimIndexMap(e.dimension)
+            val dimIds = rows.flatMap(_.key.dimIds(dimIdx)).toSet
+            val dimValues = idsToValues(e.dimension, dimIds)
+            accRows.map { row =>
+              val dimVal = row.get[Long](valueDataBuilder.exprIndex, e).map(id => dimValues.get(id))
+              row.set(valueDataBuilder.exprIndex, e, dimVal)
+            }
+
+          case _ => accRows
+        }
       }
     }
   }
@@ -420,48 +423,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       case InExpr(_: DimensionExpr, _)                               => true
       case NotInExpr(_: DimensionExpr, _)                            => true
       case _                                                         => false
-    }
-  }
-
-  private def rowsForDims(
-      indexedRows: Seq[(TSDOutputRow[IdType], Int)],
-      context: InternalQueryContext
-  ): SparseTable[Dimension, IdType, Seq[Int]] = {
-    val dimRowMap = context.metricsCollector.dimRowMap.measure(indexedRows.size) {
-      context.requiredDims.map { dim =>
-        val dimIndex = context.dimIndexMap(dim)
-        dim -> indexedRows
-          .flatMap { case (row, index) => row.key.dimIds(dimIndex).map(index -> _) }
-          .groupBy(_._2)
-          .mapValues(_.map(_._1))
-      }.toMap
-    }
-
-    context.metricsCollector.dimRowSparse.measure(dimRowMap.size) {
-      SparseTable(dimRowMap)
-    }
-  }
-
-  private def dimFields(
-      dimTable: SparseTable[Dimension, IdType, Seq[Int]],
-      context: InternalQueryContext
-  ): SparseTable[Int, Dimension, String] = {
-    val allValues = context.requiredDims.map { dim =>
-      val dimIdRows = context.metricsCollector.dimIdRows.measure(dimTable.values.size) {
-        dimTable.row(dim)
-      }
-      val dimValues = idsToValues(dim, dimIdRows.keySet, context.metricsCollector)
-      context.metricsCollector.handleDimValues.measure(dimValues.size) {
-        val data = dimValues.flatMap {
-          case (dimId, dimValue) =>
-            dimIdRows.get(dimId).toSeq.flatMap(_.map(row => (row, dim, dimValue)))
-        }
-        SparseTable(data)
-      }
-    }
-
-    context.metricsCollector.handleAllValues.measure(allValues.size) {
-      allValues.foldLeft(SparseTable.empty[Int, Dimension, String])(_ ++ _)
     }
   }
 }

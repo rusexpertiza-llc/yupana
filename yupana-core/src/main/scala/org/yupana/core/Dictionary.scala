@@ -20,7 +20,6 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.schema.Dimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
-import org.yupana.core.utils.metric.MetricQueryCollector
 
 class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging {
   private val cache = CacheFactory.initCache[Long, String](s"dictionary-${dimension.name}")
@@ -48,13 +47,17 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-  def values(ids: Set[Long], metricCollector: MetricQueryCollector): Map[Long, String] = {
+//  def values(ids: Set[Long]): Map[Long, String] = {
+//    dao.getValuesByIds(dimension, ids)
+//  }
+
+  def values(ids: Set[Long]): Map[Long, String] = {
     val fromCache = cache.getAll(ids)
 
     val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
 
     val fromDB = if (idsToGet.nonEmpty) {
-      val gotValues = dao.getValuesByIds(dimension, idsToGet, metricCollector)
+      val gotValues = dao.getValuesByIds(dimension, idsToGet)
 
       idsToGet.foreach { id =>
         if (gotValues.get(id).isEmpty) {

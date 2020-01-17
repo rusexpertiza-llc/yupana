@@ -75,14 +75,15 @@ lazy val core = (project in file("yupana-core"))
     name := "yupana-core",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
-      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse.value,
-      "org.apache.ignite"           %  "ignite-core"                  % versions.ignite,
-      "org.apache.ignite"           %  "ignite-slf4j"                 % versions.ignite,
-      "org.ehcache"                 %  "ehcache"                      % versions.ehcache,
-
-      "org.scalatest"               %% "scalatest"                    % versions.scalaTest          % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock          % Test
+      "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
+      "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse.value,
+      "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
+      "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite,
+      "org.ehcache"                   %  "ehcache"                      % versions.ehcache,
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
+      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine,
+      "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
+      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
   .dependsOn(api, utils)
@@ -235,6 +236,7 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.7.0"
   val ehcache = "3.3.2"
+  val caffeine = "2.8.0"
 
   val json4s = "3.5.3"
   val spring = "5.0.8.RELEASE"
@@ -246,7 +248,7 @@ lazy val versions = new {
   val postgresqlJdbc = "42.2.6"
 
   val scalaTest = "3.0.8"
-  val scalaCheck = "1.14.2"
+  val scalaCheck = "1.14.3"
   val scalaMock = "4.4.0"
   val sparkTesting = s"${spark}_0.12.0"
 
