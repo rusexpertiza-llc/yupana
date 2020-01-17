@@ -275,6 +275,7 @@ val commonSettings = Seq(
     "-Ywarn-unused-import"
   ),
   Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
+  testOptions in Test += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   parallelExecution in Test := false,
   coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
