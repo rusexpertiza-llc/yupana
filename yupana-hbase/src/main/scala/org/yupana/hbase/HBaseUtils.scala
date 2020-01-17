@@ -160,13 +160,14 @@ object HBaseUtils extends StrictLogging {
     val resultIterator = new AbstractIterator[List[TSDOutputRow[Long]]] {
       override def hasNext: Boolean = {
         context.metricsCollector.scan.measure(1) {
-          val hasNext = batchIterator.hasNext
+          /*val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
               s"query_uuid: ${context.metricsCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
             )
           }
-          hasNext
+          hasNext*/
+          batchIterator.hasNext
         }
       }
 
