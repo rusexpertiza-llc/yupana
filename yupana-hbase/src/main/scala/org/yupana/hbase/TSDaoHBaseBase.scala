@@ -117,8 +117,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  override def idsToValues(dimension: Dimension, ids: Set[IdType]): Map[IdType, String] = {
-    dictionaryProvider.dictionary(dimension).values(ids)
+  override def idsToValues(dimension: Dimension, ids: Set[IdType], metricCollector: MetricQueryCollector): Map[IdType, String] = {
+    dictionaryProvider.dictionary(dimension).values(ids, metricCollector)
   }
 
   override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
@@ -398,7 +398,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           case e: DimensionExpr =>
             val dimIdx = context.dimIndexMap(e.dimension)
             val dimIds = rows.flatMap(_.key.dimIds(dimIdx)).toSet
-            val dimValues = idsToValues(e.dimension, dimIds)
+            val dimValues = idsToValues(e.dimension, dimIds, context.metricsCollector)
             accRows.map { row =>
               val dimVal = row.get[Long](valueDataBuilder.exprIndex, e).flatMap(id => dimValues.get(id))
               row.set(valueDataBuilder.exprIndex, e, dimVal)

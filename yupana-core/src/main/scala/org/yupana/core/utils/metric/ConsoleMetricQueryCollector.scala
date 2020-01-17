@@ -45,7 +45,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
   private val startTime = System.nanoTime()
-  logger.info(s"${query.uuidLog}; operation: $operationName started, query: $query")
+  println(s"${query.uuidLog}; operation: $operationName started, query: $query")
 
   def getMetrics: Seq[MetricImpl] =
     Seq(
@@ -69,11 +69,11 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
     val resultTime = System.nanoTime() - startTime
     val metrics = (dynamicMetrics.values ++ getMetrics).toSeq
     metrics.sortBy(_.name).foreach { metric =>
-      logger.info(
+      println(
         s"${query.uuidLog}; stage: ${metric.name}; time: ${formatNanoTime(metric.time.sum())}; count: ${metric.count}"
       )
     }
-    logger.info(
+    println(
       s"${query.uuidLog}; operation: $operationName finished; time: ${formatNanoTime(resultTime)}; query: $query"
     )
   }
