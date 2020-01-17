@@ -117,7 +117,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  override def idsToValues(dimension: Dimension, ids: Set[IdType], metricCollector: MetricQueryCollector): Map[IdType, String] = {
+  override def idsToValues(
+      dimension: Dimension,
+      ids: Set[IdType],
+      metricCollector: MetricQueryCollector
+  ): Map[IdType, String] = {
     dictionaryProvider.dictionary(dimension).values(ids, metricCollector)
   }
 
