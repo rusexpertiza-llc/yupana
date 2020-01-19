@@ -42,6 +42,8 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
 
   override val putEnabled: Boolean = false
 
+  override val putIntoExternalLinks: Boolean = false
+
   val properties: Properties = propsWithPrefix("")
 
   protected def propsWithPrefix(prefix: String): Properties =
