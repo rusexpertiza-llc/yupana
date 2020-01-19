@@ -251,10 +251,13 @@ object SqlParser {
 
   def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
 
-  def values[_: P]: P[Seq[SqlExpr]] = "(" ~/ expr.rep(1, sep = ",") ~ ")"
+  def values[_: P](count: Int): P[Seq[Seq[SqlExpr]]] =
+    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
   def upsert[_: P]: P[Upsert] =
-    P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord ~/ values).map(Upsert.tupled)
+    P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
+      case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
+    }
 
   def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
 

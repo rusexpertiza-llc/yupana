@@ -5,22 +5,23 @@
 [![codecov](https://codecov.io/gh/rusexpertiza-llc/yupana/branch/master/graph/badge.svg)](https://codecov.io/gh/rusexpertiza-llc/yupana)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.yupana/yupana-core_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.yupana/yupana-core_2.12)
 
-Yupana -- аналитическая платформа с открытым исходным кодом для анализа больших данных.
+Yupana is an open source analytic platform designed for big data analysis.
 
-Она обеспечивает:
+It provides:
 
  - перевод транзакционной информации в форму пригодную для бизнес анализа;
  - хранение обработанной  информации в формате оптимизированном для выполнения аналитических задач на многомерных
    временных рядах;
  - массовую и Online обработку данных.
 
-Платформа поддерживает SQL-подобный синтаксис запросов, которые могут выполнятся на выделенном сервере или в кластере
-Apache Spark.
+The platform supports SQL-like queries which can be run both in standalone server or in Apache Spark cluster.
 
 В состав Yupana также входит набор примеров использования, который может быть использован как стартовая точка для
 реализации аналитической платформы для решения реальных задач.
 
-## Оглавление
+You can get more information (currently only in Russian) at the site www.yupana.org.
+
+## Table of contents
 
  - [Общие сведения о Yupana](#yupana)
  - [Начало работы](#start)
@@ -50,12 +51,12 @@ Apache Spark.
 
 ## Общие сведения о Yupana <a href="#yupana"></a>
 
-Архитектура Yupana не привязана к конкретному хранилищу.  Существующая реализация использует в качестве хранилища Apache
-HBase. Данные сохраняются в виде отдельных временных рядов.
+Yupana architecture does not coupled with the low level storage.  Different DAO implementations can be provided.
+Currently there is only one DAO implementation based on Apache HBase.  The data is saved in time series.
 
-Временной ряд — это собранные в разные моменты времени данные о значении наблюдаемых параметров.
+Time series is a colleciton of obseving parameters values, measured at different time moments.
 
-Структура временных рядов:
+Time series structure:
 
  - Время измерения -- обязательная размерность временного ряда, является частью первичного составного ключа. При
    выполнении запросов всегда должны быть указаны ограничения по времени;
@@ -385,7 +386,15 @@ SELECT
 
 ```SQL
 UPSERT INTO kkm_items(kkmId, item, operation_type, position, time, sum, quantity)
-   VALUES ('12345', 'Пряник тульский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 100, 1)"
+   VALUES ('12345', 'Пряник тульский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 100, 1)
+```
+
+Можно добавлять одновременно несколько значений:
+
+```SQL
+UPSERT INTO kkm_items(kkmId, item, operation_type, position, time, sum, quantity) VALUES
+   ('12345', 'Пряник тульский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 300, 5),
+   ('12345', 'Чай индийский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 100, 1)
 ```
 
 ## Структура проекта <a href="#structure"></a>

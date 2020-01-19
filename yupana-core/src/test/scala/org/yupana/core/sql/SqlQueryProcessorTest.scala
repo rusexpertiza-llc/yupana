@@ -1090,13 +1090,6 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     }
   }
 
-  it should "fail upsert if number of fields and values mismatch" in {
-    createUpsert("UPSERT INTO test_table (tag_a, time) VALUES ('bar')") match {
-      case Left(e)  => e shouldEqual "There are 2 fields, but 1 values"
-      case Right(d) => fail(s"Data point $d was created, but shouldn't")
-    }
-  }
-
   it should "fail upsert on data type mismatch" in {
     createUpsert("UPSERT INTO test_table (tag_a, time, testField) VALUES (5, 'foo', 'bar')") match {
       case Left(e)  => e shouldEqual "Cannot convert VARCHAR to TIMESTAMP"
@@ -1139,6 +1132,39 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
 
       case Left(e) => fail(e)
+    }
+  }
+
+  it should "support upsert with multiple values" in {
+    val t1 = new LocalDateTime(2020, 1, 19, 23, 10, 31)
+    val t2 = new LocalDateTime(2020, 1, 19, 23, 11, 2)
+    val t3 = new LocalDateTime(2020, 1, 19, 23, 11, 33)
+    createUpsert("""UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES
+        |  ('a', 'b', TIMESTAMP '2020-01-19 23:10:31', 1.5),
+        |  ('c', 'd', TIMESTAMP '2020-01-19 23:11:02', 3),
+        |  ('e', 'f', TIMESTAMP '2020-01-19 23:11:33', 321.5) """.stripMargin) match {
+      case Right(dps) =>
+        dps should have size 3
+
+        val dp1 = dps(0)
+        dp1.table shouldEqual TestSchema.testTable
+        dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
+        dp1.dimensions shouldEqual Map(TestDims.TAG_B -> "b", TestDims.TAG_A -> "a")
+        dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.5d))
+
+        val dp2 = dps(1)
+        dp2.table shouldEqual TestSchema.testTable
+        dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
+        dp2.dimensions shouldEqual Map(TestDims.TAG_B -> "d", TestDims.TAG_A -> "c")
+        dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 3d))
+
+        val dp3 = dps(2)
+        dp3.table shouldEqual TestSchema.testTable
+        dp3.time shouldEqual t3.toDateTime(DateTimeZone.UTC).getMillis
+        dp3.dimensions shouldEqual Map(TestDims.TAG_B -> "f", TestDims.TAG_A -> "e")
+        dp3.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 321.5d))
+
+      case Left(msg) => fail(msg)
     }
   }
 

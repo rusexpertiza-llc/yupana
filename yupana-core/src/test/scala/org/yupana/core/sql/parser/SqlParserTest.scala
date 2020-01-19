@@ -1051,7 +1051,28 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       case Upsert(s, fs, vs) =>
         s shouldEqual "foo"
         fs should contain theSameElementsInOrderAs List("bar", "baz")
-        vs should contain theSameElementsInOrderAs List(Constant(StringValue("bar value")), Constant(NumericValue(42)))
+        vs should contain theSameElementsInOrderAs List(
+          List(Constant(StringValue("bar value")), Constant(NumericValue(42)))
+        )
+    }
+  }
+
+  it should "handle UPSERT with multiple values" in {
+    parsed("""UPSERT INTO foo (bar, baz) VALUES ('abc', 1), ('def', 2);""") {
+      case Upsert(s, fs, vs) =>
+        s shouldEqual "foo"
+        fs should contain theSameElementsInOrderAs List("bar", "baz")
+        vs should contain theSameElementsInOrderAs List(
+          List(Constant(StringValue("abc")), Constant(NumericValue(1))),
+          List(Constant(StringValue("def")), Constant(NumericValue(2)))
+        )
+    }
+  }
+
+  it should "check that the number of values is the same as fields" in {
+    errorMessage("""UPSERT INTO foo (bar, baz) VALUES ('abc', 1), ('fail', 4, 'me'), ('def', 2);""") {
+      case msg =>
+        msg should include("""Expect <2 expressions>, but got "('fail', 4"""")
     }
   }
 
