@@ -376,7 +376,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
-    val intRows = context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
+    val intRows = context.metricsCollector.extractDataComputation.measure(rows.size) {
       val maxTag = context.table.metrics.map(_.tag).max
       val rowValues = Array.ofDim[Option[Any]](maxTag + 1)
       for {
@@ -401,7 +401,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       }
     }
 
-    context.metricsCollector.extractDataComputation.measure(rows.size) {
+    context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
       context.exprs.foldLeft(intRows) { (accRows, expr) =>
         expr match {
           case e: DimensionExpr =>
