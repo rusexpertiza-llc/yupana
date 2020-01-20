@@ -376,27 +376,32 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
-    context.metricsCollector.extractDataComputation.measure(rows.size) {
+    val intRows = context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
       val maxTag = context.table.metrics.map(_.tag).max
-
       val rowValues = Array.ofDim[Option[Any]](maxTag + 1)
-
-      val intRows = for {
+      for {
         row <- rows
         (offset, bytes) <- row.values.toSeq
-        time = row.key.baseTime + offset if timeFilter(time) && readRow(context, bytes, rowValues, time)
+        time = row.key.baseTime + offset
+        if timeFilter(time) && readRow(context, bytes, rowValues, time)
       } yield {
-
         context.exprs.foreach {
-          case e @ DimensionExpr(dim) => valueDataBuilder.set(e, row.key.dimIds(context.dimIndexMap(dim)))
-          case e @ MetricExpr(field)  => valueDataBuilder.set(e, rowValues(field.tag))
-          case TimeExpr               => valueDataBuilder.set(TimeExpr, Some(Time(time)))
-          case e                      => throw new IllegalArgumentException(s"Unsupported expression $e passed to DAO")
+          case e @ DimensionExpr(dim) =>
+            valueDataBuilder.set(e, row.key.dimIds(context.dimIndexMap(dim)))
+          case e @ MetricExpr(field) =>
+            valueDataBuilder.set(e, rowValues(field.tag))
+          case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
+          case e =>
+            throw new IllegalArgumentException(
+              s"Unsupported expression $e passed to DAO"
+            )
         }
 
         valueDataBuilder.buildAndReset()
       }
+    }
 
+    context.metricsCollector.extractDataComputation.measure(rows.size) {
       context.exprs.foldLeft(intRows) { (accRows, expr) =>
         expr match {
           case e: DimensionExpr =>

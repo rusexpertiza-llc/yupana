@@ -48,10 +48,6 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-//  def values(ids: Set[Long]): Map[Long, String] = {
-//    dao.getValuesByIds(dimension, ids)
-//  }
-
   def values(ids: Set[Long], metricCollector: MetricQueryCollector): Map[Long, String] = {
     val fromCache = cache.getAll(ids)
 

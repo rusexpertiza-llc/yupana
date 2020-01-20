@@ -48,11 +48,6 @@ object TsdbQueryMetrics {
   val extractDataComputationQualifier = "extract_data_computation"
   val parseScanResultQualifier = "parse_scan_result"
   val dictionaryScanQualifier = "dictionary_scan"
-  val dimIdRowsQualifier = "dim_id_rows"
-  val handleDimValuesQualifier = "handle_dim_values"
-  val handleAllValuesQualifier = "handle_all_values"
-  val dimRowMapQualifier = "dim_row_map"
-  val dimRowSparseQualifier = "dim_row_sparse"
 
   val idColumn = "id"
   val queryIdColumn = "query_id"
@@ -83,12 +78,7 @@ object TsdbQueryMetrics {
     readExternalLinksQualifier,
     extractDataComputationQualifier,
     parseScanResultQualifier,
-    dictionaryScanQualifier,
-    dimIdRowsQualifier,
-    handleDimValuesQualifier,
-    handleAllValuesQualifier,
-    dimRowMapQualifier,
-    dimRowSparseQualifier
+    dictionaryScanQualifier
   )
 }
 

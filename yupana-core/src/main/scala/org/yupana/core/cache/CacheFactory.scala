@@ -39,8 +39,7 @@ object CacheFactory extends StrictLogging {
     val EhCache, Caffeine, Ignite, Disabled = Value
   }
 
-  private val factory = new CaffeineCacheFactory
-  private val factories1 = Map(
+  private val factories = Map(
     CacheEngine.EhCache -> new EhCacheFactory,
     CacheEngine.Ignite -> new IgniteCacheFactory,
     CacheEngine.Caffeine -> new CaffeineCacheFactory,
@@ -99,10 +98,13 @@ object CacheFactory extends StrictLogging {
 
   def flushCaches(): Unit = {
     logger.info("Flushing caches")
-    factory.flushCaches()
+    factories.values.foreach(_.flushCaches())
   }
 
   private def getFactory(description: CacheDescription): CacheFactory = {
-    factory
+    factories.getOrElse(
+      description.engine,
+      throw new IllegalArgumentException(s"Unsupported cache engine ${description.engine}")
+    )
   }
 }

@@ -45,11 +45,6 @@ trait MetricQueryCollector extends Serializable {
   val scan: Metric = NoMetric
   val parseScanResult: Metric = NoMetric
   val dictionaryScan: Metric = NoMetric
-  val dimIdRows: Metric = NoMetric
-  val handleDimValues: Metric = NoMetric
-  val handleAllValues: Metric = NoMetric
-  val dimRowMap: Metric = NoMetric
-  val dimRowSparse: Metric = NoMetric
 }
 
 object NoMetricCollector extends MetricQueryCollector {

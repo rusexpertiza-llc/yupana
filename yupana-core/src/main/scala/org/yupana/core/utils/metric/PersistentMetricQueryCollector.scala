@@ -53,11 +53,6 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   override val postFilter: PersistentMetricImpl = createMetric(postFilterQualifier)
   override val collectResultRows: PersistentMetricImpl = createMetric(collectResultRowsQualifier)
   override val dictionaryScan: PersistentMetricImpl = createMetric(dictionaryScanQualifier)
-  override val dimIdRows: PersistentMetricImpl = createMetric(dimIdRowsQualifier)
-  override val handleDimValues: PersistentMetricImpl = createMetric(handleDimValuesQualifier)
-  override val handleAllValues: PersistentMetricImpl = createMetric(handleAllValuesQualifier)
-  override val dimRowMap: PersistentMetricImpl = createMetric(dimRowMapQualifier)
-  override val dimRowSparse: PersistentMetricImpl = createMetric(dimRowSparseQualifier)
 
   private val queryRowKey = collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
   logger.info(s"$queryRowKey - ${query.uuidLog}; operation: $operationName started, query: $query")
@@ -80,12 +75,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       reduceOperation,
       postFilter,
       collectResultRows,
-      dictionaryScan,
-      dimIdRows,
-      handleDimValues,
-      handleAllValues,
-      dimRowMap,
-      dimRowSparse
+      dictionaryScan
     )
 
   def getAndResetMetricsData: Map[String, MetricData] = {
