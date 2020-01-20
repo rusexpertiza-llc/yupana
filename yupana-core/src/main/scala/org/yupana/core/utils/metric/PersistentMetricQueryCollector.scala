@@ -80,7 +80,6 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
 
   def getAndResetMetricsData: Map[String, MetricData] = {
     (dynamicMetrics.values ++ getMetrics).map { m =>
-      logger.info(s"cnt: ${m.count.sum} ; time: ${m.time.sum} ; ${asSeconds(m.time.sum)}")
       val cnt = m.count.sumThenReset()
       val time = asSeconds(m.time.sumThenReset())
       val speed = if (time != 0) cnt.toDouble / time else 0.0

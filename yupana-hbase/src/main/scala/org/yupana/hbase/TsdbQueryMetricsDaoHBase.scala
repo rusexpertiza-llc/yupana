@@ -101,15 +101,32 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
               case (metricName, metricData) =>
                 query.metrics.get(metricName) match {
                   case Some(oldMetricData) =>
+                    val count = if (metricData.count != 0L) {
+                      oldMetricData.count + metricData.count
+                    } else oldMetricData.count
+
+                    val time = if (metricData.count != 0L) {
+                      oldMetricData.time + metricData.time
+                    } else oldMetricData.time
+
+                    val speed = if (metricData.count != 0L) {
+                      metricData.speed
+                    } else oldMetricData.speed
+
                     put.addColumn(
                       FAMILY,
                       Bytes.toBytes(metricName + "_" + metricCount),
-                      Bytes.toBytes(oldMetricData.count + metricData.count)
+                      Bytes.toBytes(count)
                     )
                     put.addColumn(
                       FAMILY,
                       Bytes.toBytes(metricName + "_" + metricTime),
-                      Bytes.toBytes(oldMetricData.time + metricData.time)
+                      Bytes.toBytes(time)
+                    )
+                    put.addColumn(
+                      FAMILY,
+                      Bytes.toBytes(metricName + "_" + metricSpeed),
+                      Bytes.toBytes(speed)
                     )
                   case None =>
                     put.addColumn(
@@ -118,8 +135,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
                       Bytes.toBytes(metricData.count)
                     )
                     put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricTime), Bytes.toBytes(metricData.time))
+                    put.addColumn(
+                      FAMILY,
+                      Bytes.toBytes(metricName + "_" + metricSpeed),
+                      Bytes.toBytes(metricData.speed)
+                    )
                 }
-                put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricSpeed), Bytes.toBytes(metricData.speed))
             }
             val result = table.checkAndPut(
               Bytes.toBytes(queryRowKey),
