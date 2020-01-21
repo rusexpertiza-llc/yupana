@@ -39,18 +39,24 @@ class TSDB(
 
   override lazy val extractBatchSize: Int = config.extractBatchSize
 
-  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
+  private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
   override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Iterator] = MapReducible.iteratorMR
 
-  def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
-    catalogs += (catalog -> catalogService)
+  def registerExternalLink(
+      externalLink: ExternalLink,
+      externalLinkService: ExternalLinkService[_ <: ExternalLink]
+  ): Unit = {
+    externalLinks += (externalLink -> externalLinkService)
   }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {
     if (config.putEnabled) {
       loadTagsIds(dataPoints)
       dao.put(dataPoints)
+      if (config.putIntoExternalLinks) {
+        externalLinks.foreach(_._2.put(dataPoints))
+      }
     } else throw new IllegalAccessException("Put is disabled")
   }
 
@@ -142,6 +148,9 @@ class TSDB(
   }
 
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
-    catalogs.getOrElse(catalog, throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}"))
+    externalLinks.getOrElse(
+      catalog,
+      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}")
+    )
   }
 }

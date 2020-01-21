@@ -52,29 +52,31 @@ class SqlQueryProcessor(schema: Schema) {
   ): Either[String, Seq[DataPoint]] = {
     val params = if (parameters.isEmpty) Seq(Map.empty[Int, parser.Value]) else parameters
 
-    if (upsert.values.size == upsert.fieldNames.size) {
+    if (upsert.values.forall(_.size == upsert.fieldNames.size)) {
       (for {
         mayBeTable <- getTable(Some(upsert.schemaName)).right
         table <- mayBeTable.toRight("Table is not defined").right
         fieldMap <- getFieldMap(table, upsert.fieldNames).right
       } yield (table, fieldMap)).right.flatMap {
         case (table, fieldMap) =>
-          val dps = params.map { ps =>
+          val dps = params.flatMap { ps =>
             val state = new BuilderState(ps)
 
-            for {
-              values <- getValues(state, table, upsert.values).right
-              time <- getTimeValue(fieldMap, values).right
-              dimensions <- getDimensionValues(table, fieldMap, values).right
-              metrics <- getMetricValues(table, fieldMap, values).right
-            } yield {
-              DataPoint(table, time, dimensions, metrics)
+            upsert.values.map { values =>
+              for {
+                values <- getValues(state, table, values).right
+                time <- getTimeValue(fieldMap, values).right
+                dimensions <- getDimensionValues(table, fieldMap, values).right
+                metrics <- getMetricValues(table, fieldMap, values).right
+              } yield {
+                DataPoint(table, time, dimensions, metrics)
+              }
             }
           }
           CollectionUtils.collectErrors(dps)
       }
     } else {
-      Left(s"There are ${upsert.fieldNames.size} fields, but ${upsert.values.size} values")
+      Left("Inconsistent UPSERT")
     }
   }
 
