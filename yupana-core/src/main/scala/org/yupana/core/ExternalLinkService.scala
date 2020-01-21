@@ -81,4 +81,6 @@ trait ExternalLinkService[T <: ExternalLink] {
       case _                                                                   => false
     }
   }
+
+  def put(dataPoints: Seq[DataPoint]): Unit = {}
 }

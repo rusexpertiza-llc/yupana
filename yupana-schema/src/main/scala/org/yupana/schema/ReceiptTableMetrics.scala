@@ -50,6 +50,8 @@ trait ReceiptTableMetrics {
   val prepaymentSumField = Metric[BigDecimal]("prepaymentSum", 23, rarelyQueried)
   val taxationType = Metric[Int]("taxationType", 24, rarelyQueried)
   val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
+  val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
+  val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -75,7 +77,9 @@ trait ReceiptTableMetrics {
   val rollupFields = Seq(
     minTimeField,
     maxTimeField,
-    receiptCountField
+    receiptCountField,
+    cashReceiptCountField,
+    cardReceiptCountField
   )
   import org.yupana.api.query.syntax.All._
 
@@ -169,6 +173,20 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(
         aggregate(Aggregation.count[String], metric(transactionIdField)) as receiptCountField.name,
         receiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(
+          Aggregation.sum[Long],
+          condition[Long](gt(metric(cashSumField), const(BigDecimal(0))), const(1L), const(0L))
+        ) as cashReceiptCountField.name,
+        cashReceiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(
+          Aggregation.sum[Long],
+          condition[Long](gt(metric(cardSumField), const(BigDecimal(0))), const(1L), const(0L))
+        ) as cardReceiptCountField.name,
+        cardReceiptCountField
       )
     )
 
@@ -178,6 +196,14 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(
         aggregate(Aggregation.sum[Long], metric(receiptCountField)) as receiptCountField.name,
         receiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(Aggregation.sum[Long], metric(cashReceiptCountField)) as cashReceiptCountField.name,
+        cashReceiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(Aggregation.sum[Long], metric(cardReceiptCountField)) as cardReceiptCountField.name,
+        cardReceiptCountField
       )
     )
 

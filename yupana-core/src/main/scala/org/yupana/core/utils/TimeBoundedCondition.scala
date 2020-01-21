@@ -69,13 +69,12 @@ object TimeBoundedCondition {
 
     val from = conditions.head.from
     val to = conditions.head.to
-    val cs = conditions.foldLeft(Seq.empty[Condition])(
-      (a, c) =>
-        if (c.from == from && c.to == to) {
-          a ++ c.conditions
-        } else {
-          throw new IllegalArgumentException("Conditions must have same time limits.")
-        }
+    val cs = conditions.foldLeft(Seq.empty[Condition])((a, c) =>
+      if (c.from == from && c.to == to) {
+        a ++ c.conditions
+      } else {
+        throw new IllegalArgumentException("Conditions must have same time limits.")
+      }
     )
     TimeBoundedCondition(from, to, cs)
   }
@@ -86,7 +85,7 @@ object TimeBoundedCondition {
     val other = ListBuffer.empty[Condition]
 
     def updateFrom(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateExpression(e.asInstanceOf[Expression.Aux[Time]], null, null)
+      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
       const match {
         case Some(t) => from = from.map(o => math.max(t.millis + offset, o)) orElse Some(t.millis + offset)
         case _       => other += c
@@ -94,7 +93,7 @@ object TimeBoundedCondition {
     }
 
     def updateTo(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateExpression(e.asInstanceOf[Expression.Aux[Time]], null, null)
+      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
       const match {
         case Some(t) => to = to.map(o => math.max(t.millis + offset, o)) orElse Some(t.millis)
         case _       => other += c

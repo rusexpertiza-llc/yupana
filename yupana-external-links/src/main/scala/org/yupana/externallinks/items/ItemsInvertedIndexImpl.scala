@@ -17,7 +17,7 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, DimensionExpr, Expression, LinkExpr }
+import org.yupana.api.query._
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
@@ -58,6 +58,11 @@ class ItemsInvertedIndexImpl(
 
   import ItemsInvertedIndexImpl._
   import externalLink._
+
+  override def put(dataPoints: Seq[DataPoint]): Unit = {
+    val items = dataPoints.flatMap(dp => dp.dimensions.get(Dimensions.ITEM_TAG)).toSet
+    putItemNames(items)
+  }
 
   def putItemNames(names: Set[String]): Unit = {
     val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)

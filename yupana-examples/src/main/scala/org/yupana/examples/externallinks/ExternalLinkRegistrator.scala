@@ -26,7 +26,7 @@ import org.yupana.core.TsdbBase
 import org.yupana.externallinks.items.{ ItemsInvertedIndexImpl, RelatedItemsCatalogImpl }
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConnection }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
-import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase }
+import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 
 class ExternalLinkRegistrator(
@@ -41,10 +41,10 @@ class ExternalLinkRegistrator(
   lazy val invertedDao = new InvertedIndexDaoHBase[String, Long](
     hBaseConnection,
     ItemsInvertedIndexImpl.TABLE_NAME,
-    InvertedIndexDaoHBase.stringSerializer,
-    InvertedIndexDaoHBase.stringDeserializer,
-    InvertedIndexDaoHBase.longSerializer,
-    InvertedIndexDaoHBase.longDeserializer
+    Serializers.stringSerializer,
+    Serializers.stringDeserializer,
+    Serializers.longSerializer,
+    Serializers.longDeserializer
   )
 
   lazy val invertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedDao, ItemsInvertedIndex)

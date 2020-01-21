@@ -97,11 +97,10 @@ class SQLSourcedExternalLinkService(
       val dataFromDb = jdbc
         .queryForList(q, params: _*)
         .asScala
-        .map(
-          vs =>
-            vs.asScala.toMap
-              .mapValues(_.toString)
-              .map { case (k, v) => snakeToCamel(k) -> v }
+        .map(vs =>
+          vs.asScala.toMap
+            .mapValues(_.toString)
+            .map { case (k, v) => snakeToCamel(k) -> v }
         )
         .groupBy(m => m(dimensionName))
         .mapValues(_.head - dimensionName)

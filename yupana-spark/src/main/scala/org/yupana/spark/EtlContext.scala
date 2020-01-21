@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
-import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, TSDBHbase }
+import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 
 class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
@@ -34,15 +34,15 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
   }
 
   private def init: (TSDB, ItemsInvertedIndexImpl) = {
-    val tsdb = TSDBHbase(hBaseConfiguration, cfg.hbaseNamespace, schema, identity, cfg.properties)
+    val tsdb = TSDBHBase(hBaseConfiguration, cfg.hbaseNamespace, schema, identity, cfg.properties, cfg)
     val hBaseConnection = new ExternalLinkHBaseConnection(hBaseConfiguration, cfg.hbaseNamespace)
     val invertedIndexDao = new InvertedIndexDaoHBase[String, Long](
       hBaseConnection,
       ItemsInvertedIndexImpl.TABLE_NAME,
-      InvertedIndexDaoHBase.stringSerializer,
-      InvertedIndexDaoHBase.stringDeserializer,
-      InvertedIndexDaoHBase.longSerializer,
-      InvertedIndexDaoHBase.longDeserializer
+      Serializers.stringSerializer,
+      Serializers.stringDeserializer,
+      Serializers.longSerializer,
+      Serializers.longDeserializer
     )
     val itemsInvertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, ItemsInvertedIndex)
     tsdb.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)

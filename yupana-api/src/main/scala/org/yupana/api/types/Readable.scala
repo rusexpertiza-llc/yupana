@@ -57,9 +57,8 @@ object Readable {
   implicit val longReadable: Readable[Long] = of(readVLong)
   implicit val stringReadable: Readable[String] = of(readString)
   implicit val timestampReadable: Readable[Time] = of(bb => Time(longReadable.read(bb)))
-  implicit val periodReadable: Readable[Period] = of(
-    bb => ISOPeriodFormat.standard().parsePeriod(stringReadable.read(bb))
-  )
+  implicit val periodReadable: Readable[Period] =
+    of(bb => ISOPeriodFormat.standard().parsePeriod(stringReadable.read(bb)))
 
   implicit def arrayReadable[T](implicit rt: Readable[T], ct: ClassTag[T]): Readable[Array[T]] = of(readArray(rt))
 

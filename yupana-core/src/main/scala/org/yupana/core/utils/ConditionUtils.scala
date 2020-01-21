@@ -30,12 +30,11 @@ object ConditionUtils {
 
   def flatMap(c: Condition)(f: Condition => Condition): Condition = {
     def doFlat(xs: Seq[Condition]): Seq[Condition] = {
-      xs.flatMap(
-        x =>
-          flatMap(x)(f) match {
-            case ConstantExpr(true) => None
-            case nonEmpty           => Some(nonEmpty)
-          }
+      xs.flatMap(x =>
+        flatMap(x)(f) match {
+          case ConstantExpr(true) => None
+          case nonEmpty           => Some(nonEmpty)
+        }
       )
     }
 

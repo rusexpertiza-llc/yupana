@@ -25,31 +25,39 @@ import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.OnFinishIterator
 import org.yupana.core.utils.metric._
 
-// NOTE: dao is TSDaoHBase because TSDB has put and rollup related method.  Possible it better to not have them here
 class TSDB(
     override val dao: TSDao[Iterator, Long],
     val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
-    override val extractBatchSize: Int = 10000,
-    config: TSDBConfig = TSDBConfig()
+    config: TsdbConfig
 ) extends TsdbBase
     with StrictLogging {
 
   override type Collection[X] = Iterator[X]
   override type Result = TsdbServerResult
 
-  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
+  override lazy val extractBatchSize: Int = config.extractBatchSize
+
+  private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
   override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Iterator] = MapReducible.iteratorMR
 
-  def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
-    catalogs += (catalog -> catalogService)
+  def registerExternalLink(
+      externalLink: ExternalLink,
+      externalLinkService: ExternalLinkService[_ <: ExternalLink]
+  ): Unit = {
+    externalLinks += (externalLink -> externalLinkService)
   }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {
-    loadTagsIds(dataPoints)
-    dao.put(dataPoints)
+    if (config.putEnabled) {
+      loadTagsIds(dataPoints)
+      dao.put(dataPoints)
+      if (config.putIntoExternalLinks) {
+        externalLinks.foreach(_._2.put(dataPoints))
+      }
+    } else throw new IllegalAccessException("Put is disabled")
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
@@ -140,8 +148,9 @@ class TSDB(
   }
 
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
-    catalogs.getOrElse(catalog, throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}"))
+    externalLinks.getOrElse(
+      catalog,
+      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}")
+    )
   }
 }
-
-case class TSDBConfig(collectMetrics: Boolean = false, metricsUpdateInterval: Int = 30000)

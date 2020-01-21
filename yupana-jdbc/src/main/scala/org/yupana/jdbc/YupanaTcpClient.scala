@@ -49,6 +49,11 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     execRequestQuery(request)
   }
 
+  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
+    val request = creteProtoBatchQuery(query, params)
+    execRequestQuery(request)
+  }
+
   def ping(reqTime: Long): Option[Version] = {
     val request = createProtoPing(reqTime)
     execPing(request) match {
@@ -279,6 +284,21 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         SqlQuery(query, params.map {
           case (i, v) => ParameterValue(i, createProtoValue(v))
         }.toSeq)
+      )
+    )
+  }
+
+  private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Request = {
+    Request(
+      Request.Req.BatchSqlQuery(
+        BatchSqlQuery(
+          query,
+          params.map(vs =>
+            ParameterValues(vs.map {
+              case (i, v) => ParameterValue(i, createProtoValue(v))
+            }.toSeq)
+          )
+        )
       )
     )
   }

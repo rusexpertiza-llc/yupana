@@ -33,6 +33,7 @@ object ProtobufSchemaChecker extends SchemaChecker {
           s"actually present in registry"
       )
     }
+    checks ++= actualSchema.tables.map(verifyTags)
     checks ++= actualSchema.tables.map(t => {
       expectedSchema.tables.find(es => es.name == t.name) match {
         case None           => Warning(s"Unknown table ${t.name}")
@@ -40,6 +41,21 @@ object ProtobufSchemaChecker extends SchemaChecker {
       }
     })
     checks.fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
+  }
+
+  private def verifyTags(t: ProtoTable): SchemaCheckResult = {
+    t.metrics
+      .groupBy(_.tag)
+      .filter {
+        case (tag, ms) => ms.size > 1
+      }
+      .map {
+        case (tag, ms) =>
+          Error(
+            s"""In table ${t.name} ${ms.size} metrics (${ms.map(_.name).mkString(", ")}) share the same tag: $tag"""
+          )
+      }
+      .fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
   }
 
   private def compareTables(a: ProtoTable, e: ProtoTable): SchemaCheckResult = {
@@ -56,7 +72,7 @@ object ProtobufSchemaChecker extends SchemaChecker {
     )
 
     val removedFields = e.metrics.filter(ef => !a.metrics.contains(ef))
-    checks ++= removedFields.map(rf => Error(s"In table ${a.name} metric ${rf.name} has been removed"))
+    checks ++= removedFields.map(rf => Error(s"In table ${a.name} metric ${rf.name} has been removed or updated"))
 
     val unknownFields = a.metrics.filter(af => !e.metrics.contains(af))
     checks ++= unknownFields.map(uf => Warning(s"In table ${a.name} metric ${uf.name} is unknown (new)"))

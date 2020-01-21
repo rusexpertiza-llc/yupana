@@ -29,6 +29,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     extends MapReducible[RDD]
     with Serializable {
 
+  override def singleton[A: ClassTag](a: A): RDD[A] = sparkContext.parallelize(Seq(a))
+
   override def filter[A: ClassTag](rdd: RDD[A])(f: A => Boolean): RDD[A] = {
     val filtered = rdd.filter(f)
     saveMetricOnCompleteRdd(filtered)

@@ -22,7 +22,7 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.{ DataType, UnaryOperation }
 import org.yupana.jdbc.build.BuildInfo
 
-class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
+class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseMetaData {
 
   private val emptyResultSet = new YupanaResultSet(null, Result.empty)
 

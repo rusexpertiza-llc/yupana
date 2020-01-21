@@ -19,12 +19,18 @@ package org.yupana.core.sql.parser
 sealed trait Statement
 
 case class Select(
-    schemaName: String,
+    schemaName: Option[String],
     fields: SqlFields,
     condition: Option[Condition],
     groupings: Seq[SqlExpr],
     having: Option[Condition],
     limit: Option[Int]
+) extends Statement
+
+case class Upsert(
+    schemaName: String,
+    fieldNames: Seq[String],
+    values: Seq[Seq[SqlExpr]]
 ) extends Statement
 
 case object ShowTables extends Statement

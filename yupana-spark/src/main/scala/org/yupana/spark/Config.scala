@@ -19,8 +19,9 @@ package org.yupana.spark
 import java.util.Properties
 
 import org.apache.spark.SparkConf
+import org.yupana.core.TsdbConfig
 
-class Config(@transient val sparkConf: SparkConf) extends Serializable {
+class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serializable {
 
   val hbaseZookeeper: String = sparkConf.get("hbase.zookeeper")
   val hbaseTimeout: Int = sparkConf.getInt("analytics.tsdb.rollup-job.hbase.timeout", 900000) // 15 minutes
@@ -29,13 +30,19 @@ class Config(@transient val sparkConf: SparkConf) extends Serializable {
   val addHdfsToConfiguration: Boolean =
     sparkConf.getBoolean("analytics.jobs.add-hdfs-to-configuration", defaultValue = false)
 
-  val extractBatchSize: Int = sparkConf.getInt("analytics.tsdb.extract-batch-size", 10000)
+  override val extractBatchSize: Int = sparkConf.getInt("analytics.tsdb.extract-batch-size", 10000)
+
+  override val putBatchSize: Int = sparkConf.getInt("analytics.tsdb.put-batch-size", 1000)
 
   val rowKeyBatchSize: Int = sparkConf.getInt("analytics.tsdb.row-key-batch-size", 50000)
 
-  val collectMetrics: Boolean = sparkConf.getBoolean("analytics.tsdb.collect-metrics", defaultValue = true)
+  override val collectMetrics: Boolean = sparkConf.getBoolean("analytics.tsdb.collect-metrics", defaultValue = true)
 
-  val metricsUpdateInterval: Int = sparkConf.getInt("analytics.tsdb.metrics-update-interval", 30000)
+  override val metricsUpdateInterval: Int = sparkConf.getInt("analytics.tsdb.metrics-update-interval", 30000)
+
+  override val putEnabled: Boolean = false
+
+  override val putIntoExternalLinks: Boolean = false
 
   val properties: Properties = propsWithPrefix("")
 
@@ -43,4 +50,5 @@ class Config(@transient val sparkConf: SparkConf) extends Serializable {
     sparkConf
       .getAllWithPrefix(prefix)
       .foldLeft(new Properties) { case (_props, (k, v)) => _props.put(prefix + k, v); _props }
+
 }

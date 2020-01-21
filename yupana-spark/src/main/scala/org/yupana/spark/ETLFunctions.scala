@@ -23,7 +23,6 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.TSDB
 import org.yupana.hbase.HBaseUtils
-import org.yupana.schema.Dimensions
 
 import scala.language.implicitConversions
 
@@ -37,11 +36,6 @@ object ETLFunctions extends StrictLogging {
 
         logger.trace(s"Put ${dps.size} datapoints")
         context.tsdb.put(dps)
-
-        if (context.cfg.loadInvertedIndex) {
-          val names = dps.flatMap(_.dimensions.get(Dimensions.ITEM_TAG)).toSet
-          context.itemsInvertedIndex.putItemNames(names)
-        }
 
         val byTable = dps.groupBy(_.table)
 

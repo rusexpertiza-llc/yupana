@@ -57,6 +57,23 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
     an[IOException] should be thrownBy client.ping(12345)
   }
 
+  it should "handle error response on ping" in {
+    val server = new ServerMock
+    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val err = Response(Response.Resp.Error("Internal error"))
+    server.readBytesSendResponseChunked(err.toByteArray)
+    val e = the[IOException] thrownBy client.ping(23456789)
+    e.getMessage should include("Internal error")
+  }
+
+  it should "fail on unexpected response on ping" in {
+    val server = new ServerMock
+    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val err = Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("A", "VARCHAR")))))
+    server.readBytesSendResponseChunked(err.toByteArray)
+    the[IOException] thrownBy client.ping(23456789) should have message "Unexpected response on ping"
+  }
+
   it should "handle query" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
@@ -133,6 +150,15 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
 
     rows(1).fieldValueByName[Time]("time").value shouldEqual Time(21112L)
     rows(1).fieldValueByName[String]("item").value shouldEqual "икра баклажанная"
+  }
+
+  it should "handle error response on query" in {
+    val server = new ServerMock
+    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val err = Response(Response.Resp.Error("Internal error"))
+    server.readBytesSendResponseChunked(err.toByteArray)
+    val e = the[IllegalArgumentException] thrownBy client.query("SHOW TABLES", Map.empty)
+    e.getMessage should include("Internal error")
   }
 
 }
