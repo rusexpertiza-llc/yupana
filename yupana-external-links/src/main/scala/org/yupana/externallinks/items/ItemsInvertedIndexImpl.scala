@@ -17,6 +17,7 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.DataPoint
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.TsdbBase
 import org.yupana.core.cache.CacheFactory
@@ -60,6 +61,11 @@ class ItemsInvertedIndexImpl(
   import externalLink._
 
   private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[Long]]("dim_ids_by_word")
+
+  override def put(dataPoints: Seq[DataPoint]): Unit = {
+    val items = dataPoints.flatMap(dp => dp.dimensions.get(Dimensions.ITEM_TAG)).toSet
+    putItemNames(items)
+  }
 
   def putItemNames(names: Set[String]): Unit = {
     val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)

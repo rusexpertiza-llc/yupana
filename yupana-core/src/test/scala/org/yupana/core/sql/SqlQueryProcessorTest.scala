@@ -4,7 +4,7 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime, Period }
 import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.types._
 import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
@@ -14,13 +14,6 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   import org.yupana.api.query.syntax.All._
 
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
-
-  private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
-    SqlParser.parse(sql).right flatMap {
-      case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
-      case x                => fail(s"Select expected but got $x")
-    }
-  }
 
   val TAG_A = Dimension("TAG_A")
   val TAG_B = Dimension("TAG_B")
@@ -1076,6 +1069,162 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         plus(const(BigDecimal(5)), const(BigDecimal(2)))
       )
 
+    }
+  }
+
+  it should "transform upsert into data points" in {
+    createUpsert("""UPSERT INTO test_table(time, tag_b, tag_a, testField, testStringField)
+        |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 'foo', 'bar', 55, 'baz')""".stripMargin) match {
+      case Right(dps) =>
+        dps should have size 1
+        val dp = dps.head
+        dp.table shouldEqual TestSchema.testTable
+        dp.time shouldEqual new DateTime(2020, 1, 2, 23, 25, 40, DateTimeZone.UTC).getMillis
+        dp.dimensions shouldEqual Map(TestDims.TAG_B -> "foo", TestDims.TAG_A -> "bar")
+        dp.metrics should contain theSameElementsAs Seq(
+          MetricValue(TestTableFields.TEST_FIELD, 55d),
+          MetricValue(TestTableFields.TEST_STRING_FIELD, "baz")
+        )
+
+      case Left(e) => fail(e)
+    }
+  }
+
+  it should "fail upsert on data type mismatch" in {
+    createUpsert("UPSERT INTO test_table (tag_a, time, testField) VALUES (5, 'foo', 'bar')") match {
+      case Left(e)  => e shouldEqual "Cannot convert VARCHAR to TIMESTAMP"
+      case Right(d) => fail(s"Data point $d was created, but shouldn't")
+    }
+  }
+
+  it should "handle upsert in batch" in {
+    val t1 = LocalDateTime.now().minusDays(1)
+    val t2 = t1.plusMinutes(15)
+    createUpsert(
+      "UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES (?, ?, ?, ?)",
+      Seq(
+        Map(
+          1 -> parser.StringValue("aaa"),
+          2 -> parser.StringValue("bbb"),
+          3 -> parser.TimestampValue(t1),
+          4 -> parser.NumericValue(1.1)
+        ),
+        Map(
+          1 -> parser.StringValue("ccc"),
+          2 -> parser.StringValue("ddd"),
+          3 -> parser.TimestampValue(t2),
+          4 -> parser.NumericValue(2.2)
+        )
+      )
+    ) match {
+      case Right(dps) =>
+        dps should have size 2
+        val dp1 = dps(0)
+        dp1.table shouldEqual TestSchema.testTable
+        dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
+        dp1.dimensions shouldEqual Map(TestDims.TAG_B -> "bbb", TestDims.TAG_A -> "aaa")
+        dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.1d))
+
+        val dp2 = dps(1)
+        dp2.table shouldEqual TestSchema.testTable
+        dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
+        dp2.dimensions shouldEqual Map(TestDims.TAG_B -> "ddd", TestDims.TAG_A -> "ccc")
+        dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
+
+      case Left(e) => fail(e)
+    }
+  }
+
+  it should "support upsert with multiple values" in {
+    val t1 = new LocalDateTime(2020, 1, 19, 23, 10, 31)
+    val t2 = new LocalDateTime(2020, 1, 19, 23, 11, 2)
+    val t3 = new LocalDateTime(2020, 1, 19, 23, 11, 33)
+    createUpsert("""UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES
+        |  ('a', 'b', TIMESTAMP '2020-01-19 23:10:31', 1.5),
+        |  ('c', 'd', TIMESTAMP '2020-01-19 23:11:02', 3),
+        |  ('e', 'f', TIMESTAMP '2020-01-19 23:11:33', 321.5) """.stripMargin) match {
+      case Right(dps) =>
+        dps should have size 3
+
+        val dp1 = dps(0)
+        dp1.table shouldEqual TestSchema.testTable
+        dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
+        dp1.dimensions shouldEqual Map(TestDims.TAG_B -> "b", TestDims.TAG_A -> "a")
+        dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.5d))
+
+        val dp2 = dps(1)
+        dp2.table shouldEqual TestSchema.testTable
+        dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
+        dp2.dimensions shouldEqual Map(TestDims.TAG_B -> "d", TestDims.TAG_A -> "c")
+        dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 3d))
+
+        val dp3 = dps(2)
+        dp3.table shouldEqual TestSchema.testTable
+        dp3.time shouldEqual t3.toDateTime(DateTimeZone.UTC).getMillis
+        dp3.dimensions shouldEqual Map(TestDims.TAG_B -> "f", TestDims.TAG_A -> "e")
+        dp3.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 321.5d))
+
+      case Left(msg) => fail(msg)
+    }
+  }
+
+  it should "fail whole batch if there is incorrect element" in {
+    val t1 = LocalDateTime.now().minusDays(1)
+    val t2 = t1.plusMinutes(15)
+    createUpsert(
+      "UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES (?, ?, ?, ?)",
+      Seq(
+        Map(
+          1 -> parser.StringValue("aaa"),
+          2 -> parser.StringValue("bbb"),
+          3 -> parser.TimestampValue(t1),
+          4 -> parser.NumericValue(1.1)
+        ),
+        Map(
+          1 -> parser.StringValue("ccc"),
+          2 -> parser.StringValue("ddd"),
+          3 -> parser.TimestampValue(t2),
+          4 -> parser.StringValue("2.2")
+        )
+      )
+    ) match {
+      case Left(msg) => msg shouldEqual "Cannot convert VARCHAR to DOUBLE"
+      case Right(d)  => fail(s"Data points $d were created, but shouldn't")
+    }
+  }
+
+  it should "fail if upserting external field" in {
+    createUpsert(
+      "UPSERT INTO test_table (tag_a, tag_b, time, testField, testLink_testfield) VALUES (?, ?, ?, ?, ?)",
+      Seq(
+        Map(
+          1 -> parser.StringValue("aaa"),
+          2 -> parser.StringValue("bbb"),
+          3 -> parser.TimestampValue(LocalDateTime.now()),
+          4 -> parser.NumericValue(1.1),
+          5 -> parser.StringValue("ccc")
+        )
+      )
+    ) match {
+      case Left(msg) => msg shouldEqual "External link field testLink_testfield cannot be upserted"
+      case Right(d)  => fail(s"Data points $d were created, but shouldn't")
+    }
+  }
+
+  private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
+    SqlParser.parse(sql).right flatMap {
+      case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
+      case x                => Left(s"Select expected but got $x")
+    }
+  }
+
+  private def createUpsert(
+      sql: String,
+      params: Seq[Map[Int, parser.Value]] = Seq.empty
+  ): Either[String, Seq[DataPoint]] = {
+    SqlParser.parse(sql).right flatMap {
+      case u: parser.Upsert => sqlQueryProcessor.createDataPoints(u, params)
+      case x                => Left(s"Upsert expected but got $x")
     }
   }
 

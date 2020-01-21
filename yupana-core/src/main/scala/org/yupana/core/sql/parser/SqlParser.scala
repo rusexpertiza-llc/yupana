@@ -49,6 +49,9 @@ object SqlParser {
   private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
   private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
+  private def upsertWord[_: P] = P(IgnoreCase("UPSERT"))
+  private def intoWord[_: P] = P(IgnoreCase("INTO"))
+  private def valuesWord[_: P] = P(IgnoreCase("VALUES"))
   private val keywords = Set(
     "select",
     "from",
@@ -84,7 +87,7 @@ object SqlParser {
 
   def notKeyword[_: P]: P[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
 
-  def alias[_: P]: P[String] = P(asWord.? ~ notKeyword)
+  def alias[_: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
 
   def functionCallExpr[_: P]: P[FunctionCall] = P(name ~ "(" ~ expr.rep(sep = ",") ~ ")").map {
     case (f, vs) => FunctionCall(f.toLowerCase, vs.toList)
@@ -118,7 +121,7 @@ object SqlParser {
 
   def mathFactor[_: P]: P[SqlExpr] = P(functionCallExpr | caseExpr | constExpr | fieldNameExpr | "(" ~ expr ~ ")")
 
-  def field[_: P]: P[SqlField] = P(expr ~ alias.?).map(SqlField.tupled)
+  def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
 
   def fieldList[_: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
   def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
@@ -246,7 +249,17 @@ object SqlParser {
   def delete[_: P]: P[DeleteQueryMetrics] =
     P(deleteWord ~/ queriesWord ~/ queryMetricsFilter).map(DeleteQueryMetrics)
 
-  def statement[_: P]: P[Statement] = P((select | show | kill | delete) ~ ";".? ~ End)
+  def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
+
+  def values[_: P](count: Int): P[Seq[Seq[SqlExpr]]] =
+    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
+
+  def upsert[_: P]: P[Upsert] =
+    P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
+      case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
+    }
+
+  def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {

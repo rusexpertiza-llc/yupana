@@ -287,6 +287,15 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "require space between expression and alias" in {
+    errorMessage("SELECT 2x2") {
+      case msg =>
+        msg should include(
+          """Expect ("." | "*" | "/" | "+" | "-" | [ \t\n] | "," | "FROM" | "WHERE" | "GROUP" | "HAVING" | "LIMIT" | ";" | end-of-input), but got "x2""""
+        )
+    }
+  }
+
   it should "parse SQL statements with aliases" in {
     val statement = "SELECT SUM(quantity), day(time) d FROM tickets WHERE sum <= 1000 GROUP BY d "
     parsed(statement) {
@@ -1037,10 +1046,40 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "handle UPSERT statements" in {
+    parsed("""UPSERT INTO foo (bar, baz) VALUES ('bar value', 42);""") {
+      case Upsert(s, fs, vs) =>
+        s shouldEqual "foo"
+        fs should contain theSameElementsInOrderAs List("bar", "baz")
+        vs should contain theSameElementsInOrderAs List(
+          List(Constant(StringValue("bar value")), Constant(NumericValue(42)))
+        )
+    }
+  }
+
+  it should "handle UPSERT with multiple values" in {
+    parsed("""UPSERT INTO foo (bar, baz) VALUES ('abc', 1), ('def', 2);""") {
+      case Upsert(s, fs, vs) =>
+        s shouldEqual "foo"
+        fs should contain theSameElementsInOrderAs List("bar", "baz")
+        vs should contain theSameElementsInOrderAs List(
+          List(Constant(StringValue("abc")), Constant(NumericValue(1))),
+          List(Constant(StringValue("def")), Constant(NumericValue(2)))
+        )
+    }
+  }
+
+  it should "check that the number of values is the same as fields" in {
+    errorMessage("""UPSERT INTO foo (bar, baz) VALUES ('abc', 1), ('fail', 4, 'me'), ('def', 2);""") {
+      case msg =>
+        msg should include("""Expect <2 expressions>, but got "('fail', 4"""")
+    }
+  }
+
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect ("SELECT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
+        msg should include("""Expect ("SELECT" | "UPSERT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
     }
   }
 

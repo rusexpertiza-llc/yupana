@@ -20,8 +20,9 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Metric, Schema, Table }
+import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Schema, Table }
 import org.yupana.api.types._
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 import org.yupana.core.utils.CollectionUtils
@@ -43,6 +44,40 @@ class SqlQueryProcessor(schema: Schema) {
     }
 
     query.right.flatMap(validateQuery)
+  }
+
+  def createDataPoints(
+      upsert: parser.Upsert,
+      parameters: Seq[Map[Int, parser.Value]]
+  ): Either[String, Seq[DataPoint]] = {
+    val params = if (parameters.isEmpty) Seq(Map.empty[Int, parser.Value]) else parameters
+
+    if (upsert.values.forall(_.size == upsert.fieldNames.size)) {
+      (for {
+        mayBeTable <- getTable(Some(upsert.schemaName)).right
+        table <- mayBeTable.toRight("Table is not defined").right
+        fieldMap <- getFieldMap(table, upsert.fieldNames).right
+      } yield (table, fieldMap)).right.flatMap {
+        case (table, fieldMap) =>
+          val dps = params.flatMap { ps =>
+            val state = new BuilderState(ps)
+
+            upsert.values.map { values =>
+              for {
+                values <- getValues(state, table, values).right
+                time <- getTimeValue(fieldMap, values).right
+                dimensions <- getDimensionValues(table, fieldMap, values).right
+                metrics <- getMetricValues(table, fieldMap, values).right
+              } yield {
+                DataPoint(table, time, dimensions, metrics)
+              }
+            }
+          }
+          CollectionUtils.collectErrors(dps)
+      }
+    } else {
+      Left("Inconsistent UPSERT")
+    }
   }
 
   private def getTable(schemaName: Option[String]): Either[String, Option[Table]] = {
@@ -382,24 +417,22 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
-    convertValue(state, v, ExprType.Cmp) match {
-      case Right(const) =>
-        if (const.dataType == dataType) {
-          Right(const.v.asInstanceOf[dataType.T])
-        } else {
-          TypeConverter(const.dataType, dataType.aux)
-            .map(conv => conv.direct(const.v))
-            .orElse(
-              TypeConverter(dataType.aux, const.dataType)
-                .flatMap(conv => conv.reverse(const.v))
-            )
-            .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
-        }
-
-      case Left(e) => Left(e)
+  private def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
+    if (const.dataType == dataType) {
+      Right(const.v.asInstanceOf[dataType.T])
+    } else {
+      TypeConverter(const.dataType, dataType.aux)
+        .map(conv => conv.direct(const.v))
+        .orElse(
+          TypeConverter(dataType.aux, const.dataType)
+            .flatMap(conv => conv.reverse(const.v))
+        )
+        .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
     }
+  }
 
+  private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
+    convertValue(state, v, ExprType.Cmp).right.flatMap(const => constCast(const, dataType))
   }
 
   private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
@@ -516,4 +549,68 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
+  private def getFieldMap(table: Table, fieldNames: Seq[String]): Either[String, Map[Expression, Int]] = {
+    val exprs = CollectionUtils.collectErrors(
+      fieldNames.map { name =>
+        fieldByName(table)(name) match {
+          case Some(LinkExpr(_, _)) => Left(s"External link field $name cannot be upserted")
+          case Some(x)              => Right(x)
+          case None                 => Left(s"Unknown field $name")
+        }
+      }
+    )
+    exprs.right.map(_.zipWithIndex.toMap)
+  }
+
+  private def getValues(
+      state: BuilderState,
+      table: Table,
+      values: Seq[parser.SqlExpr]
+  ): Either[String, Array[ConstantExpr]] = {
+    val vs = values.map { v =>
+      createExpr(state, fieldByName(table), v, ExprType.Math) match {
+        case Right(e) if (e.kind == Const) =>
+          ExpressionCalculator.evaluateConstant(e) match {
+            case Some(v) => Right(ConstantExpr(v)(e.dataType).asInstanceOf[ConstantExpr])
+            case None    => Left(s"Cannon evaluate $e")
+          }
+        case Right(e) => Left(s"$e is not constant")
+
+        case Left(m) => Left(m)
+      }
+    }
+
+    CollectionUtils.collectErrors(vs).right.map(_.toArray)
+  }
+
+  private def getTimeValue(fieldMap: Map[Expression, Int], values: Array[ConstantExpr]): Either[String, Long] = {
+    val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
+    idx.right.map(values).right.flatMap(c => constCast(c, DataType[Time])).right.map(_.millis)
+  }
+
+  private def getDimensionValues(
+      table: Table,
+      fieldMap: Map[Expression, Int],
+      values: Seq[ConstantExpr]
+  ): Either[String, Map[Dimension, String]] = {
+    val dimValues = table.dimensionSeq.map { dim =>
+      val idx = fieldMap.get(DimensionExpr(dim)).toRight(s"${dim.name} is not defined")
+      idx.right.map(values).right.flatMap(c => constCast(c, DataType[String])).right.map(dim -> _)
+    }
+
+    CollectionUtils.collectErrors(dimValues).right.map(_.toMap)
+  }
+
+  private def getMetricValues(
+      table: Table,
+      fieldMap: Map[Expression, Int],
+      values: Seq[ConstantExpr]
+  ): Either[String, Seq[MetricValue]] = {
+    val vs = fieldMap.collect {
+      case (MetricExpr(m), idx) =>
+        constCast(values(idx), m.dataType).right.map(v => MetricValue(m, v))
+    }
+
+    CollectionUtils.collectErrors(vs.toSeq)
+  }
 }
