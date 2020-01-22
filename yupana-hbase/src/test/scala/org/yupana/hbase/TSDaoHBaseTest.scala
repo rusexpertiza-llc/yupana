@@ -106,7 +106,7 @@ class TSDaoHBaseTest
         )
       )
 
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L), NoMetricCollector).returning(Map(1L -> "test1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
 
     val res = dao
       .query(
@@ -147,8 +147,8 @@ class TSDaoHBaseTest
       )
 
     (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L), NoMetricCollector).returning(Map(1L -> "test1"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L), NoMetricCollector).returning(Map(2L -> "test22"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L)).returning(Map(2L -> "test22"))
 
     val res = dao
       .query(
@@ -191,8 +191,8 @@ class TSDaoHBaseTest
       )
 
     (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L), NoMetricCollector).returning(Map(1L -> "test1"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L), NoMetricCollector).returning(Map(2L -> "test22"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L)).returning(Map(2L -> "test22"))
 
     val res = dao
       .query(
@@ -267,7 +267,7 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test1", "test2"))
       .returning(Map("test1" -> 1L, "test2" -> 2L))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L), NoMetricCollector).returning(Map(5L -> "test25"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L)).returning(Map(5L -> "test25"))
 
     val res = dao
       .query(
@@ -413,10 +413,10 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1", "B 2")).returning(Map("B 1" -> 1L, "B 2" -> 2L))
 
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(1L, 2L, 3L), NoMetricCollector)
+      .expects(TestDims.TAG_A, Set(1L, 2L, 3L))
       .returning(Map(1L -> "A 1", 2L -> "A 2", 3L -> "A 3"))
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(1L, 2L), NoMetricCollector)
+      .expects(TestDims.TAG_B, Set(1L, 2L))
       .returning(Map(1L -> "B 1", 2L -> "B 2"))
 
     val res = dao
@@ -479,9 +479,9 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1")).returning(Map("B 1" -> 1L))
 
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(1L, 2L), NoMetricCollector)
+      .expects(TestDims.TAG_A, Set(1L, 2L))
       .returning(Map(1L -> "A 1", 2L -> "A 2"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L), NoMetricCollector).returning(Map(1L -> "B 1"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L)).returning(Map(1L -> "B 1"))
 
     val res = dao
       .query(
@@ -665,7 +665,7 @@ class TSDaoHBaseTest
       .returning(Map("test11" -> 1, "test12" -> 2, "test14" -> 4, "test15" -> 5))
 
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(2L), NoMetricCollector)
+      .expects(TestDims.TAG_B, Set(2L))
       .returning(Map(2L -> "test22"))
 
     val results = dao
@@ -757,7 +757,7 @@ class TSDaoHBaseTest
         )
       )
 
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L), NoMetricCollector).returning(Map(5L -> "test25"))
+    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L)).returning(Map(5L -> "test25"))
 
     val res = dao
       .query(
@@ -816,7 +816,7 @@ class TSDaoHBaseTest
       .returning(Map("test14" -> 4))
 
     (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(2L), NoMetricCollector)
+      .expects(TestDims.TAG_B, Set(2L))
       .returning(Map(2L -> "test22"))
 
     val results = dao
@@ -849,7 +849,7 @@ class TSDaoHBaseTest
     val pointTime = 2000
 
     (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("tag_a")).returning(Map("tag_a" -> 1))
-    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(1L), NoMetricCollector).returning(Map(1L -> "tag_a"))
+    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "tag_a"))
 
     queryRunner
       .expects(
@@ -901,7 +901,7 @@ class TSDaoHBaseTest
 
     (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("test42")).returning(Map("test42" -> 42L))
     (dictionaryDao.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(42L), NoMetricCollector)
+      .expects(TestDims.TAG_A, Set(42L))
       .returning(Map(42L -> "test42"))
 
     queryRunner
@@ -957,7 +957,7 @@ class TSDaoHBaseTest
       .expects(TestDims.TAG_A, Set("test42", "test51"))
       .returning(Map("test42" -> 42L, "test51" -> 51L))
     (dictionaryDao.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(42L, 51L), NoMetricCollector)
+      .expects(TestDims.TAG_A, Set(42L, 51L))
       .returning(Map(42L -> "test42", 51L -> "test51"))
 
     queryRunner

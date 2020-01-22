@@ -38,8 +38,7 @@ trait ExternalLinkService[T <: ExternalLink] {
   def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr],
-      metricCollector: MetricQueryCollector
+      exprs: Set[LinkExpr]
   ): Unit
 
   /**

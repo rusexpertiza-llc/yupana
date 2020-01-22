@@ -795,8 +795,8 @@ class TsdbTest
     val pointTime2 = pointTime1 + 1
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, _, _) => {
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
@@ -1038,8 +1038,8 @@ class TsdbTest
     val pointTime2 = pointTime1 + 1
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, _, _) => {
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
@@ -1133,8 +1133,8 @@ class TsdbTest
         )
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-        .onCall((qc, datas, _, _) => {
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .onCall((qc, datas, _) => {
           setCatalogValueByTag(
             qc,
             datas,
@@ -1259,8 +1259,8 @@ class TsdbTest
         )
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-        .onCall((qc, datas, _, _) => {
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .onCall((qc, datas, _) => {
           setCatalogValueByTag(
             qc,
             datas,
@@ -1851,8 +1851,8 @@ class TsdbTest
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, _, _) => {
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
@@ -2056,10 +2056,9 @@ class TsdbTest
           link(TestLinks.TEST_LINK3, "testField3-1"),
           link(TestLinks.TEST_LINK3, "testField3-2"),
           link(TestLinks.TEST_LINK3, "testField3-3")
-        ),
-        NoMetricCollector
+        )
       )
-      .onCall((qc, datas, _, _) => {
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
@@ -2340,8 +2339,8 @@ class TsdbTest
       )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, _, _) => {
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
@@ -2695,8 +2694,8 @@ class TsdbTest
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, _, _) => {
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable.empty)
       })
 
@@ -2823,8 +2822,8 @@ class TsdbTest
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, _, _) => {
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,

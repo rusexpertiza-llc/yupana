@@ -20,7 +20,6 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.{ Dictionary, TsdbBase }
 import org.yupana.core.utils.{ SparseTable, Table }
 
@@ -36,12 +35,11 @@ abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBa
 
   override def fieldValuesForDimValues(
       fields: Set[String],
-      dimValues: Set[String],
-      metricCollector: MetricQueryCollector
+      dimValues: Set[String]
   ): Table[String, String, String] = {
     val ids = dictionary.findIdsByValues(dimValues).map(_.swap)
     if (ids.nonEmpty) {
-      fieldValuesForDimIds(fields, ids.keySet, metricCollector).mapRowKeys(ids)
+      fieldValuesForDimIds(fields, ids.keySet).mapRowKeys(ids)
     } else {
       SparseTable.empty
     }

@@ -20,7 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
 import org.yupana.schema.{ Dimensions, Tables }
@@ -114,8 +114,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr],
-      metricCollector: MetricQueryCollector
+      exprs: Set[LinkExpr]
   ): Unit = {
     // may be throw exception here?
   }

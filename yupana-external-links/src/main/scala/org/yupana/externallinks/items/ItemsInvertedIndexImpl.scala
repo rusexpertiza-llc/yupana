@@ -22,7 +22,6 @@ import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.TsdbBase
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.DimIdBasedExternalLinkService
 import org.yupana.schema.Dimensions
@@ -105,8 +104,7 @@ class ItemsInvertedIndexImpl(
 
   override def fieldValuesForDimIds(
       fields: Set[String],
-      dimIds: Set[Long],
-      metricCollector: MetricQueryCollector
+      dimIds: Set[Long]
   ): Table[Long, String, String] = {
     SparseTable.empty
   }

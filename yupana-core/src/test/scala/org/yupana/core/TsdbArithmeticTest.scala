@@ -10,7 +10,6 @@ import org.yupana.api.Time
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
-import org.yupana.core.utils.metric.NoMetricCollector
 
 class TsdbArithmeticTest
     extends FlatSpec
@@ -137,8 +136,8 @@ class TsdbArithmeticTest
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")), NoMetricCollector)
-      .onCall((qc, datas, NoMetricCollector, _) =>
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .onCall((qc, datas, _) =>
         setCatalogValueByTag(
           qc,
           datas,

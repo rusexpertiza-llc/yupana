@@ -60,7 +60,7 @@ class DictionaryTest
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
     (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(1L, 2L, 3L), NoMetricCollector)
+      .expects(testDim, Set(1L, 2L, 3L))
       .returning(Map(1L -> "value 1", 3L -> "value 3"))
       .once()
     dictionary.values(Set(1, 2, 3), NoMetricCollector) shouldEqual Map(1 -> "value 1", 3 -> "value 3")
@@ -77,11 +77,11 @@ class DictionaryTest
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 
     (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(1L, 2L, 3L), NoMetricCollector)
+      .expects(testDim, Set(1L, 2L, 3L))
       .returning(Map(1L -> "value 1", 3L -> "value 3"))
       .once()
     (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(4L), NoMetricCollector)
+      .expects(testDim, Set(4L))
       .returning(Map(4L -> "value 4"))
       .once()
     dictionary.values(Set(1L, 2L, 3L), NoMetricCollector) shouldEqual Map(1L -> "value 1", 3L -> "value 3")

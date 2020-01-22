@@ -21,45 +21,40 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.Table
-import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait SimpleExternalLinkValueExtractor[T <: ExternalLink] extends ExternalLinkService[T] {
 
   def fieldValuesForDimValues(
       fields: Set[String],
-      tagValues: Set[String],
-      metricCollector: MetricQueryCollector
+      tagValues: Set[String]
   ): Table[String, String, String]
 
   def fieldValuesForDimIds(
       fields: Set[String],
-      tagIds: Set[Long],
-      metricCollector: MetricQueryCollector
+      tagIds: Set[Long]
   ): Table[Long, String, String]
 
   def fieldValueForDimValue(
       fieldName: String,
-      tagValue: String,
-      metricCollector: MetricQueryCollector
+      tagValue: String
   ): Option[String] = {
-    fieldValuesForDimValues(Set(fieldName), Set(tagValue), metricCollector).get(tagValue, fieldName)
+    fieldValuesForDimValues(Set(fieldName), Set(tagValue)).get(tagValue, fieldName)
   }
 
-  def fieldValueForDimId(fieldName: String, tagId: Long, metricCollector: MetricQueryCollector): Option[String] = {
-    fieldValuesForDimIds(Set(fieldName), Set(tagId), metricCollector).get(tagId, fieldName)
+  def fieldValueForDimId(fieldName: String, tagId: Long): Option[String] = {
+    fieldValuesForDimIds(Set(fieldName), Set(tagId)).get(tagId, fieldName)
   }
 
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr],
-      metricCollector: MetricQueryCollector
+      exprs: Set[LinkExpr]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension)
     val fields = exprs.map(_.linkField)
     val dimValues = valueData.flatMap(_.get[String](exprIndex, dimExpr)).toSet
 
-    val allFieldValues = fieldValuesForDimValues(fields, dimValues, metricCollector)
+    val allFieldValues = fieldValuesForDimValues(fields, dimValues)
 
     valueData.foreach { vd =>
       vd.get[String](exprIndex, dimExpr).foreach { dimValue =>

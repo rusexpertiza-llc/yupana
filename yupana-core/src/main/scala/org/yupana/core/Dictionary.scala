@@ -54,7 +54,9 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
 
     val fromDB = if (idsToGet.nonEmpty) {
-      val gotValues = dao.getValuesByIds(dimension, idsToGet, metricCollector)
+      val gotValues = metricCollector.dictionaryScan.measure(ids.size) {
+        dao.getValuesByIds(dimension, idsToGet)
+      }
 
       idsToGet.foreach { id =>
         if (gotValues.get(id).isEmpty) {

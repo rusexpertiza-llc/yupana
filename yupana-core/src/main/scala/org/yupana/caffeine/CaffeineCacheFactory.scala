@@ -16,11 +16,14 @@
 
 package org.yupana.caffeine
 
+import javax.cache.expiry.Duration
 import java.util.OptionalLong
+import java.util.concurrent.TimeUnit.SECONDS
 
 import com.github.benmanes.caffeine.jcache.configuration.CaffeineConfiguration
 import com.typesafe.scalalogging.StrictLogging
 import javax.cache.configuration.Configuration
+import javax.cache.expiry.CreatedExpiryPolicy
 import javax.cache.{ CacheManager, Caching }
 import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
@@ -34,7 +37,7 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
     init()
 
     if (!caches.contains(description)) {
-      val config = createConfig(description)
+      val config = createCacheConfig(description)
       caches += description
       new JCache(cacheManager.createCache(description.fullName, config))
     } else {
@@ -47,7 +50,7 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
     if (cacheManager != null) {
       new JCache(
         cacheManager.getCache(description.fullName, description.keyBoxing.clazz, description.valueBoxing.clazz)
-      ).asInstanceOf[Cache[description.Key, description.Value]] // This is not needed for EhCache >= 3.5.0
+      ).asInstanceOf[Cache[description.Key, description.Value]]
     } else {
       throw new IllegalStateException("Caffeine manager is not initialized yet")
     }
@@ -71,7 +74,7 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
     }
   }
 
-  private def createConfig(description: CacheDescription): Configuration[description.Key, description.Value] = {
+  private def createCacheConfig(description: CacheDescription): Configuration[description.Key, description.Value] = {
     val configuration = new CaffeineConfiguration[description.Key, description.Value]
 
     configuration.setTypes(
@@ -81,8 +84,23 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
     configuration.setStatisticsEnabled(true)
 
     val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
+    val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.ehcache")
 
-    val maxSize = props.get("maxElements").map(_.toLong).fold(OptionalLong.empty())(x => OptionalLong.of(x))
+    val eternal = props.getOrElse("eternal", "false").toBoolean
+    val expiry = if (eternal) {
+      Duration.ETERNAL
+    } else {
+      val timeToLive =
+        props.get("timeToLive").orElse(defaultProps.get("timeToLive")).map(_.toLong).getOrElse(DEFAULT_TTL)
+      new Duration(SECONDS, timeToLive)
+    }
+    configuration.setExpiryPolicyFactory(CreatedExpiryPolicy.factoryOf(expiry))
+
+    val maxSize = props
+      .get("maxElements")
+      .orElse(defaultProps.get("maxElements"))
+      .map(_.toLong)
+      .fold(OptionalLong.empty())(x => OptionalLong.of(x))
 
     configuration.setMaximumSize(maxSize)
 

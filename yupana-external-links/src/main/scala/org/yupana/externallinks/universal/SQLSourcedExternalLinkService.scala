@@ -21,7 +21,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.TsdbBase
 import org.yupana.core.cache.{ Cache, CacheFactory }
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.DimValueBasedExternalLinkService
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
@@ -56,8 +55,7 @@ class SQLSourcedExternalLinkService(
 
   override def fieldValuesForDimValues(
       fields: Set[FieldName],
-      tagValues: Set[DimensionValue],
-      metricCollector: MetricQueryCollector
+      tagValues: Set[DimensionValue]
   ): Table[DimensionValue, FieldName, FieldValue] = {
 
     def withLinkName(dimVal: DimensionValue): String = s"${externalLink.linkName}:$dimVal"

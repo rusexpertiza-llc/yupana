@@ -6,7 +6,6 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 
 class SimpleExternalLinkConditionHandlerTest extends FlatSpec with Matchers {
@@ -29,8 +28,7 @@ class SimpleExternalLinkConditionHandlerTest extends FlatSpec with Matchers {
     override def setLinkedValues(
         exprIndex: collection.Map[Expression, Int],
         valueData: Seq[InternalRow],
-        exprs: Set[LinkExpr],
-        metricCollector: MetricQueryCollector
+        exprs: Set[LinkExpr]
     ): Unit = {}
   }
 

@@ -27,6 +27,9 @@ import org.yupana.ehcache.EhCacheFactory
 import scala.collection.JavaConverters._
 
 trait CacheFactory {
+
+  val DEFAULT_TTL: Long = 30 * 60
+
   def initCache(description: CacheDescription): Cache[description.Key, description.Value]
   def getCache(description: CacheDescription): Cache[description.Key, description.Value]
   def flushCaches(): Unit

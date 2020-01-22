@@ -8,7 +8,6 @@ import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
 
@@ -61,8 +60,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val values =
       catalogService.fieldValuesForDimValues(
         catalog.description.fieldsNames,
-        Set("123432345655", "123432345657"),
-        NoMetricCollector
+        Set("123432345655", "123432345657")
       )
 
     values.get("123432345655", "f1").value shouldEqual "wer"
@@ -113,8 +111,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val values =
       catalogService.fieldValuesForDimValues(
         catalog.description.fieldsNames,
-        Set("123432345655", "123432345657"),
-        NoMetricCollector
+        Set("123432345655", "123432345657")
       )
 
     values.get("123432345655", "f1").value shouldEqual "hhh2"

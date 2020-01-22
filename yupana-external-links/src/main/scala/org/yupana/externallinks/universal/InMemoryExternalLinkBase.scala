@@ -21,7 +21,6 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.externallinks.SimpleExternalLinkConditionHandler
 
 abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[String], data: Array[Array[String]])
@@ -30,8 +29,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def fillKeyValues(
       indexMap: scala.collection.Map[Expression, Int],
-      valueData: Seq[InternalRow],
-      metricCollector: MetricQueryCollector
+      valueData: Seq[InternalRow]
   ): Unit
 
   def conditionForKeyValues(condition: Condition): Condition
@@ -68,8 +66,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr],
-      metricCollector: MetricQueryCollector
+      exprs: Set[LinkExpr]
   ): Unit = {
     val tagExpr = new DimensionExpr(externalLink.dimension)
     val indexMap = Seq[Expression](TimeExpr, tagExpr, keyExpr).distinct.zipWithIndex.toMap
@@ -82,7 +79,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
         .buildAndReset()
     }
 
-    fillKeyValues(indexMap, keyValueData, metricCollector)
+    fillKeyValues(indexMap, keyValueData)
 
     keyValueData.zip(valueData).foreach {
       case (kvd, vd) =>

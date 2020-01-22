@@ -17,9 +17,9 @@ import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 import org.yupana.core._
 
-class TsdbBenhcmark extends FlatSpec with Matchers {
+class TsdbBenchmark extends FlatSpec with Matchers {
 
-  "TSDB" should "be fast" taggedAs (Slow) in {
+  "TSDB" should "be fast" taggedAs Slow in {
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
 
     val N = 500000
@@ -63,8 +63,7 @@ class TsdbBenhcmark extends FlatSpec with Matchers {
 
       override def getValuesByIds(
           dimension: Dimension,
-          ids: Set[Long],
-          metricCollector: MetricQueryCollector
+          ids: Set[Long]
       ): Map[Long, String] = {
         if (ids.nonEmpty) {
           vals((ids.head / 10000).toInt)
