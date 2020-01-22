@@ -84,7 +84,7 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
     configuration.setStatisticsEnabled(true)
 
     val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
-    val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.ehcache")
+    val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.caffeine")
 
     val eternal = props.getOrElse("eternal", "false").toBoolean
     val expiry = if (eternal) {
