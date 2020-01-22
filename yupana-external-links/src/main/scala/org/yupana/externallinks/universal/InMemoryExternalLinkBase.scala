@@ -27,10 +27,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     extends SimpleExternalLinkConditionHandler[T] {
   def keyIndex: Int
 
-  def fillKeyValues(
-      indexMap: scala.collection.Map[Expression, Int],
-      valueData: Seq[InternalRow]
-  ): Unit
+  def fillKeyValues(indexMap: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit
 
   def conditionForKeyValues(condition: Condition): Condition
 

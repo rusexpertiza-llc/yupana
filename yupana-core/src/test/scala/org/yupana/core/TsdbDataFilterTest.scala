@@ -10,7 +10,7 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimensionExpr, Expression }
+import org.yupana.api.query.{ Expression, DimensionExpr }
 
 class TsdbDataFilterTest
     extends FlatSpec

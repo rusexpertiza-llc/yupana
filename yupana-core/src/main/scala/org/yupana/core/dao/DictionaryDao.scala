@@ -17,7 +17,6 @@
 package org.yupana.core.dao
 
 import org.yupana.api.schema.Dimension
-import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait DictionaryDao {
   def createSeqId(dimension: Dimension): Int

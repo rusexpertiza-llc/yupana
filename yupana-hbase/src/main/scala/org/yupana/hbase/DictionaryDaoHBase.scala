@@ -23,7 +23,6 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
 import org.yupana.core.dao.DictionaryDao
-import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.JavaConverters._
 
@@ -72,10 +71,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def getValuesByIds(
-      dimension: Dimension,
-      ids: Set[Long]
-  ): Map[Long, String] = {
+  override def getValuesByIds(dimension: Dimension, ids: Set[Long]): Map[Long, String] = {
     logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
     checkTablesExistsElseCreate(dimension)
     val table = getTable(dimension.name)

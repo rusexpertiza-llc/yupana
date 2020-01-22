@@ -24,20 +24,11 @@ import org.yupana.core.utils.Table
 
 trait SimpleExternalLinkValueExtractor[T <: ExternalLink] extends ExternalLinkService[T] {
 
-  def fieldValuesForDimValues(
-      fields: Set[String],
-      tagValues: Set[String]
-  ): Table[String, String, String]
+  def fieldValuesForDimValues(fields: Set[String], tagValues: Set[String]): Table[String, String, String]
 
-  def fieldValuesForDimIds(
-      fields: Set[String],
-      tagIds: Set[Long]
-  ): Table[Long, String, String]
+  def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, String]
 
-  def fieldValueForDimValue(
-      fieldName: String,
-      tagValue: String
-  ): Option[String] = {
+  def fieldValueForDimValue(fieldName: String, tagValue: String): Option[String] = {
     fieldValuesForDimValues(Set(fieldName), Set(tagValue)).get(tagValue, fieldName)
   }
 

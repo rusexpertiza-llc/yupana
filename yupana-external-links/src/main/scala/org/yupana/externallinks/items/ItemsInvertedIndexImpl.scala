@@ -102,10 +102,7 @@ class ItemsInvertedIndexImpl(
     SortedSetIterator.unionAll(ids)
   }
 
-  override def fieldValuesForDimIds(
-      fields: Set[String],
-      dimIds: Set[Long]
-  ): Table[Long, String, String] = {
+  override def fieldValuesForDimIds(fields: Set[String], dimIds: Set[Long]): Table[Long, String, String] = {
     SparseTable.empty
   }
 

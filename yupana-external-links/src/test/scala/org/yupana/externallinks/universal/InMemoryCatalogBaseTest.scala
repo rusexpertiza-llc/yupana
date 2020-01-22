@@ -21,10 +21,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
     override def keyIndex: Int = 0
 
-    override def fillKeyValues(
-        indexMap: collection.Map[Expression, Int],
-        valueData: Seq[InternalRow]
-    ): Unit = {
+    override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
       valueData.foreach { vd =>
         vd.get[String](indexMap, DimensionExpr(externalLink.dimension)).foreach { tagValue =>
           val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)

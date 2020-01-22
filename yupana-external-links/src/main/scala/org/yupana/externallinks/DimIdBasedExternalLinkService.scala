@@ -33,10 +33,7 @@ abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBa
 
   def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
 
-  override def fieldValuesForDimValues(
-      fields: Set[String],
-      dimValues: Set[String]
-  ): Table[String, String, String] = {
+  override def fieldValuesForDimValues(fields: Set[String], dimValues: Set[String]): Table[String, String, String] = {
     val ids = dictionary.findIdsByValues(dimValues).map(_.swap)
     if (ids.nonEmpty) {
       fieldValuesForDimIds(fields, ids.keySet).mapRowKeys(ids)

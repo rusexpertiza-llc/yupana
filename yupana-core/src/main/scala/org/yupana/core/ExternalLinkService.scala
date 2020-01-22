@@ -22,7 +22,6 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 import org.yupana.core.utils.TimeBoundedCondition
-import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait ExternalLinkService[T <: ExternalLink] {
 

@@ -58,10 +58,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val catalogService = createService(catalog)
 
     val values =
-      catalogService.fieldValuesForDimValues(
-        catalog.description.fieldsNames,
-        Set("123432345655", "123432345657")
-      )
+      catalogService.fieldValuesForDimValues(catalog.description.fieldsNames, Set("123432345655", "123432345657"))
 
     values.get("123432345655", "f1").value shouldEqual "wer"
     values.get("123432345655", "f2").value shouldEqual "sdf"
@@ -109,10 +106,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val catalogService = createService(catalog)
 
     val values =
-      catalogService.fieldValuesForDimValues(
-        catalog.description.fieldsNames,
-        Set("123432345655", "123432345657")
-      )
+      catalogService.fieldValuesForDimValues(catalog.description.fieldsNames, Set("123432345655", "123432345657"))
 
     values.get("123432345655", "f1").value shouldEqual "hhh2"
     values.get("123432345655", "f2").value shouldEqual "ggg"

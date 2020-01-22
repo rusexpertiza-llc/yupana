@@ -241,10 +241,7 @@ trait TsdbBase extends StrictLogging {
     finalizeQuery(queryContext, result, metricCollector)
   }
 
-  def readExternalLinks(
-      queryContext: QueryContext,
-      rows: Seq[InternalRow]
-  ): Seq[InternalRow] = {
+  def readExternalLinks(queryContext: QueryContext, rows: Seq[InternalRow]): Seq[InternalRow] = {
     queryContext.linkExprs.groupBy(_.link).foreach {
       case (c, exprs) =>
         val catalog = linkService(c)
