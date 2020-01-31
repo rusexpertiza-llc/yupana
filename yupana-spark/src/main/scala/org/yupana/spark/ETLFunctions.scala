@@ -35,6 +35,7 @@ object ETLFunctions extends StrictLogging {
         val dps = batch.toList
 
         logger.trace(s"Put ${dps.size} datapoints")
+        println("processTransactions")
         context.tsdb.put(dps)
 
         val byTable = dps.groupBy(_.table)
@@ -74,6 +75,7 @@ object ETLFunctions extends StrictLogging {
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
   def saveDataPoints(context: EtlContext, schema: Schema): DStream[DataPoint] = {
+    println("DataPointStreamFunctions saveDataPoints")
     stream.foreachRDD { rdd =>
       ETLFunctions.processTransactions(context, schema, rdd)
     }
@@ -84,6 +86,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
   def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
+    println("DataPointRddFunctions saveDataPoints")
     ETLFunctions.processTransactions(context, schema, rdd)
   }
 }
