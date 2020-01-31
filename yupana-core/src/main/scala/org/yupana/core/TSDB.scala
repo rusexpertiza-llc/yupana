@@ -51,13 +51,10 @@ class TSDB(
   }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {
-    if (config.putEnabled) {
-      loadTagsIds(dataPoints)
-      dao.put(dataPoints)
-      if (config.putIntoExternalLinks) {
-        externalLinks.foreach(_._2.put(dataPoints))
-      }
-    } else throw new IllegalAccessException("Put is disabled")
+    loadTagsIds(dataPoints)
+    dao.put(dataPoints)
+    println(s"put: $externalLinks")
+    externalLinks.foreach(_._2.put(dataPoints))
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
