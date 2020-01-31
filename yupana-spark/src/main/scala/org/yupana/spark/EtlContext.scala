@@ -34,7 +34,6 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
   }
 
   private def init: (TSDB, ItemsInvertedIndexImpl) = {
-    println("EtlContext tsdb init")
     val tsdb = TSDBHBase(hBaseConfiguration, cfg.hbaseNamespace, schema, identity, cfg.properties, cfg)
     val hBaseConnection = new ExternalLinkHBaseConnection(hBaseConfiguration, cfg.hbaseNamespace)
     val invertedIndexDao = new InvertedIndexDaoHBase[String, Long](

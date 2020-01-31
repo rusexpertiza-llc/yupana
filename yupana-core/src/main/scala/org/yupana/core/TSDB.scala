@@ -47,15 +47,17 @@ class TSDB(
       externalLink: ExternalLink,
       externalLinkService: ExternalLinkService[_ <: ExternalLink]
   ): Unit = {
-    println(s"TSDB registerExternalLink: $externalLink")
     externalLinks += (externalLink -> externalLinkService)
   }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {
-    loadTagsIds(dataPoints)
-    dao.put(dataPoints)
-    println(s"put: $externalLinks")
-    externalLinks.foreach(_._2.put(dataPoints))
+    if (config.putEnabled) {
+      loadTagsIds(dataPoints)
+      dao.put(dataPoints)
+      if (config.putIntoExternalLinks) {
+        externalLinks.foreach(_._2.put(dataPoints))
+      }
+    } else throw new IllegalAccessException("Put is disabled")
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {

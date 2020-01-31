@@ -62,7 +62,6 @@ class ItemsInvertedIndexImpl(
   private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[Long]]("dim_ids_by_word")
 
   override def put(dataPoints: Seq[DataPoint]): Unit = {
-    println("ItemsInvertedIndexImpl put!")
     val items = dataPoints.flatMap(dp => dp.dimensions.get(Dimensions.ITEM_TAG)).toSet
     putItemNames(items)
   }
