@@ -47,6 +47,7 @@ class TSDB(
       externalLink: ExternalLink,
       externalLinkService: ExternalLinkService[_ <: ExternalLink]
   ): Unit = {
+    println(s"TSDB registerExternalLink: $externalLink")
     externalLinks += (externalLink -> externalLinkService)
   }
 
