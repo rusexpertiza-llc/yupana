@@ -64,7 +64,7 @@ class TsdbTest
     tsdb.put(Seq(dp1, dp2, dp3))
   }
 
-  /*it should "not allow put if disabled" in {
+  it should "not allow put if disabled" in {
     val tsdbDaoMock = mock[TSTestDao]
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
@@ -79,7 +79,7 @@ class TsdbTest
     )
 
     an[IllegalAccessException] should be thrownBy tsdb.put(Seq(dp))
-  }*/
+  }
 
   it should "execute query with filter by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)

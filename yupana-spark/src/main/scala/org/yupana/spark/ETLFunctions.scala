@@ -29,6 +29,7 @@ import scala.language.implicitConversions
 object ETLFunctions extends StrictLogging {
 
   def processTransactions(context: EtlContext, schema: Schema, dataPoints: RDD[DataPoint]): Unit = {
+
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
         val dps = batch.toList
