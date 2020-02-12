@@ -23,7 +23,6 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
 
     val N = 500000
-    val HitRate = 1d
     val in = (1 to N).toArray
 
     val metricDao = new TsdbQueryMetricsDao {
