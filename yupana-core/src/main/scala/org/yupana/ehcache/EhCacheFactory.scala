@@ -30,8 +30,6 @@ import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
 class EhCacheFactory extends CacheFactory with StrictLogging {
 
-  val DEFAULT_TTL: Long = 30 * 60
-
   private var cacheManager: Option[CacheManager] = None
   private var caches = Set.empty[CacheDescription]
 

@@ -14,6 +14,22 @@
  * limitations under the License.
  */
 
-package org.yupana.core.sql.parser
+package org.yupana.core
 
-case class SqlField(expr: SqlExpr, alias: Option[String] = None)
+trait TsdbConfig {
+  val collectMetrics: Boolean
+  val metricsUpdateInterval: Int
+  val extractBatchSize: Int
+  val putBatchSize: Int
+  val putEnabled: Boolean
+  val putIntoExternalLinks: Boolean
+}
+
+case class SimpleTsdbConfig(
+    collectMetrics: Boolean = false,
+    metricsUpdateInterval: Int = 30000,
+    extractBatchSize: Int = 10000,
+    putBatchSize: Int = 1000,
+    putEnabled: Boolean = false,
+    putIntoExternalLinks: Boolean = false
+) extends TsdbConfig

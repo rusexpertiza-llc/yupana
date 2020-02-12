@@ -47,8 +47,12 @@ object QueryInfoProvider {
         Some(Time(queryMetrics.startDate)),
         Some(queryMetrics.totalDuration)
       ) ++ qualifiers.flatMap { q =>
-        val metric = queryMetrics.metrics(q)
-        Array(Some(metric.count.toDouble), Some(metric.time), Some(metric.speed))
+        queryMetrics.metrics.get(q) match {
+          case Some(metric) =>
+            Array(Some(metric.count.toString), Some(metric.time.toString), Some(metric.speed.toString))
+          case None =>
+            Array(Some("-"), Some("-"), Some("-"))
+        }
       }
     }.iterator
 
@@ -70,7 +74,7 @@ object QueryInfoProvider {
       DataType[Time],
       DataType[Double]
     ) ++
-      (0 until qualifiers.size * 3).map(_ => DataType[Double])
+      (0 until qualifiers.size * 3).map(_ => DataType[String])
 
     SimpleResult("QUERIES", queryFieldNames, queryFieldTypes, data)
   }

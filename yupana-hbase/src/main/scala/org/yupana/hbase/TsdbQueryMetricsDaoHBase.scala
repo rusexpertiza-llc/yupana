@@ -101,15 +101,28 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
               case (metricName, metricData) =>
                 query.metrics.get(metricName) match {
                   case Some(oldMetricData) =>
+                    val (count, time, speed) = if (metricData.count != 0L) {
+                      (
+                        oldMetricData.count + metricData.count,
+                        oldMetricData.time + metricData.time,
+                        metricData.speed
+                      )
+                    } else (oldMetricData.count, oldMetricData.time, oldMetricData.speed)
+
                     put.addColumn(
                       FAMILY,
                       Bytes.toBytes(metricName + "_" + metricCount),
-                      Bytes.toBytes(oldMetricData.count + metricData.count)
+                      Bytes.toBytes(count)
                     )
                     put.addColumn(
                       FAMILY,
                       Bytes.toBytes(metricName + "_" + metricTime),
-                      Bytes.toBytes(oldMetricData.time + metricData.time)
+                      Bytes.toBytes(time)
+                    )
+                    put.addColumn(
+                      FAMILY,
+                      Bytes.toBytes(metricName + "_" + metricSpeed),
+                      Bytes.toBytes(speed)
                     )
                   case None =>
                     put.addColumn(
@@ -118,8 +131,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
                       Bytes.toBytes(metricData.count)
                     )
                     put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricTime), Bytes.toBytes(metricData.time))
+                    put.addColumn(
+                      FAMILY,
+                      Bytes.toBytes(metricName + "_" + metricSpeed),
+                      Bytes.toBytes(metricData.speed)
+                    )
                 }
-                put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricSpeed), Bytes.toBytes(metricData.speed))
             }
             val result = table.checkAndPut(
               Bytes.toBytes(queryRowKey),
@@ -270,12 +287,15 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   }
 
   private def toMetric(result: Result): TsdbQueryMetrics = {
-    val metrics = TsdbQueryMetrics.qualifiers.map { qualifier =>
-      qualifier -> MetricData(
-        Bytes.toLong(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount))),
-        Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime))),
-        Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricSpeed)))
-      )
+    val metrics = TsdbQueryMetrics.qualifiers.collect {
+      case qualifier if result.containsColumn(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount)) =>
+        qualifier -> {
+          MetricData(
+            Bytes.toLong(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount))),
+            Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime))),
+            Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricSpeed)))
+          )
+        }
     }.toMap
     TsdbQueryMetrics(
       rowKey = Bytes.toLong(result.getRow),

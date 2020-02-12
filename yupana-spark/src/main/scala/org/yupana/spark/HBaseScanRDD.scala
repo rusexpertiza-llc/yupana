@@ -34,7 +34,7 @@ case class HBaseScanPartition(
 ) extends Partition
 
 class HBaseScanRDD(
-    @transient sc: SparkContext,
+    sc: SparkContext,
     config: Config,
     queryContext: InternalQueryContext,
     fromTime: Long,

@@ -23,7 +23,7 @@ class TsdbServerResult(override val queryContext: QueryContext, data: Iterator[A
     extends Result
     with TsdbResultBase[Iterator] {
 
-  override def name: String = queryContext.query.table.name
+  override def name: String = queryContext.query.table.map(_.name).getOrElse("RESULT")
 
   override def rows: Iterator[Array[Option[Any]]] = data
 

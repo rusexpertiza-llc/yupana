@@ -23,7 +23,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("хлеб ржаной"))
     )
 
-    val qc1 = QueryContext(expQuery1, const(true))
+    val qc1 = QueryContext(expQuery1, None)
 
     (tsdb.mapReduceEngine _).expects(*).returning(MapReducible.iteratorMR).anyNumberOfTimes()
 
@@ -48,7 +48,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("бородинский"))
     )
 
-    val qc2 = QueryContext(expQuery2, const(true))
+    val qc2 = QueryContext(expQuery2, None)
 
     (tsdb.query _)
       .expects(expQuery2)
@@ -97,7 +97,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       in(dimension(Dimensions.ITEM_TAG), Set("яйцо молодильное 1к"))
     )
 
-    val qc = QueryContext(expQuery, const(true))
+    val qc = QueryContext(expQuery, None)
 
     (tsdb.mapReduceEngine _).expects(*).returning(MapReducible.iteratorMR).anyNumberOfTimes()
 

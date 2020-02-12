@@ -415,7 +415,9 @@ class TSDaoHBaseTest
     (dictionary.getValuesByIds _)
       .expects(TestDims.TAG_A, Set(1L, 2L, 3L))
       .returning(Map(1L -> "A 1", 2L -> "A 2", 3L -> "A 3"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L, 2L)).returning(Map(1L -> "B 1", 2L -> "B 2"))
+    (dictionary.getValuesByIds _)
+      .expects(TestDims.TAG_B, Set(1L, 2L))
+      .returning(Map(1L -> "B 1", 2L -> "B 2"))
 
     val res = dao
       .query(
@@ -476,7 +478,9 @@ class TSDaoHBaseTest
       .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
     (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1")).returning(Map("B 1" -> 1L))
 
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L, 2L)).returning(Map(1L -> "A 1", 2L -> "A 2"))
+    (dictionary.getValuesByIds _)
+      .expects(TestDims.TAG_A, Set(1L, 2L))
+      .returning(Map(1L -> "A 1", 2L -> "A 2"))
     (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L)).returning(Map(1L -> "B 1"))
 
     val res = dao
@@ -896,7 +900,9 @@ class TSDaoHBaseTest
     val pointTime2 = 2500
 
     (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("test42")).returning(Map("test42" -> 42L))
-    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(42L)).returning(Map(42L -> "test42"))
+    (dictionaryDao.getValuesByIds _)
+      .expects(TestDims.TAG_A, Set(42L))
+      .returning(Map(42L -> "test42"))
 
     queryRunner
       .expects(
