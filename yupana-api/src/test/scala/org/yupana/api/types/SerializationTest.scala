@@ -54,9 +54,7 @@ class SerializationTest
       (1000000000000000000L, 9)
     )
 
-    forAll(table) { (x, len) =>
-      writable.write(x).length shouldEqual len
-    }
+    forAll(table) { (x, len) => writable.write(x).length shouldEqual len }
   }
 
   it should "not read Long as Int if it overflows" in {
@@ -70,8 +68,6 @@ class SerializationTest
     val readable = implicitly[Readable[T]]
     val writable = implicitly[Writable[T]]
 
-    forAll { t: T =>
-      readable.read(writable.write(t)) shouldEqual t
-    }
+    forAll { t: T => readable.read(writable.write(t)) shouldEqual t }
   }
 }

@@ -110,9 +110,7 @@ class TsdbTcp(
           throw new Exception(s)
       }
       .flatMapConcat { rs =>
-        val it = rs.map { resp =>
-          ByteString(resp.toByteArray)
-        }
+        val it = rs.map { resp => ByteString(resp.toByteArray) }
         new AsyncIteratorSource(it, 1000)
       }
       .recover {

@@ -55,9 +55,7 @@ case class Query(
          |    $fs
          |""".stripMargin)
 
-    table.foreach { t =>
-      builder.append(s"  FROM: ${t.name}")
-    }
+    table.foreach { t => builder.append(s"  FROM: ${t.name}") }
 
     builder.append(s"""  FILTER:
         |    $filter
@@ -70,9 +68,7 @@ case class Query(
     }
 
     limit.foreach(l => builder.append(s"  LIMIT: $l\n"))
-    postFilter.foreach { pf =>
-      builder.append(s"  POSTFILTER: $pf")
-    }
+    postFilter.foreach { pf => builder.append(s"  POSTFILTER: $pf") }
 
     builder.append(")")
     builder.toString

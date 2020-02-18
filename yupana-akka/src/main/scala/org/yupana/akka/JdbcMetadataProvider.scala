@@ -54,9 +54,7 @@ class JdbcMetadataProvider(schema: Schema) {
 
   def describeTable(tableName: String): Either[String, Result] =
     schema.getTable(tableName) map { table =>
-      val metricColumns = table.metrics.map { f =>
-        columnsArray(table.name, f.name, f.dataType.meta)
-      }
+      val metricColumns = table.metrics.map { f => columnsArray(table.name, f.name, f.dataType.meta) }
 
       val tagColumns = table.dimensionSeq.map(d => columnsArray(table.name, d.name, DataTypeMeta.stringMeta))
       val timeColumn = columnsArray(table.name, "time", DataTypeMeta.timestampMeta)

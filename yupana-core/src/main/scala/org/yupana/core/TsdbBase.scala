@@ -148,9 +148,7 @@ trait TsdbBase extends StrictLogging {
 
       metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
-        val withValuesForFilter = it.map { row =>
-          evaluateFilterExprs(queryContext, row, metricCollector)
-        }
+        val withValuesForFilter = it.map { row => evaluateFilterExprs(queryContext, row, metricCollector) }
 
         val filtered = queryContext.postCondition match {
           case Some(cond) =>
@@ -206,9 +204,7 @@ trait TsdbBase extends StrictLogging {
       mr.map(keysAndValuesWinFunc)(_._2)
     }
 
-    val calculated = mr.map(reduced) { row =>
-      evalExprsOnAggregatesAndWindows(queryContext, row)
-    }
+    val calculated = mr.map(reduced) { row => evalExprsOnAggregatesAndWindows(queryContext, row) }
 
     val postFiltered = queryContext.query.postFilter match {
       case Some(cond) =>

@@ -139,9 +139,7 @@ class TSDB(
     dataPoints.groupBy(_.table).foreach {
       case (table, points) =>
         table.dimensionSeq.map { tag =>
-          val values = points.flatMap { dp =>
-            dp.dimensions.get(tag).filter(_.trim.nonEmpty)
-          }
+          val values = points.flatMap { dp => dp.dimensions.get(tag).filter(_.trim.nonEmpty) }
           dictionary(tag).findIdsByValues(values.toSet)
         }
     }

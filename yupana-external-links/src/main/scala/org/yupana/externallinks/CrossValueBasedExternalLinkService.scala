@@ -36,9 +36,7 @@ abstract class CrossValueBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbB
 
     val crossed = CollectionUtils.crossJoin(flatValues).map(_.toMap)
 
-    crossed.flatMap { vs =>
-      tagValuesForCrossJoinedValues(vs)
-    }.toSet
+    crossed.flatMap { vs => tagValuesForCrossJoinedValues(vs) }.toSet
   }
 
   override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {

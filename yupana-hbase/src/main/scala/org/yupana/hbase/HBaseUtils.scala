@@ -173,9 +173,7 @@ object HBaseUtils extends StrictLogging {
       override def next(): List[TSDOutputRow[Long]] = {
         val batch = batchIterator.next()
         context.metricsCollector.parseScanResult.measure(batch.size) {
-          batch.map { hbaseResult =>
-            getTsdRowFromResult(context.table, hbaseResult)
-          }
+          batch.map { hbaseResult => getTsdRowFromResult(context.table, hbaseResult) }
         }
       }
     }
@@ -461,14 +459,13 @@ object HBaseUtils extends StrictLogging {
     if (!connection.getAdmin.tableExists(hbaseTable)) {
       val desc = new HTableDescriptor(hbaseTable)
       val fieldGroups = table.metrics.map(_.group).toSet
-      fieldGroups foreach (
-          group =>
-            desc.addFamily(
-              new HColumnDescriptor(family(group))
-                .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-                .setCompactionCompressionType(Algorithm.SNAPPY)
-            )
+      fieldGroups foreach (group =>
+        desc.addFamily(
+          new HColumnDescriptor(family(group))
+            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+            .setCompactionCompressionType(Algorithm.SNAPPY)
         )
+      )
       connection.getAdmin.createTable(desc)
     }
   }

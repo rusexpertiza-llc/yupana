@@ -14,9 +14,7 @@ class TransliteratorTest extends FlatSpec with Matchers with TableDrivenProperty
       ("ОБЪЕДЕННЫЙ КРЕНДЕЛЬ", "OBEDENNYJ KRENDEL")
     )
 
-    forAll(data) { (string, expected) =>
-      Transliterator.transliterate(string) shouldEqual expected
-    }
+    forAll(data) { (string, expected) => Transliterator.transliterate(string) shouldEqual expected }
   }
 
   it should "transliterate stemmed items correctly" in {

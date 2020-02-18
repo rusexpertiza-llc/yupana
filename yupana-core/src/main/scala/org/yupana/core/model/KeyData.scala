@@ -66,9 +66,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
   private def calcData: Array[Option[Any]] = {
     val keyData = Array.ofDim[Option[Any]](queryContext.groupByExprs.length)
 
-    keyData.indices foreach { i =>
-      keyData(i) = row.get(queryContext, queryContext.groupByExprs(i))
-    }
+    keyData.indices foreach { i => keyData(i) = row.get(queryContext, queryContext.groupByExprs(i)) }
 
     keyData
   }

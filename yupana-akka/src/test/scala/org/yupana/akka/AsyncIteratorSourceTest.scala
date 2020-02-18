@@ -28,9 +28,7 @@ class AsyncIteratorSourceTest extends TestKit(ActorSystem("Test")) with FlatSpec
   it should "support merge with infinite stream" in {
     val source = Source
       .fromIterator(() => Iterator.range(1, 5))
-      .mapAsync(2) { i =>
-        Future(i + 1)
-      }
+      .mapAsync(2) { i => Future(i + 1) }
       .flatMapConcat(i => new AsyncIteratorSource[Int](Iterator.range(1, i), 3))
 
     val ticks = Source.tick(0.millis, 1.millis, 1).scan(0)(_ + _).drop(1)

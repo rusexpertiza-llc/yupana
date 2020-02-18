@@ -81,9 +81,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     keyValueData.zip(valueData).foreach {
       case (kvd, vd) =>
         kvd.get[String](indexMap(keyExpr)).foreach { keyValue =>
-          exprs.foreach { expr =>
-            vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField)(keyValue))
-          }
+          exprs.foreach { expr => vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField)(keyValue)) }
         }
     }
   }

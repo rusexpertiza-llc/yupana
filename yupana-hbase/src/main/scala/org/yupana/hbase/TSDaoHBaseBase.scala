@@ -171,9 +171,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     partiallyFetchedDimIts.headOption match {
       case Some((pd, pids)) =>
-        pids.grouped(RANGE_FILTERS_LIMIT).map { batch =>
-          fetchedDimIds + (pd -> batch)
-        }
+        pids.grouped(RANGE_FILTERS_LIMIT).map { batch => fetchedDimIds + (pd -> batch) }
 
       case None =>
         Iterator(fetchedDimIds)
@@ -192,15 +190,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val excludeSet = exclude.toMap.getOrElse(TIME, Set.empty).map(_.millis).toSet
 
     if (excludeSet.nonEmpty) {
-      if (includeSet.nonEmpty) { t =>
-        baseFilter(t) && includeSet.contains(t) && !excludeSet.contains(t)
-      } else { t =>
-        baseFilter(t) && !excludeSet.contains(t)
-      }
+      if (includeSet.nonEmpty) { t => baseFilter(t) && includeSet.contains(t) && !excludeSet.contains(t) }
+      else { t => baseFilter(t) && !excludeSet.contains(t) }
     } else {
-      if (includeSet.nonEmpty) { t =>
-        baseFilter(t) && includeSet.contains(t)
-      } else {
+      if (includeSet.nonEmpty) { t => baseFilter(t) && includeSet.contains(t) }
+      else {
         baseFilter
       }
     }
@@ -227,9 +221,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     } else {
       if (includeMap.nonEmpty) {
         rowFilter(table, (dim, x) => includeMap.get(dim).forall(_.contains(x)))
-      } else { _ =>
-        true
-      }
+      } else { _ => true }
     }
   }
 

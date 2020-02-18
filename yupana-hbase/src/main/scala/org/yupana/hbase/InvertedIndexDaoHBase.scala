@@ -101,9 +101,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     val keys = scanner
       .iterator()
       .asScala
-      .map { result =>
-        keyDeserializer(result.getRow)
-      }
+      .map { result => keyDeserializer(result.getRow) }
       .toSet
 
     logger.trace(s"Got ${keys.size} keys for prefix $prefix search")
@@ -141,9 +139,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
   private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
     val it = result.iterator().asScala.flatMap { result =>
-      result.rawCells().map { cell =>
-        valueDeserializer(CellUtil.cloneQualifier(cell))
-      }
+      result.rawCells().map { cell => valueDeserializer(CellUtil.cloneQualifier(cell)) }
     }
     SortedSetIterator(it)
   }

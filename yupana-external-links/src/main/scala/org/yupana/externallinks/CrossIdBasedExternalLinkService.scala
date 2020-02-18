@@ -35,9 +35,7 @@ abstract class CrossIdBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase
       }
       .toList
     val crossed = CollectionUtils.crossJoin(flatValues).map(_.toMap)
-    val dimIds = crossed.flatMap { vs =>
-      dimIdsForCrossJoinedValues(vs)
-    }
+    val dimIds = crossed.flatMap { vs => dimIdsForCrossJoinedValues(vs) }
     val ord = implicitly[DimOrdering[Long]]
     SortedSetIterator(dimIds.sortWith(ord.lt).iterator)
   }

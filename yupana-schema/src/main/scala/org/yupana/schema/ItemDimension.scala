@@ -49,16 +49,12 @@ object ItemDimension {
 
   private def encode(chars: Array[Char], charIdx: Map[Char, Int], nBits: Int) = {
     val bits = chars.map(c => charIdx(c) % nBits)
-    bits.foldLeft(0) { (a, i) =>
-      (1 << i) | a
-    }
+    bits.foldLeft(0) { (a, i) => (1 << i) | a }
   }
 
   private def chars(words: Array[String], pos: Int) = {
     words
-      .map { w =>
-        if (w.length > pos) w(pos) else ' '
-      }
+      .map { w => if (w.length > pos) w(pos) else ' ' }
       .filter(charIdx8.contains)
   }
 }

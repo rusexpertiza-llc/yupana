@@ -92,9 +92,7 @@ object Transliterator {
 
   def transliterate(s: String): String = {
     val builder = new java.lang.StringBuilder(s.length * 2)
-    s.foreach { c =>
-      builder.append(chars(c))
-    }
+    s.foreach { c => builder.append(chars(c)) }
     builder.toString
   }
 }

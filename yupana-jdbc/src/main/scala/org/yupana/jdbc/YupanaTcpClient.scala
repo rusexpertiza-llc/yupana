@@ -230,9 +230,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
         if (statistics.nonEmpty || errorMessage.nonEmpty) {
           channel.close()
-          errorMessage.foreach { e =>
-            throw new IllegalArgumentException(e)
-          }
+          errorMessage.foreach { e => throw new IllegalArgumentException(e) }
         }
       }
 
@@ -256,9 +254,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {
     val names = header.fields.map(_.name)
-    val dataTypes = header.fields.map { resultField =>
-      DataType.bySqlName(resultField.`type`)
-    }
+    val dataTypes = header.fields.map { resultField => DataType.bySqlName(resultField.`type`) }
 
     val values = res.flatMap { row =>
       val v = dataTypes

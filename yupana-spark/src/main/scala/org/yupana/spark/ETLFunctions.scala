@@ -74,9 +74,7 @@ object ETLFunctions extends StrictLogging {
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
   def saveDataPoints(context: EtlContext, schema: Schema): DStream[DataPoint] = {
-    stream.foreachRDD { rdd =>
-      ETLFunctions.processTransactions(context, schema, rdd)
-    }
+    stream.foreachRDD { rdd => ETLFunctions.processTransactions(context, schema, rdd) }
 
     stream
   }

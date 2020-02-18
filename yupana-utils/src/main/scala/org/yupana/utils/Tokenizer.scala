@@ -32,9 +32,7 @@ object Tokenizer extends Serializable {
     ('А' to 'Я')
 
   private val includedChars = Array.fill[Boolean](charSet.max + 1)(false)
-  charSet.foreach { s =>
-    includedChars(s) = true
-  }
+  charSet.foreach { s => includedChars(s) = true }
 
   private def isCharIncluded(ch: Char): Boolean = {
     ch >= includedChars.length || includedChars(ch)

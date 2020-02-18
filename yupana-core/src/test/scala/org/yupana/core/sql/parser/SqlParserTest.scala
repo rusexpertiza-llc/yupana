@@ -74,9 +74,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       ("INTERVAL '5.66' SECOND", Period.seconds(5).plusMillis(660))
     )
 
-    forAll(cases) { (sql, period) =>
-      parse(sql, ValueParser.value(_)).value shouldEqual PeriodValue(period)
-    }
+    forAll(cases) { (sql, period) => parse(sql, ValueParser.value(_)).value shouldEqual PeriodValue(period) }
   }
 
   it should "support multi field SQL intervals" in {
@@ -92,9 +90,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
       ("INTERVAL '4 5:12:10.222' day to second", new Period(0, 0, 0, 4, 5, 12, 10, 222))
     )
 
-    forAll(cases) { (sql, period) =>
-      parse(sql, ValueParser.value(_)).value shouldEqual PeriodValue(period)
-    }
+    forAll(cases) { (sql, period) => parse(sql, ValueParser.value(_)).value shouldEqual PeriodValue(period) }
   }
 
   "SqlParser" should "parse simple SQL select statements" in {

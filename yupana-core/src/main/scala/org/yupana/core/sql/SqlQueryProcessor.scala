@@ -507,9 +507,7 @@ object SqlQueryProcessor extends QueryValidator {
     val filled = substituteGroupings(select)
     val resolver = table.map(fieldByName).getOrElse(constOnly)
 
-    val groupBy = filled.map { sqlExpr =>
-      createExpr(state, resolver, sqlExpr, ExprType.Math)
-    }
+    val groupBy = filled.map { sqlExpr => createExpr(state, resolver, sqlExpr, ExprType.Math) }
 
     CollectionUtils.collectErrors(groupBy)
   }

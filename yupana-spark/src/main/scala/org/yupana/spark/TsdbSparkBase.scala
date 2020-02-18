@@ -117,9 +117,7 @@ abstract class TsdbSparkBase(
       metricCollector: MetricQueryCollector
   ): DataRowRDD = {
     metricCollector.setRunningPartitions(data.getNumPartitions)
-    val rdd = data.mapPartitions { it =>
-      new OnFinishIterator(it, metricCollector.finishPartition)
-    }
+    val rdd = data.mapPartitions { it => new OnFinishIterator(it, metricCollector.finishPartition) }
     new DataRowRDD(rdd, queryContext)
   }
 
