@@ -22,7 +22,6 @@ trait TsdbConfig {
   val extractBatchSize: Int
   val putBatchSize: Int
   val putEnabled: Boolean
-  val putIntoExternalLinks: Boolean
 }
 
 case class SimpleTsdbConfig(
@@ -30,6 +29,5 @@ case class SimpleTsdbConfig(
     metricsUpdateInterval: Int = 30000,
     extractBatchSize: Int = 10000,
     putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    putIntoExternalLinks: Boolean = false
+    putEnabled: Boolean = false
 ) extends TsdbConfig
