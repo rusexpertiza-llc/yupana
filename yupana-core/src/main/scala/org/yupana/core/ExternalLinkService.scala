@@ -27,6 +27,8 @@ trait ExternalLinkService[T <: ExternalLink] {
 
   def externalLink: T
 
+  val putEnabled: Boolean = false
+
   /**
     * Sets requested external link expressions values into a batch of ValueData
     *
