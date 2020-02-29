@@ -16,12 +16,12 @@
 
 package org.yupana.jdbc
 
-import java.io.{ ByteArrayInputStream, CharArrayReader, InputStream, Reader }
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, CharArrayReader, InputStream, ObjectOutputStream, Reader }
 import java.math.BigDecimal
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.sql.{ Array => SqlArray, _ }
 import java.util
-import java.util.Calendar
+import java.util.{ Calendar, TimeZone }
 
 import org.joda.time.DateTimeZone
 import org.yupana.api.query.{ DataRow, Result }
@@ -269,8 +269,23 @@ class YupanaResultSet protected[jdbc] (
   private def toLocalMillis(a: Any): Long = {
     a match {
       case t: ApiTime => DateTimeZone.getDefault.convertLocalToUTC(t.millis, false)
-      case x          => throw new ClassCastException(s"Cannot cast $x to Time")
+      case x          => throw new SQLException(s"Cannot cast $x to Time")
     }
+  }
+
+  private def toCalendarMillis(a: Any, c: Calendar): Long = {
+    a match {
+      case t: ApiTime =>
+        DateTimeZone.forTimeZone(c.getTimeZone).convertLocalToUTC(t.millis, false)
+      case x => throw new SQLException(s"Cannot cast $x to Time")
+    }
+  }
+
+  private def toBytes(a: Any): Array[Byte] = {
+    val bs = new ByteArrayOutputStream()
+    val os = new ObjectOutputStream(bs)
+    os.writeObject(a)
+    bs.toByteArray
   }
 
   @throws[SQLException]
@@ -301,7 +316,10 @@ class YupanaResultSet protected[jdbc] (
   override def getBigDecimal(i: Int, scale: Int): BigDecimal = getReference(i, x => toBigDecimal(x).setScale(scale))
 
   @throws[SQLException]
-  override def getBytes(i: Int): Array[Byte] = getReference(i)
+  override def getBytes(i: Int): Array[Byte] = getReference(i, toBytes)
+
+  @throws[SQLException]
+  override def getBytes(s: String): Array[Byte] = getReferenceByName(s, toBytes)
 
   @throws[SQLException]
   override def getDate(i: Int): Date = getReference(i, a => new Date(toLocalMillis(a)))
@@ -375,9 +393,6 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def getBigDecimal(s: String, scale: Int): BigDecimal =
     getReferenceByName(s, x => toBigDecimal(x).setScale(scale))
-
-  @throws[SQLException]
-  override def getBytes(s: String): Array[Byte] = getReferenceByName(s)
 
   @throws[SQLException]
   override def getDate(s: String): Date = getReferenceByName(s, a => new Date(toLocalMillis(a)))
@@ -458,28 +473,29 @@ class YupanaResultSet protected[jdbc] (
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getArray(String)")
 
   @throws[SQLException]
-  override def getDate(columnIndex: Int, cal: Calendar) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getDate(int, Calendar)")
+  override def getDate(columnIndex: Int, cal: Calendar): Date =
+    getReference(columnIndex, a => new Date(toCalendarMillis(a, cal)))
 
   @throws[SQLException]
-  override def getDate(columnName: String, cal: Calendar) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getDate(String, Calendar)")
+  override def getDate(columnName: String, cal: Calendar): Date =
+    getReferenceByName(columnName, a => new Date(toCalendarMillis(a, cal)))
 
   @throws[SQLException]
-  override def getTime(columnIndex: Int, cal: Calendar) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getTime(int, Calendar)")
+  override def getTime(columnIndex: Int, cal: Calendar): Time =
+    getReference(columnIndex, a => new Time(toCalendarMillis(a, cal)))
 
   @throws[SQLException]
-  override def getTime(columnName: String, cal: Calendar) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getTime(String, Calendar)")
+  override def getTime(columnName: String, cal: Calendar): Time =
+    getReferenceByName(columnName, a => new Time(toCalendarMillis(a, cal)))
 
   @throws[SQLException]
-  override def getTimestamp(columnIndex: Int, cal: Calendar) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getTimestamp(int, Calendar)")
+  override def getTimestamp(columnIndex: Int, cal: Calendar): Timestamp = {
+    getReference(columnIndex, a => new Timestamp(toCalendarMillis(a, cal)))
+  }
 
   @throws[SQLException]
-  override def getTimestamp(columnName: String, cal: Calendar) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getTimestamp(String, Calendar)")
+  override def getTimestamp(columnName: String, cal: Calendar): Timestamp =
+    getReferenceByName(columnName, a => new Timestamp(toCalendarMillis(a, cal)))
 
   @throws[SQLException]
   override def getURL(i: Int) = throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getURL(int)")

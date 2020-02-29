@@ -1,10 +1,10 @@
 package org.yupana.jdbc
 
 import java.sql.{ Array => _, _ }
-import java.util.Scanner
+import java.util.{ Calendar, Scanner, TimeZone }
 import java.{ math => jm }
 
-import org.joda.time.LocalDateTime
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
@@ -29,6 +29,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getFetchDirection shouldEqual ResultSet.FETCH_FORWARD
     resultSet.getType shouldEqual ResultSet.TYPE_FORWARD_ONLY
     resultSet.getConcurrency shouldEqual ResultSet.CONCUR_READ_ONLY
+    resultSet.getHoldability shouldEqual ResultSet.HOLD_CURSORS_OVER_COMMIT
 
     an[SQLException] should be thrownBy resultSet.setFetchDirection(ResultSet.FETCH_REVERSE)
 
@@ -287,12 +288,30 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     resultSet.getTimestamp(1) shouldEqual new Timestamp(time.toDateTime.getMillis)
     resultSet.getTimestamp("time") shouldEqual new Timestamp(time.toDateTime.getMillis)
+    resultSet.getTimestamp(1, Calendar.getInstance()) shouldEqual new Timestamp(
+      time.toDateTime(DateTimeZone.getDefault).getMillis
+    )
+    resultSet.getTimestamp(1, Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"))) shouldEqual new Timestamp(
+      time.toDateTime(DateTimeZone.forID("Europe/Helsinki")).getMillis
+    )
 
     resultSet.getDate(1) shouldEqual new Date(time.toDateTime.getMillis)
     resultSet.getDate("time") shouldEqual new Date(time.toDateTime.getMillis)
+    resultSet.getDate(1, Calendar.getInstance()) shouldEqual new Date(
+      time.toDateTime(DateTimeZone.getDefault).getMillis
+    )
+    resultSet.getDate(1, Calendar.getInstance(TimeZone.getTimeZone("Pacific/Honolulu"))) shouldEqual new Date(
+      time.toDateTime(DateTimeZone.forID("Pacific/Honolulu")).getMillis
+    )
 
     resultSet.getTime(1) shouldEqual new java.sql.Time(time.toDateTime.getMillis)
     resultSet.getTime("time") shouldEqual new java.sql.Time(time.toDateTime.getMillis)
+    resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Africa/Lome"))) shouldEqual new java.sql.Time(
+      time.toDateTime(DateTimeZone.forID("Africa/Lome")).getMillis
+    )
+    resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"))) shouldEqual new java.sql.Time(
+      time.toDateTime(DateTimeZone.forID("Asia/Tokyo")).getMillis
+    )
 
     resultSet.getBoolean(2) shouldEqual false
     resultSet.getBoolean("bool") shouldEqual false
@@ -309,6 +328,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     new Scanner(resultSet.getUnicodeStream("string")).next() shouldEqual "foo"
     new Scanner(resultSet.getCharacterStream(4)).next() shouldEqual "foo"
     new Scanner(resultSet.getCharacterStream("string")).next() shouldEqual "foo"
+    resultSet.getObject(4) shouldEqual "foo"
+    resultSet.getObject("string") shouldEqual "foo"
 
     resultSet.getDouble(5) shouldEqual 55.5d
     resultSet.getDouble("double") shouldEqual 55.5d
@@ -346,8 +367,10 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
   it should "support closing" in {
     val resultSet = createResultSet
 
+    resultSet.isClosed shouldBe false
     resultSet.next
     resultSet.close()
+    resultSet.isClosed shouldBe true
 
     the[SQLException] thrownBy resultSet.isFirst should have message "ResultSet is already closed"
     the[SQLException] thrownBy resultSet.getInt(1) should have message "ResultSet is already closed"
@@ -392,6 +415,9 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getRef(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getRef("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getRowId(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getRowId("string")
   }
 
   it should "throw exception on update operation" in {
@@ -426,8 +452,26 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDouble(3, 1d)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDouble("double", 2d)
 
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateFloat(3, 1f)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateFloat("double", 2f)
+
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTimestamp(4, new Timestamp(123456L))
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTimestamp("time", new Timestamp(654321L))
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDate(4, new Date(123456L))
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDate("time", new Date(654321L))
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTime(4, new java.sql.Time(123456L))
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTime("time", new java.sql.Time(654321L))
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean(4, true)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean("time", false)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject(1, 41)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42")
   }
 
   private def createResultSet: YupanaResultSet = {
