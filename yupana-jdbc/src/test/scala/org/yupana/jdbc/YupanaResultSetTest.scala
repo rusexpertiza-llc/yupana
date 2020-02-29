@@ -291,7 +291,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getTimestamp(1, Calendar.getInstance()) shouldEqual new Timestamp(
       time.toDateTime(DateTimeZone.getDefault).getMillis
     )
-    resultSet.getTimestamp(1, Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"))) shouldEqual new Timestamp(
+    resultSet.getTimestamp("time", Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"))) shouldEqual new Timestamp(
       time.toDateTime(DateTimeZone.forID("Europe/Helsinki")).getMillis
     )
 
@@ -300,7 +300,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getDate(1, Calendar.getInstance()) shouldEqual new Date(
       time.toDateTime(DateTimeZone.getDefault).getMillis
     )
-    resultSet.getDate(1, Calendar.getInstance(TimeZone.getTimeZone("Pacific/Honolulu"))) shouldEqual new Date(
+    resultSet.getDate("time", Calendar.getInstance(TimeZone.getTimeZone("Pacific/Honolulu"))) shouldEqual new Date(
       time.toDateTime(DateTimeZone.forID("Pacific/Honolulu")).getMillis
     )
 
@@ -309,7 +309,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Africa/Lome"))) shouldEqual new java.sql.Time(
       time.toDateTime(DateTimeZone.forID("Africa/Lome")).getMillis
     )
-    resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"))) shouldEqual new java.sql.Time(
+    resultSet.getTime("time", Calendar.getInstance(TimeZone.getTimeZone("Asia/Tokyo"))) shouldEqual new java.sql.Time(
       time.toDateTime(DateTimeZone.forID("Asia/Tokyo")).getMillis
     )
 
@@ -436,6 +436,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateString(2, "bar")
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateString("string", "value")
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNString(2, "bar")
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNString("string", "value")
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBigDecimal(1, jm.BigDecimal.ONE)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBigDecimal("int", jm.BigDecimal.TEN)
@@ -448,6 +450,9 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateShort(1, 1: Short)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateShort("int", 2: Short)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateByte(1, 1: Byte)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateByte("int", 2: Byte)
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDouble(3, 1d)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDouble("double", 2d)
@@ -471,7 +476,16 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull("string")
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject(1, 41)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject(1, 41, 5)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42")
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42", 3)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42", JDBCType.VARCHAR)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42", JDBCType.INTEGER)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42", JDBCType.VARCHAR, 5)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateObject("string", "42", JDBCType.INTEGER, 2)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBytes(1, Array[Byte](1, 2, 3))
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBytes("int", Array.emptyByteArray)
   }
 
   private def createResultSet: YupanaResultSet = {

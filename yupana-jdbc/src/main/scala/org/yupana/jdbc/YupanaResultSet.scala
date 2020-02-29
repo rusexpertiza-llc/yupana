@@ -761,94 +761,148 @@ class YupanaResultSet protected[jdbc] (
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateArray(String,java.sql.Array)")
 
   @throws[SQLException]
-  override def updateAsciiStream(columnIndex: Int, x: InputStream): Unit = {}
+  override def updateAsciiStream(columnIndex: Int, x: InputStream): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateAsciiStream")
 
   @throws[SQLException]
-  override def updateAsciiStream(columnLabel: String, x: InputStream): Unit = {}
+  override def updateAsciiStream(columnLabel: String, x: InputStream): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateAsciiStream")
 
   @throws[SQLException]
-  override def updateAsciiStream(columnIndex: Int, x: InputStream, length: Long): Unit = {}
+  override def updateAsciiStream(columnIndex: Int, x: InputStream, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateAsciiStream")
 
   @throws[SQLException]
-  override def updateAsciiStream(columnLabel: String, x: InputStream, length: Long): Unit = {}
+  override def updateAsciiStream(columnLabel: String, x: InputStream, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateAsciiStream")
 
   @throws[SQLException]
-  override def updateBinaryStream(columnIndex: Int, x: InputStream): Unit = {}
+  override def updateBinaryStream(columnIndex: Int, x: InputStream): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBinaryStream")
 
   @throws[SQLException]
-  override def updateBinaryStream(columnLabel: String, x: InputStream): Unit = {}
+  override def updateBinaryStream(columnLabel: String, x: InputStream): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBinaryStream")
 
   @throws[SQLException]
-  override def updateBinaryStream(columnIndex: Int, x: InputStream, length: Long): Unit = {}
+  override def updateBinaryStream(columnIndex: Int, x: InputStream, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBinaryStream")
 
   @throws[SQLException]
-  override def updateBinaryStream(columnLabel: String, x: InputStream, length: Long): Unit = {}
+  override def updateBinaryStream(columnLabel: String, x: InputStream, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBinaryStream")
 
   @throws[SQLException]
-  override def updateBlob(columnIndex: Int, inputStream: InputStream): Unit = {}
+  override def updateBlob(columnIndex: Int, inputStream: InputStream): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBlob")
 
   @throws[SQLException]
-  override def updateBlob(columnLabel: String, inputStream: InputStream): Unit = {}
+  override def updateBlob(columnLabel: String, inputStream: InputStream): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBlob")
 
   @throws[SQLException]
-  override def updateBlob(columnIndex: Int, inputStream: InputStream, length: Long): Unit = {}
+  override def updateBlob(columnIndex: Int, inputStream: InputStream, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBlob")
 
   @throws[SQLException]
-  override def updateBlob(columnLabel: String, inputStream: InputStream, length: Long): Unit = {}
+  override def updateBlob(columnLabel: String, inputStream: InputStream, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateBlob")
 
   @throws[SQLException]
-  override def updateCharacterStream(columnIndex: Int, x: Reader): Unit = {}
+  override def updateCharacterStream(columnIndex: Int, x: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateCharacterStream")
 
   @throws[SQLException]
-  override def updateCharacterStream(columnLabel: String, reader: Reader): Unit = {}
+  override def updateCharacterStream(columnLabel: String, reader: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateCharacterStream")
 
   @throws[SQLException]
-  override def updateCharacterStream(columnIndex: Int, x: Reader, length: Long): Unit = {}
+  override def updateCharacterStream(columnIndex: Int, x: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateCharacterStream")
 
   @throws[SQLException]
-  override def updateCharacterStream(columnLabel: String, reader: Reader, length: Long): Unit = {}
+  override def updateCharacterStream(columnLabel: String, reader: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateCharacterStream")
 
   @throws[SQLException]
-  override def updateClob(columnIndex: Int, reader: Reader): Unit = {}
+  override def updateClob(columnIndex: Int, reader: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateClob")
 
   @throws[SQLException]
-  override def updateClob(columnLabel: String, reader: Reader): Unit = {}
+  override def updateClob(columnLabel: String, reader: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateClob")
 
   @throws[SQLException]
-  override def updateClob(columnIndex: Int, reader: Reader, length: Long): Unit = {}
+  override def updateClob(columnIndex: Int, reader: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateClob")
 
   @throws[SQLException]
-  override def updateClob(columnLabel: String, reader: Reader, length: Long): Unit = {}
+  override def updateClob(columnLabel: String, reader: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateClob")
 
   @throws[SQLException]
-  override def updateNCharacterStream(columnIndex: Int, x: Reader): Unit = {}
+  override def updateNCharacterStream(columnIndex: Int, x: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNCharacterStream")
 
   @throws[SQLException]
-  override def updateNCharacterStream(columnLabel: String, reader: Reader): Unit = {}
+  override def updateNCharacterStream(columnLabel: String, reader: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNCharacterStream")
 
   @throws[SQLException]
-  override def updateNCharacterStream(columnIndex: Int, x: Reader, length: Long): Unit = {}
+  override def updateNCharacterStream(columnIndex: Int, x: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNCharacterStream")
 
   @throws[SQLException]
-  override def updateNCharacterStream(columnLabel: String, reader: Reader, length: Long): Unit = {}
+  override def updateNCharacterStream(columnLabel: String, reader: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNCharacterStream")
 
   @throws[SQLException]
-  override def updateNClob(columnIndex: Int, reader: Reader): Unit = {}
+  override def updateNClob(columnIndex: Int, reader: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNClob")
 
   @throws[SQLException]
-  override def updateNClob(columnLabel: String, reader: Reader): Unit = {}
+  override def updateNClob(columnLabel: String, reader: Reader): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNClob")
 
   @throws[SQLException]
-  override def updateNClob(columnIndex: Int, reader: Reader, length: Long): Unit = {}
+  override def updateNClob(columnIndex: Int, reader: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNClob")
 
   @throws[SQLException]
-  override def updateNClob(columnLabel: String, reader: Reader, length: Long): Unit = {}
+  override def updateNClob(columnLabel: String, reader: Reader, length: Long): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNClob")
 
   @throws[SQLException]
-  override def updateNString(columnIndex: Int, string: String): Unit = {}
+  override def updateNString(columnIndex: Int, string: String): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNString")
 
   @throws[SQLException]
-  override def updateNString(columnLabel: String, string: String): Unit = {}
+  override def updateNString(columnLabel: String, string: String): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNString")
+
+  @throws[SQLException]
+  override def updateNClob(arg0: Int, arg1: NClob): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNClob")
+
+  @throws[SQLException]
+  override def updateNClob(arg0: String, arg1: NClob): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateNClob")
+
+  @throws[SQLException]
+  override def updateRowId(arg0: Int, arg1: RowId): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateRowId")
+
+  @throws[SQLException]
+  override def updateRowId(arg0: String, arg1: RowId): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateRowId")
+
+  @throws[SQLException]
+  override def updateSQLXML(arg0: Int, arg1: SQLXML): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateSQLXML")
+
+  @throws[SQLException]
+  override def updateSQLXML(arg0: String, arg1: SQLXML): Unit =
+    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateSQLXML")
 
   @throws[SQLException]
   override def isWrapperFor(aClass: Class[_]): Boolean = aClass.isAssignableFrom(getClass)
@@ -861,24 +915,6 @@ class YupanaResultSet protected[jdbc] (
 
     aClass.cast(this)
   }
-
-  @throws[SQLException]
-  override def updateNClob(arg0: Int, arg1: NClob): Unit = {}
-
-  @throws[SQLException]
-  override def updateNClob(arg0: String, arg1: NClob): Unit = {}
-
-  @throws[SQLException]
-  override def updateRowId(arg0: Int, arg1: RowId): Unit = {}
-
-  @throws[SQLException]
-  override def updateRowId(arg0: String, arg1: RowId): Unit = {}
-
-  @throws[SQLException]
-  override def updateSQLXML(arg0: Int, arg1: SQLXML): Unit = {}
-
-  @throws[SQLException]
-  override def updateSQLXML(arg0: String, arg1: SQLXML): Unit = {}
 
   @throws[SQLException]
   override def getObject[T](columnLabel: String, `type`: Class[T]) =
