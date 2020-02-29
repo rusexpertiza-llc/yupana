@@ -116,7 +116,7 @@ class ItemsInvertedIndexImplTest
 
     val dao = mock[InvertedIndexDao[String, Long]]
     val tsdb = mock[TSDB]
-    val index = new ItemsInvertedIndexImpl(tsdb, dao, ItemsInvertedIndex)
+    val index = new ItemsInvertedIndexImpl(tsdb, dao, false, ItemsInvertedIndex)
 
     body(index, dao, tsdb)
   }

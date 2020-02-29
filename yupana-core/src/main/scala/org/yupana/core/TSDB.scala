@@ -54,9 +54,7 @@ class TSDB(
     if (config.putEnabled) {
       loadTagsIds(dataPoints)
       dao.put(dataPoints)
-      if (config.putIntoExternalLinks) {
-        externalLinks.foreach(_._2.put(dataPoints))
-      }
+      externalLinks.foreach(_._2.put(dataPoints))
     } else throw new IllegalAccessException("Put is disabled")
   }
 
