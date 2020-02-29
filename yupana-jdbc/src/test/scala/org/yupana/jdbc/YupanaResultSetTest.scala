@@ -1,6 +1,8 @@
 package org.yupana.jdbc
 
 import java.sql.{ Array => _, _ }
+import java.util.Scanner
+import java.{ math => jm }
 
 import org.joda.time.LocalDateTime
 import org.scalamock.scalatest.MockFactory
@@ -74,6 +76,10 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.isAfterLast shouldBe false
     resultSet.getRow shouldEqual 1
     resultSet.getInt(1) shouldEqual 1
+
+    resultSet.first shouldBe true
+    resultSet.isBeforeFirst shouldBe false
+    resultSet.isFirst shouldBe true
 
     an[SQLException] should be thrownBy resultSet.beforeFirst()
 
@@ -297,6 +303,12 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     resultSet.getString(4) shouldEqual "foo"
     resultSet.getString("string") shouldEqual "foo"
+    new Scanner(resultSet.getAsciiStream(4)).next() shouldEqual "foo"
+    new Scanner(resultSet.getAsciiStream("string")).next() shouldEqual "foo"
+    new Scanner(resultSet.getUnicodeStream(4)).next() shouldEqual "foo"
+    new Scanner(resultSet.getUnicodeStream("string")).next() shouldEqual "foo"
+    new Scanner(resultSet.getCharacterStream(4)).next() shouldEqual "foo"
+    new Scanner(resultSet.getCharacterStream("string")).next() shouldEqual "foo"
 
     resultSet.getDouble(5) shouldEqual 55.5d
     resultSet.getDouble("double") shouldEqual 55.5d
@@ -304,8 +316,10 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getLong(6) shouldEqual 10L
     resultSet.getLong("long") shouldEqual 10L
 
-    resultSet.getBigDecimal(7) shouldEqual java.math.BigDecimal.valueOf(1234.321)
-    resultSet.getBigDecimal("decimal") shouldEqual java.math.BigDecimal.valueOf(1234.321)
+    resultSet.getBigDecimal(7) shouldEqual jm.BigDecimal.valueOf(1234.321)
+    resultSet.getBigDecimal("decimal") shouldEqual jm.BigDecimal.valueOf(1234.321)
+    resultSet.getBigDecimal(7, 6) shouldEqual jm.BigDecimal.valueOf(1234.321).setScale(6)
+    an[ArithmeticException] should be thrownBy resultSet.getBigDecimal("decimal", 1)
 
     resultSet.next
 
@@ -327,5 +341,106 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     resultSet.getLong(6) shouldEqual 0L
     resultSet.getLong("long") shouldEqual 0L
+  }
+
+  it should "support closing" in {
+    val resultSet = createResultSet
+
+    resultSet.next
+    resultSet.close()
+
+    the[SQLException] thrownBy resultSet.isFirst should have message "ResultSet is already closed"
+    the[SQLException] thrownBy resultSet.getInt(1) should have message "ResultSet is already closed"
+  }
+
+  it should "not support fetch size" in {
+    val rs = createResultSet
+    rs.getFetchSize shouldEqual 0
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.setFetchSize(10)
+  }
+
+  it should "not support cursors" in {
+    an[SQLFeatureNotSupportedException] should be thrownBy createResultSet.getCursorName
+  }
+
+  it should "throw exception on unsupported getters" in {
+    val rs = createResultSet
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getClob(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getClob("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getNClob(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getNClob("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getNCharacterStream(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getNCharacterStream("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getNString(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getNString("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getArray(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getArray("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getURL(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getURL("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getSQLXML(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getSQLXML("string")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getRef(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.getRef("string")
+  }
+
+  it should "throw exception on update operation" in {
+    val rs = createResultSet
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.insertRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.moveToInsertRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.moveToCurrentRow()
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.deleteRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.cancelRowUpdates()
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.rowInserted()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.rowUpdated()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.rowDeleted()
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateString(2, "bar")
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateString("string", "value")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBigDecimal(1, jm.BigDecimal.ONE)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBigDecimal("int", jm.BigDecimal.TEN)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateInt(1, 1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateInt("int", 2)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateLong(1, 1)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateLong("int", 2)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateShort(1, 1: Short)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateShort("int", 2: Short)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDouble(3, 1d)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateDouble("double", 2d)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTimestamp(4, new Timestamp(123456L))
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTimestamp("time", new Timestamp(654321L))
+  }
+
+  private def createResultSet: YupanaResultSet = {
+    val statement = mock[Statement]
+    val result = SimpleResult(
+      "test",
+      Seq("int", "string", "double", "time"),
+      Seq(DataType[Int], DataType[String], DataType[Double], DataType[Time]),
+      Iterator(
+        Array[Option[Any]](Some(42), Some("foo"), None, Some(Time(1234567L)))
+      )
+    )
+
+    new YupanaResultSet(statement, result)
   }
 }
