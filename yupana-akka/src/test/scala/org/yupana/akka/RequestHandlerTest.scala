@@ -85,7 +85,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         )
       )
 
-    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 5.seconds).right.value
+    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value
 
     resp.next() shouldEqual Response(
       Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("item", "VARCHAR")), Some("items_kkm")))
@@ -115,7 +115,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       )
     )
 
-    an[IllegalArgumentException] should be thrownBy Await.result(requestHandler.handleQuery(tsdb, query), 1.second)
+    an[IllegalArgumentException] should be thrownBy Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds)
   }
 
   it should "handle batch upserts" in {
@@ -175,7 +175,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       )
     )
 
-    val resp = Await.result(requestHandler.handleBatchQuery(tsdb, query), 1.second).right.value.toList
+    val resp = Await.result(requestHandler.handleBatchQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp should contain theSameElementsInOrderAs Seq(
       Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
@@ -188,7 +188,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val tsdb = mock[TSDB]
     val query = SqlQuery("INSERT 'сосиски' INTO kkm_items")
 
-    val err = Await.result(requestHandler.handleQuery(tsdb, query), 2.seconds).left.value
+    val err = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).left.value
     err should startWith("Invalid SQL statement")
   }
 
@@ -196,7 +196,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val tsdb = mock[TSDB]
     val query = SqlQuery("SHOW TABLES")
 
-    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 2.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
@@ -223,7 +223,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       "dimension_values_for_ids",
       "read_external_links",
       "extract_data_computation",
-      "parse_scan_result"
+      "parse_scan_result",
+      "dictionary_scan"
     )
 
     (metricsDao.queriesByFilter _)
@@ -243,7 +244,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         )
       )
     val query = SqlQuery("SHOW QUERIES LIMIT 3")
-    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 2.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp should have size 3
     val fields = resp(0).getResultHeader.fields.map(_.name)
@@ -264,7 +265,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     (metricsDao.setQueryState _).expects(QueryMetricsFilter(None, Some("12345"), None), QueryStates.Cancelled)
     val query = SqlQuery("KILL QUERY WHERE query_id = '12345'")
-    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 2.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))
@@ -277,7 +278,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     (metricsDao.deleteMetrics _).expects(QueryMetricsFilter(None, None, Some(QueryStates.Cancelled))).returning(8)
     val query = SqlQuery("DELETE QUERIES WHERE state = 'CANCELLED'")
-    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 2.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[Int]].write(8)))))

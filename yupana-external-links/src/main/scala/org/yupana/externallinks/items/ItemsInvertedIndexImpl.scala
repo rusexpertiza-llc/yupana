@@ -52,6 +52,7 @@ object ItemsInvertedIndexImpl {
 class ItemsInvertedIndexImpl(
     tsdb: TsdbBase,
     invertedIndexDao: InvertedIndexDao[String, Long],
+    override val putEnabled: Boolean,
     override val externalLink: ItemsInvertedIndex
 ) extends ExternalLinkService[ItemsInvertedIndex]
     with StrictLogging {
@@ -60,8 +61,10 @@ class ItemsInvertedIndexImpl(
   import externalLink._
 
   override def put(dataPoints: Seq[DataPoint]): Unit = {
-    val items = dataPoints.flatMap(dp => dp.dimensions.get(Dimensions.ITEM_TAG)).toSet
-    putItemNames(items)
+    if (putEnabled) {
+      val items = dataPoints.flatMap(dp => dp.dimensions.get(Dimensions.ITEM_TAG)).toSet
+      putItemNames(items)
+    }
   }
 
   def putItemNames(names: Set[String]): Unit = {

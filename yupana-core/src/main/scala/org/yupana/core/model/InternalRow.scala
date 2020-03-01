@@ -55,12 +55,12 @@ class InternalRow(val data: Array[Option[Any]]) extends Serializable {
   }
 }
 
-class InternalRowBuilder(exprIndex: scala.collection.Map[Expression, Int]) extends Serializable {
+class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int]) extends Serializable {
   private val data = Array.fill(exprIndex.size)(Option.empty[Any])
 
   def this(queryContext: QueryContext) = this(queryContext.exprsIndex)
 
-  def set[T](expr: Expression.Aux[T], v: Option[T]): InternalRowBuilder = {
+  def set(expr: Expression, v: Option[Any]): InternalRowBuilder = {
     data(exprIndex(expr)) = v
     this
   }

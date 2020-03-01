@@ -27,6 +27,13 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory
 
 object HdfsFileUtils {
 
+  def isFileExists(path: String, hadoopConfiguration: Configuration): Boolean = {
+    val uri: URI = new URI(path)
+    val ppath = new Path(uri)
+    val fs = FileSystem.get(hadoopConfiguration)
+    fs.exists(ppath)
+  }
+
   def saveToHdfsFile(path: String, hadoopConfiguration: Configuration, f: Writer => Unit): Unit = {
     val uri: URI = new URI(path)
     val ppath = new Path(uri)

@@ -44,18 +44,19 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
       Serializers.longSerializer,
       Serializers.longDeserializer
     )
-    val itemsInvertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, ItemsInvertedIndex)
+    val itemsInvertedIndex =
+      new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, cfg.putIntoInvertedIndex, ItemsInvertedIndex)
     tsdb.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
+    setup(tsdb)
     EtlContext.tsdb = Some(tsdb)
-    EtlContext.itemsInvertedIndex = Some(itemsInvertedIndex)
     (tsdb, itemsInvertedIndex)
   }
 
+  protected def setup(TSDB: TSDB): Unit = {}
+
   @transient lazy val tsdb: TSDB = EtlContext.tsdb.getOrElse(init._1)
-  @transient lazy val itemsInvertedIndex: ItemsInvertedIndexImpl = EtlContext.itemsInvertedIndex.getOrElse(init._2)
 }
 
 object EtlContext {
   private var tsdb: Option[TSDB] = None
-  private var itemsInvertedIndex: Option[ItemsInvertedIndexImpl] = None
 }
