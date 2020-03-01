@@ -110,7 +110,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxRowSize = 0
 
-  override def supportsUnion() = true
+  override def supportsUnion() = false
 
   override def supportsOpenCursorsAcrossCommit() = false
 
@@ -298,7 +298,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsTransactions() = false
 
-  override def storesLowerCaseQuotedIdentifiers() = false
+  override def storesLowerCaseQuotedIdentifiers() = true
 
   override def supportsANSI92EntryLevelSQL() = false
 

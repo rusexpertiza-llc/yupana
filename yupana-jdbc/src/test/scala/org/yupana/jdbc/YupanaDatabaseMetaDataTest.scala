@@ -1,6 +1,6 @@
 package org.yupana.jdbc
 
-import java.sql.{ Connection, ResultSet }
+import java.sql.{ Connection, DatabaseMetaData, ResultSet }
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
@@ -15,25 +15,42 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
+    m.isReadOnly shouldBe true
+    m.getMaxTablesInSelect shouldEqual 1
+
     m.getMaxColumnsInSelect shouldEqual 0
     m.getMaxColumnsInGroupBy shouldEqual 0
     m.getMaxColumnsInOrderBy shouldEqual 0
 
     m.getMaxColumnsInTable shouldEqual 0
     m.getMaxColumnNameLength shouldEqual 0
+    m.getMaxCatalogNameLength shouldEqual 0
     m.getMaxTableNameLength shouldEqual 0
     m.getMaxCursorNameLength shouldEqual 0
     m.getMaxSchemaNameLength shouldEqual 0
+    m.getMaxStatementLength shouldEqual 0
 
     m.getMaxCharLiteralLength shouldEqual 0
     m.getMaxBinaryLiteralLength shouldEqual 0
     m.getMaxIndexLength shouldEqual 0
     m.getMaxRowSize shouldEqual 0
 
+    m.getMaxStatements shouldEqual 0
+    m.supportsMultipleOpenResults shouldBe true
+    m.supportsMultipleResultSets shouldBe false
+
     m.getSchemaTerm shouldEqual "schema"
+    m.getSchemas.next shouldBe false
+    m.supportsSchemasInDataManipulation shouldBe false
+    m.supportsSchemasInIndexDefinitions shouldBe false
+    m.supportsSchemasInPrivilegeDefinitions shouldBe false
+    m.supportsSchemasInProcedureCalls shouldBe false
+    m.supportsSchemasInTableDefinitions shouldBe false
 
     m.allProceduresAreCallable shouldBe false
     m.allTablesAreSelectable shouldBe true
+
+    m.getSQLStateType shouldEqual DatabaseMetaData.sqlStateSQL
 
     m.supportsMinimumSQLGrammar shouldBe false
     m.supportsCoreSQLGrammar shouldBe false
@@ -44,6 +61,22 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsNamedParameters shouldBe false
     m.supportsTableCorrelationNames shouldBe false
     m.supportsDifferentTableCorrelationNames shouldBe false
+    m.supportsNonNullableColumns shouldBe false
+
+    m.supportsOuterJoins shouldBe false
+    m.supportsLimitedOuterJoins shouldBe false
+    m.supportsFullOuterJoins shouldBe false
+
+    m.supportsUnion shouldBe false
+    m.supportsUnionAll shouldBe false
+
+    m.supportsLikeEscapeClause shouldBe false
+
+    m.supportsSubqueriesInComparisons shouldBe false
+    m.supportsSubqueriesInExists shouldBe false
+    m.supportsSubqueriesInIns shouldBe false
+    m.supportsSubqueriesInQuantifieds shouldBe false
+    m.supportsCorrelatedSubqueries shouldBe false
 
     m.getMaxColumnsInOrderBy shouldEqual 0
     m.supportsExpressionsInOrderBy shouldBe false
@@ -97,11 +130,29 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsDataManipulationTransactionsOnly shouldBe false
     m.getDefaultTransactionIsolation shouldEqual Connection.TRANSACTION_NONE
 
+    m.supportsSavepoints shouldBe false
+
     m.supportsStoredProcedures shouldBe false
     m.getProcedureTerm shouldEqual "procedure"
     m.allProceduresAreCallable shouldBe false
     m.getMaxProcedureNameLength shouldBe 0
     m.getProcedures("", "", "").next() shouldBe false
+
+    m.generatedKeyAlwaysReturned shouldBe false
+    m.supportsGetGeneratedKeys shouldBe false
+
+    m.storesMixedCaseIdentifiers shouldBe false
+    m.storesMixedCaseQuotedIdentifiers shouldBe false
+    m.supportsMixedCaseIdentifiers shouldBe false
+    m.supportsMixedCaseQuotedIdentifiers shouldBe false
+    m.storesLowerCaseIdentifiers shouldBe true
+    m.storesLowerCaseQuotedIdentifiers shouldBe true
+    m.storesUpperCaseIdentifiers shouldBe false
+    m.storesUpperCaseQuotedIdentifiers shouldBe false
+
+    m.supportsOpenCursorsAcrossCommit shouldBe false
+    m.supportsOpenCursorsAcrossRollback shouldBe false
+    m.supportsRefCursors shouldBe false
 
     val tts = m.getTableTypes
     val tt = Iterator.continually(tts).takeWhile(_.next()).map(r => r.getString("TABLE_TYPE")).toSeq
@@ -111,6 +162,8 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
   it should "provide driver info" in {
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
+
+    m.getConnection shouldEqual conn
 
     m.getDriverName shouldEqual "Yupana JDBC"
     m.getDriverMajorVersion shouldEqual BuildInfo.majorVersion
@@ -157,5 +210,27 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     val rs = m.getTables("", "", "", Array.empty)
     val result = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("TABLE_NAME")).toSeq
     result should contain theSameElementsAs Seq("EMPLOYEES", "DEPARTMENTS")
+  }
+
+  it should "provide column info" in {
+    val conn = mock[YupanaConnection]
+    val m = new YupanaDatabaseMetaData(conn)
+
+    val tables = SimpleResult(
+      "COLUMNS",
+      Seq("TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"),
+      Seq(DataType[String], DataType[String]),
+      Seq(
+        Array[Option[Any]](Some("EMPLOYEES"), Some("NAME"), Some("VARCHAR")),
+        Array[Option[Any]](Some("EMPLOYEES"), Some("AGE"), Some("INTEGER"))
+      ).iterator
+    )
+
+    (conn.createStatement _).expects().returning(new YupanaStatement(conn))
+    (conn.runQuery _).expects("SHOW COLUMNS FROM EMPLOYEES", Map.empty[Int, ParameterValue]).returning(tables)
+
+    val rs = m.getColumns("", "", "EMPLOYEES", "")
+    val result = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("COLUMN_NAME")).toSeq
+    result should contain theSameElementsAs Seq("NAME", "AGE")
   }
 }
