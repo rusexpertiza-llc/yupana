@@ -56,12 +56,12 @@ class SQLSourcedExternalLinkService(
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val tagValues = dimValuesForAllFieldsValues(values).filter(x => x != null && x.nonEmpty)
+    val tagValues = tagValuesForFieldsValues(values, "AND").filter(x => x != null && x.nonEmpty)
     InExpr(DimensionExpr(externalLink.dimension), tagValues)
   }
 
   private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val tagValues = dimValuesForAnyFieldsValues(values).filter(x => x != null && x.nonEmpty)
+    val tagValues = tagValuesForFieldsValues(values, "OR").filter(x => x != null && x.nonEmpty)
     NotInExpr(DimensionExpr(externalLink.dimension), tagValues)
   }
 
@@ -107,14 +107,6 @@ class SQLSourcedExternalLinkService(
       fieldValuesForDimValuesCache.putAll(dataFromDb.map { case (k, v) => withLinkName(k) -> v })
       SparseTable(tableRows ++ dataFromDb)
     }
-  }
-
-  def dimValuesForAllFieldsValues(fieldsValues: Seq[(FieldName, Set[FieldValue])]): Set[DimensionValue] = {
-    tagValuesForFieldsValues(fieldsValues, "AND")
-  }
-
-  def dimValuesForAnyFieldsValues(fieldsValues: Seq[(FieldName, Set[FieldValue])]): Set[DimensionValue] = {
-    tagValuesForFieldsValues(fieldsValues, "OR")
   }
 
   private def fieldsByTagsQuery(fields: Set[FieldName], tagValuesCount: Int): String = {
