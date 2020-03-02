@@ -22,7 +22,7 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.{ DataType, UnaryOperation }
 import org.yupana.jdbc.build.BuildInfo
 
-class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseMetaData {
+class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 
   private val emptyResultSet = new YupanaResultSet(null, Result.empty)
 
@@ -36,7 +36,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseM
 
   override def getMaxColumnsInSelect: Int = 0
 
-  override def nullPlusNonNullIsNull() = false
+  override def nullPlusNonNullIsNull() = true
 
   override def supportsCatalogsInDataManipulation() = false
 
@@ -110,7 +110,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseM
 
   override def getMaxRowSize = 0
 
-  override def supportsUnion() = true
+  override def supportsUnion() = false
 
   override def supportsOpenCursorsAcrossCommit() = false
 
@@ -151,9 +151,9 @@ class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseM
 
   override def dataDefinitionIgnoredInTransactions = false
 
-  override def getJDBCMajorVersion = 1
+  override def getJDBCMajorVersion = 4
 
-  override def getJDBCMinorVersion = 0
+  override def getJDBCMinorVersion = 1
 
   override def getMaxColumnNameLength = 0
 
@@ -264,7 +264,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseM
 
   override def deletesAreDetected(`type`: Int) = false
 
-  override def supportsDataManipulationTransactionsOnly() = true
+  override def supportsDataManipulationTransactionsOnly() = false
 
   override def supportsLikeEscapeClause() = false
 
@@ -298,7 +298,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnectionImpl) extends DatabaseM
 
   override def supportsTransactions() = false
 
-  override def storesLowerCaseQuotedIdentifiers() = false
+  override def storesLowerCaseQuotedIdentifiers() = true
 
   override def supportsANSI92EntryLevelSQL() = false
 
