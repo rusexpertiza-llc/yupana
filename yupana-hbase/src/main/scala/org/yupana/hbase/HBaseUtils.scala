@@ -461,14 +461,13 @@ object HBaseUtils extends StrictLogging {
     if (!connection.getAdmin.tableExists(hbaseTable)) {
       val desc = new HTableDescriptor(hbaseTable)
       val fieldGroups = table.metrics.map(_.group).toSet
-      fieldGroups foreach (
-          group =>
-            desc.addFamily(
-              new HColumnDescriptor(family(group))
-                .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-                .setCompactionCompressionType(Algorithm.SNAPPY)
-            )
+      fieldGroups foreach (group =>
+        desc.addFamily(
+          new HColumnDescriptor(family(group))
+            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+            .setCompactionCompressionType(Algorithm.SNAPPY)
         )
+      )
       connection.getAdmin.createTable(desc)
     }
   }
