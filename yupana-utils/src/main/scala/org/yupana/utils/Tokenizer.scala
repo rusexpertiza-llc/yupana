@@ -54,7 +54,7 @@ object Tokenizer extends Serializable {
     tokenize(item, stemmer.stem)
   }
 
-  def tokens(item: String): Seq[String] = {
+  def rawTokens(item: String): Seq[String] = {
     tokenize(item, (_, x) => x)
   }
 
