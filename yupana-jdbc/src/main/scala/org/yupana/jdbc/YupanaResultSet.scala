@@ -21,7 +21,7 @@ import java.math.BigDecimal
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.sql.{ Array => SqlArray, _ }
 import java.util
-import java.util.{ Calendar, TimeZone }
+import java.util.Calendar
 
 import org.joda.time.DateTimeZone
 import org.yupana.api.query.{ DataRow, Result }
