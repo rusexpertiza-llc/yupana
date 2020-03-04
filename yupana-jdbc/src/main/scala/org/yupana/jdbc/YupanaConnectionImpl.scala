@@ -24,7 +24,7 @@ import java.util.concurrent.Executor
 import org.yupana.api.query.Result
 import org.yupana.proto.Version
 
-class YupanaConnectionImpl(val url: String, properties: Properties) extends YupanaConnection {
+class YupanaConnectionImpl(override val url: String, properties: Properties) extends YupanaConnection {
   private var autoCommit = false
   private var closed = false
 
@@ -32,7 +32,7 @@ class YupanaConnectionImpl(val url: String, properties: Properties) extends Yupa
   private val port = properties.getProperty("yupana.port").toInt
   private val tcpClient = new YupanaTcpClient(host, port)
 
-  val serverVersion: Option[Version] = tcpClient.ping(System.currentTimeMillis())
+  override val serverVersion: Option[Version] = tcpClient.ping(System.currentTimeMillis())
 
   override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
     try {

@@ -47,7 +47,7 @@ class ExternalLinkRegistrator(
     Serializers.longDeserializer
   )
 
-  lazy val invertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedDao, ItemsInvertedIndex)
+  lazy val invertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedDao, false, ItemsInvertedIndex)
 
   def registerExternalLink(link: ExternalLink): Unit = {
     val service = link match {
