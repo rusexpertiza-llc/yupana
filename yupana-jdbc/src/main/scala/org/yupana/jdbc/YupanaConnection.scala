@@ -19,8 +19,11 @@ package org.yupana.jdbc
 import java.sql.Connection
 
 import org.yupana.api.query.Result
+import org.yupana.proto.Version
 
 trait YupanaConnection extends Connection {
   def runQuery(query: String, params: Map[Int, ParameterValue]): Result
   def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result
+  def serverVersion: Option[Version]
+  def url: String
 }
