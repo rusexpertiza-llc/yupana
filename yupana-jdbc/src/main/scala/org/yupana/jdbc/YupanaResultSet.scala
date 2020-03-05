@@ -25,6 +25,7 @@ import java.util.Calendar
 
 import org.joda.time.DateTimeZone
 import org.yupana.api.query.{ DataRow, Result }
+import org.yupana.api.types.ArrayDataType
 import org.yupana.api.{ Time => ApiTime }
 
 class YupanaResultSet protected[jdbc] (
@@ -449,8 +450,20 @@ class YupanaResultSet protected[jdbc] (
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getClob(int)")
 
   @throws[SQLException]
-  override def getArray(i: Int) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getArray(int)")
+  override def getArray(i: Int): SqlArray = {
+    getReference(
+      i,
+      v => {
+        val dt = dataTypes(i)
+        if (dt.isArray) {
+          val dtt = dt.asInstanceOf[ArrayDataType[_]].valueType
+          new YupanaArray[dtt.T](v.asInstanceOf[Array[dtt.T]], dtt)
+        } else {
+          throw new SQLException(s"$dt is not an array")
+        }
+      }
+    )
+  }
 
   @throws[SQLException]
   override def getObject(colName: String, map: util.Map[String, Class[_]]) =

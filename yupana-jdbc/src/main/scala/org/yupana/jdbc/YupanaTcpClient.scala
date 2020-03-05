@@ -24,6 +24,7 @@ import java.util.logging.Logger
 
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
@@ -256,8 +257,11 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {
     val names = header.fields.map(_.name)
-    val dataTypes = header.fields.map { resultField =>
-      DataType.bySqlName(resultField.`type`)
+    val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
+      DataType.bySqlName(resultField.`type`).toRight(s"Unknown type ${resultField.`type`}")
+    }) match {
+      case Right(types) => types
+      case Left(err)    => throw new IllegalArgumentException(s"Cannot read data: $err")
     }
 
     val values = res.flatMap { row =>
