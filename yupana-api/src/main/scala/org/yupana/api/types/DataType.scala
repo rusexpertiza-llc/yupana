@@ -31,6 +31,7 @@ trait DataType extends Serializable {
   val storable: Storable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
+  val isArray: Boolean = false
   def operations: TypeOperations[T]
 
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
@@ -48,6 +49,18 @@ trait DataType extends Serializable {
   override def toString: String = s"${meta.sqlTypeName}"
 }
 
+class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
+  override type T = Array[TT]
+
+  override val isArray: Boolean = true
+  override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(valueType.meta)
+  override val storable: Storable[T] = Storable.arrayStorable(valueType.storable, valueType.classTag)
+  override val classTag: ClassTag[T] = valueType.classTag.wrap
+  override val boxingTag: BoxingTag[Array[TT]] = BoxingTag.arrayBoxing(valueType.classTag)
+
+  override def operations: TypeOperations[T] = TypeOperations.arrayOperations(valueType)
+}
+
 object DataType {
   private lazy val types = Seq(
     DataType[String],
@@ -61,7 +74,17 @@ object DataType {
     DataType[Boolean]
   ).map(t => t.meta.sqlTypeName -> t).toMap
 
-  def bySqlName(sqlName: String): DataType = types(sqlName)
+  private val ARRAY_PREFIX = "ARRAY["
+  private val ARRAY_SUFFIX = "]"
+
+  def bySqlName(sqlName: String): Option[DataType] = {
+    if (!sqlName.startsWith(ARRAY_PREFIX) || !sqlName.endsWith(ARRAY_SUFFIX)) {
+      types.get(sqlName)
+    } else {
+      val innerType = sqlName.substring(ARRAY_PREFIX.length, sqlName.length - ARRAY_SUFFIX.length)
+      types.get(innerType).map(t => arrayDt(t))
+    }
+  }
 
   type Aux[TT] = DataType { type T = TT }
 
@@ -94,15 +117,7 @@ object DataType {
   }
 
   implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Array[TT]] = {
-    new DataType {
-      override type T = Array[TT]
-      override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(dtt.meta)
-      override val storable: Storable[T] = Storable.arrayStorable(dtt.storable, dtt.classTag)
-      override val classTag: ClassTag[T] = dtt.classTag.wrap
-      override val boxingTag: BoxingTag[Array[TT]] = BoxingTag.arrayBoxing(dtt.classTag)
-
-      override def operations: TypeOperations[T] = TypeOperations.arrayOperations(dtt)
-    }
+    new ArrayDataType(dtt).aux
   }
 
   private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(
