@@ -16,7 +16,7 @@
 
 package org.yupana.examples.externallinks
 
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkMetric }
 import org.yupana.core.TsdbBase
 import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table }
 import org.yupana.externallinks.DimValueBasedExternalLinkService
@@ -27,7 +27,7 @@ trait AddressCatalog extends ExternalLink {
 
   override val linkName: String = "AddressCatalog"
   override val dimension: Dimension = Dimensions.KKM_ID_TAG
-  override val fieldsNames: Set[String] = Set(CITY)
+  override val fieldsNames: Set[LinkMetric] = Set(LinkMetric[String](CITY))
 }
 
 object AddressCatalog extends AddressCatalog
@@ -37,7 +37,7 @@ class AddressCatalogImpl(tsdb: TsdbBase, override val externalLink: AddressCatal
 
   val kkmAddressData: Seq[(String, String)] = (1 to 20).map(id => (id.toString, if (id < 15) "Москва" else "Таганрог"))
 
-  override def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {
+  override def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Set[String] = {
     val ids = fieldsValues.map {
       case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2)).map(_._1).toSet
       case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
@@ -46,7 +46,7 @@ class AddressCatalogImpl(tsdb: TsdbBase, override val externalLink: AddressCatal
     CollectionUtils.intersectAll(ids)
   }
 
-  override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {
+  override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Set[String] = {
     val ids = fieldsValues.map {
       case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2)).map(_._1).toSet
       case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
@@ -55,7 +55,7 @@ class AddressCatalogImpl(tsdb: TsdbBase, override val externalLink: AddressCatal
     ids.fold(Set.empty)(_ union _)
   }
 
-  override def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[String]): Table[String, String, String] = {
+  override def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[String]): Table[String, String, Any] = {
     val unknownFields = fields.filterNot(_ == AddressCatalog.CITY)
     if (unknownFields.nonEmpty) throw new IllegalArgumentException(s"Unknown fields $unknownFields")
 

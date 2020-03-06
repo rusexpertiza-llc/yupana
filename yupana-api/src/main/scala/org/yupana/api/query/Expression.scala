@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkMetric, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -174,21 +174,24 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   def toField: QueryField = QueryField(metric.name, this)
 }
 
-class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression {
-  override type Out = String
-  override val dataType: DataType.Aux[String] = DataType[String]
+class LinkExpr[T](val link: ExternalLink, val metric: LinkMetric.Aux[T]) extends Expression {
+
+  override type Out = T
+  override def dataType: DataType.Aux[metric.T] = metric.dataType
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"link(${link.linkName}, $linkField)"
-  def queryFieldName: String = link.linkName + "_" + linkField
+  override def encode: String = s"link(${link.linkName}, ${metric.name})"
+  def queryFieldName: String = link.linkName + "_" + metric.name
   def toField: QueryField = QueryField(queryFieldName, this)
 }
 
+// todo this is... bad
 object LinkExpr {
-  def apply(link: ExternalLink, field: String): Expression.Aux[String] = new LinkExpr(link, field)
-  def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
+  def apply(link: ExternalLink, field: String): Expression.Aux[String] =
+    new LinkExpr(link, LinkMetric(field)(DataType.stringDt))
+  def unapply(expr: LinkExpr[String]): Option[(ExternalLink, String)] = Some((expr.link, expr.metric.name))
 }
 
 case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U], expr: Expression.Aux[T]) extends Expression {

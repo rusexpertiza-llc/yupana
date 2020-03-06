@@ -17,11 +17,11 @@
 package org.yupana.examples
 
 import org.yupana.api.schema.Table
-import org.yupana.examples.externallinks.{ AddressCatalog, OrganisationCatalog }
+import org.yupana.examples.externallinks.{ AddressCatalog, GeoCatalog, OrganisationCatalog }
 import org.yupana.schema.Tables
 
 object ExampleTables {
-  private val extraLinks = Seq(AddressCatalog, OrganisationCatalog)
+  private val extraLinks = Seq(AddressCatalog, OrganisationCatalog, GeoCatalog)
 
   val itemsKkmTable: Table = Tables.itemsKkmTable.withExternalLinks(extraLinks)
   val kkmItemsTable: Table = Tables.kkmItemsTable.withExternalLinks(extraLinks)

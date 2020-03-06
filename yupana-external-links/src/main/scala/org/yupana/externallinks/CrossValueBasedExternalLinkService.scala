@@ -23,9 +23,9 @@ import org.yupana.core.utils.CollectionUtils
 abstract class CrossValueBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase)
     extends DimValueBasedExternalLinkService[T](tsdb) {
 
-  def tagValuesForCrossJoinedValues(fieldsValues: Map[String, String]): Seq[String]
+  def tagValuesForCrossJoinedValues(fieldsValues: Map[String, Any]): Seq[String]
 
-  override def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {
+  override def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Set[String] = {
     val flatValues = fieldsValues
       .groupBy(_._1)
       .map {
@@ -41,7 +41,7 @@ abstract class CrossValueBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbB
     }.toSet
   }
 
-  override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {
+  override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Set[String] = {
     fieldsValues.flatMap {
       case (k, vs) =>
         vs.flatMap(v => tagValuesForCrossJoinedValues(Map(k -> v)))

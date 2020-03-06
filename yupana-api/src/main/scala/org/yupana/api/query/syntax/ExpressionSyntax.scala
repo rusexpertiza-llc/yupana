@@ -18,7 +18,7 @@ package org.yupana.api.query.syntax
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkMetric, Metric }
 import org.yupana.api.types._
 
 trait ExpressionSyntax {
@@ -31,7 +31,7 @@ trait ExpressionSyntax {
     TupleExpr(e1, e2)
   def array[T](es: Expression.Aux[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Array(es: _*))
   def dimension(dim: Dimension) = new DimensionExpr(dim)
-  def link(link: ExternalLink, fieldName: String) = new LinkExpr(link, fieldName)
+  def link(link: ExternalLink, fieldName: String) = new LinkExpr(link, LinkMetric[String](fieldName))
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
   def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression.Aux[T] = ConstantExpr[T](c)
 

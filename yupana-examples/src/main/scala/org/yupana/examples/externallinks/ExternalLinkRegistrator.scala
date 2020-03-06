@@ -55,6 +55,7 @@ class ExternalLinkRegistrator(
       case ItemsInvertedIndex  => invertedIndex
       case RelatedItemsCatalog => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
       case AddressCatalog      => new AddressCatalogImpl(tsdb, AddressCatalog)
+      case GeoCatalog          => new GeoCatalogImpl(tsdb, GeoCatalog)
       case OrganisationCatalog =>
         val jdbcTemplate = createConnection(OrganisationCatalogImpl.connection(properties))
         new OrganisationCatalogImpl(tsdb, jdbcTemplate)

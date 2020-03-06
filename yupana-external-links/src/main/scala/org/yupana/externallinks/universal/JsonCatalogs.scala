@@ -16,7 +16,7 @@
 
 package org.yupana.externallinks.universal
 
-import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkMetric, Schema }
 import org.yupana.schema.externallinks.ExternalLinks.FieldName
 
 object JsonCatalogs {
@@ -44,7 +44,7 @@ object JsonCatalogs {
       new SQLExternalLinkDescription(
         externalLink.linkName,
         externalLink.dimension.name,
-        externalLink.fieldsNames,
+        externalLink.fieldsNames.map(_.name),
         tables,
         fieldsMapping,
         relation
@@ -54,7 +54,7 @@ object JsonCatalogs {
 
   case class SQLExternalLink(config: SQLExternalLinkConfig, dimension: Dimension) extends ExternalLink {
     override val linkName: String = config.description.linkName
-    override val fieldsNames: Set[String] = config.description.fieldsNames
+    override val fieldsNames: Set[LinkMetric] = config.description.fieldsNames map LinkMetric[String]
   }
 
   def attachLinkToSchema(schema: Schema, config: SQLExternalLinkConfig): Schema = {

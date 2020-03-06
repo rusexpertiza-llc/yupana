@@ -24,9 +24,9 @@ import org.yupana.core.utils.CollectionUtils
 abstract class CrossIdBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase)
     extends DimIdBasedExternalLinkService[T](tsdb) {
 
-  def dimIdsForCrossJoinedValues(fieldsValues: Map[String, String]): Seq[Long]
+  def dimIdsForCrossJoinedValues(fieldsValues: Map[String, Any]): Seq[Long]
 
-  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
+  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): SortedSetIterator[Long] = {
     val flatValues = fieldsValues
       .groupBy(_._1)
       .map {
@@ -42,7 +42,7 @@ abstract class CrossIdBasedExternalLinkService[T <: ExternalLink](tsdb: TsdbBase
     SortedSetIterator(dimIds.sortWith(ord.lt).iterator)
   }
 
-  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
+  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): SortedSetIterator[Long] = {
     val dimIds = fieldsValues.flatMap {
       case (k, vs) =>
         vs.flatMap(v => dimIdsForCrossJoinedValues(Map(k -> v)))

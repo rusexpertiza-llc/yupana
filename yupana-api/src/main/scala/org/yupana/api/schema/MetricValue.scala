@@ -43,3 +43,28 @@ object MetricValue {
     val value: T = v
   }
 }
+
+trait LinkMetricValue {
+  val metric: LinkMetric
+  val value: metric.T
+
+  override def toString: String = s"LinkMetricValue(${metric.name}, $value)"
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: LinkMetricValue => this.metric == that.metric && this.value == that.value
+      case _                     => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    31 * (31 + metric.hashCode()) + value.hashCode()
+  }
+}
+
+object LinkMetricValue {
+  def apply[T](m: LinkMetric.Aux[T], v: T): LinkMetricValue = new LinkMetricValue {
+    val metric: LinkMetric.Aux[T] = m
+    val value: T = v
+  }
+}

@@ -29,19 +29,19 @@ abstract class DimValueBasedExternalLinkService[T <: ExternalLink](val tsdb: Tsd
 
   lazy val dictionary: Dictionary = tsdb.dictionary(externalLink.dimension)
 
-  def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String]
+  def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Set[String]
 
-  def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String]
+  def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Set[String]
 
-  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[Long] = {
+  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Seq[Long] = {
     dictionary.findIdsByValues(dimValuesForAllFieldsValues(fieldsValues)).values.toSeq
   }
 
-  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Seq[Long] = {
+  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): Seq[Long] = {
     dictionary.findIdsByValues(dimValuesForAnyFieldsValues(fieldsValues)).values.toSeq
   }
 
-  override def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, String] = {
+  override def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, Any] = {
     val values = dictionary.values(tagIds, NoMetricCollector).map(_.swap)
     if (values.nonEmpty) {
       fieldValuesForDimValues(fields, values.keySet).mapRowKeys(values)
@@ -50,12 +50,12 @@ abstract class DimValueBasedExternalLinkService[T <: ExternalLink](val tsdb: Tsd
     }
   }
 
-  override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  override def includeCondition(values: Seq[(String, Set[Any])]): Condition = {
     val tagValues = dimValuesForAllFieldsValues(values).filter(x => x != null && x.nonEmpty)
     InExpr(DimensionExpr(externalLink.dimension), tagValues)
   }
 
-  override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+  override def excludeCondition(values: Seq[(String, Set[Any])]): Condition = {
     val tagValues = dimValuesForAnyFieldsValues(values).filter(x => x != null && x.nonEmpty)
     NotInExpr(DimensionExpr(externalLink.dimension), tagValues)
   }

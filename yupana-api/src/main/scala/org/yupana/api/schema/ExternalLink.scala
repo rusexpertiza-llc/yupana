@@ -30,7 +30,7 @@ trait ExternalLink extends Serializable {
   val dimension: Dimension
 
   /** Set of field names for this link */
-  val fieldsNames: Set[String]
+  val fieldsNames: Set[LinkMetric]
 
   override def hashCode(): Int = linkName.hashCode
 

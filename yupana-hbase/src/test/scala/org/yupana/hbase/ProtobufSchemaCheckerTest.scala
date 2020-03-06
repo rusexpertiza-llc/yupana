@@ -36,7 +36,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
   val TEST_LINK = new ExternalLink {
     override val linkName: String = "test_link"
     override val dimension: Dimension = TAG_B
-    override val fieldsNames: Set[String] = Set("foo", "bar")
+    override val fieldsNames = Set("foo", "bar") map LinkMetric[String]
   }
 
   val tables = Seq(table1, table2)

@@ -61,3 +61,31 @@ object Metric {
     }
   }
 }
+
+trait LinkMetric extends Serializable {
+
+  /** Type of a value for this metric */
+  type T
+
+  /** Metric name */
+  val name: String
+
+  /** Value data type */
+  val dataType: DataType.Aux[T]
+
+  override def toString: String = s"Link($name)"
+}
+
+object LinkMetric {
+  type Aux[T0] = LinkMetric { type T = T0 }
+
+  def apply[T0](name: String)(implicit dt: DataType.Aux[T0]): Aux[T0] = {
+    val n = name
+
+    new LinkMetric {
+      override type T = T0
+      override val name: String = n
+      override val dataType: DataType.Aux[T0] = dt
+    }
+  }
+}

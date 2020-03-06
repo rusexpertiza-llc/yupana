@@ -1,3 +1,4 @@
+/*
 package org.yupana.akka
 
 import org.scalatest.{ FlatSpec, Matchers, OptionValues }
@@ -73,3 +74,4 @@ object TS {
 
   val schema = Schema(Seq(S1), Seq.empty)
 }
+*/

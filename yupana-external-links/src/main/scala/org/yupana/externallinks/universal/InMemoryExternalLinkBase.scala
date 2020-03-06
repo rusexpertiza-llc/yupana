@@ -38,7 +38,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
       throw new IllegalArgumentException(s"orderedFields have to have ${externalLink.fieldsNames.size} items")
 
     orderedFields
-      .find(x => !externalLink.fieldsNames.contains(x))
+      .find(x => !externalLink.fieldsNames.map(_.name).contains(x))
       .foreach(x => throw new IllegalArgumentException(s"Unknown field '$x'"))
 
     if (data.exists(_.length != orderedFields.size))
@@ -63,7 +63,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     val tagExpr = new DimensionExpr(externalLink.dimension)
     val indexMap = Seq[Expression](TimeExpr, tagExpr, keyExpr).distinct.zipWithIndex.toMap
@@ -82,7 +82,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
       case (kvd, vd) =>
         kvd.get[String](indexMap(keyExpr)).foreach { keyValue =>
           exprs.foreach { expr =>
-            vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField)(keyValue))
+            vd.set(exprIndex, expr, fieldValueForKeyValue(expr.metric.name)(keyValue))
           }
         }
     }
@@ -93,13 +93,13 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     conditionForKeyValues(keyCondition)
   }
 
-  override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val keyValues = keyValuesForFieldValues(values, _ intersect _)
+  override def includeCondition(values: Seq[(String, Set[Any])]): Condition = {
+    val keyValues = keyValuesForFieldValues(values.asInstanceOf[Seq[(String, Set[String])]], _ intersect _)
     InExpr(keyExpr, keyValues)
   }
 
-  override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val keyValues = keyValuesForFieldValues(values, _ union _)
+  override def excludeCondition(values: Seq[(String, Set[Any])]): Condition = {
+    val keyValues = keyValuesForFieldValues(values.asInstanceOf[Seq[(String, Set[String])]], _ union _)
     NotInExpr(keyExpr, keyValues)
   }
 

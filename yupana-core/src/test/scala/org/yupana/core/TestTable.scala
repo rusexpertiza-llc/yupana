@@ -26,7 +26,7 @@ object TestLinks {
   class TestLink extends ExternalLink {
     override val linkName: String = "TestLink"
     override val dimension: Dimension = TestDims.TAG_A
-    override val fieldsNames: Set[String] = Set("testField")
+    override val fieldsNames = Set("testField") map LinkMetric[String]
   }
 
   val TEST_LINK: TestLink = new TestLink
@@ -34,7 +34,7 @@ object TestLinks {
   class TestLink2 extends ExternalLink {
     override val linkName: String = "TestLink2"
     override val dimension: Dimension = TestDims.TAG_A
-    override val fieldsNames: Set[String] = Set("testField2")
+    override val fieldsNames = Set("testField2") map LinkMetric[String]
   }
 
   val TEST_LINK2: TestLink2 = new TestLink2
@@ -42,7 +42,7 @@ object TestLinks {
   class TestLink3 extends ExternalLink {
     override val linkName: String = "TestLink3"
     override val dimension: Dimension = TestDims.TAG_A
-    override val fieldsNames: Set[String] = Set("testField3_1", "testField3_2", "testField3_3")
+    override val fieldsNames = Set("testField3_1", "testField3_2", "testField3_3") map LinkMetric[String]
   }
 
   val TEST_LINK3: TestLink3 = new TestLink3
@@ -50,7 +50,7 @@ object TestLinks {
   class TestLink4 extends ExternalLink {
     override val linkName: String = "TestLink4"
     override val dimension: Dimension = TestDims.TAG_B
-    override val fieldsNames: Set[String] = Set("testField4")
+    override val fieldsNames = Set("testField4") map LinkMetric[String]
   }
 
   val TEST_LINK4: TestLink4 = new TestLink4

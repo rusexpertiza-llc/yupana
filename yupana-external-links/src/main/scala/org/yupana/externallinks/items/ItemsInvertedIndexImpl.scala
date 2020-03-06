@@ -92,13 +92,13 @@ class ItemsInvertedIndexImpl(
       .toSet
   }
 
-  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
-    val ids = getPhraseIds(fieldsValues)
+  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): SortedSetIterator[Long] = {
+    val ids = getPhraseIds(fieldsValues.asInstanceOf[Seq[(String, Set[String])]])
     SortedSetIterator.intersectAll(ids)
   }
 
-  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
-    val ids = getPhraseIds(fieldsValues)
+  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): SortedSetIterator[Long] = {
+    val ids = getPhraseIds(fieldsValues.asInstanceOf[Seq[(String, Set[String])]])
     SortedSetIterator.unionAll(ids)
   }
 

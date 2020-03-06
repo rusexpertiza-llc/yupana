@@ -20,7 +20,7 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Schema, Table }
+import org.yupana.api.schema.{ Dimension, LinkMetric, Metric, MetricValue, Schema, Table }
 import org.yupana.api.types._
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
@@ -533,7 +533,7 @@ object SqlQueryProcessor extends QueryValidator {
     table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(new DimensionExpr(_))
   }
 
-  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr] = {
+  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr[_]] = {
 
     val pos = fieldName.indexOf('_')
 
@@ -542,8 +542,8 @@ object SqlQueryProcessor extends QueryValidator {
       val catField = fieldName.substring(pos + 1)
       for {
         c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
-        f <- c.fieldsNames.find(_ equalsIgnoreCase catField)
-      } yield new LinkExpr(c, f)
+        f <- c.fieldsNames.find(fld => fld.name equalsIgnoreCase catField)
+      } yield new LinkExpr(c, f.asInstanceOf[LinkMetric.Aux[f.T]])
     } else {
       None
     }

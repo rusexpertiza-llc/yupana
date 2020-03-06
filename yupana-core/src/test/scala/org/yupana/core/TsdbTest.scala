@@ -1,3 +1,6 @@
+import org.yupana.core.dao.TSDao
+
+/*
 package org.yupana.core
 
 import java.util.Properties
@@ -18,9 +21,9 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
+ */
 
-trait TSTestDao extends TSDao[Iterator, Long]
-
+/*
 class TsdbTest
     extends FlatSpec
     with Matchers
@@ -117,7 +120,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -171,7 +174,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -224,7 +227,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -280,7 +283,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -342,7 +345,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -407,7 +410,7 @@ class TsdbTest
             neq(dimension(TestDims.TAG_A), const("test11"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -459,7 +462,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -512,7 +515,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -569,7 +572,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -646,7 +649,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -728,7 +731,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -816,7 +819,7 @@ class TsdbTest
             in(dimension(TestDims.TAG_A), Set("test1", "test12"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -910,7 +913,7 @@ class TsdbTest
               in(dimension(TestDims.TAG_A), Set())
             )
           ),
-          *,
+ *,
           NoMetricCollector
         )
         .returning(Iterator.empty)
@@ -975,7 +978,7 @@ class TsdbTest
               DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator.empty)
             )
           ),
-          *,
+ *,
           NoMetricCollector
         )
         .returning(Iterator.empty)
@@ -1059,7 +1062,7 @@ class TsdbTest
             notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -1157,7 +1160,7 @@ class TsdbTest
               DimIdNotInExpr(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
             )
           ),
-          *,
+ *,
           NoMetricCollector
         )
         .onCall((_, b, _) =>
@@ -1284,7 +1287,7 @@ class TsdbTest
               notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
             )
           ),
-          *,
+ *,
           NoMetricCollector
         )
         .onCall((_, b, _) =>
@@ -1381,7 +1384,7 @@ class TsdbTest
             neq(dimension(TestDims.TAG_A), const("test11"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -1484,7 +1487,7 @@ class TsdbTest
               in(dimension(TestDims.TAG_A), Set("test12"))
             )
           ),
-          *,
+ *,
           NoMetricCollector
         )
         .onCall((_, b, _) =>
@@ -1590,7 +1593,7 @@ class TsdbTest
             in(dimension(TestDims.TAG_B), Set("test23", "test24"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -1669,7 +1672,7 @@ class TsdbTest
             in(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -1766,7 +1769,7 @@ class TsdbTest
             in(dimension(TestDims.TAG_B), Set("B 1", "B 2"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -1880,7 +1883,7 @@ class TsdbTest
             lt(time, const(Time(to)))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -1957,7 +1960,7 @@ class TsdbTest
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2050,8 +2053,8 @@ class TsdbTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(
-        *,
-        *,
+ *,
+ *,
         Set(
           link(TestLinks.TEST_LINK3, "testField3-1"),
           link(TestLinks.TEST_LINK3, "testField3-2"),
@@ -2082,7 +2085,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2157,7 +2160,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2219,7 +2222,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2275,7 +2278,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2365,7 +2368,7 @@ class TsdbTest
             in(dimension(TestDims.TAG_A), Set("test1", "test12"))
           )
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2435,7 +2438,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2528,7 +2531,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2625,7 +2628,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2709,7 +2712,7 @@ class TsdbTest
           Set(time, dimension(TestDims.TAG_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2761,7 +2764,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2842,7 +2845,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2912,7 +2915,7 @@ class TsdbTest
           Set(time, dimension(TestDims.TAG_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
-        *,
+ *,
         NoMetricCollector
       )
       .onCall((_, b, _) =>
@@ -2958,3 +2961,4 @@ class TsdbTest
     res shouldBe empty
   }
 }
+ */

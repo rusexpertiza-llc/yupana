@@ -29,11 +29,11 @@ abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBa
 
   lazy val dictionary: Dictionary = tsdb.dictionary(externalLink.dimension)
 
-  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
+  def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[Any])]): SortedSetIterator[Long]
 
-  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long]
+  def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[Any])]): SortedSetIterator[Long]
 
-  override def fieldValuesForDimValues(fields: Set[String], dimValues: Set[String]): Table[String, String, String] = {
+  override def fieldValuesForDimValues(fields: Set[String], dimValues: Set[String]): Table[String, String, Any] = {
     val ids = dictionary.findIdsByValues(dimValues).map(_.swap)
     if (ids.nonEmpty) {
       fieldValuesForDimIds(fields, ids.keySet).mapRowKeys(ids)
@@ -42,12 +42,12 @@ abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBa
     }
   }
 
-  override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  override def includeCondition(values: Seq[(String, Set[Any])]): Condition = {
     val ids = dimIdsForAllFieldsValues(values)
     DimIdInExpr(new DimensionExpr(externalLink.dimension), ids)
   }
 
-  override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+  override def excludeCondition(values: Seq[(String, Set[Any])]): Condition = {
     val ids = dimIdsForAnyFieldsValues(values)
     DimIdNotInExpr(new DimensionExpr(externalLink.dimension), ids)
   }

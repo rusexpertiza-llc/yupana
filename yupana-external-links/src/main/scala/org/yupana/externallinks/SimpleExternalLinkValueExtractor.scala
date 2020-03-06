@@ -24,25 +24,25 @@ import org.yupana.core.utils.Table
 
 trait SimpleExternalLinkValueExtractor[T <: ExternalLink] extends ExternalLinkService[T] {
 
-  def fieldValuesForDimValues(fields: Set[String], tagValues: Set[String]): Table[String, String, String]
+  def fieldValuesForDimValues(fields: Set[String], tagValues: Set[String]): Table[String, String, Any]
 
-  def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, String]
+  def fieldValuesForDimIds(fields: Set[String], tagIds: Set[Long]): Table[Long, String, Any]
 
-  def fieldValueForDimValue(fieldName: String, tagValue: String): Option[String] = {
+  def fieldValueForDimValue(fieldName: String, tagValue: String): Option[Any] = {
     fieldValuesForDimValues(Set(fieldName), Set(tagValue)).get(tagValue, fieldName)
   }
 
-  def fieldValueForDimId(fieldName: String, tagId: Long): Option[String] = {
+  def fieldValueForDimId(fieldName: String, tagId: Long): Option[Any] = {
     fieldValuesForDimIds(Set(fieldName), Set(tagId)).get(tagId, fieldName)
   }
 
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension)
-    val fields = exprs.map(_.linkField)
+    val fields = exprs.map(_.metric.name)
     val dimValues = valueData.flatMap(_.get[String](exprIndex, dimExpr)).toSet
 
     val allFieldValues = fieldValuesForDimValues(fields, dimValues)

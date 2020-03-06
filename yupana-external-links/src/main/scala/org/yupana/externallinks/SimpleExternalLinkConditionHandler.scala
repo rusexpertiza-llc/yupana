@@ -24,9 +24,9 @@ import org.yupana.core.utils.TimeBoundedCondition
 
 trait SimpleExternalLinkConditionHandler[T <: ExternalLink] extends ExternalLinkService[T] {
 
-  def includeCondition(values: Seq[(String, Set[String])]): Condition
+  def includeCondition(values: Seq[(String, Set[Any])]): Condition
 
-  def excludeCondition(values: Seq[(String, Set[String])]): Condition
+  def excludeCondition(values: Seq[(String, Set[Any])]): Condition
 
   override def condition(condition: Condition): Condition = {
     val tbcs = TimeBoundedCondition(condition)

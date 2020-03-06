@@ -180,7 +180,9 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
       "org.flywaydb"                %  "flyway-core"                % versions.flyway           % Test,
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
-    )
+    ),
+
+
   )
   .dependsOn(schema, core)
   .disablePlugins(AssemblyPlugin)
@@ -214,7 +216,16 @@ lazy val examples = (project in file("yupana-examples"))
       streams.value.log.info("Assembly into: " + assemblyName)
       IO.write(outputFile, s"JARFILE=$assemblyName\n")
     },
-    assembly := assembly.dependsOn(writeAssemblyName).value
+    assembly := assembly.dependsOn(writeAssemblyName).value,
+
+    flywayUrl := "jdbc:postgresql://localhost/yupana_example",
+    flywayUser := "yupana",
+    flywayPassword := "yupana",
+    flywayLocations := Seq("db/migration"),
+    flywaySchemas := Seq("public"),
+    flywayPlaceholders := Map(),
+    flywayBaselineVersion := "0",
+    flywayOutOfOrder := true
   )
   .dependsOn(spark, akka, hbase, schema, externalLinks)
   .enablePlugins(FlywayPlugin)

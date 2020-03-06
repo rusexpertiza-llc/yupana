@@ -58,13 +58,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
       val include = if (includeValues.nonEmpty) {
-        includeCondition(includeValues, from, to)
+        includeCondition(includeValues.asInstanceOf[Seq[(String, Set[String])]], from, to)
       } else {
         const(true)
       }
 
       val exclude = if (excludeValues.nonEmpty) {
-        excludeCondition(excludeValues, from, to)
+        excludeCondition(excludeValues.asInstanceOf[Seq[(String, Set[String])]], from, to)
       } else {
         const(true)
       }
@@ -114,7 +114,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     // may be throw exception here?
   }

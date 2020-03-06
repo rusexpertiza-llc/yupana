@@ -68,7 +68,7 @@ class SQLSourcedExternalLinkService(
       SparseTable(tableRows)
     } else {
       val missedKeys = tagValues diff tableRows.keys.toSet
-      val q = fieldsByTagsQuery(externalLink.fieldsNames, missedKeys.size)
+      val q = fieldsByTagsQuery(externalLink.fieldsNames.map(_.name), missedKeys.size)
       val params = missedKeys.map(_.asInstanceOf[Object]).toArray
       logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
       val dataFromDb = jdbc

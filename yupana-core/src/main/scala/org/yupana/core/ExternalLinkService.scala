@@ -37,7 +37,7 @@ trait ExternalLinkService[T <: ExternalLink] {
   def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit
 
   /**
@@ -91,23 +91,23 @@ object ExternalLinkService {
   def extractCatalogFields(
       simpleCondition: TimeBoundedCondition,
       linkName: String
-  ): (List[(String, Set[String])], List[(String, Set[String])], List[Condition]) = {
+  ): (List[(String, Set[Any])], List[(String, Set[Any])], List[Condition]) = {
     simpleCondition.conditions.foldLeft(
-      (List.empty[(String, Set[String])], List.empty[(String, Set[String])], List.empty[Condition])
+      (List.empty[(String, Set[Any])], List.empty[(String, Set[Any])], List.empty[Condition])
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
-          case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+          case Equ(LinkExpr(c, field), ConstantExpr(v: Any)) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 
           case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
+            ((field, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+          case Neq(LinkExpr(c, field), ConstantExpr(v: Any)) if c.linkName == linkName =>
             (cat, (field, Set(v)) :: neg, oth)
 
           case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
+            (cat, (field, cs) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)
         }

@@ -16,7 +16,7 @@
 
 package org.yupana.schema.externallinks
 
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkMetric }
 import org.yupana.schema.Dimensions
 
 trait RelatedItemsCatalog extends ExternalLink {
@@ -26,10 +26,10 @@ trait RelatedItemsCatalog extends ExternalLink {
   override val linkName: String = "RelatedItemsCatalog"
   override val dimension: Dimension = Dimensions.ITEM_TAG
 
-  override val fieldsNames: Set[String] = Set(
+  override val fieldsNames: Set[LinkMetric] = Set(
     ITEM_FIELD,
     PHRASE_FIELDS
-  )
+  ) map LinkMetric[String]
 }
 
 object RelatedItemsCatalog extends RelatedItemsCatalog
