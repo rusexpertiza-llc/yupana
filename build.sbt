@@ -1,8 +1,10 @@
 import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 
+// scalafmt: { alignTokens = [ {code = "%", owner = "Term.ApplyInfix"}, {code = "%%", owner = "Term.ApplyInfix"} ] }
+
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
   .settings(
     allSettings,
     noPublishSettings,
@@ -77,11 +79,7 @@ lazy val core = (project in file("yupana-core"))
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse.value,
-      "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
-      "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite,
-      "org.ehcache"                   %  "ehcache"                      % versions.ehcache,
-      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
-      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine,
+      "javax.cache"                   %  "cache-api"                    % "1.1.1",
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
@@ -116,7 +114,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test")
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
@@ -182,7 +180,42 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
-  .dependsOn(schema, core)
+  .dependsOn(schema, core, ehcache % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val ehcache = (project in file("yupana-ehcache"))
+  .settings(
+    name := "yupana-ehcache",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.ehcache"                   %  "ehcache"                      % versions.ehcache
+    )
+  )
+  .dependsOn(core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val caffeine = (project in file("yupana-caffeine"))
+  .settings(
+    name := "yupana-caffeine",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
+      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+    )
+  )
+  .dependsOn(core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val ignite = (project in file("yupana-ignite"))
+  .settings(
+    name := "yupana-ignite",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
+      "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
+    )
+  )
+  .dependsOn(core)
   .disablePlugins(AssemblyPlugin)
 
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")

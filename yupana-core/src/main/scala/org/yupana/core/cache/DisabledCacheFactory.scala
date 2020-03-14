@@ -19,6 +19,8 @@ package org.yupana.core.cache
 import com.typesafe.scalalogging.StrictLogging
 
 class DisabledCacheFactory extends CacheFactory with StrictLogging {
+  override val name: String = "Disabled"
+
   override def initCache(description: CacheDescription): Cache[description.Key, description.Value] = {
     logger.debug(s"Initializing cache ${description.name} in Disabled mode")
     new DisabledCache[description.Key, description.Value]()
