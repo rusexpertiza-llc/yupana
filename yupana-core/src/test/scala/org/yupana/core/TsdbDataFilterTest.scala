@@ -626,9 +626,10 @@ class TsdbDataFilterTest
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
     val testCatalogServiceMock2 = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-    val sql = "SELECT day(time) AS d, sum(CASE WHEN TestLink_testField IS NOT NULL THEN testField ELSE 0) as quantity " +
-      "FROM test_table " +
-      "WHERE TestLink2_testField2 = 'test2'" + timeBounds() + " GROUP BY d"
+    val sql =
+      "SELECT day(time) AS d, sum(CASE WHEN TestLink_testField IS NOT NULL THEN testField ELSE 0) as quantity " +
+        "FROM test_table " +
+        "WHERE TestLink2_testField2 = 'test2'" + timeBounds() + " GROUP BY d"
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
