@@ -44,6 +44,9 @@ Apache Spark.
    - [yupana-jdbc](#structure-jdbc)
    - [yupana-akka](#structure-akka)
    - [yupana-spark](#structure-spark)
+   - [yupana-caffeine](#structure-caffeine)
+   - [yupana-ehcache](#structure-caffeine)
+   - [yupana-ignite](#structure-caffeine)
    - [yupana-schema](#structure-schema)
    - [yupana-external-links](#structure-links)
    - [yupana-examples](#structure-examples)
@@ -74,7 +77,7 @@ HBase. Данные сохраняются в виде отдельных вре
 3. Apache HBase 1.3.x с поддержкой сжатия Snappy;
 4. Apache Spark 2.4.x для запуска запросов на кластере.  Кроме того, в прилагаемых примерах загрузка данных также производится
    из Spark-приложения, хотя это и не является обязательным условием;
-5. Кластер Apache Ignite 2.7.0 при использовании распределенных кэшей в Ignite (опционально);
+5. Кластер Apache Ignite 2.8.0 при использовании распределенных кэшей в Ignite (опционально);
 6. sbt -- для сборки проекта.
 
 ### Сборка проекта <a href="#build"></a>
@@ -435,6 +438,18 @@ JDBC драйвер для Yupana.
 ### yupana-external-links <a href="#structure-links"></a>
 
 Реализация внешних связей, таких как инвертированный индекс, поиск сопутствующих товаров и связи на базе SQL таблиц.
+
+### yupana-caffeine <a href="#structure-caffeine"></a>
+
+Реализация кэшей на базе Caffeine.
+
+### yupana-ehcache <a href="#structure-caffeine"></a>
+
+Реализация кэшей на базе EhCache.
+
+### yupana-ignite <a href="#structure-caffeine"></a>
+
+Реализация кэшей на базе Apache Ignite.
 
 ### yupana-examples <a href="#structure-examples"></a>
 
