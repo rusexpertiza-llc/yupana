@@ -265,7 +265,7 @@ lazy val versions = new {
   val akka = "2.5.29"
 
   val lucene = "6.6.0"
-  val ignite = "2.7.0"
+  val ignite = "2.8.0"
   val ehcache = "3.3.2"
   val caffeine = "2.8.0"
 
