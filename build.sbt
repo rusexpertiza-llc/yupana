@@ -1,8 +1,6 @@
 import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 
-// scalafmt: { alignTokens = [ {code = "%", owner = "Term.ApplyInfix"}, {code = "%%", owner = "Term.ApplyInfix"} ] }
-
 lazy val yupana = (project in file("."))
   .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
   .settings(
