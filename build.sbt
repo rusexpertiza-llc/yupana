@@ -247,7 +247,7 @@ lazy val examples = (project in file("yupana-examples"))
     },
     assembly := assembly.dependsOn(writeAssemblyName).value
   )
-  .dependsOn(spark, akka, hbase, schema, externalLinks)
+  .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
