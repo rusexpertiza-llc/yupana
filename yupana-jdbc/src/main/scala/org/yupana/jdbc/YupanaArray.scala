@@ -16,31 +16,55 @@
 
 package org.yupana.jdbc
 
-import java.sql.{ ResultSet, Array => SqlArray }
+import java.sql.{ ResultSet, SQLFeatureNotSupportedException, Array => SqlArray }
 import java.util
 
+import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 
-class YupanaArray[T](values: Array[T], dataType: DataType.Aux[T]) extends SqlArray {
-  override def getBaseTypeName: String = dataType.meta.sqlTypeName
+class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T]) extends SqlArray {
+  override def getBaseTypeName: String = valueType.meta.sqlTypeName
 
-  override def getBaseType: Int = dataType.meta.sqlType
+  override def getBaseType: Int = valueType.meta.sqlType
 
-  override def getArray: AnyRef = values
+  override def getArray: Array[T] = values
 
-  override def getArray(map: util.Map[String, Class[_]]): AnyRef = ???
+  override def getArray(map: util.Map[String, Class[_]]): Array[T] = {
+    JdbcUtils.checkTypeMapping(map)
+    getArray
+  }
 
-  override def getArray(index: Long, count: Int): AnyRef = ???
+  override def getArray(index: Long, count: Int): Array[T] = {
+    val start = (index - 1).toInt
+    values.slice(start, start + count)
+  }
 
-  override def getArray(index: Long, count: Int, map: util.Map[String, Class[_]]): AnyRef = ???
+  override def getArray(index: Long, count: Int, map: util.Map[String, Class[_]]): AnyRef = {
+    JdbcUtils.checkTypeMapping(map)
+    getArray(index, count)
+  }
 
-  override def getResultSet: ResultSet = ???
+  override def getResultSet: ResultSet = {
+    createResultSet(values, 1)
+  }
 
-  override def getResultSet(map: util.Map[String, Class[_]]): ResultSet = ???
+  override def getResultSet(map: util.Map[String, Class[_]]): ResultSet = {
+    throw new SQLFeatureNotSupportedException("Custom type mappings are not supported")
+  }
 
-  override def getResultSet(index: Long, count: Int): ResultSet = ???
+  override def getResultSet(index: Long, count: Int): ResultSet = {
+    createResultSet(getArray(index, count), index.toInt)
+  }
 
-  override def getResultSet(index: Long, count: Int, map: util.Map[String, Class[_]]): ResultSet = ???
+  override def getResultSet(index: Long, count: Int, map: util.Map[String, Class[_]]): ResultSet = {
+    JdbcUtils.checkTypeMapping(map)
+    getResultSet(index, count)
+  }
 
   override def free(): Unit = {}
+
+  private def createResultSet(array: Array[T], startIndex: Int): ResultSet = {
+    val it = array.zip(Stream.from(startIndex)).map { case (v, i) => Array[Option[Any]](Some(i), Option(v)) }.toIterator
+    new YupanaResultSet(null, new SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
+  }
 }

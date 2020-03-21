@@ -435,8 +435,10 @@ class YupanaResultSet protected[jdbc] (
   override def rowDeleted = throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.rowDeleted()")
 
   @throws[SQLException]
-  override def getObject(i: Int, map: util.Map[String, Class[_]]) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getObject(int, Map)")
+  override def getObject(i: Int, map: util.Map[String, Class[_]]): AnyRef = {
+    JdbcUtils.checkTypeMapping(map)
+    getObject(i)
+  }
 
   @throws[SQLException]
   override def getRef(i: Int) = throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getRef(int)")
@@ -449,25 +451,32 @@ class YupanaResultSet protected[jdbc] (
   override def getClob(i: Int) =
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getClob(int)")
 
-  @throws[SQLException]
-  override def getArray(i: Int): SqlArray = {
-    getReference(
-      i,
-      v => {
-        val dt = dataTypes(i)
-        if (dt.isArray) {
-          val dtt = dt.asInstanceOf[ArrayDataType[_]].valueType
-          new YupanaArray[dtt.T](v.asInstanceOf[Array[dtt.T]], dtt)
-        } else {
-          throw new SQLException(s"$dt is not an array")
-        }
-      }
-    )
+  private def createArray(i: Int, name: String, v: Any): SqlArray = {
+    val dt = dataTypes(i - 1)
+    if (dt.isArray) {
+      val dtt = dt.asInstanceOf[ArrayDataType[_]]
+      new YupanaArray(name, v.asInstanceOf[Array[dtt.valueType.T]], dtt.valueType)
+    } else {
+      throw new SQLException(s"$dt is not an array")
+    }
   }
 
   @throws[SQLException]
-  override def getObject(colName: String, map: util.Map[String, Class[_]]) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getObject(String, Map)")
+  override def getArray(i: Int): SqlArray = {
+    getReference(i, v => createArray(i, columns(i), v))
+  }
+
+  @throws[SQLException]
+  override def getArray(colName: String): SqlArray = {
+    val idx = columnNameIndex(colName)
+    getReference(idx, v => createArray(idx, colName, v))
+  }
+
+  @throws[SQLException]
+  override def getObject(colName: String, map: util.Map[String, Class[_]]): AnyRef = {
+    JdbcUtils.checkTypeMapping(map)
+    getObject(colName)
+  }
 
   @throws[SQLException]
   override def getRef(colName: String) =
@@ -480,10 +489,6 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def getClob(colName: String) =
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getClob(String)")
-
-  @throws[SQLException]
-  override def getArray(colName: String) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getArray(String)")
 
   @throws[SQLException]
   override def getDate(columnIndex: Int, cal: Calendar): Date =
