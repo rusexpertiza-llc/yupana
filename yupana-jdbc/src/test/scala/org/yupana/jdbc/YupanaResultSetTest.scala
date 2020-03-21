@@ -3,7 +3,7 @@ package org.yupana.jdbc
 import java.io.{ ByteArrayInputStream, CharArrayReader }
 import java.sql.{ Array => _, _ }
 import java.util.{ Calendar, Scanner, TimeZone }
-import java.{ math => jm }
+import java.{ util, math => jm }
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
@@ -455,6 +455,14 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     intRs.getInt(1) shouldEqual (3)
     intRs.getInt(2) shouldEqual (4)
     intRs.next() shouldBe false
+
+    val mapping = new util.HashMap[String, Class[_]]()
+    mapping.put("SHORT", classOf[java.lang.Integer])
+    an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getArray(mapping)
+    an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getArray(1, 2, mapping)
+    an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getResultSet(1, 2, mapping)
+    an[SQLFeatureNotSupportedException] should be thrownBy intArray.getResultSet(mapping)
+
   }
 
   it should "throw exception on update operation" in {
