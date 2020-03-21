@@ -49,7 +49,8 @@ class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T])
   }
 
   override def getResultSet(map: util.Map[String, Class[_]]): ResultSet = {
-    throw new SQLFeatureNotSupportedException("Custom type mappings are not supported")
+    JdbcUtils.checkTypeMapping(map)
+    getResultSet
   }
 
   override def getResultSet(index: Long, count: Int): ResultSet = {
