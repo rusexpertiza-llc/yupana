@@ -37,7 +37,6 @@ trait ReceiptTableMetrics {
   val tax20000Field = Metric[BigDecimal]("tax20000", 27, rarelyQueried)
   val taxNoField = Metric[BigDecimal]("taxNo", 20, rarelyQueried)
   val itemsCountField = Metric[Long]("itemsCount", 11)
-  val transactionIdField = Metric[String]("transactionId", 12, rarelyQueried)
   val minTimeField = Metric[Time]("minTime", 13, rarelyQueried)
   val maxTimeField = Metric[Time]("maxTime", 14, rarelyQueried)
   val receiptCountField = Metric[Long]("receiptCount", 15)
@@ -70,8 +69,7 @@ trait ReceiptTableMetrics {
     tax18000Field,
     tax20000Field,
     taxNoField,
-    itemsCountField,
-    transactionIdField
+    itemsCountField
   )
 
   val rollupFields = Seq(
@@ -155,10 +153,6 @@ trait ReceiptTableMetrics {
         aggregate(Aggregation.sum[Long], metric(itemsCountField)) as itemsCountField.name,
         itemsCountField
       ),
-      QueryFieldToMetric(
-        aggregate(Aggregation.min[String], metric(transactionIdField)) as transactionIdField.name,
-        transactionIdField
-      ),
       QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField)
     )
 
@@ -170,10 +164,6 @@ trait ReceiptTableMetrics {
     val additionalRollupFieldsFromDetails = Seq(
       QueryFieldToMetric(aggregate(Aggregation.min[Time], time) as minTimeField.name, minTimeField),
       QueryFieldToMetric(aggregate(Aggregation.max[Time], time) as maxTimeField.name, maxTimeField),
-      QueryFieldToMetric(
-        aggregate(Aggregation.count[String], metric(transactionIdField)) as receiptCountField.name,
-        receiptCountField
-      ),
       QueryFieldToMetric(
         aggregate(
           Aggregation.sum[Long],
