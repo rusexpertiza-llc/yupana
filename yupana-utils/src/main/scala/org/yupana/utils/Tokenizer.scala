@@ -47,10 +47,18 @@ object Tokenizer extends Serializable {
   }
 
   def transliteratedTokens(item: String): Seq[String] = {
-    tokens(item).map(Transliterator.transliterate).filterNot(_.isEmpty)
+    stemmedTokens(item).map(Transliterator.transliterate).filterNot(_.isEmpty)
   }
 
-  def tokens(item: String): Seq[String] = {
+  def stemmedTokens(item: String): Seq[String] = {
+    tokenize(item, stemmer.stem)
+  }
+
+  def rawTokens(item: String): Seq[String] = {
+    tokenize(item, (_, x) => x)
+  }
+
+  private def tokenize(item: String, tokenLength: (Array[Char], Int) => Int): Seq[String] = {
     val wordsList = new mutable.ListBuffer[String]()
 
     def sliceStemAppend(from: Int, to: Int, offset: Int, updated: Array[Char]): Unit = {
@@ -60,7 +68,7 @@ object Tokenizer extends Serializable {
         val length = to - (if (from != 0) from else off)
         val word = new Array[Char](length)
         Array.copy(updated, updatedFrom, word, 0, length)
-        val newLength = stemmer.stem(word, word.length)
+        val newLength = tokenLength(word, word.length)
         val newWordArr = new Array[Char](newLength)
         Array.copy(word, 0, newWordArr, 0, newLength)
         val newWord = new String(newWordArr)
