@@ -30,52 +30,16 @@ object ExpressionCalculator {
       internalRow: InternalRow,
       tryEval: Boolean = true
   ): Option[expr.Out] = {
-    expr match {
-      case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
-
-      case e =>
-        val res = if (queryContext != null && queryContext.exprsIndex.contains(e)) {
-          internalRow.get[expr.Out](queryContext, e)
-        } else {
-          None
-        }
-        if (res.isEmpty && tryEval) {
-          eval(expr, queryContext, internalRow)
-        } else {
-          res
-        }
+    val res = if (queryContext != null && queryContext.exprsIndex.contains(expr)) {
+      internalRow.get[expr.Out](queryContext, expr)
+    } else {
+      None
     }
-  }
-
-  def evaluateCondition(
-      condition: Condition,
-      queryContext: QueryContext,
-      valueData: InternalRow,
-      tryEval: Boolean = false
-  ): Option[Boolean] = condition match {
-
-    case SimpleCondition(e) =>
-      evaluateExpression(e, queryContext, valueData, tryEval)
-
-    case In(e, vs) =>
-      for {
-        eValue <- evaluateExpression(e, queryContext, valueData, tryEval)
-      } yield vs contains eValue
-
-    case NotIn(e, vs) =>
-      for {
-        eValue <- evaluateExpression(e, queryContext, valueData, tryEval)
-      } yield !vs.contains(eValue)
-
-    case And(cs) =>
-      val executed = cs.map(c => evaluateCondition(c, queryContext, valueData, tryEval))
-      executed.reduce((a, b) => a.flatMap(x => b.map(y => x && y)))
-
-    case Or(cs) =>
-      val executed = cs.map(c => evaluateCondition(c, queryContext, valueData, tryEval))
-      executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
-
-    case x => throw new IllegalArgumentException(s"Unsupported condition $x")
+    if (res.isEmpty && tryEval) {
+      eval(expr, queryContext, internalRow)
+    } else {
+      res
+    }
   }
 
   private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): Option[expr.Out] = {
@@ -83,13 +47,13 @@ object ExpressionCalculator {
     val res = expr match {
       case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
 
-      case TimeExpr         => None //Some(Time(internalRow.get()))
-      case DimensionExpr(_) => None // tagValues.get(tagName)
-      case MetricExpr(_)    => None // rowValues(f.tag)
-      case LinkExpr(_, _)   => None // catalogValues.get(c.queryFieldName)
+      case TimeExpr         => None
+      case DimensionExpr(_) => None
+      case MetricExpr(_)    => None
+      case LinkExpr(_, _)   => None
 
       case ConditionExpr(condition, positive, negative) =>
-        val x = evaluateCondition(condition, queryContext, internalRow, tryEval = true)
+        val x = evaluateExpression(condition, queryContext, internalRow)
           .getOrElse(false)
         if (x) {
           evaluateExpression(positive, queryContext, internalRow)
@@ -115,6 +79,24 @@ object ExpressionCalculator {
       case WindowFunctionExpr(_, e) =>
         evaluateExpression(e, queryContext, internalRow)
 
+      case InExpr(e, vs) =>
+        for {
+          eValue <- evaluateExpression(e, queryContext, internalRow)
+        } yield vs contains eValue
+
+      case NotInExpr(e, vs) =>
+        for {
+          eValue <- evaluateExpression(e, queryContext, internalRow)
+        } yield !vs.contains(eValue)
+
+      case AndExpr(cs) =>
+        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        executed.reduce((a, b) => a.flatMap(x => b.map(y => x && y)))
+
+      case OrExpr(cs) =>
+        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
+
       case TupleExpr(e1, e2) =>
         for {
           a <- evaluateExpression(e1, queryContext, internalRow)
@@ -137,6 +119,8 @@ object ExpressionCalculator {
         }
 
         if (success) Some(values) else None
+
+      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out

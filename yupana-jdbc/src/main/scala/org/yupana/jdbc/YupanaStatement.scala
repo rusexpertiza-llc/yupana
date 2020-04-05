@@ -33,7 +33,7 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
   @throws[SQLException]
   override def execute(sql: String): Boolean = {
     val result = connection.runQuery(sql, Map.empty)
-    lastResultSet = new YupanaResultSet(this, result, "TABLE")
+    lastResultSet = new YupanaResultSet(this, result)
     true
   }
 

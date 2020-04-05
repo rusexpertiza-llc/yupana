@@ -30,7 +30,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class RequestHandler(schema: Schema) extends StrictLogging {
 
-  val parser = new SqlParser
   val sqlQueryProcessor = new SqlQueryProcessor(schema)
   val metadataProvider = new JdbcMetadataProvider(schema)
 
@@ -43,7 +42,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
     Future {
 
-      parser.parse(sqlQuery.sql).right flatMap {
+      SqlParser.parse(sqlQuery.sql).right flatMap {
 
         case select: Select =>
           val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
@@ -75,16 +74,25 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       majorVersion: Int,
       minorVersion: Int,
       version: String
-  ): Future[Either[String, Iterator[proto.Response]]] = {
+  ): Either[String, Iterator[proto.Response]] = {
     logger.debug(s"Processing Ping request: $ping")
 
-    val pong = proto.Pong(
-      ping.reqTime,
-      System.currentTimeMillis(),
-      Some(proto.Version(ProtocolVersion.value, majorVersion, minorVersion, version))
-    )
+    if (ping.getVersion.protocol != ProtocolVersion.value) {
+      logger.error(
+        s"Incompatible protocols: driver protocol ${ping.getVersion.protocol}, server protocol ${ProtocolVersion.value}"
+      )
+      Left(
+        s"Incompatible protocols: driver protocol ${ping.getVersion.protocol}, server protocol ${ProtocolVersion.value}"
+      )
+    } else {
+      val pong = proto.Pong(
+        ping.reqTime,
+        System.currentTimeMillis(),
+        Some(proto.Version(ProtocolVersion.value, majorVersion, minorVersion, version))
+      )
 
-    Future.successful(Right(Iterator(proto.Response(proto.Response.Resp.Pong(pong)))))
+      Right(Iterator(proto.Response(proto.Response.Resp.Pong(pong))))
+    }
   }
 
   private def resultToProto(result: Result): Iterator[proto.Response] = {
@@ -103,7 +111,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       case (name, rt) =>
         proto.ResultField(name, rt.meta.sqlTypeName)
     }
-    val header = proto.Response(proto.Response.Resp.ResultHeader(proto.ResultHeader(resultFields)))
+    val header = proto.Response(proto.Response.Resp.ResultHeader(proto.ResultHeader(resultFields, Some(result.name))))
     logger.debug("Response header: " + header)
     val footer = proto.Response(proto.Response.Resp.ResultStatistics(proto.ResultStatistics(-1, -1)))
     Iterator(header) ++ results ++ Iterator(footer)

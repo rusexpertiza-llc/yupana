@@ -45,6 +45,7 @@ message ResultChunk {
 
 message ResultHeader {
     repeated ResultField fields = 1;
+    optional string tableName = 2;
 }
 
 message ResultField {

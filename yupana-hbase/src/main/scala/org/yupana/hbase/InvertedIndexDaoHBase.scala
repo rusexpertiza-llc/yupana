@@ -31,13 +31,6 @@ object InvertedIndexDaoHBase {
   val VALUE: Array[Byte] = Array.emptyByteArray
   val BATCH_SIZE = 500000
 
-  def stringSerializer(str: String): Array[Byte] = Bytes.toBytes(str)
-  def stringDeserializer(bytes: Array[Byte]): String = Bytes.toString(bytes)
-  def intSerializer(v: Int): Array[Byte] = Bytes.toBytes(v)
-  def intDeserializer(bytes: Array[Byte]): Int = Bytes.toInt(bytes)
-  def longSerializer(v: Long): Array[Byte] = Bytes.toBytes(v)
-  def longDeserializer(bytes: Array[Byte]): Long = Bytes.toLong(bytes)
-
   def checkTableExistsElseCreate(hBaseConnection: ExternalLinkHBaseConnection, tableName: String) {
     val desc = new HTableDescriptor(hBaseConnection.getTableName(tableName))
       .addFamily(new HColumnDescriptor(InvertedIndexDaoHBase.FAMILY))
@@ -113,6 +106,8 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
       }
       .toSet
 
+    logger.trace(s"Got ${keys.size} keys for prefix $prefix search")
+
     allValues(keys)
   }
 
@@ -131,12 +126,17 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
     val iterators = partial.map { case (_, key) => scanValues(key) }
 
-    val fetched = completed.map {
+    val fetched = completed.toList.flatMap {
       case (result, _) =>
-        SortedSetIterator(result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c))).toIterator)
+        result.rawCells().map(c => valueDeserializer(CellUtil.cloneQualifier(c)))
     }
+    val ord = implicitly[DimOrdering[V]]
 
-    SortedSetIterator.unionAll(iterators ++ fetched)
+    val seq = fetched.distinct.sortWith(ord.lt)
+
+    val fetchedIterator = SortedSetIterator(seq: _*)
+
+    SortedSetIterator.unionAll(fetchedIterator +: iterators)
   }
 
   private def toIterator(result: ResultScanner): SortedSetIterator[V] = {

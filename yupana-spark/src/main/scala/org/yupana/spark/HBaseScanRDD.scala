@@ -23,8 +23,6 @@ import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext, TSDOutputRow }
 
-import scala.collection.JavaConverters._
-
 case class HBaseScanPartition(
     override val index: Int,
     startKey: Array[Byte],
@@ -74,26 +72,27 @@ class HBaseScanRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[TSDOutputRow[Long]] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
 
-    val filter =
-      HBaseUtils.multiRowRangeFilter(
-        partition.queryContext.table,
-        partition.fromTime,
-        partition.toTime,
-        partition.rangeScanDimsIds
+    val scan = queryContext.metricsCollector.createScans.measure(1) {
+      val filter =
+        HBaseUtils.multiRowRangeFilter(
+          partition.queryContext.table,
+          partition.fromTime,
+          partition.toTime,
+          partition.rangeScanDimsIds
+        )
+
+      HBaseUtils.createScan(
+        partition.queryContext,
+        filter,
+        Seq.empty,
+        fromTime,
+        toTime,
+        Some(partition.startKey),
+        Some(partition.endKey)
       )
+    }
 
-    val scan = HBaseUtils.createScan(
-      partition.queryContext,
-      filter,
-      Seq.empty,
-      fromTime,
-      toTime,
-      Some(partition.startKey),
-      Some(partition.endKey)
-    )
-
-    val scanner = connection().getTable(hTableName()).getScanner(scan)
-    scanner.iterator().asScala.map(result => HBaseUtils.getTsdRowFromResult(partition.queryContext.table, result))
+    HBaseUtils.executeScan(connection(), config.hbaseNamespace, scan, partition.queryContext, config.extractBatchSize)
   }
 
   private def connection() = {

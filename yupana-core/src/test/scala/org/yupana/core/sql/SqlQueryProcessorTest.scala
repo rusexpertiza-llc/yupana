@@ -6,17 +6,17 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Dimension
 import org.yupana.api.types._
+import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
 
 class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
-  private val sqlParser = new parser.SqlParser
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
-    sqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql).right flatMap {
       case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
       case x                => fail(s"Select expected but got $x")
     }
@@ -312,25 +312,23 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support functions as conditions" in {
     testQuery(
       """
-        |SELECT tag_a, array_to_string(stem(tag_a))
+        |SELECT tag_a, array_to_string(tokens(tag_a))
         |  FROM test_table
-        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(stem(tag_a), stem('вода'))
+        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(tag_a), tokens('вода'))
       """.stripMargin
     ) { q =>
       q.table.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(TAG_A) as "tag_a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.stem, dimension(TAG_A))) as "array_to_string(stem(tag_a))"
+        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(TAG_A))) as "array_to_string(tokens(tag_a))"
       )
       q.filter shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
-        expr(
-          bi(
-            BinaryOperation.containsAny[String],
-            function(UnaryOperation.stem, dimension(TAG_A)),
-            function(UnaryOperation.stem, const("вода"))
-          )
+        bi(
+          BinaryOperation.containsAny[String],
+          function(UnaryOperation.tokens, dimension(TAG_A)),
+          function(UnaryOperation.tokens, const("вода"))
         )
       )
     }
@@ -341,9 +339,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |SELECT
         |  tag_b,
         |  case
-        |    when contains_any(stem(tag_a), stem('крыжовник')) then 'зеленые'
-        |    when contains_any(stem(tag_a), stem('клубника', 'малина')) then 'красные'
-        |    when contains_any(stem(tag_a), stem('черника', 'ежевика', 'ирга')) then 'черные'
+        |    when contains_any(tokens(tag_a), tokens('крыжовник')) then 'зеленые'
+        |    when contains_any(tokens(tag_a), tokens('клубника', 'малина')) then 'красные'
+        |    when contains_any(tokens(tag_a), tokens('черника', 'ежевика', 'ирга')) then 'черные'
         |    else 'прочие' as color,
         |  sum(testField)
         |FROM test_table
@@ -353,30 +351,24 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.table.name shouldEqual "test_table"
 
       val colorExpr = condition(
-        expr(
-          bi(
-            BinaryOperation.containsAny[String],
-            function(UnaryOperation.stem, dimension(TAG_A)),
-            function(UnaryOperation.stem, const("крыжовник"))
-          )
+        bi(
+          BinaryOperation.containsAny[String],
+          function(UnaryOperation.tokens, dimension(TAG_A)),
+          function(UnaryOperation.tokens, const("крыжовник"))
         ),
         const("зеленые"),
         condition(
-          expr(
-            bi(
-              BinaryOperation.containsAny[String],
-              function(UnaryOperation.stem, dimension(TAG_A)),
-              function(UnaryOperation.stemArray, array(const("клубника"), const("малина")))
-            )
+          bi(
+            BinaryOperation.containsAny[String],
+            function(UnaryOperation.tokens, dimension(TAG_A)),
+            function(UnaryOperation.tokenizeArray, array(const("клубника"), const("малина")))
           ),
           const("красные"),
           condition(
-            expr(
-              bi(
-                BinaryOperation.containsAny[String],
-                function(UnaryOperation.stem, dimension(TAG_A)),
-                function(UnaryOperation.stemArray, array(const("черника"), const("ежевика"), const("ирга")))
-              )
+            bi(
+              BinaryOperation.containsAny[String],
+              function(UnaryOperation.tokens, dimension(TAG_A)),
+              function(UnaryOperation.tokenizeArray, array(const("черника"), const("ежевика"), const("ирга")))
             ),
             const("черные"),
             const("прочие")
@@ -539,18 +531,18 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "support named binary functions" in {
     testQuery("""
-        |SELECT tag_a, array_to_string(stem(tag_a)), contains_any(stem(tag_a), stem('вода')) as is_water
+        |SELECT tag_a, array_to_string(tokens(tag_a)), contains_any(tokens(tag_a), tokens('вода')) as is_water
         |  FROM test_table
         |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15'
       """.stripMargin) { q =>
       q.table.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(TAG_A) as "tag_a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.stem, dimension(TAG_A))) as "array_to_string(stem(tag_a))",
+        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(TAG_A))) as "array_to_string(tokens(tag_a))",
         bi(
           BinaryOperation.containsAny[String],
-          function(UnaryOperation.stem, dimension(TAG_A)),
-          function(UnaryOperation.stem, const("вода"))
+          function(UnaryOperation.tokens, dimension(TAG_A)),
+          function(UnaryOperation.tokens, const("вода"))
         ) as "is_water"
       )
       q.filter shouldBe and(
@@ -795,14 +787,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       """.stripMargin) { q =>
       q.table.name shouldEqual "test_table"
       inside(q.filter) {
-        case And(Seq(from, to)) =>
+        case AndExpr(Seq(from, to)) =>
           inside(from) {
-            case SimpleCondition(
-                BinaryOperationExpr(
-                  cmp,
-                  te,
-                  UnaryOperationExpr(uo, BinaryOperationExpr(op, ConstantExpr(t), ConstantExpr(p)))
-                )
+            case BinaryOperationExpr(
+                cmp,
+                te,
+                UnaryOperationExpr(uo, BinaryOperationExpr(op, ConstantExpr(t), ConstantExpr(p)))
                 ) =>
               cmp.name shouldEqual BinaryOperation.ge[Time].name
               te shouldEqual TimeExpr
@@ -812,7 +802,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
               p shouldEqual Period.months(3)
           }
           inside(to) {
-            case SimpleCondition(BinaryOperationExpr(cmp, te, UnaryOperationExpr(uo, ConstantExpr(t)))) =>
+            case BinaryOperationExpr(cmp, te, UnaryOperationExpr(uo, ConstantExpr(t))) =>
               cmp.name shouldEqual BinaryOperation.lt[Time].name
               te shouldEqual TimeExpr
               uo shouldEqual UnaryOperation.truncDay
@@ -848,23 +838,6 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
           )
         ) as "salesTicketsCount",
         truncDay(time) as "d"
-      )
-    }
-  }
-
-  it should "contains camel case in catalog" in {
-    testQuery("""
-        | SELECT DynamicLink_someField FROM test_table_2
-        |   WHERE time >= TIMESTAMP '2018-01-01' and time < TIMESTAMP '2018-01-30'
-        | """.stripMargin) { q =>
-      q.table.name shouldEqual "test_table_2"
-      q.filter shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 1, 30, 0, 0, DateTimeZone.UTC))))
-      )
-      q.groupBy shouldBe empty
-      q.fields should contain theSameElementsInOrderAs List(
-        link(TestLinks.DYNAMIC_LINK, "someField") as "DynamicLink_someField"
       )
     }
   }
@@ -1037,7 +1010,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
     inside(createQuery(q)) {
       case Left(msg) =>
-        msg shouldBe "Invalid expression 'max(metric(testField)) - const(2) * metric(testField3)' for field strange_result"
+        msg shouldBe "Invalid expression 'max(metric(testField)) - const(2:BigDecimal) * metric(testField3)' for field strange_result"
     }
   }
 

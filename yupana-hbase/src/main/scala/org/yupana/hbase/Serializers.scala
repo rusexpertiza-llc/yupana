@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.api.query.syntax
+package org.yupana.hbase
 
-trait All
-    extends ExpressionSyntax
-    with DataTypeConverterSyntax
-    with AggregationSyntax
-    with UnaryOperationSyntax
-    with BinaryOperationSyntax
+import org.apache.hadoop.hbase.util.Bytes
 
-object All extends All
+object Serializers {
+
+  def stringSerializer(str: String): Array[Byte] = Bytes.toBytes(str)
+  def stringDeserializer(bytes: Array[Byte]): String = Bytes.toString(bytes)
+  def intSerializer(v: Int): Array[Byte] = Bytes.toBytes(v)
+  def intDeserializer(bytes: Array[Byte]): Int = Bytes.toInt(bytes)
+  def longSerializer(v: Long): Array[Byte] = Bytes.toBytes(v)
+  def longDeserializer(bytes: Array[Byte]): Long = Bytes.toLong(bytes)
+
+}

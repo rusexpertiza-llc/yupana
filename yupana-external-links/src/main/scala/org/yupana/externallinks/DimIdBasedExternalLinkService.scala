@@ -16,6 +16,7 @@
 
 package org.yupana.externallinks
 
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.SortedSetIterator
@@ -43,11 +44,11 @@ abstract class DimIdBasedExternalLinkService[T <: ExternalLink](val tsdb: TsdbBa
 
   override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     val ids = dimIdsForAllFieldsValues(values)
-    DimIdIn(new DimensionExpr(externalLink.dimension), ids)
+    DimIdInExpr(new DimensionExpr(externalLink.dimension), ids)
   }
 
   override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     val ids = dimIdsForAnyFieldsValues(values)
-    DimIdNotIn(new DimensionExpr(externalLink.dimension), ids)
+    DimIdNotInExpr(new DimensionExpr(externalLink.dimension), ids)
   }
 }

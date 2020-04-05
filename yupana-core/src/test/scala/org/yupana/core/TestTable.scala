@@ -54,15 +54,6 @@ object TestLinks {
   }
 
   val TEST_LINK4: TestLink4 = new TestLink4
-
-  class DynamicLink extends ExternalLink {
-    override val linkName: String = "DynamicLink"
-    override val dimension: Dimension = TestDims.TAG_X
-    override val fieldsNames: Set[String] = Set.empty
-    override val hasDynamicFields: Boolean = true
-  }
-
-  val DYNAMIC_LINK = new DynamicLink
 }
 
 object TestSchema {
@@ -85,7 +76,7 @@ object TestSchema {
     rowTimeSpan = 7 * 24 * 3600 * 1000,
     dimensionSeq = Seq(TestDims.TAG_X, TestDims.TAG_Y),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
-    externalLinks = Seq(TestLinks.DYNAMIC_LINK)
+    externalLinks = Seq()
   )
 
   val schema = Schema(Seq(testTable, testTable2), Seq.empty)

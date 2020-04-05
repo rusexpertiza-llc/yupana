@@ -18,7 +18,7 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
-import org.apache.hadoop.hbase.filter._
+import org.apache.hadoop.hbase.filter.{ CompareFilter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
 import org.joda.time.DateTime
@@ -42,8 +42,10 @@ object TsdbQueryMetricsDaoHBase {
   val STATE_QUALIFIER: Array[Byte] = Bytes.toBytes(stateColumn)
   val ENGINE_QUALIFIER: Array[Byte] = Bytes.toBytes(engineColumn)
   val ID_QUALIFIER: Array[Byte] = Bytes.toBytes("ID")
+  val RUNNING_PARTITIONS_QUALIFIER: Array[Byte] = Bytes.toBytes("runningPartitions")
 
-  private val UPDATE_ATTEMPTS_LIMIT = 5
+  private val UPDATE_ATTEMPTS_LIMIT = 100
+  private val MAX_SLEEP_TIME_BETWEEN_ATTEMPTS = 500
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 }
@@ -127,13 +129,16 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
               put
             )
             if (!result) {
+              Thread.sleep(util.Random.nextInt(MAX_SLEEP_TIME_BETWEEN_ATTEMPTS))
               tryUpdateMetrics(n + 1)
             }
           case None =>
             throw new IllegalStateException(s"Query $queryRowKey doesn't exists!")
         }
       } else {
-        throw new IllegalStateException(s"Cannot update query $queryRowKey with no reason")
+        throw new IllegalStateException(
+          s"Cannot update query $queryRowKey: concurrent update attempt limit $n has been reached"
+        )
       }
     }
 
@@ -210,6 +215,47 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         )
       case None =>
         throw new IllegalArgumentException(s"Query not found by filter $filter!")
+    }
+  }
+
+  override def setRunningPartitions(queryRowKey: Long, partitions: Int): Unit = {
+    val table = getTable
+    val put = new Put(Bytes.toBytes(queryRowKey))
+    put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(partitions))
+    table.put(put)
+  }
+
+  def decrementRunningPartitions(queryRowKey: Long): Int = {
+    decrementRunningPartitions(queryRowKey, 1)
+  }
+
+  private def decrementRunningPartitions(queryRowKey: Long, attempt: Int): Int = {
+    val table = getTable
+
+    val get = new Get(Bytes.toBytes(queryRowKey)).addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER)
+    val res = table.get(get)
+    val runningPartitions = Bytes.toInt(res.getValue(FAMILY, RUNNING_PARTITIONS_QUALIFIER))
+
+    val decrementedRunningPartitions = runningPartitions - 1
+
+    val put = new Put(Bytes.toBytes(queryRowKey))
+    put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(decrementedRunningPartitions))
+    val successes = table.checkAndPut(
+      Bytes.toBytes(queryRowKey),
+      FAMILY,
+      RUNNING_PARTITIONS_QUALIFIER,
+      Bytes.toBytes(runningPartitions),
+      put
+    )
+    if (successes) {
+      decrementedRunningPartitions
+    } else if (attempt < UPDATE_ATTEMPTS_LIMIT) {
+      Thread.sleep(util.Random.nextInt(MAX_SLEEP_TIME_BETWEEN_ATTEMPTS))
+      decrementRunningPartitions(queryRowKey, attempt + 1)
+    } else {
+      throw new IllegalStateException(
+        s"Cannot decrement running partitions for $queryRowKey, concurrent update attempt limit $attempt has been reached"
+      )
     }
   }
 

@@ -24,7 +24,6 @@ import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.core.TSDB
-import org.yupana.proto.util.ProtocolVersion
 import org.yupana.proto.{ Request, Response }
 
 import scala.concurrent.Future
@@ -90,18 +89,7 @@ class TsdbTcp(
       }
       .mapAsync(1) {
         case Request(Request.Req.Ping(ping)) =>
-          if (ping.getVersion.protocol != ProtocolVersion.value) {
-            logger.error(
-              s"Incompatible protocols: driver protocol ${ping.getVersion.protocol}, server protocol ${ProtocolVersion.value}"
-            )
-            Future.failed(
-              new RuntimeException(
-                s"Incompatible protocols: driver protocol ${ping.getVersion.protocol}, server protocol ${ProtocolVersion.value}"
-              )
-            )
-          } else {
-            requestHandler.handlePingProto(tsdb, ping, majorVersion, minorVersion, version)
-          }
+          Future.successful(requestHandler.handlePingProto(tsdb, ping, majorVersion, minorVersion, version))
 
         case Request(Request.Req.SqlQuery(sqlQuery)) =>
           requestHandler.handleQuery(tsdb, sqlQuery)
