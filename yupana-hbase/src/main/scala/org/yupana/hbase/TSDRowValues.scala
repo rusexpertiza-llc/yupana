@@ -46,7 +46,7 @@ object TSDRowValues {
     (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
 
   private def fieldsToBytes(fields: Seq[MetricValue]): Array[Byte] = {
-    val fieldBytes = fields.map(f => (f.metric.tag, f.metric.dataType.writable.write(f.value)))
+    val fieldBytes = fields.map(f => (f.metric.tag, f.metric.dataType.storable.write(f.value)))
     val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
     val bb = ByteBuffer.allocate(size)
     fieldBytes.foreach {

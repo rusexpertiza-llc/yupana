@@ -16,7 +16,18 @@
 
 package org.yupana.api.schema
 
-case class Dimension(name: String, hashFunction: Option[String => Int] = None) {
+import org.yupana.api.types.FixedStorable
+
+sealed trait Dimension {
+  type T
+
+  def name: String
+}
+
+case class DictionaryDimension(override val name: String, hashFunction: Option[String => Int] = None)
+    extends Dimension {
+
+  override type T = String
 
   def hash(v: String): Int = _hash(v)
 
@@ -27,9 +38,13 @@ case class Dimension(name: String, hashFunction: Option[String => Int] = None) {
   override def hashCode(): Int = name.hashCode
 
   override def equals(obj: Any): Boolean = obj match {
-    case Dimension(n, _) => name == n
-    case _               => false
+    case DictionaryDimension(n, _) => name == n
+    case _                         => false
   }
 
-  override def toString: String = s"Dimension($name)"
+  override def toString: String = s"DicDimension($name)"
+}
+
+case class RawDimension[TT](override val name: String)(implicit val fs: FixedStorable[TT]) extends Dimension {
+  type T = TT
 }

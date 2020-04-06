@@ -17,12 +17,12 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging {
+class Dictionary(dimension: DictionaryDimension, dao: DictionaryDao) extends StrictLogging {
   private val cache = CacheFactory.initCache[Long, String](s"dictionary-${dimension.name}")
   private val absentsCache = CacheFactory.initCache[String, Boolean](s"dictionary-absents-${dimension.name}")
   private val reverseCache = CacheFactory.initCache[String, Long](s"dictionary-reverse-${dimension.name}")

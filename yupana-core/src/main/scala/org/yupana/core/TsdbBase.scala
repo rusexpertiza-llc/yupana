@@ -21,12 +21,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.operations.Operations
-import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 
 import scala.language.higherKinds
 
@@ -52,7 +52,7 @@ trait TsdbBase extends StrictLogging {
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
 
-  def dictionary(dimension: Dimension): Dictionary = dictionaryProvider.dictionary(dimension)
+  def dictionary(dimension: DictionaryDimension): Dictionary = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 

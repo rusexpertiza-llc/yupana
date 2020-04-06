@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.{ Dimension, RawDimension, Table }
 import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
@@ -39,7 +39,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
-  val TIME = Dimension("time")
+  val TIME = RawDimension[Time]("time")
 
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
@@ -117,7 +117,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  override def idsToValues(
+  def idsToValues(
       dimension: Dimension,
       ids: Set[IdType],
       metricCollector: MetricQueryCollector
@@ -125,7 +125,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     dictionaryProvider.dictionary(dimension).values(ids, metricCollector)
   }
 
-  override def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
+  def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
     val dictionary = dictionaryProvider.dictionary(dimension)
     val ord = implicitly[DimOrdering[IdType]]
     val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(ord.lt).iterator
@@ -359,7 +359,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       val tag = bb.get()
       context.fieldIndexMap.get(tag) match {
         case Some(field) =>
-          data(tag) = Some(field.dataType.readable.read(bb))
+          data(tag) = Some(field.dataType.storable.read(bb))
 
         case None =>
           correct = false

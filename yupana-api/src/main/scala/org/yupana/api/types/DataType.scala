@@ -28,8 +28,7 @@ import scala.reflect.ClassTag
 trait DataType extends Serializable {
   type T
   val meta: DataTypeMeta[T]
-  val readable: Readable[T]
-  val writable: Writable[T]
+  val storable: Storable[T]
   val classTag: ClassTag[T]
   def operations: TypeOperations[T]
 
@@ -73,18 +72,17 @@ object DataType {
 
   implicit val periodDt: DataType.Aux[Period] = DataType[Period](r => TypeOperations.periodOperations(r))
 
-  implicit def intDt[T: Readable: Writable: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
+  implicit def intDt[T: Storable: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
 
-  implicit def fracDt[T: Readable: Writable: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
+  implicit def fracDt[T: Storable: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
     new DataType {
       override type T = (TT, UU)
       override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(dtt.meta, dtu.meta)
-      override val readable: Readable[T] = Readable.noop
-      override val writable: Writable[T] = Writable.noop
+      override val storable: Storable[T] = Storable.noop
       override val classTag: ClassTag[T] = implicitly[ClassTag[(TT, UU)]]
 
       override def operations: TypeOperations[T] = TypeOperations.tupleOperations(dtt, dtu)
@@ -95,8 +93,7 @@ object DataType {
     new DataType {
       override type T = Array[TT]
       override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(dtt.meta)
-      override val readable: Readable[T] = Readable.arrayReadable(dtt.readable, dtt.classTag)
-      override val writable: Writable[T] = Writable.arrayWritable(dtt.writable)
+      override val storable: Storable[T] = Storable.arrayStorable(dtt.storable, dtt.classTag)
       override val classTag: ClassTag[T] = dtt.classTag.wrap
 
       override def operations: TypeOperations[T] = TypeOperations.arrayOperations(dtt)
@@ -105,15 +102,13 @@ object DataType {
 
   private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(
       implicit
-      r: Readable[TT],
-      w: Writable[TT],
+      s: Storable[TT],
       m: DataTypeMeta[TT],
       ct: ClassTag[TT]
   ): DataType.Aux[TT] = new DataType {
     override type T = TT
     override val meta: DataTypeMeta[T] = m
-    override val readable: Readable[T] = r
-    override val writable: Writable[T] = w
+    override val storable: Storable[T] = s
     override val classTag: ClassTag[T] = ct
     override lazy val operations: TypeOperations[TT] = getOps(this)
   }

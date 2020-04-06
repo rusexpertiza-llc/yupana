@@ -506,7 +506,12 @@ object HBaseUtils extends StrictLogging {
 
   private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {
     val dimIds = table.dimensionSeq.map { dim =>
-      dataPoint.dimensions.get(dim).filter(_.trim.nonEmpty).map(v => dictionaryProvider.dictionary(dim).id(v))
+      dataPoint.dimensions.get(dim).filter(_.trim.nonEmpty).map { v =>
+        dim match {
+          case dd: DictionaryDimension => dictionaryProvider.dictionary(dd).id(v)
+          case rd: RawDimension[_]     => v
+        }
+      }
     }.toArray
 
     TSDRowKey(HBaseUtils.baseTime(dataPoint.time, table), dimIds)
