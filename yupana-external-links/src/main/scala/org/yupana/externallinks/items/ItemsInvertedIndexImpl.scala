@@ -85,13 +85,13 @@ class ItemsInvertedIndexImpl(
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.intersectAll(ids)
-    DimIdInExpr(new DimensionExpr(externalLink.dimension), it)
+    DimIdInExpr(externalLink.dimension, it)
   }
 
   private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.unionAll(ids)
-    DimIdNotInExpr(new DimensionExpr(externalLink.dimension), it)
+    DimIdNotInExpr(externalLink.dimension, it)
   }
 
   // Read only external link

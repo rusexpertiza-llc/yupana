@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, RawDimension, Table }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
 import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
@@ -39,7 +39,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
-  val TIME = RawDimension[Time]("time")
+  val TIME: RawDimension[Time] = RawDimension[Time]("time")
 
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
@@ -118,7 +118,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   def idsToValues(
-      dimension: Dimension,
+      dimension: DictionaryDimension,
       ids: Set[IdType],
       metricCollector: MetricQueryCollector
   ): Map[IdType, String] = {
@@ -126,9 +126,15 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
-    val dictionary = dictionaryProvider.dictionary(dimension)
     val ord = implicitly[DimOrdering[IdType]]
-    val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(ord.lt).iterator
+    val it = dimension match {
+      case dd: DictionaryDimension =>
+        val dictionary = dictionaryProvider.dictionary(dd)
+        dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(ord.lt).iterator
+
+      case rd: RawDimension[_] =>
+    }
+
     SortedSetIterator(it)
   }
 
@@ -275,7 +281,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
             if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
           filters.copy(incTime = valFilter and filters.incTime)
 
-        case DimIdInExpr(DimensionExpr(dim), dimIds) =>
+        case DimIdInExpr(dim, dimIds) =>
           val idFilter = if (dimIds.nonEmpty) DimensionFilter(Map(dim -> dimIds)) else NoResult[IdType]()
           filters.copy(incIds = idFilter and filters.incIds)
 
@@ -301,7 +307,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
             if (consts.nonEmpty) DimensionFilter(TIME, consts.asInstanceOf[Set[Time]]) else NoResult[Time]()
           filters.copy(excTime = valFilter or filters.excTime)
 
-        case DimIdNotInExpr(DimensionExpr(dim), dimIds) =>
+        case DimIdNotInExpr(dim, dimIds) =>
           val idFilter = if (dimIds.nonEmpty) DimensionFilter(dim, dimIds) else NoResult[IdType]()
           filters.copy(excIds = idFilter or filters.excIds)
 
@@ -404,7 +410,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
       context.exprs.foldLeft(rowsWithDimIds) { (accRows, expr) =>
         expr match {
-          case e: DimensionExpr =>
+          case e: DimensionExpr[_] =>
             val dimIdx = context.dimIndexMap(e.dimension)
             val dimIds = rows.flatMap(_.key.dimIds(dimIdx)).toSet
             val dimValues = idsToValues(e.dimension, dimIds, context.metricsCollector)
@@ -425,12 +431,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
       case _: DimIdInExpr                                            => true
       case _: DimIdNotInExpr                                         => true
-      case Equ(_: DimensionExpr, ConstantExpr(_))                    => true
-      case Equ(ConstantExpr(_), _: DimensionExpr)                    => true
-      case Neq(_: DimensionExpr, ConstantExpr(_))                    => true
-      case Neq(ConstantExpr(_), _: DimensionExpr)                    => true
-      case InExpr(_: DimensionExpr, _)                               => true
-      case NotInExpr(_: DimensionExpr, _)                            => true
+      case Equ(_: DimensionExpr[_], ConstantExpr(_))                 => true
+      case Equ(ConstantExpr(_), _: DimensionExpr[_])                 => true
+      case Neq(_: DimensionExpr[_], ConstantExpr(_))                 => true
+      case Neq(ConstantExpr(_), _: DimensionExpr[_])                 => true
+      case InExpr(_: DimensionExpr[_], _)                            => true
+      case NotInExpr(_: DimensionExpr[_], _)                         => true
       case _                                                         => false
     }
   }

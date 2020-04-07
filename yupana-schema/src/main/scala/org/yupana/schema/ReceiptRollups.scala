@@ -26,7 +26,7 @@ object ReceiptRollups {
   val receiptDayRollup = Rollup(
     name = "receiptByDay",
     filter = None,
-    groupBy = Tables.receiptTable.dimensionSeq.map(DimensionExpr(_)),
+    groupBy = Tables.receiptTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
     fields = baseRollupFields ++ shiftRollupFields ++ additionalRollupFieldsFromDetails,
     fromTable = Tables.receiptTable,
     toTable = Tables.receiptByDayTable,

@@ -16,18 +16,26 @@
 
 package org.yupana.api.schema
 
-import org.yupana.api.types.FixedStorable
+import org.yupana.api.types.{ DataType, FixedStorable }
 
 sealed trait Dimension {
   type T
 
   def name: String
+  def dataType: DataType.Aux[T]
+
+  def aux: Dimension.Aux[T] = this
+}
+
+object Dimension {
+  type Aux[TT] = Dimension { type T = TT }
 }
 
 case class DictionaryDimension(override val name: String, hashFunction: Option[String => Int] = None)
     extends Dimension {
 
   override type T = String
+  override val dataType: DataType.Aux[T] = DataType[String]
 
   def hash(v: String): Int = _hash(v)
 
@@ -45,6 +53,9 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
   override def toString: String = s"DicDimension($name)"
 }
 
-case class RawDimension[TT](override val name: String)(implicit val fs: FixedStorable[TT]) extends Dimension {
-  type T = TT
+case class RawDimension[TT](override val name: String)(implicit val fs: FixedStorable[TT], dt: DataType.Aux[TT])
+    extends Dimension {
+  override type T = TT
+
+  override val dataType: DataType.Aux[T] = dt
 }

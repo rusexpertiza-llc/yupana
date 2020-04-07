@@ -114,9 +114,9 @@ trait TsdbBase extends StrictLogging {
     val rows = queryContext.query.table match {
       case Some(table) =>
         val daoExprs = queryContext.bottomExprs.collect {
-          case e: DimensionExpr => e
-          case e: MetricExpr[_] => e
-          case TimeExpr         => TimeExpr
+          case e: DimensionExpr[_] => e
+          case e: MetricExpr[_]    => e
+          case TimeExpr            => TimeExpr
         }
 
         substitutedCondition match {

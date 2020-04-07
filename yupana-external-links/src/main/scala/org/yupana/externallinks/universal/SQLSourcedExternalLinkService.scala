@@ -56,13 +56,13 @@ class SQLSourcedExternalLinkService(
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val tagValues = tagValuesForFieldsValues(values, "AND").filter(x => x != null && x.nonEmpty)
-    InExpr(DimensionExpr(externalLink.dimension), tagValues)
+    val tagValues = tagValuesForFieldsValues(values, "AND").filter(x => x != null)
+    InExpr(DimensionExpr(externalLink.dimension.aux), tagValues)
   }
 
   private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val tagValues = tagValuesForFieldsValues(values, "OR").filter(x => x != null && x.nonEmpty)
-    NotInExpr(DimensionExpr(externalLink.dimension), tagValues)
+    val tagValues = tagValuesForFieldsValues(values, "OR").filter(x => x != null)
+    NotInExpr(DimensionExpr(externalLink.dimension.aux), tagValues)
   }
 
   private def catalogFieldToSqlField(cf: FieldName): String = mapping.flatMap(_.get(cf)).getOrElse(camelToSnake(cf))
@@ -135,11 +135,18 @@ class SQLSourcedExternalLinkService(
   private def tagValuesForFieldsValues(
       fieldsValues: Seq[(FieldName, Set[FieldValue])],
       joiningOperator: String
-  ): Set[DimensionValue] = {
+  ): Set[externalLink.dimension.T] = {
     val q = tagsByFieldsQuery(fieldsValues, joiningOperator)
     val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object]).toArray
     logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
-    jdbc.queryForList(q, params, classOf[DimensionValue]).asScala.toSet
+    jdbc
+      .queryForList(
+        q,
+        params,
+        externalLink.dimension.dataType.classTag.runtimeClass.asInstanceOf[Class[externalLink.dimension.T]]
+      )
+      .asScala
+      .toSet
   }
 
 }

@@ -20,7 +20,7 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Schema, Table }
+import org.yupana.api.schema.{ Dimension, MetricValue, Schema, Table }
 import org.yupana.api.types._
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
@@ -526,11 +526,11 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def getMetricExpr(table: Table, fieldName: String): Option[MetricExpr[_]] = {
-    table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.asInstanceOf[Metric.Aux[f.T]]))
+    table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.aux))
   }
 
-  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr] = {
-    table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(new DimensionExpr(_))
+  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr[_]] = {
+    table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(d => DimensionExpr(d.aux))
   }
 
   private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr] = {
@@ -594,7 +594,7 @@ object SqlQueryProcessor extends QueryValidator {
       values: Seq[ConstantExpr]
   ): Either[String, Map[Dimension, String]] = {
     val dimValues = table.dimensionSeq.map { dim =>
-      val idx = fieldMap.get(DimensionExpr(dim)).toRight(s"${dim.name} is not defined")
+      val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
       idx.right.map(values).right.flatMap(c => constCast(c, DataType[String])).right.map(dim -> _)
     }
 

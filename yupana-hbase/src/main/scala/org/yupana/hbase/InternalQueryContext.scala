@@ -38,10 +38,10 @@ object InternalQueryContext {
 
     val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
 
-    val requiredTags = query.exprs.collect {
-      case DimensionExpr(tag) => tag
+    val requiredDims = query.exprs.collect {
+      case DimensionExpr(dim) => dim.asInstanceOf[Dimension]
     }
 
-    new InternalQueryContext(query.table, query.exprs, fieldIndexMap, dimIndexMap, requiredTags, metricCollector)
+    new InternalQueryContext(query.table, query.exprs, fieldIndexMap, dimIndexMap, requiredDims, metricCollector)
   }
 }

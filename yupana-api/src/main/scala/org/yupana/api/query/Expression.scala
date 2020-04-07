@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -147,20 +147,15 @@ case object TimeExpr extends Expression {
   def toField: QueryField = QueryField("time", this)
 }
 
-class DimensionExpr(val dimension: Dimension) extends Expression {
-  override type Out = String
-  override val dataType: DataType.Aux[String] = DataType[String]
+case class DimensionExpr[T](dimension: Dimension.Aux[T]) extends Expression {
+  override type Out = T
+  override val dataType: DataType.Aux[dimension.T] = dimension.dataType
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
   override def encode: String = s"dim(${dimension.name})"
   def toField: QueryField = QueryField(dimension.name, this)
-}
-
-object DimensionExpr {
-  def apply(dimension: Dimension): DimensionExpr = new DimensionExpr(dimension)
-  def unapply(expr: DimensionExpr): Option[Dimension] = Some(expr.dimension)
 }
 
 case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
@@ -315,26 +310,26 @@ case class NotInExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Express
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-case class DimIdInExpr(expr: DimensionExpr, values: SortedSetIterator[Long]) extends Expression {
+case class DimIdInExpr(dim: DictionaryDimension, values: SortedSetIterator[Long]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
-  override def kind: ExprKind = expr.kind
+  override def kind: ExprKind = Simple
 
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"idIn(${expr.encode}, (Iterator))"
-  override def toString: String = expr.toString + " ID IN (Iterator)"
+  override def encode: String = s"idIn($dim, (Iterator))"
+  override def toString: String = s"$dim ID IN (Iterator)"
 }
 
-case class DimIdNotInExpr(expr: DimensionExpr, values: SortedSetIterator[Long]) extends Expression {
+case class DimIdNotInExpr(dim: DictionaryDimension, values: SortedSetIterator[Long]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
-  override def kind: ExprKind = expr.kind
+  override def kind: ExprKind = Simple
 
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"idNotIn(${expr.encode}, (Iterator))"
-  override def toString: String = expr.toString + " ID NOT IN (Iterator)"
+  override def encode: String = s"idNotIn($dim, (Iterator))"
+  override def toString: String = s"$dim ID NOT IN (Iterator)"
 }
 
 case class AndExpr(conditions: Seq[Condition]) extends Expression {
