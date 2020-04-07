@@ -20,8 +20,6 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
-import org.yupana.core.utils.TimeBoundedCondition
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -33,12 +31,12 @@ trait ExternalLinkService[T <: ExternalLink] {
     * Sets requested external link expressions values into a batch of ValueData
     *
     * @param exprIndex expression index for provided ValueData
-    * @param valueData batch of ValueData
+    * @param rows rows to be updated
     * @param exprs expressions to be set
     */
   def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
-      valueData: Seq[InternalRow],
+      rows: Seq[InternalRow],
       exprs: Set[LinkExpr]
   ): Unit
 
@@ -87,32 +85,4 @@ trait ExternalLinkService[T <: ExternalLink] {
   }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {}
-}
-
-object ExternalLinkService {
-  def extractCatalogFields(
-      simpleCondition: TimeBoundedCondition,
-      linkName: String
-  ): (List[(String, Set[String])], List[(String, Set[String])], List[Condition]) = {
-    simpleCondition.conditions.foldLeft(
-      (List.empty[(String, Set[String])], List.empty[(String, Set[String])], List.empty[Condition])
-    ) {
-      case ((cat, neg, oth), cond) =>
-        cond match {
-          case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
-            ((field, Set(v)) :: cat, neg, oth)
-
-          case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
-
-          case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
-            (cat, (field, Set(v)) :: neg, oth)
-
-          case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
-
-          case _ => (cat, neg, cond :: oth)
-        }
-    }
-  }
 }
