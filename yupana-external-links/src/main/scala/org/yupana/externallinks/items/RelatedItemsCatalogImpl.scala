@@ -23,6 +23,7 @@ import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
+import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.{ Dimensions, Tables }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 
@@ -53,7 +54,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       val to =
         tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
-      val (includeValues, excludeValues, other) = ExternalLinkService.extractCatalogFields(tbc, externalLink.linkName)
+      val (includeValues, excludeValues, other) = ExternalLinkUtils.extractCatalogFields(tbc, externalLink.linkName)
 
       // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 

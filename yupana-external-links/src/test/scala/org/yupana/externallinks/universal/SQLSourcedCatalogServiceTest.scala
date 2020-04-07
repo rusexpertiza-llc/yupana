@@ -26,8 +26,10 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val externalLink = SQLExternalLink(config, Dimensions.KKM_ID_TAG)
 
-    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc, null)
+    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
   }
+
+  import org.yupana.api.query.syntax.All._
 
   "SQLSourcedCatalog" should "work as defined in json" in {
 
@@ -54,26 +56,41 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
       case Left(err) => throw new TestFailedException(err, 3)
       case _         =>
     }
-    val catalog = parsed.right.get.head
-    val catalogService = createService(catalog)
+    val externalLinkConfig = parsed.right.get.head
+    val externalLinkService = createService(externalLinkConfig)
+    val externalLink = externalLinkService.externalLink
 
     val values =
-      catalogService.fieldValuesForDimValues(catalog.description.fieldsNames, Set("123432345655", "123432345657"))
+      externalLinkService.fieldValuesForDimValues(
+        externalLinkConfig.description.fieldsNames,
+        Set("123432345655", "123432345657")
+      )
 
     values.get("123432345655", "f1").value shouldEqual "wer"
     values.get("123432345655", "f2").value shouldEqual "sdf"
     values.get("123432345657", "f1").value shouldEqual "rty"
     values.get("123432345657", "f2").value shouldEqual "fgh"
 
-    val tagsForAll =
-      catalogService.dimValuesForAllFieldsValues(Seq(("f1", Set("qwe", "ert")), ("f2", Set("asd", "fgh"))))
+    val inCondition = externalLinkService.condition(
+      and(
+        in(link(externalLink, "f1"), Set("qwe", "ert")),
+        in(link(externalLink, "f2"), Set("asd", "fgh"))
+      )
+    )
 
-    tagsForAll should contain theSameElementsAs Set("123432345654")
+    inCondition shouldEqual in(dimension(externalLink.dimension), Set("123432345654"))
 
-    val tagsForAny =
-      catalogService.dimValuesForAnyFieldsValues(Seq(("f1", Set("qwe", "ert")), ("f2", Set("asd", "fgh"))))
+    val notInCondition = externalLinkService.condition(
+      and(
+        notIn(link(externalLink, "f1"), Set("qwe", "ert")),
+        notIn(link(externalLink, "f2"), Set("asd", "fgh"))
+      )
+    )
 
-    tagsForAny should contain theSameElementsAs Set("123432345654", "123432345656", "123432345657")
+    notInCondition shouldEqual notIn(
+      dimension(externalLink.dimension),
+      Set("123432345654", "123432345656", "123432345657")
+    )
   }
 
   it should "work from json definition with custom fields mapping and relation" in {
@@ -101,27 +118,42 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
                                |    }
                                |  ]
                                |}""".stripMargin
-    val catalog =
+    val externalLinkConfig =
       JsonExternalLinkDeclarationsParser.parse(SchemaRegistry.defaultSchema, complicatedCatalogJson).right.get.head
-    val catalogService = createService(catalog)
+    val externalLinkService = createService(externalLinkConfig)
+    val externalLink = externalLinkService.externalLink
 
     val values =
-      catalogService.fieldValuesForDimValues(catalog.description.fieldsNames, Set("123432345655", "123432345657"))
+      externalLinkService.fieldValuesForDimValues(
+        externalLinkConfig.description.fieldsNames,
+        Set("123432345655", "123432345657")
+      )
 
     values.get("123432345655", "f1").value shouldEqual "hhh2"
     values.get("123432345655", "f2").value shouldEqual "ggg"
     values.get("123432345657", "f1").value shouldEqual "hhh3"
     values.get("123432345657", "f2").value shouldEqual "ggg3"
 
-    val tagsForAll =
-      catalogService.dimValuesForAllFieldsValues(Seq(("f1", Set("hhh", "hhh3")), ("f2", Set("ggg2", "ggg3"))))
+    val inCondition = externalLinkService.condition(
+      and(
+        in(link(externalLink, "f1"), Set("hhh", "hhh3")),
+        in(link(externalLink, "f2"), Set("ggg2", "ggg3"))
+      )
+    )
 
-    tagsForAll should contain theSameElementsAs Set("123432345657")
+    inCondition shouldEqual in(dimension(externalLink.dimension), Set("123432345657"))
 
-    val tagsForAny =
-      catalogService.dimValuesForAnyFieldsValues(Seq(("f1", Set("hhh", "hhh3")), ("f2", Set("ggg2", "ggg3"))))
+    val notInCondition = externalLinkService.condition(
+      and(
+        notIn(link(externalLink, "f1"), Set("hhh", "hhh3")),
+        notIn(link(externalLink, "f2"), Set("ggg2", "ggg3"))
+      )
+    )
 
-    tagsForAny should contain theSameElementsAs Set("123432345654", "123432345656", "123432345657")
+    notInCondition shouldEqual notIn(
+      dimension(externalLink.dimension),
+      Set("123432345654", "123432345656", "123432345657")
+    )
   }
 
   override protected def beforeAll(): Unit = {
