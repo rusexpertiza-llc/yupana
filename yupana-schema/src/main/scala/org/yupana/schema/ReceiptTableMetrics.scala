@@ -165,6 +165,10 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(aggregate(Aggregation.min[Time], time) as minTimeField.name, minTimeField),
       QueryFieldToMetric(aggregate(Aggregation.max[Time], time) as maxTimeField.name, maxTimeField),
       QueryFieldToMetric(
+        aggregate(Aggregation.count[Time], time) as receiptCountField.name,
+        receiptCountField
+      ),
+      QueryFieldToMetric(
         aggregate(
           Aggregation.sum[Long],
           condition[Long](gt(metric(cashSumField), const(BigDecimal(0))), const(1L), const(0L))
