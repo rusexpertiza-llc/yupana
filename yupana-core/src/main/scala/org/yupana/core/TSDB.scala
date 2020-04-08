@@ -139,7 +139,7 @@ class TSDB(
         table.dimensionSeq.foreach {
           case dimension: DictionaryDimension =>
             val values = points.flatMap { dp =>
-              dp.dimensions.get(dimension).filter(_.trim.nonEmpty)
+              dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
             }
             dictionary(dimension).findIdsByValues(values.toSet)
         }

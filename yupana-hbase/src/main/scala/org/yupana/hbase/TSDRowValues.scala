@@ -21,17 +21,14 @@ import java.nio.ByteBuffer
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ MetricValue, Table }
 
-case class TSDRowValues(valuesByGroup: TSDRowValues.ValuesByGroup)
-
 object TSDRowValues {
 
   type TimeShiftedValue = (Long, Array[Byte])
   type TimeShiftedValues = Array[TimeShiftedValue]
   type ValuesByGroup = Map[Int, TimeShiftedValues]
 
-  def apply(table: Table, dataPoints: Seq[DataPoint]): TSDRowValues = {
-    val byGroup = dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).mapValues(_.toArray)
-    TSDRowValues(byGroup)
+  def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
+    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).mapValues(_.toArray)
   }
 
   private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
@@ -42,8 +39,9 @@ object TSDRowValues {
   private def mergeMaps(
       m1: Map[Int, Seq[TimeShiftedValue]],
       m2: Map[Int, Seq[TimeShiftedValue]]
-  ): Map[Int, Seq[TimeShiftedValue]] =
+  ): Map[Int, Seq[TimeShiftedValue]] = {
     (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
+  }
 
   private def fieldsToBytes(fields: Seq[MetricValue]): Array[Byte] = {
     val fieldBytes = fields.map(f => (f.metric.tag, f.metric.dataType.storable.write(f.value)))

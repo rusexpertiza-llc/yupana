@@ -64,27 +64,26 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
-  def createTsdRows(
+  def createPuts(
       dataPoints: Seq[DataPoint],
       dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[TSDInputRow[Long]])] = {
-
+  ): Seq[(Table, Seq[Put])] = {
     dataPoints
       .groupBy(_.table)
       .map {
         case (table, points) =>
-          val grouped = points.groupBy(rowKey(_, table, dictionaryProvider))
+          val keySize = tableKeySize(table)
+          val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
           table -> grouped.map {
-            case (key, dps) =>
-              TSDInputRow(key, TSDRowValues(table, dps))
+            case (key, dps) => createPutOperation(table, key, dps)
           }.toSeq
       }
       .toSeq
   }
 
-  def createPutOperation(row: TSDInputRow[Long]): Put = {
-    val put = new Put(rowKeyToBytes(row.key))
-    row.values.valuesByGroup.foreach {
+  def createPutOperation(table: Table, key: Array[Byte], dataPoints: Seq[DataPoint]): Put = {
+    val put = new Put(key)
+    TSDRowValues.valuesByGroup(table, dataPoints).foreach {
       case (group, values) =>
         values.foreach {
           case (time, bytes) =>
@@ -488,7 +487,7 @@ object HBaseUtils extends StrictLogging {
     new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
-  private[hbase] def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
+  private def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
 
     val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
 
@@ -504,17 +503,44 @@ object HBaseUtils extends StrictLogging {
       .array()
   }
 
-  private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {
-    val dimIds = table.dimensionSeq.map { dim =>
-      dataPoint.dimensions.get(dim).filter(_.trim.nonEmpty).map { v =>
-        dim match {
-          case dd: DictionaryDimension => dictionaryProvider.dictionary(dd).id(v)
-          case rd: RawDimension[_]     => v
-        }
-      }
-    }.toArray
+  private def tableKeySize(table: Table): Int = {
+    Bytes.SIZEOF_LONG + table.dimensionSeq.map {
+      case _: DictionaryDimension => Bytes.SIZEOF_LONG
+      case r: RawDimension[_]     => r.fs.size
+    }.sum
+  }
 
-    TSDRowKey(HBaseUtils.baseTime(dataPoint.time, table), dimIds)
+  private def rowKey(
+      dataPoint: DataPoint,
+      table: Table,
+      keySize: Int,
+      dictionaryProvider: DictionaryProvider
+  ): Array[Byte] = {
+    val bt = HBaseUtils.baseTime(dataPoint.time, table)
+    val baseTimeBytes = Bytes.toBytes(bt)
+
+    val buffer = ByteBuffer
+      .allocate(keySize)
+      .put(baseTimeBytes)
+
+    table.dimensionSeq.foreach { dim =>
+      val bytes = dim match {
+        case dd: DictionaryDimension =>
+          val id = dataPoint.dimensions
+            .get(dim)
+            .map(v => dictionaryProvider.dictionary(dd).id(v.asInstanceOf[String]))
+            .getOrElse(NULL_VALUE)
+          Bytes.toBytes(id)
+
+        case rd: RawDimension[_] =>
+          val v = dataPoint.dimensions.getOrElse(dim, rd.fs.nullValue).asInstanceOf[rd.T]
+          rd.fs.write(v)
+      }
+
+      buffer.put(bytes)
+    }
+
+    buffer.array()
   }
 
   private def scanMetricsToString(metrics: ScanMetrics): String = {
