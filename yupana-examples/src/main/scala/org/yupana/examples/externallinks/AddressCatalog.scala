@@ -29,7 +29,7 @@ trait AddressCatalog extends ExternalLink {
   val CITY = "city"
 
   override val linkName: String = "AddressCatalog"
-  override val dimension: Dimension = Dimensions.KKM_ID_TAG
+  override val dimension: Dimension = Dimensions.KKM_ID
   override val fieldsNames: Set[String] = Set(CITY)
 }
 

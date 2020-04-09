@@ -62,13 +62,13 @@ class ItemsInvertedIndexImpl(
 
   override def put(dataPoints: Seq[DataPoint]): Unit = {
     if (putEnabled) {
-      val items = dataPoints.flatMap(dp => dp.dimensions.get(Dimensions.ITEM_TAG)).toSet
+      val items = dataPoints.flatMap(dp => dp.dimensionValue(Dimensions.ITEM)).toSet
       putItemNames(items)
     }
   }
 
   def putItemNames(names: Set[String]): Unit = {
-    val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)
+    val itemIds = tsdb.dictionary(Dimensions.ITEM).getOrCreateIdsForValues(names)
     val items = itemIds.map(_.swap)
     val wordIdMap = indexItems(items.toSeq)
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))

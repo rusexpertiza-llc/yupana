@@ -22,7 +22,7 @@ import org.yupana.schema.Dimensions
 trait ItemsInvertedIndex extends ExternalLink {
   val PHRASE_FIELD = "phrase"
   override val linkName: String = "ItemsInvertedIndex"
-  override val dimension: DictionaryDimension = Dimensions.ITEM_TAG
+  override val dimension: DictionaryDimension = Dimensions.ITEM
   override val fieldsNames: Set[String] = Set(PHRASE_FIELD)
 }
 

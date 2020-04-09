@@ -19,11 +19,11 @@ package org.yupana.schema
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
 
 object Dimensions {
-  val KKM_ID_TAG = RawDimension[Int]("kkmId")
-  val ITEM_TAG = ItemDimension("item")
-  val CUSTOMER_TAG = DictionaryDimension("customer")
-  val SHIFT_TAG = DictionaryDimension("shift")
-  val OPERATION_TYPE_TAG = RawDimension[Int]("operation_type")
-  val OPERATOR_TAG = DictionaryDimension("operator")
-  val POSITION_TAG = DictionaryDimension("position")
+  val KKM_ID = RawDimension[Int]("kkmId")
+  val ITEM = ItemDimension("item")
+  val CUSTOMER = DictionaryDimension("customer")
+  val SHIFT = DictionaryDimension("shift")
+  val OPERATION_TYPE = RawDimension[Int]("operation_type")
+  val OPERATOR = DictionaryDimension("operator")
+  val POSITION = DictionaryDimension("position")
 }

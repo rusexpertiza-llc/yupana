@@ -52,10 +52,10 @@ object ETL {
   def toItemDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
     val commonDims = Map(
-      Dimensions.KKM_ID_TAG -> receipt.kkmId.toString,
-      Dimensions.OPERATION_TYPE_TAG -> receipt.operationType,
-      Dimensions.SHIFT_TAG -> receipt.shiftNumber.toString,
-      Dimensions.OPERATOR_TAG -> receipt.operator
+      Dimensions.KKM_ID -> receipt.kkmId.toString,
+      Dimensions.OPERATION_TYPE -> receipt.operationType,
+      Dimensions.SHIFT -> receipt.shiftNumber.toString,
+      Dimensions.OPERATOR -> receipt.operator
     )
 
     val commonMetrics = Seq(
@@ -67,7 +67,7 @@ object ETL {
 
     receipt.items.zipWithIndex.flatMap {
       case (item, idx) =>
-        val dims = commonDims ++ Map(Dimensions.ITEM_TAG -> item.name, Dimensions.POSITION_TAG -> idx.toString)
+        val dims = commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx.toString)
 
         val itemMetrics = Seq(
           Some(MetricValue(ItemTableMetrics.sumField, item.sum)),
@@ -103,10 +103,10 @@ object ETL {
   def toReceiptDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
     val dims = Map(
-      Dimensions.KKM_ID_TAG -> receipt.kkmId.toString,
-      Dimensions.OPERATION_TYPE_TAG -> receipt.operationType,
-      Dimensions.OPERATOR_TAG -> receipt.operator,
-      Dimensions.SHIFT_TAG -> receipt.shiftNumber.toString
+      Dimensions.KKM_ID -> receipt.kkmId.toString,
+      Dimensions.OPERATION_TYPE -> receipt.operationType,
+      Dimensions.OPERATOR -> receipt.operator,
+      Dimensions.SHIFT -> receipt.shiftNumber.toString
     )
 
     val metrics = Seq(

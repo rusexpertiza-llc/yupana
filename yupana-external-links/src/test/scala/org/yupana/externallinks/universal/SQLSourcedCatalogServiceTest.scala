@@ -24,7 +24,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
     val jdbc = new JdbcTemplate(ds)
 
-    val externalLink = SQLExternalLink(config, Dimensions.KKM_ID_TAG)
+    val externalLink = SQLExternalLink(config, Dimensions.KKM_ID)
 
     new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
   }

@@ -19,7 +19,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       Tables.itemsKkmTable,
       const(Time(100L)),
       const(Time(500L)),
-      Seq(dimension(Dimensions.KKM_ID_TAG).toField, time.toField),
+      Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
       in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("хлеб ржаной"))
     )
 
@@ -44,7 +44,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       Tables.itemsKkmTable,
       const(Time(100L)),
       const(Time(500L)),
-      Seq(dimension(Dimensions.KKM_ID_TAG).toField, time.toField),
+      Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
       in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("бородинский"))
     )
 
@@ -75,11 +75,11 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       ge(time, const(Time(100L))),
       lt(time, const(Time(500L))),
       in(
-        tuple(time, dimension(Dimensions.KKM_ID_TAG)),
+        tuple(time, dimension(Dimensions.KKM_ID)),
         Set((Time(120L), "123456"), (Time(150L), "123456"), (Time(120L), "345112"))
       ),
       notIn(
-        tuple(time, dimension(Dimensions.KKM_ID_TAG)),
+        tuple(time, dimension(Dimensions.KKM_ID)),
         Set((Time(125L), "123456"), (Time(120L), "123456"))
       )
     )
@@ -93,8 +93,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       Tables.itemsKkmTable,
       const(Time(100L)),
       const(Time(500L)),
-      Seq(dimension(Dimensions.KKM_ID_TAG).toField, time.toField),
-      in(dimension(Dimensions.ITEM_TAG), Set("яйцо молодильное 1к"))
+      Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
+      in(dimension(Dimensions.ITEM), Set("яйцо молодильное 1к"))
     )
 
     val qc = QueryContext(expQuery, None)
@@ -125,7 +125,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       ge(time, const(Time(100L))),
       lt(time, const(Time(500L))),
       in(
-        tuple(time, dimension(Dimensions.KKM_ID_TAG)),
+        tuple(time, dimension(Dimensions.KKM_ID)),
         Set((Time(220L), "123456"), (Time(330L), "654321"))
       )
     )

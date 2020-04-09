@@ -60,7 +60,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     val expected = Query(
       table = Some(Tables.itemsKkmTable),
-      fields = Seq(dimension(Dimensions.ITEM_TAG).toField),
+      fields = Seq(dimension(Dimensions.ITEM).toField),
       filter = Some(
         and(
           ge(time, const(Time(1234567L))),
@@ -69,7 +69,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           equ(metric(ItemTableMetrics.sumField), const(BigDecimal(300)))
         )
       ),
-      groupBy = Seq(dimension(Dimensions.ITEM_TAG))
+      groupBy = Seq(dimension(Dimensions.ITEM))
     )
 
     val qc = QueryContext(expected, None)
@@ -154,10 +154,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           Tables.itemsKkmTable,
           1578426233000L,
           Map(
-            Dimensions.ITEM_TAG -> "thing one",
-            Dimensions.KKM_ID_TAG -> "12345",
-            Dimensions.POSITION_TAG -> "1",
-            Dimensions.OPERATION_TYPE_TAG -> "1"
+            Dimensions.ITEM -> "thing one",
+            Dimensions.KKM_ID -> "12345",
+            Dimensions.POSITION -> "1",
+            Dimensions.OPERATION_TYPE -> "1"
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 1d), MetricValue(ItemTableMetrics.sumField, BigDecimal(100)))
         ),
@@ -165,10 +165,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           Tables.itemsKkmTable,
           1578426233000L,
           Map(
-            Dimensions.ITEM_TAG -> "thing two",
-            Dimensions.KKM_ID_TAG -> "12345",
-            Dimensions.POSITION_TAG -> "2",
-            Dimensions.OPERATION_TYPE_TAG -> "1"
+            Dimensions.ITEM -> "thing two",
+            Dimensions.KKM_ID -> "12345",
+            Dimensions.POSITION -> "2",
+            Dimensions.OPERATION_TYPE -> "1"
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 2d), MetricValue(ItemTableMetrics.sumField, BigDecimal(300)))
         )

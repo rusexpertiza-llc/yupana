@@ -24,7 +24,7 @@ trait RelatedItemsCatalog extends ExternalLink {
   val PHRASE_FIELDS = "phrase"
 
   override val linkName: String = "RelatedItemsCatalog"
-  override val dimension: Dimension = Dimensions.ITEM_TAG
+  override val dimension: Dimension = Dimensions.ITEM
 
   override val fieldsNames: Set[String] = Set(
     ITEM_FIELD,
