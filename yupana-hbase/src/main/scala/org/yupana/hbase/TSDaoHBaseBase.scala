@@ -339,16 +339,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
         val includeFilter = filters.incValues.map { case (dim, values) => dim -> valuesToIds(dim, values) } and filters.incIds
         val excludeFilter = filters.excValues.map { case (dim, values) => dim -> valuesToIds(dim, values) } or filters.excIds
-        val cond = filters.other match {
-          case Nil      => None
-          case x :: Nil => Some(x)
-          case xs       => Some(AndExpr(xs.reverse))
-        }
 
-        Filters(includeFilter, excludeFilter, filters.incTime, filters.excTime, cond)
+        Filters(includeFilter, excludeFilter, filters.incTime, filters.excTime)
 
       case None =>
-        Filters(EmptyFilter(), EmptyFilter(), EmptyFilter(), EmptyFilter(), None)
+        Filters(EmptyFilter(), EmptyFilter(), EmptyFilter(), EmptyFilter())
     }
   }
 
