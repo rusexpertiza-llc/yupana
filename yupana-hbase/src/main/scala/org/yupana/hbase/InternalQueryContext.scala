@@ -16,7 +16,7 @@
 
 package org.yupana.hbase
 
-import org.yupana.api.query.{ DimensionExpr, Expression }
+import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr }
 import org.yupana.core.model.InternalQuery
 import org.yupana.api.schema.{ Dimension, Metric, Table }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -25,23 +25,48 @@ import scala.collection.mutable
 
 case class InternalQueryContext(
     table: Table,
-    exprs: Set[Expression],
-    fieldIndexMap: mutable.HashMap[Byte, Metric],
-    dimIndexMap: mutable.Map[Dimension, Int],
+    exprsIndexSeq: Seq[(Expression, Int)],
+    fieldIndexMap: Array[Option[Either[Metric, Dimension]]],
     requiredDims: Set[Dimension],
     metricsCollector: MetricQueryCollector
-)
+) {
+
+  val exprsTags: Array[Byte] = {
+    exprsIndexSeq.map {
+      case (expr, index) =>
+        expr match {
+          case MetricExpr(metric) =>
+            metric.tag
+          case DimensionExpr(dimension: Dimension) =>
+            table.dimensionTag(dimension)
+          case _ => 0.toByte
+        }
+    }.toArray
+  }
+
+  @inline
+  def tagForExprIndex(index: Int) = exprsTags(index)
+}
 
 object InternalQueryContext {
   def apply(query: InternalQuery, metricCollector: MetricQueryCollector): InternalQueryContext = {
-    val fieldIndexMap = mutable.HashMap(query.table.metrics.map(f => f.tag -> f): _*)
+    val fieldIndexMap = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
 
-    val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
-
-    val requiredTags = query.exprs.collect {
-      case DimensionExpr(tag) => tag
+    query.table.metrics.foreach { m =>
+      fieldIndexMap(m.tag) = Some(Left(m))
     }
 
-    new InternalQueryContext(query.table, query.exprs, fieldIndexMap, dimIndexMap, requiredTags, metricCollector)
+    query.table.dimensionSeq.zipWithIndex.foreach {
+      case (dim, idx) =>
+        fieldIndexMap(Table.DIM_TAG_OFFSET + idx) = Some(Right(dim))
+    }
+
+    val requiredDims = query.exprs.collect {
+      case DimensionExpr(dim) => dim
+    }
+
+    val exprsIndexSeq = query.exprs.toSeq.zipWithIndex
+
+    new InternalQueryContext(query.table, exprsIndexSeq, fieldIndexMap, requiredDims, metricCollector)
   }
 }

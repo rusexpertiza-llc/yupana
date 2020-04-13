@@ -20,58 +20,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.schema.Dimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
-import org.yupana.core.utils.metric.MetricQueryCollector
 
 class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging {
-  private val cache = CacheFactory.initCache[Long, String](s"dictionary-${dimension.name}")
-  private val absentsCache = CacheFactory.initCache[String, Boolean](s"dictionary-absents-${dimension.name}")
   private val reverseCache = CacheFactory.initCache[String, Long](s"dictionary-reverse-${dimension.name}")
-
-  def value(id: Long): Option[String] = {
-    cache.get(id) match {
-      case Some(v) => Some(v)
-      case None =>
-        if (isMarkedAsAbsent(id)) {
-          None
-        } else {
-          logger.trace(s"Get value for id $id, dictionary ${dimension.name}")
-          dao
-            .getValueById(dimension, id)
-            .fold[Option[String]] {
-              markAsAbsent(id)
-              None
-            } { value =>
-              updateCache(id, value)
-              Some(value)
-            }
-        }
-    }
-  }
-
-  def values(ids: Set[Long], metricCollector: MetricQueryCollector): Map[Long, String] = {
-    val fromCache = cache.getAll(ids)
-
-    val idsToGet = ids.filter(id => fromCache.get(id).isEmpty && !isMarkedAsAbsent(id))
-
-    val fromDB = if (idsToGet.nonEmpty) {
-      val gotValues = metricCollector.dictionaryScan.measure(ids.size) {
-        dao.getValuesByIds(dimension, idsToGet)
-      }
-
-      idsToGet.foreach { id =>
-        if (gotValues.get(id).isEmpty) {
-          markAsAbsent(id)
-        }
-      }
-
-      cache.putAll(gotValues)
-
-      gotValues
-    } else {
-      Map.empty
-    }
-    fromCache ++ fromDB
-  }
 
   def findIdByValue(value: String): Option[Long] = {
     val trimmed = trimValue(value)
@@ -140,20 +91,8 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
     }
   }
 
-  private def updateCache(id: Long, value: String): Unit = {
-    cache.put(id, value)
-  }
-
   private def updateReverseCache(normValue: String, id: Long): Unit = {
     reverseCache.put(normValue, id)
-  }
-
-  private def markAsAbsent(id: Long): Unit = {
-    absentsCache.put(id.toString, true)
-  }
-
-  private def isMarkedAsAbsent(id: Long): Boolean = {
-    absentsCache.get(id.toString).getOrElse(false)
   }
 
   private def generateId(): Int = {

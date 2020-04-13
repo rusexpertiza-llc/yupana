@@ -29,8 +29,8 @@ import scala.collection.JavaConverters._
 object DictionaryDaoHBase {
 
   val tableNamePrefix: String = "ts_dict_"
-  val directFamily: Array[Byte] = Bytes.toBytes("direct") // store id-> value
-  val reverseFamily: Array[Byte] = Bytes.toBytes("reverse") // store value -> id
+  val reverseFamily: Array[Byte] = Bytes.toBytes("reverse")
+  val seqFamily: Array[Byte] = Bytes.toBytes("seq") // store value -> id
   val column: Array[Byte] = Bytes.toBytes("c")
   val seqIdRowKey: Array[Byte] = Bytes.toBytes(0)
 
@@ -58,52 +58,6 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
   var existsTables = Set.empty[String]
 
   HBaseUtils.checkNamespaceExistsElseCreate(connection, namespace)
-
-  override def getValueById(dimension: Dimension, id: Long): Option[String] = {
-    checkTablesExistsElseCreate(dimension)
-    val table = getTable(dimension.name)
-    val get = new Get(Bytes.toBytes(id)).addFamily(directFamily)
-    val result = table.get(get)
-    if (!result.isEmpty) {
-      Some(Bytes.toString(result.getValue(directFamily, column)))
-    } else {
-      None
-    }
-  }
-
-  override def getValuesByIds(dimension: Dimension, ids: Set[Long]): Map[Long, String] = {
-    logger.trace(s"Get dictionary values by ids for ${dimension.name}. Size of ids: ${ids.size}")
-    checkTablesExistsElseCreate(dimension)
-    val table = getTable(dimension.name)
-    val r = ids.toSeq
-      .grouped(BATCH_SIZE)
-      .flatMap { idsSeq =>
-        val ranges = idsSeq.map { id =>
-          val key = Bytes.toBytes(id)
-          new MultiRowRangeFilter.RowRange(key, true, key, true)
-        }
-
-        val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
-        val start = filter.getRowRanges.asScala.head.getStartRow
-        val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
-
-        val scan = new Scan(start, end)
-          .addFamily(directFamily)
-          .setFilter(filter)
-
-        logger.trace(s"--- Send request to HBase")
-        val scanner = table.getScanner(scan)
-
-        scanner.iterator().asScala.map { result =>
-          val id = Bytes.toLong(result.getRow)
-          val value = Bytes.toString(result.getValue(directFamily, column))
-          id -> value
-        }
-      }
-      .toMap
-    logger.trace(s"--- Dictionary values extracted")
-    r
-  }
 
   override def getIdByValue(dimension: Dimension, value: String): Option[Long] = {
     checkTablesExistsElseCreate(dimension)
@@ -171,18 +125,12 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
     val table = getTable(dimension.name)
     val rput = new Put(valueBytes).addColumn(reverseFamily, column, idBytes)
-    if (table.checkAndPut(valueBytes, reverseFamily, column, null, rput)) {
-      val dput = new Put(idBytes).addColumn(directFamily, column, valueBytes)
-      table.put(dput)
-      true
-    } else {
-      false
-    }
+    table.checkAndPut(valueBytes, reverseFamily, column, null, rput)
   }
 
   override def createSeqId(dimension: Dimension): Int = {
     checkTablesExistsElseCreate(dimension)
-    getTable(dimension.name).incrementColumnValue(seqIdRowKey, directFamily, column, 1).toInt
+    getTable(dimension.name).incrementColumnValue(seqIdRowKey, seqFamily, column, 1).toInt
   }
 
   private def getTable(name: String) = {
@@ -195,7 +143,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
         val tableName = getTableName(namespace, dimension.name)
         if (!connection.getAdmin.tableExists(tableName)) {
           val desc = new HTableDescriptor(tableName)
-            .addFamily(new HColumnDescriptor(directFamily))
+            .addFamily(new HColumnDescriptor(seqFamily))
             .addFamily(new HColumnDescriptor(reverseFamily))
           connection.getAdmin.createTable(desc)
         }

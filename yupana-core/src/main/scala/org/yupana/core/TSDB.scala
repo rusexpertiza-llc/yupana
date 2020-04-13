@@ -136,11 +136,11 @@ class TSDB(
   private def loadTagsIds(dataPoints: Seq[DataPoint]): Unit = {
     dataPoints.groupBy(_.table).foreach {
       case (table, points) =>
-        table.dimensionSeq.map { tag =>
+        table.dimensionSeq.map { dim =>
           val values = points.flatMap { dp =>
-            dp.dimensions.get(tag).filter(_.trim.nonEmpty)
+            dp.dimensions.get(dim).filter(_.trim.nonEmpty)
           }
-          dictionary(tag).findIdsByValues(values.toSet)
+          dictionary(dim).findIdsByValues(values.toSet)
         }
     }
   }

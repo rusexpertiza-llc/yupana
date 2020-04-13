@@ -31,7 +31,6 @@ trait TSReadingDao[Collection[_], IdType] {
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow]
 
-  def idsToValues(dimension: Dimension, ids: Set[IdType], metricCollector: MetricQueryCollector): Map[IdType, String]
   def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType]
 
   def isSupportedCondition(condition: Condition): Boolean
