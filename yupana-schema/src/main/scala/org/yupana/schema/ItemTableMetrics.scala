@@ -42,6 +42,23 @@ trait ItemTableMetrics {
   val gtinField: Metric.Aux[String] = Metric[String](name = "GTIN", tag = 27)
   val shiftField: Metric.Aux[Int] = Metric[Int](name = "shift", tag = 28, rarelyQueried)
 
+  val taxationTypeField: Metric.Aux[Int] = Metric[Int](name = "taxationType", tag = 29, rarelyQueried)
+  val customerField: Metric.Aux[String] = Metric[String](name = "customer", tag = 30, rarelyQueried)
+  val nomenclatureCodeField: Metric.Aux[String] = Metric[String](name = "nomenclatureCode", tag = 31, rarelyQueried)
+  val ndsRateField: Metric.Aux[Int] = Metric[Int](name = "ndsRate", tag = 32, rarelyQueried)
+  val totalReceiptCashSumField: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptCashSum", 33, rarelyQueried)
+  val totalReceiptPrepaymentSumField: Metric.Aux[BigDecimal] =
+    Metric[BigDecimal]("totalReceiptPrepaymentSum", 34, rarelyQueried)
+  val totalReceiptPostpaymentSumField: Metric.Aux[BigDecimal] =
+    Metric[BigDecimal]("totalReceiptPostpaymentSum", 35, rarelyQueried)
+  val totalReceiptCounterSubmissionSumField: Metric.Aux[BigDecimal] =
+    Metric[BigDecimal]("totalReceiptcounterSubmissionSum", 36, rarelyQueried)
+  val agentModeField: Metric.Aux[Int] = Metric[Int](name = "agentMode", tag = 37, rarelyQueried)
+  val paymentAgentOperationField: Metric.Aux[String] =
+    Metric[String](name = "paymentAgentOperation", tag = 38, rarelyQueried)
+  val operatorNameField: Metric.Aux[String] = Metric[String](name = "operatorName", tag = 39, rarelyQueried)
+  val operatorInnField: Metric.Aux[String] = Metric[String](name = "operatorInn", tag = 40, rarelyQueried)
+
   val metrics: Seq[Metric] = Seq(
     quantityField,
     sumField,
@@ -61,7 +78,19 @@ trait ItemTableMetrics {
     measureField,
     nomenclatureTypeField,
     gtinField,
-    shiftField
+    shiftField,
+    taxationTypeField,
+    customerField,
+    nomenclatureCodeField,
+    ndsRateField,
+    totalReceiptCashSumField,
+    totalReceiptPrepaymentSumField,
+    totalReceiptPostpaymentSumField,
+    totalReceiptCounterSubmissionSumField,
+    agentModeField,
+    paymentAgentOperationField,
+    operatorNameField,
+    operatorInnField
   )
 }
 
