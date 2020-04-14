@@ -29,23 +29,26 @@ import scala.language.implicitConversions
 object ETLFunctions extends StrictLogging {
 
   def processTransactions(context: EtlContext, schema: Schema, dataPoints: RDD[DataPoint]): Unit = {
-
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
-        val dps = batch.toList
-
-        logger.trace(s"Put ${dps.size} datapoints")
-        context.tsdb.put(dps)
-
-        val byTable = dps.groupBy(_.table)
-
-        byTable.foreach {
-          case (t, ps) =>
-            if (schema.rollups.exists(_.fromTable.name == t.name)) {
-              invalidateRollups(context.tsdb, ps, t)
-            }
-        }
+        processTransactionsPartition(context, schema, batch)
       }
+    }
+  }
+
+  def processTransactionsPartition(context: EtlContext, schema: Schema, dataPoints: Seq[DataPoint]): Unit = {
+    val dps = dataPoints.toList
+
+    logger.trace(s"Put ${dps.size} datapoints")
+    context.tsdb.put(dps)
+
+    val byTable = dps.groupBy(_.table)
+
+    byTable.foreach {
+      case (t, ps) =>
+        if (schema.rollups.exists(_.fromTable.name == t.name)) {
+          invalidateRollups(context.tsdb, ps, t)
+        }
     }
   }
 
