@@ -34,6 +34,9 @@ trait FixedStorable[T] extends Serializable {
 }
 
 object FixedStorable {
+
+  def apply[T](implicit ev: FixedStorable[T]): FixedStorable[T] = ev
+
   implicit val longStorable: FixedStorable[Long] =
     of(jl.Long.BYTES, 0L, a => ByteBuffer.wrap(a).getLong, l => ByteBuffer.allocate(jl.Long.BYTES).putLong(l).array())
 

@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
-import org.apache.hadoop.hbase.util.{ Bytes, Pair }
+import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
@@ -147,7 +147,7 @@ object HBaseUtils extends StrictLogging {
       scan: Scan,
       context: InternalQueryContext,
       batchSize: Int
-  ): Iterator[TSDOutputRow[Long]] = {
+  ): Iterator[TSDOutputRow] = {
 
     val htable = connection.getTable(tableName(namespace, context.table))
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
@@ -156,7 +156,7 @@ object HBaseUtils extends StrictLogging {
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
-    val resultIterator = new AbstractIterator[List[TSDOutputRow[Long]]] {
+    val resultIterator = new AbstractIterator[List[TSDOutputRow]] {
       override def hasNext: Boolean = {
         context.metricsCollector.scan.measure(1) {
           val hasNext = batchIterator.hasNext
@@ -169,7 +169,7 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): List[TSDOutputRow[Long]] = {
+      override def next(): List[TSDOutputRow] = {
         val batch = batchIterator.next()
         context.metricsCollector.parseScanResult.measure(batch.size) {
           batch.map { hbaseResult =>
@@ -258,7 +258,7 @@ object HBaseUtils extends StrictLogging {
     TableName.valueOf(namespace, tableNamePrefix + table.name)
   }
 
-  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow[Long] = {
+  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow = {
     val row = result.getRow
     TSDOutputRow(
       parseRowKey(row, table),
@@ -266,10 +266,10 @@ object HBaseUtils extends StrictLogging {
     )
   }
 
-  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey[Long] = {
+  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey = {
     val baseTime = Bytes.toLong(bytes)
 
-    val tagsIds = Array.ofDim[Option[Long]](table.dimensionSeq.size)
+    val tagsIds = Array.ofDim[Option[Any]](table.dimensionSeq.size)
 
     var i = 0
     while (i < tagsIds.length) {
@@ -369,33 +369,33 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Long]]): FuzzyRowFilter = {
-    val filterRowKey = TSDRowKey(
-      baseTime.getOrElse(0L),
-      tagsFilter
-    )
-    val filterKey = rowKeyToBytes(filterRowKey)
-
-    val baseTimeMask: Byte = if (baseTime.isDefined) 0 else 1
-
-    val buffer = ByteBuffer
-      .allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
-      .put(Array.fill[Byte](Bytes.SIZEOF_LONG)(baseTimeMask))
-
-    val filterMask = tagsFilter
-      .foldLeft(buffer) {
-        case (buf, v) =>
-          if (v.isDefined) {
-            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
-          } else {
-            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
-          }
-      }
-      .array()
-
-    val filter = new FuzzyRowFilter(List(new Pair(filterKey, filterMask)).asJava)
-    filter
-  }
+//  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Any]]): FuzzyRowFilter = {
+//    val filterRowKey = TSDRowKey(
+//      baseTime.getOrElse(0L),
+//      tagsFilter
+//    )
+//    val filterKey = rowKeyToBytes(filterRowKey)
+//
+//    val baseTimeMask: Byte = if (baseTime.isDefined) 0 else 1
+//
+//    val buffer = ByteBuffer
+//      .allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
+//      .put(Array.fill[Byte](Bytes.SIZEOF_LONG)(baseTimeMask))
+//
+//    val filterMask = tagsFilter
+//      .foldLeft(buffer) {
+//        case (buf, v) =>
+//          if (v.isDefined) {
+//            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
+//          } else {
+//            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
+//          }
+//      }
+//      .array()
+//
+//    val filter = new FuzzyRowFilter(List(new Pair(filterKey, filterMask)).asJava)
+//    filter
+//  }
 
   private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
 
@@ -487,26 +487,26 @@ object HBaseUtils extends StrictLogging {
     new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
-  private def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
-
-    val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
-
-    val buffer = ByteBuffer
-      .allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
-      .put(baseTimeBytes)
-
-    rowKey.dimIds
-      .foldLeft(buffer) {
-        case (buf, value) =>
-          buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
-      }
-      .array()
-  }
+//  private def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
+//
+//    val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
+//
+//    val buffer = ByteBuffer
+//      .allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
+//      .put(baseTimeBytes)
+//
+//    rowKey.dimIds
+//      .foldLeft(buffer) {
+//        case (buf, value) =>
+//          buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
+//      }
+//      .array()
+//  }
 
   private def tableKeySize(table: Table): Int = {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map {
       case _: DictionaryDimension => Bytes.SIZEOF_LONG
-      case r: RawDimension[_]     => r.fs.size
+      case r: RawDimension[_]     => r.storable.size
     }.sum
   }
 
@@ -533,8 +533,8 @@ object HBaseUtils extends StrictLogging {
           Bytes.toBytes(id)
 
         case rd: RawDimension[_] =>
-          val v = dataPoint.dimensions.getOrElse(dim, rd.fs.nullValue).asInstanceOf[rd.T]
-          rd.fs.write(v)
+          val v = dataPoint.dimensions.getOrElse(dim, rd.storable.nullValue).asInstanceOf[rd.T]
+          rd.storable.write(v)
       }
 
       buffer.put(bytes)

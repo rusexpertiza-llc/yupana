@@ -17,9 +17,15 @@
 package org.yupana.api.schema
 
 import org.yupana.api.types.{ DataType, FixedStorable }
+import org.yupana.api.utils.DimOrdering
 
 sealed trait Dimension {
   type T
+  type R
+
+  def storable: FixedStorable[R]
+  def tOrdering: DimOrdering[T]
+  def rOrdering: DimOrdering[R]
 
   def name: String
   def dataType: DataType.Aux[T]
@@ -29,12 +35,19 @@ sealed trait Dimension {
 
 object Dimension {
   type Aux[TT] = Dimension { type T = TT }
+  type Aux2[TT, RR] = Dimension { type T = TT; type R = RR }
 }
 
 case class DictionaryDimension(override val name: String, hashFunction: Option[String => Int] = None)
     extends Dimension {
 
   override type T = String
+  override type R = Long
+
+  override def storable: FixedStorable[Long] = FixedStorable[Long]
+  override def tOrdering: DimOrdering[String] = implicitly[DimOrdering[String]]
+  override def rOrdering: DimOrdering[Long] = implicitly[DimOrdering[Long]]
+
   override val dataType: DataType.Aux[T] = DataType[String]
 
   def hash(v: String): Int = _hash(v)
@@ -53,9 +66,15 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
   override def toString: String = s"DicDimension($name)"
 }
 
-case class RawDimension[TT](override val name: String)(implicit val fs: FixedStorable[TT], dt: DataType.Aux[TT])
-    extends Dimension {
+case class RawDimension[TT](override val name: String)(
+    implicit val storable: FixedStorable[TT],
+    val rOrdering: DimOrdering[TT],
+    dt: DataType.Aux[TT]
+) extends Dimension {
   override type T = TT
+  override type R = TT
+
+  override def tOrdering: DimOrdering[TT] = rOrdering
 
   override val dataType: DataType.Aux[T] = dt
 }

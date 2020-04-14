@@ -44,7 +44,7 @@ class TSDaoHBase(
       from: IdType,
       to: IdType,
       rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-  ): Iterator[TSDOutputRow[IdType]] = {
+  ): Iterator[TSDOutputRow] = {
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
