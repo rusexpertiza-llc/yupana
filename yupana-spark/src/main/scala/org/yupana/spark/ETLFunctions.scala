@@ -37,12 +37,10 @@ object ETLFunctions extends StrictLogging {
   }
 
   def processBatch(context: EtlContext, schema: Schema, dataPoints: Seq[DataPoint]): Unit = {
-    val dps = dataPoints.toList
+    logger.trace(s"Put ${dataPoints.size} datapoints")
+    context.tsdb.put(dataPoints)
 
-    logger.trace(s"Put ${dps.size} datapoints")
-    context.tsdb.put(dps)
-
-    val byTable = dps.groupBy(_.table)
+    val byTable = dataPoints.groupBy(_.table)
 
     byTable.foreach {
       case (t, ps) =>
