@@ -71,7 +71,6 @@ object ETLFunctions extends StrictLogging {
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
     new DataPointStreamFunctions(stream)
   implicit def rdd2Functions(rdd: RDD[DataPoint]): DataPointRddFunctions = new DataPointRddFunctions(rdd)
-  implicit def batch2Functions(batch: Seq[DataPoint]): DataPointBatchFunctions = new DataPointBatchFunctions(batch)
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
@@ -87,11 +86,5 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
   def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
     ETLFunctions.processTransactions(context, schema, rdd)
-  }
-}
-
-class DataPointBatchFunctions(batch: Seq[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
-    ETLFunctions.processBatch(context, schema, batch)
   }
 }
