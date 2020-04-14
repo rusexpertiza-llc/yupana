@@ -31,12 +31,12 @@ object ETLFunctions extends StrictLogging {
   def processTransactions(context: EtlContext, schema: Schema, dataPoints: RDD[DataPoint]): Unit = {
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
-        processTransactionsPartition(context, schema, batch)
+        processBatch(context, schema, batch)
       }
     }
   }
 
-  def processTransactionsPartition(context: EtlContext, schema: Schema, dataPoints: Seq[DataPoint]): Unit = {
+  def processBatch(context: EtlContext, schema: Schema, dataPoints: Seq[DataPoint]): Unit = {
     val dps = dataPoints.toList
 
     logger.trace(s"Put ${dps.size} datapoints")
@@ -73,6 +73,7 @@ object ETLFunctions extends StrictLogging {
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
     new DataPointStreamFunctions(stream)
   implicit def rdd2Functions(rdd: RDD[DataPoint]): DataPointRddFunctions = new DataPointRddFunctions(rdd)
+  implicit def batch2Functions(batch: Seq[DataPoint]): DataPointBatchFunctions = new DataPointBatchFunctions(batch)
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
@@ -88,5 +89,11 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
   def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
     ETLFunctions.processTransactions(context, schema, rdd)
+  }
+}
+
+class DataPointBatchFunctions(batch: Seq[DataPoint]) extends Serializable {
+  def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
+    ETLFunctions.processBatch(context, schema, batch)
   }
 }
