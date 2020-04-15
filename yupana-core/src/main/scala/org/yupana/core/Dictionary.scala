@@ -22,11 +22,11 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 
 class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging {
-  private val reverseCache = CacheFactory.initCache[String, Long](s"dictionary-reverse-${dimension.name}")
+  private val cache = CacheFactory.initCache[String, Long](s"dictionary-${dimension.name}")
 
   def findIdByValue(value: String): Option[Long] = {
     val trimmed = trimValue(value)
-    reverseCache.get(trimmed).orElse {
+    cache.get(trimmed).orElse {
       dao.getIdByValue(dimension, trimmed).map { id =>
         updateReverseCache(trimmed, id)
         id
@@ -79,12 +79,12 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
   }
 
   private def getIdsByValues(trimmed: Set[String]): Map[String, Long] = {
-    val fromCache = reverseCache.getAll(trimmed)
+    val fromCache = cache.getAll(trimmed)
     val notInCacheValues = trimmed -- fromCache.keySet
 
     if (notInCacheValues.nonEmpty) {
       val fromDao = dao.getIdsByValues(dimension, notInCacheValues)
-      reverseCache.putAll(fromDao)
+      cache.putAll(fromDao)
       fromDao ++ fromCache
     } else {
       fromCache
@@ -92,7 +92,7 @@ class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging
   }
 
   private def updateReverseCache(normValue: String, id: Long): Unit = {
-    reverseCache.put(normValue, id)
+    cache.put(normValue, id)
   }
 
   private def generateId(): Int = {

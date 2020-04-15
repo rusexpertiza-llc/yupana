@@ -29,8 +29,8 @@ import scala.collection.JavaConverters._
 object DictionaryDaoHBase {
 
   val tableNamePrefix: String = "ts_dict_"
-  val reverseFamily: Array[Byte] = Bytes.toBytes("reverse")
-  val seqFamily: Array[Byte] = Bytes.toBytes("seq") // store value -> id
+  val dataFamily: Array[Byte] = Bytes.toBytes("d") // store value -> id
+  val seqFamily: Array[Byte] = Bytes.toBytes("seq") // store last id
   val column: Array[Byte] = Bytes.toBytes("c")
   val seqIdRowKey: Array[Byte] = Bytes.toBytes(0)
 
@@ -41,7 +41,7 @@ object DictionaryDaoHBase {
 
   def getReversePairFromResult(result: Result): Option[(Long, String)] = {
     if (!result.isEmpty) {
-      Option(result.getValue(reverseFamily, column))
+      Option(result.getValue(dataFamily, column))
         .map(Bytes.toLong)
         .map((_, Bytes.toString(result.getRow)))
     } else {
@@ -49,7 +49,7 @@ object DictionaryDaoHBase {
     }
   }
 
-  def getReverseScan: Scan = new Scan().addFamily(DictionaryDaoHBase.reverseFamily)
+  def getReverseScan: Scan = new Scan().addFamily(DictionaryDaoHBase.dataFamily)
 }
 
 class DictionaryDaoHBase(connection: Connection, namespace: String) extends DictionaryDao with StrictLogging {
@@ -65,10 +65,10 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       val trimmed = value.trim
       if (trimmed.nonEmpty) {
         val table = getTable(dimension.name)
-        val get = new Get(Bytes.toBytes(trimmed)).addFamily(reverseFamily)
+        val get = new Get(Bytes.toBytes(trimmed)).addFamily(dataFamily)
         val result = table.get(get)
         if (!result.isEmpty) {
-          Some(Bytes.toLong(result.getValue(reverseFamily, column)))
+          Some(Bytes.toLong(result.getValue(dataFamily, column)))
         } else {
           None
         }
@@ -100,13 +100,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
           val start = rangeFilter.getRowRanges.asScala.head.getStartRow
           val end = Bytes.padTail(rangeFilter.getRowRanges.asScala.last.getStopRow, 1)
           val scan = new Scan(start, end)
-            .addFamily(reverseFamily)
+            .addFamily(dataFamily)
             .setFilter(rangeFilter)
 
           logger.trace(s"--- Send request to HBase")
           val scanner = table.getScanner(scan)
           scanner.iterator().asScala.map { result =>
-            val id = Bytes.toLong(result.getValue(reverseFamily, column))
+            val id = Bytes.toLong(result.getValue(dataFamily, column))
             val value = Bytes.toString(result.getRow)
             value -> id
           }
@@ -124,8 +124,8 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     val valueBytes = Bytes.toBytes(value)
 
     val table = getTable(dimension.name)
-    val rput = new Put(valueBytes).addColumn(reverseFamily, column, idBytes)
-    table.checkAndPut(valueBytes, reverseFamily, column, null, rput)
+    val rput = new Put(valueBytes).addColumn(dataFamily, column, idBytes)
+    table.checkAndPut(valueBytes, dataFamily, column, null, rput)
   }
 
   override def createSeqId(dimension: Dimension): Int = {
@@ -144,7 +144,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
         if (!connection.getAdmin.tableExists(tableName)) {
           val desc = new HTableDescriptor(tableName)
             .addFamily(new HColumnDescriptor(seqFamily))
-            .addFamily(new HColumnDescriptor(reverseFamily))
+            .addFamily(new HColumnDescriptor(dataFamily))
           connection.getAdmin.createTable(desc)
         }
       } catch {

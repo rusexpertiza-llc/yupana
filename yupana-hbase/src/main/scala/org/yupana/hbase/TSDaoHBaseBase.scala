@@ -351,12 +351,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     while (bb.hasRemaining && correct) {
       val tag = bb.get()
 
-      context.fieldIndexMap(tag) match {
+      context.fieldForTag(tag) match {
         case Some(Left(metric)) =>
-          data(tag) = Some(metric.dataType.readable.read(bb))
+          data(tag & 0xFF) = Some(metric.dataType.readable.read(bb))
 
         case Some(Right(_)) =>
-          data(tag) = Some(DataType.stringDt.readable.read(bb))
+          data(tag & 0xFF) = Some(DataType.stringDt.readable.read(bb))
         case None =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}, row time: $time")
           correct = false
@@ -373,7 +373,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   ): Seq[InternalRow] = {
 
     context.metricsCollector.extractDataComputation.measure(rows.size) {
-      val rowValues = Array.ofDim[Option[Any]](255)
+      val rowValues = Array.ofDim[Option[Any]](Table.MAX_TAGS)
       for {
         row <- rows
         (offset, bytes) <- row.values.toSeq
@@ -384,9 +384,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           case (expr, index) =>
             expr match {
               case e: DimensionExpr =>
-                valueDataBuilder.set(e, rowValues(context.tagForExprIndex(index)))
+                valueDataBuilder.set(e, rowValues(context.tagForExprIndex(index) & 0xFF))
               case e @ MetricExpr(field) =>
-                valueDataBuilder.set(e, rowValues(field.tag))
+                valueDataBuilder.set(e, rowValues(field.tag & 0xFF))
               case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
               case e =>
                 throw new IllegalArgumentException(

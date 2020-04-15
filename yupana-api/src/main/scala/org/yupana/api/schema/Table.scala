@@ -35,13 +35,19 @@ class Table(
     val externalLinks: Seq[ExternalLink]
 ) extends Serializable {
 
-  lazy val dimensionTagsMap = {
+  private lazy val dimensionTagsMap = {
     val dimTags = dimensionSeq.zipWithIndex.map { case (dim, idx) => (dim, (Table.DIM_TAG_OFFSET + idx).toByte) }
     mutable.Map(dimTags: _*)
   }
 
+  @inline
   def dimensionTag(dimension: Dimension): Byte = {
     dimensionTagsMap(dimension)
+  }
+
+  @inline
+  def dimensionTagExists(dimension: Dimension): Boolean = {
+    dimensionTagsMap.contains(dimension)
   }
 
   override def toString: String = s"Table($name)"
@@ -87,6 +93,7 @@ class Table(
 }
 
 object Table {
+  val MAX_TAGS: Int = 256
   val TIME_FIELD_NAME: String = "time"
-  val DIM_TAG_OFFSET = 123.toByte
+  val DIM_TAG_OFFSET = 214.toByte
 }

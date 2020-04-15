@@ -58,8 +58,8 @@ object TSDRowValues {
       val bytes = f.metric.dataType.writable.write(f.value)
       (f.metric.tag, bytes)
     }
-    val dimensionFieldBytes = dimensions.map {
-      case (d, value) =>
+    val dimensionFieldBytes = dimensions.collect {
+      case (d, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
         val bytes = DataType.stringDt.writable.write(value)
         (tag, bytes)
