@@ -142,6 +142,8 @@ class TSDB(
               dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
             }
             dictionary(dimension).findIdsByValues(values.toSet)
+
+          case _ =>
         }
     }
   }

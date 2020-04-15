@@ -20,11 +20,11 @@ import java.nio.ByteBuffer
 import java.util
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
+import org.yupana.api.Time
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
@@ -80,15 +80,19 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val dimFilter = filters.allIncludes
 
     val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
-      case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT)
-    }
+      case (d, it) =>
+        val rit = it.asInstanceOf[SortedSetIterator[d.R]]
+        d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
+    }.toMap
 
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
     val rangeScanDimIds = if (dimFilter.exists(_._2.isEmpty)) {
       Iterator.empty
     } else {
-      val rangeScanDimIterators = sizeLimitedRangeScanDims.map(d => d -> prefetchedDimIterators(d)).toMap
+      val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
+        (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
+      }.toMap
       rangeScanFilters(rangeScanDimIterators)
     }
 

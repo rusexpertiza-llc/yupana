@@ -19,6 +19,8 @@ package org.yupana.api.schema
 import org.yupana.api.types.{ DataType, FixedStorable }
 import org.yupana.api.utils.DimOrdering
 
+import scala.reflect.ClassTag
+
 sealed trait Dimension {
   type T
   type R
@@ -26,6 +28,8 @@ sealed trait Dimension {
   def storable: FixedStorable[R]
   def tOrdering: DimOrdering[T]
   def rOrdering: DimOrdering[R]
+
+  def rCt: ClassTag[R]
 
   def name: String
   def dataType: DataType.Aux[T]
@@ -43,6 +47,7 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
 
   override type T = String
   override type R = Long
+  override val rCt: ClassTag[Long] = implicitly[ClassTag[Long]]
 
   override def storable: FixedStorable[Long] = FixedStorable[Long]
   override def tOrdering: DimOrdering[String] = implicitly[DimOrdering[String]]
@@ -69,6 +74,7 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
 case class RawDimension[TT](override val name: String)(
     implicit val storable: FixedStorable[TT],
     val rOrdering: DimOrdering[TT],
+    val rCt: ClassTag[TT],
     dt: DataType.Aux[TT]
 ) extends Dimension {
   override type T = TT

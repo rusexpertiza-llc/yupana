@@ -30,6 +30,7 @@ trait FixedStorable[T] extends Serializable {
   val nullValue: T
 
   def read(a: Array[Byte]): T
+  def read(bb: ByteBuffer): T
   def write(t: T): Array[Byte]
 }
 
@@ -38,13 +39,13 @@ object FixedStorable {
   def apply[T](implicit ev: FixedStorable[T]): FixedStorable[T] = ev
 
   implicit val longStorable: FixedStorable[Long] =
-    of(jl.Long.BYTES, 0L, a => ByteBuffer.wrap(a).getLong, l => ByteBuffer.allocate(jl.Long.BYTES).putLong(l).array())
+    of(jl.Long.BYTES, 0L, _.getLong, l => ByteBuffer.allocate(jl.Long.BYTES).putLong(l).array())
 
   implicit val intStorable: FixedStorable[Int] =
     of(
       jl.Integer.BYTES,
       0,
-      a => ByteBuffer.wrap(a).getInt,
+      _.getInt,
       i => ByteBuffer.allocate(jl.Integer.BYTES).putInt(i).array()
     )
 
@@ -52,18 +53,19 @@ object FixedStorable {
     of(
       jl.Double.BYTES,
       0d,
-      a => ByteBuffer.wrap(a).getDouble,
+      _.getDouble,
       d => ByteBuffer.allocate(jl.Double.BYTES).putDouble(d).array()
     )
 
   implicit val timeStorable: FixedStorable[Time] =
-    of(longStorable.size, Time(0), a => Time(longStorable.read(a)), t => longStorable.write(t.millis))
+    of(longStorable.size, Time(0), bb => Time(longStorable.read(bb)), t => longStorable.write(t.millis))
 
-  def of[T](s: Int, n: T, r: Array[Byte] => T, w: T => Array[Byte]): FixedStorable[T] = new FixedStorable[T] {
+  def of[T](s: Int, n: T, r: ByteBuffer => T, w: T => Array[Byte]): FixedStorable[T] = new FixedStorable[T] {
     override val size: Int = s
     override val nullValue: T = n
 
-    override def read(a: Array[Byte]): T = r(a)
+    override def read(bb: ByteBuffer): T = r(bb)
+    override def read(a: Array[Byte]): T = read(ByteBuffer.wrap(a))
     override def write(t: T): Array[Byte] = w(t)
   }
 }

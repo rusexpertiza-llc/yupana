@@ -46,7 +46,7 @@ object HBaseUtils extends StrictLogging {
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
   val rollupSpecialKey: Array[Byte] = "\u0000".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
-  val NULL_VALUE: Long = 0L
+  private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
 
@@ -186,12 +186,15 @@ object HBaseUtils extends StrictLogging {
       table: Table,
       from: Long,
       to: Long,
-      dimIds: Map[Dimension, Seq[Long]]
+      dimIds: Map[Dimension, Seq[_]]
   ): Option[MultiRowRangeFilter] = {
 
     val baseTimeLs = baseTimeList(from, to, table)
 
-    val dimIdsList = dimIds.toList.map { case (dim, ids) => dim -> ids.toList }
+    val dimIdsList = dimIds.toList.map {
+      case (dim, ids) =>
+        dim -> ids.toList.map(id => dim.storable.write(id.asInstanceOf[dim.R]))
+    }
     val dimIndex = dimIdsList.map {
       case (dim, _) =>
         table.dimensionSeq.indexOf(dim)
@@ -201,17 +204,19 @@ object HBaseUtils extends StrictLogging {
       CollectionUtils.crossJoin(dimIdsList.map(_._2))
     }
 
+    val keySize = tableKeySize(table)
+
     val ranges = for {
       time <- baseTimeLs
       cids <- crossJoinedDimIds if cids.nonEmpty
     } yield {
-      val filter = Array.ofDim[Long](dimIndex.length)
+      val filter = Array.ofDim[Array[Byte]](dimIndex.length)
       cids.foldLeft(0) { (i, id) =>
         val idx = dimIndex(i)
         filter(idx) = id
         i + 1
       }
-      rowRange(time, filter)
+      rowRange(time, keySize, filter)
     }
 
     if (ranges.nonEmpty) {
@@ -222,20 +227,18 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  private def rowRange(baseTime: Long, dimIds: Array[Long]) = {
+  private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]) = {
     val timeInc = if (dimIds.isEmpty) 1 else 0
 
-    val bufSize = (dimIds.length + 1) * Bytes.SIZEOF_LONG
-
-    val startBuffer = ByteBuffer.allocate(bufSize)
-    val stopBuffer = ByteBuffer.allocate(bufSize)
+    val startBuffer = ByteBuffer.allocate(keySize)
+    val stopBuffer = ByteBuffer.allocate(keySize)
     startBuffer.put(Bytes.toBytes(baseTime))
     stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
     dimIds.indices.foreach { i =>
       val vb = dimIds(i)
-      startBuffer.put(Bytes.toBytes(vb))
-      val ve = if (i < dimIds.length - 1) vb else vb + 1
-      stopBuffer.put(Bytes.toBytes(ve))
+      startBuffer.put(vb)
+      val ve = if (i < dimIds.length - 1) vb else Bytes.incrementBytes(vb, 1L)
+      stopBuffer.put(ve)
     }
 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
@@ -269,16 +272,17 @@ object HBaseUtils extends StrictLogging {
   def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey = {
     val baseTime = Bytes.toLong(bytes)
 
-    val tagsIds = Array.ofDim[Option[Any]](table.dimensionSeq.size)
+    val dimReprs = Array.ofDim[Option[Any]](table.dimensionSeq.size)
 
     var i = 0
-    while (i < tagsIds.length) {
-      val value = Bytes.toLong(bytes, TAGS_POSITION_IN_ROW_KEY + i * Bytes.SIZEOF_LONG)
-      val v = if (value != NULL_VALUE) Some(value) else None
-      tagsIds(i) = v
+    val bb = ByteBuffer.wrap(bytes, TAGS_POSITION_IN_ROW_KEY, bytes.length - TAGS_POSITION_IN_ROW_KEY)
+    table.dimensionSeq.foreach { dim =>
+      val value = dim.storable.read(bb)
+      val v = if (value != dim.storable.nullValue) Some(value) else None
+      dimReprs(i) = v
       i += 1
     }
-    TSDRowKey(baseTime, tagsIds)
+    TSDRowKey(baseTime, dimReprs)
   }
 
   private def getTimeOffset(cell: Cell): Long = {
