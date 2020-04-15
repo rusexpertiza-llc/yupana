@@ -66,6 +66,8 @@ trait ItemTableMetrics {
   val totalReceiptTaxNoField: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTaxNo", 47, rarelyQueried)
   val totalReceiptTax16667Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax16667", 48, rarelyQueried)
   val totalReceiptTax09091Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax09091", 43, rarelyQueried)
+  val totalReceiptTax15255Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax15255", 50, rarelyQueried)
+  val totalReceiptTax18000Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax18000", 51, rarelyQueried)
 
   val metrics: Seq[Metric] = Seq(
     quantityField,
@@ -104,7 +106,15 @@ trait ItemTableMetrics {
     tax09091Field,
     tax10000Field,
     tax16667Field,
-    tax20000Field
+    tax20000Field,
+    totalReceiptTax20000Field,
+    totalReceiptTax10000Field,
+    totalReceiptTax00000Field,
+    totalReceiptTaxNoField,
+    totalReceiptTax16667Field,
+    totalReceiptTax09091Field,
+    totalReceiptTax15255Field,
+    totalReceiptTax18000Field
   )
 }
 
