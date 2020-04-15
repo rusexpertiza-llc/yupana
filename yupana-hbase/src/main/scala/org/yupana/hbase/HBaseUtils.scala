@@ -242,12 +242,12 @@ object HBaseUtils extends StrictLogging {
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }
 
-  private def familiesQueried(queryContext: InternalQueryContext): Set[Int] = {
-    val groups = queryContext.exprs.flatMap(e => QueryUtils.requiredMetrics(e).map(_.group))
+  private def familiesQueried(queryContext: InternalQueryContext): Seq[Int] = {
+    val groups = queryContext.exprsIndexSeq.flatMap { case (e, _) => QueryUtils.requiredMetrics(e).map(_.group) }
     if (groups.nonEmpty) {
       groups
     } else {
-      Set(Metric.defaultGroup)
+      Seq(Metric.defaultGroup)
     }
   }
 

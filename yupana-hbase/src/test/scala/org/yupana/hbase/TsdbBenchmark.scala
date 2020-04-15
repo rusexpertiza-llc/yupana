@@ -51,26 +51,12 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val dictDao = new DictionaryDao {
       override def createSeqId(dimension: Dimension): Int = ???
 
-      override def getValueById(dimension: Dimension, id: Long): Option[String] = ???
-
       val vals = (0 until N / 10000).map { b =>
         (0 until 10000).map { i =>
           val id = b * 10000 + i
           id.toLong -> "Test"
         }.toMap
       }.toArray
-
-      override def getValuesByIds(
-          dimension: Dimension,
-          ids: Set[Long]
-      ): Map[Long, String] = {
-        if (ids.nonEmpty) {
-          vals((ids.head / 10000).toInt)
-        } else {
-          Map.empty
-        }
-//        ids.map(i => i -> "Test").toMap
-      }
 
       override def getIdByValue(dimension: Dimension, value: String): Option[Long] = ???
 
@@ -95,7 +81,9 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       val rows = {
         val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
-        val v = tagged(1, 1.toDouble)
+        val v = tagged(1, 1.toDouble) ++
+          tagged(Table.DIM_TAG_OFFSET, "test1") ++
+          tagged((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
 
         in.map { x =>
           val dimId = x
@@ -204,6 +192,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       val r1 = result.next()
       r1.fieldValueByName[Double]("sum_testField").get shouldBe N.toDouble
+      r1.fieldValueByName[String]("tag_a").get shouldBe "test1"
+      r1.fieldValueByName[String]("tag_b").get shouldBe "test2"
 
       println(s"$p. Time: " + (System.nanoTime() - s) / (1000 * 1000))
 
