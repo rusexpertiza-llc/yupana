@@ -29,7 +29,7 @@ case class InternalQueryContext(
     metricsCollector: MetricQueryCollector
 ) {
 
-  val exprsTags: Array[Byte] = {
+  private val exprsTags: Array[Byte] = {
     exprsIndexSeq.map {
       case (expr, index) =>
         expr match {
