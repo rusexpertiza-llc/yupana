@@ -10,7 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Expression }
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.api.types.Writable
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
@@ -101,12 +101,10 @@ class TSDaoHBaseTest
         Iterator(
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ tagged(Table.DIM_TAG_OFFSET, "test1")))
           )
         )
       )
-
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
 
     val res = dao
       .query(
@@ -139,16 +137,14 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
             Array(
-              pointTime % testTable.rowTimeSpan -> tagged(111, 3d),
-              (pointTime + 1) % testTable.rowTimeSpan -> tagged(1, 1d)
+              pointTime % testTable.rowTimeSpan -> (tagged(111, 3d) ++ dimBytes("test1", "test22")),
+              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test1", "test22"))
             )
           )
         )
       )
 
     (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L)).returning(Map(2L -> "test22"))
 
     val res = dao
       .query(
@@ -185,14 +181,12 @@ class TSDaoHBaseTest
         Iterator(
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test1", "test22")))
           )
         )
       )
 
     (dictionary.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "test1"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(2L)).returning(Map(2L -> "test22"))
 
     val res = dao
       .query(
@@ -257,8 +251,8 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test1", "test25")),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test1", "test25"))
             )
           )
         )
@@ -267,7 +261,6 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test1", "test2"))
       .returning(Map("test1" -> 1L, "test2" -> 2L))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L)).returning(Map(5L -> "test25"))
 
     val res = dao
       .query(
@@ -336,7 +329,7 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(21))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 3d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("test2", "test21"))
             )
           )
         )
@@ -390,19 +383,19 @@ class TSDaoHBaseTest
         Iterator(
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("A 1", "B 1")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("A 2", "B 1")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 4d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes("A 2", "B 2")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 6d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 6d) ++ dimBytes("A 3", "B 2")))
           )
         )
       )
@@ -411,13 +404,6 @@ class TSDaoHBaseTest
       .expects(TestDims.TAG_A, Set("A 1", "A 2", "A 3"))
       .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
     (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1", "B 2")).returning(Map("B 1" -> 1L, "B 2" -> 2L))
-
-    (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(1L, 2L, 3L))
-      .returning(Map(1L -> "A 1", 2L -> "A 2", 3L -> "A 3"))
-    (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(1L, 2L))
-      .returning(Map(1L -> "B 1", 2L -> "B 2"))
 
     val res = dao
       .query(
@@ -464,11 +450,11 @@ class TSDaoHBaseTest
         Iterator(
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("A 1", "B 1")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("A 2", "B 1")))
           )
         )
       )
@@ -477,11 +463,6 @@ class TSDaoHBaseTest
       .expects(TestDims.TAG_A, Set("A 1", "A 2", "A 3"))
       .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
     (dictionary.getIdsByValues _).expects(TestDims.TAG_B, Set("B 1")).returning(Map("B 1" -> 1L))
-
-    (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(1L, 2L))
-      .returning(Map(1L -> "A 1", 2L -> "A 2"))
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(1L)).returning(Map(1L -> "B 1"))
 
     val res = dao
       .query(
@@ -503,82 +484,82 @@ class TSDaoHBaseTest
     res should have size 2
   }
 
-//  it should "use post filter if there are too many combinations" in withMock { (dao, dictionary, queryRunner) =>
-//    val from = 1000
-//    val to = 5000
-//    val exprs = Seq[Expression](time, dimension(TestTable.TAG_A), dimension(TestTable.TAG_B), metric(TestTable.TEST_FIELD))
-//    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
-//
-//    val pointTime1 = 2000
-//    val pointTime2 = 2500
-//
-//    val manyAs = (1 to 200).map(_.toString)
-//    val manyBs = (1 to 3000).map(_.toString)
-//
-//
-//    queryRunner.expects(where { tsdQueries: Seq[TSDQuery] =>
-//      tsdQueries.size  == 200 &&
-//      tsdQueries.sortBy(_.dimensionFilter(0)).zipWithIndex.forall { case (tsdQuery, idx) =>
-//        (tsdQuery.dimensionFilter sameElements Array(Some(idx + 1), None)) &&
-//        tsdQuery.from == from &&
-//        tsdQuery.to == to }
-//    }).returning(
-//      Iterator(
-//        TSDOutputRow(
-//          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(2), Some(2))),
-//          Array(
-//            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 1d),
-//            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 5d)
-//          )
-//        ),
-//        TSDOutputRow(
-//          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(5), Some(6000))),
-//          Array(
-//            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 2d),
-//            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 3d)
-//          )
-//        )
-//      )
-//    )
-//
-//    (dictionary.getIdsByValues _)
-//      .expects(where { (tag, values) => tag == TestTable.TAG_A && values == manyAs.toSet })
-//      .returning(manyBs.map(x => x -> x.toLong).toMap)
-//    (dictionary.getIdsByValues _)
-//      .expects(where { (tag, values) => tag == TestTable.TAG_B && values == manyBs.toSet })
-//      .returning(manyBs.map(x => x -> x.toLong).toMap)
-//
-//    (dictionary.getValuesByIds _).expects(TestTable.TAG_A, Set(2l)).returning(Map(2l -> "2"))
-//    (dictionary.getValuesByIds _).expects(TestTable.TAG_B, Set(2l)).returning(Map(2l -> "2"))
-//
-//    val res = dao.query(
-//      InternalQuery(
-//        TestTable,
-//        exprs.toSet,
-//        and(
-//          ge(time, const(Time(from))),
-//          lt(time, const(Time(to))),
-//          in(dimension(TestTable.TAG_A), manyAs.toSet),
-//          in(dimension(TestTable.TAG_B), manyBs.toSet)
-//        )
-//      ),
-//      valueDataBuilder,
-//      NoMetricCollector
-//    ).toList
-//
-//    res should have size 2
-//
-//    res(0).get(0).value shouldEqual Time(pointTime1)
-//    res(0).get(1).value shouldEqual "2"
-//    res(0).get(2).value shouldEqual "2"
-//    res(0).get(3).value shouldEqual 1d
-//
-//    res(1).get(0).value shouldEqual Time(pointTime2)
-//    res(1).get(1).value shouldEqual "2"
-//    res(1).get(2).value shouldEqual "2"
-//    res(1).get(3).value shouldEqual 5d
-//  }
-//
+////  it should "use post filter if there are too many combinations" in withMock { (dao, dictionary, queryRunner) =>
+////    val from = 1000
+////    val to = 5000
+////    val exprs = Seq[Expression](time, dimension(TestTable.TAG_A), dimension(TestTable.TAG_B), metric(TestTable.TEST_FIELD))
+////    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+////
+////    val pointTime1 = 2000
+////    val pointTime2 = 2500
+////
+////    val manyAs = (1 to 200).map(_.toString)
+////    val manyBs = (1 to 3000).map(_.toString)
+////
+////
+////    queryRunner.expects(where { tsdQueries: Seq[TSDQuery] =>
+////      tsdQueries.size  == 200 &&
+////      tsdQueries.sortBy(_.dimensionFilter(0)).zipWithIndex.forall { case (tsdQuery, idx) =>
+////        (tsdQuery.dimensionFilter sameElements Array(Some(idx + 1), None)) &&
+////        tsdQuery.from == from &&
+////        tsdQuery.to == to }
+////    }).returning(
+////      Iterator(
+////        TSDOutputRow(
+////          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(2), Some(2))),
+////          Array(
+////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 1d),
+////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 5d)
+////          )
+////        ),
+////        TSDOutputRow(
+////          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(5), Some(6000))),
+////          Array(
+////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 2d),
+////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 3d)
+////          )
+////        )
+////      )
+////    )
+////
+////    (dictionary.getIdsByValues _)
+////      .expects(where { (tag, values) => tag == TestTable.TAG_A && values == manyAs.toSet })
+////      .returning(manyBs.map(x => x -> x.toLong).toMap)
+////    (dictionary.getIdsByValues _)
+////      .expects(where { (tag, values) => tag == TestTable.TAG_B && values == manyBs.toSet })
+////      .returning(manyBs.map(x => x -> x.toLong).toMap)
+////
+////    (dictionary.getValuesByIds _).expects(TestTable.TAG_A, Set(2l)).returning(Map(2l -> "2"))
+////    (dictionary.getValuesByIds _).expects(TestTable.TAG_B, Set(2l)).returning(Map(2l -> "2"))
+////
+////    val res = dao.query(
+////      InternalQuery(
+////        TestTable,
+////        exprs.toSet,
+////        and(
+////          ge(time, const(Time(from))),
+////          lt(time, const(Time(to))),
+////          in(dimension(TestTable.TAG_A), manyAs.toSet),
+////          in(dimension(TestTable.TAG_B), manyBs.toSet)
+////        )
+////      ),
+////      valueDataBuilder,
+////      NoMetricCollector
+////    ).toList
+////
+////    res should have size 2
+////
+////    res(0).get(0).value shouldEqual Time(pointTime1)
+////    res(0).get(1).value shouldEqual "2"
+////    res(0).get(2).value shouldEqual "2"
+////    res(0).get(3).value shouldEqual 1d
+////
+////    res(1).get(0).value shouldEqual Time(pointTime2)
+////    res(1).get(1).value shouldEqual "2"
+////    res(1).get(2).value shouldEqual "2"
+////    res(1).get(3).value shouldEqual 5d
+////  }
+////
   it should "exclude NOT IN from IN" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
@@ -596,7 +577,7 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(1))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 3d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("doesn't matter", "test3"))
             )
           )
         )
@@ -639,23 +620,23 @@ class TSDaoHBaseTest
         Iterator(
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test11", "test22")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 2d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 2d) ++ dimBytes("test12", "test22")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 3d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("test13", "test22")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4), Some(3))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 4d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes("test14", "test23")))
           ),
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 5d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test15", "test22")))
           )
         )
       )
@@ -663,10 +644,6 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test11", "test12", "test14", "test15"))
       .returning(Map("test11" -> 1, "test12" -> 2, "test14" -> 4, "test15" -> 5))
-
-    (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(2L))
-      .returning(Map(2L -> "test22"))
 
     val results = dao
       .query(
@@ -750,14 +727,12 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test12", "test25")),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test13", "test25"))
             )
           )
         )
       )
-
-    (dictionary.getValuesByIds _).expects(TestDims.TAG_B, Set(5L)).returning(Map(5L -> "test25"))
 
     val res = dao
       .query(
@@ -802,7 +777,7 @@ class TSDaoHBaseTest
         Iterator(
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> tagged(1, 1d))
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test11", "test22")))
           )
         )
       )
@@ -814,10 +789,6 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test14"))
       .returning(Map("test14" -> 4))
-
-    (dictionary.getValuesByIds _)
-      .expects(TestDims.TAG_B, Set(2L))
-      .returning(Map(2L -> "test22"))
 
     val results = dao
       .query(
@@ -849,7 +820,6 @@ class TSDaoHBaseTest
     val pointTime = 2000
 
     (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("tag_a")).returning(Map("tag_a" -> 1))
-    (dictionaryDao.getValuesByIds _).expects(TestDims.TAG_A, Set(1L)).returning(Map(1L -> "tag_a"))
 
     queryRunner
       .expects(
@@ -860,8 +830,8 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(5))),
             Array(
-              pointTime % testTable.rowTimeSpan -> tagged(1, 7d),
-              (pointTime + 1) % testTable.rowTimeSpan -> tagged(1, 5d)
+              pointTime % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("tag_a", "tag_b")),
+              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("tag_a", "teg_b"))
             )
           )
         )
@@ -900,9 +870,6 @@ class TSDaoHBaseTest
     val pointTime2 = 2500
 
     (dictionaryDao.getIdsByValues _).expects(TestDims.TAG_A, Set("test42")).returning(Map("test42" -> 42L))
-    (dictionaryDao.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(42L))
-      .returning(Map(42L -> "test42"))
 
     queryRunner
       .expects(
@@ -913,8 +880,8 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test42", "test25")),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test42", "test25"))
             )
           )
         )
@@ -956,9 +923,6 @@ class TSDaoHBaseTest
     (dictionaryDao.getIdsByValues _)
       .expects(TestDims.TAG_A, Set("test42", "test51"))
       .returning(Map("test42" -> 42L, "test51" -> 51L))
-    (dictionaryDao.getValuesByIds _)
-      .expects(TestDims.TAG_A, Set(42L, 51L))
-      .returning(Map(42L -> "test42", 51L -> "test51"))
 
     queryRunner
       .expects(
@@ -976,17 +940,17 @@ class TSDaoHBaseTest
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 7d),
-              pointTime2 % testTable.rowTimeSpan -> tagged(1, 5d),
-              pointTime3 % testTable.rowTimeSpan -> tagged(1, 8d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test42", "test25")),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test42", "test25")),
+              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 8d) ++ dimBytes("test42", "test25"))
             )
           ),
           TSDOutputRow(
             TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51), Some(6))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> tagged(1, 15d),
-              pointTime2 % testTable.rowTimeSpan -> tagged(1, 33d),
-              pointTime3 % testTable.rowTimeSpan -> tagged(1, 43d)
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 15d) ++ dimBytes("test51", "test26")),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 33d) ++ dimBytes("test51", "test26")),
+              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 43d) ++ dimBytes("test51", "test26"))
             )
           )
         )
@@ -1055,5 +1019,12 @@ class TSDaoHBaseTest
 
   def tagged[T](tag: Byte, value: T)(implicit writable: Writable[T]): Array[Byte] = {
     tag +: writable.write(value)
+  }
+
+  def dimBytes(values: String*) = {
+    values.zipWithIndex.foldLeft(Array.ofDim[Byte](0)) {
+      case (aac, (dim, idx)) =>
+        aac ++ tagged((Table.DIM_TAG_OFFSET + idx).toByte, dim)
+    }
   }
 }

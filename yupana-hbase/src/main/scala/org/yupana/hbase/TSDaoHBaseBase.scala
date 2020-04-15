@@ -116,14 +116,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  def idsToValues(
-      dimension: DictionaryDimension,
-      ids: Set[IdType],
-      metricCollector: MetricQueryCollector
-  ): Map[IdType, String] = {
-    dictionaryProvider.dictionary(dimension).values(ids, metricCollector)
-  }
-
   def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
     val dictionary = dictionaryProvider.dictionary(dimension)
     val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(dimension.rOrdering.lt).iterator
@@ -318,13 +310,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     var correct = true
     while (bb.hasRemaining && correct) {
       val tag = bb.get()
-      context.fieldIndexMap.get(tag) match {
-        case Some(field) =>
-          data(tag) = Some(field.dataType.storable.read(bb))
 
+      context.fieldForTag(tag) match {
+        case Some(Left(metric)) =>
+          data(tag & 0xFF) = Some(metric.dataType.storable.read(bb))
+
+        case Some(Right(dim)) =>
+          data(tag & 0xFF) = Some(dim.dataType.storable.read(bb))
         case None =>
-          correct = false
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}, row time: $time")
+          correct = false
       }
     }
     correct
@@ -337,45 +332,30 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
-    val rowsWithDimIds = context.metricsCollector.extractDataComputation.measure(rows.size) {
-      val maxTag = context.table.metrics.map(_.tag).max
-      val rowValues = Array.ofDim[Option[Any]](maxTag + 1)
+    context.metricsCollector.extractDataComputation.measure(rows.size) {
+      val rowValues = Array.ofDim[Option[Any]](Table.MAX_TAGS)
       for {
         row <- rows
         (offset, bytes) <- row.values.toSeq
         time = row.key.baseTime + offset
         if timeFilter(time) && readRow(context, bytes, rowValues, time)
       } yield {
-        context.exprs.foreach {
-          case e @ DimensionExpr(dim) =>
-            valueDataBuilder.set(e, row.key.dimReprs(context.dimIndexMap(dim)))
-          case e @ MetricExpr(field) =>
-            valueDataBuilder.set(e, rowValues(field.tag))
-          case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
-          case e =>
-            throw new IllegalArgumentException(
-              s"Unsupported expression $e passed to DAO"
-            )
+        context.exprsIndexSeq.foreach {
+          case (expr, index) =>
+            expr match {
+              case e: DimensionExpr[_] =>
+                valueDataBuilder.set(e, rowValues(context.tagForExprIndex(index) & 0xFF))
+              case e @ MetricExpr(field) =>
+                valueDataBuilder.set(e, rowValues(field.tag & 0xFF))
+              case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
+              case e =>
+                throw new IllegalArgumentException(
+                  s"Unsupported expression $e passed to DAO"
+                )
+            }
         }
 
         valueDataBuilder.buildAndReset()
-      }
-    }
-
-    context.metricsCollector.dimensionValuesForIds.measure(rows.size) {
-      context.exprs.foldLeft(rowsWithDimIds) { (accRows, expr) =>
-        expr match {
-          case e @ DimensionExpr(d: DictionaryDimension) =>
-            val dimIdx = context.dimIndexMap(d)
-            val dimIds = rows.flatMap(_.key.dimReprs(dimIdx)).toSet
-            val dimValues = idsToValues(d, dimIds, context.metricsCollector)
-            accRows.map { row =>
-              val dimVal = row.get[Long](valueDataBuilder.exprIndex, e).flatMap(id => dimValues.get(id))
-              row.set(valueDataBuilder.exprIndex, e, dimVal)
-            }
-
-          case _ => accRows
-        }
       }
     }
   }

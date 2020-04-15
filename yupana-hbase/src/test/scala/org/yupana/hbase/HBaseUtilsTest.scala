@@ -1,6 +1,7 @@
 package org.yupana.hbase
 
 import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets
 import java.util.Properties
 
 import org.apache.hadoop.hbase.util.Bytes
@@ -58,10 +59,68 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     val (time1, value1) = rows.head.values.valuesByGroup(1)(0)
     val (time2, value2) = rows.head.values.valuesByGroup(1)(1)
     time1 shouldEqual 46620000
-    value1.toSeq shouldEqual ByteBuffer.allocate(9).put(1.toByte).putDouble(1.0).array().toSeq
+    value1.toSeq should (
+      equal(
+        ByteBuffer
+          .allocate(29)
+          .put(1.toByte)
+          .putDouble(1.0)
+          .put(Table.DIM_TAG_OFFSET.toByte)
+          .putInt("test1".size)
+          .put("test1".getBytes(StandardCharsets.UTF_8))
+          .put((Table.DIM_TAG_OFFSET + 1).toByte)
+          .putInt("test2".size)
+          .put("test2".getBytes(StandardCharsets.UTF_8))
+          .array()
+          .toSeq
+      )
+        or equal(
+          ByteBuffer
+            .allocate(29)
+            .put(1.toByte)
+            .putDouble(1.0)
+            .put((Table.DIM_TAG_OFFSET + 1).toByte)
+            .putInt("test2".size)
+            .put("test2".getBytes(StandardCharsets.UTF_8))
+            .put(Table.DIM_TAG_OFFSET.toByte)
+            .putInt("test1".size)
+            .put("test1".getBytes(StandardCharsets.UTF_8))
+            .array()
+            .toSeq
+        )
+    )
 
     time2 shouldEqual 46620002
-    value2.toSeq shouldEqual ByteBuffer.allocate(9).put(1.toByte).putDouble(3.0).array().toSeq
+    value2.toSeq should (
+      equal(
+        ByteBuffer
+          .allocate(29)
+          .put(1.toByte)
+          .putDouble(3.0)
+          .put(Table.DIM_TAG_OFFSET.toByte)
+          .putInt("test1".size)
+          .put("test1".getBytes(StandardCharsets.UTF_8))
+          .put((Table.DIM_TAG_OFFSET + 1).toByte)
+          .putInt("test2".size)
+          .put("test2".getBytes(StandardCharsets.UTF_8))
+          .array()
+          .toSeq
+      )
+        or equal(
+          ByteBuffer
+            .allocate(29)
+            .put(1.toByte)
+            .putDouble(3.0)
+            .put((Table.DIM_TAG_OFFSET + 1).toByte)
+            .putInt("test2".size)
+            .put("test2".getBytes(StandardCharsets.UTF_8))
+            .put(Table.DIM_TAG_OFFSET.toByte)
+            .putInt("test1".size)
+            .put("test1".getBytes(StandardCharsets.UTF_8))
+            .array()
+            .toSeq
+        )
+    )
     rows.head.key shouldEqual TSDRowKey[Int](1508025600000L, Array(Some(1), Some(2), None))
 
     val rows2 = rbt.find(_._1 == TestTable2).value._2
@@ -70,7 +129,36 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     val (time3, value3) = rows2.head.values.valuesByGroup(1)(0)
 
     time3 shouldEqual 46620001
-    value3.toSeq shouldEqual ByteBuffer.allocate(9).put(1.toByte).putDouble(2.0).array().toSeq
+    value3.toSeq should (
+      equal(
+        ByteBuffer
+          .allocate(29)
+          .put(1.toByte)
+          .putDouble(2.0)
+          .put((Table.DIM_TAG_OFFSET + 1).toByte)
+          .putInt("test1".size)
+          .put("test1".getBytes(StandardCharsets.UTF_8))
+          .put(Table.DIM_TAG_OFFSET.toByte)
+          .putInt("test2".size)
+          .put("test2".getBytes(StandardCharsets.UTF_8))
+          .array()
+          .toSeq
+      )
+        or equal(
+          ByteBuffer
+            .allocate(29)
+            .put(1.toByte)
+            .putDouble(2.0)
+            .put(Table.DIM_TAG_OFFSET.toByte)
+            .putInt("test2".size)
+            .put("test2".getBytes(StandardCharsets.UTF_8))
+            .put((Table.DIM_TAG_OFFSET + 1).toByte)
+            .putInt("test1".size)
+            .put("test1".getBytes(StandardCharsets.UTF_8))
+            .array()
+            .toSeq
+        )
+    )
     rows.head.key shouldEqual TSDRowKey[Int](1508025600000L, Array(Some(1), Some(2), None))
 
     CacheFactory.flushCaches()
