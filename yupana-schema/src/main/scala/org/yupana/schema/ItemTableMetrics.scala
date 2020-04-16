@@ -16,6 +16,7 @@
 
 package org.yupana.schema
 
+import org.yupana.api.Time
 import org.yupana.api.schema.Metric
 
 trait ItemTableMetrics {
@@ -68,7 +69,8 @@ trait ItemTableMetrics {
   val totalReceiptTax15255Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax15255", 50, rarelyQueried)
   val totalReceiptTax18000Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax18000", 51, rarelyQueried)
 
-  val documentName: Metric.Aux[Int] = Metric[Int]("documentName", 52, rarelyQueried)
+  val documentNameField: Metric.Aux[Int] = Metric[Int]("documentName", 52, rarelyQueried)
+  val acceptedAtField: Metric.Aux[Time] = Metric[Time]("acceptedAt", 53, rarelyQueried)
 
   val metrics: Seq[Metric] = Seq(
     quantityField,
@@ -110,7 +112,8 @@ trait ItemTableMetrics {
     totalReceiptTax09091Field,
     totalReceiptTax15255Field,
     totalReceiptTax18000Field,
-    documentName
+    documentNameField,
+    acceptedAtField
   )
 }
 
