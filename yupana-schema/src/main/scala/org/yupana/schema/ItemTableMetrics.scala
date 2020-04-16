@@ -16,6 +16,7 @@
 
 package org.yupana.schema
 
+import org.yupana.api.Time
 import org.yupana.api.schema.Metric
 
 trait ItemTableMetrics {
@@ -42,6 +43,35 @@ trait ItemTableMetrics {
   val gtinField: Metric.Aux[String] = Metric[String](name = "GTIN", tag = 27)
   val shiftField: Metric.Aux[Int] = Metric[Int](name = "shift", tag = 28, rarelyQueried)
 
+  val taxationTypeField: Metric.Aux[Int] = Metric[Int](name = "taxationType", tag = 29, rarelyQueried)
+  val customerField: Metric.Aux[String] = Metric[String](name = "customer", tag = 30, rarelyQueried)
+  val nomenclatureCodeField: Metric.Aux[String] = Metric[String](name = "nomenclatureCode", tag = 31, rarelyQueried)
+  val totalReceiptCashSumField: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptCashSum", 33, rarelyQueried)
+  val totalReceiptPrepaymentSumField: Metric.Aux[BigDecimal] =
+    Metric[BigDecimal]("totalReceiptPrepaymentSum", 34, rarelyQueried)
+  val totalReceiptPostpaymentSumField: Metric.Aux[BigDecimal] =
+    Metric[BigDecimal]("totalReceiptPostpaymentSum", 35, rarelyQueried)
+  val totalReceiptCounterSubmissionSumField: Metric.Aux[BigDecimal] =
+    Metric[BigDecimal]("totalReceiptCounterSubmissionSum", 36, rarelyQueried)
+  val agentModeField: Metric.Aux[Int] = Metric[Int](name = "agentMode", tag = 37, rarelyQueried)
+  val paymentAgentOperationField: Metric.Aux[String] =
+    Metric[String](name = "paymentAgentOperation", tag = 38, rarelyQueried)
+  val operatorNameField: Metric.Aux[String] = Metric[String](name = "operatorName", tag = 39, rarelyQueried)
+  val operatorInnField: Metric.Aux[String] = Metric[String](name = "operatorInn", tag = 40, rarelyQueried)
+  val requestNumberField: Metric.Aux[Int] = Metric[Int](name = "requestNumber", tag = 41, rarelyQueried)
+
+  val totalReceiptTax20000Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax20000", 49, rarelyQueried)
+  val totalReceiptTax10000Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax10000", 44, rarelyQueried)
+  val totalReceiptTax00000Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax00000", 42, rarelyQueried)
+  val totalReceiptTaxNoField: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTaxNo", 47, rarelyQueried)
+  val totalReceiptTax16667Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax16667", 48, rarelyQueried)
+  val totalReceiptTax09091Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax09091", 43, rarelyQueried)
+  val totalReceiptTax15255Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax15255", 50, rarelyQueried)
+  val totalReceiptTax18000Field: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptTax18000", 51, rarelyQueried)
+
+  val documentNameField: Metric.Aux[Int] = Metric[Int]("documentName", 52, rarelyQueried)
+  val acceptedAtField: Metric.Aux[Time] = Metric[Time]("acceptedAt", 53, rarelyQueried)
+
   val metrics: Seq[Metric] = Seq(
     quantityField,
     sumField,
@@ -61,7 +91,29 @@ trait ItemTableMetrics {
     measureField,
     nomenclatureTypeField,
     gtinField,
-    shiftField
+    shiftField,
+    taxationTypeField,
+    customerField,
+    nomenclatureCodeField,
+    totalReceiptCashSumField,
+    totalReceiptPrepaymentSumField,
+    totalReceiptPostpaymentSumField,
+    totalReceiptCounterSubmissionSumField,
+    agentModeField,
+    paymentAgentOperationField,
+    operatorNameField,
+    operatorInnField,
+    requestNumberField,
+    totalReceiptTax20000Field,
+    totalReceiptTax10000Field,
+    totalReceiptTax00000Field,
+    totalReceiptTaxNoField,
+    totalReceiptTax16667Field,
+    totalReceiptTax09091Field,
+    totalReceiptTax15255Field,
+    totalReceiptTax18000Field,
+    documentNameField,
+    acceptedAtField
   )
 }
 
