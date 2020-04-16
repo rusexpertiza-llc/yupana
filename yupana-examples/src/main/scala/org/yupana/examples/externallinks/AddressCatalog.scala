@@ -29,22 +29,29 @@ trait AddressCatalog extends ExternalLink {
   val CITY = "city"
 
   override val linkName: String = "AddressCatalog"
-  override val dimension: Dimension = Dimensions.KKM_ID
+  override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
   override val fieldsNames: Set[String] = Set(CITY)
 }
 
 object AddressCatalog extends AddressCatalog
 
 class AddressCatalogImpl(override val externalLink: AddressCatalog) extends ExternalLinkService[AddressCatalog] {
+  import syntax.All._
 
-  val kkmAddressData: Seq[(String, String)] = (1 to 20).map(id => (id.toString, if (id < 15) "Москва" else "Таганрог"))
+  val kkmAddressData: Seq[(Int, String)] = (1 to 20).map(id => (id, if (id < 15) "Москва" else "Таганрог"))
 
   override def setLinkedValues(
       exprIndex: collection.Map[Expression, Int],
       rows: Seq[InternalRow],
       exprs: Set[LinkExpr]
   ): Unit = {
-    ExternalLinkUtils.setLinkedValues(externalLink, exprIndex, rows, exprs, fieldValuesForDimValues)
+    ExternalLinkUtils.setLinkedValues(
+      externalLink,
+      exprIndex,
+      rows,
+      exprs,
+      fieldValuesForDimValues
+    )
   }
 
   override def condition(condition: Condition): Condition = {
@@ -52,6 +59,7 @@ class AddressCatalogImpl(override val externalLink: AddressCatalog) extends Exte
   }
 
   private def createInclude(values: Seq[(String, Set[String])]): Condition = {
+
     val ids = values.map {
       case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2)).map(_._1).toSet
       case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
@@ -59,7 +67,7 @@ class AddressCatalogImpl(override val externalLink: AddressCatalog) extends Exte
 
     val dimValues = CollectionUtils.intersectAll(ids)
 
-    InExpr(DimensionExpr(externalLink.dimension), dimValues)
+    in(dimension(externalLink.dimension.aux), dimValues)
   }
 
   private def createExclude(values: Seq[(String, Set[String])]): Condition = {
@@ -69,10 +77,10 @@ class AddressCatalogImpl(override val externalLink: AddressCatalog) extends Exte
     }
 
     val dimValues = ids.fold(Set.empty)(_ union _)
-    NotInExpr(DimensionExpr(externalLink.dimension), dimValues)
+    notIn(dimension(externalLink.dimension.aux), dimValues)
   }
 
-  private def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[String]): Table[String, String, String] = {
+  private def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[Int]): Table[Int, String, String] = {
     val unknownFields = fields.filterNot(_ == AddressCatalog.CITY)
     if (unknownFields.nonEmpty) throw new IllegalArgumentException(s"Unknown fields $unknownFields")
 

@@ -19,7 +19,7 @@ package org.yupana.examples.spark.etl
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.MetricValue
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
 import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
@@ -51,7 +51,7 @@ object ETL {
 
   def toItemDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
-    val commonDims = Map(
+    val commonDims: Map[Dimension, Any] = Map(
       Dimensions.KKM_ID -> receipt.kkmId.toString,
       Dimensions.OPERATION_TYPE -> receipt.operationType,
       Dimensions.SHIFT -> receipt.shiftNumber.toString,
@@ -67,7 +67,7 @@ object ETL {
 
     receipt.items.zipWithIndex.flatMap {
       case (item, idx) =>
-        val dims = commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx.toString)
+        val dims: Map[Dimension, Any] = commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx)
 
         val itemMetrics = Seq(
           Some(MetricValue(ItemTableMetrics.sumField, item.sum)),
@@ -102,11 +102,11 @@ object ETL {
 
   def toReceiptDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
-    val dims = Map(
-      Dimensions.KKM_ID -> receipt.kkmId.toString,
+    val dims: Map[Dimension, Any] = Map(
+      Dimensions.KKM_ID -> receipt.kkmId,
       Dimensions.OPERATION_TYPE -> receipt.operationType,
       Dimensions.OPERATOR -> receipt.operator,
-      Dimensions.SHIFT -> receipt.shiftNumber.toString
+      Dimensions.SHIFT -> receipt.shiftNumber
     )
 
     val metrics = Seq(

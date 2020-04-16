@@ -29,6 +29,8 @@ trait ExternalLink extends Serializable {
   /** Attached dimension */
   val dimension: Dimension
 
+  type DimType = dimension.T
+
   /** Set of field names for this link */
   val fieldsNames: Set[String]
 
@@ -40,4 +42,8 @@ trait ExternalLink extends Serializable {
   }
 
   override def toString: String = s"ExternalLink($linkName)"
+}
+
+object ExternalLink {
+  type Aux[T] = ExternalLink { type DimType = T }
 }

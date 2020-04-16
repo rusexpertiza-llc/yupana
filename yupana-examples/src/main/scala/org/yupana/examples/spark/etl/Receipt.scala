@@ -22,7 +22,7 @@ case class Receipt(
     date: LocalDateTime,
     kkmId: Int,
     receiptNumber: Int,
-    operationType: String,
+    operationType: Int,
     operator: String,
     shiftNumber: Int,
     items: Seq[Item],

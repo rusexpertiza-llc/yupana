@@ -22,8 +22,8 @@ object Dimensions {
   val KKM_ID = RawDimension[Int]("kkmId")
   val ITEM = ItemDimension("item")
   val CUSTOMER = DictionaryDimension("customer")
-  val SHIFT = DictionaryDimension("shift")
+  val SHIFT = RawDimension[Int]("shift")
   val OPERATION_TYPE = RawDimension[Int]("operation_type")
   val OPERATOR = DictionaryDimension("operator")
-  val POSITION = DictionaryDimension("position")
+  val POSITION = RawDimension[Int]("position")
 }

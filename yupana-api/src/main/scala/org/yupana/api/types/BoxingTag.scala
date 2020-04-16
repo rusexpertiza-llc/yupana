@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.cache
+package org.yupana.api.types
 
 import scala.reflect.ClassTag
 
@@ -41,5 +41,11 @@ object BoxingTag {
     override type R = T
     override def clazz: Class[T] = tag.runtimeClass.asInstanceOf[Class[T]]
     override def cast(t: T): T = t
+  }
+
+  implicit def arrayBoxing[T](implicit tag: ClassTag[T]): BoxingTag[Array[T]] = new BoxingTag[Array[T]] {
+    override type R = Array[T]
+    override def clazz: Class[R] = tag.wrap.runtimeClass.asInstanceOf[Class[Array[T]]]
+    override def cast(t: Array[T]): Array[T] = t
   }
 }

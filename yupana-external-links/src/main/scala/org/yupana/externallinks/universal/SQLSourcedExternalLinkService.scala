@@ -21,6 +21,7 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression, InExpr, LinkExpr, NotInExpr }
 import org.yupana.api.schema.ExternalLink
+import org.yupana.api.types.BoxingTag
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
@@ -41,7 +42,15 @@ class SQLSourcedExternalLinkService(
   import SQLSourcedExternalLinkService._
   import config._
 
+  type DimensionValue = externalLink.dimension.T
+
   private val mapping = config.fieldsMapping
+
+  private val fieldValuesForDimValuesCache: Cache[DimensionValue, Map[FieldName, FieldValue]] =
+    CacheFactory.initCache[DimensionValue, Map[FieldName, FieldValue]](externalLink.linkName + "_fields")(
+      externalLink.dimension.dataType.boxingTag,
+      BoxingTag[Map[FieldName, FieldValue]]
+    )
 
   override def setLinkedValues(
       exprIndex: collection.Map[Expression, Int],
@@ -81,12 +90,8 @@ class SQLSourcedExternalLinkService(
       tagValues: Set[DimensionValue]
   ): Table[DimensionValue, FieldName, FieldValue] = {
 
-    def withLinkName(dimVal: DimensionValue): String = s"${externalLink.linkName}:$dimVal"
-    def withoutLinkName(cacheKey: String): DimensionValue = cacheKey.substring(cacheKey.indexOf(':') + 1)
+    val tableRows = fieldValuesForDimValuesCache.getAll(tagValues)
 
-    val tableRows = fieldValuesForDimValuesCache.getAll(tagValues.map(withLinkName)).map {
-      case (k, v) => withoutLinkName(k) -> v
-    }
     if (tagValues.forall(tableRows.contains)) {
       SparseTable(tableRows)
     } else {
@@ -99,12 +104,11 @@ class SQLSourcedExternalLinkService(
         .asScala
         .map(vs =>
           vs.asScala.toMap
-            .mapValues(_.toString)
             .map { case (k, v) => snakeToCamel(k) -> v }
         )
         .groupBy(m => m(dimensionName))
-        .mapValues(_.head - dimensionName)
-      fieldValuesForDimValuesCache.putAll(dataFromDb.map { case (k, v) => withLinkName(k) -> v })
+        .map { case (k, v) => k.asInstanceOf[DimensionValue] -> (v.head - dimensionName).mapValues(_.toString) }
+      fieldValuesForDimValuesCache.putAll(dataFromDb)
       SparseTable(tableRows ++ dataFromDb)
     }
   }
@@ -165,7 +169,4 @@ object SQLSourcedExternalLinkService {
   def snakeToCamel(s: String): String = {
     snakeParts.replaceAllIn(s, _.group(1).toUpperCase())
   }
-
-  val fieldValuesForDimValuesCache: Cache[String, Map[FieldName, FieldValue]] =
-    CacheFactory.initCache[String, Map[FieldName, FieldValue]]("UniversalCatalogFieldValuesCache")
 }
