@@ -22,7 +22,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
   "TSDB" should "be fast" taggedAs Slow in {
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
 
-    val N = 500000
+    val N = 5000000
     val in = (1 to N).toArray
 
     val metricDao = new TsdbQueryMetricsDao {
@@ -84,12 +84,18 @@ class TsdbBenchmark extends FlatSpec with Matchers {
         val v = tagged(1, 1.toDouble) ++
           tagged(Table.DIM_TAG_OFFSET, "test1") ++
           tagged((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
+        val K = 10
+        (1 to N / K).map { i =>
+          val dimId = i
 
-        in.map { x =>
-          val dimId = x
+          val vs = (1 to K).map { j =>
+            val x = i * K + j
+            (x % 1000000.toLong, v)
+          }
+
           TSDOutputRow[Long](
             key = TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))),
-            values = Array((x % 1000000, v))
+            values = vs.toArray
           )
         }
       }
