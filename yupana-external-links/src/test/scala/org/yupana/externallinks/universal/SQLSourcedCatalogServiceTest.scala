@@ -78,7 +78,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension), Set("123432345654"))
+    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set("123432345654"))
 
     val notInCondition = externalLinkService.condition(
       and(
@@ -88,7 +88,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
 
     notInCondition shouldEqual notIn(
-      dimension(externalLink.dimension),
+      dimension(externalLink.dimension.aux),
       Set("123432345654", "123432345656", "123432345657")
     )
   }
@@ -141,7 +141,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension), Set("123432345657"))
+    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set("123432345657"))
 
     val notInCondition = externalLinkService.condition(
       and(
@@ -151,7 +151,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
 
     notInCondition shouldEqual notIn(
-      dimension(externalLink.dimension),
+      dimension(externalLink.dimension.aux),
       Set("123432345654", "123432345656", "123432345657")
     )
   }

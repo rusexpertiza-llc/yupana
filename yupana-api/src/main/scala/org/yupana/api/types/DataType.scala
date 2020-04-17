@@ -73,10 +73,10 @@ object DataType {
 
   implicit val periodDt: DataType.Aux[Period] = DataType[Period](r => TypeOperations.periodOperations(r))
 
-  implicit def intDt[T: Storable: DataTypeMeta: Integral: ClassTag: BoxingTag]: DataType.Aux[T] =
+  implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
 
-  implicit def fracDt[T: Storable: DataTypeMeta: Fractional: ClassTag: BoxingTag]: DataType.Aux[T] =
+  implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {

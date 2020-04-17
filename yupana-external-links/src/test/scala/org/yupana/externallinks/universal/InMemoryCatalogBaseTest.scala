@@ -4,7 +4,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, RawDimension }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 
 class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
@@ -34,12 +34,12 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       condition
     }
 
-    override def keyExpr: Expression.Aux[String] = DimensionExpr(Dimension("TAG_X"))
+    override def keyExpr: Expression.Aux[String] = DimensionExpr(DictionaryDimension("TAG_X"))
   }
 
   class TestLink extends ExternalLink {
     override val linkName: String = "TestCatalog"
-    override val dimension: Dimension = Dimension("TAG_Y")
+    override val dimension: Dimension.Aux[Int] = RawDimension[Int]("TAG_Y")
     override val fieldsNames: Set[String] =
       Set(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3)
   }
@@ -66,7 +66,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
   "InMemoryCatalogBase" should "fill value data" in {
     val exprIndex = Seq[Expression](
       time,
-      dimension(Dimension("TAG_Y")),
+      dimension(RawDimension[Int]("TAG_Y")),
       link(testExternalLink, TestExternalLink.testField1),
       link(testExternalLink, TestExternalLink.testField2),
       link(testExternalLink, TestExternalLink.testField3)
@@ -75,9 +75,9 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     val builder = new InternalRowBuilder(exprIndex)
 
     val valueData = Seq(
-      builder.set(time, Some(Time(100))).set(dimension(Dimension("TAG_Y")), Some("a")).buildAndReset(),
-      builder.set(time, Some(Time(200))).set(dimension(Dimension("TAG_Y")), Some("d")).buildAndReset(),
-      builder.set(time, Some(Time(300))).set(dimension(Dimension("TAG_Y")), Some("agr")).buildAndReset()
+      builder.set(time, Some(Time(100))).set(dimension(RawDimension[Int]("TAG_Y")), Some(1)).buildAndReset(),
+      builder.set(time, Some(Time(200))).set(dimension(RawDimension[Int]("TAG_Y")), Some(2)).buildAndReset(),
+      builder.set(time, Some(Time(300))).set(dimension(RawDimension[Int]("TAG_Y")), Some(3)).buildAndReset()
     )
 
     testCatalog.setLinkedValues(
@@ -109,7 +109,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
   it should "support positive conditions" in {
     testCatalog.condition(equ(link(testExternalLink, TestExternalLink.testField1), const("aaa"))) shouldEqual in(
-      dimension(Dimension("TAG_X")),
+      dimension(DictionaryDimension("TAG_X")),
       Set("aaa")
     )
 
@@ -118,32 +118,32 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
         equ(link(testExternalLink, TestExternalLink.testField2), const("bar")),
         equ(link(testExternalLink, TestExternalLink.testField1), const("bar"))
       )
-    ) shouldEqual in(dimension(Dimension("TAG_X")), Set("bar"))
+    ) shouldEqual in(dimension(DictionaryDimension("TAG_X")), Set("bar"))
 
     testCatalog.condition(
       and(
         equ(link(testExternalLink, TestExternalLink.testField2), const("bar")),
         in(link(testExternalLink, TestExternalLink.testField3), Set("abc"))
       )
-    ) shouldEqual in(dimension(Dimension("TAG_X")), Set.empty)
+    ) shouldEqual in(dimension(DictionaryDimension("TAG_X")), Set.empty)
   }
 
   it should "support negativeCondition operation" in {
     testCatalog.condition(
       neq(link(testExternalLink, TestExternalLink.testField2), const("bar"))
-    ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("foo", "bar"))
+    ) shouldEqual notIn(dimension(DictionaryDimension("TAG_X")), Set("foo", "bar"))
     testCatalog.condition(
       and(
         neq(link(testExternalLink, TestExternalLink.testField2), const("bar")),
         notIn(link(testExternalLink, TestExternalLink.testField3), Set("look"))
       )
-    ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("foo", "bar"))
+    ) shouldEqual notIn(dimension(DictionaryDimension("TAG_X")), Set("foo", "bar"))
     testCatalog.condition(
       and(
         neq(link(testExternalLink, TestExternalLink.testField1), const("aaa")),
         neq(link(testExternalLink, TestExternalLink.testField3), const("baz"))
       )
-    ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("aaa", "foo"))
+    ) shouldEqual notIn(dimension(DictionaryDimension("TAG_X")), Set("aaa", "foo"))
   }
 
   it should "validate data" in {

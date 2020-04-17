@@ -3,10 +3,10 @@ package org.yupana.core
 import org.yupana.api.schema._
 
 object TestDims {
-  val TAG_A = Dimension("TAG_A")
-  val TAG_B = Dimension("TAG_B")
-  val TAG_X = Dimension("TAG_X")
-  val TAG_Y = Dimension("TAG_Y")
+  val DIM_A = DictionaryDimension("A")
+  val DIM_B = DictionaryDimension("B")
+  val DIM_X = DictionaryDimension("X")
+  val DIM_Y = RawDimension[Long]("Y")
 }
 
 object TestTableFields {
@@ -25,7 +25,7 @@ object TestTable2Fields {
 object TestLinks {
   class TestLink extends ExternalLink {
     override val linkName: String = "TestLink"
-    override val dimension: Dimension = TestDims.TAG_A
+    override val dimension: Dimension = TestDims.DIM_A
     override val fieldsNames: Set[String] = Set("testField")
   }
 
@@ -33,7 +33,7 @@ object TestLinks {
 
   class TestLink2 extends ExternalLink {
     override val linkName: String = "TestLink2"
-    override val dimension: Dimension = TestDims.TAG_A
+    override val dimension: Dimension = TestDims.DIM_A
     override val fieldsNames: Set[String] = Set("testField2")
   }
 
@@ -41,7 +41,7 @@ object TestLinks {
 
   class TestLink3 extends ExternalLink {
     override val linkName: String = "TestLink3"
-    override val dimension: Dimension = TestDims.TAG_A
+    override val dimension: Dimension = TestDims.DIM_A
     override val fieldsNames: Set[String] = Set("testField3_1", "testField3_2", "testField3_3")
   }
 
@@ -49,7 +49,7 @@ object TestLinks {
 
   class TestLink4 extends ExternalLink {
     override val linkName: String = "TestLink4"
-    override val dimension: Dimension = TestDims.TAG_B
+    override val dimension: Dimension = TestDims.DIM_B
     override val fieldsNames: Set[String] = Set("testField4")
   }
 
@@ -61,7 +61,7 @@ object TestSchema {
   val testTable = new Table(
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
-    dimensionSeq = Seq(TestDims.TAG_A, TestDims.TAG_B),
+    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B),
     metrics = Seq(
       TestTableFields.TEST_FIELD,
       TestTableFields.TEST_STRING_FIELD,
@@ -74,7 +74,7 @@ object TestSchema {
   val testTable2 = new Table(
     name = "test_table_2",
     rowTimeSpan = 7 * 24 * 3600 * 1000,
-    dimensionSeq = Seq(TestDims.TAG_X, TestDims.TAG_Y),
+    dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
     externalLinks = Seq()
   )

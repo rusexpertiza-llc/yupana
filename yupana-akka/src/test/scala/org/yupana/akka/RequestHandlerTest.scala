@@ -7,7 +7,7 @@ import org.scalatest.{ EitherValues, FlatSpec, Inside, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
-import org.yupana.api.types.Writable
+import org.yupana.api.types.Storable
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
@@ -94,7 +94,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val data = resp.next()
     data shouldEqual Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("деталь от паровоза"))))
+        ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("деталь от паровоза"))))
       )
     )
 
@@ -179,7 +179,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     resp should contain theSameElementsInOrderAs Seq(
       Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
-      Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))),
+      Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))),
       Response(Response.Resp.ResultStatistics(ResultStatistics(-1, -1)))
     )
   }
@@ -268,7 +268,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
-      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))
+      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))
     )
   }
 
@@ -281,7 +281,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
-      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[Int]].write(8)))))
+      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[Int]].write(8)))))
     )
   }
 }

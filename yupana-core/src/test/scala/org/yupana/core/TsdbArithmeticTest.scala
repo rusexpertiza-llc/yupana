@@ -52,7 +52,7 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("taga")))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("taga")))
         ),
         *,
         *
@@ -93,8 +93,8 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.TAG_A), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("taga")))
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A), time),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("taga")))
         ),
         *,
         *
@@ -102,12 +102,12 @@ class TsdbArithmeticTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("taga"))
+            .set(dimension(TestDims.DIM_A), Some("taga"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("taga"))
+            .set(dimension(TestDims.DIM_A), Some("taga"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
             .buildAndReset()
@@ -156,13 +156,13 @@ class TsdbArithmeticTest
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_STRING_FIELD),
-            dimension(TestDims.TAG_A),
+            dimension(TestDims.DIM_A),
             time
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("0000270761025003"))
+            in(dimension(TestDims.DIM_A), Set("0000270761025003"))
           )
         ),
         *,
@@ -171,13 +171,13 @@ class TsdbArithmeticTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("0000270761025003"))
+            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("0000270761025003"))
+            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
@@ -281,7 +281,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(dimension(TestDims.TAG_A), time),
+          Set(dimension(TestDims.DIM_A), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -289,8 +289,8 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("0000270761025003")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("0000270761025003")).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset()
         )
       )
 
