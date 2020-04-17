@@ -16,14 +16,15 @@ import org.yupana.core.dao._
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 import org.yupana.core._
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 
 class TsdbBenchmark extends FlatSpec with Matchers {
 
   "TSDB" should "be fast" taggedAs Slow in {
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
 
-    val N = 500000
-    val in = (1 to N).toArray
+    val N = 5000000
+//    val in = (1 to N).toArray
 
     val metricDao = new TsdbQueryMetricsDao {
       override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long = ???
@@ -85,12 +86,22 @@ class TsdbBenchmark extends FlatSpec with Matchers {
           tagged(Table.DIM_TAG_OFFSET, "test1") ++
           tagged((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
 
-        in.map { x =>
-          val dimId = x
-          TSDOutputRow[Long](
-            key = TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))),
-            values = Array((x % 1000000, v))
-          )
+        val K = 100
+        (1 to N / K).map { i =>
+          val builder = HBaseTestUtils.row(TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(i), Some(i))))
+          val b2 = (1 to K).foldLeft(builder) { (builder, j) =>
+            val t = i * K + j
+            builder.cell(t % 1000000, 1, 1d)
+          }
+          val b3 = (1 to K).foldLeft(b2) { (builder, j) =>
+            val t = i * K + j
+            builder.cell(t % 1000000, Table.DIM_TAG_OFFSET, "test1")
+          }
+          val b4 = (1 to K).foldLeft(b3) { (builder, j) =>
+            val t = i * K + j
+            builder.cell(t % 1000000, Table.DIM_TAG_OFFSET + 1, "test2")
+          }
+          b4.hbaseRow
         }
       }
 
@@ -99,7 +110,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
           from: IdType,
           to: IdType,
           rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-      ): Iterator[TSDOutputRow[IdType]] = {
+      ): Iterator[HResult] = {
         rows.iterator
       }
 

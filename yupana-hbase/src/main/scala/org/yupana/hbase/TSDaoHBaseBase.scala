@@ -32,6 +32,7 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.hbase.Filtration.TimeFilter
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 
 import scala.language.higherKinds
 
@@ -63,7 +64,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       from: Long,
       to: Long,
       rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-  ): Collection[TSDOutputRow[IdType]]
+  ): Collection[HResult]
 
   override def query(
       query: InternalQuery,
@@ -111,8 +112,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val mr = mapReduceEngine(metricCollector)
 
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-        rs.filter(rowFilter)
+      val rows = rs.map(r => new TSDHBaseRow(context, r))
+      val filtered = context.metricsCollector.filterRows.measure(rows.size) {
+        rows.filter(rowFilter)
       }
       extractData(context, valueDataBuilder, filtered, timeFilter).iterator
     }
@@ -368,7 +370,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   private def extractData(
       context: InternalQueryContext,
       valueDataBuilder: InternalRowBuilder,
-      rows: Seq[TSDOutputRow[IdType]],
+      rows: Seq[TSDHBaseRow],
       timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
@@ -376,17 +378,15 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       val rowValues = Array.ofDim[Option[Any]](Table.MAX_TAGS)
       for {
         row <- rows
-        (offset, bytes) <- row.values.toSeq
-        time = row.key.baseTime + offset
-        if timeFilter(time) && readRow(context, bytes, rowValues, time)
+        (time, values) <- row.iterator(rowValues) if timeFilter(time)
       } yield {
         context.exprsIndexSeq.foreach {
           case (expr, index) =>
             expr match {
               case e: DimensionExpr =>
-                valueDataBuilder.set(e, rowValues(context.tagForExprIndex(index) & 0xFF))
+                valueDataBuilder.set(e, values(context.tagForExprIndex(index) & 0xFF))
               case e @ MetricExpr(field) =>
-                valueDataBuilder.set(e, rowValues(field.tag & 0xFF))
+                valueDataBuilder.set(e, values(field.tag & 0xFF))
               case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
               case e =>
                 throw new IllegalArgumentException(

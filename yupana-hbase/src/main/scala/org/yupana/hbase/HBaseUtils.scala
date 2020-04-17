@@ -64,33 +64,37 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
-  def createTsdRows(
+  def createPutOperations(
       dataPoints: Seq[DataPoint],
       dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[TSDInputRow[Long]])] = {
-
+  ): Seq[(Table, Seq[Put])] = {
     dataPoints
       .groupBy(_.table)
       .map {
         case (table, points) =>
           val grouped = points.groupBy(rowKey(_, table, dictionaryProvider))
-          table -> grouped.map {
+          val puts = grouped.map {
             case (key, dps) =>
-              TSDInputRow(key, TSDRowValues(table, dps))
-          }.toSeq
+              createPutOperation(table, key, dps)
+          }
+
+          table -> puts.toSeq
       }
       .toSeq
   }
 
-  def createPutOperation(row: TSDInputRow[Long]): Put = {
-    val put = new Put(rowKeyToBytes(row.key))
-    row.values.valuesByGroup.foreach {
-      case (group, values) =>
-        values.foreach {
-          case (time, bytes) =>
-            val timeBytes = Bytes.toBytes(time)
-            put.addColumn(family(group), timeBytes, bytes)
-        }
+  private def createPutOperation(table: Table, key: TSDRowKey[Long], dps: Seq[DataPoint]) = {
+    val put = new Put(rowKeyToBytes(key))
+    dps.foreach { dp =>
+      val time = restTime(dp.time, table)
+      dp.metrics.foreach { metricValue =>
+        val fam = family(metricValue.metric.group)
+        val qualifier = Array.ofDim[Byte](9)
+        Bytes.putByte(qualifier, 0, metricValue.metric.tag)
+        Bytes.putLong(qualifier, 1, time)
+        val value = metricValue.metric.dataType.writable.write(metricValue.value)
+        put.addColumn(fam, qualifier, value)
+      }
     }
     put
   }
@@ -148,7 +152,7 @@ object HBaseUtils extends StrictLogging {
       scan: Scan,
       context: InternalQueryContext,
       batchSize: Int
-  ): Iterator[TSDOutputRow[Long]] = {
+  ): Iterator[Result] = {
 
     val htable = connection.getTable(tableName(namespace, context.table))
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
@@ -157,7 +161,7 @@ object HBaseUtils extends StrictLogging {
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
-    val resultIterator = new AbstractIterator[List[TSDOutputRow[Long]]] {
+    val resultIterator = new AbstractIterator[List[Result]] {
       override def hasNext: Boolean = {
         context.metricsCollector.scan.measure(1) {
           val hasNext = batchIterator.hasNext
@@ -170,13 +174,8 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): List[TSDOutputRow[Long]] = {
-        val batch = batchIterator.next()
-        context.metricsCollector.parseScanResult.measure(batch.size) {
-          batch.map { hbaseResult =>
-            getTsdRowFromResult(context.table, hbaseResult)
-          }
-        }
+      override def next(): List[Result] = {
+        batchIterator.next()
       }
     }
 

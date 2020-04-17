@@ -153,10 +153,9 @@ abstract class TsdbSparkBase(
 
     val puts = filtered.mapPartitions { partition =>
       partition.grouped(10000).flatMap { dataPoints =>
-        val rowsByTable = HBaseUtils.createTsdRows(dataPoints, dictionaryProvider)
-        rowsByTable.flatMap {
-          case (_, rows) =>
-            rows.map(row => new ImmutableBytesWritable() -> HBaseUtils.createPutOperation(row))
+        HBaseUtils.createPutOperations(dataPoints, dictionaryProvider).flatMap {
+          case (_, puts) =>
+            puts.map(put => new ImmutableBytesWritable() -> put)
         }
       }
     }

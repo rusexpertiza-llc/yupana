@@ -17,7 +17,7 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.CellUtil
-import org.apache.hadoop.hbase.client.{ Connection, Get, Put, Scan }
+import org.apache.hadoop.hbase.client.{ Connection, Get, Put, Result, Scan }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Table }
@@ -44,7 +44,7 @@ class TSDaoHBase(
       from: IdType,
       to: IdType,
       rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-  ): Iterator[TSDOutputRow[IdType]] = {
+  ): Iterator[Result] = {
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
@@ -63,14 +63,13 @@ class TSDaoHBase(
     logger.trace(s"Put ${dataPoints.size} dataPoints to tsdb")
     logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPoints.mkString("\r\n")}")
 
-    createTsdRows(dataPoints, dictionaryProvider).foreach {
-      case (table, rows) =>
+    createPutOperations(dataPoints, dictionaryProvider).foreach {
+      case (table, puts) =>
         val hbaseTable = connection.getTable(tableName(namespace, table))
-        rows
-          .map(createPutOperation)
-          .sliding(putsBatchSize, putsBatchSize)
+        puts
+          .grouped(putsBatchSize)
           .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-        logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: \r\n ${rows.mkString("\r\n")}")
+        logger.trace(s" -- DETAIL PUTS IN TABLE ${table.name}: \r\n ${puts.mkString("\r\n")}")
     }
   }
 
