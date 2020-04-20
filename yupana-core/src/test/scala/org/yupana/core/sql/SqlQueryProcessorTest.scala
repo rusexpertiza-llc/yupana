@@ -4,7 +4,7 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime, Period }
 import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, MetricValue, RawDimension }
+import org.yupana.api.schema.{ DictionaryDimension, MetricValue, RawDimension }
 import org.yupana.api.types._
 import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }

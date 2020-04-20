@@ -147,7 +147,7 @@ case object TimeExpr extends Expression {
   def toField: QueryField = QueryField("time", this)
 }
 
-case class DimensionExpr[T](dimension: Dimension.Aux[T]) extends Expression {
+class DimensionExpr[T](val dimension: Dimension.Aux[T]) extends Expression {
   override type Out = T
   override val dataType: DataType.Aux[dimension.T] = dimension.dataType
   override def kind: ExprKind = Simple
@@ -156,6 +156,12 @@ case class DimensionExpr[T](dimension: Dimension.Aux[T]) extends Expression {
 
   override def encode: String = s"dim(${dimension.name})"
   def toField: QueryField = QueryField(dimension.name, this)
+}
+
+object DimensionExpr {
+  def apply[T](dimension: Dimension.Aux[T]): DimensionExpr[T] = new DimensionExpr(dimension)
+  def unapply(expr: DimensionExpr[_]): Option[Dimension.Aux[expr.Out]] =
+    Some(expr.dimension.asInstanceOf[Dimension.Aux[expr.Out]])
 }
 
 case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {

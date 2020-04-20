@@ -8,7 +8,7 @@ import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.MetricValue
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.types._
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
@@ -51,11 +51,11 @@ class TsdbTest
     val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig(putEnabled = true))
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
-    val tags = Map(TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
-    val dp1 = DataPoint(TestSchema.testTable, time, tags, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
-    val dp2 = DataPoint(TestSchema.testTable, time + 1, tags, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
+    val dims = Map[Dimension, Any](TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
+    val dp1 = DataPoint(TestSchema.testTable, time, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
+    val dp2 = DataPoint(TestSchema.testTable, time + 1, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
     val dp3 =
-      DataPoint(TestSchema.testTable2, time + 1, tags, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
+      DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
     (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> 1L))
     (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_B, Set("test2")).returning(Map("test2" -> 2L))
@@ -155,7 +155,7 @@ class TsdbTest
         dimension(TestDims.DIM_A) as "TAG_A",
         dimension(TestDims.DIM_B) as "TAG_B"
       ),
-      DimIdInExpr(dimension(TestDims.DIM_A), SortedSetIterator(123))
+      DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -166,7 +166,7 @@ class TsdbTest
           TestSchema.testTable,
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(
-            DimIdInExpr(dimension(TestDims.DIM_A), SortedSetIterator(123)),
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123)),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -325,7 +325,7 @@ class TsdbTest
       AndExpr(
         Seq(
           equ(dimension(TestDims.DIM_B), const("B-52")),
-          notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42")))
+          notIn(tuple(time, dimension(TestDims.DIM_A.aux)), Set((Time(pointTime2), "test42")))
         )
       )
     )
@@ -960,7 +960,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdInExpr(dimension(TestDims.DIM_A), SortedSetIterator.empty)
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty)
           )
         )
 
@@ -972,7 +972,7 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdInExpr(dimension(TestDims.DIM_A), SortedSetIterator.empty)
+              DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty)
             )
           ),
           *,
@@ -1128,7 +1128,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdNotInExpr(dimension(TestDims.DIM_A), SortedSetIterator(1, 2))
+            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
           )
         )
 
@@ -1154,7 +1154,7 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdNotInExpr(dimension(TestDims.DIM_A), SortedSetIterator(1, 2))
+              DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
             )
           ),
           *,

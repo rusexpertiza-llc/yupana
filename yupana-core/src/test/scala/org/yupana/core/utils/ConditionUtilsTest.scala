@@ -122,6 +122,7 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     ConditionUtils.flatMap(c) {
       case InExpr(DimensionExpr(DictionaryDimension("x", None)), _) =>
         InExpr(DimensionExpr(DictionaryDimension("y", None)), Set("x"))
+
       case _ => ConstantExpr(true)
     } shouldEqual in(dimension(DictionaryDimension("y")), Set("x"))
   }
@@ -130,7 +131,7 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     val c = in(dimension(RawDimension[Int]("x")), Set(1, 2, 3))
 
     ConditionUtils.flatMap(c) {
-      case InExpr(DimensionExpr(RawDimension[Int]("y", None)), _) =>
+      case InExpr(DimensionExpr(RawDimension("y")), _) =>
         InExpr(DimensionExpr(DictionaryDimension("z", None)), Set("x"))
       case _ => ConstantExpr(true)
     } shouldEqual ConstantExpr(true)
@@ -194,7 +195,7 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
 
     ConditionUtils.merge(a, b) shouldEqual and(
       equ(dimension(DictionaryDimension("x")), const("bar")),
-      in(dimension(RawDimension[Int]("y")), Set("foo", "bar")),
+      in(dimension(RawDimension[Int]("y")), Set(1, 2)),
       gt(time, const(Time(100))),
       lt(time, const(Time(500)))
     )
@@ -204,13 +205,13 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     val c = equ(dimension(RawDimension[Int]("foo")), const(44))
 
     ConditionUtils.split(c) {
-      case Equ(DimensionExpr(RawDimension[Int]("foo", None)), ConstantExpr(_)) => true
-      case _                                                                   => false
+      case Equ(DimensionExpr(RawDimension("foo")), ConstantExpr(_)) => true
+      case _                                                        => false
     } shouldBe ((c, ConstantExpr(true)))
 
     ConditionUtils.split(c) {
-      case Equ(DimensionExpr(RawDimension[_]("bar", None)), ConstantExpr(_)) => true
-      case _                                                                 => false
+      case Equ(DimensionExpr(RawDimension("bar")), ConstantExpr(_)) => true
+      case _                                                        => false
     } shouldBe ((ConstantExpr(true), c))
   }
 
