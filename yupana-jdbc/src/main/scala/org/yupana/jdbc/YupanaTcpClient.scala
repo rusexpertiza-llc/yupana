@@ -234,6 +234,11 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
             throw new IllegalArgumentException(e)
           }
         }
+
+        if (!responses.hasNext && statistics.isEmpty) {
+          channel.close()
+          throw new IllegalArgumentException("Unexpected end of response")
+        }
       }
 
     }
