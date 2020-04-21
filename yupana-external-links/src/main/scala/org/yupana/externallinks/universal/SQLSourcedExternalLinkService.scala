@@ -57,7 +57,13 @@ class SQLSourcedExternalLinkService(
       rows: Seq[InternalRow],
       exprs: Set[LinkExpr]
   ): Unit = {
-    ExternalLinkUtils.setLinkedValues(externalLink, exprIndex, rows, exprs, fieldValuesForDimValues)
+    ExternalLinkUtils.setLinkedValues(
+      externalLink.asInstanceOf[ExternalLink.Aux[externalLink.dimension.T]],
+      exprIndex,
+      rows,
+      exprs,
+      fieldValuesForDimValues
+    )
   }
 
   override def condition(condition: Condition): Condition = {
@@ -139,7 +145,7 @@ class SQLSourcedExternalLinkService(
   private def tagValuesForFieldsValues(
       fieldsValues: Seq[(FieldName, Set[FieldValue])],
       joiningOperator: String
-  ): Set[externalLink.dimension.T] = {
+  ): Set[DimensionValue] = {
     val q = tagsByFieldsQuery(fieldsValues, joiningOperator)
     val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object]).toArray
     logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
@@ -147,7 +153,7 @@ class SQLSourcedExternalLinkService(
       .queryForList(
         q,
         params,
-        externalLink.dimension.dataType.classTag.runtimeClass.asInstanceOf[Class[externalLink.dimension.T]]
+        externalLink.dimension.dataType.classTag.runtimeClass.asInstanceOf[Class[DimensionValue]]
       )
       .asScala
       .toSet

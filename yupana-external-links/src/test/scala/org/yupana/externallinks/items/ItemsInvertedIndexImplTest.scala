@@ -54,8 +54,8 @@ class ItemsInvertedIndexImplTest
     )
 
     actual shouldEqual and(
-      DimIdInExpr(dimension(Dimensions.ITEM), SortedSetIterator(4, 5, 42)),
-      DimIdNotInExpr(dimension(Dimensions.ITEM), SortedSetIterator(2))
+      DimIdInExpr(Dimensions.ITEM, SortedSetIterator(4, 5, 42)),
+      DimIdNotInExpr(Dimensions.ITEM, SortedSetIterator(2))
     )
   }
 

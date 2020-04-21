@@ -33,9 +33,9 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc1,
           Seq(
-            Array[Option[Any]](Some("123456"), Some(Time(120))),
-            Array[Option[Any]](Some("123456"), Some(Time(150))),
-            Array[Option[Any]](Some("345112"), Some(Time(120)))
+            Array[Option[Any]](Some(123456), Some(Time(120))),
+            Array[Option[Any]](Some(123456), Some(Time(150))),
+            Array[Option[Any]](Some(345112), Some(Time(120)))
           ).toIterator
         )
       )
@@ -56,8 +56,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc2,
           Seq(
-            Array[Option[Any]](Some("123456"), Some(Time(125))),
-            Array[Option[Any]](Some("123456"), Some(Time(120)))
+            Array[Option[Any]](Some(123456), Some(Time(125))),
+            Array[Option[Any]](Some(123456), Some(Time(120)))
           ).toIterator
         )
       )
@@ -76,11 +76,11 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       lt(time, const(Time(500L))),
       in(
         tuple(time, dimension(Dimensions.KKM_ID)),
-        Set((Time(120L), "123456"), (Time(150L), "123456"), (Time(120L), "345112"))
+        Set((Time(120L), 123456), (Time(150L), 123456), (Time(120L), 345112))
       ),
       notIn(
         tuple(time, dimension(Dimensions.KKM_ID)),
-        Set((Time(125L), "123456"), (Time(120L), "123456"))
+        Set((Time(125L), 123456), (Time(120L), 123456))
       )
     )
   }
@@ -107,8 +107,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc,
           Seq(
-            Array[Option[Any]](Some("123456"), Some(Time(220))),
-            Array[Option[Any]](Some("654321"), Some(Time(330)))
+            Array[Option[Any]](Some(123456), Some(Time(220))),
+            Array[Option[Any]](Some(654321), Some(Time(330)))
           ).toIterator
         )
       )
@@ -126,7 +126,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       lt(time, const(Time(500L))),
       in(
         tuple(time, dimension(Dimensions.KKM_ID)),
-        Set((Time(220L), "123456"), (Time(330L), "654321"))
+        Set((Time(220L), 123456), (Time(330L), 654321))
       )
     )
   }

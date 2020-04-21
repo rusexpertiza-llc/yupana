@@ -373,34 +373,6 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-//  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Any]]): FuzzyRowFilter = {
-//    val filterRowKey = TSDRowKey(
-//      baseTime.getOrElse(0L),
-//      tagsFilter
-//    )
-//    val filterKey = rowKeyToBytes(filterRowKey)
-//
-//    val baseTimeMask: Byte = if (baseTime.isDefined) 0 else 1
-//
-//    val buffer = ByteBuffer
-//      .allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
-//      .put(Array.fill[Byte](Bytes.SIZEOF_LONG)(baseTimeMask))
-//
-//    val filterMask = tagsFilter
-//      .foldLeft(buffer) {
-//        case (buf, v) =>
-//          if (v.isDefined) {
-//            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
-//          } else {
-//            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
-//          }
-//      }
-//      .array()
-//
-//    val filter = new FuzzyRowFilter(List(new Pair(filterKey, filterMask)).asJava)
-//    filter
-//  }
-
   private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
@@ -490,22 +462,6 @@ object HBaseUtils extends StrictLogging {
   def createRollupStatusPut(time: Long, status: String): Put = {
     new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
-
-//  private def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
-//
-//    val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
-//
-//    val buffer = ByteBuffer
-//      .allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
-//      .put(baseTimeBytes)
-//
-//    rowKey.dimIds
-//      .foldLeft(buffer) {
-//        case (buf, value) =>
-//          buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
-//      }
-//      .array()
-//  }
 
   private def tableKeySize(table: Table): Int = {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map {

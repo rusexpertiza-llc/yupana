@@ -11,7 +11,7 @@ import org.scalatest._
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Expression }
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.Writable
+import org.yupana.api.types.Storable
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
@@ -32,7 +32,7 @@ class TSDaoHBaseTest
   import TestSchema._
   import org.yupana.api.query.syntax.All._
 
-  type QueryRunner = MockFunction1[Seq[Scan], Iterator[TSDOutputRow[Long]]]
+  type QueryRunner = MockFunction1[Seq[Scan], Iterator[TSDOutputRow]]
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -44,11 +44,11 @@ class TSDaoHBaseTest
     CacheFactory.flushCaches()
   }
 
-  def baseTime(time: Long) = {
+  private def baseTime(time: Long) = {
     time - (time % testTable.rowTimeSpan)
   }
 
-  def scan(from: Long, to: Long) = {
+  private def scan(from: Long, to: Long) = {
     where { (scans: Seq[Scan]) =>
       val scan = scans.head
       baseTime(from) == Bytes.toLong(scan.getStartRow) &&
@@ -742,7 +742,7 @@ class TSDaoHBaseTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdInExpr(dimension(TestDims.DIM_A), SortedSetIterator(1, 2))
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
           )
         ),
         valueDataBuilder,
@@ -799,7 +799,7 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test11", "test12")),
-            DimIdNotInExpr(dimension(TestDims.DIM_A), SortedSetIterator(2, 5)),
+            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(2, 5)),
             neq(dimension(TestDims.DIM_A), const("test14"))
           )
         ),
@@ -999,8 +999,8 @@ class TSDaoHBaseTest
         queryContext: InternalQueryContext,
         from: IdType,
         to: IdType,
-        rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-    ): Iterator[TSDOutputRow[IdType]] = {
+        rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+    ): Iterator[TSDOutputRow] = {
       val scans = rangeScanDims.map { dimIds =>
         val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
         HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
@@ -1010,18 +1010,18 @@ class TSDaoHBaseTest
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {
-    val exec = mockFunction[Seq[Scan], Iterator[TSDOutputRow[Long]]]
+    val exec = mockFunction[Seq[Scan], Iterator[TSDOutputRow]]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dicionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val dao = new TestDao(dicionaryProvider, exec)
     body(dao, dictionaryDaoMock, exec)
   }
 
-  def tagged[T](tag: Byte, value: T)(implicit writable: Writable[T]): Array[Byte] = {
+  private def tagged[T](tag: Byte, value: T)(implicit writable: Storable[T]): Array[Byte] = {
     tag +: writable.write(value)
   }
 
-  def dimBytes(values: String*) = {
+  private def dimBytes(values: String*): Array[Byte] = {
     values.zipWithIndex.foldLeft(Array.ofDim[Byte](0)) {
       case (aac, (dim, idx)) =>
         aac ++ tagged((Table.DIM_TAG_OFFSET + idx).toByte, dim)

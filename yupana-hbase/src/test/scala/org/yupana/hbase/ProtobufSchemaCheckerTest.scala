@@ -5,10 +5,10 @@ import org.yupana.api.schema._
 
 class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
-  val TAG_A = Dimension("tag_a")
-  val TAG_B = Dimension("tag_b")
-  val TAG_C = Dimension("tag_c")
-  val TAG_D = Dimension("tag_d")
+  val DIM_A = DictionaryDimension("tag_a")
+  val DIM_B = RawDimension[Int]("tag_b")
+  val DIM_C = RawDimension[Long]("tag_c")
+  val DIM_D = DictionaryDimension("tag_d")
 
   val METRIC_A = Metric[Double]("metric_a", 1)
   val METRIC_B = Metric[Long]("metric_b", 2)
@@ -20,7 +20,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
   val table1 = new Table(
     name = "table_1",
     rowTimeSpan = 86400000L * 30L,
-    dimensionSeq = Seq(TAG_B, TAG_A, TAG_C, TAG_D),
+    dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
     metrics = metrics,
     externalLinks = Seq.empty
   )
@@ -28,14 +28,14 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
   val table2 = new Table(
     name = "table_2",
     rowTimeSpan = 86400000L * 30L,
-    dimensionSeq = Seq(TAG_A, TAG_B, TAG_C, TAG_D),
+    dimensionSeq = Seq(DIM_A, DIM_B, DIM_C, DIM_D),
     metrics = metrics,
     externalLinks = Seq.empty
   )
 
   val TEST_LINK = new ExternalLink {
     override val linkName: String = "test_link"
-    override val dimension: Dimension = TAG_B
+    override val dimension: Dimension = DIM_B
     override val fieldsNames: Set[String] = Set("foo", "bar")
   }
 
@@ -60,7 +60,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     val significantlyDifferentTable1 = new Table(
       name = "table_1",
       rowTimeSpan = 86400000L * 31L,
-      dimensionSeq = Seq(TAG_A, TAG_C),
+      dimensionSeq = Seq(DIM_A, DIM_C),
       metrics = table1.metrics.take(2),
       externalLinks = Seq(TEST_LINK)
     )
@@ -82,7 +82,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     val table1WithChangedGroups = new Table(
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
-      dimensionSeq = Seq(TAG_B, TAG_A, TAG_C, TAG_D),
+      dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B_LOW_PRIORITY, METRIC_C, METRIC_D),
       externalLinks = Seq(TEST_LINK)
     )
@@ -103,7 +103,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     val table1WithChangedTag = new Table(
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
-      dimensionSeq = Seq(TAG_B, TAG_A, TAG_C, TAG_D),
+      dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B_WRONG_TAG, METRIC_C, METRIC_D),
       externalLinks = Seq(TEST_LINK)
     )
@@ -122,7 +122,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     val slightlyDifferentTable1 = new Table(
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
-      dimensionSeq = Seq(TAG_B, TAG_A, TAG_C, TAG_D),
+      dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = table1.metrics :+ Metric[BigDecimal]("extra_metric", 8),
       externalLinks = Seq(TEST_LINK)
     )
@@ -142,7 +142,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     val table1WithNewMetric = new Table(
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
-      dimensionSeq = Seq(TAG_B, TAG_A, TAG_C, TAG_D),
+      dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B, METRIC_C, METRIC_D, NEW_METRIC),
       externalLinks = Seq(TEST_LINK)
     )

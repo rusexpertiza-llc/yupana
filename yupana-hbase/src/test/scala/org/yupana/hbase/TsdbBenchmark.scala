@@ -9,7 +9,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.{ Aggregation, UnaryOperation, Writable }
+import org.yupana.api.types.{ Aggregation, UnaryOperation, Storable }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
@@ -87,7 +87,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
         in.map { x =>
           val dimId = x
-          TSDOutputRow[Long](
+          TSDOutputRow(
             key = TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))),
             values = Array((x % 1000000, v))
           )
@@ -98,8 +98,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
           queryContext: InternalQueryContext,
           from: IdType,
           to: IdType,
-          rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-      ): Iterator[TSDOutputRow[IdType]] = {
+          rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+      ): Iterator[TSDOutputRow] = {
         rows.iterator
       }
 
@@ -139,7 +139,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //        in.map(_ => row).iterator
 //      }
 
-      def tagged[T](tag: Byte, value: T)(implicit writable: Writable[T]): Array[Byte] = {
+      def tagged[T](tag: Byte, value: T)(implicit writable: Storable[T]): Array[Byte] = {
         tag +: writable.write(value)
       }
 
