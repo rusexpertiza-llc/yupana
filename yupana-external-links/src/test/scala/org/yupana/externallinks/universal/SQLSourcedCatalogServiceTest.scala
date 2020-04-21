@@ -16,7 +16,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
   val dbUser = "test"
   val dbPass = "secret"
 
-  private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService = {
+  private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService[Int] = {
     val ds = new DriverManagerDataSource(
       config.connection.url,
       config.connection.username.orNull,
@@ -24,7 +24,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
     val jdbc = new JdbcTemplate(ds)
 
-    val externalLink = SQLExternalLink(config, Dimensions.KKM_ID)
+    val externalLink = SQLExternalLink[Int](config, Dimensions.KKM_ID)
 
     new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
   }
@@ -78,7 +78,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set("123432345654"))
+    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345654))
 
     val notInCondition = externalLinkService.condition(
       and(

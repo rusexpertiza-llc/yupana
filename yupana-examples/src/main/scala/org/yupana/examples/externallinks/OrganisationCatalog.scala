@@ -29,9 +29,10 @@ trait OrganisationCatalog extends ExternalLink {
   val TYPE = "type"
   val ID = "id"
 
-  override val linkName: String = "Organisations"
+  override type DimType = Int
 
-  override val dimension: Dimension = Dimensions.KKM_ID
+  override val linkName: String = "Organisations"
+  override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
 
   override val fieldsNames: Set[String] = Set(TYPE, ID)
 }

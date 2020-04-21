@@ -91,7 +91,7 @@ class ItemsInvertedIndexImplTest
 
     inside(res) {
       case DimIdInExpr(d, vs) =>
-        d shouldEqual dimension(Dimensions.ITEM)
+        d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs Seq(2L, 3L, 6L)
     }
   }
@@ -107,7 +107,7 @@ class ItemsInvertedIndexImplTest
 
     inside(res) {
       case DimIdNotInExpr(d, vs) =>
-        d shouldEqual dimension(Dimensions.ITEM)
+        d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs Seq(1L, 3L)
     }
   }

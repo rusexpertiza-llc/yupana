@@ -24,32 +24,37 @@ object TestTable2Fields {
 
 object TestLinks {
   class TestLink extends ExternalLink {
+
+    override type DimType = String
     override val linkName: String = "TestLink"
-    override val dimension: Dimension = TestDims.DIM_A
+    override val dimension: Dimension.Aux[String] = TestDims.DIM_A
     override val fieldsNames: Set[String] = Set("testField")
   }
 
   val TEST_LINK: TestLink = new TestLink
 
   class TestLink2 extends ExternalLink {
+    override type DimType = String
     override val linkName: String = "TestLink2"
-    override val dimension: Dimension = TestDims.DIM_A
+    override val dimension: Dimension.Aux[String] = TestDims.DIM_A
     override val fieldsNames: Set[String] = Set("testField2")
   }
 
   val TEST_LINK2: TestLink2 = new TestLink2
 
   class TestLink3 extends ExternalLink {
+    override type DimType = String
     override val linkName: String = "TestLink3"
-    override val dimension: Dimension = TestDims.DIM_A
+    override val dimension: Dimension.Aux[String] = TestDims.DIM_A
     override val fieldsNames: Set[String] = Set("testField3_1", "testField3_2", "testField3_3")
   }
 
   val TEST_LINK3: TestLink3 = new TestLink3
 
   class TestLink4 extends ExternalLink {
+    override type DimType = String
     override val linkName: String = "TestLink4"
-    override val dimension: Dimension = TestDims.DIM_B
+    override val dimension: Dimension.Aux[String] = TestDims.DIM_B
     override val fieldsNames: Set[String] = Set("testField4")
   }
 

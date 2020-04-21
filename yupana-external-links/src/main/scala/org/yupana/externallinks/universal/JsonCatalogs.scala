@@ -52,7 +52,8 @@ object JsonCatalogs {
     }
   }
 
-  case class SQLExternalLink(config: SQLExternalLinkConfig, dimension: Dimension) extends ExternalLink {
+  case class SQLExternalLink[T](config: SQLExternalLinkConfig, dimension: Dimension.Aux[T]) extends ExternalLink {
+    override type DimType = T
     override val linkName: String = config.description.linkName
     override val fieldsNames: Set[String] = config.description.fieldsNames
   }
@@ -61,7 +62,7 @@ object JsonCatalogs {
     val tables = config.description.tables.flatMap(schema.getTable)
     tables.flatMap(_.dimensionSeq.find(_.name == config.description.dimensionName)).headOption match {
       case Some(dim) =>
-        val link = SQLExternalLink(config, dim)
+        val link = SQLExternalLink(config, dim.aux)
         config.description.tables.foldLeft(schema) { (ss, tableName) =>
           ss.withTableUpdated(tableName)(_.withExternalLinks(Seq(link)))
         }

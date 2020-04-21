@@ -28,6 +28,8 @@ import org.yupana.schema.Dimensions
 trait AddressCatalog extends ExternalLink {
   val CITY = "city"
 
+  override type DimType = Int
+
   override val linkName: String = "AddressCatalog"
   override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
   override val fieldsNames: Set[String] = Set(CITY)

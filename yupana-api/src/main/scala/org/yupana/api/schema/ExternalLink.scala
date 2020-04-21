@@ -26,10 +26,10 @@ trait ExternalLink extends Serializable {
   /** Name of this external link */
   val linkName: String
 
-  /** Attached dimension */
-  val dimension: Dimension
+  type DimType
 
-  type DimType = dimension.T
+  /** Attached dimension */
+  val dimension: Dimension.Aux[DimType]
 
   /** Set of field names for this link */
   val fieldsNames: Set[String]

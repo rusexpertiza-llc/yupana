@@ -233,11 +233,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   def createFilters(condition: Option[Condition]): Filters = {
     def createFilters(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
-        case Equ(DimensionExpr(dim), ConstantExpr(c: Any)) =>
-          builder.includeValue(dim, c)
+        case Equ(DimensionExpr(dim), ConstantExpr(c)) =>
+          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
-        case Equ(ConstantExpr(c: String), DimensionExpr(dim)) =>
-          builder.includeValue(dim, c)
+        case Equ(ConstantExpr(c), DimensionExpr(dim)) =>
+          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
         case Equ(TimeExpr, ConstantExpr(c: Time)) =>
           builder.includeTime(c)
@@ -254,11 +254,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case DimIdInExpr(dim, dimIds) =>
           builder.includeIds(dim, dimIds)
 
-        case Neq(DimensionExpr(dim), ConstantExpr(c: Any)) =>
-          builder.excludeValue(dim, c)
+        case Neq(DimensionExpr(dim), ConstantExpr(c)) =>
+          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
 
-        case Neq(ConstantExpr(c: String), DimensionExpr(dim)) =>
-          builder.excludeValue(dim, c)
+        case Neq(ConstantExpr(c), DimensionExpr(dim)) =>
+          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
 
         case Neq(TimeExpr, ConstantExpr(c: Time)) =>
           builder.excludeTime(c)
@@ -267,7 +267,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           builder.excludeTime(c)
 
         case NotInExpr(DimensionExpr(dim), consts) =>
-          builder.excludeValues(dim, consts)
+          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
 
         case NotInExpr(_: TimeExpr.type, consts) =>
           builder.excludeTime(consts.asInstanceOf[Set[Time]])

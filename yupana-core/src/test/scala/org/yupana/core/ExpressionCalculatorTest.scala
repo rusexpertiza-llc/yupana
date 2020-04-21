@@ -64,8 +64,9 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         tryEval = true
       ) shouldBe None
       val TestLink = new ExternalLink {
+        override type DimType = String
         override val linkName: String = "test_link"
-        override val dimension: Dimension = DictionaryDimension("testDim")
+        override val dimension: Dimension.Aux[String] = DictionaryDimension("testDim")
         override val fieldsNames: Set[String] = Set("foo", "bar")
       }
       ExpressionCalculator.evaluateExpression(

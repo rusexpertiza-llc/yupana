@@ -20,7 +20,7 @@ import java.{ lang => jl }
 
 import scala.reflect.ClassTag
 
-trait BoxingTag[T] {
+trait BoxingTag[T] extends Serializable {
   type R <: AnyRef
   def clazz: Class[R]
   def cast(t: T): R

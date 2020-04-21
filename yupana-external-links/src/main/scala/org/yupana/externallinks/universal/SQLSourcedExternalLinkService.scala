@@ -32,8 +32,8 @@ import org.yupana.schema.externallinks.ExternalLinks._
 
 import scala.collection.JavaConverters._
 
-class SQLSourcedExternalLinkService(
-    override val externalLink: ExternalLink,
+class SQLSourcedExternalLinkService[DimensionValue](
+    override val externalLink: ExternalLink.Aux[DimensionValue],
     config: SQLExternalLinkDescription,
     jdbc: JdbcTemplate
 ) extends ExternalLinkService[ExternalLink]
@@ -41,8 +41,6 @@ class SQLSourcedExternalLinkService(
 
   import SQLSourcedExternalLinkService._
   import config._
-
-  type DimensionValue = externalLink.dimension.T
 
   private val mapping = config.fieldsMapping
 

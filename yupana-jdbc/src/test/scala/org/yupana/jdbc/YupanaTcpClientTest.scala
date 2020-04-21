@@ -181,12 +181,12 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
       Response.Resp.Heartbeat("1")
     )
 
-    val tw = implicitly[Writable[Time]]
-    val sw = implicitly[Writable[String]]
+    val ts = implicitly[Storable[Time]]
+    val ss = implicitly[Storable[String]]
 
     val data = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(tw.write(Time(13333L))), ByteString.copyFrom(sw.write("икра баклажанная"))))
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
       )
     )
 

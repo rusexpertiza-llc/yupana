@@ -21,6 +21,7 @@ import org.yupana.schema.Dimensions
 
 trait ItemsInvertedIndex extends ExternalLink {
   val PHRASE_FIELD = "phrase"
+  override type DimType = String
   override val linkName: String = "ItemsInvertedIndex"
   override val dimension: DictionaryDimension = Dimensions.ITEM
   override val fieldsNames: Set[String] = Set(PHRASE_FIELD)

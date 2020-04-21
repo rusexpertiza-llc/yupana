@@ -39,6 +39,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     val field2 = "field2"
     val field3 = "field3"
 
+    override type DimType = String
     override val linkName: String = "Test"
     override val dimension: DictionaryDimension = xDim
     override val fieldsNames: Set[String] = Set(field1, field2, field3)

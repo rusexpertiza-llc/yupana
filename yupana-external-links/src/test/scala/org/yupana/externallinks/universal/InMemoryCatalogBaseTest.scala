@@ -16,14 +16,14 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
         Seq(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3),
         data
       ) {
-    val valueToKeys: Map[String, Seq[String]] =
-      Map("a" -> Seq("foo", "aaa"), "b" -> Seq("foo"), "c" -> Seq("bar"), "d" -> Seq("aaa"))
+    val valueToKeys: Map[Int, Seq[String]] =
+      Map(1 -> Seq("foo", "aaa"), 2 -> Seq("foo"), 3 -> Seq("bar"), 4 -> Seq("aaa"))
 
     override def keyIndex: Int = 0
 
     override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
       valueData.foreach { vd =>
-        vd.get[String](indexMap, DimensionExpr(externalLink.dimension)).foreach { tagValue =>
+        vd.get[Int](indexMap, DimensionExpr(externalLink.dimension)).foreach { tagValue =>
           val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
           vd.set(indexMap, keyExpr, keyValue)
         }
@@ -38,6 +38,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
   }
 
   class TestLink extends ExternalLink {
+    override type DimType = Int
     override val linkName: String = "TestCatalog"
     override val dimension: Dimension.Aux[Int] = RawDimension[Int]("TAG_Y")
     override val fieldsNames: Set[String] =
@@ -76,8 +77,8 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
     val valueData = Seq(
       builder.set(time, Some(Time(100))).set(dimension(RawDimension[Int]("TAG_Y")), Some(1)).buildAndReset(),
-      builder.set(time, Some(Time(200))).set(dimension(RawDimension[Int]("TAG_Y")), Some(2)).buildAndReset(),
-      builder.set(time, Some(Time(300))).set(dimension(RawDimension[Int]("TAG_Y")), Some(3)).buildAndReset()
+      builder.set(time, Some(Time(200))).set(dimension(RawDimension[Int]("TAG_Y")), Some(4)).buildAndReset(),
+      builder.set(time, Some(Time(300))).set(dimension(RawDimension[Int]("TAG_Y")), Some(42)).buildAndReset()
     )
 
     testCatalog.setLinkedValues(
