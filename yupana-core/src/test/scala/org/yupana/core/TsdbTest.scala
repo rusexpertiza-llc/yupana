@@ -93,8 +93,8 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       BinaryOperationExpr(BinaryOperation.equ[String], dimension(TestDims.DIM_A), const("test1"))
     )
@@ -136,8 +136,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with filter by tag ids" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -152,8 +152,8 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123))
     )
@@ -190,8 +190,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test123"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test123"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with filter by exact time values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -208,7 +208,7 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       equ(time, const(Time(pointTime)))
     )
@@ -242,7 +242,7 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 3d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    row.fieldValueByName[String]("A").value shouldBe "test12"
   }
 
   it should "support filter by tuples" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -260,7 +260,7 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       AndExpr(
         Seq(
@@ -302,7 +302,7 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime2)
     row.fieldValueByName[Double]("testField").value shouldBe 3d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test42"
+    row.fieldValueByName[String]("A").value shouldBe "test42"
   }
 
   it should "support exclude filter by tuples" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -320,7 +320,7 @@ class TsdbTest
       Seq(
         time.toField,
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       AndExpr(
         Seq(
@@ -368,12 +368,12 @@ class TsdbTest
     val row1 = rows(0)
     row1.fieldValueByName[Time]("time").value shouldBe Time(pointTime2)
     row1.fieldValueByName[Double]("testField").value shouldBe 2d
-    row1.fieldValueByName[String]("TAG_A").value shouldBe "test24"
+    row1.fieldValueByName[String]("A").value shouldBe "test24"
 
     val row2 = rows(1)
     row2.fieldValueByName[Time]("time").value shouldBe Time(pointTime1)
     row2.fieldValueByName[Double]("testField").value shouldBe 1d
-    row2.fieldValueByName[String]("TAG_A").value shouldBe "test42"
+    row2.fieldValueByName[String]("A").value shouldBe "test42"
   }
 
   it should "support filter not equal for tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -388,8 +388,8 @@ class TsdbTest
       Seq(
         time as "time_time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       neq(dimension(TestDims.DIM_A), const("test11"))
     )
@@ -426,8 +426,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test12"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -442,8 +442,8 @@ class TsdbTest
       Seq(
         time as "time_time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       )
     )
 
@@ -476,8 +476,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -492,8 +492,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
@@ -534,8 +534,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with aggregation by tag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -550,7 +550,7 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
       Seq(dimension(TestDims.DIM_A))
@@ -607,12 +607,12 @@ class TsdbTest
     val group1 = results(0)
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    group1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    group1.fieldValueByName[String]("A").value shouldBe "test1"
 
     val group2 = results(1)
     group2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    group2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    group2.fieldValueByName[String]("A").value shouldBe "test12"
   }
 
   it should "execute query with aggregation by expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -627,7 +627,7 @@ class TsdbTest
       Seq(
         metric(TestTableFields.TEST_FIELD) as "testField",
         function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "TAG_A"
+        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "A"
       ),
       None,
       Seq(metric(TestTableFields.TEST_FIELD))
@@ -685,12 +685,12 @@ class TsdbTest
     val group1 = results(0)
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[Double]("testField").value shouldBe 1d
-    group1.fieldValueByName[Int]("TAG_A").value shouldBe 4
+    group1.fieldValueByName[Int]("A").value shouldBe 4
 
     val group2 = results(1)
     group2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group2.fieldValueByName[Double]("testField").value shouldBe 2d
-    group2.fieldValueByName[Int]("TAG_A").value shouldBe 2
+    group2.fieldValueByName[Int]("A").value shouldBe 2
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -762,8 +762,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
@@ -849,15 +849,15 @@ class TsdbTest
     val r1 = results(0)
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
+    r1.fieldValueByName[String]("B").value shouldBe "test2"
     r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r2 = results(1)
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r2.fieldValueByName[String]("A").value shouldBe "test12"
+    r2.fieldValueByName[String]("B").value shouldBe "test2"
     r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
   }
 
@@ -876,8 +876,8 @@ class TsdbTest
         Seq(
           truncDay(time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.DIM_A) as "TAG_A",
-          dimension(TestDims.DIM_B) as "TAG_B"
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B"
         ),
         Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
         Seq(truncDay(time))
@@ -935,8 +935,8 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.DIM_A) as "TAG_A",
-          dimension(TestDims.DIM_B) as "TAG_B"
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B"
         ),
         Some(
           BinaryOperationExpr(
@@ -999,8 +999,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(
@@ -1083,8 +1083,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+    row.fieldValueByName[String]("A").value shouldBe "test13"
+    row.fieldValueByName[String]("B").value shouldBe "test21"
     row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
@@ -1103,8 +1103,8 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.DIM_A) as "TAG_A",
-          dimension(TestDims.DIM_B) as "TAG_B",
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B",
           link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
         ),
         Some(neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
@@ -1181,8 +1181,8 @@ class TsdbTest
 
       row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
       row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-      row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-      row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+      row.fieldValueByName[String]("A").value shouldBe "test13"
+      row.fieldValueByName[String]("B").value shouldBe "test21"
       row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
@@ -1308,8 +1308,8 @@ class TsdbTest
 
       row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
       row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-      row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-      row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+      row.fieldValueByName[String]("A").value shouldBe "test13"
+      row.fieldValueByName[String]("B").value shouldBe "test21"
       row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
@@ -1327,8 +1327,8 @@ class TsdbTest
       Seq(
         time as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
@@ -1400,8 +1400,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 5d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test15"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test22"
+    row.fieldValueByName[String]("A").value shouldBe "test15"
+    row.fieldValueByName[String]("B").value shouldBe "test22"
   }
 
   it should "intersect tag ids with one tag for query with filter values by catalogs fields" in withTsdbMock {
@@ -1420,8 +1420,8 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.DIM_A) as "TAG_A",
-          dimension(TestDims.DIM_B) as "TAG_B"
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B"
         ),
         Some(
           AndExpr(
@@ -1506,8 +1506,8 @@ class TsdbTest
       val r1 = result.head
       r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
       r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-      r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-      r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+      r1.fieldValueByName[String]("A").value shouldBe "test12"
+      r1.fieldValueByName[String]("B").value shouldBe "test2"
       result should have size 1
   }
 
@@ -1526,8 +1526,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
@@ -1612,8 +1612,8 @@ class TsdbTest
     val r1 = result.head
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 6d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test23"
+    r1.fieldValueByName[String]("A").value shouldBe "test12"
+    r1.fieldValueByName[String]("B").value shouldBe "test23"
     result should have size 1
   }
 
@@ -1631,8 +1631,8 @@ class TsdbTest
       Seq(
         time as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
@@ -1695,15 +1695,15 @@ class TsdbTest
 
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "Test a 1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test1"
+    r1.fieldValueByName[String]("A").value shouldBe "Test a 1"
+    r1.fieldValueByName[String]("B").value shouldBe "test1"
 
     val r2 = rs(1)
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "Test a 3"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r2.fieldValueByName[String]("A").value shouldBe "Test a 3"
+    r2.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "intersect values for IN filter for tags and catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1720,8 +1720,8 @@ class TsdbTest
       Seq(
         time as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
@@ -1802,29 +1802,29 @@ class TsdbTest
 
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 1d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "A 1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "B 1"
+    r1.fieldValueByName[String]("A").value shouldBe "A 1"
+    r1.fieldValueByName[String]("B").value shouldBe "B 1"
 
     val r2 = rs(1)
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "A 2"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "B 1"
+    r2.fieldValueByName[String]("A").value shouldBe "A 2"
+    r2.fieldValueByName[String]("B").value shouldBe "B 1"
 
     val r3 = rs(2)
 
     r3.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r3.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r3.fieldValueByName[String]("TAG_A").value shouldBe "A 2"
-    r3.fieldValueByName[String]("TAG_B").value shouldBe "B 2"
+    r3.fieldValueByName[String]("A").value shouldBe "A 2"
+    r3.fieldValueByName[String]("B").value shouldBe "B 2"
 
     val r4 = rs(3)
 
     r4.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r4.fieldValueByName[Double]("sum_testField").value shouldBe 6d
-    r4.fieldValueByName[String]("TAG_A").value shouldBe "A 3"
-    r4.fieldValueByName[String]("TAG_B").value shouldBe "B 2"
+    r4.fieldValueByName[String]("A").value shouldBe "A 3"
+    r4.fieldValueByName[String]("B").value shouldBe "B 2"
 
   }
 
@@ -1843,7 +1843,7 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
+        dimension(TestDims.DIM_A) as "A",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       None,
@@ -2139,8 +2139,8 @@ class TsdbTest
         aggregate(Aggregation.min[Time], time) as "min_time",
         aggregate(Aggregation.max[Time], time) as "max_time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
@@ -2185,8 +2185,8 @@ class TsdbTest
     r.fieldValueByName[Time]("min_time").value shouldBe Time(pointTime1)
     r.fieldValueByName[Time]("max_time").value shouldBe Time(pointTime3)
     r.fieldValueByName[Double]("sum_testField").value shouldBe 3d
-    r.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r.fieldValueByName[String]("A").value shouldBe "test1"
+    r.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "preserve const fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2202,8 +2202,8 @@ class TsdbTest
         const(BigDecimal(1)) as "dummy",
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
@@ -2242,8 +2242,8 @@ class TsdbTest
     row.fieldValueByName[BigDecimal]("dummy").value shouldEqual BigDecimal(1)
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "be possible to make aggregations by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2258,8 +2258,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_B))
@@ -2297,8 +2297,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[Long]("count_A").value shouldBe 2L
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "be possible to make aggregations on catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2315,7 +2315,7 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
+        dimension(TestDims.DIM_A) as "A",
         aggregate(Aggregation.count[String], link(TestLinks.TEST_LINK, "testField")) as "count_TestCatalog_testField"
       ),
       Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
@@ -2395,13 +2395,13 @@ class TsdbTest
     val r1 = results(0)
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
     r1.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
 
     val r2 = results(1)
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    r2.fieldValueByName[String]("A").value shouldBe "test12"
     r2.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
   }
 
@@ -2417,9 +2417,9 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.distinctCount[String], dimension(TestDims.DIM_A)) as "distinct_count_TAG_A",
-        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        aggregate(Aggregation.distinctCount[String], dimension(TestDims.DIM_A)) as "distinct_count_A",
+        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_B))
@@ -2480,16 +2480,16 @@ class TsdbTest
     val r1 = results(0)
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
-    r1.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 1
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
+    r1.fieldValueByName[Long]("count_A").value shouldBe 2L
+    r1.fieldValueByName[Int]("distinct_count_A").value shouldBe 1
+    r1.fieldValueByName[String]("B").value shouldBe "testB2"
 
     val r2 = results(1)
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r2.fieldValueByName[Long]("count_TAG_A").value shouldBe 4L
-    r2.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 2
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "testB1"
+    r2.fieldValueByName[Long]("count_A").value shouldBe 4L
+    r2.fieldValueByName[Int]("distinct_count_A").value shouldBe 2
+    r2.fieldValueByName[String]("B").value shouldBe "testB1"
   }
 
   it should "calculate lag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2503,8 +2503,8 @@ class TsdbTest
         time as "time_time",
         windowFunction(WindowOperation.lag[Time], time) as "lag_time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
-        dimension(TestDims.DIM_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
@@ -2567,7 +2567,7 @@ class TsdbTest
       )
 
     val t = Table(
-      ("time_time", "lag_time_time", "testField", "TAG_A", "TAG_B"),
+      ("time_time", "lag_time_time", "testField", "A", "B"),
       (qtime.toLocalDateTime, None, 1d, "testA1", "testB2"),
       (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA1", "testB2"),
       (qtime.toLocalDateTime, None, 1d, "testA2", "testB1"),
@@ -2583,8 +2583,8 @@ class TsdbTest
       r.fieldValueByName[Time]("time_time").value.toLocalDateTime.withMillisOfSecond(0) shouldBe time
       r.fieldValueByName[Time]("lag_time_time").map(_.toLocalDateTime.withMillisOfSecond(0)) shouldBe lagTime
       r.fieldValueByName[Double]("testField").value shouldBe testField
-      r.fieldValueByName("TAG_A").value shouldBe tagA
-      r.fieldValueByName[String]("TAG_B").value shouldBe tagB
+      r.fieldValueByName("A").value shouldBe tagA
+      r.fieldValueByName[String]("B").value shouldBe tagB
     }
   }
 
@@ -2609,7 +2609,7 @@ class TsdbTest
             const[BigDecimal](0)
           )
         ) as "between_10_20",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
@@ -2662,7 +2662,7 @@ class TsdbTest
     val group1 = results.next()
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[BigDecimal]("between_10_20").value shouldBe BigDecimal(2)
-    group1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    group1.fieldValueByName[String]("A").value shouldBe "test1"
   }
 
   it should "calculate conditional expressions with empty external link values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2687,7 +2687,7 @@ class TsdbTest
             const[BigDecimal](0)
           )
         ) as "between_10_20",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
@@ -2728,7 +2728,7 @@ class TsdbTest
     val group1 = results.next()
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[BigDecimal]("between_10_20").value shouldBe BigDecimal(0)
-    group1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    group1.fieldValueByName[String]("A").value shouldBe "test1"
   }
 
   it should "perform post filtering" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2743,7 +2743,7 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.DIM_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A)),
@@ -2799,7 +2799,7 @@ class TsdbTest
     val r = results.head
     r.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r.fieldValueByName[String]("A").value shouldBe "test1"
   }
 
   it should "handle if external link doesn't return value" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2816,7 +2816,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.DIM_A) as "TAG_A",
+        dimension(TestDims.DIM_A) as "A",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       )
     )
@@ -2868,17 +2868,17 @@ class TsdbTest
 
     val r1 = results(0)
     r1.fieldValueByName[Double]("testField").value shouldBe 1d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
     r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r2 = results(1)
     r2.fieldValueByName[Double]("testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r2.fieldValueByName[String]("A").value shouldBe "test1"
     r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r3 = results(2)
     r3.fieldValueByName[Double]("testField").value shouldBe 3d
-    r3.fieldValueByName[String]("TAG_A").value shouldBe "test2"
+    r3.fieldValueByName[String]("A").value shouldBe "test2"
     r3.fieldValueByName[String]("TestCatalog_testField") shouldBe empty
   }
 
@@ -2891,7 +2891,7 @@ class TsdbTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK2, testCatalogServiceMock)
 
-    val sql = s"SELECT sum(CASE WHEN TAG_A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
+    val sql = s"SELECT sum(CASE WHEN A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
       s"WHERE time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}' GROUP BY d"
 
     val query = SqlParser.parse(sql).right.flatMap {

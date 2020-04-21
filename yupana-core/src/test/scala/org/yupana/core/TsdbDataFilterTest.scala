@@ -41,7 +41,7 @@ class TsdbDataFilterTest
     s" AND time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}'"
 
   "TSDB" should "execute query with filter by values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, testField, TAG_A, TAG_B FROM test_table WHERE testField = 1012" + timeBounds()
+    val sql = "SELECT time AS time_time, testField, A, B FROM test_table WHERE testField = 1012" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -86,13 +86,13 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1012d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with filter by values and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, abs(testField) AS abs_test_field, TAG_A, TAG_B FROM test_table " +
-      "WHERE testField = 1012 AND TAG_B = 'VB1'" + timeBounds()
+    val sql = "SELECT time AS time_time, abs(testField) AS abs_test_field, A, B FROM test_table " +
+      "WHERE testField = 1012 AND B = 'VB1'" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -138,12 +138,12 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("abs_test_field").value shouldBe 1012d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "VB1"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "VB1"
   }
 
   it should "execute query with filter by values not presented in query.fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, TAG_A, TAG_B FROM test_table WHERE testField <= 1012" + timeBounds()
+    val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField <= 1012" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -188,12 +188,12 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, TAG_A, TAG_B FROM test_table WHERE testField != testField2" + timeBounds()
+    val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField != testField2" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -241,12 +241,12 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test11"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test12"
+    row.fieldValueByName[String]("A").value shouldBe "test11"
+    row.fieldValueByName[String]("B").value shouldBe "test12"
   }
 
   it should "support IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time, TAG_A, TAG_B, testField as F1 FROM test_table WHERE F1 IN (1012, 1014)" + timeBounds()
+    val sql = "SELECT time, A, B, testField as F1 FROM test_table WHERE F1 IN (1012, 1014)" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -291,15 +291,15 @@ class TsdbDataFilterTest
 
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("F1").value shouldBe 1012d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
+    r1.fieldValueByName[String]("B").value shouldBe "test2"
 
     val r2 = iterator.next()
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("F1").value shouldBe 1014d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r2.fieldValueByName[String]("A").value shouldBe "test1"
+    r2.fieldValueByName[String]("B").value shouldBe "test2"
 
     iterator.hasNext shouldBe false
   }
@@ -307,7 +307,7 @@ class TsdbDataFilterTest
   it should "support AND for values, catalogs and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-    val sql = "SELECT time, TAG_A, TAG_B, testField as F1 FROM test_table " +
+    val sql = "SELECT time, A, B, testField as F1 FROM test_table " +
       "WHERE F1 IN (1012, 1014) AND testStringField != 'Str@!' AND TestLink2_testField2 = 'Str@!Ster'" +
       timeBounds()
     val query = createQuery(sql)
@@ -384,14 +384,14 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("F1").value shouldBe 1012d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "support IS NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val sql = "SELECT day(time) AS t, testField, TAG_A, TAG_B " +
+    val sql = "SELECT day(time) AS t, testField, A, B " +
       "FROM test_table WHERE TestLink_testField IS NULL" + timeBounds()
     val query = createQuery(sql)
 
@@ -452,14 +452,14 @@ class TsdbDataFilterTest
     val r1 = results.head
     r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("testField").value shouldBe 10d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1a"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2b"
+    r1.fieldValueByName[String]("A").value shouldBe "test1a"
+    r1.fieldValueByName[String]("B").value shouldBe "test2b"
   }
 
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val sql = "SELECT day(time) AS t, testField, TAG_A, TAG_B, TestLink_testField AS ctf " +
+    val sql = "SELECT day(time) AS t, testField, A, B, TestLink_testField AS ctf " +
       "FROM test_table WHERE ctf IS NOT NULL" + timeBounds()
     val query = createQuery(sql)
 
@@ -520,8 +520,8 @@ class TsdbDataFilterTest
     val r1 = results.head
     r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("testField").value shouldBe 30d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test2a"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test3b"
+    r1.fieldValueByName[String]("A").value shouldBe "test2a"
+    r1.fieldValueByName[String]("B").value shouldBe "test3b"
     r1.fieldValueByName[String]("ctf").value shouldBe "some-value"
   }
 
@@ -530,9 +530,9 @@ class TsdbDataFilterTest
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
       val testCatalogServiceMock2 = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-      val sql = "SELECT day(time) AS t, testField, TAG_A, TAG_B, TestLink2_testField2 AS cf2 " +
+      val sql = "SELECT day(time) AS t, testField, A, B, TestLink2_testField2 AS cf2 " +
         "FROM test_table " +
-        "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND TAG_A != 'test1' AND TAG_B = 'testB2'" + timeBounds()
+        "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND A != 'test1' AND B = 'testB2'" + timeBounds()
       val query = createQuery(sql)
 
       val condition = and(
@@ -618,8 +618,8 @@ class TsdbDataFilterTest
       val r1 = results.head
       r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
       r1.fieldValueByName[Double]("testField").value shouldBe 1003d
-      r1.fieldValueByName[String]("TAG_A").value shouldBe "test1a"
-      r1.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
+      r1.fieldValueByName[String]("A").value shouldBe "test1a"
+      r1.fieldValueByName[String]("B").value shouldBe "testB2"
   }
 
   it should "support IS NULL and IS NOT NULL inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>

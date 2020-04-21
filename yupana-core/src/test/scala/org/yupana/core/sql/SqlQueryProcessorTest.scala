@@ -23,7 +23,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   "SqlQueryProcessor" should "create queries" in {
     testQuery("""SELECT MAX(testField) FROM test_table
-        |   WHERE time >= TIMESTAMP '2017-06-12' AND time < TIMESTAMP '2017-06-30' and tag_a = '223322'
+        |   WHERE time >= TIMESTAMP '2017-06-12' AND time < TIMESTAMP '2017-06-30' and a = '223322'
         |   GROUP BY day(time)""".stripMargin) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldEqual and(
@@ -40,7 +40,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "have no name collisions when different aggregations are applied to the same field" in {
     testQuery("""
-        | SELECT max(testField), min(testField), sum(testField) as sum, tag_b as i, count(TAG_B) FROM test_table
+        | SELECT max(testField), min(testField), sum(testField) as sum, b as i, count(B) FROM test_table
         |   WHERE time >= TIMESTAMP '2018-01-01' and time < TIMESTAMP '2018-01-30'
         |   GROUP BY day(time), i
         | """.stripMargin) { q =>
@@ -55,7 +55,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         min(metric(TestTableFields.TEST_FIELD)) as "min(testField)",
         sum(metric(TestTableFields.TEST_FIELD)) as "sum",
         dimension(DIM_B) as "i",
-        count(dimension(DIM_B)) as "count(TAG_B)"
+        count(dimension(DIM_B)) as "count(B)"
       )
     }
   }
@@ -94,7 +94,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "support time aggregations in field list" in {
     testQuery("""SELECT COUNT(testField), day(time) AS d FROM test_table
-        |  WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND tag_b = 'простокваша'
+        |  WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND b = 'простокваша'
         |  GROUP BY day(time)
       """.stripMargin) { x =>
       x.table.value.name shouldEqual "test_table"
@@ -136,10 +136,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "use milliseconds as default time grouping" in {
     testQuery(
       """
-        |SELECT "receipt"."time" AS "time", "receipt"."tag_a" as "tag_a"
+        |SELECT "receipt"."time" AS "time", "receipt"."a" as "a"
         | FROM "test_table"
         | WHERE (("receipt"."time" >= {ts '2017-10-30 00:00:00'}) AND ("receipt"."time" <= {ts '2017-11-01 00:00:00'}))
-        | GROUP BY "receipt"."time", tag_a
+        | GROUP BY "receipt"."time", a
       """.stripMargin
     ) { x =>
       x.table.value.name shouldEqual "test_table"
@@ -150,7 +150,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       x.groupBy should contain theSameElementsAs Seq(time, dimension(DIM_A))
       x.fields should contain theSameElementsAs Seq(
         time as "time",
-        dimension(DIM_A) as "tag_a"
+        dimension(DIM_A) as "a"
       )
     }
   }
@@ -159,7 +159,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     testQuery(
       """SELECT SUM(testField) as sum, day(time) as d FROM test_table
         |  WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08 10:30:00'
-        |  GROUP BY d, tag_a
+        |  GROUP BY d, a
       """.stripMargin
     ) { x =>
       x.table.value.name shouldEqual "test_table"
@@ -178,7 +178,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support filter by external link value" in {
     testQuery(
       """SELECT SUM(testField), day(time) AS d, TestLink_testField as word FROM test_table
-        |  WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND word = 'простокваша' and TAG_A = '12345'
+        |  WHERE time >= TIMESTAMP '2017-8-1' AND TIME < TIMESTAMP '2017-08-08' AND word = 'простокваша' and A = '12345'
         |  GROUP BY day(time), word
       """.stripMargin
     ) { x =>
@@ -239,9 +239,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support IN conditions" in {
     testQuery(
       """
-        | SELECT SUM(testField), day(time) as d, tag_b from test_table
-        |  WHERE time >= TIMESTAMP '2018-03-26' AND time < TIMESTAMP '2018-03-27' AND TAG_A IN ( '123', '456', '789')
-        |  GROUP BY d, tag_b
+        | SELECT SUM(testField), day(time) as d, b from test_table
+        |  WHERE time >= TIMESTAMP '2018-03-26' AND time < TIMESTAMP '2018-03-27' AND A IN ( '123', '456', '789')
+        |  GROUP BY d, b
       """.stripMargin
     ) { q =>
       q.table.value.name shouldEqual "test_table"
@@ -254,7 +254,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.fields should contain theSameElementsInOrderAs List(
         sum(metric(TestTableFields.TEST_FIELD)) as "sum(testField)",
         truncDay(time) as "d",
-        dimension(DIM_B) as "tag_b"
+        dimension(DIM_B) as "b"
       )
     }
   }
@@ -262,9 +262,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support IN conditions for values" in {
     testQuery(
       """
-        | SELECT SUM(testField), day(time) as d, tag_b from test_table
+        | SELECT SUM(testField), day(time) as d, b from test_table
         |  WHERE time >= TIMESTAMP '2018-03-26' AND time < TIMESTAMP '2018-03-27' AND testField2 IN (123, 456, 789)
-        |  GROUP BY d, TAG_B
+        |  GROUP BY d, B
       """.stripMargin
     ) { q =>
       q.table.value.name shouldEqual "test_table"
@@ -277,7 +277,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.fields should contain theSameElementsInOrderAs List(
         sum(metric(TestTableFields.TEST_FIELD)) as "sum(testField)",
         truncDay(time) as "d",
-        dimension(DIM_B) as "tag_b"
+        dimension(DIM_B) as "b"
       )
     }
   }
@@ -305,15 +305,15 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support functions as conditions" in {
     testQuery(
       """
-        |SELECT tag_a, array_to_string(tokens(tag_a))
+        |SELECT a, array_to_string(tokens(a))
         |  FROM test_table
-        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(tag_a), tokens('вода'))
+        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(a), tokens('вода'))
       """.stripMargin
     ) { q =>
       q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_A) as "tag_a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(DIM_A))) as "array_to_string(tokens(tag_a))"
+        dimension(DIM_A) as "a",
+        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(DIM_A))) as "array_to_string(tokens(a))"
       )
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
@@ -330,16 +330,16 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support functions of arrays" in {
     testQuery("""
         |SELECT
-        |  tag_b,
+        |  b,
         |  case
-        |    when contains_any(tokens(tag_a), tokens('крыжовник')) then 'зеленые'
-        |    when contains_any(tokens(tag_a), tokens('клубника', 'малина')) then 'красные'
-        |    when contains_any(tokens(tag_a), tokens('черника', 'ежевика', 'ирга')) then 'черные'
+        |    when contains_any(tokens(a), tokens('крыжовник')) then 'зеленые'
+        |    when contains_any(tokens(a), tokens('клубника', 'малина')) then 'красные'
+        |    when contains_any(tokens(a), tokens('черника', 'ежевика', 'ирга')) then 'черные'
         |    else 'прочие' as color,
         |  sum(testField)
         |FROM test_table
         |WHERE time >= timestamp '2019-03-14' AND time < timestamp '2019-03-26' AND TestLink_testField = 'ягода'
-        |GROUP BY tag_b, color
+        |GROUP BY b, color
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
 
@@ -370,7 +370,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
 
       q.fields should contain theSameElementsInOrderAs Seq(
-        dimension(DIM_B) as "tag_b",
+        dimension(DIM_B) as "b",
         colorExpr as "color",
         sum(metric(TestTableFields.TEST_FIELD)) as "sum(testField)"
       )
@@ -387,9 +387,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "substitute passed placeholders values" in {
     val statement =
-      """SELECT SUM(TestField), month(time) as m, tag_b FROM test_table
-        | WHERE time >= ? and time < ? AND tag_a = ?
-        | GROUP BY m, tag_b
+      """SELECT SUM(TestField), month(time) as m, b FROM test_table
+        | WHERE time >= ? and time < ? AND a = ?
+        | GROUP BY m, b
       """.stripMargin
 
     val from = new LocalDateTime(2017, 9, 1, 0, 0)
@@ -412,7 +412,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         q.fields should contain theSameElementsInOrderAs List(
           sum(metric(TestTableFields.TEST_FIELD)) as "sum(TestField)",
           truncMonth(time) as "m",
-          dimension(DIM_B) as "tag_b"
+          dimension(DIM_B) as "b"
         )
       case Left(msg) => fail(msg)
     }
@@ -421,10 +421,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "handle parenthesis" in {
     testQuery(
       """
-        |SELECT "test_table_2"."TAG_X" AS "tagX", "test_table_2"."time" AS "time"
+        |SELECT "test_table_2"."X" AS "tagX", "test_table_2"."time" AS "time"
         |  FROM "test_table_2"
-        |  WHERE (("receipt"."time" >= {ts '2017-10-23 00:00:00'}) AND (("receipt"."time" <= {ts '2017-11-02 00:00:00'}) AND ("receipt"."TAG_X" = '0001388410039121')))
-        |  GROUP BY "receipt"."tag_X",
+        |  WHERE (("receipt"."time" >= {ts '2017-10-23 00:00:00'}) AND (("receipt"."time" <= {ts '2017-11-02 00:00:00'}) AND ("receipt"."X" = '0001388410039121')))
+        |  GROUP BY "receipt"."X",
         |    "receipt"."time"
     """.stripMargin
     ) { q =>
@@ -450,10 +450,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | FROM (
         |   SELECT day(time) as d,
         |     sum(testLongField) sum,
-        |     TAG_A
+        |     A
         |   FROM test_table
         |   WHERE time >= TIMESTAMP '2017-01-01' AND time < TIMESTAMP '2017-02-01'
-        |   GROUP BY d, TAG_A
+        |   GROUP BY d, A
         | ) "Query"
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
@@ -503,7 +503,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "be possible to call functions on tags and catalogs" in {
     testQuery("""
-        | SELECT count(TAG_A) as count_tag_a, max(testLink3_testField3_2), day(time)
+        | SELECT count(A) as count_a, max(testLink3_testField3_2), day(time)
         |   FROM test_table
         |   WHERE time > TIMESTAMP '2017-11-01' AND time < TIMESTAMP '2017-12-01'
         |   GROUP BY day(time)
@@ -515,7 +515,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
       q.groupBy should contain theSameElementsAs Seq(truncDay(time))
       q.fields should contain theSameElementsInOrderAs List(
-        count(dimension(DIM_A)) as "count_tag_a",
+        count(dimension(DIM_A)) as "count_a",
         max(link(TestLinks.TEST_LINK3, "testField3_2")) as "max(testLink3_testField3_2)",
         truncDay(time) as "day(time)"
       )
@@ -524,14 +524,14 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "support named binary functions" in {
     testQuery("""
-        |SELECT tag_a, array_to_string(tokens(tag_a)), contains_any(tokens(tag_a), tokens('вода')) as is_water
+        |SELECT a, array_to_string(tokens(a)), contains_any(tokens(a), tokens('вода')) as is_water
         |  FROM test_table
         |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15'
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_A) as "tag_a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(DIM_A))) as "array_to_string(tokens(tag_a))",
+        dimension(DIM_A) as "a",
+        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(DIM_A))) as "array_to_string(tokens(a))",
         bi(
           BinaryOperation.containsAny[String],
           function(UnaryOperation.tokens, dimension(DIM_A)),
@@ -547,10 +547,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "support window functions" in {
     testQuery("""
-        | SELECT tag_a, lag(time), lag(testField) as lag_totalSum
+        | SELECT a, lag(time), lag(testField) as lag_totalSum
         |   FROM test_table
         |   WHERE time > TIMESTAMP '2017-11-01' AND time < TIMESTAMP '2017-12-01'
-        |   GROUP BY tag_a
+        |   GROUP BY a
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
@@ -559,7 +559,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
       q.groupBy should contain theSameElementsAs Set(dimension(DIM_A))
       q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_A) as "tag_a",
+        dimension(DIM_A) as "a",
         windowFunction(WindowOperation.lag[Time], time) as "lag(time)",
         windowFunction(WindowOperation.lag[Double], metric(TestTableFields.TEST_FIELD)) as "lag_totalSum"
       )
@@ -576,7 +576,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |     ELSE 0
         |   AS log_sum
         | FROM test_table_2
-        |   WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1' AND TAG_X = '1234567890'
+        |   WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1' AND X = '1234567890'
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table_2"
       q.filter.value shouldBe and(
@@ -636,11 +636,11 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | SELECT
         |   time,
         |   sum(case
-        |     WHEN tag_y = '1' THEN 1
+        |     WHEN y = 1 THEN 1
         |     ELSE 0
         |  ) AS count,
         |   sum(case
-        |     WHEN tag_y = '1' THEN testField
+        |     WHEN y = 1 THEN testField
         |     ELSE 0
         |  ) AS sum
         |  FROM test_table_2
@@ -657,14 +657,14 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         time as "time",
         sum(
           condition(
-            equ(dimension(DIM_Y), const(1L)),
+            equ(long2BigDecimal(dimension(DIM_Y)), const(BigDecimal(1))),
             const(BigDecimal(1)),
             const(BigDecimal(0))
           )
         ) as "count",
         sum(
           condition(
-            equ(dimension(DIM_Y), const(1L)),
+            equ(long2BigDecimal(dimension(DIM_Y)), const(BigDecimal(1))),
             metric(TestTable2Fields.TEST_FIELD),
             const(BigDecimal(0))
           )
@@ -676,12 +676,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "support having expressions" in {
     testQuery("""
         | SELECT
-        |  tag_a,
+        |  a,
         |  time AS t,
         |  lag(time) AS lagTime
         | FROM test_table
         | WHERE time < TIMESTAMP '2018-02-01' AND time > TIMESTAMP '2018-01-01'
-        | GROUP BY tag_a
+        | GROUP BY a
         | HAVING
         |  ((lagTime - t) > INTERVAL '2:00:00' AND extract_hour(t) >= 8 AND extract_hour(t) <= 18) OR
         |  ((lagTime - t) > INTERVAL '4:00:00' AND (extract_hour(t) > 18 OR extract_hour(t) < 8))
@@ -696,7 +696,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       val lagTime = windowFunction(WindowOperation.lag[Time], time).asInstanceOf[Expression.Aux[Time]]
 
       q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_A) as "tag_a",
+        dimension(DIM_A) as "a",
         time as "t",
         lagTime as "lagTime"
       )
@@ -737,12 +737,12 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "handle big intervals" in {
     testQuery("""
         | SELECT
-        |  tag_a,
+        |  a,
         |  time AS t,
         |  lag(time) AS lagTime
         | FROM test_table
         | WHERE time < TIMESTAMP '2018-08-01' AND time >= TIMESTAMP '2018-07-01'
-        | GROUP BY tag_a
+        | GROUP BY a
         | HAVING (lagTime - t) >= INTERVAL '5' DAY
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
@@ -756,7 +756,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       val lagTime = windowFunction(WindowOperation.lag[Time], time) as "lagTime"
 
       q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_A) as "tag_a",
+        dimension(DIM_A) as "a",
         t,
         lagTime
       )
@@ -776,7 +776,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     testQuery("""
         |SELECT SUM(testField) as sum, day(time) as d FROM test_table
         |  WHERE time >= trunc_day(now() - INTERVAL '3' MONTH) AND TIME < trunc_day(now())
-        |  GROUP BY d, tag_a
+        |  GROUP BY d, a
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       inside(q.filter.value) {
@@ -816,7 +816,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "handle queries like this" in {
     testQuery("""SELECT
-        |sum(CASE WHEN tag_b = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d
+        |sum(CASE WHEN b = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d
         |FROM test_table
         |WHERE time >= TIMESTAMP '2018-09-03 14:08:05' AND time < TIMESTAMP '2018-09-03 14:08:17'
         |GROUP BY d;
@@ -840,7 +840,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |SELECT sum(testField), day(time) as d FROM test_table
         |  WHERE TestLink_testField IS NULL AND testField2 IS NOT NULL
         |  AND time < TIMESTAMP '2018-08-01' AND time >= TIMESTAMP '2018-07-01'
-        |  GROUP BY d, TAG_A
+        |  GROUP BY d, A
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsAs Seq(
@@ -896,22 +896,22 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |    sum(testField),
         |    max(testField),
         |    month(time) as d,
-        |    tag_a,
-        |    tag_b
+        |    a,
+        |    b
         |FROM
         |    test_table
         |WHERE
         |    time >= TIMESTAMP '2018-08-01' AND
-        |    time < TIMESTAMP '2018-09-01'  AND testField < 50000 AND tag_a = '0000348521023155'
+        |    time < TIMESTAMP '2018-09-01'  AND testField < 50000 AND a = '0000348521023155'
         |group by
         |    d,
-        |    TAG_B, TAG_A
+        |    B, A
       """.stripMargin) { q =>
       q.fields should contain theSameElementsAs Seq(
         sum(metric(TestTableFields.TEST_FIELD)) as "sum(testField)",
         max(metric(TestTableFields.TEST_FIELD)) as "max(testField)",
-        dimension(DIM_A) as "tag_a",
-        dimension(DIM_B) as "tag_b",
+        dimension(DIM_A) as "a",
+        dimension(DIM_B) as "b",
         truncMonth(time) as "d"
       )
 
@@ -1010,7 +1010,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   it should "cast long to double" in {
     testQuery(
       "SELECT testField + testLongField as plus2 FROM test_table WHERE time >= TIMESTAMP '2018-10-16 17:44:47' " +
-        "AND time <= TIMESTAMP '2018-10-16 17:44:51' AND tag_b = 'фальш-камера поворотная elro'"
+        "AND time <= TIMESTAMP '2018-10-16 17:44:51' AND b = 'фальш-камера поворотная elro'"
     ) { q =>
       q.fields should contain theSameElementsAs Seq(
         plus(metric(TestTableFields.TEST_FIELD), long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "plus2"
@@ -1073,7 +1073,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   }
 
   it should "transform upsert into data points" in {
-    createUpsert("""UPSERT INTO test_table(time, tag_b, tag_a, testField, testStringField)
+    createUpsert("""UPSERT INTO test_table(time, b, a, testField, testStringField)
         |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 'foo', 'bar', 55, 'baz')""".stripMargin) match {
       case Right(dps) =>
         dps should have size 1
@@ -1091,7 +1091,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   }
 
   it should "fail upsert on data type mismatch" in {
-    createUpsert("UPSERT INTO test_table (tag_a, time, testField) VALUES (5, 'foo', 'bar')") match {
+    createUpsert("UPSERT INTO test_table (a, time, testField) VALUES (5, 'foo', 'bar')") match {
       case Left(e)  => e shouldEqual "Cannot convert VARCHAR to TIMESTAMP"
       case Right(d) => fail(s"Data point $d was created, but shouldn't")
     }
@@ -1101,7 +1101,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     val t1 = LocalDateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
-      "UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES (?, ?, ?, ?)",
+      "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
       Seq(
         Map(
           1 -> parser.StringValue("aaa"),
@@ -1139,7 +1139,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     val t1 = new LocalDateTime(2020, 1, 19, 23, 10, 31)
     val t2 = new LocalDateTime(2020, 1, 19, 23, 11, 2)
     val t3 = new LocalDateTime(2020, 1, 19, 23, 11, 33)
-    createUpsert("""UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES
+    createUpsert("""UPSERT INTO test_table (a, b, time, testField) VALUES
         |  ('a', 'b', TIMESTAMP '2020-01-19 23:10:31', 1.5),
         |  ('c', 'd', TIMESTAMP '2020-01-19 23:11:02', 3),
         |  ('e', 'f', TIMESTAMP '2020-01-19 23:11:33', 321.5) """.stripMargin) match {
@@ -1172,7 +1172,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     val t1 = LocalDateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
-      "UPSERT INTO test_table (tag_a, tag_b, time, testField) VALUES (?, ?, ?, ?)",
+      "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
       Seq(
         Map(
           1 -> parser.StringValue("aaa"),
@@ -1195,7 +1195,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "fail if upserting external field" in {
     createUpsert(
-      "UPSERT INTO test_table (tag_a, tag_b, time, testField, testLink_testfield) VALUES (?, ?, ?, ?, ?)",
+      "UPSERT INTO test_table (a, b, time, testField, testLink_testfield) VALUES (?, ?, ?, ?, ?)",
       Seq(
         Map(
           1 -> parser.StringValue("aaa"),
