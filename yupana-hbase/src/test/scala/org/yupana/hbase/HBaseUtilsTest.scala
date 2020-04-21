@@ -160,7 +160,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     val i1 = -1
     val i2 = 1
 
-    Bytes.compareTo(Bytes.toBytes(i1), Bytes.toBytes(i2)) shouldEqual java.lang.Long.compareUnsigned(i1, i2)
+    Bytes.compareTo(Bytes.toBytes(i1), Bytes.toBytes(i2)) > 0 shouldEqual java.lang.Long.compareUnsigned(i1, i2) > 0
   }
 
   val DIM_A = RawDimension[Int]("A")

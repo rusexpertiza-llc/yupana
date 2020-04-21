@@ -161,4 +161,52 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
     e.getMessage should include("Internal error")
   }
 
+  it should "fail when no footer in result" in {
+    val server = new ServerMock
+    val client = new YupanaTcpClient("127.0.0.1", server.port)
+
+    val header = Response(
+      Response.Resp.ResultHeader(
+        ResultHeader(
+          Seq(
+            ResultField("time", "TIMESTAMP"),
+            ResultField("item", "VARCHAR")
+          ),
+          Some("items_kkm")
+        )
+      )
+    )
+
+    val hb = Response(
+      Response.Resp.Heartbeat("1")
+    )
+
+    val tw = implicitly[Writable[Time]]
+    val sw = implicitly[Writable[String]]
+
+    val data = Response(
+      Response.Resp.Result(
+        ResultChunk(Seq(ByteString.copyFrom(tw.write(Time(13333L))), ByteString.copyFrom(sw.write("икра баклажанная"))))
+      )
+    )
+
+    val responses = Seq(header, hb, data).map(_.toByteArray)
+
+    val sql = """
+                |SELECT time, item FROM items_kkm
+                |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
+                |  """.stripMargin
+
+    server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
+    the[IllegalArgumentException] thrownBy client.query(
+      sql,
+      Map(
+        1 -> TimestampValue(12345L),
+        2 -> TimestampValue(23456L),
+        3 -> NumericValue(1000),
+        4 -> StringValue("икра баклажанная")
+      )
+    ) should have message "Unexpected end of response"
+  }
+
 }
