@@ -51,7 +51,7 @@ class HBaseScanRDD(
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
     val partitions = regions
-      .filter {
+      /*.filter {
         case (startKey, endKey) =>
           baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
@@ -59,7 +59,7 @@ class HBaseScanRDD(
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
-      }
+      }*/
       .zipWithIndex
       .map {
         case ((startKey, endKey), index) =>
