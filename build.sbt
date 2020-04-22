@@ -219,6 +219,11 @@ lazy val examples = (project in file("yupana-examples"))
   .dependsOn(spark, akka, hbase, schema, externalLinks)
   .enablePlugins(FlywayPlugin)
 
+lazy val benchmarks = (project in file("yupana-benchmarks"))
+  .enablePlugins(JmhPlugin)
+  .settings(commonSettings)
+  .dependsOn(core, externalLinks)
+
 lazy val versions = new {
   val joda = "2.10.5"
 
