@@ -43,6 +43,7 @@ class HBaseScanRDD(
 ) extends RDD[TSDOutputRow[Long]](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
+    println(s"getPartitions: $fromTime - $toTime")
     val regionLocator = connection().getRegionLocator(hTableName())
     val keys = regionLocator.getStartEndKeys
 
@@ -71,13 +72,14 @@ class HBaseScanRDD(
 
   override def compute(split: Partition, context: TaskContext): Iterator[TSDOutputRow[Long]] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
+    println(s"compute: ${partition.fromTime} - ${partition.toTime}")
 
     val scan = queryContext.metricsCollector.createScans.measure(1) {
       val filter =
         HBaseUtils.multiRowRangeFilter(
           partition.queryContext.table,
-          partition.fromTime,
-          partition.toTime,
+          fromTime,
+          toTime,
           partition.rangeScanDimsIds
         )
 

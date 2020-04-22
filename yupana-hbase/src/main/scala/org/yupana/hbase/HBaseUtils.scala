@@ -212,6 +212,7 @@ object HBaseUtils extends StrictLogging {
         filter(idx) = id
         i + 1
       }
+      println(s"multiRowRangeFilter: $time")
       rowRange(time, filter)
     }
 
