@@ -5,10 +5,10 @@ import org.yupana.api.schema._
 
 class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
-  val DIM_A = DictionaryDimension("tag_a")
-  val DIM_B = RawDimension[Int]("tag_b")
-  val DIM_C = RawDimension[Long]("tag_c")
-  val DIM_D = DictionaryDimension("tag_d")
+  val DIM_A = DictionaryDimension("dim_a")
+  val DIM_B = RawDimension[Int]("dim_b")
+  val DIM_C = RawDimension[Long]("dim_c")
+  val DIM_D = DictionaryDimension("dim_d")
 
   val METRIC_A = Metric[Double]("metric_a", 1)
   val METRIC_B = Metric[Long]("metric_b", 2)
@@ -34,8 +34,9 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
   )
 
   val TEST_LINK = new ExternalLink {
+    override type DimType = Int
     override val linkName: String = "test_link"
-    override val dimension: Dimension = DIM_B
+    override val dimension: Dimension.Aux[Int] = DIM_B
     override val fieldsNames: Set[String] = Set("foo", "bar")
   }
 

@@ -61,8 +61,10 @@ object Storable {
 
   implicit val booleanStorable: Storable[Boolean] = of(_.get() != 0, x => Array[Byte](if (x) 1 else 0))
   implicit val doubleStorable: Storable[Double] = of(_.getDouble, d => ByteBuffer.allocate(8).putDouble(d).array())
-  implicit val intStorable: Storable[Int] = of(readVInt, i => vLongToBytes(i))
   implicit val bigDecimalStorable: Storable[BigDecimal] = of(readBigDecimal, bigDecimalToBytes)
+  implicit val byteStorable: Storable[Byte] = of(_.get, Array(_))
+  implicit val shortStorable: Storable[Short] = of(readVShort, s => vLongToBytes(s))
+  implicit val intStorable: Storable[Int] = of(readVInt, i => vLongToBytes(i))
   implicit val longStorable: Storable[Long] = of(readVLong, vLongToBytes)
   implicit val stringStorable: Storable[String] = of(readString, stringToBytes)
   implicit val timestampStorable: Storable[Time] =
@@ -101,6 +103,12 @@ object Storable {
     val bytes = Array.ofDim[Byte](length)
     bb.get(bytes)
     new String(bytes, StandardCharsets.UTF_8)
+  }
+
+  private def readVShort(bb: ByteBuffer): Short = {
+    val l = readVLong(bb)
+    if (l <= Short.MaxValue && l >= Short.MinValue) l.toShort
+    else throw new IllegalArgumentException("Got Long but Short expected")
   }
 
   private def readVInt(bb: ByteBuffer): Int = {

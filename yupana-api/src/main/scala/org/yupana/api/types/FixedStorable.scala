@@ -25,7 +25,6 @@ import scala.annotation.implicitNotFound
 
 @implicitNotFound("No member of type class FixedStorable for class ${T} is found")
 trait FixedStorable[T] extends Serializable {
-
   val size: Int
   val nullValue: T
 
@@ -38,34 +37,29 @@ object FixedStorable {
 
   def apply[T](implicit ev: FixedStorable[T]): FixedStorable[T] = ev
 
-  implicit val longStorable: FixedStorable[Long] =
-    of(jl.Long.BYTES, 0L, _.getLong, l => ByteBuffer.allocate(jl.Long.BYTES).putLong(l).array())
+  implicit val longStorable: FixedStorable[Long] = of(jl.Long.BYTES, 0L, _.getLong, _.putLong)
+  implicit val intStorable: FixedStorable[Int] = of(jl.Integer.BYTES, 0, _.getInt, _.putInt)
+  implicit val doubleStorable: FixedStorable[Double] = of(jl.Double.BYTES, 0d, _.getDouble, _.putDouble)
+  implicit val shortStorable: FixedStorable[Short] = of(jl.Short.BYTES, 0, _.getShort, _.putShort)
+  implicit val byteStorable: FixedStorable[Byte] = of(jl.Byte.BYTES, 0, _.get, _.put)
+  implicit val timeStorable: FixedStorable[Time] = wrap(longStorable, new Time(_), _.millis)
 
-  implicit val intStorable: FixedStorable[Int] =
-    of(
-      jl.Integer.BYTES,
-      0,
-      _.getInt,
-      i => ByteBuffer.allocate(jl.Integer.BYTES).putInt(i).array()
-    )
+  def of[T](s: Int, n: T, r: ByteBuffer => T, w: ByteBuffer => T => ByteBuffer): FixedStorable[T] =
+    new FixedStorable[T] {
+      override val size: Int = s
+      override val nullValue: T = n
 
-  implicit val doubleStorable: FixedStorable[Double] =
-    of(
-      jl.Double.BYTES,
-      0d,
-      _.getDouble,
-      d => ByteBuffer.allocate(jl.Double.BYTES).putDouble(d).array()
-    )
+      override def read(bb: ByteBuffer): T = r(bb)
+      override def read(a: Array[Byte]): T = read(ByteBuffer.wrap(a))
+      override def write(t: T): Array[Byte] = w(ByteBuffer.allocate(size))(t).array()
+    }
 
-  implicit val timeStorable: FixedStorable[Time] =
-    of(longStorable.size, Time(0), bb => Time(longStorable.read(bb)), t => longStorable.write(t.millis))
+  def wrap[T, U](storable: FixedStorable[T], from: T => U, to: U => T): FixedStorable[U] = new FixedStorable[U] {
+    override val size: Int = storable.size
+    override val nullValue: U = from(storable.nullValue)
 
-  def of[T](s: Int, n: T, r: ByteBuffer => T, w: T => Array[Byte]): FixedStorable[T] = new FixedStorable[T] {
-    override val size: Int = s
-    override val nullValue: T = n
-
-    override def read(bb: ByteBuffer): T = r(bb)
-    override def read(a: Array[Byte]): T = read(ByteBuffer.wrap(a))
-    override def write(t: T): Array[Byte] = w(t)
+    override def read(a: Array[Byte]): U = from(storable.read(a))
+    override def read(bb: ByteBuffer): U = from(storable.read(bb))
+    override def write(t: U): Array[Byte] = storable.write(to(t))
   }
 }

@@ -35,6 +35,8 @@ object BoxingTag {
     override def cast(t: T): T = t
   }
 
+  implicit val byteBoxing: BoxingTag[Byte] = primitive[Byte, jl.Byte]
+  implicit val shortBoxing: BoxingTag[Short] = primitive[Short, jl.Short]
   implicit val intBoxing: BoxingTag[Int] = primitive[Int, jl.Integer]
   implicit val longBoxing: BoxingTag[Long] = primitive[Long, jl.Long]
   implicit val doubleBoxing: BoxingTag[Double] = primitive[Double, jl.Double]

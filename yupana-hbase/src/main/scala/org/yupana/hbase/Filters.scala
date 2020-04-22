@@ -145,6 +145,7 @@ object Filters {
             case (None, Some(i))    => Some(d -> i)
             case (None, None)       => None
           }
+
           r.asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>

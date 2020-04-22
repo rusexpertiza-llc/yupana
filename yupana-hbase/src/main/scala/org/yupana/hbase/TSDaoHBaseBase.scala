@@ -78,6 +78,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
 
     val dimFilter = filters.allIncludes
+    val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
 
     val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
       case (d, it) =>
@@ -87,7 +88,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
-    val rangeScanDimIds = if (dimFilter.exists(_._2.isEmpty)) {
+    val rangeScanDimIds = if (hasEmptyFilter) {
       Iterator.empty
     } else {
       val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
@@ -106,7 +107,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val timeFilter = createTimeFilter(
       from,
       to,
-      filters.excludeTime.map(_.toSet).getOrElse(Set.empty),
+      filters.includeTime.map(_.toSet).getOrElse(Set.empty),
       filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
     )
 

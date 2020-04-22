@@ -463,14 +463,14 @@ object HBaseUtils extends StrictLogging {
     new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
-  private def tableKeySize(table: Table): Int = {
+  private[hbase] def tableKeySize(table: Table): Int = {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map {
       case _: DictionaryDimension => Bytes.SIZEOF_LONG
       case r: RawDimension[_]     => r.storable.size
     }.sum
   }
 
-  private def rowKey(
+  private[hbase] def rowKey(
       dataPoint: DataPoint,
       table: Table,
       keySize: Int,

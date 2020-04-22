@@ -43,12 +43,16 @@ case class DataTypeMeta[T](
 )
 
 object DataTypeMeta {
-  private val SIGNED_TYPES = Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL)
+  private val SIGNED_TYPES = Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL, Types.SMALLINT)
 
   implicit val boolMeta: DataTypeMeta[Boolean] =
     DataTypeMeta(Types.BOOLEAN, 5, "BOOLEAN", classOf[java.lang.Boolean], 0, 0)
   implicit val stringMeta: DataTypeMeta[String] =
     DataTypeMeta(Types.VARCHAR, Integer.MAX_VALUE, "VARCHAR", classOf[java.lang.String], Integer.MAX_VALUE, 0)
+  implicit val byteMeta: DataTypeMeta[Byte] =
+    DataTypeMeta(Types.TINYINT, 3, "TINYINT", classOf[java.lang.Short], 3, 0)
+  implicit val shortMeta: DataTypeMeta[Short] =
+    DataTypeMeta(Types.SMALLINT, 5, "SMALLINT", classOf[java.lang.Short], 5, 0)
   implicit val intMeta: DataTypeMeta[Int] =
     DataTypeMeta(Types.INTEGER, 10, "INTEGER", classOf[java.lang.Integer], 10, 0)
   implicit val doubleMeta: DataTypeMeta[Double] =

@@ -54,6 +54,8 @@ object DataType {
     DataType[Double],
     DataType[Long],
     DataType[Int],
+    DataType[Short],
+    DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
     DataType[Boolean]
