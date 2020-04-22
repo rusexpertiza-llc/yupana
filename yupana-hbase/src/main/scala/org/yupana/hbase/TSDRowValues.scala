@@ -19,7 +19,8 @@ package org.yupana.hbase
 import java.nio.ByteBuffer
 
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{ MetricValue, Table }
+import org.yupana.api.schema.{ Dimension, MetricValue, Table }
+import org.yupana.api.types.DataType
 
 case class TSDRowValues(valuesByGroup: TSDRowValues.ValuesByGroup)
 
@@ -36,17 +37,36 @@ object TSDRowValues {
 
   private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
     val timeShift = HBaseUtils.restTime(dp.time, table)
-    dp.metrics.groupBy(_.metric.group).mapValues(vs => Seq((timeShift, fieldsToBytes(vs))))
+    dp.metrics
+      .groupBy(_.metric.group)
+      .mapValues(metricValues => Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))))
   }
 
   private def mergeMaps(
       m1: Map[Int, Seq[TimeShiftedValue]],
       m2: Map[Int, Seq[TimeShiftedValue]]
-  ): Map[Int, Seq[TimeShiftedValue]] =
+  ): Map[Int, Seq[TimeShiftedValue]] = {
     (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
+  }
 
-  private def fieldsToBytes(fields: Seq[MetricValue]): Array[Byte] = {
-    val fieldBytes = fields.map(f => (f.metric.tag, f.metric.dataType.writable.write(f.value)))
+  private def fieldsToBytes(
+      table: Table,
+      dimensions: Map[Dimension, String],
+      metricValues: Seq[MetricValue]
+  ): Array[Byte] = {
+    val metricFieldBytes = metricValues.map { f =>
+      val bytes = f.metric.dataType.writable.write(f.value)
+      (f.metric.tag, bytes)
+    }
+    val dimensionFieldBytes = dimensions.collect {
+      case (d, value) if table.dimensionTagExists(d) =>
+        val tag = table.dimensionTag(d)
+        val bytes = DataType.stringDt.writable.write(value)
+        (tag, bytes)
+    }
+
+    val fieldBytes = metricFieldBytes ++ dimensionFieldBytes
+
     val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
     val bb = ByteBuffer.allocate(size)
     fieldBytes.foreach {
