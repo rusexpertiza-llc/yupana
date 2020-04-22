@@ -18,5 +18,5 @@ package org.yupana.hbase
 
 object Filtration {
   type TimeFilter = Long => Boolean
-  type RowFilter = TSDHBaseRow => Boolean
+  type RowFilter = TSDRowKey[Long] => Boolean
 }

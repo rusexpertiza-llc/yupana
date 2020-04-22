@@ -6,6 +6,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.syntax.All.{ and, const, ge, lt, time }
+import org.yupana.api.schema.Table
 import org.yupana.api.types.DataType
 import org.yupana.core.TestSchema
 import org.yupana.core.model.InternalQuery
@@ -35,7 +36,13 @@ class TSDHBaseRowTest extends FlatSpec with Matchers {
       .cell(1, 4, 10L)
       .hbaseRow
 
-    val r = new TSDHBaseRow(context, hrow)
+    val r = new TSDHBaseRow(
+      context,
+      hrow,
+      Array.ofDim[Int](Table.MAX_TAGS),
+      Array.ofDim[Int](Table.MAX_TAGS),
+      Array.ofDim[Int](Table.MAX_TAGS)
+    )
 
     val data = Array.ofDim[Option[Any]](255)
     val it = r.iterator(data)

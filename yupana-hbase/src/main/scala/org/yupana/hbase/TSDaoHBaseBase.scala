@@ -112,9 +112,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val mr = mapReduceEngine(metricCollector)
 
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-      val rows = rs.map(r => new TSDHBaseRow(context, r))
-      val filtered = context.metricsCollector.filterRows.measure(rows.size) {
-        rows.filter(rowFilter)
+      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, context.table)))
       }
       extractData(context, valueDataBuilder, filtered, timeFilter).iterator
     }
@@ -228,8 +227,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def rowFilter(table: Table, f: (Dimension, IdType) => Boolean): Filtration.RowFilter = { row =>
-    row.key.dimIds.zip(table.dimensionSeq).forall {
+  private def rowFilter(table: Table, f: (Dimension, IdType) => Boolean): Filtration.RowFilter = { rowKey =>
+    rowKey.dimIds.zip(table.dimensionSeq).forall {
       case (Some(x), dim) => f(dim, x)
       case _              => true
     }
@@ -341,63 +340,40 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def readRow(
-      context: InternalQueryContext,
-      bytes: Array[Byte],
-      data: Array[Option[Any]],
-      time: Long
-  ): Boolean = {
-    val bb = ByteBuffer.wrap(bytes)
-    util.Arrays.fill(data.asInstanceOf[Array[AnyRef]], None)
-    var correct = true
-    while (bb.hasRemaining && correct) {
-      val tag = bb.get()
-
-      context.fieldForTag(tag) match {
-        case Some(Left(metric)) =>
-          data(tag & 0xFF) = Some(metric.dataType.readable.read(bb))
-
-        case Some(Right(_)) =>
-          data(tag & 0xFF) = Some(DataType.stringDt.readable.read(bb))
-        case None =>
-          logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}, row time: $time")
-          correct = false
-      }
-    }
-    correct
-  }
-
   private def extractData(
       context: InternalQueryContext,
       valueDataBuilder: InternalRowBuilder,
-      rows: Seq[TSDHBaseRow],
+      rows: Seq[HResult],
       timeFilter: TimeFilter
   ): Seq[InternalRow] = {
 
-    context.metricsCollector.extractDataComputation.measure(rows.size) {
-      val rowValues = Array.ofDim[Option[Any]](Table.MAX_TAGS)
-      for {
-        row <- rows
-        (time, values) <- row.iterator(rowValues) if timeFilter(time)
-      } yield {
-        context.exprsIndexSeq.foreach {
-          case (expr, index) =>
-            expr match {
-              case e: DimensionExpr =>
-                valueDataBuilder.set(e, values(context.tagForExprIndex(index) & 0xFF))
-              case e @ MetricExpr(field) =>
-                valueDataBuilder.set(e, values(field.tag & 0xFF))
-              case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
-              case e =>
-                throw new IllegalArgumentException(
-                  s"Unsupported expression $e passed to DAO"
-                )
-            }
-        }
+    context.metricsCollector.extractDataComputation
+      .measure(rows.size) {
+        val rowValues = Array.ofDim[Option[Any]](Table.MAX_TAGS)
 
-        valueDataBuilder.buildAndReset()
+        val cursor = new TSDHBaseRowCursor(context, rows)
+        for {
+          (time, values) <- cursor.iterator(rowValues) if timeFilter(time)
+        } yield {
+          context.exprsIndexSeq.foreach {
+            case (expr, index) =>
+              expr match {
+                case e: DimensionExpr =>
+                  valueDataBuilder.set(e, values(context.tagForExprIndex(index) & 0xFF))
+                case e @ MetricExpr(field) =>
+                  valueDataBuilder.set(e, values(field.tag & 0xFF))
+                case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
+                case e =>
+                  throw new IllegalArgumentException(
+                    s"Unsupported expression $e passed to DAO"
+                  )
+              }
+          }
+
+          valueDataBuilder.buildAndReset()
+        }
       }
-    }
+      .toSeq
   }
 
   override def isSupportedCondition(condition: Condition): Boolean = {

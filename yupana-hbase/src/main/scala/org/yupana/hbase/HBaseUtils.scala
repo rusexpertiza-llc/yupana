@@ -29,6 +29,7 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.{ Bytes, Pair }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
+import org.yupana.api.types.DataType
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
@@ -94,6 +95,17 @@ object HBaseUtils extends StrictLogging {
         Bytes.putLong(qualifier, 1, time)
         val value = metricValue.metric.dataType.writable.write(metricValue.value)
         put.addColumn(fam, qualifier, value)
+      }
+      dp.dimensions.foreach {
+        case (d, value) if table.dimensionTagExists(d) =>
+          val tag = table.dimensionTag(d)
+          val fam = family(Metric.defaultGroup)
+          val qualifier = Array.ofDim[Byte](9)
+          Bytes.putByte(qualifier, 0, tag)
+          Bytes.putLong(qualifier, 1, time)
+          val bytes = DataType.stringDt.writable.write(value)
+          put.addColumn(fam, qualifier, bytes)
+        case _ =>
       }
     }
     put
@@ -414,7 +426,7 @@ object HBaseUtils extends StrictLogging {
       val tableDesc = new HTableDescriptor(metaTableName)
         .addFamily(
           new HColumnDescriptor(tsdbSchemaFamily)
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+//            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
         )
       connection.getAdmin.createTable(tableDesc)
       val table = connection.getTable(metaTableName)
@@ -464,7 +476,7 @@ object HBaseUtils extends StrictLogging {
         desc.addFamily(
           new HColumnDescriptor(family(group))
             .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-            .setCompactionCompressionType(Algorithm.SNAPPY)
+//            .setCompactionCompressionType(Algorithm.SNAPPY)
         )
       )
       connection.getAdmin.createTable(desc)
@@ -478,7 +490,7 @@ object HBaseUtils extends StrictLogging {
     if (!tableDesc.hasFamily(rollupStatusFamily)) {
       connection.getAdmin.addColumn(
         name,
-        new HColumnDescriptor(rollupStatusFamily).setDataBlockEncoding(DataBlockEncoding.PREFIX)
+        new HColumnDescriptor(rollupStatusFamily) //.setDataBlockEncoding(DataBlockEncoding.PREFIX)
       )
     }
   }
