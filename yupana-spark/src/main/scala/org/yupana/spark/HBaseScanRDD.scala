@@ -31,7 +31,15 @@ case class HBaseScanPartition(
     toTime: Long,
     queryContext: InternalQueryContext,
     rangeScanDimsIds: Map[Dimension, Seq[Long]]
-) extends Partition
+) extends Partition {
+  override def toString: String =
+    s"HBaseScanPartition(index: $index, " +
+      s"startKey: ${startKey.mkString("[", ",", "]")}," +
+      s"endKey: ${endKey.mkString("[", ",", "]")}," +
+      s"fromTime: $fromTime," +
+      s"toTime: $toTime," +
+      s"rangeScanDimsIds: $rangeScanDimsIds)"
+}
 
 class HBaseScanRDD(
     sc: SparkContext,
@@ -51,8 +59,8 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
-    val partitions = regions
-    /*.filter {
+    val filteredRegions = regions
+      .filter {
         case (startKey, endKey) =>
           baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
@@ -60,12 +68,16 @@ class HBaseScanRDD(
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
-      }*/
-    .zipWithIndex
+      }
+    println(s"filteredRegions: ${filteredRegions.length}")
+    val partitions = filteredRegions.zipWithIndex
       .map {
         case ((startKey, endKey), index) =>
           HBaseScanPartition(index, startKey, endKey, fromTime, toTime, queryContext, rangeScanDimsIds)
       }
+
+    println("partitions:")
+    partitions.foreach(println)
 
     partitions.asInstanceOf[Array[Partition]]
   }
