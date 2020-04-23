@@ -89,8 +89,8 @@ class HBaseScanRDD(
         Seq.empty,
         fromTime,
         toTime,
-        Some(partition.startKey) /*,
-        Some(partition.endKey)*/
+        Some(partition.startKey),
+        Some(partition.endKey)
       )
     }
 
