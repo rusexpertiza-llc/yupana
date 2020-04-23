@@ -115,9 +115,19 @@ object HBaseUtils extends StrictLogging {
 
     val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
       .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+    println(s"rangeStartKey: $rangeStartKey")
+    println(s"fromTimeKey: $fromTimeKey")
+    println(s"startRowKey: $startRowKey")
+    println(s"startKey: $startKey")
 
-    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey.filter(_.nonEmpty).map(Bytes.padTail(_, 1))).flatten
+    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey).flatten
       .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+    val nEndRowKey = endRowKey.filter(_.nonEmpty).map(Bytes.padTail(_, 1))
+    println(s"rangeStopKey: $rangeStopKey")
+    println(s"toTimeKey: $toTimeKey")
+    println(s"endRowKey: $endRowKey")
+    println(s"stopKey: $stopKey")
+    println(s"nEndRowKey: $nEndRowKey")
 
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>
