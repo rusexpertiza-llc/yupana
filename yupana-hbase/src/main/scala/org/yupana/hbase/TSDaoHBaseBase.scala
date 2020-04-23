@@ -348,8 +348,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         context.exprsIndexSeq.foreach {
           case (expr, index) =>
             expr match {
-              case e: DimensionExpr[_] =>
+              case e @ DimensionExpr(_: DictionaryDimension) =>
                 valueDataBuilder.set(e, rowValues(context.tagForExprIndex(index) & 0xFF))
+
+              case e @ DimensionExpr(r: RawDimension[_]) =>
+                valueDataBuilder.set(e, row.key.dimReprs(context.dimIndexMap(r)))
               case e @ MetricExpr(field) =>
                 valueDataBuilder.set(e, rowValues(field.tag & 0xFF))
               case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))

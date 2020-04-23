@@ -16,7 +16,7 @@
 
 package org.yupana.core.sql
 
-import org.yupana.api.query.{ Expression, TypeConvertExpr }
+import org.yupana.api.query.{ ConstantExpr, Expression, TypeConvertExpr }
 import org.yupana.api.types.{ DataType, TypeConverter }
 
 trait ExprPair {
@@ -34,17 +34,45 @@ object ExprPair {
     override val b: Expression.Aux[T0] = y
   }
 
+  def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
+    if (const.dataType == dataType) {
+      Right(const.v.asInstanceOf[dataType.T])
+    } else {
+      TypeConverter(const.dataType, dataType.aux)
+        .map(conv => conv.direct(const.v))
+        .orElse(
+          TypeConverter(dataType.aux, const.dataType)
+            .flatMap(conv => conv.reverse(const.v))
+        )
+        .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
+    }
+  }
+
   def alignTypes(ca: Expression, cb: Expression): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
       Right(ExprPair[ca.Out](ca.aux, cb.asInstanceOf[Expression.Aux[ca.Out]]))
     } else {
-      TypeConverter(ca.dataType, cb.dataType)
-        .map(aToB => ExprPair[cb.Out](TypeConvertExpr(aToB, ca.aux), cb.aux))
-        .orElse(
-          TypeConverter(cb.dataType, ca.dataType)
-            .map(bToA => ExprPair[ca.Out](ca.aux, TypeConvertExpr(bToA, cb.aux)))
-        )
-        .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
+      (ca, cb) match {
+        case (_: ConstantExpr, _: ConstantExpr) => convertRegular(ca, cb)
+
+        case (c: ConstantExpr, _) =>
+          constCast(c, cb.dataType).map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb.aux))
+
+        case (_, c: ConstantExpr) =>
+          constCast(c, ca.dataType).map(cc => ExprPair(ca.aux, ConstantExpr(cc)(ca.dataType)))
+
+        case (_, _) => convertRegular(ca, cb)
+      }
     }
+  }
+
+  private def convertRegular(ca: Expression, cb: Expression): Either[String, ExprPair] = {
+    TypeConverter(ca.dataType, cb.dataType)
+      .map(aToB => ExprPair[cb.Out](TypeConvertExpr(aToB, ca.aux), cb.aux))
+      .orElse(
+        TypeConverter(cb.dataType, ca.dataType)
+          .map(bToA => ExprPair[ca.Out](ca.aux, TypeConvertExpr(bToA, cb.aux)))
+      )
+      .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
   }
 }

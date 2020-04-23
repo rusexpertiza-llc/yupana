@@ -78,8 +78,8 @@ class ExternalLinkRegistrator(
     new JdbcTemplate(dataSource)
   }
 
-  def createSqlService(link: SQLExternalLink[_]): SQLSourcedExternalLinkService = {
+  def createSqlService(link: SQLExternalLink[_]): SQLSourcedExternalLinkService[link.DimType] = {
     val jdbc = createConnection(link.config.connection)
-    new SQLSourcedExternalLinkService(link, link.config.description, jdbc)
+    new SQLSourcedExternalLinkService[link.DimType](link, link.config.description, jdbc)
   }
 }

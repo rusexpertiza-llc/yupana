@@ -4,7 +4,7 @@ import org.yupana.api.schema._
 
 object TestDims {
   val DIM_A = DictionaryDimension("A")
-  val DIM_B = DictionaryDimension("B")
+  val DIM_B = RawDimension[Short]("B")
   val DIM_X = DictionaryDimension("X")
   val DIM_Y = RawDimension[Long]("Y")
 }
@@ -52,9 +52,9 @@ object TestLinks {
   val TEST_LINK3: TestLink3 = new TestLink3
 
   class TestLink4 extends ExternalLink {
-    override type DimType = String
+    override type DimType = Short
     override val linkName: String = "TestLink4"
-    override val dimension: Dimension.Aux[String] = TestDims.DIM_B
+    override val dimension: Dimension.Aux[Short] = TestDims.DIM_B
     override val fieldsNames: Set[String] = Set("testField4")
   }
 

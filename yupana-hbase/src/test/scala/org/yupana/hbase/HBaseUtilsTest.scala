@@ -13,6 +13,8 @@ import org.yupana.api.schema.{ DictionaryDimension, Dimension, Metric, MetricVal
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
+import scala.collection.JavaConverters._
+
 class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues with BeforeAndAfterAll {
 
   import HBaseUtilsTest._
@@ -36,7 +38,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
 
   it should "create TSDRows from datapoints" in {
     val time = new DateTime(2017, 10, 15, 12, 57, DateTimeZone.UTC).getMillis
-    val dims: Map[Dimension, Any] = Map(DIM_A -> "test1", DIM_B -> "test2")
+    val dims: Map[Dimension, Any] = Map(DIM_A -> 1111, DIM_B -> "test2")
     val dp1 = DataPoint(TestTable, time, dims, Seq(MetricValue(TEST_FIELD, 1.0)))
     val dp2 = DataPoint(TestTable2, time + 1, dims, Seq(MetricValue(TEST_FIELD, 2.0)))
     val dp3 = DataPoint(TestTable, time + 2, dims, Seq(MetricValue(TEST_FIELD, 3.0)))
@@ -44,34 +46,40 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
 
-    (dictionaryDaoMock.getIdByValue _).expects(DIM_A, "test1").returning(Some(1))
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "test2").returning(Some(2))
 
     val rbt = HBaseUtils.createPuts(Seq(dp1, dp2, dp3), dictionaryProvider)
 
     rbt should have size 2
 
-    val rows = rbt.find(_._1 == TestTable).value._2
-    rows should have size 1
+    val puts = rbt.find(_._1 == TestTable).value._2
+    puts should have size 2
 
-//    val (time1, value1) = rows.head.values.valuesByGroup(1)(0)
-//    val (time2, value2) = rows.head.values.valuesByGroup(1)(1)
+    val put1 = puts(0)
+    val put2 = puts(1)
+
+    val keyTime = Bytes.toLong(put1.getRow)
+
+//    val (time1, value1) = puts.head.values.valuesByGroup(1)(0)
+//    val (time2, value2) = puts.head.values.valuesByGroup(1)(1)
 //    time1 shouldEqual 46620000
 //    value1.toSeq should (
-//      equal(
-//        ByteBuffer
-//          .allocate(29)
-//          .put(1.toByte)
-//          .putDouble(1.0)
-//          .put(Table.DIM_TAG_OFFSET.toByte)
-//          .putInt("test1".length)
-//          .put("test1".getBytes(StandardCharsets.UTF_8))
-//          .put((Table.DIM_TAG_OFFSET + 1).toByte)
-//          .putInt("test2".length)
-//          .put("test2".getBytes(StandardCharsets.UTF_8))
-//          .array()
-//          .toSeq
-//      )
+
+    val cells = put1.get(HBaseUtils.family(1), Bytes.toBytes(46620000L)).asScala
+    cells should have size 1
+
+    cells(0).getValueArray shouldEqual ByteBuffer
+      .allocate(29)
+      .put(1.toByte)
+      .putDouble(1.0)
+      .put(Table.DIM_TAG_OFFSET.toByte)
+      .putInt("test1".length)
+      .put("test1".getBytes(StandardCharsets.UTF_8))
+      .put((Table.DIM_TAG_OFFSET + 1).toByte)
+      .putInt("test2".length)
+      .put("test2".getBytes(StandardCharsets.UTF_8))
+      .array()
+
 //        or equal(
 //          ByteBuffer
 //            .allocate(29)
@@ -119,7 +127,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
 //            .toSeq
 //        )
 //    )
-//    rows.head.key shouldEqual TSDRowKey(1508025600000L, Array(Some(1), Some(2), None))
+//    puts.head.key shouldEqual TSDRowKey(1508025600000L, Array(Some(1), Some(2), None))
 //
 //    val rows2 = rbt.find(_._1 == TestTable2).value._2
 //    rows2 should have size 1
@@ -157,8 +165,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
 //            .toSeq
 //        )
 //    )
-//    rows.head.key shouldEqual TSDRowKey(1508025600000L, Array(Some(1), Some(2), None))
-
+//    puts.head.key shouldEqual TSDRowKey(1508025600000L, Array(Some(1), Some(2), None))
     CacheFactory.flushCaches()
   }
 

@@ -199,10 +199,6 @@ object HBaseUtils extends StrictLogging {
       case (dim, ids) =>
         dim -> ids.toList.map(id => dim.storable.write(id.asInstanceOf[dim.R]))
     }
-    val dimIndex = dimIdsList.map {
-      case (dim, _) =>
-        table.dimensionSeq.indexOf(dim)
-    }.toArray
 
     val crossJoinedDimIds = {
       CollectionUtils.crossJoin(dimIdsList.map(_._2))
@@ -240,7 +236,11 @@ object HBaseUtils extends StrictLogging {
         else {
           val copy = new Array[Byte](vb.length)
           Array.copy(vb, 0, copy, 0, vb.length)
-          Bytes.incrementBytes(copy, 1L)
+          val incremented = Bytes.incrementBytes(copy, 1L)
+          if (incremented != copy) {
+            Array.copy(incremented, incremented.length - copy.length, copy, 0, copy.length)
+          }
+          copy
         }
       stopBuffer.put(ve)
     }

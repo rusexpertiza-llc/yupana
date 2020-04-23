@@ -71,7 +71,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldEqual "Expected rowTimeSpan for table table_1: 2592000000, actual: 2678400000\n" +
-          "Expected dimensions for table table_1: tag_b, tag_a, tag_c, tag_d; actual: tag_a, tag_c\n" +
+          "Expected dimensions for table table_1: dim_b, dim_a, dim_c, dim_d; actual: dim_a, dim_c\n" +
           "In table table_1 metric metric_c has been removed or updated\n" +
           "In table table_1 metric metric_d has been removed or updated"
     }

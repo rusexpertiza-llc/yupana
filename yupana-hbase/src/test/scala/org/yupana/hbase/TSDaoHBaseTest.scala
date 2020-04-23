@@ -1,5 +1,6 @@
 package org.yupana.hbase
 
+import java.nio.ByteBuffer
 import java.util.Properties
 
 import org.apache.hadoop.hbase.client.Scan
@@ -56,11 +57,11 @@ class TSDaoHBaseTest
     }
   }
 
-  def scan(from: Long, to: Long, range: Seq[Long]): FunctionAdapter1[Seq[Scan], Boolean] = {
-    scan(from, to, Set(range))
+  def scan(table: Table, from: Long, to: Long, range: Seq[Long]): FunctionAdapter1[Seq[Scan], Boolean] = {
+    scan(table, from, to, Set(range))
   }
 
-  def scan(from: Long, to: Long, ranges: Set[Seq[Long]]): FunctionAdapter1[Seq[Scan], Boolean] = {
+  def scan(table: Table, from: Long, to: Long, ranges: Set[Seq[Long]]): FunctionAdapter1[Seq[Scan], Boolean] = {
     where { (scans: Seq[Scan]) =>
       val scan = scans.head
       val filter = scan.getFilter.asInstanceOf[MultiRowRangeFilter]
@@ -71,15 +72,19 @@ class TSDaoHBaseTest
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
-          range.zipWithIndex.forall {
-            case (id, idx) =>
+          var offset = 8
+          range.zip(table.dimensionSeq).zipWithIndex.forall {
+            case ((id, dim), idx) =>
               val e = if (idx == range.size - 1) id + 1 else id
 
-              val start = Bytes.toLong(rowRange.getStartRow, 8 + idx * 8)
-              val stop = Bytes.toLong(rowRange.getStopRow, 8 + idx * 8)
+              // FIXME: This is quite ugly
+              val start = java.lang.Long
+                .valueOf(dim.storable.read(ByteBuffer.wrap(rowRange.getStartRow, offset, dim.storable.size)).toString)
+              val stop = java.lang.Long
+                .valueOf(dim.storable.read(ByteBuffer.wrap(rowRange.getStopRow, offset, dim.storable.size)).toString)
+              offset += dim.storable.size
 
-              id >= Bytes.toLong(rowRange.getStartRow, 8 + idx * 8) &&
-              e <= Bytes.toLong(rowRange.getStopRow, 8 + idx * 8)
+              id >= start && e <= stop
           } &&
           time == Bytes.toLong(rowRange.getStartRow) &&
           time == Bytes.toLong(rowRange.getStopRow)
@@ -104,7 +109,7 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(2.toShort))),
             Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ tagged(Table.DIM_TAG_OFFSET, "test1")))
           )
         )
@@ -135,14 +140,14 @@ class TSDaoHBaseTest
     val pointTime = 2000
 
     queryRunner
-      .expects(scan(from, to, Seq(1L)))
+      .expects(scan(testTable, from, to, Seq(1L)))
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(2.toShort))),
             Array(
-              pointTime % testTable.rowTimeSpan -> (tagged(111, 3d) ++ dimBytes("test1", "test22")),
-              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test1", "test22"))
+              pointTime % testTable.rowTimeSpan -> (tagged(111, 3d) ++ dimBytes(Some("test1"), None)),
+              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes(Some("test1"), None))
             )
           )
         )
@@ -167,7 +172,7 @@ class TSDaoHBaseTest
     val r = res.head
     r.get(0).value shouldEqual Time(pointTime + 1)
     r.get(1).value shouldEqual "test1"
-    r.get(2).value shouldEqual "test22"
+    r.get(2).value shouldEqual 2.toShort
     r.get(3).value shouldEqual 1d
   }
 
@@ -180,12 +185,12 @@ class TSDaoHBaseTest
     val pointTime = 2000
 
     queryRunner
-      .expects(scan(from, to, Seq(1L)))
+      .expects(scan(testTable, from, to, Seq(1L)))
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test1", "test22")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes(Some("test1"), None)))
           )
         )
       )
@@ -209,7 +214,7 @@ class TSDaoHBaseTest
     val r = res.head
     r.get(0).value shouldEqual Time(pointTime)
     r.get(1).value shouldEqual "test1"
-    r.get(2).value shouldEqual "test22"
+    r.get(2).value shouldEqual 2.toShort
     r.get(3).value shouldEqual 1d
   }
 
@@ -249,14 +254,14 @@ class TSDaoHBaseTest
     val pointTime2 = 2200
 
     queryRunner
-      .expects(scan(from, to, Set(Seq(1L), Seq(2L))))
+      .expects(scan(testTable, from, to, Set(Seq(1L), Seq(2L))))
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2L), Some(5.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test1", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test1", "test25"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes(Some("test1"), None)),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes(Some("test1"), None))
             )
           )
         )
@@ -285,11 +290,11 @@ class TSDaoHBaseTest
     res.size shouldEqual 2
 
     res(0).get(0).value shouldEqual Time(pointTime1)
-    res(0).get(1).value shouldEqual "test25"
+    res(0).get(1).value shouldEqual 5.toShort
     res(0).get(2).value shouldEqual 7d
 
     res(1).get(0).value shouldEqual Time(pointTime2)
-    res(1).get(1).value shouldEqual "test25"
+    res(1).get(1).value shouldEqual 5.toShort
     res(1).get(2).value shouldEqual 5d
   }
 
@@ -326,21 +331,20 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scan(from, to, Seq(2L, 21L))
+        scan(testTable, from, to, Seq(2L, 21L))
       )
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(21))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2L), Some(21.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("test2", "test21"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes(Some("test2"), None))
             )
           )
         )
       )
 
     (dictionary.getIdsByValues _).expects(TestDims.DIM_A, Set("test2")).returning(Map("test2" -> 2L))
-    (dictionary.getIdsByValues _).expects(TestDims.DIM_B, Set("test21")).returning(Map("test21" -> 21L))
 
     dao.query(
       InternalQuery(
@@ -350,7 +354,7 @@ class TSDaoHBaseTest
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           in(dimension(TestDims.DIM_A), Set("test1", "test2")),
-          equ(dimension(TestDims.DIM_B), const("test21")),
+          equ(dimension(TestDims.DIM_B), const(21.toShort)),
           in(dimension(TestDims.DIM_A), Set("test2", "test3"))
         )
       ),
@@ -371,6 +375,7 @@ class TSDaoHBaseTest
     queryRunner
       .expects(
         scan(
+          testTable,
           from,
           to,
           Set(
@@ -386,20 +391,20 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("A 1", "B 1")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(1.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes(Some("A 1"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("A 2", "B 1")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2L), Some(1.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes(Some("A 2"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes("A 2", "B 2")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes(Some("A 2"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 6d) ++ dimBytes("A 3", "B 2")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 6d) ++ dimBytes(Some("A 3"), None)))
           )
         )
       )
@@ -407,7 +412,6 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _)
       .expects(TestDims.DIM_A, Set("A 1", "A 2", "A 3"))
       .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
-    (dictionary.getIdsByValues _).expects(TestDims.DIM_B, Set("B 1", "B 2")).returning(Map("B 1" -> 1L, "B 2" -> 2L))
 
     val res = dao
       .query(
@@ -418,7 +422,7 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            in(dimension(TestDims.DIM_B), Set("B 1", "B 2"))
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
           )
         ),
         valueDataBuilder,
@@ -441,6 +445,7 @@ class TSDaoHBaseTest
     queryRunner
       .expects(
         scan(
+          testTable,
           from,
           to,
           Set(
@@ -453,12 +458,12 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("A 1", "B 1")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(1.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes(Some("A 1"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("A 2", "B 1")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2L), Some(1.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes(Some("A 2"), None)))
           )
         )
       )
@@ -466,7 +471,6 @@ class TSDaoHBaseTest
     (dictionary.getIdsByValues _)
       .expects(TestDims.DIM_A, Set("A 1", "A 2", "A 3"))
       .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
-    (dictionary.getIdsByValues _).expects(TestDims.DIM_B, Set("B 1")).returning(Map("B 1" -> 1L))
 
     val res = dao
       .query(
@@ -477,7 +481,7 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            equ(dimension(TestDims.DIM_B), const("B 1"))
+            equ(dimension(TestDims.DIM_B), const(1.toShort))
           )
         ),
         valueDataBuilder,
@@ -579,18 +583,13 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(1))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2L), Some(1.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("doesn't matter", "test3"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes(Some("doesn't matter"), None))
             )
           )
         )
       )
-
-    (dictionary.getIdsByValues _)
-      .expects(TestDims.DIM_B, Set("test1", "test2"))
-      .returning(Map("test1" -> 1, "test2" -> 2))
-    (dictionary.getIdsByValues _).expects(TestDims.DIM_B, Set("test3")).returning(Map("test3" -> 3))
 
     dao.query(
       InternalQuery(
@@ -599,8 +598,8 @@ class TSDaoHBaseTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set("test1", "test2")),
-          notIn(dimension(TestDims.DIM_B), Set("test2", "test3"))
+          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+          notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
         )
       ),
       valueDataBuilder,
@@ -623,24 +622,24 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test11", "test22")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes(Some("test11"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 2d) ++ dimBytes("test12", "test22")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 2d) ++ dimBytes(Some("test12"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("test13", "test22")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes(Some("test13"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4), Some(3))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes("test14", "test23")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4L), Some(3.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes(Some("test14"), None)))
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test15", "test22")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes(Some("test15"), None)))
           )
         )
       )
@@ -718,6 +717,7 @@ class TSDaoHBaseTest
     queryRunner
       .expects(
         scan(
+          testTable,
           from,
           to,
           Set(
@@ -729,10 +729,10 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2L), Some(5.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test12", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test13", "test25"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes(Some("test12"), None)),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes(Some("test13"), None))
             )
           )
         )
@@ -757,11 +757,11 @@ class TSDaoHBaseTest
     res.size shouldEqual 2
 
     res(0).get(0).value shouldEqual Time(pointTime1)
-    res(0).get(1).value shouldEqual "test25"
+    res(0).get(1).value shouldEqual 5.toShort
     res(0).get(2).value shouldEqual 7d
 
     res(1).get(0).value shouldEqual Time(pointTime2)
-    res(1).get(1).value shouldEqual "test25"
+    res(1).get(1).value shouldEqual 5.toShort
     res(1).get(2).value shouldEqual 5d
   }
 
@@ -775,13 +775,13 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scan(from, to, Seq(1L))
+        scan(testTable, from, to, Seq(1L))
       )
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test11", "test22")))
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(2.toShort))),
+            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes(Some("test11"), None)))
           )
         )
       )
@@ -827,15 +827,15 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scan(from, to, Seq(1L))
+        scan(testTable, from, to, Seq(1L))
       )
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(5))),
+            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1L), Some(5.toShort))),
             Array(
-              pointTime % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("tag_a", "tag_b")),
-              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("tag_a", "teg_b"))
+              pointTime % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes(Some("tag_a"), None)),
+              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes(Some("tag_a"), None))
             )
           )
         )
@@ -877,15 +877,15 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scan(from, to, Seq(42L))
+        scan(testTable, from, to, Seq(42L))
       )
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42L), Some(5.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test42", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test42", "test25"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes(Some("test42"), None)),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes(Some("test42"), None))
             )
           )
         )
@@ -931,6 +931,7 @@ class TSDaoHBaseTest
     queryRunner
       .expects(
         scan(
+          testTable,
           from,
           to,
           Set(
@@ -942,19 +943,19 @@ class TSDaoHBaseTest
       .returning(
         Iterator(
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42L), Some(5.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test42", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test42", "test25")),
-              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 8d) ++ dimBytes("test42", "test25"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes(Some("test42"), None)),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes(Some("test42"), None)),
+              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 8d) ++ dimBytes(Some("test42"), None))
             )
           ),
           TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51), Some(6))),
+            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51L), Some(6.toShort))),
             Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 15d) ++ dimBytes("test51", "test26")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 33d) ++ dimBytes("test51", "test26")),
-              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 43d) ++ dimBytes("test51", "test26"))
+              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 15d) ++ dimBytes(Some("test51"), None)),
+              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 33d) ++ dimBytes(Some("test51"), None)),
+              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 43d) ++ dimBytes(Some("test51"), None))
             )
           )
         )
@@ -1025,10 +1026,11 @@ class TSDaoHBaseTest
     tag +: writable.write(value)
   }
 
-  private def dimBytes(values: String*): Array[Byte] = {
+  private def dimBytes(values: Option[String]*): Array[Byte] = {
     values.zipWithIndex.foldLeft(Array.ofDim[Byte](0)) {
-      case (aac, (dim, idx)) =>
+      case (aac, (Some(dim), idx)) =>
         aac ++ tagged((Table.DIM_TAG_OFFSET + idx).toByte, dim)
+      case (acc, _) => acc
     }
   }
 }

@@ -59,7 +59,7 @@ class TsdbDataFilterTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1012)))
+            equ(metric(TestTableFields.TEST_FIELD), const(1012d))
           )
         ),
         *,
@@ -70,12 +70,12 @@ class TsdbDataFilterTest
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
             .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
             .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset()
         )
       )
@@ -87,12 +87,12 @@ class TsdbDataFilterTest
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1012d
     row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[String]("B").value shouldBe "test2"
+    row.fieldValueByName[Short]("B").value shouldBe 2.toShort
   }
 
   it should "execute query with filter by values and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT time AS time_time, abs(testField) AS abs_test_field, A, B FROM test_table " +
-      "WHERE testField = 1012 AND B = 'VB1'" + timeBounds()
+      "WHERE testField = 1012 AND B = 31" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -110,8 +110,8 @@ class TsdbDataFilterTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1012))),
-            equ(dimension(TestDims.DIM_B), const("VB1"))
+            equ(metric(TestTableFields.TEST_FIELD), const(1012d)),
+            equ(dimension(TestDims.DIM_B), const(31.toShort))
           )
         ),
         *,
@@ -122,12 +122,12 @@ class TsdbDataFilterTest
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
             .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("VB1"))
+            .set(dimension(TestDims.DIM_B), Some(31.toShort))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
             .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("VB1"))
+            .set(dimension(TestDims.DIM_B), Some(31.toShort))
             .buildAndReset()
         )
       )
@@ -139,7 +139,7 @@ class TsdbDataFilterTest
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("abs_test_field").value shouldBe 1012d
     row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[String]("B").value shouldBe "VB1"
+    row.fieldValueByName[Short]("B").value shouldBe 31
   }
 
   it should "execute query with filter by values not presented in query.fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -161,7 +161,7 @@ class TsdbDataFilterTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            le(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1012)))
+            le(metric(TestTableFields.TEST_FIELD), const(1012d))
           )
         ),
         *,
@@ -172,12 +172,12 @@ class TsdbDataFilterTest
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
             .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
             .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset()
         )
       )
@@ -189,7 +189,7 @@ class TsdbDataFilterTest
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
     row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[String]("B").value shouldBe "test2"
+    row.fieldValueByName[Short]("B").value shouldBe 2
   }
 
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -532,7 +532,7 @@ class TsdbDataFilterTest
 
       val sql = "SELECT day(time) AS t, testField, A, B, TestLink2_testField2 AS cf2 " +
         "FROM test_table " +
-        "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND A != 'test1' AND B = 'testB2'" + timeBounds()
+        "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND A != 'test1' AND B = 15" + timeBounds()
       val query = createQuery(sql)
 
       val condition = and(
@@ -540,9 +540,9 @@ class TsdbDataFilterTest
         lt(time, const(Time(to))),
         isNull(link(TestLinks.TEST_LINK, "testField")),
         isNotNull(link(TestLinks.TEST_LINK2, "testField2")),
-        ge(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1000))),
+        ge(metric(TestTableFields.TEST_FIELD), const(1000d)),
         neq(dimension(TestDims.DIM_A), const("test1")),
-        equ(dimension(TestDims.DIM_B), const("testB2"))
+        equ(dimension(TestDims.DIM_B), const(15.toShort))
       )
 
       (testCatalogServiceMock.condition _).expects(condition).returning(condition)
@@ -592,22 +592,22 @@ class TsdbDataFilterTest
             b.set(time, Some(Time(pointTime1)))
               .set(metric(TestTableFields.TEST_FIELD), Some(1001d))
               .set(dimension(TestDims.DIM_A), Some("test2a"))
-              .set(dimension(TestDims.DIM_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1 + 10)))
               .set(metric(TestTableFields.TEST_FIELD), Some(1002d))
               .set(dimension(TestDims.DIM_A), Some("test2a"))
-              .set(dimension(TestDims.DIM_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1 + 10)))
               .set(metric(TestTableFields.TEST_FIELD), Some(103d))
               .set(dimension(TestDims.DIM_A), Some("test2a"))
-              .set(dimension(TestDims.DIM_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1 + 10)))
               .set(metric(TestTableFields.TEST_FIELD), Some(1003d))
               .set(dimension(TestDims.DIM_A), Some("test1a"))
-              .set(dimension(TestDims.DIM_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset()
           )
         )
@@ -619,7 +619,7 @@ class TsdbDataFilterTest
       r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
       r1.fieldValueByName[Double]("testField").value shouldBe 1003d
       r1.fieldValueByName[String]("A").value shouldBe "test1a"
-      r1.fieldValueByName[String]("B").value shouldBe "testB2"
+      r1.fieldValueByName[Short]("B").value shouldBe 15.toShort
   }
 
   it should "support IS NULL and IS NOT NULL inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -706,7 +706,7 @@ class TsdbDataFilterTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            neq(double2bigDecimal(metric(TestTable2Fields.TEST_FIELD2)), const(BigDecimal(0)))
+            neq(metric(TestTable2Fields.TEST_FIELD2), const(0d))
           )
         ),
         *,

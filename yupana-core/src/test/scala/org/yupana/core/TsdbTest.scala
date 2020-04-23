@@ -58,7 +58,6 @@ class TsdbTest
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
     (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> 1L))
-    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_B, Set("test2")).returning(Map("test2" -> 2L))
     (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Seq(dp1, dp2, dp3))
@@ -324,7 +323,7 @@ class TsdbTest
       ),
       AndExpr(
         Seq(
-          equ(dimension(TestDims.DIM_B), const("B-52")),
+          equ(dimension(TestDims.DIM_B), const(52.toShort)),
           notIn(tuple(time, dimension(TestDims.DIM_A.aux)), Set((Time(pointTime2), "test42")))
         )
       )
@@ -337,7 +336,7 @@ class TsdbTest
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
-            equ(dimension(TestDims.DIM_B), const("B-52")),
+            equ(dimension(TestDims.DIM_B), const(52.toShort)),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -1571,7 +1570,7 @@ class TsdbTest
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-          in(dimension(TestDims.DIM_B), Set("test23", "test24"))
+          in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
         )
       )
 
@@ -1587,7 +1586,7 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test11", "test12")),
-            in(dimension(TestDims.DIM_B), Set("test23", "test24"))
+            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
           )
         ),
         *,
@@ -1597,12 +1596,12 @@ class TsdbTest
         Iterator(
           b.set(time, Some(Time(pointTime1)))
             .set(dimension(TestDims.DIM_A), Some("test12"))
-            .set(dimension(TestDims.DIM_B), Some("test23"))
+            .set(dimension(TestDims.DIM_B), Some(23.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
             .set(dimension(TestDims.DIM_A), Some("test12"))
-            .set(dimension(TestDims.DIM_B), Some("test23"))
+            .set(dimension(TestDims.DIM_B), Some(23.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(5d))
             .buildAndReset()
         )
@@ -1613,7 +1612,7 @@ class TsdbTest
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 6d
     r1.fieldValueByName[String]("A").value shouldBe "test12"
-    r1.fieldValueByName[String]("B").value shouldBe "test23"
+    r1.fieldValueByName[Short]("B").value shouldBe 23.toShort
     result should have size 1
   }
 
@@ -1726,7 +1725,7 @@ class TsdbTest
       Some(
         AndExpr(
           Seq(
-            InExpr(dimension(TestDims.DIM_B), Set("B 1", "B 2")),
+            InExpr(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             InExpr(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
           )
         )
@@ -1739,7 +1738,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set("B 1", "B 2")),
+          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
           in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
         )
       )
@@ -1747,7 +1746,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set("B 1", "B 2")),
+          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
           in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
         )
       )
@@ -1763,7 +1762,7 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            in(dimension(TestDims.DIM_B), Set("B 1", "B 2"))
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
           )
         ),
         *,
@@ -1773,22 +1772,22 @@ class TsdbTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(dimension(TestDims.DIM_A), Some("A 1"))
-            .set(dimension(TestDims.DIM_B), Some("B 1"))
+            .set(dimension(TestDims.DIM_B), Some(1.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
             .set(dimension(TestDims.DIM_A), Some("A 2"))
-            .set(dimension(TestDims.DIM_B), Some("B 1"))
+            .set(dimension(TestDims.DIM_B), Some(1.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
             .set(dimension(TestDims.DIM_A), Some("A 2"))
-            .set(dimension(TestDims.DIM_B), Some("B 2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(4d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
             .set(dimension(TestDims.DIM_A), Some("A 3"))
-            .set(dimension(TestDims.DIM_B), Some("B 2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(6d))
             .buildAndReset()
         )
@@ -1803,28 +1802,28 @@ class TsdbTest
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 1d
     r1.fieldValueByName[String]("A").value shouldBe "A 1"
-    r1.fieldValueByName[String]("B").value shouldBe "B 1"
+    r1.fieldValueByName[Short]("B").value shouldBe 1.toShort
 
     val r2 = rs(1)
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
     r2.fieldValueByName[String]("A").value shouldBe "A 2"
-    r2.fieldValueByName[String]("B").value shouldBe "B 1"
+    r2.fieldValueByName[Short]("B").value shouldBe 1.toShort
 
     val r3 = rs(2)
 
     r3.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r3.fieldValueByName[Double]("sum_testField").value shouldBe 4d
     r3.fieldValueByName[String]("A").value shouldBe "A 2"
-    r3.fieldValueByName[String]("B").value shouldBe "B 2"
+    r3.fieldValueByName[Short]("B").value shouldBe 2.toShort
 
     val r4 = rs(3)
 
     r4.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r4.fieldValueByName[Double]("sum_testField").value shouldBe 6d
     r4.fieldValueByName[String]("A").value shouldBe "A 3"
-    r4.fieldValueByName[String]("B").value shouldBe "B 2"
+    r4.fieldValueByName[Short]("B").value shouldBe 2.toShort
 
   }
 
