@@ -114,11 +114,11 @@ object HBaseUtils extends StrictLogging {
     val toTimeKey = Bytes.toBytes(baseTime(toTime, queryContext.table) + 1)
 
     val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
-      .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+      .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
 
     val inclusiveEndRowKey = endRowKey.filter(_.nonEmpty).map(a => a :+ 0.toByte)
     val stopKey = List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
-      .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+      .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
 
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>
