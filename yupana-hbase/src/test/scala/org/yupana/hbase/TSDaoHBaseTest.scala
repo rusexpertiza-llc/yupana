@@ -74,6 +74,10 @@ class TSDaoHBaseTest
           range.zipWithIndex.forall {
             case (id, idx) =>
               val e = if (idx == range.size - 1) id + 1 else id
+
+              val start = Bytes.toLong(rowRange.getStartRow, 8 + idx * 8)
+              val stop = Bytes.toLong(rowRange.getStopRow, 8 + idx * 8)
+
               id >= Bytes.toLong(rowRange.getStartRow, 8 + idx * 8) &&
               e <= Bytes.toLong(rowRange.getStopRow, 8 + idx * 8)
           } &&

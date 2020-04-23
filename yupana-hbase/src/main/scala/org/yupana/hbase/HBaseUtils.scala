@@ -39,6 +39,10 @@ import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 
 object HBaseUtils extends StrictLogging {
 
+  type TimeShiftedValue = (Long, Array[Byte])
+  type TimeShiftedValues = Array[TimeShiftedValue]
+  type ValuesByGroup = Map[Int, TimeShiftedValues]
+
   val tableNamePrefix: String = "ts_"
   val rollupStatusFamily: Array[Byte] = "v".getBytes
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
@@ -83,7 +87,7 @@ object HBaseUtils extends StrictLogging {
 
   def createPutOperation(table: Table, key: Array[Byte], dataPoints: Seq[DataPoint]): Put = {
     val put = new Put(key)
-    TSDRowValues.valuesByGroup(table, dataPoints).foreach {
+    valuesByGroup(table, dataPoints).foreach {
       case (group, values) =>
         values.foreach {
           case (time, bytes) =>
@@ -210,13 +214,7 @@ object HBaseUtils extends StrictLogging {
       time <- baseTimeLs
       cids <- crossJoinedDimIds if cids.nonEmpty
     } yield {
-      val filter = Array.ofDim[Array[Byte]](dimIndex.length)
-      cids.foldLeft(0) { (i, id) =>
-        val idx = dimIndex(i)
-        filter(idx) = id
-        i + 1
-      }
-      rowRange(time, keySize, filter)
+      rowRange(time, keySize, cids.toArray)
     }
 
     if (ranges.nonEmpty) {
@@ -227,7 +225,7 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]) = {
+  private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]): RowRange = {
     val timeInc = if (dimIds.isEmpty) 1 else 0
 
     val startBuffer = ByteBuffer.allocate(keySize)
@@ -237,7 +235,13 @@ object HBaseUtils extends StrictLogging {
     dimIds.indices.foreach { i =>
       val vb = dimIds(i)
       startBuffer.put(vb)
-      val ve = if (i < dimIds.length - 1) vb else Bytes.incrementBytes(vb, 1L)
+      val ve =
+        if (i < dimIds.length - 1) vb
+        else {
+          val copy = new Array[Byte](vb.length)
+          Array.copy(vb, 0, copy, 0, vb.length)
+          Bytes.incrementBytes(copy, 1L)
+        }
       stopBuffer.put(ve)
     }
 
@@ -510,4 +514,50 @@ object HBaseUtils extends StrictLogging {
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
+  def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
+    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).mapValues(_.toArray)
+  }
+
+  private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
+    val timeShift = HBaseUtils.restTime(dp.time, table)
+    dp.metrics
+      .groupBy(_.metric.group)
+      .mapValues(metricValues => Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))))
+  }
+
+  private def mergeMaps(
+      m1: Map[Int, Seq[TimeShiftedValue]],
+      m2: Map[Int, Seq[TimeShiftedValue]]
+  ): Map[Int, Seq[TimeShiftedValue]] = {
+    (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
+  }
+
+  private def fieldsToBytes(
+      table: Table,
+      dimensions: Map[Dimension, Any],
+      metricValues: Seq[MetricValue]
+  ): Array[Byte] = {
+    val metricFieldBytes = metricValues.map { f =>
+      val bytes = f.metric.dataType.storable.write(f.value)
+      (f.metric.tag, bytes)
+    }
+    val dimensionFieldBytes = dimensions.collect {
+      case (d, value) if table.dimensionTagExists(d) =>
+        val tag = table.dimensionTag(d)
+        val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
+        (tag, bytes)
+    }
+
+    val fieldBytes = metricFieldBytes ++ dimensionFieldBytes
+
+    val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
+    val bb = ByteBuffer.allocate(size)
+    fieldBytes.foreach {
+      case (tag, bytes) =>
+        bb.put(tag)
+        bb.put(bytes)
+    }
+
+    bb.array()
+  }
 }

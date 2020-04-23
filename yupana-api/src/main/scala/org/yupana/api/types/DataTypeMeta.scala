@@ -43,7 +43,8 @@ case class DataTypeMeta[T](
 )
 
 object DataTypeMeta {
-  private val SIGNED_TYPES = Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL, Types.SMALLINT)
+  private val SIGNED_TYPES =
+    Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL, Types.SMALLINT, Types.TINYINT)
 
   implicit val boolMeta: DataTypeMeta[Boolean] =
     DataTypeMeta(Types.BOOLEAN, 5, "BOOLEAN", classOf[java.lang.Boolean], 0, 0)
