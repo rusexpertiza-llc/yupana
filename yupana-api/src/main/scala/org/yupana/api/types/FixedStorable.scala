@@ -42,7 +42,7 @@ object FixedStorable {
   implicit val doubleStorable: FixedStorable[Double] = of(jl.Double.BYTES, 0d, _.getDouble, _.putDouble)
   implicit val shortStorable: FixedStorable[Short] = of(jl.Short.BYTES, 0, _.getShort, _.putShort)
   implicit val byteStorable: FixedStorable[Byte] = of(jl.Byte.BYTES, 0, _.get, _.put)
-  implicit val timeStorable: FixedStorable[Time] = wrap(longStorable, new Time(_), _.millis)
+  implicit val timeStorable: FixedStorable[Time] = wrap(longStorable, (l: Long) => new Time(l), _.millis)
 
   def of[T](s: Int, n: T, r: ByteBuffer => T, w: ByteBuffer => T => ByteBuffer): FixedStorable[T] =
     new FixedStorable[T] {

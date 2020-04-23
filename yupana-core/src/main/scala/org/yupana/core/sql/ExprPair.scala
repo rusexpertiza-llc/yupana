@@ -56,10 +56,10 @@ object ExprPair {
         case (_: ConstantExpr, _: ConstantExpr) => convertRegular(ca, cb)
 
         case (c: ConstantExpr, _) =>
-          constCast(c, cb.dataType).map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb.aux))
+          constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb.aux))
 
         case (_, c: ConstantExpr) =>
-          constCast(c, ca.dataType).map(cc => ExprPair(ca.aux, ConstantExpr(cc)(ca.dataType)))
+          constCast(c, ca.dataType).right.map(cc => ExprPair(ca.aux, ConstantExpr(cc)(ca.dataType)))
 
         case (_, _) => convertRegular(ca, cb)
       }
