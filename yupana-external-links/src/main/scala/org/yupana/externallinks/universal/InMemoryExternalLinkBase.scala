@@ -68,7 +68,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   ): Unit = {
     val tagExpr = new DimensionExpr(externalLink.dimension)
     val indexMap = Seq[Expression](TimeExpr, tagExpr, keyExpr).distinct.zipWithIndex.toMap
-    val valueDataBuilder = new InternalRowBuilder(indexMap)
+    val valueDataBuilder = new InternalRowBuilder(indexMap, None)
 
     val keyValueData = valueData.map { vd =>
       valueDataBuilder

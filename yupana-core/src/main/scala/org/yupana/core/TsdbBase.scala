@@ -247,7 +247,6 @@ trait TsdbBase extends StrictLogging {
         val catalog = linkService(c)
         catalog.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet)
     }
-
     rows
   }
 

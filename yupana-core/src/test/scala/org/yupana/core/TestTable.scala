@@ -12,8 +12,9 @@ object TestDims {
 object TestTableFields {
   val TEST_FIELD: Metric.Aux[Double] = Metric[Double]("testField", 1)
   val TEST_STRING_FIELD: Metric.Aux[String] = Metric[String]("testStringField", 2)
-  val TEST_FIELD2: Metric.Aux[Double] = Metric[Double]("testField2", 3)
-  val TEST_LONG_FIELD: Metric.Aux[Long] = Metric[Long]("testLongField", 4)
+  val TEST_FIELD2: Metric.Aux[Double] = Metric[Double]("testField2", 3, 2)
+  val TEST_LONG_FIELD: Metric.Aux[Long] = Metric[Long]("testLongField", 4, 2)
+  val TEST_BIGDECIMAL_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testBigDecimalField", 5)
 }
 
 object TestTable2Fields {
@@ -66,7 +67,8 @@ object TestSchema {
       TestTableFields.TEST_FIELD,
       TestTableFields.TEST_STRING_FIELD,
       TestTableFields.TEST_FIELD2,
-      TestTableFields.TEST_LONG_FIELD
+      TestTableFields.TEST_LONG_FIELD,
+      TestTableFields.TEST_BIGDECIMAL_FIELD
     ),
     externalLinks = Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4)
   )

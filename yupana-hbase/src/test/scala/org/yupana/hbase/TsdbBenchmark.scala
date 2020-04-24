@@ -2,6 +2,7 @@ package org.yupana.hbase
 
 import java.util.Properties
 
+import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
 import org.scalatest.{ FlatSpec, Matchers }
@@ -16,14 +17,74 @@ import org.yupana.core.dao._
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 import org.yupana.core._
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
+import org.apache.hadoop.hbase.util.Bytes
+
+import scala.util.Random
 
 class TsdbBenchmark extends FlatSpec with Matchers {
+
+  "HBAse" should "be fast" taggedAs Slow in {
+    val hbaseConfiguration = HBaseConfiguration.create()
+    hbaseConfiguration.set("hbase.zookeeper.quorum", "localhost:2181")
+    hbaseConfiguration.set("zookeeper.session.timeout", "9000000")
+    hbaseConfiguration.set("hbase.client.scanner.timeout.period", "9000000")
+//    hbaseConfiguration.set("hbase.client.scanner.max.result.size", "50000000")
+//    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, props)
+
+    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+    val nameSpace = "schema43"
+
+    val connection = ConnectionFactory.createConnection(hbaseConfiguration)
+    val tableName = TableName.valueOf(nameSpace, "ts_kkm_items")
+    val table = connection.getTable(tableName)
+    val scan = new Scan()
+
+    scan.addFamily(Bytes.toBytes("d1"))
+    scan.setCaching(100000)
+//    scan.setBatch(10000)
+    scan.setMaxResultSize(100000000)
+//    scan.setCacheBlocks(false)
+//    scan.setCacheBlocks(false)
+    scan.setScanMetricsEnabled(true)
+
+    import scala.collection.JavaConverters._
+
+    val start = System.currentTimeMillis()
+    val result = table.getScanner(scan)
+    val dps = result.iterator().asScala.foldLeft(0L) { (c, r) =>
+      c + r.rawCells().size
+    }
+
+    println(dps)
+    println(scan.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
+    println("TIME: " + (System.currentTimeMillis() - start))
+  }
+
+  "CPU" should "be fast" taggedAs Slow in {
+    val n = 50000000
+    val arr = Array.fill[Long](n)(Random.nextLong())
+
+    (1 until 30).foreach { _ =>
+      val start = System.currentTimeMillis()
+      val r = arr.iterator.foldLeft(Random.nextLong()) { _ + _ }
+//      var r = 0L
+//      var i = 0
+//      while (i < n) {
+//        r += arr(i % k)
+//        i += 1
+//      }
+
+      println(s"r$r time: {${System.currentTimeMillis() - start}}")
+    }
+
+  }
 
   "TSDB" should "be fast" taggedAs Slow in {
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
 
-    val N = 5000000
-    val in = (1 to N).toArray
+    val N = 1000000
+//    val in = (1 to N).toArray
 
     val metricDao = new TsdbQueryMetricsDao {
       override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long = ???
@@ -81,22 +142,15 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       val rows = {
         val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
-        val v = tagged(1, 1.toDouble) ++
-          tagged(Table.DIM_TAG_OFFSET, "test1") ++
-          tagged((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
-        val K = 10
-        (1 to N / K).map { i =>
+        (1 to N).map { i =>
           val dimId = i
-
-          val vs = (1 to K).map { j =>
-            val x = i * K + j
-            (x % 1000000.toLong, v)
-          }
-
-          TSDOutputRow[Long](
-            key = TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))),
-            values = vs.toArray
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))))
+            .cell("d1", time % testTable.rowTimeSpan)
+            .field(1, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .field((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
+            .hbaseRow
         }
       }
 
@@ -105,7 +159,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
           from: IdType,
           to: IdType,
           rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-      ): Iterator[TSDOutputRow[IdType]] = {
+      ): Iterator[HResult] = {
         rows.iterator
       }
 

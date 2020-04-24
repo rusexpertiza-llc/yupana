@@ -16,7 +16,9 @@
 
 package org.yupana.core.model
 
-import org.yupana.api.query.Expression
+import org.yupana.api.Time
+import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr, TimeExpr }
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.QueryContext
 
 class InternalRow(val data: Array[Option[Any]]) extends Serializable {
@@ -55,10 +57,47 @@ class InternalRow(val data: Array[Option[Any]]) extends Serializable {
   }
 }
 
-class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int]) extends Serializable {
+class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], table: Option[Table])
+    extends Serializable {
   private val data = Array.fill(exprIndex.size)(Option.empty[Any])
 
-  def this(queryContext: QueryContext) = this(queryContext.exprsIndex)
+  val timeIndex = exprIndex.getOrElse(TimeExpr, -1)
+
+  private val tagExprsIndexes: Array[Array[Int]] = table match {
+    case Some(table) =>
+      val tagIndexes = exprIndex.toSeq.map {
+        case (expr, index) =>
+          expr match {
+            case MetricExpr(metric) =>
+              metric.tag -> index
+            case DimensionExpr(dimension: Dimension) =>
+              table.dimensionTag(dimension) -> index
+            case _ => 0.toByte -> index
+          }
+      }
+      val arr = Array.ofDim[Array[Int]](Table.MAX_TAGS)
+
+      tagIndexes.groupBy(_._1).mapValues(_.map(_._2)).foreach {
+        case (tag, indexes) =>
+          arr(tag & 0xFF) = indexes.toArray
+      }
+
+      arr
+    case None => Array.empty
+  }
+
+  def this(queryContext: QueryContext) = this(queryContext.exprsIndex, queryContext.query.table)
+
+  def set(tag: Byte, v: Option[Any]) = {
+    val indexes = tagExprsIndexes(tag & 0xFF)
+    if (indexes != null) {
+      indexes.foreach(idx => data(idx) = v)
+    }
+  }
+
+  def set(time: Option[Time]) = {
+    if (timeIndex != -1) data(timeIndex) = time
+  }
 
   def set(expr: Expression, v: Option[Any]): InternalRowBuilder = {
     data(exprIndex(expr)) = v

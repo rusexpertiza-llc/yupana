@@ -16,22 +16,18 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-import java.util
-
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.DataType
 import org.yupana.api.utils.{ DimOrdering, PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.TimeBoundedCondition
-import org.yupana.hbase.Filtration.TimeFilter
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 
 import scala.language.higherKinds
 
@@ -63,11 +59,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       from: Long,
       to: Long,
       rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-  ): Collection[TSDOutputRow[IdType]]
+  ): Collection[HResult]
 
   override def query(
       query: InternalQuery,
-      valueDataBuilder: InternalRowBuilder,
+      internalRowBuilder: InternalRowBuilder,
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
@@ -112,9 +108,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
       val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-        rs.filter(rowFilter)
+        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, query.table)))
       }
-      extractData(context, valueDataBuilder, filtered, timeFilter).iterator
+
+      new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
+        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).get.millis))
     }
   }
 
@@ -226,8 +224,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def rowFilter(table: Table, f: (Dimension, IdType) => Boolean): Filtration.RowFilter = { row =>
-    row.key.dimIds.zip(table.dimensionSeq).forall {
+  private def rowFilter(table: Table, f: (Dimension, IdType) => Boolean): Filtration.RowFilter = { rowKey =>
+    rowKey.dimIds.zip(table.dimensionSeq).forall {
       case (Some(x), dim) => f(dim, x)
       case _              => true
     }
@@ -336,67 +334,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
       case None =>
         Filters(EmptyFilter(), EmptyFilter(), EmptyFilter(), EmptyFilter(), None)
-    }
-  }
-
-  private def readRow(
-      context: InternalQueryContext,
-      bytes: Array[Byte],
-      data: Array[Option[Any]],
-      time: Long
-  ): Boolean = {
-    val bb = ByteBuffer.wrap(bytes)
-    util.Arrays.fill(data.asInstanceOf[Array[AnyRef]], None)
-    var correct = true
-    while (bb.hasRemaining && correct) {
-      val tag = bb.get()
-
-      context.fieldForTag(tag) match {
-        case Some(Left(metric)) =>
-          data(tag & 0xFF) = Some(metric.dataType.readable.read(bb))
-
-        case Some(Right(_)) =>
-          data(tag & 0xFF) = Some(DataType.stringDt.readable.read(bb))
-        case None =>
-          logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}, row time: $time")
-          correct = false
-      }
-    }
-    correct
-  }
-
-  private def extractData(
-      context: InternalQueryContext,
-      valueDataBuilder: InternalRowBuilder,
-      rows: Seq[TSDOutputRow[IdType]],
-      timeFilter: TimeFilter
-  ): Seq[InternalRow] = {
-
-    context.metricsCollector.extractDataComputation.measure(rows.size) {
-      val rowValues = Array.ofDim[Option[Any]](Table.MAX_TAGS)
-      for {
-        row <- rows
-        (offset, bytes) <- row.values.toSeq
-        time = row.key.baseTime + offset
-        if timeFilter(time) && readRow(context, bytes, rowValues, time)
-      } yield {
-        context.exprsIndexSeq.foreach {
-          case (expr, index) =>
-            expr match {
-              case e: DimensionExpr =>
-                valueDataBuilder.set(e, rowValues(context.tagForExprIndex(index) & 0xFF))
-              case e @ MetricExpr(field) =>
-                valueDataBuilder.set(e, rowValues(field.tag & 0xFF))
-              case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
-              case e =>
-                throw new IllegalArgumentException(
-                  s"Unsupported expression $e passed to DAO"
-                )
-            }
-        }
-
-        valueDataBuilder.buildAndReset()
-      }
     }
   }
 

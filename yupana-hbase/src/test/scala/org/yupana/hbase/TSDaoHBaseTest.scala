@@ -2,6 +2,7 @@ package org.yupana.hbase
 
 import java.util.Properties
 
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 import org.apache.hadoop.hbase.client.Scan
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
@@ -32,7 +33,7 @@ class TSDaoHBaseTest
   import TestSchema._
   import org.yupana.api.query.syntax.All._
 
-  type QueryRunner = MockFunction1[Seq[Scan], Iterator[TSDOutputRow[Long]]]
+  type QueryRunner = MockFunction1[Seq[Scan], Iterator[HResult]]
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -92,17 +93,19 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
     val pointTime = 2000
 
     queryRunner
       .expects(scan(from, to))
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ tagged(Table.DIM_TAG_OFFSET, "test1")))
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .hbaseRow
         )
       )
 
@@ -127,20 +130,24 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
     val pointTime = 2000
 
     queryRunner
       .expects(scan(from, to, Seq(1L)))
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(
-              pointTime % testTable.rowTimeSpan -> (tagged(111, 3d) ++ dimBytes("test1", "test22")),
-              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test1", "test22"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .cell("d1", (pointTime + 1) % testTable.rowTimeSpan)
+            .field(111, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .hbaseRow
         )
       )
 
@@ -158,13 +165,18 @@ class TSDaoHBaseTest
       )
       .toList
 
-    res.size shouldEqual 1
+    res.size shouldEqual 2
 
-    val r = res.head
-    r.get(0).value shouldEqual Time(pointTime + 1)
-    r.get(1).value shouldEqual "test1"
-    r.get(2).value shouldEqual "test22"
-    r.get(3).value shouldEqual 1d
+    val r1 = res(0)
+    r1.get(0).value shouldEqual Time(pointTime)
+    r1.get(1).value shouldEqual "test1"
+    r1.get(2).value shouldEqual "test22"
+    r1.get(3).value shouldEqual 3d
+    val r2 = res(1)
+    r2.get(0).value shouldEqual Time(pointTime + 1)
+    r2.get(1) shouldEqual None // should be "test1" but storage format does not allow this
+    r2.get(2) shouldEqual None // should be "test22" but storage format does not allow this
+    r2.get(3) shouldEqual None
   }
 
   it should "set tag filter for equ" in withMock { (dao, dictionary, queryRunner) =>
@@ -172,17 +184,20 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
     val pointTime = 2000
 
     queryRunner
       .expects(scan(from, to, Seq(1L)))
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test1", "test22")))
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .hbaseRow
         )
       )
 
@@ -214,7 +229,7 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     queryRunner.expects(Seq.empty).returning(Iterator.empty)
 
@@ -239,7 +254,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
     val pointTime2 = 2200
@@ -248,13 +263,17 @@ class TSDaoHBaseTest
       .expects(scan(from, to, Set(Seq(1L), Seq(2L))))
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test1", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test1", "test25"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .hbaseRow
         )
       )
 
@@ -293,7 +312,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     queryRunner.expects(Seq()).returning(Iterator.empty)
 
@@ -316,7 +335,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
 
@@ -326,12 +345,13 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(21))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("test2", "test21"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(21))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "test2")
+            .field(Table.DIM_TAG_OFFSET + 1, "test21")
+            .hbaseRow
         )
       )
 
@@ -360,7 +380,7 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
 
@@ -381,22 +401,34 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("A 1", "B 1")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("A 2", "B 1")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes("A 2", "B 2")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 6d) ++ dimBytes("A 3", "B 2")))
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "A 1")
+            .field(Table.DIM_TAG_OFFSET + 1, "B 1")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "A 2")
+            .field(Table.DIM_TAG_OFFSET + 1, "B 1")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 4d)
+            .field(Table.DIM_TAG_OFFSET, "A 2")
+            .field(Table.DIM_TAG_OFFSET + 1, "B 2")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 6d)
+            .field(Table.DIM_TAG_OFFSET, "A 3")
+            .field(Table.DIM_TAG_OFFSET + 1, "B 2")
+            .hbaseRow
         )
       )
 
@@ -430,7 +462,7 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
 
@@ -448,14 +480,20 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("A 1", "B 1")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("A 2", "B 1")))
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(1))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "A 1")
+            .field(Table.DIM_TAG_OFFSET + 1, "B 1")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(1))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "A 2")
+            .field(Table.DIM_TAG_OFFSET + 1, "B 1")
+            .hbaseRow
         )
       )
 
@@ -484,87 +522,87 @@ class TSDaoHBaseTest
     res should have size 2
   }
 
-////  it should "use post filter if there are too many combinations" in withMock { (dao, dictionary, queryRunner) =>
-////    val from = 1000
-////    val to = 5000
-////    val exprs = Seq[Expression](time, dimension(TestTable.TAG_A), dimension(TestTable.TAG_B), metric(TestTable.TEST_FIELD))
-////    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
-////
-////    val pointTime1 = 2000
-////    val pointTime2 = 2500
-////
-////    val manyAs = (1 to 200).map(_.toString)
-////    val manyBs = (1 to 3000).map(_.toString)
-////
-////
-////    queryRunner.expects(where { tsdQueries: Seq[TSDQuery] =>
-////      tsdQueries.size  == 200 &&
-////      tsdQueries.sortBy(_.dimensionFilter(0)).zipWithIndex.forall { case (tsdQuery, idx) =>
-////        (tsdQuery.dimensionFilter sameElements Array(Some(idx + 1), None)) &&
-////        tsdQuery.from == from &&
-////        tsdQuery.to == to }
-////    }).returning(
-////      Iterator(
-////        TSDOutputRow(
-////          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(2), Some(2))),
-////          Array(
-////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 1d),
-////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 5d)
-////          )
-////        ),
-////        TSDOutputRow(
-////          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(5), Some(6000))),
-////          Array(
-////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 2d),
-////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 3d)
-////          )
-////        )
-////      )
-////    )
-////
-////    (dictionary.getIdsByValues _)
-////      .expects(where { (tag, values) => tag == TestTable.TAG_A && values == manyAs.toSet })
-////      .returning(manyBs.map(x => x -> x.toLong).toMap)
-////    (dictionary.getIdsByValues _)
-////      .expects(where { (tag, values) => tag == TestTable.TAG_B && values == manyBs.toSet })
-////      .returning(manyBs.map(x => x -> x.toLong).toMap)
-////
-////    (dictionary.getValuesByIds _).expects(TestTable.TAG_A, Set(2l)).returning(Map(2l -> "2"))
-////    (dictionary.getValuesByIds _).expects(TestTable.TAG_B, Set(2l)).returning(Map(2l -> "2"))
-////
-////    val res = dao.query(
-////      InternalQuery(
-////        TestTable,
-////        exprs.toSet,
-////        and(
-////          ge(time, const(Time(from))),
-////          lt(time, const(Time(to))),
-////          in(dimension(TestTable.TAG_A), manyAs.toSet),
-////          in(dimension(TestTable.TAG_B), manyBs.toSet)
-////        )
-////      ),
-////      valueDataBuilder,
-////      NoMetricCollector
-////    ).toList
-////
-////    res should have size 2
-////
-////    res(0).get(0).value shouldEqual Time(pointTime1)
-////    res(0).get(1).value shouldEqual "2"
-////    res(0).get(2).value shouldEqual "2"
-////    res(0).get(3).value shouldEqual 1d
-////
-////    res(1).get(0).value shouldEqual Time(pointTime2)
-////    res(1).get(1).value shouldEqual "2"
-////    res(1).get(2).value shouldEqual "2"
-////    res(1).get(3).value shouldEqual 5d
-////  }
-////
+//////  it should "use post filter if there are too many combinations" in withMock { (dao, dictionary, queryRunner) =>
+//////    val from = 1000
+//////    val to = 5000
+//////    val exprs = Seq[Expression](time, dimension(TestTable.TAG_A), dimension(TestTable.TAG_B), metric(TestTable.TEST_FIELD))
+//////    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+//////
+//////    val pointTime1 = 2000
+//////    val pointTime2 = 2500
+//////
+//////    val manyAs = (1 to 200).map(_.toString)
+//////    val manyBs = (1 to 3000).map(_.toString)
+//////
+//////
+//////    queryRunner.expects(where { tsdQueries: Seq[TSDQuery] =>
+//////      tsdQueries.size  == 200 &&
+//////      tsdQueries.sortBy(_.dimensionFilter(0)).zipWithIndex.forall { case (tsdQuery, idx) =>
+//////        (tsdQuery.dimensionFilter sameElements Array(Some(idx + 1), None)) &&
+//////        tsdQuery.from == from &&
+//////        tsdQuery.to == to }
+//////    }).returning(
+//////      Iterator(
+//////        TSDOutputRow(
+//////          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(2), Some(2))),
+//////          Array(
+//////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 1d),
+//////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 5d)
+//////          )
+//////        ),
+//////        TSDOutputRow(
+//////          TSDRowKey(pointTime1 - (pointTime1 % TestTable.rowTimeSpan), Array(Some(5), Some(6000))),
+//////          Array(
+//////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 2d),
+//////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 3d)
+//////          )
+//////        )
+//////      )
+//////    )
+//////
+//////    (dictionary.getIdsByValues _)
+//////      .expects(where { (tag, values) => tag == TestTable.TAG_A && values == manyAs.toSet })
+//////      .returning(manyBs.map(x => x -> x.toLong).toMap)
+//////    (dictionary.getIdsByValues _)
+//////      .expects(where { (tag, values) => tag == TestTable.TAG_B && values == manyBs.toSet })
+//////      .returning(manyBs.map(x => x -> x.toLong).toMap)
+//////
+//////    (dictionary.getValuesByIds _).expects(TestTable.TAG_A, Set(2l)).returning(Map(2l -> "2"))
+//////    (dictionary.getValuesByIds _).expects(TestTable.TAG_B, Set(2l)).returning(Map(2l -> "2"))
+//////
+//////    val res = dao.query(
+//////      InternalQuery(
+//////        TestTable,
+//////        exprs.toSet,
+//////        and(
+//////          ge(time, const(Time(from))),
+//////          lt(time, const(Time(to))),
+//////          in(dimension(TestTable.TAG_A), manyAs.toSet),
+//////          in(dimension(TestTable.TAG_B), manyBs.toSet)
+//////        )
+//////      ),
+//////      valueDataBuilder,
+//////      NoMetricCollector
+//////    ).toList
+//////
+//////    res should have size 2
+//////
+//////    res(0).get(0).value shouldEqual Time(pointTime1)
+//////    res(0).get(1).value shouldEqual "2"
+//////    res(0).get(2).value shouldEqual "2"
+//////    res(0).get(3).value shouldEqual 1d
+//////
+//////    res(1).get(0).value shouldEqual Time(pointTime2)
+//////    res(1).get(1).value shouldEqual "2"
+//////    res(1).get(2).value shouldEqual "2"
+//////    res(1).get(3).value shouldEqual 5d
+//////  }
+//////
   it should "exclude NOT IN from IN" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
 
@@ -574,12 +612,13 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(1))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("doesn't matter", "test3"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(1))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "doesn't matter")
+            .field(Table.DIM_TAG_OFFSET + 1, "test2")
+            .hbaseRow
         )
       )
 
@@ -608,7 +647,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
 
@@ -618,26 +657,41 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test11", "test22")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 2d) ++ dimBytes("test12", "test22")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 3d) ++ dimBytes("test13", "test22")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4), Some(3))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 4d) ++ dimBytes("test14", "test23")))
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test15", "test22")))
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test11")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(2), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 2d)
+            .field(Table.DIM_TAG_OFFSET, "test12")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(3), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "test13")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(4), Some(3))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 4d)
+            .field(Table.DIM_TAG_OFFSET, "test14")
+            .field(Table.DIM_TAG_OFFSET + 1, "test23")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(5), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "test15")
+            .field(Table.DIM_TAG_OFFSET + 1, "test22")
+            .hbaseRow
         )
       )
 
@@ -670,7 +724,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     queryRunner.expects(Seq.empty).returning(Iterator.empty)
 
@@ -706,7 +760,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
     val pointTime2 = 2200
@@ -724,13 +778,17 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test12", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test13", "test25"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(2), Some(5))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "test12")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "test12")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .hbaseRow
         )
       )
 
@@ -765,7 +823,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
 
@@ -775,10 +833,13 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))),
-            Array(pointTime % testTable.rowTimeSpan -> (tagged(1, 1d) ++ dimBytes("test11", "test22")))
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(2))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test12")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .hbaseRow
         )
       )
 
@@ -815,7 +876,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
 
@@ -827,13 +888,17 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(5))),
-            Array(
-              pointTime % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("tag_a", "tag_b")),
-              (pointTime + 1) % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("tag_a", "teg_b"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime - (pointTime % testTable.rowTimeSpan), Array(Some(1), Some(5))))
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "tag_a")
+            .field(Table.DIM_TAG_OFFSET + 1, "tag_b")
+            .cell("d1", (pointTime + 1) % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "tag_a")
+            .field(Table.DIM_TAG_OFFSET + 1, "tab_b")
+            .hbaseRow
         )
       )
 
@@ -864,7 +929,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
     val pointTime2 = 2500
@@ -877,13 +942,17 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test42", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test42", "test25"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "test42")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "test42")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .hbaseRow
         )
       )
 
@@ -914,7 +983,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression](time, dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 1010
     val pointTime2 = 1020
@@ -937,22 +1006,36 @@ class TSDaoHBaseTest
       )
       .returning(
         Iterator(
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 7d) ++ dimBytes("test42", "test25")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 5d) ++ dimBytes("test42", "test25")),
-              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 8d) ++ dimBytes("test42", "test25"))
-            )
-          ),
-          TSDOutputRow(
-            TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51), Some(6))),
-            Array(
-              pointTime1 % testTable.rowTimeSpan -> (tagged(1, 15d) ++ dimBytes("test51", "test26")),
-              pointTime2 % testTable.rowTimeSpan -> (tagged(1, 33d) ++ dimBytes("test51", "test26")),
-              pointTime3 % testTable.rowTimeSpan -> (tagged(1, 43d) ++ dimBytes("test51", "test26"))
-            )
-          )
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(42), Some(5))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "test42")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "test42")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .cell("d1", pointTime3 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 8d)
+            .field(Table.DIM_TAG_OFFSET, "test42")
+            .field(Table.DIM_TAG_OFFSET + 1, "test25")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(TSDRowKey(pointTime1 - (pointTime1 % testTable.rowTimeSpan), Array(Some(51), Some(6))))
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 15d)
+            .field(Table.DIM_TAG_OFFSET, "test51")
+            .field(Table.DIM_TAG_OFFSET + 1, "test26")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 33d)
+            .field(Table.DIM_TAG_OFFSET, "test51")
+            .field(Table.DIM_TAG_OFFSET + 1, "test26")
+            .cell("d1", pointTime3 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 43d)
+            .field(Table.DIM_TAG_OFFSET, "test51")
+            .field(Table.DIM_TAG_OFFSET + 1, "test26")
+            .hbaseRow
         )
       )
 
@@ -1000,7 +1083,7 @@ class TSDaoHBaseTest
         from: IdType,
         to: IdType,
         rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-    ): Iterator[TSDOutputRow[IdType]] = {
+    ): Iterator[HResult] = {
       val scans = rangeScanDims.map { dimIds =>
         val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
         HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
@@ -1010,7 +1093,7 @@ class TSDaoHBaseTest
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {
-    val exec = mockFunction[Seq[Scan], Iterator[TSDOutputRow[Long]]]
+    val exec = mockFunction[Seq[Scan], Iterator[HResult]]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dicionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val dao = new TestDao(dicionaryProvider, exec)

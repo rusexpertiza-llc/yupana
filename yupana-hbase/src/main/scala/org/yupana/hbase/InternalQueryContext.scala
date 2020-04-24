@@ -42,11 +42,24 @@ case class InternalQueryContext(
     }.toArray
   }
 
+  private val tagExprsIndexes = {
+    val arr = Array.ofDim[Array[Int]](Table.MAX_TAGS)
+    exprsTags.zipWithIndex.groupBy(_._1).mapValues(_.map(_._2)).foreach {
+      case (tag, exprIndexes) =>
+        arr(tag & 0xFF) = exprIndexes
+    }
+    arr
+  }
+
   @inline
   def tagForExprIndex(index: Int): Byte = exprsTags(index)
 
   @inline
-  def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
+  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
+
+  def exprIndexesForTag(tag: Byte): Array[Int] = {
+    tagExprsIndexes(tag & 0xFF)
+  }
 }
 
 object InternalQueryContext {

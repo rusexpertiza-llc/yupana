@@ -39,12 +39,12 @@ object QueryContext extends StrictLogging {
   def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
     import org.yupana.core.utils.QueryUtils.{ requiredDimensions, requiredLinks }
 
-    val requiredTags = query.groupBy.flatMap(requiredDimensions).toSet ++
+    val requiredDims = query.groupBy.flatMap(requiredDimensions).toSet ++
       query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
       postCondition.toSet.flatMap(requiredDimensions) ++
       query.postFilter.toSeq.flatMap(requiredDimensions)
 
-    val requiredDimExprs = requiredTags.map(DimensionExpr(_))
+    val requiredDimExprs = requiredDims.map(DimensionExpr(_))
 
     val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
     val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))

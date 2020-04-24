@@ -72,7 +72,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       link(testExternalLink, TestExternalLink.testField3)
     ).zipWithIndex.toMap
 
-    val builder = new InternalRowBuilder(exprIndex)
+    val builder = new InternalRowBuilder(exprIndex, None)
 
     val valueData = Seq(
       builder.set(time, Some(Time(100))).set(dimension(Dimension("TAG_Y")), Some("a")).buildAndReset(),
