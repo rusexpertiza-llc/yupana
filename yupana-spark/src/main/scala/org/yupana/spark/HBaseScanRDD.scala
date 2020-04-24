@@ -76,23 +76,36 @@ class HBaseScanRDD(
       .filter {
         case (startKey, endKey) =>
           val rangeStartFlag = rangeStartKey match {
-            case Some(sKey) =>
-              Bytes.compareTo(sKey, startKey) >= 0 || sKey.isEmpty
+            case Some(key) =>
+              Bytes.compareTo(key, startKey) >= 0 || key.isEmpty
             case _ => true
           }
 
           val rangeEndFlag = rangeStopKey match {
-            case Some(eKey) =>
-              Bytes.compareTo(eKey, endKey) <= 0 || eKey.isEmpty
+            case Some(key) =>
+              Bytes.compareTo(key, endKey) <= 0 || key.isEmpty
             case _ => true
           }
 
-          rangeStartFlag && rangeEndFlag && baseTimeList.exists { time =>
+          val baseTimeFlag = baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
+
+          println(s"startKey: ${startKey.mkString("[", ",", "]")}")
+          println(s"rangeStartKey: ${rangeStartKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
+          println(s"rangeStartFlag: $rangeStartFlag")
+
+          println(s"endKey: ${endKey.mkString("[", ",", "]")}")
+          println(s"rangeStopKey: ${rangeStopKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
+          println(s"rangeEndFlag: $rangeEndFlag")
+
+          println(s"baseTimeFlag: $baseTimeFlag")
+          println("-------------------------------------------------------------------------------")
+
+          rangeStartFlag && rangeEndFlag && baseTimeFlag
       }
     println(s"filteredRegions: ${filteredRegions.length}")
     val partitions = filteredRegions.zipWithIndex
