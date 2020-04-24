@@ -1074,13 +1074,13 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "transform upsert into data points" in {
     createUpsert("""UPSERT INTO test_table(time, b, a, testField, testStringField)
-        |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 'foo', 'bar', 55, 'baz')""".stripMargin) match {
+        |  VALUES(TIMESTAMP '2020-01-02 23:25:40', 21, 'bar', 55, 'baz')""".stripMargin) match {
       case Right(dps) =>
         dps should have size 1
         val dp = dps.head
         dp.table shouldEqual TestSchema.testTable
         dp.time shouldEqual new DateTime(2020, 1, 2, 23, 25, 40, DateTimeZone.UTC).getMillis
-        dp.dimensions shouldEqual Map(TestDims.DIM_B -> "foo", TestDims.DIM_A -> "bar")
+        dp.dimensions shouldEqual Map(TestDims.DIM_B -> 21.toShort, TestDims.DIM_A -> "bar")
         dp.metrics should contain theSameElementsAs Seq(
           MetricValue(TestTableFields.TEST_FIELD, 55d),
           MetricValue(TestTableFields.TEST_STRING_FIELD, "baz")
@@ -1092,7 +1092,15 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   it should "fail upsert on data type mismatch" in {
     createUpsert("UPSERT INTO test_table (a, time, testField) VALUES (5, 'foo', 'bar')") match {
-      case Left(e)  => e shouldEqual "Cannot convert VARCHAR to TIMESTAMP"
+      case Left(e)  => e shouldEqual "Cannot convert value 'foo' of type VARCHAR to TIMESTAMP"
+      case Right(d) => fail(s"Data point $d was created, but shouldn't")
+    }
+  }
+
+  it should "fail if number is too big for data type" in {
+    createUpsert("""UPSERT INTO test_table (time, a, b, testField)
+        |   VALUES (TIMESTAMP '2020-04-24 17:45:05', 'foo', 99999, 'bar')""".stripMargin) match {
+      case Left(e)  => e shouldEqual "Cannot convert value '99999' of type DECIMAL to SMALLINT"
       case Right(d) => fail(s"Data point $d was created, but shouldn't")
     }
   }
@@ -1105,13 +1113,13 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       Seq(
         Map(
           1 -> parser.StringValue("aaa"),
-          2 -> parser.StringValue("bbb"),
+          2 -> parser.NumericValue(12),
           3 -> parser.TimestampValue(t1),
           4 -> parser.NumericValue(1.1)
         ),
         Map(
           1 -> parser.StringValue("ccc"),
-          2 -> parser.StringValue("ddd"),
+          2 -> parser.NumericValue(34),
           3 -> parser.TimestampValue(t2),
           4 -> parser.NumericValue(2.2)
         )
@@ -1122,13 +1130,13 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         val dp1 = dps(0)
         dp1.table shouldEqual TestSchema.testTable
         dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
-        dp1.dimensions shouldEqual Map(TestDims.DIM_B -> "bbb", TestDims.DIM_A -> "aaa")
+        dp1.dimensions shouldEqual Map(TestDims.DIM_B -> 12, TestDims.DIM_A -> "aaa")
         dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.1d))
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
         dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
-        dp2.dimensions shouldEqual Map(TestDims.DIM_B -> "ddd", TestDims.DIM_A -> "ccc")
+        dp2.dimensions shouldEqual Map(TestDims.DIM_B -> 34, TestDims.DIM_A -> "ccc")
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
 
       case Left(e) => fail(e)
@@ -1140,28 +1148,28 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     val t2 = new LocalDateTime(2020, 1, 19, 23, 11, 2)
     val t3 = new LocalDateTime(2020, 1, 19, 23, 11, 33)
     createUpsert("""UPSERT INTO test_table (a, b, time, testField) VALUES
-        |  ('a', 'b', TIMESTAMP '2020-01-19 23:10:31', 1.5),
-        |  ('c', 'd', TIMESTAMP '2020-01-19 23:11:02', 3),
-        |  ('e', 'f', TIMESTAMP '2020-01-19 23:11:33', 321.5) """.stripMargin) match {
+        |  ('a', 12, TIMESTAMP '2020-01-19 23:10:31', 1.5),
+        |  ('c', 34, TIMESTAMP '2020-01-19 23:11:02', 3),
+        |  ('e', 56, TIMESTAMP '2020-01-19 23:11:33', 321.5) """.stripMargin) match {
       case Right(dps) =>
         dps should have size 3
 
         val dp1 = dps(0)
         dp1.table shouldEqual TestSchema.testTable
         dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
-        dp1.dimensions shouldEqual Map(TestDims.DIM_B -> "b", TestDims.DIM_A -> "a")
+        dp1.dimensions shouldEqual Map(TestDims.DIM_B -> 12, TestDims.DIM_A -> "a")
         dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.5d))
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
         dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
-        dp2.dimensions shouldEqual Map(TestDims.DIM_B -> "d", TestDims.DIM_A -> "c")
+        dp2.dimensions shouldEqual Map(TestDims.DIM_B -> 34, TestDims.DIM_A -> "c")
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 3d))
 
         val dp3 = dps(2)
         dp3.table shouldEqual TestSchema.testTable
         dp3.time shouldEqual t3.toDateTime(DateTimeZone.UTC).getMillis
-        dp3.dimensions shouldEqual Map(TestDims.DIM_B -> "f", TestDims.DIM_A -> "e")
+        dp3.dimensions shouldEqual Map(TestDims.DIM_B -> 56, TestDims.DIM_A -> "e")
         dp3.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 321.5d))
 
       case Left(msg) => fail(msg)
@@ -1176,19 +1184,19 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       Seq(
         Map(
           1 -> parser.StringValue("aaa"),
-          2 -> parser.StringValue("bbb"),
+          2 -> parser.NumericValue(33),
           3 -> parser.TimestampValue(t1),
           4 -> parser.NumericValue(1.1)
         ),
         Map(
           1 -> parser.StringValue("ccc"),
-          2 -> parser.StringValue("ddd"),
+          2 -> parser.NumericValue(66),
           3 -> parser.TimestampValue(t2),
           4 -> parser.StringValue("2.2")
         )
       )
     ) match {
-      case Left(msg) => msg shouldEqual "Cannot convert VARCHAR to DOUBLE"
+      case Left(msg) => msg shouldEqual "Cannot convert value '2.2' of type VARCHAR to DOUBLE"
       case Right(d)  => fail(s"Data points $d were created, but shouldn't")
     }
   }

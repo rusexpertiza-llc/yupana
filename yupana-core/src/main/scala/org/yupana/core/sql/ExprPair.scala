@@ -44,7 +44,9 @@ object ExprPair {
           TypeConverter(dataType.aux, const.dataType)
             .flatMap(conv => conv.reverse(const.v))
         )
-        .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
+        .toRight(
+          s"Cannot convert value '${const.v}' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
+        )
     }
   }
 

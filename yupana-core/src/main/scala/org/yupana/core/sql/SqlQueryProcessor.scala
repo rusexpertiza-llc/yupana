@@ -578,10 +578,10 @@ object SqlQueryProcessor extends QueryValidator {
       table: Table,
       fieldMap: Map[Expression, Int],
       values: Seq[ConstantExpr]
-  ): Either[String, Map[Dimension, String]] = {
+  ): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
-      idx.right.map(values).right.flatMap(c => ExprPair.constCast(c, DataType[String])).right.map(dim -> _)
+      idx.right.map(values).right.flatMap(c => ExprPair.constCast(c, dim.dataType)).right.map(dim -> _)
     }
 
     CollectionUtils.collectErrors(dimValues).right.map(_.toMap)
