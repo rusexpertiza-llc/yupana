@@ -123,14 +123,6 @@ object Filters {
       excludeValues(dim, SortedSetIterator(vs.toList.sortWith(dim.tOrdering.lt).iterator)(dim.tOrdering))
     }
 
-    def includeIds[R](dim: Dimension.Aux2[_, R], is: Set[R]): Builder = {
-      includeIds(dim, SortedSetIterator(is.toList.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
-    }
-
-    def excludeIds[R](dim: Dimension.Aux2[_, R], is: Set[R]): Builder = {
-      excludeIds(dim, SortedSetIterator(is.toList.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
-    }
-
     def includeTime(t: Time): Builder = {
       includeTime(SortedSetIterator(t))
     }
