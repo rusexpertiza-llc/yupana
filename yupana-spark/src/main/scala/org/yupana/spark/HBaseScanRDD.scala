@@ -17,7 +17,6 @@
 package org.yupana.spark
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
@@ -33,8 +32,7 @@ case class HBaseScanPartition(
     fromTime: Long,
     toTime: Long,
     queryContext: InternalQueryContext,
-    rangeScanDimsIds: Map[Dimension, Seq[Long]],
-    multiRowRangeFilter: Option[MultiRowRangeFilter]
+    rangeScanDimsIds: Map[Dimension, Seq[Long]]
 ) extends Partition {
   override def toString: String =
     s"HBaseScanPartition(index: $index, " +
@@ -101,7 +99,7 @@ class HBaseScanRDD(
     val partitions = filteredRegions.zipWithIndex
       .map {
         case ((startKey, endKey), index) =>
-          HBaseScanPartition(index, startKey, endKey, fromTime, toTime, queryContext, rangeScanDimsIds, filter)
+          HBaseScanPartition(index, startKey, endKey, fromTime, toTime, queryContext, rangeScanDimsIds)
       }
 
     println("partitions:")
@@ -115,10 +113,17 @@ class HBaseScanRDD(
     println(s"compute: ${partition.fromTime} - ${partition.toTime}")
 
     val scan = queryContext.metricsCollector.createScans.measure(1) {
+      val filter =
+        HBaseUtils.multiRowRangeFilter(
+          partition.queryContext.table,
+          fromTime,
+          toTime,
+          partition.rangeScanDimsIds
+        )
 
       HBaseUtils.createScan(
         partition.queryContext,
-        partition.multiRowRangeFilter,
+        filter,
         Seq.empty,
         fromTime,
         toTime,
