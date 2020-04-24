@@ -542,7 +542,7 @@ object HBaseUtils extends StrictLogging {
       (f.metric.tag, bytes)
     }
     val dimensionFieldBytes = dimensions.collect {
-      case (d, value) if table.dimensionTagExists(d) =>
+      case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
         val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
         (tag, bytes)
