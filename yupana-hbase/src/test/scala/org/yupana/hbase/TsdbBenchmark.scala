@@ -10,7 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.{ Aggregation, UnaryOperation, Writable }
+import org.yupana.api.types.{ Aggregation, UnaryOperation, Storable }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
@@ -228,8 +228,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
       const(Time(qtime.plusYears(1))),
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
-        dimension(TestDims.TAG_A) as "tag_a",
-        dimension(TestDims.TAG_B) as "tag_b",
+        dimension(TestDims.DIM_A) as "tag_a",
+        dimension(TestDims.DIM_B) as "tag_b",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField"
       ),
       None,

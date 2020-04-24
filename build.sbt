@@ -228,10 +228,10 @@ lazy val versions = new {
   val fastparse212 = "2.1.3"
   val fastparse211 = "2.1.2"
 
-  val hbase = "1.3.1"
-  val hadoop = "2.8.3"
+  val hbase = "1.3.6"
+  val hadoop = "2.8.5"
   val spark = "2.4.5"
-  val akka = "2.5.29"
+  val akka = "2.5.31"
 
   val lucene = "6.6.0"
   val ignite = "2.7.0"
@@ -239,7 +239,7 @@ lazy val versions = new {
   val caffeine = "2.8.0"
 
   val json4s = "3.5.3"
-  val spring = "5.0.8.RELEASE"
+  val spring = "5.2.2.RELEASE"
 
   val flyway = "6.2.3"
   val hikariCP = "3.4.2"

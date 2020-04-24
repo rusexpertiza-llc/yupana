@@ -20,7 +20,7 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Schema, Table }
+import org.yupana.api.schema.{ Dimension, MetricValue, Schema, Table }
 import org.yupana.api.types._
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
@@ -417,22 +417,8 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
-    if (const.dataType == dataType) {
-      Right(const.v.asInstanceOf[dataType.T])
-    } else {
-      TypeConverter(const.dataType, dataType.aux)
-        .map(conv => conv.direct(const.v))
-        .orElse(
-          TypeConverter(dataType.aux, const.dataType)
-            .flatMap(conv => conv.reverse(const.v))
-        )
-        .toRight(s"Cannot convert ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}")
-    }
-  }
-
   private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
-    convertValue(state, v, ExprType.Cmp).right.flatMap(const => constCast(const, dataType))
+    convertValue(state, v, ExprType.Cmp).right.flatMap(const => ExprPair.constCast(const, dataType))
   }
 
   private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
@@ -526,11 +512,11 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def getMetricExpr(table: Table, fieldName: String): Option[MetricExpr[_]] = {
-    table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.asInstanceOf[Metric.Aux[f.T]]))
+    table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.aux))
   }
 
-  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr] = {
-    table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(new DimensionExpr(_))
+  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr[_]] = {
+    table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(d => DimensionExpr(d.aux))
   }
 
   private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr] = {
@@ -585,17 +571,17 @@ object SqlQueryProcessor extends QueryValidator {
 
   private def getTimeValue(fieldMap: Map[Expression, Int], values: Array[ConstantExpr]): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
-    idx.right.map(values).right.flatMap(c => constCast(c, DataType[Time])).right.map(_.millis)
+    idx.right.map(values).right.flatMap(c => ExprPair.constCast(c, DataType[Time])).right.map(_.millis)
   }
 
   private def getDimensionValues(
       table: Table,
       fieldMap: Map[Expression, Int],
       values: Seq[ConstantExpr]
-  ): Either[String, Map[Dimension, String]] = {
+  ): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
-      val idx = fieldMap.get(DimensionExpr(dim)).toRight(s"${dim.name} is not defined")
-      idx.right.map(values).right.flatMap(c => constCast(c, DataType[String])).right.map(dim -> _)
+      val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
+      idx.right.map(values).right.flatMap(c => ExprPair.constCast(c, dim.dataType)).right.map(dim -> _)
     }
 
     CollectionUtils.collectErrors(dimValues).right.map(_.toMap)
@@ -608,7 +594,7 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        constCast(values(idx), m.dataType).right.map(v => MetricValue(m, v))
+        ExprPair.constCast(values(idx), m.dataType).right.map(v => MetricValue(m, v))
     }
 
     CollectionUtils.collectErrors(vs.toSeq)

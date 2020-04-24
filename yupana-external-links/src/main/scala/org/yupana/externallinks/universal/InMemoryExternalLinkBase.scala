@@ -66,13 +66,13 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
       valueData: Seq[InternalRow],
       exprs: Set[LinkExpr]
   ): Unit = {
-    val tagExpr = new DimensionExpr(externalLink.dimension)
-    val indexMap = Seq[Expression](TimeExpr, tagExpr, keyExpr).distinct.zipWithIndex.toMap
+    val dimExpr = DimensionExpr(externalLink.dimension.aux)
+    val indexMap = Seq[Expression](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
     val valueDataBuilder = new InternalRowBuilder(indexMap, None)
 
     val keyValueData = valueData.map { vd =>
       valueDataBuilder
-        .set(tagExpr, vd.get[String](exprIndex, tagExpr))
+        .set(dimExpr, vd.get[dimExpr.Out](exprIndex, dimExpr))
         .set(TimeExpr, vd.get[Time](exprIndex, TimeExpr))
         .buildAndReset()
     }

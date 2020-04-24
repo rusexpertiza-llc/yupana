@@ -41,7 +41,7 @@ class TsDaoHBaseSpark(
       queryContext: InternalQueryContext,
       from: Long,
       to: Long,
-      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
+      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
     if (rangeScanDims.nonEmpty) {
       val rdds = rangeScanDims.map { dimIds =>

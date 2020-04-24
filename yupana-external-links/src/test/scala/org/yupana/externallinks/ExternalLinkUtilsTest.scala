@@ -5,7 +5,7 @@ import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, RawDimension }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -20,18 +20,18 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     and(values.map {
-      case (field, vs) => in(dimension(TestLink.dimension), vs.map(v => field + "_" + v))
+      case (field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
     }: _*)
   }
 
   private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     and(values.map {
-      case (field, vs) => notIn(dimension(TestLink.dimension), vs.map(v => field + "_" + v))
+      case (field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
     }: _*)
   }
 
-  private val xDim = Dimension("TAG_X")
-  private val yDim = Dimension("tag_y")
+  private val xDim = DictionaryDimension("X")
+  private val yDim = RawDimension[Int]("Y")
 
   object TestLink extends ExternalLink {
 
@@ -39,8 +39,9 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     val field2 = "field2"
     val field3 = "field3"
 
+    override type DimType = String
     override val linkName: String = "Test"
-    override val dimension: Dimension = xDim
+    override val dimension: DictionaryDimension = xDim
     override val fieldsNames: Set[String] = Set(field1, field2, field3)
 
   }
@@ -72,12 +73,12 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       and(
         equ(link(TestLink, TestLink.field2), const("bar")),
         in(link(TestLink, TestLink.field3), Set("aaa", "bbb")),
-        neq(dimension(yDim), const("baz"))
+        neq(dimension(yDim), const(4))
       )
     ) shouldEqual and(
       in(dimension(xDim), Set("field2_bar")),
       in(dimension(xDim), Set("field3_aaa", "field3_bbb")),
-      neq(dimension(yDim), const("baz"))
+      neq(dimension(yDim), const(4))
     )
   }
 
@@ -100,12 +101,12 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       and(
         in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
         notIn(link(TestLink, TestLink.field1), Set("aaa", "bbb")),
-        neq(dimension(yDim), const("baz"))
+        neq(dimension(yDim), const(33))
       )
     ) shouldEqual and(
       in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
       notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")),
-      neq(dimension(yDim), const("baz"))
+      neq(dimension(yDim), const(33))
     )
   }
 
@@ -137,7 +138,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       .buildAndReset()
     val rows = Seq(row1, row2)
 
-    ExternalLinkUtils.setLinkedValues(
+    ExternalLinkUtils.setLinkedValues[String](
       TestLink,
       exprIndex,
       rows,

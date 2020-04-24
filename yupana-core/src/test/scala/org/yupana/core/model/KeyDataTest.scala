@@ -22,10 +22,10 @@ class KeyDataTest extends FlatSpec with Matchers {
       Seq(
         sum(metric(TestTableFields.TEST_FIELD)) as "testField",
         truncDay(time) as "time",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "TAG_A"
       ),
       None,
-      Seq(dimension(TestDims.TAG_A))
+      Seq(dimension(TestDims.DIM_A))
     )
     val context = QueryContext(query, None)
 
@@ -36,7 +36,7 @@ class KeyDataTest extends FlatSpec with Matchers {
       builder
         .set(metric(TestTableFields.TEST_FIELD), Some(5d))
         .set(TimeExpr, Some(Time(qtime.plusHours(1))))
-        .set(dimension(TestDims.TAG_A), Some("Foo"))
+        .set(dimension(TestDims.DIM_A), Some("Foo"))
         .buildAndReset()
     )
 
@@ -54,11 +54,11 @@ class KeyDataTest extends FlatSpec with Matchers {
       Seq(
         min(metric(TestTableFields.TEST_LONG_FIELD)) as "testField",
         truncDay(time) as "time",
-        dimension(TestDims.TAG_A).toField,
-        dimension(TestDims.TAG_B).toField
+        dimension(TestDims.DIM_A).toField,
+        dimension(TestDims.DIM_B).toField
       ),
       None,
-      Seq(dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
+      Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
     val context = QueryContext(query, None)
 
@@ -69,8 +69,8 @@ class KeyDataTest extends FlatSpec with Matchers {
       builder
         .set(metric(TestTableFields.TEST_LONG_FIELD), Some(42L))
         .set(TimeExpr, Some(Time(qtime.plusHours(1))))
-        .set(dimension(TestDims.TAG_A), Some("foo"))
-        .set(dimension(TestDims.TAG_B), Some("bar"))
+        .set(dimension(TestDims.DIM_A), Some("foo"))
+        .set(dimension(TestDims.DIM_B), Some("bar"))
         .buildAndReset()
     )
 

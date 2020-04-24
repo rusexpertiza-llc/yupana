@@ -29,6 +29,10 @@ trait DimOrdering[T] {
 
 object DimOrdering {
 
+  implicit val byteDimOrdering: DimOrdering[Byte] =
+    fromCmp((a, b) => java.lang.Byte.compare((a + Byte.MinValue).toByte, (b + Byte.MinValue).toByte))
+  implicit val shortDimOrdering: DimOrdering[Short] =
+    fromCmp((a, b) => java.lang.Short.compare((a + Short.MinValue).toShort, (b + Short.MinValue).toShort))
   implicit val intDimOrdering: DimOrdering[Int] = fromCmp(java.lang.Integer.compareUnsigned)
   implicit val longDimOrdering: DimOrdering[Long] = fromCmp(java.lang.Long.compareUnsigned)
   implicit val stringDimOrdering: DimOrdering[String] = fromCmp(Ordering[String].compare)

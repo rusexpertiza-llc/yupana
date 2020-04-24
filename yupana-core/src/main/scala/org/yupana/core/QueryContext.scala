@@ -44,7 +44,7 @@ object QueryContext extends StrictLogging {
       postCondition.toSet.flatMap(requiredDimensions) ++
       query.postFilter.toSeq.flatMap(requiredDimensions)
 
-    val requiredDimExprs = requiredDims.map(DimensionExpr(_))
+    val requiredDimExprs = requiredDims.map(d => DimensionExpr(d.aux))
 
     val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
     val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))
@@ -97,9 +97,9 @@ object QueryContext extends StrictLogging {
       case a @ AggregateExpr(_, e)        => Set(a, e)
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
-      case t: DimensionExpr               => Set(t)
+      case d: DimensionExpr[_]            => Set(d)
       case c: LinkExpr                    => Set(c)
-      case v: MetricExpr[_]               => Set(v)
+      case m: MetricExpr[_]               => Set(m)
       case TimeExpr                       => Set(TimeExpr)
       case _                              => Set.empty
     }.flatten

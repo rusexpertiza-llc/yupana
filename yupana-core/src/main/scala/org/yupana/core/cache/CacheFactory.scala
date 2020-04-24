@@ -19,6 +19,7 @@ package org.yupana.core.cache
 import java.util.Properties
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.types.BoxingTag
 import org.yupana.caffeine.CaffeineCacheFactory
 import org.yupana.ignite.cache.IgniteCacheFactory
 import org.yupana.core.cache.CacheFactory.CacheEngine.CacheEngine

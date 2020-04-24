@@ -2,7 +2,7 @@ package org.yupana.core
 
 import org.scalatest.{ Matchers, OptionValues, WordSpecLike }
 import org.yupana.api.query.{ DimensionExpr, LinkExpr, MetricExpr, TimeExpr }
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, Metric, RawDimension }
 import org.yupana.core.model.InternalRow
 
 import scala.collection.mutable
@@ -14,7 +14,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
     "Evaluate expression to None" in {
       val nullQueryContext: QueryContext = null
       ExpressionCalculator.evaluateExpression(
-        DimensionExpr(Dimension("testDim")),
+        DimensionExpr(DictionaryDimension("testDim")),
         nullQueryContext,
         new InternalRow(Array.empty),
         tryEval = false
@@ -31,7 +31,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         Array.empty
       )
       ExpressionCalculator.evaluateExpression(
-        DimensionExpr(Dimension("testDim")),
+        DimensionExpr(DictionaryDimension("testDim")),
         queryContextWithoutThatExpr,
         new InternalRow(Array.empty),
         tryEval = false
@@ -52,7 +52,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
       )
       ExpressionCalculator.evaluateExpression(TimeExpr, queryContext, new InternalRow(Array.empty), tryEval = true) shouldBe None
       ExpressionCalculator.evaluateExpression(
-        DimensionExpr(Dimension("anyDim")),
+        DimensionExpr(RawDimension[Int]("anyDim")),
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
@@ -64,8 +64,9 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         tryEval = true
       ) shouldBe None
       val TestLink = new ExternalLink {
+        override type DimType = String
         override val linkName: String = "test_link"
-        override val dimension: Dimension = Dimension("testDim")
+        override val dimension: Dimension.Aux[String] = DictionaryDimension("testDim")
         override val fieldsNames: Set[String] = Set("foo", "bar")
       }
       ExpressionCalculator.evaluateExpression(

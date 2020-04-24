@@ -29,9 +29,10 @@ trait OrganisationCatalog extends ExternalLink {
   val TYPE = "type"
   val ID = "id"
 
-  override val linkName: String = "Organisations"
+  override type DimType = Int
 
-  override val dimension: Dimension = Dimensions.KKM_ID_TAG
+  override val linkName: String = "Organisations"
+  override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
 
   override val fieldsNames: Set[String] = Set(TYPE, ID)
 }
@@ -46,7 +47,7 @@ object OrganisationCatalogImpl {
       Map(
         OrganisationCatalog.TYPE -> "o.type",
         OrganisationCatalog.ID -> "o.org_id",
-        Dimensions.KKM_ID_TAG.name -> "k.device_id"
+        Dimensions.KKM_ID.name -> "k.device_id"
       )
     ),
     Some("kkms k INNER JOIN organisations o on k.org_id = o.id")
