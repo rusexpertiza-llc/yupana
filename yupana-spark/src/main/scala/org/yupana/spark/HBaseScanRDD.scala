@@ -69,43 +69,41 @@ class HBaseScanRDD(
         rangeScanDimsIds
       )
 
-    val rangeStartKey = filter.map(_.getRowRanges.asScala.head.getStartRow)
-    val rangeStopKey = filter.map(_.getRowRanges.asScala.toList.last.getStopRow)
+    val rangesOpt = filter
+      .map { f =>
+        f.getRowRanges.asScala.map(r => (r.getStartRow, r.getStopRow))
+      }
+
+    println(s"rangesOpt: ")
+    rangesOpt.getOrElse(Seq.empty).foreach {
+      case (start, end) => s"${start.mkString("[", ",", "]")}-${end.mkString("[", ",", "]")}"
+    }
 
     val filteredRegions = regions
       .filter {
         case (startKey, endKey) =>
-          val rangeStartFlag = rangeStartKey match {
-            case Some(key) =>
-              Bytes.compareTo(key, startKey) >= 0 || key.isEmpty
-            case _ => true
-          }
-
-          val rangeEndFlag = rangeStopKey match {
-            case Some(key) =>
-              Bytes.compareTo(key, endKey) <= 0 || key.isEmpty
-            case _ => true
-          }
-
-          val baseTimeFlag = baseTimeList.exists { time =>
+          lazy val baseTimeFlag = baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
 
-          println(s"startKey: ${startKey.mkString("[", ",", "]")}")
-          println(s"rangeStartKey: ${rangeStartKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
-          println(s"rangeStartFlag: $rangeStartFlag")
+          val intersectWithRange = rangesOpt match {
+            case Some(ranges) =>
+              HBaseUtils.intersectWithRowRanges(startKey, endKey, ranges)
+            case None =>
+              true
+          }
 
+          println(s"startKey: ${startKey.mkString("[", ",", "]")}")
           println(s"endKey: ${endKey.mkString("[", ",", "]")}")
-          println(s"rangeStopKey: ${rangeStopKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
-          println(s"rangeEndFlag: $rangeEndFlag")
 
           println(s"baseTimeFlag: $baseTimeFlag")
+          println(s"intersectWithRange: $intersectWithRange")
           println("-------------------------------------------------------------------------------")
 
-          rangeStartFlag && rangeEndFlag && baseTimeFlag
+          intersectWithRange && baseTimeFlag
       }
     println(s"filteredRegions: ${filteredRegions.length}")
     val partitions = filteredRegions.zipWithIndex

@@ -104,4 +104,25 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     externalLinks = Seq.empty
   )
 
+  it should "check intersections with row ranges" in {
+    val ranges = List(
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22))),
+      (asBytes(Array(50, 51, 52)), asBytes(Array(60, 61, 62)))
+    )
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(10, 11, 12)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(15, 16, 17)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(25, 26, 27)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(10, 11, 12)), asBytes(Array(15, 16, 17)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(15, 16, 17)), asBytes(Array(18, 19, 20)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(15, 16, 17)), asBytes(Array(38, 39, 40)), ranges) shouldBe true
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(35, 36, 37)), asBytes(Array(58, 59, 60)), ranges) shouldBe true
+
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(6, 7, 8)), ranges) shouldBe false
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(71, 72, 73)), asBytes(Array(76, 77, 78)), ranges) shouldBe false
+    HBaseUtils.intersectWithRowRanges(asBytes(Array(9)), asBytes(Array(9)), ranges) shouldBe false
+  }
+
+  def asBytes(a: Array[Int]): Array[Byte] = a.map(_.toByte)
+
 }

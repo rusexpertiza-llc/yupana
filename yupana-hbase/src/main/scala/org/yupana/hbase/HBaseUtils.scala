@@ -95,6 +95,19 @@ object HBaseUtils extends StrictLogging {
     put
   }
 
+  def intersectWithRowRanges(
+      start: Array[Byte],
+      end: Array[Byte],
+      rowRanges: Seq[(Array[Byte], Array[Byte])]
+  ): Boolean = {
+    rowRanges.exists {
+      case (rangeStart, rangeStop) =>
+        (Bytes.compareTo(rangeStart, start) >= 0 && Bytes.compareTo(rangeStart, end) <= 0) ||
+          (Bytes.compareTo(rangeStop, start) >= 0 && Bytes.compareTo(rangeStop, end) <= 0) ||
+          (Bytes.compareTo(rangeStart, start) <= 0 && Bytes.compareTo(rangeStop, end) >= 0)
+    }
+  }
+
   def createScan(
       queryContext: InternalQueryContext,
       multiRowRangeFilter: Option[MultiRowRangeFilter],
