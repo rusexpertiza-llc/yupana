@@ -72,7 +72,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
     val keyValueData = valueData.map { vd =>
       valueDataBuilder
-        .set(dimExpr, vd.get[String](exprIndex, dimExpr))
+        .set(dimExpr, vd.get[dimExpr.Out](exprIndex, dimExpr))
         .set(TimeExpr, vd.get[Time](exprIndex, TimeExpr))
         .buildAndReset()
     }
