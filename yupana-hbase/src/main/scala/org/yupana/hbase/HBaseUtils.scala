@@ -121,8 +121,10 @@ object HBaseUtils extends StrictLogging {
     println(s"startKey: ${startKey.mkString("[", ",", "]")}")
 
     val inclusiveEndRowKey = endRowKey.filter(_.nonEmpty).map(a => a :+ 0.toByte)
-    val stopKey = List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
+    val minStopKey = List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
       .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+    val stopKey = inclusiveEndRowKey.getOrElse(minStopKey)
+    /**/
     println(s"rangeStopKey: ${rangeStopKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"toTimeKey: ${toTimeKey.mkString("[", ",", "]")}")
     println(s"inclusiveEndRowKey: ${inclusiveEndRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
