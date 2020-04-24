@@ -75,24 +75,23 @@ class HBaseScanRDD(
     val filteredRegions = regions
       .filter {
         case (startKey, endKey) =>
-          baseTimeList.exists { time =>
+          val rangeStartFlag = rangeStartKey match {
+            case Some(sKey) =>
+              Bytes.compareTo(sKey, startKey) >= 0 || sKey.isEmpty
+            case _ => true
+          }
+
+          val rangeEndFlag = rangeStopKey match {
+            case Some(eKey) =>
+              Bytes.compareTo(eKey, endKey) <= 0 || eKey.isEmpty
+            case _ => true
+          }
+
+          rangeStartFlag && rangeEndFlag && baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
-            val rangeStartFlag = rangeStartKey match {
-              case Some(sKey) =>
-                Bytes.compareTo(t2, sKey) >= 0 || sKey.isEmpty
-              case _ => true
-            }
-
-            val rangeEndFlag = rangeStopKey match {
-              case Some(eKey) =>
-                Bytes.compareTo(t1, eKey) <= 0 || eKey.isEmpty
-              case _ => true
-            }
-
-            (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty) &&
-            rangeStartFlag && rangeEndFlag
+            (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
       }
     println(s"filteredRegions: ${filteredRegions.length}")
@@ -126,9 +125,9 @@ class HBaseScanRDD(
         filter,
         Seq.empty,
         fromTime,
-        toTime,
+        toTime /*,
         Some(partition.startKey),
-        Some(partition.endKey)
+        Some(partition.endKey)*/
       )
     }
 
