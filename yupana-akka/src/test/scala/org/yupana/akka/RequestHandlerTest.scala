@@ -125,10 +125,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       Seq(
         ParameterValues(
           Seq(
-            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(1, Value(Value.Value.DecimalValue("12345"))),
             ParameterValue(2, Value(Value.Value.TextValue("thing one"))),
-            ParameterValue(3, Value(Value.Value.TextValue("1"))),
-            ParameterValue(4, Value(Value.Value.TextValue("1"))),
+            ParameterValue(3, Value(Value.Value.DecimalValue("1"))),
+            ParameterValue(4, Value(Value.Value.DecimalValue("1"))),
             ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
             ParameterValue(6, Value(Value.Value.DecimalValue("100"))),
             ParameterValue(7, Value(Value.Value.DecimalValue("1")))
@@ -136,10 +136,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         ),
         ParameterValues(
           Seq(
-            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(1, Value(Value.Value.DecimalValue("12345"))),
             ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
-            ParameterValue(3, Value(Value.Value.TextValue("1"))),
-            ParameterValue(4, Value(Value.Value.TextValue("2"))),
+            ParameterValue(3, Value(Value.Value.DecimalValue("1"))),
+            ParameterValue(4, Value(Value.Value.DecimalValue("2"))),
             ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
             ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
             ParameterValue(7, Value(Value.Value.DecimalValue("2")))
@@ -155,9 +155,9 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           1578426233000L,
           Map(
             Dimensions.ITEM -> "thing one",
-            Dimensions.KKM_ID -> "12345",
-            Dimensions.POSITION -> "1",
-            Dimensions.OPERATION_TYPE -> "1"
+            Dimensions.KKM_ID -> 12345,
+            Dimensions.POSITION -> 1.toShort,
+            Dimensions.OPERATION_TYPE -> 1.toByte
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 1d), MetricValue(ItemTableMetrics.sumField, BigDecimal(100)))
         ),
@@ -166,9 +166,9 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           1578426233000L,
           Map(
             Dimensions.ITEM -> "thing two",
-            Dimensions.KKM_ID -> "12345",
-            Dimensions.POSITION -> "2",
-            Dimensions.OPERATION_TYPE -> "1"
+            Dimensions.KKM_ID -> 12345,
+            Dimensions.POSITION -> 2.toShort,
+            Dimensions.OPERATION_TYPE -> 1.toByte
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 2d), MetricValue(ItemTableMetrics.sumField, BigDecimal(300)))
         )
