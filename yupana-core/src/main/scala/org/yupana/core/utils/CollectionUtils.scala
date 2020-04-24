@@ -61,14 +61,4 @@ object CollectionUtils {
   def intersectAll[T](sets: Seq[Set[T]]): Set[T] = {
     if (sets.nonEmpty) sets.reduce(_ intersect _) else Set.empty
   }
-
-  def collectErrors[T](ls: Seq[Either[String, T]]): Either[String, Seq[T]] = {
-    val errors = ls.collect { case Left(e) => e }
-
-    if (errors.isEmpty) {
-      Right(ls.collect { case Right(d) => d })
-    } else {
-      Left(errors.mkString(". "))
-    }
-  }
 }
