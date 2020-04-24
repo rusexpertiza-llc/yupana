@@ -17,11 +17,14 @@
 package org.yupana.spark
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
+import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext, TSDOutputRow }
+
+import scala.collection.JavaConverters._
 
 case class HBaseScanPartition(
     override val index: Int,
@@ -30,7 +33,8 @@ case class HBaseScanPartition(
     fromTime: Long,
     toTime: Long,
     queryContext: InternalQueryContext,
-    rangeScanDimsIds: Map[Dimension, Seq[Long]]
+    rangeScanDimsIds: Map[Dimension, Seq[Long]],
+    multiRowRangeFilter: Option[MultiRowRangeFilter]
 ) extends Partition {
   override def toString: String =
     s"HBaseScanPartition(index: $index, " +
@@ -59,6 +63,17 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
+    val filter =
+      HBaseUtils.multiRowRangeFilter(
+        queryContext.table,
+        fromTime,
+        toTime,
+        rangeScanDimsIds
+      )
+
+    val rangeStartKey = filter.map(_.getRowRanges.asScala.head.getStartRow)
+    val rangeStopKey = filter.map(_.getRowRanges.asScala.toList.last.getStopRow)
+
     val filteredRegions = regions
       .filter {
         case (startKey, endKey) =>
@@ -66,14 +81,27 @@ class HBaseScanRDD(
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
-            (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
+            val rangeStartFlag = rangeStartKey match {
+              case Some(sKey) =>
+                Bytes.compareTo(t2, sKey) >= 0 || sKey.isEmpty
+              case _ => true
+            }
+
+            val rangeEndFlag = rangeStopKey match {
+              case Some(eKey) =>
+                Bytes.compareTo(t1, eKey) <= 0 || eKey.isEmpty
+              case _ => true
+            }
+
+            (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty) &&
+            rangeStartFlag && rangeEndFlag
           }
       }
     println(s"filteredRegions: ${filteredRegions.length}")
     val partitions = filteredRegions.zipWithIndex
       .map {
         case ((startKey, endKey), index) =>
-          HBaseScanPartition(index, startKey, endKey, fromTime, toTime, queryContext, rangeScanDimsIds)
+          HBaseScanPartition(index, startKey, endKey, fromTime, toTime, queryContext, rangeScanDimsIds, filter)
       }
 
     println("partitions:")
@@ -87,17 +115,10 @@ class HBaseScanRDD(
     println(s"compute: ${partition.fromTime} - ${partition.toTime}")
 
     val scan = queryContext.metricsCollector.createScans.measure(1) {
-      val filter =
-        HBaseUtils.multiRowRangeFilter(
-          partition.queryContext.table,
-          fromTime,
-          toTime,
-          partition.rangeScanDimsIds
-        )
 
       HBaseUtils.createScan(
         partition.queryContext,
-        filter,
+        partition.multiRowRangeFilter,
         Seq.empty,
         fromTime,
         toTime,
