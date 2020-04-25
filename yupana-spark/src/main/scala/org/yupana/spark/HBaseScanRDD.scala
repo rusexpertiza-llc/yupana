@@ -69,32 +69,27 @@ class HBaseScanRDD(
         rangeScanDimsIds
       )
 
-    val rangesOpt = filter
+    val ranges = filter
       .map { f =>
         f.getRowRanges.asScala.map(r => (r.getStartRow, r.getStopRow))
-      }
+      }.getOrElse(Seq.empty)
 
-    println(s"rangesOpt: ")
-    rangesOpt.getOrElse(Seq.empty).foreach {
+    println(s"ranges: ")
+    ranges.foreach {
       case (start, end) => s"${start.mkString("[", ",", "]")}-${end.mkString("[", ",", "]")}"
     }
 
     val filteredRegions = regions
       .filter {
         case (startKey, endKey) =>
-          lazy val baseTimeFlag = baseTimeList.exists { time =>
+          val baseTimeFlag = baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
 
-          val intersectWithRange = rangesOpt match {
-            case Some(ranges) =>
-              HBaseUtils.intersectWithRowRanges(startKey, endKey, ranges)
-            case None =>
-              true
-          }
+          val intersectWithRange = ranges.isEmpty || HBaseUtils.intersectWithRowRanges(startKey, endKey, ranges)
 
           println(s"startKey: ${startKey.mkString("[", ",", "]")}")
           println(s"endKey: ${endKey.mkString("[", ",", "]")}")
@@ -136,9 +131,9 @@ class HBaseScanRDD(
         filter,
         Seq.empty,
         fromTime,
-        toTime /*,
+        toTime,
         Some(partition.startKey),
-        Some(partition.endKey)*/
+        Some(partition.endKey)
       )
     }
 
