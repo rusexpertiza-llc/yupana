@@ -72,7 +72,8 @@ class HBaseScanRDD(
     val ranges = filter
       .map { f =>
         f.getRowRanges.asScala.map(r => (r.getStartRow, r.getStopRow))
-      }.getOrElse(Seq.empty)
+      }
+      .getOrElse(Seq.empty)
 
     println(s"ranges: ")
     ranges.foreach {
