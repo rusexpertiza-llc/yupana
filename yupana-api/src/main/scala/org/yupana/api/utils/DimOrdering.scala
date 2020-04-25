@@ -16,7 +16,7 @@
 
 package org.yupana.api.utils
 
-trait DimOrdering[T] {
+trait DimOrdering[T] extends Serializable {
   def gt(a: T, b: T): Boolean
   def lt(a: T, b: T): Boolean
 
