@@ -76,8 +76,8 @@ class HBaseScanRDD(
       .getOrElse(Seq.empty)
 
     println(s"ranges: ")
-    ranges.foreach {
-      case (start, end) => s"${start.mkString("[", ",", "]")}-${end.mkString("[", ",", "]")}"
+    ranges.foreach { case (start, end) =>
+      println(s"${start.mkString("[", ",", "]")}-${end.mkString("[", ",", "]")}")
     }
 
     val filteredRegions = regions
