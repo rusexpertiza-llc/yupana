@@ -12,6 +12,8 @@ import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Table }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
+import scala.io.Source
+
 class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
 
   "HBaseUtils" should "serialize and parse row TSROW keys" in {
@@ -123,6 +125,62 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     HBaseUtils.intersectWithRowRanges(asBytes(Array(9)), asBytes(Array(9)), ranges) shouldBe false
   }
 
+  it should "check" in {
+    val ranges = List(
+      (
+        asBytes(Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -108, 21)),
+        asBytes(Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -108, 21))
+      ),
+      (
+        asBytes(Array(0, 0, 1, 112, -68, -105, 88, 0, 0, 0, 0, 0, 0, 5, -108, 21)),
+        asBytes(Array(0, 0, 1, 112, -68, -105, 88, 0, 0, 0, 0, 0, 0, 5, -108, 22))
+      )
+    )
+    /*val regions = getRegions
+
+    regions.foreach { case (regionStart, regionEnd) =>
+      if (HBaseUtils.intersectWithRowRanges(regionStart, regionEnd, ranges)) {
+        println(s"${regionStart.mkString(",")}      -       ${regionEnd.mkString(",")}")
+      }
+    }*/
+
+    val regions = List(
+      (
+        asBytes(
+          Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 4, 78, 23, 3, -15, -28, -113, 0, 5, 91, 85, 0, 0, 0, 0, 0,
+            0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 10)
+        ),
+        asBytes(
+          Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -31, -83, 2, -80, 44, 78, 0, 6, -102, 93, 0, 0, 0, 0,
+            0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2)
+        )
+      )
+    )
+
+    ranges.foreach {
+      case (rangeStart, rangeEnd) =>
+        regions.foreach {
+          case (regionStart, regionEnd) =>
+            println(
+              s"start: ${Bytes.compareTo(rangeStart, regionStart)}, end: ${Bytes.compareTo(rangeEnd, regionEnd)}, start-end: ${Bytes
+                .compareTo(rangeStart, regionEnd)}, end-start: ${Bytes.compareTo(rangeEnd, regionStart)}"
+            )
+        }
+    }
+  }
+
   def asBytes(a: Array[Int]): Array[Byte] = a.map(_.toByte)
+
+  def getRegions: List[(Array[Byte], Array[Byte])] = {
+    val z = Source.fromFile("/home/dloshkarev/Downloads/start.txt").getLines() zip Source
+      .fromFile("/home/dloshkarev/Downloads/end.txt")
+      .getLines()
+    z.map {
+      case (start, end) =>
+        (asArray(start), asArray(end))
+    }.toList
+  }
+
+  def asArray(s: String): Array[Byte] = if (s.nonEmpty) s.split(",").map(_.toByte) else Array.empty[Byte]
 
 }
