@@ -126,10 +126,7 @@ object HBaseUtils extends StrictLogging {
     val fromTimeKey = Bytes.toBytes(baseTime(fromTime, queryContext.table))
     val toTimeKey = Bytes.toBytes(baseTime(toTime, queryContext.table) + 1)
 
-    val startKey = startRowKey.getOrElse(
-      List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
-        .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
-    )
+    val startKey = startRowKey.get
     println("---------------------------------------------")
     println(s"rangeStartKey: ${rangeStartKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"fromTimeKey: ${fromTimeKey.mkString("[", ",", "]")}")
@@ -140,11 +137,14 @@ object HBaseUtils extends StrictLogging {
       println("startRowKey chosen")
     }
 
-    val inclusiveEndRowKey = endRowKey.filter(_.nonEmpty).map(a => a :+ 0.toByte)
-    val stopKey = inclusiveEndRowKey.getOrElse(
-      List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
-        .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
-    )
+    val inclusiveEndRowKey = endRowKey match {
+      case Some(end) =>
+        if (end.nonEmpty) {
+          Some(end :+ 0.toByte)
+        } else Some(end)
+      case None => None
+    }
+    val stopKey = inclusiveEndRowKey.get
     println(s"rangeStopKey: ${rangeStopKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"toTimeKey: ${toTimeKey.mkString("[", ",", "]")}")
     println(s"inclusiveEndRowKey: ${inclusiveEndRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
