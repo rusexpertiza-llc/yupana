@@ -31,7 +31,15 @@ case class HBaseScanPartition(
     toTime: Long,
     queryContext: InternalQueryContext,
     rangeScanDimsIds: Map[Dimension, Seq[Long]]
-) extends Partition
+) extends Partition {
+  override def toString: String =
+    s"HBaseScanPartition(index: $index, " +
+      s"startKey: ${startKey.mkString("[", ",", "]")}," +
+      s"endKey: ${endKey.mkString("[", ",", "]")}," +
+      s"fromTime: $fromTime," +
+      s"toTime: $toTime," +
+      s"rangeScanDimsIds: $rangeScanDimsIds)"
+}
 
 class HBaseScanRDD(
     sc: SparkContext,
@@ -93,7 +101,7 @@ class HBaseScanRDD(
         Seq.empty,
         fromTime,
         toTime,
-        Some(partition.startKey),
+        None, /*Some(partition.startKey),*/
         Some(partition.endKey)
       )
     }
