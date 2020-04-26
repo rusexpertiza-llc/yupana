@@ -23,8 +23,6 @@ import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext, TSDOutputRow }
 
-import scala.collection.JavaConverters._
-
 case class HBaseScanPartition(
     override val index: Int,
     startKey: Array[Byte],
@@ -33,15 +31,7 @@ case class HBaseScanPartition(
     toTime: Long,
     queryContext: InternalQueryContext,
     rangeScanDimsIds: Map[Dimension, Seq[Long]]
-) extends Partition {
-  override def toString: String =
-    s"HBaseScanPartition(index: $index, " +
-      s"startKey: ${startKey.mkString("[", ",", "]")}," +
-      s"endKey: ${endKey.mkString("[", ",", "]")}," +
-      s"fromTime: $fromTime," +
-      s"toTime: $toTime," +
-      s"rangeScanDimsIds: $rangeScanDimsIds)"
-}
+) extends Partition
 
 class HBaseScanRDD(
     sc: SparkContext,
@@ -61,47 +51,15 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
-    val filter =
-      HBaseUtils.multiRowRangeFilter(
-        queryContext.table,
-        fromTime,
-        toTime,
-        rangeScanDimsIds
-      )
-
-    val ranges = filter
-      .map { f =>
-        f.getRowRanges.asScala.map(r => (r.getStartRow, r.getStopRow))
-      }
-      .getOrElse(Seq.empty)
-
-    println(s"ranges: ")
-    ranges.foreach {
-      case (start, end) =>
-        println(s"${start.mkString("[", ",", "]")}-${end.mkString("[", ",", "]")}")
-    }
-
     val filteredRegions = regions
       .filter {
         case (startKey, endKey) =>
-          val baseTimeFlag = baseTimeList.exists { time =>
+          baseTimeList.exists { time =>
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
-
-          val intersectWithRange = ranges.isEmpty || HBaseUtils.intersectWithRowRanges(startKey, endKey, ranges)
-
-          println(s"startKey: ${startKey.mkString("[", ",", "]")}")
-          println(s"endKey: ${endKey.mkString("[", ",", "]")}")
-
-          println(s"baseTimeFlag: $baseTimeFlag")
-          println(s"intersectWithRange: $intersectWithRange")
-          println("-------------------------------------------------------------------------------")
-
-          /*intersectWithRange && */
-          baseTimeFlag
       }
     println(s"filteredRegions: ${filteredRegions.length}")
     val partitions = filteredRegions.zipWithIndex
@@ -124,8 +82,8 @@ class HBaseScanRDD(
       val filter =
         HBaseUtils.multiRowRangeFilter(
           partition.queryContext.table,
-          fromTime,
-          toTime,
+          partition.fromTime,
+          partition.toTime,
           partition.rangeScanDimsIds
         )
 
