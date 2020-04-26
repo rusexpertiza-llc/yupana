@@ -52,7 +52,7 @@ class HBaseScanRDD(
 
   override protected def getPartitions: Array[Partition] = {
     println(s"getPartitions: $fromTime - $toTime")
-    val regionLocator = connection().getRegionLocator(hTableName())
+    /*val regionLocator = connection().getRegionLocator(hTableName())
     val keys = regionLocator.getStartEndKeys
 
     val regions = keys.getFirst.zip(keys.getSecond)
@@ -77,7 +77,11 @@ class HBaseScanRDD(
       }
 
     println("partitions:")
-    partitions.foreach(println)
+    partitions.foreach(println)*/
+
+    val partitions = Array(
+      HBaseScanPartition(1, Array.empty, Array.empty, fromTime, toTime, queryContext, rangeScanDimsIds)
+    )
 
     partitions.asInstanceOf[Array[Partition]]
   }
@@ -100,9 +104,9 @@ class HBaseScanRDD(
         filter,
         Seq.empty,
         fromTime,
-        toTime,
+        toTime /*,
         Some(partition.startKey),
-        Some(partition.endKey)
+        Some(partition.endKey)*/
       )
     }
 
