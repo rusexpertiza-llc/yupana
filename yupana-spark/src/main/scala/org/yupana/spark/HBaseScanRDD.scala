@@ -100,7 +100,8 @@ class HBaseScanRDD(
           println(s"intersectWithRange: $intersectWithRange")
           println("-------------------------------------------------------------------------------")
 
-          intersectWithRange && baseTimeFlag
+          /*intersectWithRange && */
+          baseTimeFlag
       }
     println(s"filteredRegions: ${filteredRegions.length}")
     val partitions = filteredRegions.zipWithIndex
@@ -133,9 +134,9 @@ class HBaseScanRDD(
         filter,
         Seq.empty,
         fromTime,
-        toTime /*,
+        toTime,
         Some(partition.startKey),
-        Some(partition.endKey)*/
+        Some(partition.endKey)
       )
     }
 

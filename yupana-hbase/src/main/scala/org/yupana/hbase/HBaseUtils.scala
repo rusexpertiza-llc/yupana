@@ -128,10 +128,15 @@ object HBaseUtils extends StrictLogging {
 
     val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
       .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+    println("---------------------------------------------")
     println(s"rangeStartKey: ${rangeStartKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"fromTimeKey: ${fromTimeKey.mkString("[", ",", "]")}")
     println(s"startRowKey: ${startRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"startKey: ${startKey.mkString("[", ",", "]")}")
+
+    if (startKey sameElements startRowKey.getOrElse(Array.empty)) {
+      println("startRowKey chosen")
+    }
 
     val inclusiveEndRowKey = endRowKey.filter(_.nonEmpty).map(a => a :+ 0.toByte)
     val stopKey = List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
@@ -140,6 +145,10 @@ object HBaseUtils extends StrictLogging {
     println(s"toTimeKey: ${toTimeKey.mkString("[", ",", "]")}")
     println(s"inclusiveEndRowKey: ${inclusiveEndRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"stopKey: ${stopKey.mkString("[", ",", "]")}")
+
+    if (stopKey sameElements inclusiveEndRowKey.getOrElse(Array.empty)) {
+      println("inclusiveEndRowKey chosen")
+    }
 
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>
