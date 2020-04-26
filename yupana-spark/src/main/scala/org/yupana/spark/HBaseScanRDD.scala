@@ -80,7 +80,7 @@ class HBaseScanRDD(
     partitions.foreach(println)*/
 
     val partitions = Array(
-      HBaseScanPartition(1, Array.empty, Array.empty, fromTime, toTime, queryContext, rangeScanDimsIds)
+      HBaseScanPartition(0, Array.empty, Array.empty, fromTime, toTime, queryContext, rangeScanDimsIds)
     )
 
     partitions.asInstanceOf[Array[Partition]]
