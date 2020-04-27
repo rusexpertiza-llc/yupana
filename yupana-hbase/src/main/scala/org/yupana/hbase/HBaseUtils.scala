@@ -137,7 +137,7 @@ object HBaseUtils extends StrictLogging {
     println("rangeFilter:")
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>
-        rangeFilter.getRowRanges.forEach { r =>
+        rangeFilter.getRowRanges.asScala.foreach { r =>
           println(s"${r.getStartRow.mkString("[", ",", "]")}    -     ${r.getStopRow.mkString("[", ",", "]")}")
         }
         if (hbaseFuzzyRowFilter.nonEmpty) {
