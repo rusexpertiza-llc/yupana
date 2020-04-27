@@ -4,7 +4,7 @@ import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 
@@ -26,7 +26,7 @@ class DictionaryTest
     CacheFactory.flushCaches()
   }
 
-  val testDim = Dimension("test")
+  val testDim = DictionaryDimension("test")
 
   "Dictionary" should "use DAO in findIdByValue method" in {
     val dictionaryDaoMock = mock[DictionaryDao]

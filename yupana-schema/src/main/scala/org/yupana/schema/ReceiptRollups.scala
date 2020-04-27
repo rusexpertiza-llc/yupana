@@ -26,7 +26,7 @@ object ReceiptRollups {
   val receiptDayRollup = Rollup(
     name = "receiptByDay",
     filter = None,
-    groupBy = Tables.receiptTable.dimensionSeq.map(DimensionExpr(_)),
+    groupBy = Tables.receiptTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
     fields = baseRollupFields ++ shiftRollupFields ++ additionalRollupFieldsFromDetails,
     fromTable = Tables.receiptTable,
     toTable = Tables.receiptByDayTable,
@@ -48,7 +48,7 @@ object ReceiptRollups {
   val receiptWeekRollup = Rollup(
     name = "receiptByWeek",
     filter = None,
-    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID_TAG), DimensionExpr(Dimensions.OPERATION_TYPE_TAG)),
+    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByWeekTable,
@@ -58,7 +58,7 @@ object ReceiptRollups {
   val receiptMonthRollup = Rollup(
     name = "receiptByMonth",
     filter = None,
-    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID_TAG), DimensionExpr(Dimensions.OPERATION_TYPE_TAG)),
+    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,

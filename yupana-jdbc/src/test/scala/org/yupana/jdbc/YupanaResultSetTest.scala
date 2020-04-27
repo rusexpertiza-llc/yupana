@@ -265,7 +265,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
         DataType[Boolean],
         DataType[Int],
         DataType[String],
-        DataType[Double],
+        DataType[BigDecimal],
         DataType[Long],
         DataType[BigDecimal]
       ),
@@ -493,7 +493,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     val result = SimpleResult(
       "test",
       Seq("int", "string", "double", "time"),
-      Seq(DataType[Int], DataType[String], DataType[Double], DataType[Time]),
+      Seq(DataType[Int], DataType[String], DataType[BigDecimal], DataType[Time]),
       Iterator(
         Array[Option[Any]](Some(42), Some("foo"), None, Some(Time(1234567L)))
       )

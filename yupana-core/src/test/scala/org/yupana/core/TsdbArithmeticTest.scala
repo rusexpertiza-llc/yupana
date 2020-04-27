@@ -42,7 +42,7 @@ class TsdbArithmeticTest
   }
 
   "TSDB" should "execute query with arithmetic (no aggregations)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT testField + testField2 as some_sum FROM test_table WHERE TAG_A = 'taga'" + timeBounds()
+    val sql = "SELECT testField + testField2 as some_sum FROM test_table WHERE A = 'taga'" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -52,7 +52,7 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("taga")))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("taga")))
         ),
         *,
         *
@@ -83,8 +83,8 @@ class TsdbArithmeticTest
 
   it should "execute query with arithmetic on aggregated values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT sum(testField) as stf," +
-      " sum(testField) * max(testField2) / 2 as mult FROM test_table WHERE TAG_A = 'taga'" +
-      timeBounds() + " GROUP BY TAG_A"
+      " sum(testField) * max(testField2) / 2 as mult FROM test_table WHERE A = 'taga'" +
+      timeBounds() + " GROUP BY A"
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -93,8 +93,8 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.TAG_A), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.TAG_A), const("taga")))
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A), time),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("taga")))
         ),
         *,
         *
@@ -102,12 +102,12 @@ class TsdbArithmeticTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("taga"))
+            .set(dimension(TestDims.DIM_A), Some("taga"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("taga"))
+            .set(dimension(TestDims.DIM_A), Some("taga"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
             .buildAndReset()
@@ -127,12 +127,12 @@ class TsdbArithmeticTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)
 
-    val sql = "SELECT TestLink_testField as address, TAG_A, sum(testField) as sum_receiptCount, " +
+    val sql = "SELECT TestLink_testField as address, A, sum(testField) as sum_receiptCount, " +
       "sum(CASE WHEN testStringField = '2' THEN testField2 " +
       "WHEN testStringField = '3' THEN (0 - testField2) " +
       "ELSE 0) as totalSum " +
       "FROM test_table " +
-      "WHERE TAG_A in ('0000270761025003') " + timeBounds() + " GROUP BY TAG_A, address"
+      "WHERE A in ('0000270761025003') " + timeBounds() + " GROUP BY A, address"
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -156,13 +156,13 @@ class TsdbArithmeticTest
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_STRING_FIELD),
-            dimension(TestDims.TAG_A),
+            dimension(TestDims.DIM_A),
             time
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("0000270761025003"))
+            in(dimension(TestDims.DIM_A), Set("0000270761025003"))
           )
         ),
         *,
@@ -171,13 +171,13 @@ class TsdbArithmeticTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("0000270761025003"))
+            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("0000270761025003"))
+            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
@@ -269,7 +269,7 @@ class TsdbArithmeticTest
   }
 
   it should "handle arithmetic in having" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time, lag(time) as lag_time, TAG_A " +
+    val sql = "SELECT time, lag(time) as lag_time, A " +
       "FROM test_table " + timeBounds(and = false) +
       "HAVING (time - lag_time) >= INTERVAL '10' SECOND"
     val query = createQuery(sql)
@@ -281,7 +281,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(dimension(TestDims.TAG_A), time),
+          Set(dimension(TestDims.DIM_A), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -289,15 +289,15 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.TAG_A), Some("0000270761025003")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("0000270761025003")).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset()
         )
       )
 
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "0000270761025003"
+    r1.fieldValueByName[String]("A").value shouldBe "0000270761025003"
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime2)
     r1.fieldValueByName[Time]("lag_time").value shouldBe Time(pointTime)
 

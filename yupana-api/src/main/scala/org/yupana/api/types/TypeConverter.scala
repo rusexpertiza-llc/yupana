@@ -53,6 +53,10 @@ object TypeConverter {
   val int2Long: TypeConverter[Int, Long] = of(_.toLong, x => if (x.isValidInt) Some(x.toInt) else None)
   val int2BigDecimal: TypeConverter[Int, BigDecimal] =
     of(x => BigDecimal(x), x => if (x.isValidInt) Some(x.toInt) else None)
+  val short2BigDecimal: TypeConverter[Short, BigDecimal] =
+    of(x => BigDecimal(x), x => if (x.isValidShort) Some(x.toShort) else None)
+  val byte2BigDecimal: TypeConverter[Byte, BigDecimal] =
+    of(x => BigDecimal(x), x => if (x.isValidByte) Some(x.toByte) else None)
 
   def of[T, U](f: T => U, rev: U => Option[T])(
       implicit
@@ -80,7 +84,9 @@ object TypeConverter {
     entry[Long, BigDecimal](long2BigDecimal),
     entry[Long, Double](long2Double),
     entry[Int, Long](int2Long),
-    entry[Int, BigDecimal](int2BigDecimal)
+    entry[Int, BigDecimal](int2BigDecimal),
+    entry[Short, BigDecimal](short2BigDecimal),
+    entry[Byte, BigDecimal](byte2BigDecimal)
   )
 
 }

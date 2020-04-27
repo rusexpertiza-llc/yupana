@@ -26,8 +26,7 @@ object Tables {
   val itemsKkmTable = new Table(
     name = "items_kkm",
     rowTimeSpan = 86400000L * 30L,
-    dimensionSeq =
-      Seq(Dimensions.ITEM_TAG, Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG, Dimensions.POSITION_TAG),
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.POSITION),
     metrics = ItemTableMetrics.metrics,
     externalLinks = itemExternalLinks
   )
@@ -35,8 +34,7 @@ object Tables {
   val kkmItemsTable = new Table(
     name = "kkm_items",
     rowTimeSpan = 86400000L * 30L,
-    dimensionSeq =
-      Seq(Dimensions.KKM_ID_TAG, Dimensions.ITEM_TAG, Dimensions.OPERATION_TYPE_TAG, Dimensions.POSITION_TAG),
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE, Dimensions.POSITION),
     metrics = ItemTableMetrics.metrics,
     externalLinks = itemExternalLinks
   )
@@ -44,7 +42,7 @@ object Tables {
   import ReceiptTableMetrics._
 
   val receiptDimensionSeq: Seq[Dimension] =
-    Seq(Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG, Dimensions.SHIFT_TAG, Dimensions.OPERATOR_TAG)
+    Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.SHIFT, Dimensions.OPERATOR)
   val receiptExternalLinks: Seq[ExternalLink] = Seq()
 
   val receiptTable = new Table(
@@ -72,7 +70,7 @@ object Tables {
   val receiptByWeekTable = new Table(
     name = "receipt_by_week",
     rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG),
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = baseFields ++ rollupFields,
     externalLinks = receiptExternalLinks
   )
@@ -80,7 +78,7 @@ object Tables {
   val receiptByMonthTable = new Table(
     name = "receipt_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG),
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = baseFields ++ rollupFields,
     externalLinks = receiptExternalLinks
   )

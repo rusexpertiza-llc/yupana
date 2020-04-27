@@ -79,21 +79,21 @@ object ExternalLinkUtils {
     TimeBoundedCondition.merge(r).toCondition
   }
 
-  def setLinkedValues(
-      externalLink: ExternalLink,
+  def setLinkedValues[R](
+      externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
       exprs: Set[LinkExpr],
-      fieldValuesForDimValues: (Set[String], Set[String]) => Table[String, String, String]
+      fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, String]
   ): Unit = {
-    val dimExpr = DimensionExpr(externalLink.dimension)
+    val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = exprs.map(_.linkField)
-    val dimValues = rows.flatMap(_.get[String](exprIndex, dimExpr)).toSet
+    val dimValues = rows.flatMap(_.get[R](exprIndex, dimExpr)).toSet
 
     val allFieldValues = fieldValuesForDimValues(fields, dimValues)
 
     rows.foreach { vd =>
-      vd.get[String](exprIndex, dimExpr).foreach { dimValue =>
+      vd.get[R](exprIndex, dimExpr).foreach { dimValue =>
         allFieldValues.row(dimValue).foreach {
           case (field, value) =>
             val linkExpr = LinkExpr(externalLink, field)

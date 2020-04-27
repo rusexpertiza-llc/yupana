@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
-import org.apache.hadoop.hbase.util.{ Bytes, Pair }
+import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
@@ -39,6 +39,10 @@ import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 
 object HBaseUtils extends StrictLogging {
 
+  type TimeShiftedValue = (Long, Array[Byte])
+  type TimeShiftedValues = Array[TimeShiftedValue]
+  type ValuesByGroup = Map[Int, TimeShiftedValues]
+
   val tableNamePrefix: String = "ts_"
   val rollupStatusFamily: Array[Byte] = "v".getBytes
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
@@ -46,7 +50,7 @@ object HBaseUtils extends StrictLogging {
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
   val rollupSpecialKey: Array[Byte] = "\u0000".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
-  val NULL_VALUE: Long = 0L
+  private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
 
@@ -64,27 +68,26 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
-  def createTsdRows(
+  def createPuts(
       dataPoints: Seq[DataPoint],
       dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[TSDInputRow[Long]])] = {
-
+  ): Seq[(Table, Seq[Put])] = {
     dataPoints
       .groupBy(_.table)
       .map {
         case (table, points) =>
-          val grouped = points.groupBy(rowKey(_, table, dictionaryProvider))
+          val keySize = tableKeySize(table)
+          val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
           table -> grouped.map {
-            case (key, dps) =>
-              TSDInputRow(key, TSDRowValues(table, dps))
+            case (key, dps) => createPutOperation(table, key, dps)
           }.toSeq
       }
       .toSeq
   }
 
-  def createPutOperation(row: TSDInputRow[Long]): Put = {
-    val put = new Put(rowKeyToBytes(row.key))
-    row.values.valuesByGroup.foreach {
+  def createPutOperation(table: Table, key: Array[Byte], dataPoints: Seq[DataPoint]): Put = {
+    val put = new Put(key)
+    valuesByGroup(table, dataPoints).foreach {
       case (group, values) =>
         values.foreach {
           case (time, bytes) =>
@@ -148,7 +151,7 @@ object HBaseUtils extends StrictLogging {
       scan: Scan,
       context: InternalQueryContext,
       batchSize: Int
-  ): Iterator[TSDOutputRow[Long]] = {
+  ): Iterator[TSDOutputRow] = {
 
     val htable = connection.getTable(tableName(namespace, context.table))
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
@@ -157,7 +160,7 @@ object HBaseUtils extends StrictLogging {
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
-    val resultIterator = new AbstractIterator[List[TSDOutputRow[Long]]] {
+    val resultIterator = new AbstractIterator[List[TSDOutputRow]] {
       override def hasNext: Boolean = {
         context.metricsCollector.scan.measure(1) {
           val hasNext = batchIterator.hasNext
@@ -170,7 +173,7 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): List[TSDOutputRow[Long]] = {
+      override def next(): List[TSDOutputRow] = {
         val batch = batchIterator.next()
         context.metricsCollector.parseScanResult.measure(batch.size) {
           batch.map { hbaseResult =>
@@ -187,32 +190,27 @@ object HBaseUtils extends StrictLogging {
       table: Table,
       from: Long,
       to: Long,
-      dimIds: Map[Dimension, Seq[Long]]
+      dimIds: Map[Dimension, Seq[_]]
   ): Option[MultiRowRangeFilter] = {
 
     val baseTimeLs = baseTimeList(from, to, table)
 
-    val dimIdsList = dimIds.toList.map { case (dim, ids) => dim -> ids.toList }
-    val dimIndex = dimIdsList.map {
-      case (dim, _) =>
-        table.dimensionSeq.indexOf(dim)
-    }.toArray
+    val dimIdsList = dimIds.toList.map {
+      case (dim, ids) =>
+        dim -> ids.toList.map(id => dim.storable.write(id.asInstanceOf[dim.R]))
+    }
 
     val crossJoinedDimIds = {
       CollectionUtils.crossJoin(dimIdsList.map(_._2))
     }
 
+    val keySize = tableKeySize(table)
+
     val ranges = for {
       time <- baseTimeLs
       cids <- crossJoinedDimIds if cids.nonEmpty
     } yield {
-      val filter = Array.ofDim[Long](dimIndex.length)
-      cids.foldLeft(0) { (i, id) =>
-        val idx = dimIndex(i)
-        filter(idx) = id
-        i + 1
-      }
-      rowRange(time, filter)
+      rowRange(time, keySize, cids.toArray)
     }
 
     if (ranges.nonEmpty) {
@@ -223,20 +221,28 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  private def rowRange(baseTime: Long, dimIds: Array[Long]) = {
+  private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]): RowRange = {
     val timeInc = if (dimIds.isEmpty) 1 else 0
 
-    val bufSize = (dimIds.length + 1) * Bytes.SIZEOF_LONG
-
-    val startBuffer = ByteBuffer.allocate(bufSize)
-    val stopBuffer = ByteBuffer.allocate(bufSize)
+    val startBuffer = ByteBuffer.allocate(keySize)
+    val stopBuffer = ByteBuffer.allocate(keySize)
     startBuffer.put(Bytes.toBytes(baseTime))
     stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
     dimIds.indices.foreach { i =>
       val vb = dimIds(i)
-      startBuffer.put(Bytes.toBytes(vb))
-      val ve = if (i < dimIds.length - 1) vb else vb + 1
-      stopBuffer.put(Bytes.toBytes(ve))
+      startBuffer.put(vb)
+      val ve =
+        if (i < dimIds.length - 1) vb
+        else {
+          val copy = new Array[Byte](vb.length)
+          Array.copy(vb, 0, copy, 0, vb.length)
+          val incremented = Bytes.incrementBytes(copy, 1L)
+          if (incremented != copy) {
+            Array.copy(incremented, incremented.length - copy.length, copy, 0, copy.length)
+          }
+          copy
+        }
+      stopBuffer.put(ve)
     }
 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
@@ -259,7 +265,7 @@ object HBaseUtils extends StrictLogging {
     TableName.valueOf(namespace, tableNamePrefix + table.name)
   }
 
-  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow[Long] = {
+  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow = {
     val row = result.getRow
     TSDOutputRow(
       parseRowKey(row, table),
@@ -267,19 +273,19 @@ object HBaseUtils extends StrictLogging {
     )
   }
 
-  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey[Long] = {
+  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey = {
     val baseTime = Bytes.toLong(bytes)
 
-    val tagsIds = Array.ofDim[Option[Long]](table.dimensionSeq.size)
+    val dimReprs = Array.ofDim[Option[Any]](table.dimensionSeq.size)
 
     var i = 0
-    while (i < tagsIds.length) {
-      val value = Bytes.toLong(bytes, TAGS_POSITION_IN_ROW_KEY + i * Bytes.SIZEOF_LONG)
-      val v = if (value != NULL_VALUE) Some(value) else None
-      tagsIds(i) = v
+    val bb = ByteBuffer.wrap(bytes, TAGS_POSITION_IN_ROW_KEY, bytes.length - TAGS_POSITION_IN_ROW_KEY)
+    table.dimensionSeq.foreach { dim =>
+      val value = dim.storable.read(bb)
+      dimReprs(i) = Some(value)
       i += 1
     }
-    TSDRowKey(baseTime, tagsIds)
+    TSDRowKey(baseTime, dimReprs)
   }
 
   private def getTimeOffset(cell: Cell): Long = {
@@ -368,34 +374,6 @@ object HBaseUtils extends StrictLogging {
       }
       output
     }
-  }
-
-  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Long]]): FuzzyRowFilter = {
-    val filterRowKey = TSDRowKey(
-      baseTime.getOrElse(0L),
-      tagsFilter
-    )
-    val filterKey = rowKeyToBytes(filterRowKey)
-
-    val baseTimeMask: Byte = if (baseTime.isDefined) 0 else 1
-
-    val buffer = ByteBuffer
-      .allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
-      .put(Array.fill[Byte](Bytes.SIZEOF_LONG)(baseTimeMask))
-
-    val filterMask = tagsFilter
-      .foldLeft(buffer) {
-        case (buf, v) =>
-          if (v.isDefined) {
-            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
-          } else {
-            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
-          }
-      }
-      .array()
-
-    val filter = new FuzzyRowFilter(List(new Pair(filterKey, filterMask)).asJava)
-    filter
   }
 
   private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {
@@ -488,28 +466,46 @@ object HBaseUtils extends StrictLogging {
     new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
-  private[hbase] def rowKeyToBytes(rowKey: TSDRowKey[Long]): Array[Byte] = {
-
-    val baseTimeBytes = Bytes.toBytes(rowKey.baseTime)
-
-    val buffer = ByteBuffer
-      .allocate(baseTimeBytes.length + rowKey.dimIds.length * Bytes.SIZEOF_LONG)
-      .put(baseTimeBytes)
-
-    rowKey.dimIds
-      .foldLeft(buffer) {
-        case (buf, value) =>
-          buf.put(Bytes.toBytes(value.getOrElse(NULL_VALUE)))
-      }
-      .array()
+  private[hbase] def tableKeySize(table: Table): Int = {
+    Bytes.SIZEOF_LONG + table.dimensionSeq.map {
+      case _: DictionaryDimension => Bytes.SIZEOF_LONG
+      case r: RawDimension[_]     => r.storable.size
+    }.sum
   }
 
-  private def rowKey(dataPoint: DataPoint, table: Table, dictionaryProvider: DictionaryProvider): TSDRowKey[Long] = {
-    val dimIds = table.dimensionSeq.map { dim =>
-      dataPoint.dimensions.get(dim).filter(_.trim.nonEmpty).map(v => dictionaryProvider.dictionary(dim).id(v))
-    }.toArray
+  private[hbase] def rowKey(
+      dataPoint: DataPoint,
+      table: Table,
+      keySize: Int,
+      dictionaryProvider: DictionaryProvider
+  ): Array[Byte] = {
+    val bt = HBaseUtils.baseTime(dataPoint.time, table)
+    val baseTimeBytes = Bytes.toBytes(bt)
 
-    TSDRowKey(HBaseUtils.baseTime(dataPoint.time, table), dimIds)
+    val buffer = ByteBuffer
+      .allocate(keySize)
+      .put(baseTimeBytes)
+
+    table.dimensionSeq.foreach { dim =>
+      val bytes = dim match {
+        case dd: DictionaryDimension =>
+          val id = dataPoint.dimensions
+            .get(dim)
+            .asInstanceOf[Option[String]]
+            .filter(_.trim.nonEmpty)
+            .map(v => dictionaryProvider.dictionary(dd).id(v))
+            .getOrElse(NULL_VALUE)
+          Bytes.toBytes(id)
+
+        case rd: RawDimension[_] =>
+          val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
+          rd.storable.write(v)
+      }
+
+      buffer.put(bytes)
+    }
+
+    buffer.array()
   }
 
   private def scanMetricsToString(metrics: ScanMetrics): String = {
@@ -519,4 +515,50 @@ object HBaseUtils extends StrictLogging {
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
+  def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
+    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).mapValues(_.toArray)
+  }
+
+  private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
+    val timeShift = HBaseUtils.restTime(dp.time, table)
+    dp.metrics
+      .groupBy(_.metric.group)
+      .mapValues(metricValues => Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))))
+  }
+
+  private def mergeMaps(
+      m1: Map[Int, Seq[TimeShiftedValue]],
+      m2: Map[Int, Seq[TimeShiftedValue]]
+  ): Map[Int, Seq[TimeShiftedValue]] = {
+    (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
+  }
+
+  private def fieldsToBytes(
+      table: Table,
+      dimensions: Map[Dimension, Any],
+      metricValues: Seq[MetricValue]
+  ): Array[Byte] = {
+    val metricFieldBytes = metricValues.map { f =>
+      val bytes = f.metric.dataType.storable.write(f.value)
+      (f.metric.tag, bytes)
+    }
+    val dimensionFieldBytes = dimensions.collect {
+      case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
+        val tag = table.dimensionTag(d)
+        val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
+        (tag, bytes)
+    }
+
+    val fieldBytes = metricFieldBytes ++ dimensionFieldBytes
+
+    val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
+    val bb = ByteBuffer.allocate(size)
+    fieldBytes.foreach {
+      case (tag, bytes) =>
+        bb.put(tag)
+        bb.put(bytes)
+    }
+
+    bb.array()
+  }
 }

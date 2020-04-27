@@ -16,7 +16,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
   val dbUser = "test"
   val dbPass = "secret"
 
-  private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService = {
+  private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService[Int] = {
     val ds = new DriverManagerDataSource(
       config.connection.url,
       config.connection.username.orNull,
@@ -24,7 +24,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
     val jdbc = new JdbcTemplate(ds)
 
-    val externalLink = SQLExternalLink(config, Dimensions.KKM_ID_TAG)
+    val externalLink = SQLExternalLink[Int](config, Dimensions.KKM_ID)
 
     new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
   }
@@ -63,13 +63,13 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val values =
       externalLinkService.fieldValuesForDimValues(
         externalLinkConfig.description.fieldsNames,
-        Set("123432345655", "123432345657")
+        Set(12345655, 12345657)
       )
 
-    values.get("123432345655", "f1").value shouldEqual "wer"
-    values.get("123432345655", "f2").value shouldEqual "sdf"
-    values.get("123432345657", "f1").value shouldEqual "rty"
-    values.get("123432345657", "f2").value shouldEqual "fgh"
+    values.get(12345655, "f1").value shouldEqual "wer"
+    values.get(12345655, "f2").value shouldEqual "sdf"
+    values.get(12345657, "f1").value shouldEqual "rty"
+    values.get(12345657, "f2").value shouldEqual "fgh"
 
     val inCondition = externalLinkService.condition(
       and(
@@ -78,7 +78,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension), Set("123432345654"))
+    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345654))
 
     val notInCondition = externalLinkService.condition(
       and(
@@ -88,8 +88,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
 
     notInCondition shouldEqual notIn(
-      dimension(externalLink.dimension),
-      Set("123432345654", "123432345656", "123432345657")
+      dimension(externalLink.dimension.aux),
+      Set(12345654, 12345656, 12345657)
     )
   }
 
@@ -126,13 +126,13 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     val values =
       externalLinkService.fieldValuesForDimValues(
         externalLinkConfig.description.fieldsNames,
-        Set("123432345655", "123432345657")
+        Set(12345655, 12345657)
       )
 
-    values.get("123432345655", "f1").value shouldEqual "hhh2"
-    values.get("123432345655", "f2").value shouldEqual "ggg"
-    values.get("123432345657", "f1").value shouldEqual "hhh3"
-    values.get("123432345657", "f2").value shouldEqual "ggg3"
+    values.get(12345655, "f1").value shouldEqual "hhh2"
+    values.get(12345655, "f2").value shouldEqual "ggg"
+    values.get(12345657, "f1").value shouldEqual "hhh3"
+    values.get(12345657, "f2").value shouldEqual "ggg3"
 
     val inCondition = externalLinkService.condition(
       and(
@@ -141,7 +141,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension), Set("123432345657"))
+    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345657))
 
     val notInCondition = externalLinkService.condition(
       and(
@@ -151,8 +151,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     )
 
     notInCondition shouldEqual notIn(
-      dimension(externalLink.dimension),
-      Set("123432345654", "123432345656", "123432345657")
+      dimension(externalLink.dimension.aux),
+      Set(12345654, 12345656, 12345657)
     )
   }
 

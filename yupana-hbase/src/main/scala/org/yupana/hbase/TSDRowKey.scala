@@ -18,21 +18,21 @@ package org.yupana.hbase
 
 import scala.util.hashing.MurmurHash3
 
-case class TSDRowKey[T](
+case class TSDRowKey(
     baseTime: Long,
-    dimIds: Array[Option[T]]
+    dimReprs: Array[Option[Any]]
 ) {
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
-      case that: TSDRowKey[T] => this.baseTime == that.baseTime && (this.dimIds sameElements that.dimIds)
-      case _                  => false
+      case that: TSDRowKey => this.baseTime == that.baseTime && (this.dimReprs sameElements that.dimReprs)
+      case _               => false
     }
   }
 
   override def hashCode(): Int = {
-    val h = MurmurHash3.arrayHash(dimIds)
+    val h = MurmurHash3.arrayHash(dimReprs)
     val h2 = MurmurHash3.mix(h, baseTime.##)
-    MurmurHash3.finalizeHash(h2, dimIds.length + 1)
+    MurmurHash3.finalizeHash(h2, dimReprs.length + 1)
   }
 }

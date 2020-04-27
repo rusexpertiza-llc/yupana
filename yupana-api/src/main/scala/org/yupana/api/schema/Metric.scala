@@ -41,6 +41,8 @@ trait Metric extends Serializable {
     */
   val group: Int
 
+  def aux: Metric.Aux[T] = this
+
   override def toString: String = s"Metric($name)"
 }
 
