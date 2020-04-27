@@ -61,7 +61,8 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
-    val timeFilteredRegions = Array(
+    val timeFilteredRegions = regions
+    /*val timeFilteredRegions = Array(
       (
         asBytes(
           Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 4, 78, 23, 3, -15, -28, -113, 0, 5, 91, 85, 0, 0, 0, 0, 0,
@@ -82,7 +83,7 @@ class HBaseScanRDD(
             0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 12)
         )
       )
-    )
+    )*/
     /*val timeFilteredRegions = regions
     .filter {
         case (startKey, endKey) =>

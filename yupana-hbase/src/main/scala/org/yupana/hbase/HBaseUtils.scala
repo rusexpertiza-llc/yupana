@@ -150,7 +150,14 @@ object HBaseUtils extends StrictLogging {
         }
     }
 
-    val scan = new Scan(startKey, stopKey)
+    val scan = new Scan()
+    if (startKey.nonEmpty) {
+      scan.setStartRow(startKey)
+    }
+    if (stopKey.nonEmpty) {
+      scan.setStopRow(stopKey)
+    }
+
     filter.foreach(scan.setFilter)
 
     familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
