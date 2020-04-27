@@ -155,7 +155,7 @@ object HBaseUtils extends StrictLogging {
       scan.setStartRow(startKey)
     }
     if (stopKey.nonEmpty) {
-      scan.setStopRow(stopKey)
+      scan.setStopRow(stopKey :+ 0.toByte)
     }
 
     filter.foreach(scan.setFilter)
