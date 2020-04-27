@@ -268,8 +268,7 @@ object HBaseUtils extends StrictLogging {
     val bb = ByteBuffer.wrap(bytes, TAGS_POSITION_IN_ROW_KEY, bytes.length - TAGS_POSITION_IN_ROW_KEY)
     table.dimensionSeq.foreach { dim =>
       val value = dim.storable.read(bb)
-      val v = if (value != dim.storable.nullValue) Some(value) else None
-      dimReprs(i) = v
+      dimReprs(i) = Some(value)
       i += 1
     }
     TSDRowKey(baseTime, dimReprs)
@@ -418,12 +417,14 @@ object HBaseUtils extends StrictLogging {
         case dd: DictionaryDimension =>
           val id = dataPoint.dimensions
             .get(dim)
-            .map(v => dictionaryProvider.dictionary(dd).id(v.asInstanceOf[String]))
+            .asInstanceOf[Option[String]]
+            .filter(_.trim.nonEmpty)
+            .map(v => dictionaryProvider.dictionary(dd).id(v))
             .getOrElse(NULL_VALUE)
           Bytes.toBytes(id)
 
         case rd: RawDimension[_] =>
-          val v = dataPoint.dimensions.getOrElse(dim, rd.storable.nullValue).asInstanceOf[rd.T]
+          val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
           rd.storable.write(v)
       }
 

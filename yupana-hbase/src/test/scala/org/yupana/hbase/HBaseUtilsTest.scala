@@ -26,12 +26,13 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
 
     val time = new DateTime(2020, 4, 22, 11, 21, 55, DateTimeZone.UTC).getMillis
-    val dp = DataPoint(TestTable, time, Map(DIM_B -> "b value"), Seq.empty)
+    val dp = DataPoint(TestTable, time, Map(DIM_B -> "b value", DIM_A -> 4, DIM_C -> "c value"), Seq.empty)
 
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
+    (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "c value").returning(Some(31L))
 
     val bytes = HBaseUtils.rowKey(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
-    val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(None, Some(1L), None))
+    val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(4), Some(1L), Some(31L)))
     val actualRowKey = HBaseUtils.parseRowKey(bytes, TestTable)
 
     actualRowKey should be(expectedRowKey)
