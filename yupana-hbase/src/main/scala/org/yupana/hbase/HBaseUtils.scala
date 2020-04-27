@@ -126,7 +126,8 @@ object HBaseUtils extends StrictLogging {
     val fromTimeKey = Bytes.toBytes(baseTime(fromTime, queryContext.table))
     val toTimeKey = Bytes.toBytes(baseTime(toTime, queryContext.table) + 1)
 
-    val startKey = startRowKey.get
+    val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
+      .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
     println("---------------------------------------------")
     println(s"rangeStartKey: ${rangeStartKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"fromTimeKey: ${fromTimeKey.mkString("[", ",", "]")}")
@@ -137,14 +138,9 @@ object HBaseUtils extends StrictLogging {
       println("startRowKey chosen")
     }
 
-    val inclusiveEndRowKey = endRowKey match {
-      case Some(end) =>
-        if (end.nonEmpty) {
-          Some(end :+ 0.toByte)
-        } else Some(end)
-      case None => None
-    }
-    val stopKey = inclusiveEndRowKey.get
+    val inclusiveEndRowKey = endRowKey.filter(_.nonEmpty).map(a => a :+ 0.toByte)
+    val stopKey = List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
+      .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
     println(s"rangeStopKey: ${rangeStopKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"toTimeKey: ${toTimeKey.mkString("[", ",", "]")}")
     println(s"inclusiveEndRowKey: ${inclusiveEndRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
@@ -209,6 +205,7 @@ object HBaseUtils extends StrictLogging {
         val batch = batchIterator.next()
         context.metricsCollector.parseScanResult.measure(batch.size) {
           batch.map { hbaseResult =>
+            println(s"result key: " + hbaseResult.getRow.mkString("[", ",", "]"))
             getTsdRowFromResult(context.table, hbaseResult)
           }
         }
