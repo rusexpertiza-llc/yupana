@@ -16,8 +16,11 @@
 
 package org.yupana.api.schema
 
+import scala.collection.mutable
+
 /**
   * Table content definition.
+  *
   * @param name name of this table
   * @param rowTimeSpan duration of time series in milliseconds.
   * @param dimensionSeq sequence of dimensions for this table.
@@ -31,6 +34,22 @@ class Table(
     val metrics: Seq[Metric],
     val externalLinks: Seq[ExternalLink]
 ) extends Serializable {
+
+  private lazy val dimensionTagsMap = {
+    val dimTags = dimensionSeq.zipWithIndex.map { case (dim, idx) => (dim, (Table.DIM_TAG_OFFSET + idx).toByte) }
+    mutable.Map(dimTags: _*)
+  }
+
+  @inline
+  def dimensionTag(dimension: Dimension): Byte = {
+    dimensionTagsMap(dimension)
+  }
+
+  @inline
+  def dimensionTagExists(dimension: Dimension): Boolean = {
+    dimensionTagsMap.contains(dimension)
+  }
+
   override def toString: String = s"Table($name)"
 
   def withExternalLinks(extraLinks: Seq[ExternalLink]): Table = {
@@ -74,5 +93,7 @@ class Table(
 }
 
 object Table {
+  val MAX_TAGS: Int = 256
   val TIME_FIELD_NAME: String = "time"
+  val DIM_TAG_OFFSET = 214.toByte
 }

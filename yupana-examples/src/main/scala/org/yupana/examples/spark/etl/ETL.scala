@@ -126,8 +126,7 @@ object ETL {
       receipt.taxes.get(Tax.tax18000).map(v => MetricValue(ReceiptTableMetrics.tax18000Field, v)),
       receipt.taxes.get(Tax.tax20000).map(v => MetricValue(ReceiptTableMetrics.tax20000Field, v)),
       receipt.taxes.get(Tax.taxNo).map(v => MetricValue(ReceiptTableMetrics.taxNoField, v)),
-      Some(MetricValue(ReceiptTableMetrics.itemsCountField, receipt.items.distinct.size)),
-      Some(MetricValue(ReceiptTableMetrics.transactionIdField, receipt.receiptNumber.toString))
+      Some(MetricValue(ReceiptTableMetrics.itemsCountField, receipt.items.distinct.size))
     ).flatten
 
     val dp = DataPoint(
