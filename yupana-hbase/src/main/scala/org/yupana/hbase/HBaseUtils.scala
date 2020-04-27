@@ -134,8 +134,12 @@ object HBaseUtils extends StrictLogging {
     val stopKey = endRowKey.get
     println(s"stopKey: ${stopKey.mkString("[", ",", "]")}")
 
+    println("rangeFilter:")
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>
+        rangeFilter.getRowRanges.forEach { r =>
+          println(s"${r.getStartRow.mkString("[", ",", "]")}    -     ${r.getStopRow.mkString("[", ",", "]")}")
+        }
         if (hbaseFuzzyRowFilter.nonEmpty) {
           val orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFuzzyRowFilter: _*)
           Some(new FilterList(FilterList.Operator.MUST_PASS_ALL, rangeFilter, orFilter))
