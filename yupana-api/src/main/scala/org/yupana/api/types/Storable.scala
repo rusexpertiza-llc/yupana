@@ -67,13 +67,9 @@ object Storable {
   implicit val intStorable: Storable[Int] = of(readVInt, i => vLongToBytes(i))
   implicit val longStorable: Storable[Long] = of(readVLong, vLongToBytes)
   implicit val stringStorable: Storable[String] = of(readString, stringToBytes)
-  implicit val timestampStorable: Storable[Time] =
-    of(bb => Time(longStorable.read(bb)), t => longStorable.write(t.millis))
+  implicit val timestampStorable: Storable[Time] = wrap(longStorable, (l: Long) => new Time(l), _.millis)
   implicit val periodStorable: Storable[Period] =
-    of(
-      bb => ISOPeriodFormat.standard().parsePeriod(stringStorable.read(bb)),
-      p => stringStorable.write(periodFormat.print(p))
-    )
+    wrap(stringStorable, (s: String) => ISOPeriodFormat.standard().parsePeriod(s), p => periodFormat.print(p))
 
   implicit def arrayStorable[T](implicit rt: Storable[T], ct: ClassTag[T]): Storable[Array[T]] =
     of(readArray(rt), arrayToBytes(rt))
@@ -88,6 +84,12 @@ object Storable {
     override def read(a: Array[Byte]): T = throw new IllegalStateException("This should not be read")
     override def read(b: ByteBuffer): T = throw new IllegalStateException("This should not be read")
     override def write(t: T): Array[Byte] = throw new IllegalStateException("This should not be written")
+  }
+
+  def wrap[T, U](storable: Storable[T], from: T => U, to: U => T): Storable[U] = new Storable[U] {
+    override def read(a: Array[Byte]): U = from(storable.read(a))
+    override def read(bb: ByteBuffer): U = from(storable.read(bb))
+    override def write(t: U): Array[Byte] = storable.write(to(t))
   }
 
   private def readBigDecimal(bb: ByteBuffer): JavaBigDecimal = {
