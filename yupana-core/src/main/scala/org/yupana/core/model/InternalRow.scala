@@ -63,39 +63,38 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
 
   val timeIndex = exprIndex.getOrElse(TimeExpr, -1)
 
-  private val tagExprsIndexes: Array[Array[Int]] = table match {
+  private val tagExprsIndexes: Array[Int] = table match {
     case Some(table) =>
-      val tagIndexes = exprIndex.toSeq.map {
+      val tagIndexes = Array.fill[Int](Table.MAX_TAGS)(-1)
+
+      exprIndex.toSeq.foreach {
         case (expr, index) =>
-          expr match {
+          val tag = expr match {
             case MetricExpr(metric) =>
-              metric.tag -> index
+              Some(metric.tag)
             case DimensionExpr(dimension: Dimension) =>
-              table.dimensionTag(dimension) -> index
-            case _ => 0.toByte -> index
+              Some(table.dimensionTag(dimension))
+            case _ => None
+          }
+          tag.foreach { t =>
+            tagIndexes(t & 0xFF) = index
           }
       }
-      val arr = Array.ofDim[Array[Int]](Table.MAX_TAGS)
 
-      tagIndexes.groupBy(_._1).mapValues(_.map(_._2)).foreach {
-        case (tag, indexes) =>
-          arr(tag & 0xFF) = indexes.toArray
-      }
-
-      arr
+      tagIndexes
     case None => Array.empty
   }
 
   def this(queryContext: QueryContext) = this(queryContext.exprsIndex, queryContext.query.table)
 
-  def set(tag: Byte, v: Option[Any]) = {
-    val indexes = tagExprsIndexes(tag & 0xFF)
-    if (indexes != null) {
-      indexes.foreach(idx => data(idx) = v)
+  def set(tag: Byte, v: Option[Any]): Unit = {
+    val index = tagExprsIndexes(tag & 0xFF)
+    if (index != -1) {
+      data(index) = v
     }
   }
 
-  def set(time: Option[Time]) = {
+  def set(time: Option[Time]): Unit = {
     if (timeIndex != -1) data(timeIndex) = time
   }
 
