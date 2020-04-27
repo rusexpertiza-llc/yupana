@@ -50,8 +50,10 @@ class HBaseScanRDD(
     rangeScanDimsIds: Map[Dimension, Seq[Long]]
 ) extends RDD[TSDOutputRow[Long]](sc, Nil) {
 
+  def asBytes(a: Array[Int]): Array[Byte] = a.map(_.toByte)
+
   override protected def getPartitions: Array[Partition] = {
-    /*println(s"getPartitions: $fromTime - $toTime")
+    println(s"getPartitions: $fromTime - $toTime")
     val regionLocator = connection().getRegionLocator(hTableName())
     val keys = regionLocator.getStartEndKeys
 
@@ -59,7 +61,29 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
-    val timeFilteredRegions = regions
+    val timeFilteredRegions = List(
+      (
+        asBytes(
+          Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 4, 78, 23, 3, -15, -28, -113, 0, 5, 91, 85, 0, 0, 0, 0, 0,
+            0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 10)
+        ),
+        asBytes(
+          Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -31, -83, 2, -80, 44, 78, 0, 6, -102, 93, 0, 0, 0, 0,
+            0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2)
+        )
+      ),
+      (
+        asBytes(
+          Array(0, 0, 1, 112, -68, -105, 88, 0, 0, 0, 0, 0, 0, 5, -111, -67, 11, -97, -112, -110, 0, 3, 32, 68, 0, 0, 0,
+            0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 20)
+        ),
+        asBytes(
+          Array(0, 0, 1, 112, -68, -105, 88, 0, 0, 0, 0, 0, 0, 7, 104, -79, 13, -34, -68, 119, 40, -117, -24, 41, 0, 0,
+            0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 12)
+        )
+      )
+    )
+    /*val timeFilteredRegions = regions
     .filter {
         case (startKey, endKey) =>
           baseTimeList.exists { time =>
@@ -68,7 +92,7 @@ class HBaseScanRDD(
 
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
-      }
+      }*/
 
     println(s"timeFilteredRegions:")
     timeFilteredRegions.foreach {
@@ -83,11 +107,11 @@ class HBaseScanRDD(
       }
 
     println("partitions:")
-    partitions.foreach(println)*/
+    partitions.foreach(println)
 
-    val partitions = Array(
+    /*val partitions = Array(
       HBaseScanPartition(0, Array.empty, Array.empty, fromTime, toTime, queryContext, rangeScanDimsIds)
-    )
+    )*/
 
     partitions.asInstanceOf[Array[Partition]]
   }
@@ -110,9 +134,9 @@ class HBaseScanRDD(
         filter,
         Seq.empty,
         fromTime,
-        toTime /*,
+        toTime,
         Some(partition.startKey),
-        Some(partition.endKey)*/
+        Some(partition.endKey)
       )
     }
 

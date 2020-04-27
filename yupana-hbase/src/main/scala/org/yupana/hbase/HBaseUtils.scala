@@ -120,35 +120,19 @@ object HBaseUtils extends StrictLogging {
 
     logger.trace(s"Create range scan for ${multiRowRangeFilter.map(_.getRowRanges.size())} ranges")
 
-    val rangeStartKey = multiRowRangeFilter.map(_.getRowRanges.asScala.head.getStartRow)
-    val rangeStopKey = multiRowRangeFilter.map(_.getRowRanges.asScala.toList.last.getStopRow)
-
-    val fromTimeKey = Bytes.toBytes(baseTime(fromTime, queryContext.table))
-    val toTimeKey = Bytes.toBytes(baseTime(toTime, queryContext.table) + 1)
-
-    val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
-      .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
+    val startKey = startRowKey.get
     println("---------------------------------------------")
-    println(s"rangeStartKey: ${rangeStartKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
-    println(s"fromTimeKey: ${fromTimeKey.mkString("[", ",", "]")}")
-    println(s"startRowKey: ${startRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
     println(s"startKey: ${startKey.mkString("[", ",", "]")}")
 
-    if (startKey sameElements startRowKey.getOrElse(Array.empty)) {
-      println("startRowKey chosen")
-    }
-
-    val inclusiveEndRowKey = endRowKey.filter(_.nonEmpty).map(a => a :+ 0.toByte)
-    val stopKey = List(rangeStopKey, Some(toTimeKey), inclusiveEndRowKey).flatten
-      .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
-    println(s"rangeStopKey: ${rangeStopKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
-    println(s"toTimeKey: ${toTimeKey.mkString("[", ",", "]")}")
-    println(s"inclusiveEndRowKey: ${inclusiveEndRowKey.getOrElse(Array.empty).mkString("[", ",", "]")}")
+    /*val inclusiveEndRowKey = endRowKey match {
+      case Some(end) =>
+        if (end.nonEmpty) {
+          Some(end :+ 0.toByte)
+        } else Some(end)
+      case None => None
+    }*/
+    val stopKey = endRowKey.get
     println(s"stopKey: ${stopKey.mkString("[", ",", "]")}")
-
-    if (stopKey sameElements inclusiveEndRowKey.getOrElse(Array.empty)) {
-      println("inclusiveEndRowKey chosen")
-    }
 
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>

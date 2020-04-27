@@ -126,59 +126,50 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
   }
 
   it should "check" in {
-    val ranges = List(
-      (
-        asBytes(Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -108, 21)),
-        asBytes(Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -108, 21))
-      ),
-      (
-        asBytes(Array(0, 0, 1, 112, -68, -105, 88, 0, 0, 0, 0, 0, 0, 5, -108, 21)),
-        asBytes(Array(0, 0, 1, 112, -68, -105, 88, 0, 0, 0, 0, 0, 0, 5, -108, 22))
-      )
-    )
-    /*val regions = getRegions
+    val regions = getRegions
 
-    regions.foreach { case (regionStart, regionEnd) =>
-      if (HBaseUtils.intersectWithRowRanges(regionStart, regionEnd, ranges)) {
-        println(s"${regionStart.mkString(",")}      -       ${regionEnd.mkString(",")}")
+    val keys = getResultKeys
+
+    keys.foreach { resultKey =>
+      val r = regions.exists {
+        case (regionStart, regionEnd) =>
+          val found = isInPeriod(resultKey, regionStart, regionEnd)
+          if (found) {
+            println(s"resultKey: ${resultKey.mkString("[", ",", "]")} found in region ${regionStart
+              .mkString("[", ",", "]")}  -  ${regionEnd.mkString("[", ",", "]")}")
+          }
+          found
       }
-    }*/
-
-    val regions = List(
-      (
-        asBytes(
-          Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 4, 78, 23, 3, -15, -28, -113, 0, 5, 91, 85, 0, 0, 0, 0, 0,
-            0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 10)
-        ),
-        asBytes(
-          Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 5, -31, -83, 2, -80, 44, 78, 0, 6, -102, 93, 0, 0, 0, 0,
-            0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2)
-        )
-      )
-    )
-
-    ranges.foreach {
-      case (rangeStart, rangeEnd) =>
-        regions.foreach {
-          case (regionStart, regionEnd) =>
-            println(
-              s"start: ${Bytes.compareTo(rangeStart, regionStart)}, end: ${Bytes.compareTo(rangeEnd, regionEnd)}, start-end: ${Bytes
-                .compareTo(rangeStart, regionEnd)}, end-start: ${Bytes.compareTo(rangeEnd, regionStart)}"
-            )
-        }
+      if (!r) {
+        println(resultKey.mkString("[", ",", "]"))
+      }
     }
   }
 
   def asBytes(a: Array[Int]): Array[Byte] = a.map(_.toByte)
 
   def getRegions: List[(Array[Byte], Array[Byte])] = {
-    val z = Source.fromFile("/home/dloshkarev/Downloads/start.txt").getLines() zip Source
-      .fromFile("/home/dloshkarev/Downloads/end.txt")
+    Source
+      .fromFile("/home/dloshkarev/Downloads/prod/regions_filtered.txt")
       .getLines()
-    z.map {
-      case (start, end) =>
-        (asArray(start), asArray(end))
-    }.toList
+      .map { s =>
+        s.split("    -     ") match {
+          case Array(start, end) =>
+            (asArray(start), asArray(end))
+          case Array(start) =>
+            (asArray(start), Array.empty[Byte])
+        }
+
+      }
+      .toList
+  }
+
+  def getResultKeys: List[Array[Byte]] = {
+    Source.fromFile("/home/dloshkarev/Downloads/prod/result_keys.txt").getLines().map(asArray).toList
+  }
+
+  def isInPeriod(key: Array[Byte], start: Array[Byte], end: Array[Byte]): Boolean = {
+    Bytes.compareTo(key, start) >= 0 && Bytes.compareTo(key, end) <= 0
   }
 
   def asArray(s: String): Array[Byte] = if (s.nonEmpty) s.split(",").map(_.toByte) else Array.empty[Byte]
