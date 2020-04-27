@@ -50,6 +50,7 @@ Apache Spark.
    - [yupana-schema](#structure-schema)
    - [yupana-external-links](#structure-links)
    - [yupana-examples](#structure-examples)
+   - [caches](#structure-caches)
 
 ## Общие сведения о Yupana <a href="#yupana"></a>
 
@@ -455,3 +456,13 @@ JDBC драйвер для Yupana.
 
 Пример использования Yupana.  Содержит типичный набор приложений для работы с Yupana: сервер обработки запросов, ETL для
 загрузки данных и приложения для запуска тяжелых вычислений на Spark.
+
+### Кэширование <a href="#structure-caches"></a>
+
+Для ускорения работы Yupana использует кэши.  Имеется несколько реализаций кэшей для Yupana:
+
+  - `yupana-ehache`
+  - `yupana-caffeine`
+  - `yupana-ignite`
+
+При использовании Yupana рекомендуется выбрать одну или несколько реализаций кэшей и сделать соответствующие настройки.
