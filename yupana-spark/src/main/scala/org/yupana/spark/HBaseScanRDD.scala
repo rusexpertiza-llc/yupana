@@ -61,7 +61,7 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
-    val timeFilteredRegions = List(
+    val timeFilteredRegions = Array(
       (
         asBytes(
           Array(0, 0, 1, 112, 34, 24, -112, 0, 0, 0, 0, 0, 0, 4, 78, 23, 3, -15, -28, -113, 0, 5, 91, 85, 0, 0, 0, 0, 0,
@@ -93,7 +93,6 @@ class HBaseScanRDD(
             (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
       }*/
-
     println(s"timeFilteredRegions:")
     timeFilteredRegions.foreach {
       case (regionStart, regionEnd) =>
