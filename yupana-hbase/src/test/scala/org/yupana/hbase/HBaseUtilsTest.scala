@@ -125,7 +125,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     HBaseUtils.intersectWithRowRanges(asBytes(Array(9)), asBytes(Array(9)), ranges) shouldBe false
   }
 
-  it should "check" in {
+  /*it should "check" in {
     val regions = getRegions
 
     val keys = getResultKeys
@@ -144,7 +144,7 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
         println(resultKey.mkString("[", ",", "]"))
       }
     }
-  }
+  }*/
 
   def asBytes(a: Array[Int]): Array[Byte] = a.map(_.toByte)
 
