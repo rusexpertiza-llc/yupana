@@ -492,7 +492,9 @@ object HBaseUtils extends StrictLogging {
         case dd: DictionaryDimension =>
           val id = dataPoint.dimensions
             .get(dim)
-            .map(v => dictionaryProvider.dictionary(dd).id(v.asInstanceOf[String]))
+            .asInstanceOf[Option[String]]
+            .filter(_.trim.nonEmpty)
+            .map(v => dictionaryProvider.dictionary(dd).id(v))
             .getOrElse(NULL_VALUE)
           Bytes.toBytes(id)
 
