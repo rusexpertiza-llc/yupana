@@ -16,7 +16,7 @@
 
 package org.yupana.spark
 
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, Result }
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
@@ -40,7 +40,7 @@ class HBaseScanRDD(
     fromTime: Long,
     toTime: Long,
     rangeScanDimsIds: Map[Dimension, Seq[_]]
-) extends RDD[TSDOutputRow](sc, Nil) {
+) extends RDD[HBaseResult](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
     val regionLocator = connection().getRegionLocator(hTableName())
@@ -69,7 +69,7 @@ class HBaseScanRDD(
     partitions.asInstanceOf[Array[Partition]]
   }
 
-  override def compute(split: Partition, context: TaskContext): Iterator[Result] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
 
     val scan = queryContext.metricsCollector.createScans.measure(1) {

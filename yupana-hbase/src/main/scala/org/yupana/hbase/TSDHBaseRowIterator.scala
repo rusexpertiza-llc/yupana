@@ -7,8 +7,10 @@ import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.Time
+import org.yupana.api.schema.{ RawDimension, Table }
 import org.yupana.api.types.DataType
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
 
 import scala.collection.AbstractIterator
 
@@ -19,6 +21,8 @@ class TSDHBaseRowIterator(
 ) extends AbstractIterator[InternalRow]
     with StrictLogging {
 
+  val dimensions = context.table.dimensionSeq.toArray
+
   val maxFamiliesCount = context.table.metrics.map(_.group).distinct.size
 
   val offsets = Array.ofDim[Int](maxFamiliesCount)
@@ -27,7 +31,7 @@ class TSDHBaseRowIterator(
   var cells = Array.empty[Cell]
   var familiesCount = 0
   var currentTime = Long.MaxValue
-  var currentBaseTime = 0L
+  var currentRowKey = Array.empty[Byte]
 
   override def hasNext: Boolean = {
     rows.hasNext || currentTime != Long.MaxValue
@@ -47,7 +51,7 @@ class TSDHBaseRowIterator(
 
   def nextHBaseRow(): Unit = {
     val result = rows.next()
-    currentBaseTime = Bytes.toLong(result.getRow)
+    currentRowKey = result.getRow
     cells = result.rawCells()
     familiesCount = fillFamiliesOffsets(cells)
 
@@ -65,7 +69,7 @@ class TSDHBaseRowIterator(
   }
 
   def nextDatapoint() = {
-    internalRowBuilder.set(Some(Time(currentBaseTime + currentTime)))
+    loadRow(currentRowKey)
     var nextMinTime = Long.MaxValue
     var i = 0
     while (i < familiesCount) {
@@ -83,6 +87,20 @@ class TSDHBaseRowIterator(
     nextMinTime
   }
 
+  private def loadRow(rowKey: Array[Byte]) = {
+    val baseTime = Bytes.toLong(rowKey)
+    internalRowBuilder.set(Some(Time(baseTime + currentTime)))
+    var i = 0
+    val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
+    dimensions.foreach { dim =>
+      val value = dim.storable.read(bb)
+      if (dim.isInstanceOf[RawDimension[_]]) {
+        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, Some(value))
+      }
+      i += 1
+    }
+  }
+
   private def loadCell(cell: Cell): Boolean = {
     val bb = ByteBuffer.wrap(cell.getValueArray, cell.getValueOffset, cell.getValueLength)
     var correct = true
@@ -90,10 +108,10 @@ class TSDHBaseRowIterator(
       val tag = bb.get()
       context.fieldForTag(tag) match {
         case Some(Left(metric)) =>
-          val v = metric.dataType.readable.read(bb)
+          val v = metric.dataType.storable.read(bb)
           internalRowBuilder.set(tag, Some(v))
         case Some(Right(_)) =>
-          val v = DataType.stringDt.readable.read(bb)
+          val v = DataType.stringDt.storable.read(bb)
           internalRowBuilder.set(tag, Some(v))
         case None =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}")

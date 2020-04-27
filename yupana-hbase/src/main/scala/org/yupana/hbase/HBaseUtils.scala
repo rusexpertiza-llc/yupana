@@ -259,7 +259,7 @@ object HBaseUtils extends StrictLogging {
     TableName.valueOf(namespace, tableNamePrefix + table.name)
   }
 
-  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey[Long] = {
+  def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey = {
     val baseTime = Bytes.toLong(bytes)
 
     val dimReprs = Array.ofDim[Option[Any]](table.dimensionSeq.size)
@@ -272,34 +272,6 @@ object HBaseUtils extends StrictLogging {
       i += 1
     }
     TSDRowKey(baseTime, dimReprs)
-  }
-
-  def createFuzzyFilter(baseTime: Option[Long], tagsFilter: Array[Option[Long]]): FuzzyRowFilter = {
-    val filterRowKey = TSDRowKey(
-      baseTime.getOrElse(0L),
-      tagsFilter
-    )
-    val filterKey = rowKeyToBytes(filterRowKey)
-
-    val baseTimeMask: Byte = if (baseTime.isDefined) 0 else 1
-
-    val buffer = ByteBuffer
-      .allocate(TAGS_POSITION_IN_ROW_KEY + tagsFilter.length * Bytes.SIZEOF_LONG)
-      .put(Array.fill[Byte](Bytes.SIZEOF_LONG)(baseTimeMask))
-
-    val filterMask = tagsFilter
-      .foldLeft(buffer) {
-        case (buf, v) =>
-          if (v.isDefined) {
-            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(0))
-          } else {
-            buf.put(Array.fill[Byte](Bytes.SIZEOF_LONG)(1))
-          }
-      }
-      .array()
-
-    val filter = new FuzzyRowFilter(List(new Pair(filterKey, filterMask)).asJava)
-    filter
   }
 
   private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {

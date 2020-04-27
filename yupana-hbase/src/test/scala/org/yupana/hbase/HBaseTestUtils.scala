@@ -9,28 +9,39 @@ import scala.collection.JavaConverters._
 
 object HBaseTestUtils {
 
-  def row(key: TSDRowKey[Long]) = new RowBuilder(key, Nil)
+  def row(baseTime: Long, dims: Any*) = {
+    val key = Bytes.toBytes(baseTime) ++ dims.foldLeft(Array.ofDim[Byte](0)) { (a, d) =>
+      val dimBytes = d match {
+        case x: Long  => Bytes.toBytes(x)
+        case x: Short => Bytes.toBytes(x)
+        case x: Byte  => Bytes.toBytes(x)
+        case x: Int   => Bytes.toBytes(x)
+      }
+      a ++ dimBytes
+    }
+    new RowBuilder(key, Nil)
+  }
 
-  class RowBuilder(key: TSDRowKey[Long], cells: List[(String, Long, Array[Byte])]) {
+  class RowBuilder(key: Array[Byte], cells: List[(String, Long, Array[Byte])]) {
 
     def cell(family: String, time: Long): RowBuilder = {
       new RowBuilder(key, (family, time, Array.empty[Byte]) :: cells)
     }
 
     def field(tag: Int, value: Long): RowBuilder = {
-      field(tag, DataType.intDt[Long].writable.write(value))
+      field(tag, DataType.intDt[Long].storable.write(value))
     }
 
     def field(tag: Int, value: String): RowBuilder = {
-      field(tag, DataType.stringDt.writable.write(value))
+      field(tag, DataType.stringDt.storable.write(value))
     }
 
     def field(tag: Int, value: Double): RowBuilder = {
-      field(tag, DataType.fracDt[Double].writable.write(value))
+      field(tag, DataType.fracDt[Double].storable.write(value))
     }
 
     def field(tag: Int, value: BigDecimal): RowBuilder = {
-      field(tag, DataType.fracDt[BigDecimal].writable.write(value))
+      field(tag, DataType.fracDt[BigDecimal].storable.write(value))
     }
 
     def field(tag: Int, value: Array[Byte]): RowBuilder = {
@@ -43,7 +54,7 @@ object HBaseTestUtils {
       val cs: List[Cell] = cells.reverse.map {
         case (family, time, value) =>
           TestCell(
-            HBaseUtils.rowKeyToBytes(key),
+            key,
             Bytes.toBytes(family),
             Bytes.toBytes(time),
             value

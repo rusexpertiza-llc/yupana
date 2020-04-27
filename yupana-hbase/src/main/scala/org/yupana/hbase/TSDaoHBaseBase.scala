@@ -16,9 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-import java.util
-
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -37,7 +34,7 @@ import scala.language.higherKinds
 trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
   type IdType = Long
   type TimeFilter = Long => Boolean
-  type RowFilter = TSDOutputRow => Boolean
+  type RowFilter = TSDRowKey => Boolean
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 

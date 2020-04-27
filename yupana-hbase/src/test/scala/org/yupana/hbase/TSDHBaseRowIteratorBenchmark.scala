@@ -5,8 +5,7 @@ import org.scalatest.tagobjects.Slow
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, time }
-import org.yupana.api.schema.Table
+import org.yupana.api.query.syntax.All._
 import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
@@ -22,14 +21,10 @@ class TSDHBaseRowIteratorBenchmark extends FlatSpec with Matchers {
       (1 to N).map { i =>
         val dimId = i
         HBaseTestUtils
-          .row(TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))))
+          .row(time - (time % testTable.rowTimeSpan), dimId.toLong, dimId.toShort)
           .cell("d1", time % testTable.rowTimeSpan)
           .field(TestTableFields.TEST_FIELD.tag, 1d)
-          //          .field(TestTableFields.TEST_FIELD2.tag, 3d)
           .field(TestTableFields.TEST_BIGDECIMAL_FIELD.tag, BigDecimal(10.23))
-          //          .field(TestTableFields.TEST_STRING_FIELD.tag, "test1")
-          .field(Table.DIM_TAG_OFFSET, "test1")
-          //          .field((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
           .hbaseRow
       }
     }
@@ -40,8 +35,8 @@ class TSDHBaseRowIteratorBenchmark extends FlatSpec with Matchers {
       metric(TestTableFields.TEST_FIELD2) as "testField",
       metric(TestTableFields.TEST_BIGDECIMAL_FIELD) as "testFieldB",
       metric(TestTableFields.TEST_STRING_FIELD) as "testFieldB",
-      dimension(TestDims.TAG_A) as "TAG_A",
-      dimension(TestDims.TAG_B) as "TAG_B"
+      dimension(TestDims.DIM_A) as "TAG_A",
+      dimension(TestDims.DIM_B) as "TAG_B"
     )
 
     val query = Query(
@@ -63,7 +58,7 @@ class TSDHBaseRowIteratorBenchmark extends FlatSpec with Matchers {
       )
     val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)
 
-    (1 to 100).foreach { i =>
+    (1 to 1000).foreach { i =>
       val start = System.currentTimeMillis()
       val it = new TSDHBaseRowIterator(internalQueryContext, rows.iterator, new InternalRowBuilder(queryContext))
       val c = it.foldLeft(i) { (a, r) =>

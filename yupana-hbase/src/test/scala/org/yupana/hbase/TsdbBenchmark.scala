@@ -145,20 +145,20 @@ class TsdbBenchmark extends FlatSpec with Matchers {
         (1 to N).map { i =>
           val dimId = i
           HBaseTestUtils
-            .row(TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))))
+            .row(time - (time % testTable.rowTimeSpan), dimId.toLong, dimId.toShort)
             .cell("d1", time % testTable.rowTimeSpan)
-            .field(1, 1d)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(TestTableFields.TEST_BIGDECIMAL_FIELD.tag, BigDecimal(1d))
             .field(Table.DIM_TAG_OFFSET, "test1")
-            .field((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
             .hbaseRow
         }
       }
 
       override def executeScans(
           queryContext: InternalQueryContext,
-          from: IdType,
-          to: IdType,
-          rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
+          from: Long,
+          to: Long,
+          rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
       ): Iterator[HResult] = {
         rows.iterator
       }
@@ -199,10 +199,6 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //        in.map(_ => row).iterator
 //      }
 
-      def tagged[T](tag: Byte, value: T)(implicit writable: Writable[T]): Array[Byte] = {
-        tag +: writable.write(value)
-      }
-
       override def put(dataPoints: Seq[DataPoint]): Unit = ???
 
       override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = ???
@@ -230,7 +226,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
         function(UnaryOperation.truncDay, time) as "time",
         dimension(TestDims.DIM_A) as "tag_a",
         dimension(TestDims.DIM_B) as "tag_b",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField"
+        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        aggregate(Aggregation.sum[BigDecimal], TestTableFields.TEST_BIGDECIMAL_FIELD) as "sum_testField"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time))
@@ -246,14 +243,13 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
     val tsdb = new BenchTSDB
 
-    (1 to 150) foreach { p =>
+    (1 to 1500) foreach { p =>
       val s = System.nanoTime()
       val result = tsdb.query(query).iterator
 
       val r1 = result.next()
       r1.fieldValueByName[Double]("sum_testField").get shouldBe N.toDouble
       r1.fieldValueByName[String]("tag_a").get shouldBe "test1"
-      r1.fieldValueByName[String]("tag_b").get shouldBe "test2"
 
       println(s"$p. Time: " + (System.nanoTime() - s) / (1000 * 1000))
 

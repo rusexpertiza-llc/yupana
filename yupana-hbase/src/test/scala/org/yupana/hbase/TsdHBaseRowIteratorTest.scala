@@ -19,8 +19,8 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
     metric(TestTableFields.TEST_FIELD2) as "testField2",
     metric(TestTableFields.TEST_STRING_FIELD) as "testStringField",
     metric(TestTableFields.TEST_LONG_FIELD) as "testlongField",
-    dimension(TestDims.TAG_A) as "TAG_A",
-    dimension(TestDims.TAG_B) as "TAG_B"
+    dimension(TestDims.DIM_A) as "DIM_A",
+    dimension(TestDims.DIM_B) as "DIM_B"
   )
 
   val query = Query(
@@ -46,7 +46,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(TSDRowKey(1000, Array(Some(10), Some(10))))
+        .row(1000, 10L, 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -69,7 +69,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(TSDRowKey(1000, Array(Some(10), Some(10))))
+        .row(1000, 10L, 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -93,7 +93,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(TSDRowKey(1000, Array(Some(10), Some(10))))
+        .row(1000, 10L, 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -128,7 +128,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(TSDRowKey(1000, Array(Some(10), Some(10))))
+        .row(1000, 10L, 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -165,7 +165,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(TSDRowKey(1000, Array(Some(10), Some(10))))
+        .row(1000, 10L, 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -180,7 +180,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
         .field(TestTableFields.TEST_LONG_FIELD.tag, 54L)
         .hbaseRow,
       HBaseTestUtils
-        .row(TSDRowKey(1000, Array(Some(20), Some(30))))
+        .row(1000, 10L, 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 142d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "2e")
