@@ -32,14 +32,4 @@ object CollectionUtils {
       s"$firstN$sep... and ${length - limit} more$end"
     }
   }
-
-  def collectErrors[T](ls: Seq[Either[String, T]]): Either[String, Seq[T]] = {
-    val errors = ls.collect { case Left(e) => e }
-
-    if (errors.isEmpty) {
-      Right(ls.collect { case Right(d) => d })
-    } else {
-      Left(errors.mkString(". "))
-    }
-  }
 }

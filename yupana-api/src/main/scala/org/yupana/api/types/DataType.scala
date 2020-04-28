@@ -79,9 +79,6 @@ object DataType {
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
 
-  implicit def byteDt: DataType.Aux[Byte] =
-    DataType[Byte]((r: DataType.Aux[Byte]) => TypeOperations.byteOperations(r))
-
   implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))
 
