@@ -43,7 +43,16 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     override val linkName: String = "Test"
     override val dimension: DictionaryDimension = xDim
     override val fieldsNames: Set[String] = Set(field1, field2, field3)
+
   }
+
+  private val table = new org.yupana.api.schema.Table(
+    "test",
+    1000,
+    Seq(xDim, yDim),
+    Seq.empty,
+    Seq(TestLink)
+  )
 
   "ExternalLinkUtils" should "support == condition" in {
     condition(
@@ -116,7 +125,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       link(TestLink, TestLink.field2) -> 3
     )
 
-    val ib = new InternalRowBuilder(exprIndex)
+    val ib = new InternalRowBuilder(exprIndex, Some(table))
 
     val row1 = ib
       .set(time, Some(Time(10L)))

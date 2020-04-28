@@ -25,6 +25,7 @@ import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 
 import scala.collection.JavaConverters._
 
@@ -44,7 +45,7 @@ class TSDaoHBase(
       from: IdType,
       to: IdType,
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
-  ): Iterator[TSDOutputRow] = {
+  ): Iterator[HResult] = {
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
