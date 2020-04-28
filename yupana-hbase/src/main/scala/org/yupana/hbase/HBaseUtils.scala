@@ -95,51 +95,18 @@ object HBaseUtils extends StrictLogging {
     put
   }
 
-  def intersectWithRowRanges(
-      start: Array[Byte],
-      end: Array[Byte],
-      rowRanges: Seq[(Array[Byte], Array[Byte])]
-  ): Boolean = {
-    rowRanges.exists {
-      case (rangeStart, rangeStop) =>
-        (Bytes.compareTo(rangeStart, start) >= 0 && Bytes.compareTo(rangeStart, end) <= 0) ||
-          (Bytes.compareTo(rangeStop, start) >= 0 && Bytes.compareTo(rangeStop, end) <= 0) ||
-          (Bytes.compareTo(rangeStart, start) <= 0 && Bytes.compareTo(rangeStop, end) >= 0)
-    }
-  }
-
   def createScan(
       queryContext: InternalQueryContext,
       multiRowRangeFilter: Option[MultiRowRangeFilter],
       hbaseFuzzyRowFilter: Seq[FuzzyRowFilter],
       fromTime: Long,
-      toTime: Long,
-      startRowKey: Option[Array[Byte]] = None,
-      endRowKey: Option[Array[Byte]] = None
+      toTime: Long
   ): Scan = {
 
     logger.trace(s"Create range scan for ${multiRowRangeFilter.map(_.getRowRanges.size())} ranges")
 
-    val startKey = startRowKey.get
-    println("---------------------------------------------")
-    println(s"startKey: ${startKey.mkString("[", ",", "]")}")
-
-    /*val inclusiveEndRowKey = endRowKey match {
-      case Some(end) =>
-        if (end.nonEmpty) {
-          Some(end :+ 0.toByte)
-        } else Some(end)
-      case None => None
-    }*/
-    val stopKey = endRowKey.get
-    println(s"stopKey: ${stopKey.mkString("[", ",", "]")}")
-
-    println("rangeFilter:")
     val filter = multiRowRangeFilter match {
       case Some(rangeFilter) =>
-        rangeFilter.getRowRanges.asScala.foreach { r =>
-          println(s"${r.getStartRow.mkString("[", ",", "]")}    -     ${r.getStopRow.mkString("[", ",", "]")}")
-        }
         if (hbaseFuzzyRowFilter.nonEmpty) {
           val orFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE, hbaseFuzzyRowFilter: _*)
           Some(new FilterList(FilterList.Operator.MUST_PASS_ALL, rangeFilter, orFilter))
@@ -154,14 +121,8 @@ object HBaseUtils extends StrictLogging {
         }
     }
 
+    // Do not use new Scan(startKey, stopKey), it's broken!
     val scan = new Scan()
-    if (startKey.nonEmpty) {
-      scan.setStartRow(startKey)
-    }
-    if (stopKey.nonEmpty) {
-      scan.setStopRow(stopKey :+ 0.toByte)
-    }
-
     filter.foreach(scan.setFilter)
 
     familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
@@ -200,7 +161,6 @@ object HBaseUtils extends StrictLogging {
         val batch = batchIterator.next()
         context.metricsCollector.parseScanResult.measure(batch.size) {
           batch.map { hbaseResult =>
-            println(s"result key: " + hbaseResult.getRow.mkString("[", ",", "]"))
             getTsdRowFromResult(context.table, hbaseResult)
           }
         }
@@ -210,13 +170,28 @@ object HBaseUtils extends StrictLogging {
     resultIterator.flatten
   }
 
-  def multiRowRangeFilter(
-      table: Table,
-      from: Long,
-      to: Long,
-      dimIds: Map[Dimension, Seq[Long]]
-  ): Option[MultiRowRangeFilter] = {
+  def isIntersectWithInterval(
+      start: Array[Byte],
+      end: Array[Byte],
+      interval: (Array[Byte], Array[Byte])
+  ): Boolean = {
+    val (intervalStart, intervalStop) = interval
+    (Bytes.compareTo(intervalStart, start) >= 0 && Bytes.compareTo(intervalStart, end) <= 0) ||
+    (Bytes.compareTo(intervalStop, start) >= 0 && Bytes.compareTo(intervalStop, end) <= 0) ||
+    (Bytes.compareTo(intervalStart, start) <= 0 && Bytes.compareTo(intervalStop, end) >= 0)
+  }
 
+  def getIntersectedIntervals(
+      start: Array[Byte],
+      end: Array[Byte],
+      intervals: Seq[(Array[Byte], Array[Byte])]
+  ): Seq[(Array[Byte], Array[Byte])] = {
+    intervals.filter { interval =>
+      isIntersectWithInterval(start, end, interval)
+    }
+  }
+
+  def getRanges(table: Table, from: Long, to: Long, dimIds: Map[Dimension, Seq[Long]]): Seq[RowRange] = {
     val baseTimeLs = baseTimeList(from, to, table)
 
     val dimIdsList = dimIds.toList.map { case (dim, ids) => dim -> ids.toList }
@@ -229,7 +204,7 @@ object HBaseUtils extends StrictLogging {
       CollectionUtils.crossJoin(dimIdsList.map(_._2))
     }
 
-    val ranges = for {
+    for {
       time <- baseTimeLs
       cids <- crossJoinedDimIds if cids.nonEmpty
     } yield {
@@ -239,16 +214,28 @@ object HBaseUtils extends StrictLogging {
         filter(idx) = id
         i + 1
       }
-      println(s"multiRowRangeFilter: $time")
       rowRange(time, filter)
     }
+  }
 
+  def multiRowRangeFilter(
+      ranges: Seq[RowRange]
+  ): Option[MultiRowRangeFilter] = {
     if (ranges.nonEmpty) {
       val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
       Some(filter)
     } else {
       None
     }
+  }
+
+  def multiRowRangeFilter(
+      table: Table,
+      from: Long,
+      to: Long,
+      dimIds: Map[Dimension, Seq[Long]]
+  ): Option[MultiRowRangeFilter] = {
+    multiRowRangeFilter(getRanges(table, from, to, dimIds))
   }
 
   private def rowRange(baseTime: Long, dimIds: Array[Long]) = {

@@ -12,8 +12,6 @@ import org.yupana.api.schema.{ Dimension, Metric, MetricValue, Table }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
-import scala.io.Source
-
 class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
 
   "HBaseUtils" should "serialize and parse row TSROW keys" in {
@@ -78,13 +76,6 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
     CacheFactory.flushCaches()
   }
 
-  it should "test" in {
-    val i1 = -1
-    val i2 = 1
-
-    Bytes.compareTo(Bytes.toBytes(i1), Bytes.toBytes(i2)) shouldEqual java.lang.Long.compareUnsigned(i1, i2)
-  }
-
   val TAG_A = Dimension("TAG_A")
   val TAG_B = Dimension("TAG_B")
   val TAG_C = Dimension("TAG_C")
@@ -107,71 +98,59 @@ class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with Option
   )
 
   it should "check intersections with row ranges" in {
-    val ranges = List(
-      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22))),
-      (asBytes(Array(50, 51, 52)), asBytes(Array(60, 61, 62)))
-    )
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(10, 11, 12)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(15, 16, 17)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(25, 26, 27)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(10, 11, 12)), asBytes(Array(15, 16, 17)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(15, 16, 17)), asBytes(Array(18, 19, 20)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(15, 16, 17)), asBytes(Array(38, 39, 40)), ranges) shouldBe true
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(35, 36, 37)), asBytes(Array(58, 59, 60)), ranges) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(10, 11, 12)),
+      asBytes(Array(20, 21, 22)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(1, 2, 3)),
+      asBytes(Array(10, 11, 12)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(1, 2, 3)),
+      asBytes(Array(15, 16, 17)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(1, 2, 3)),
+      asBytes(Array(25, 26, 27)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(10, 11, 12)),
+      asBytes(Array(15, 16, 17)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(15, 16, 17)),
+      asBytes(Array(18, 19, 20)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(15, 16, 17)),
+      asBytes(Array(38, 39, 40)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe true
 
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(1, 2, 3)), asBytes(Array(6, 7, 8)), ranges) shouldBe false
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(71, 72, 73)), asBytes(Array(76, 77, 78)), ranges) shouldBe false
-    HBaseUtils.intersectWithRowRanges(asBytes(Array(9)), asBytes(Array(9)), ranges) shouldBe false
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(1, 2, 3)),
+      asBytes(Array(6, 7, 8)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe false
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(71, 72, 73)),
+      asBytes(Array(76, 77, 78)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe false
+    HBaseUtils.isIntersectWithInterval(
+      asBytes(Array(9)),
+      asBytes(Array(9)),
+      (asBytes(Array(10, 11, 12)), asBytes(Array(20, 21, 22)))
+    ) shouldBe false
   }
-
-  /*it should "check" in {
-    val regions = getRegions
-
-    val keys = getResultKeys
-
-    keys.foreach { resultKey =>
-      val r = regions.exists {
-        case (regionStart, regionEnd) =>
-          val found = isInPeriod(resultKey, regionStart, regionEnd)
-          if (found) {
-            println(s"resultKey: ${resultKey.mkString("[", ",", "]")} found in region ${regionStart
-              .mkString("[", ",", "]")}  -  ${regionEnd.mkString("[", ",", "]")}")
-          }
-          found
-      }
-      if (!r) {
-        println(resultKey.mkString("[", ",", "]"))
-      }
-    }
-  }*/
 
   def asBytes(a: Array[Int]): Array[Byte] = a.map(_.toByte)
-
-  def getRegions: List[(Array[Byte], Array[Byte])] = {
-    Source
-      .fromFile("/home/dloshkarev/Downloads/prod/regions_filtered.txt")
-      .getLines()
-      .map { s =>
-        s.split("    -     ") match {
-          case Array(start, end) =>
-            (asArray(start), asArray(end))
-          case Array(start) =>
-            (asArray(start), Array.empty[Byte])
-        }
-
-      }
-      .toList
-  }
-
-  def getResultKeys: List[Array[Byte]] = {
-    Source.fromFile("/home/dloshkarev/Downloads/prod/result_keys.txt").getLines().map(asArray).toList
-  }
-
-  def isInPeriod(key: Array[Byte], start: Array[Byte], end: Array[Byte]): Boolean = {
-    Bytes.compareTo(key, start) >= 0 && Bytes.compareTo(key, end) <= 0
-  }
-
-  def asArray(s: String): Array[Byte] = if (s.nonEmpty) s.split(",").map(_.toByte) else Array.empty[Byte]
 
 }
