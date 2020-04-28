@@ -129,7 +129,7 @@ class TSDHBaseRowIterator(
         case Some(Right(_: DictionaryDimension)) =>
           val v = DataType.stringDt.storable.read(bb)
           internalRowBuilder.set(tag, Some(v))
-        case None =>
+        case _ =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}")
           correct = false
       }
