@@ -1,5 +1,6 @@
 import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
+import sbt.Keys.excludeDependencies
 
 lazy val yupana = (project in file("."))
   .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
@@ -199,6 +200,9 @@ lazy val examples = (project in file("yupana-examples"))
       "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
       "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc % Runtime,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
+    ),
+    excludeDependencies ++= Seq(
+      "asm" % "asm"
     ),
     assembly / assemblyMergeStrategy := {
       case PathList("org", "apache", "jasper", _*)  => MergeStrategy.last

@@ -44,7 +44,8 @@ case class Item(
     calcTypeSign: Option[Int] = None,
     calcSubjSing: Option[Int] = None,
     nomenclatureType: Option[String] = None,
-    gtin: Option[String] = None
+    gtin: Option[String] = None,
+    nomenclatureCode: Option[Array[Byte]] = None
 )
 
 object Tax {

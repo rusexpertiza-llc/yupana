@@ -51,7 +51,8 @@ trait ReceiptTableMetrics {
   val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
   val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
   val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
-  val operator = Metric[String]("operator", 30, rarelyQueried)
+  val documentNumberField = Metric[Long]("documentNumber", 30, rarelyQueried)
+  val operator = Metric[String]("operator", 31, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -154,7 +155,11 @@ trait ReceiptTableMetrics {
         aggregate(Aggregation.sum[Long], metric(itemsCountField)) as itemsCountField.name,
         itemsCountField
       ),
-      QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField)
+      QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField),
+      QueryFieldToMetric(
+        aggregate(Aggregation.count[Long], metric(documentNumberField)) as documentNumberField.name,
+        receiptCountField
+      )
     )
 
     val shiftRollupFields = Seq(
