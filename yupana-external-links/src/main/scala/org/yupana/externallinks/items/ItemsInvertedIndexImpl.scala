@@ -62,7 +62,10 @@ class ItemsInvertedIndexImpl(
 
   override def put(dataPoints: Seq[DataPoint]): Unit = {
     if (putEnabled) {
-      val items = dataPoints.flatMap(dp => dp.dimensionValue(Dimensions.ITEM)).toSet
+      val items = dataPoints
+        .flatMap(dp => dp.dimensionValue(Dimensions.ITEM))
+        .toSet
+        .filter(_.trim.nonEmpty)
       putItemNames(items)
     }
   }
