@@ -35,7 +35,6 @@ import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
-import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 
 object HBaseUtils extends StrictLogging {
 
@@ -151,7 +150,7 @@ object HBaseUtils extends StrictLogging {
       scan: Scan,
       context: InternalQueryContext,
       batchSize: Int
-  ): Iterator[TSDOutputRow] = {
+  ): Iterator[Result] = {
 
     val htable = connection.getTable(tableName(namespace, context.table))
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
@@ -160,7 +159,7 @@ object HBaseUtils extends StrictLogging {
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
-    val resultIterator = new AbstractIterator[List[TSDOutputRow]] {
+    val resultIterator = new AbstractIterator[List[Result]] {
       override def hasNext: Boolean = {
         context.metricsCollector.scan.measure(1) {
           val hasNext = batchIterator.hasNext
@@ -173,13 +172,8 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): List[TSDOutputRow] = {
-        val batch = batchIterator.next()
-        context.metricsCollector.parseScanResult.measure(batch.size) {
-          batch.map { hbaseResult =>
-            getTsdRowFromResult(context.table, hbaseResult)
-          }
-        }
+      override def next(): List[Result] = {
+        batchIterator.next()
       }
     }
 
@@ -265,14 +259,6 @@ object HBaseUtils extends StrictLogging {
     TableName.valueOf(namespace, tableNamePrefix + table.name)
   }
 
-  def getTsdRowFromResult(table: Table, result: Result): TSDOutputRow = {
-    val row = result.getRow
-    TSDOutputRow(
-      parseRowKey(row, table),
-      getValuesFromResult(result)
-    )
-  }
-
   def parseRowKey(bytes: Array[Byte], table: Table): TSDRowKey = {
     val baseTime = Bytes.toLong(bytes)
 
@@ -286,94 +272,6 @@ object HBaseUtils extends StrictLogging {
       i += 1
     }
     TSDRowKey(baseTime, dimReprs)
-  }
-
-  private def getTimeOffset(cell: Cell): Long = {
-    Bytes.toLong(cell.getQualifierArray, cell.getQualifierOffset, cell.getQualifierLength)
-  }
-
-  def getValuesFromResult(res: Result): Array[(Long, Array[Byte])] = {
-
-    val cells = res.rawCells()
-    val totalCells = cells.length
-
-    // place iterators at the beginning of each family
-    val iterators = findFamiliesOffsets(cells)
-    val familiesCount = iterators.length
-    // init times array with the time offset from the first cell of each family
-    val times = iterators.map(i => getTimeOffset(cells(i)))
-    val buffer = ListBuffer.empty[Cell]
-    val values = ArrayBuffer.empty[(Long, Array[Byte])]
-
-    var processed = 0
-    while (processed < totalCells) {
-
-      // find the minimal time among current cells
-      val minTime = times.min
-      var j = 0
-      // iterate through families
-      while (j < familiesCount) {
-        val familyTime = times(j)
-        // group cells from different families having the same time in the buffer
-        if (familyTime == minTime) {
-          val familyIterator = iterators(j)
-          if (familyIterator < totalCells) {
-            buffer += cells(familyIterator)
-            // increment family iterator and also update currently processed time for this family
-            val familyIteratorIncremented = familyIterator + 1
-            iterators(j) = familyIteratorIncremented
-            if (familyIteratorIncremented < cells.length) {
-              times(j) = getTimeOffset(cells(familyIteratorIncremented))
-            }
-            processed += 1
-          }
-        }
-        j += 1
-      }
-
-      // place time and concatenated array containing values from all families to the result
-      values += (minTime -> cloneCellsValues(buffer))
-      buffer.clear()
-    }
-    values.toArray
-  }
-
-  private def findFamiliesOffsets(cells: Array[Cell]): Array[Int] = {
-    var i = 1
-    val offsets = ArrayBuffer(0)
-    var prevFamilyCell = cells(0)
-    while (i < cells.length) {
-      val cell = cells(i)
-      if (!CellUtil.matchingFamily(prevFamilyCell, cell)) {
-        prevFamilyCell = cell
-        offsets += i
-      }
-      i += 1
-    }
-    offsets.toArray
-  }
-
-  private def cloneCellsValues(cells: ListBuffer[Cell]): Array[Byte] = {
-    if (cells.size == 1) CellUtil.cloneValue(cells.head)
-    else {
-      var size = 0
-      var i = 0
-      while (i < cells.size) {
-        val cell = cells(i)
-        size += cell.getValueLength
-        i += 1
-      }
-      val output = Array.ofDim[Byte](size)
-      i = 0
-      var offset = 0
-      while (i < cells.size) {
-        val cell = cells(i)
-        CellUtil.copyValueTo(cell, output, offset)
-        i += 1
-        offset += cell.getValueLength
-      }
-      output
-    }
   }
 
   private def checkSchemaDefinition(connection: Connection, namespace: String, schema: Schema): SchemaCheckResult = {

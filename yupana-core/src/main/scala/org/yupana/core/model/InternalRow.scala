@@ -16,7 +16,9 @@
 
 package org.yupana.core.model
 
-import org.yupana.api.query.Expression
+import org.yupana.api.Time
+import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr, TimeExpr }
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.QueryContext
 
 class InternalRow(val data: Array[Option[Any]]) extends Serializable {
@@ -55,10 +57,46 @@ class InternalRow(val data: Array[Option[Any]]) extends Serializable {
   }
 }
 
-class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int]) extends Serializable {
+class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], table: Option[Table])
+    extends Serializable {
   private val data = Array.fill(exprIndex.size)(Option.empty[Any])
 
-  def this(queryContext: QueryContext) = this(queryContext.exprsIndex)
+  val timeIndex = exprIndex.getOrElse(TimeExpr, -1)
+
+  private val tagExprsIndexes: Array[Int] = table match {
+    case Some(table) =>
+      val tagIndexes = Array.fill[Int](Table.MAX_TAGS)(-1)
+
+      exprIndex.toSeq.foreach {
+        case (expr, index) =>
+          val tag = expr match {
+            case MetricExpr(metric) =>
+              Some(metric.tag)
+            case DimensionExpr(dimension: Dimension) =>
+              Some(table.dimensionTag(dimension))
+            case _ => None
+          }
+          tag.foreach { t =>
+            tagIndexes(t & 0xFF) = index
+          }
+      }
+
+      tagIndexes
+    case None => Array.empty
+  }
+
+  def this(queryContext: QueryContext) = this(queryContext.exprsIndex, queryContext.query.table)
+
+  def set(tag: Byte, v: Option[Any]): Unit = {
+    val index = tagExprsIndexes(tag & 0xFF)
+    if (index != -1) {
+      data(index) = v
+    }
+  }
+
+  def set(time: Option[Time]): Unit = {
+    if (timeIndex != -1) data(timeIndex) = time
+  }
 
   def set(expr: Expression, v: Option[Any]): InternalRowBuilder = {
     data(exprIndex(expr)) = v

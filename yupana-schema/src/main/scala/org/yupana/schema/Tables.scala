@@ -42,7 +42,7 @@ object Tables {
   import ReceiptTableMetrics._
 
   val receiptDimensionSeq: Seq[Dimension] =
-    Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.SHIFT, Dimensions.OPERATOR)
+    Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.SHIFT)
   val receiptExternalLinks: Seq[ExternalLink] = Seq()
 
   val receiptTable = new Table(
@@ -55,7 +55,8 @@ object Tables {
       correctionDocumentDateTime,
       taxationType,
       acceptedAt,
-      documentNumberField
+      documentNumberField,
+      operator
     ),
     externalLinks = receiptExternalLinks
   )

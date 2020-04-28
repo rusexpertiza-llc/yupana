@@ -17,6 +17,7 @@
 package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.schema.Dimension
@@ -41,14 +42,14 @@ class TsDaoHBaseSpark(
       from: Long,
       to: Long,
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
-  ): RDD[TSDOutputRow] = {
+  ): RDD[HResult] = {
     if (rangeScanDims.nonEmpty) {
       val rdds = rangeScanDims.map { dimIds =>
         new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds)
       }
       sparkContext.union(rdds.toSeq)
     } else {
-      sparkContext.emptyRDD[TSDOutputRow]
+      sparkContext.emptyRDD[HResult]
     }
   }
 }
