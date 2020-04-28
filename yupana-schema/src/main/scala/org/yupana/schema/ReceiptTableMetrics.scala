@@ -51,6 +51,7 @@ trait ReceiptTableMetrics {
   val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
   val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
   val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
+  val operator = Metric[String]("operator", 30, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -157,8 +158,7 @@ trait ReceiptTableMetrics {
     )
 
     val shiftRollupFields = Seq(
-      QueryFieldToDimension(dimension(Dimensions.SHIFT) as Dimensions.SHIFT.name, Dimensions.SHIFT),
-      QueryFieldToDimension(dimension(Dimensions.OPERATOR) as Dimensions.OPERATOR.name, Dimensions.OPERATOR)
+      QueryFieldToDimension(dimension(Dimensions.SHIFT) as Dimensions.SHIFT.name, Dimensions.SHIFT)
     )
 
     val additionalRollupFieldsFromDetails = Seq(
