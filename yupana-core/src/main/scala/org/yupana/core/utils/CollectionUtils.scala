@@ -18,6 +18,8 @@ package org.yupana.core.utils
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.generic.CanBuildFrom
+import scala.language.higherKinds
 
 object CollectionUtils {
 
@@ -60,5 +62,26 @@ object CollectionUtils {
 
   def intersectAll[T](sets: Seq[Set[T]]): Set[T] = {
     if (sets.nonEmpty) sets.reduce(_ intersect _) else Set.empty
+  }
+
+  def collectErrors[T](ls: Seq[Either[String, T]]): Either[String, Seq[T]] = {
+    val errors = ls.collect { case Left(e) => e }
+
+    if (errors.isEmpty) {
+      Right(ls.collect { case Right(d) => d })
+    } else {
+      Left(errors.mkString(". "))
+    }
+  }
+
+  def mergeMaps[T, U, C[U] <: Traversable[U]](m1: Map[T, C[U]], m2: Map[T, C[U]])(
+      implicit cb: CanBuildFrom[C[U], U, C[U]]
+  ): Map[T, C[U]] = {
+    (m1.keySet ++ m2.keySet).map { k =>
+      val b = cb()
+      m1.get(k).foreach(x => b ++= x)
+      m2.get(k).foreach(x => b ++= x)
+      k -> b.result()
+    }.toMap
   }
 }

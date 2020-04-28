@@ -16,9 +16,9 @@
 
 package org.yupana.core.dao
 
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.Dictionary
 
 trait DictionaryProvider {
-  def dictionary(dimension: Dimension): Dictionary
+  def dictionary(dimension: DictionaryDimension): Dictionary
 }

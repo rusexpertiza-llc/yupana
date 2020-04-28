@@ -5,7 +5,7 @@ import java.io.IOException
 import com.google.protobuf.ByteString
 import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
 import org.yupana.api.Time
-import org.yupana.api.types.Writable
+import org.yupana.api.types.Storable
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.proto._
@@ -94,18 +94,18 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
       Response.Resp.Heartbeat("1")
     )
 
-    val tw = implicitly[Writable[Time]]
-    val sw = implicitly[Writable[String]]
+    val ts = implicitly[Storable[Time]]
+    val ss = implicitly[Storable[String]]
 
     val data1 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(tw.write(Time(13333L))), ByteString.copyFrom(sw.write("икра баклажанная"))))
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
       )
     )
 
     val data2 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(tw.write(Time(21112L))), ByteString.copyFrom(sw.write("икра баклажанная"))))
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
       )
     )
 
@@ -181,12 +181,12 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
       Response.Resp.Heartbeat("1")
     )
 
-    val tw = implicitly[Writable[Time]]
-    val sw = implicitly[Writable[String]]
+    val ts = implicitly[Storable[Time]]
+    val ss = implicitly[Storable[String]]
 
     val data = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(tw.write(Time(13333L))), ByteString.copyFrom(sw.write("икра баклажанная"))))
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
       )
     )
 

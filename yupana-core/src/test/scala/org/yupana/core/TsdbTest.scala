@@ -8,7 +8,7 @@ import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.MetricValue
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.types._
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
@@ -51,14 +51,13 @@ class TsdbTest
     val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig(putEnabled = true))
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
-    val tags = Map(TestDims.TAG_A -> "test1", TestDims.TAG_B -> "test2")
-    val dp1 = DataPoint(TestSchema.testTable, time, tags, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
-    val dp2 = DataPoint(TestSchema.testTable, time + 1, tags, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
+    val dims = Map[Dimension, Any](TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
+    val dp1 = DataPoint(TestSchema.testTable, time, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
+    val dp2 = DataPoint(TestSchema.testTable, time + 1, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
     val dp3 =
-      DataPoint(TestSchema.testTable2, time + 1, tags, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
+      DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
-    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.TAG_A, Set("test1")).returning(Map("test1" -> 1L))
-    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.TAG_B, Set("test2")).returning(Map("test2" -> 2L))
+    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> 1L))
     (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Seq(dp1, dp2, dp3))
@@ -74,7 +73,7 @@ class TsdbTest
     val dp = DataPoint(
       TestSchema.testTable,
       123456789L,
-      Map(TestDims.TAG_A -> "test1", TestDims.TAG_B -> "test2"),
+      Map(TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2"),
       Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0))
     )
 
@@ -93,10 +92,10 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
-      BinaryOperationExpr(BinaryOperation.equ[String], dimension(TestDims.TAG_A), const("test1"))
+      BinaryOperationExpr(BinaryOperation.equ[String], dimension(TestDims.DIM_A), const("test1"))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -108,11 +107,11 @@ class TsdbTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
-            equ(dimension(TestDims.TAG_A), const("test1")),
+            equ(dimension(TestDims.DIM_A), const("test1")),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -124,8 +123,8 @@ class TsdbTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset()
         )
       )
@@ -136,8 +135,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with filter by tag ids" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -152,10 +151,10 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
-      DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator(123))
+      DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -164,9 +163,9 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(
-            DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator(123)),
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123)),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -178,8 +177,8 @@ class TsdbTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(dimension(TestDims.TAG_A), Some("test123"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test123"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset()
         )
       )
@@ -190,8 +189,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test123"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test123"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with filter by exact time values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -208,7 +207,7 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       equ(time, const(Time(pointTime)))
     )
@@ -217,7 +216,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             equ(time, const(Time(pointTime))),
             ge(time, const(Time(from))),
@@ -231,7 +230,7 @@ class TsdbTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .buildAndReset()
         )
       )
@@ -242,7 +241,7 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 3d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    row.fieldValueByName[String]("A").value shouldBe "test12"
   }
 
   it should "support filter by tuples" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -260,11 +259,11 @@ class TsdbTest
       Seq(
         time as "time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       AndExpr(
         Seq(
-          InExpr(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
+          InExpr(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42")))
         )
       )
     )
@@ -273,9 +272,9 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
-            in(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"))),
+            in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -287,11 +286,11 @@ class TsdbTest
         Iterator(
           b.set(time, Some(Time(pointTime1)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(dimension(TestDims.TAG_A), Some("test42"))
+            .set(dimension(TestDims.DIM_A), Some("test42"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(dimension(TestDims.TAG_A), Some("test42"))
+            .set(dimension(TestDims.DIM_A), Some("test42"))
             .buildAndReset()
         )
       )
@@ -302,7 +301,7 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime2)
     row.fieldValueByName[Double]("testField").value shouldBe 3d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test42"
+    row.fieldValueByName[String]("A").value shouldBe "test42"
   }
 
   it should "support exclude filter by tuples" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -320,12 +319,12 @@ class TsdbTest
       Seq(
         time.toField,
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       AndExpr(
         Seq(
-          equ(dimension(TestDims.TAG_B), const("B-52")),
-          notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42")))
+          equ(dimension(TestDims.DIM_B), const(52.toShort)),
+          notIn(tuple(time, dimension(TestDims.DIM_A.aux)), Set((Time(pointTime2), "test42")))
         )
       )
     )
@@ -334,10 +333,10 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
-            notIn(tuple(time, dimension(TestDims.TAG_A)), Set((Time(pointTime2), "test42"))),
-            equ(dimension(TestDims.TAG_B), const("B-52")),
+            notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
+            equ(dimension(TestDims.DIM_B), const(52.toShort)),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -348,15 +347,15 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test42"))
+            .set(dimension(TestDims.DIM_A), Some("test42"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test24"))
+            .set(dimension(TestDims.DIM_A), Some("test24"))
             .set(metric(TestTableFields.TEST_FIELD), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test42"))
+            .set(dimension(TestDims.DIM_A), Some("test42"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .buildAndReset()
         )
@@ -368,12 +367,12 @@ class TsdbTest
     val row1 = rows(0)
     row1.fieldValueByName[Time]("time").value shouldBe Time(pointTime2)
     row1.fieldValueByName[Double]("testField").value shouldBe 2d
-    row1.fieldValueByName[String]("TAG_A").value shouldBe "test24"
+    row1.fieldValueByName[String]("A").value shouldBe "test24"
 
     val row2 = rows(1)
     row2.fieldValueByName[Time]("time").value shouldBe Time(pointTime1)
     row2.fieldValueByName[Double]("testField").value shouldBe 1d
-    row2.fieldValueByName[String]("TAG_A").value shouldBe "test42"
+    row2.fieldValueByName[String]("A").value shouldBe "test42"
   }
 
   it should "support filter not equal for tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -388,10 +387,10 @@ class TsdbTest
       Seq(
         time as "time_time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
-      neq(dimension(TestDims.TAG_A), const("test11"))
+      neq(dimension(TestDims.DIM_A), const("test11"))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -400,11 +399,11 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_B), dimension(TestDims.TAG_A), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_B), dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            neq(dimension(TestDims.TAG_A), const("test11"))
+            neq(dimension(TestDims.DIM_A), const("test11"))
           )
         ),
         *,
@@ -413,8 +412,8 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -426,8 +425,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test12"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -442,8 +441,8 @@ class TsdbTest
       Seq(
         time as "time_time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       )
     )
 
@@ -453,7 +452,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -465,8 +464,8 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -476,8 +475,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 1d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -492,11 +491,11 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -506,7 +505,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -518,13 +517,13 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -534,8 +533,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "execute query with aggregation by tag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -550,10 +549,10 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(dimension(TestDims.TAG_A))
+      Seq(dimension(TestDims.DIM_A))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -563,7 +562,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -575,27 +574,27 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -607,12 +606,12 @@ class TsdbTest
     val group1 = results(0)
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    group1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    group1.fieldValueByName[String]("A").value shouldBe "test1"
 
     val group2 = results(1)
     group2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    group2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    group2.fieldValueByName[String]("A").value shouldBe "test12"
   }
 
   it should "execute query with aggregation by expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -627,7 +626,7 @@ class TsdbTest
       Seq(
         metric(TestTableFields.TEST_FIELD) as "testField",
         function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.count[String], dimension(TestDims.TAG_A)) as "TAG_A"
+        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "A"
       ),
       None,
       Seq(metric(TestTableFields.TEST_FIELD))
@@ -640,7 +639,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -652,27 +651,27 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(2d))
             .buildAndReset()
         )
@@ -685,12 +684,12 @@ class TsdbTest
     val group1 = results(0)
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[Double]("testField").value shouldBe 1d
-    group1.fieldValueByName[Int]("TAG_A").value shouldBe 4
+    group1.fieldValueByName[Int]("A").value shouldBe 4
 
     val group2 = results(1)
     group2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group2.fieldValueByName[Double]("testField").value shouldBe 2d
-    group2.fieldValueByName[Int]("TAG_A").value shouldBe 2
+    group2.fieldValueByName[Int]("A").value shouldBe 2
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -762,15 +761,15 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
       Seq(
         function(UnaryOperation.truncDay, time),
-        dimension(TestDims.TAG_A),
-        dimension(TestDims.TAG_B),
+        dimension(TestDims.DIM_A),
+        dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
       )
     )
@@ -787,7 +786,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+          in(dimension(TestDims.DIM_A), Set("test1", "test12"))
         )
       )
 
@@ -809,11 +808,11 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+            in(dimension(TestDims.DIM_A), Set("test1", "test12"))
           )
         ),
         *,
@@ -822,23 +821,23 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -849,15 +848,15 @@ class TsdbTest
     val r1 = results(0)
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
+    r1.fieldValueByName[String]("B").value shouldBe "test2"
     r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r2 = results(1)
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r2.fieldValueByName[String]("A").value shouldBe "test12"
+    r2.fieldValueByName[String]("B").value shouldBe "test2"
     r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
   }
 
@@ -876,8 +875,8 @@ class TsdbTest
         Seq(
           truncDay(time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.TAG_A) as "TAG_A",
-          dimension(TestDims.TAG_B) as "TAG_B"
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B"
         ),
         Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
         Seq(truncDay(time))
@@ -895,7 +894,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set.empty)
+            in(dimension(TestDims.DIM_A), Set.empty)
           )
         )
 
@@ -903,11 +902,11 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+            Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.TAG_A), Set())
+              in(dimension(TestDims.DIM_A), Set())
             )
           ),
           *,
@@ -935,8 +934,8 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.TAG_A) as "TAG_A",
-          dimension(TestDims.TAG_B) as "TAG_B"
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B"
         ),
         Some(
           BinaryOperationExpr(
@@ -960,7 +959,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator.empty)
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty)
           )
         )
 
@@ -968,11 +967,11 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+            Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdInExpr(dimension(TestDims.TAG_A), SortedSetIterator.empty)
+              DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty)
             )
           ),
           *,
@@ -999,8 +998,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(
@@ -1012,8 +1011,8 @@ class TsdbTest
       ),
       Seq(
         function(UnaryOperation.truncDay, time),
-        dimension(TestDims.TAG_A),
-        dimension(TestDims.TAG_B),
+        dimension(TestDims.DIM_A),
+        dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
       )
     )
@@ -1030,7 +1029,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          NotInExpr(dimension(TestDims.TAG_A), Set("test11", "test12"))
+          NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
 
@@ -1052,11 +1051,11 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         ),
         *,
@@ -1065,13 +1064,13 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test13"))
-            .set(dimension(TestDims.TAG_B), Some("test21"))
+            .set(dimension(TestDims.DIM_A), Some("test13"))
+            .set(dimension(TestDims.DIM_B), Some("test21"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test13"))
-            .set(dimension(TestDims.TAG_B), Some("test21"))
+            .set(dimension(TestDims.DIM_A), Some("test13"))
+            .set(dimension(TestDims.DIM_B), Some("test21"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -1083,8 +1082,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+    row.fieldValueByName[String]("A").value shouldBe "test13"
+    row.fieldValueByName[String]("B").value shouldBe "test21"
     row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
@@ -1103,15 +1102,15 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.TAG_A) as "TAG_A",
-          dimension(TestDims.TAG_B) as "TAG_B",
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B",
           link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
         ),
         Some(neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
         Seq(
           function(UnaryOperation.truncDay, time),
-          dimension(TestDims.TAG_A),
-          dimension(TestDims.TAG_B),
+          dimension(TestDims.DIM_A),
+          dimension(TestDims.DIM_B),
           link(TestLinks.TEST_LINK, "testField")
         )
       )
@@ -1128,7 +1127,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdNotInExpr(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
           )
         )
 
@@ -1150,11 +1149,11 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdNotInExpr(dimension(TestDims.TAG_A), SortedSetIterator(1, 2))
+              DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
             )
           ),
           *,
@@ -1163,13 +1162,13 @@ class TsdbTest
         .onCall((_, b, _) =>
           Iterator(
             b.set(time, Some(Time(pointTime1)))
-              .set(dimension(TestDims.TAG_A), Some("test13"))
-              .set(dimension(TestDims.TAG_B), Some("test21"))
+              .set(dimension(TestDims.DIM_A), Some("test13"))
+              .set(dimension(TestDims.DIM_B), Some("test21"))
               .set(metric(TestTableFields.TEST_FIELD), Some(1d))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime2)))
-              .set(dimension(TestDims.TAG_A), Some("test13"))
-              .set(dimension(TestDims.TAG_B), Some("test21"))
+              .set(dimension(TestDims.DIM_A), Some("test13"))
+              .set(dimension(TestDims.DIM_B), Some("test21"))
               .set(metric(TestTableFields.TEST_FIELD), Some(1d))
               .buildAndReset()
           )
@@ -1181,8 +1180,8 @@ class TsdbTest
 
       row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
       row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-      row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-      row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+      row.fieldValueByName[String]("A").value shouldBe "test13"
+      row.fieldValueByName[String]("B").value shouldBe "test21"
       row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
@@ -1202,8 +1201,8 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
-          dimension(TestDims.TAG_A).toField,
-          dimension(TestDims.TAG_B).toField,
+          dimension(TestDims.DIM_A).toField,
+          dimension(TestDims.DIM_B).toField,
           link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
         ),
         Some(
@@ -1216,8 +1215,8 @@ class TsdbTest
         ),
         Seq(
           function(UnaryOperation.truncDay, time),
-          dimension(TestDims.TAG_A),
-          dimension(TestDims.TAG_B),
+          dimension(TestDims.DIM_A),
+          dimension(TestDims.DIM_B),
           link(TestLinks.TEST_LINK, "testField")
         )
       )
@@ -1235,7 +1234,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
             equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
           )
         )
@@ -1254,7 +1253,7 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-            in(dimension(TestDims.TAG_A), Set("test12", "test13"))
+            in(dimension(TestDims.DIM_A), Set("test12", "test13"))
           )
         )
 
@@ -1276,12 +1275,12 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.TAG_A), Set("test12", "test13")),
-              notIn(dimension(TestDims.TAG_A), Set("test11", "test12"))
+              in(dimension(TestDims.DIM_A), Set("test12", "test13")),
+              notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
             )
           ),
           *,
@@ -1290,13 +1289,13 @@ class TsdbTest
         .onCall((_, b, _) =>
           Iterator(
             b.set(time, Some(Time(pointTime1)))
-              .set(dimension(TestDims.TAG_A), Some("test13"))
-              .set(dimension(TestDims.TAG_B), Some("test21"))
+              .set(dimension(TestDims.DIM_A), Some("test13"))
+              .set(dimension(TestDims.DIM_B), Some("test21"))
               .set(metric(TestTableFields.TEST_FIELD), Some(1d))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime2)))
-              .set(dimension(TestDims.TAG_A), Some("test13"))
-              .set(dimension(TestDims.TAG_B), Some("test21"))
+              .set(dimension(TestDims.DIM_A), Some("test13"))
+              .set(dimension(TestDims.DIM_B), Some("test21"))
               .set(metric(TestTableFields.TEST_FIELD), Some(1d))
               .buildAndReset()
           )
@@ -1308,8 +1307,8 @@ class TsdbTest
 
       row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
       row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-      row.fieldValueByName[String]("TAG_A").value shouldBe "test13"
-      row.fieldValueByName[String]("TAG_B").value shouldBe "test21"
+      row.fieldValueByName[String]("A").value shouldBe "test13"
+      row.fieldValueByName[String]("B").value shouldBe "test21"
       row.fieldValueByName[String]("TestCatalog_testField").value shouldBe "test value 3"
   }
 
@@ -1327,13 +1326,13 @@ class TsdbTest
       Seq(
         time as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
           Seq(
-            neq(dimension(TestDims.TAG_A), const("test11")),
+            neq(dimension(TestDims.DIM_A), const("test11")),
             neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
             neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb")),
             neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
@@ -1348,7 +1347,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          neq(dimension(TestDims.TAG_A), const("test11")),
+          neq(dimension(TestDims.DIM_A), const("test11")),
           neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa")),
           neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb")),
           neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
@@ -1358,10 +1357,10 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          neq(dimension(TestDims.TAG_A), const("test11")),
-          notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
-          notIn(dimension(TestDims.TAG_A), Set("test13")),
-          notIn(dimension(TestDims.TAG_A), Set("test11", "test14"))
+          neq(dimension(TestDims.DIM_A), const("test11")),
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
+          notIn(dimension(TestDims.DIM_A), Set("test13")),
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test14"))
         )
       )
 
@@ -1371,14 +1370,14 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            notIn(dimension(TestDims.TAG_A), Set("test11", "test12")),
-            notIn(dimension(TestDims.TAG_A), Set("test13")),
-            notIn(dimension(TestDims.TAG_A), Set("test11", "test14")),
-            neq(dimension(TestDims.TAG_A), const("test11"))
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
+            notIn(dimension(TestDims.DIM_A), Set("test13")),
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test14")),
+            neq(dimension(TestDims.DIM_A), const("test11"))
           )
         ),
         *,
@@ -1387,8 +1386,8 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("test15"))
-            .set(dimension(TestDims.TAG_B), Some("test22"))
+            .set(dimension(TestDims.DIM_A), Some("test15"))
+            .set(dimension(TestDims.DIM_B), Some("test22"))
             .set(metric(TestTableFields.TEST_FIELD), Some(5d))
             .buildAndReset()
         )
@@ -1400,8 +1399,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 5d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test15"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test22"
+    row.fieldValueByName[String]("A").value shouldBe "test15"
+    row.fieldValueByName[String]("B").value shouldBe "test22"
   }
 
   it should "intersect tag ids with one tag for query with filter values by catalogs fields" in withTsdbMock {
@@ -1420,8 +1419,8 @@ class TsdbTest
         Seq(
           function(UnaryOperation.truncDay, time) as "time",
           aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-          dimension(TestDims.TAG_A) as "TAG_A",
-          dimension(TestDims.TAG_B) as "TAG_B"
+          dimension(TestDims.DIM_A) as "A",
+          dimension(TestDims.DIM_B) as "B"
         ),
         Some(
           AndExpr(
@@ -1431,7 +1430,7 @@ class TsdbTest
             )
           )
         ),
-        Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
+        Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
       )
 
       (testCatalogServiceMock.condition _)
@@ -1447,7 +1446,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+            in(dimension(TestDims.DIM_A), Set("test11", "test12")),
             equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
           )
         )
@@ -1465,7 +1464,7 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-            in(dimension(TestDims.TAG_A), Set("test12"))
+            in(dimension(TestDims.DIM_A), Set("test12"))
           )
         )
 
@@ -1476,12 +1475,12 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+            Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-              in(dimension(TestDims.TAG_A), Set("test12"))
+              in(dimension(TestDims.DIM_A), Set("test11", "test12")),
+              in(dimension(TestDims.DIM_A), Set("test12"))
             )
           ),
           *,
@@ -1490,13 +1489,13 @@ class TsdbTest
         .onCall((_, b, _) =>
           Iterator(
             b.set(time, Some(Time(pointTime1)))
-              .set(dimension(TestDims.TAG_A), Some("test12"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(dimension(TestDims.DIM_A), Some("test12"))
+              .set(dimension(TestDims.DIM_B), Some("test2"))
               .set(metric(TestTableFields.TEST_FIELD), Some(1d))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime2)))
-              .set(dimension(TestDims.TAG_A), Some("test12"))
-              .set(dimension(TestDims.TAG_B), Some("test2"))
+              .set(dimension(TestDims.DIM_A), Some("test12"))
+              .set(dimension(TestDims.DIM_B), Some("test2"))
               .set(metric(TestTableFields.TEST_FIELD), Some(1d))
               .buildAndReset()
           )
@@ -1506,8 +1505,8 @@ class TsdbTest
       val r1 = result.head
       r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
       r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-      r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-      r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+      r1.fieldValueByName[String]("A").value shouldBe "test12"
+      r1.fieldValueByName[String]("B").value shouldBe "test2"
       result should have size 1
   }
 
@@ -1526,8 +1525,8 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
@@ -1537,7 +1536,7 @@ class TsdbTest
           )
         )
       ),
-      Seq(dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), function(UnaryOperation.truncDay, time))
+      Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), function(UnaryOperation.truncDay, time))
     )
 
     (testCatalogServiceMock.condition _)
@@ -1553,7 +1552,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test11", "test12")),
+          in(dimension(TestDims.DIM_A), Set("test11", "test12")),
           equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
         )
       )
@@ -1571,7 +1570,7 @@ class TsdbTest
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue")),
-          in(dimension(TestDims.TAG_B), Set("test23", "test24"))
+          in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
         )
       )
 
@@ -1582,12 +1581,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("test11", "test12")),
-            in(dimension(TestDims.TAG_B), Set("test23", "test24"))
+            in(dimension(TestDims.DIM_A), Set("test11", "test12")),
+            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
           )
         ),
         *,
@@ -1596,13 +1595,13 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
-            .set(dimension(TestDims.TAG_B), Some("test23"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
+            .set(dimension(TestDims.DIM_B), Some(23.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
-            .set(dimension(TestDims.TAG_B), Some("test23"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
+            .set(dimension(TestDims.DIM_B), Some(23.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(5d))
             .buildAndReset()
         )
@@ -1612,8 +1611,8 @@ class TsdbTest
     val r1 = result.head
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 6d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test12"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test23"
+    r1.fieldValueByName[String]("A").value shouldBe "test12"
+    r1.fieldValueByName[Short]("B").value shouldBe 23.toShort
     result should have size 1
   }
 
@@ -1631,8 +1630,8 @@ class TsdbTest
       Seq(
         time as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
@@ -1652,7 +1651,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
+          in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
         )
       )
 
@@ -1662,11 +1661,11 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("Test a 1", "Test a 2", "Test a 3"))
+            in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
           )
         ),
         *,
@@ -1675,13 +1674,13 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("Test a 1"))
-            .set(dimension(TestDims.TAG_B), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("Test a 1"))
+            .set(dimension(TestDims.DIM_B), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("Test a 3"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("Test a 3"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .buildAndReset()
         )
@@ -1695,15 +1694,15 @@ class TsdbTest
 
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "Test a 1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test1"
+    r1.fieldValueByName[String]("A").value shouldBe "Test a 1"
+    r1.fieldValueByName[String]("B").value shouldBe "test1"
 
     val r2 = rs(1)
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "Test a 3"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r2.fieldValueByName[String]("A").value shouldBe "Test a 3"
+    r2.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "intersect values for IN filter for tags and catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1720,13 +1719,13 @@ class TsdbTest
       Seq(
         time as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
           Seq(
-            InExpr(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
+            InExpr(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             InExpr(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
           )
         )
@@ -1739,7 +1738,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
+          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
           in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
         )
       )
@@ -1747,8 +1746,8 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_B), Set("B 1", "B 2")),
-          in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3"))
+          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+          in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
         )
       )
 
@@ -1758,12 +1757,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A), dimension(TestDims.TAG_B), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("A 1", "A 2", "A 3")),
-            in(dimension(TestDims.TAG_B), Set("B 1", "B 2"))
+            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
           )
         ),
         *,
@@ -1772,23 +1771,23 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("A 1"))
-            .set(dimension(TestDims.TAG_B), Some("B 1"))
+            .set(dimension(TestDims.DIM_A), Some("A 1"))
+            .set(dimension(TestDims.DIM_B), Some(1.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("A 2"))
-            .set(dimension(TestDims.TAG_B), Some("B 1"))
+            .set(dimension(TestDims.DIM_A), Some("A 2"))
+            .set(dimension(TestDims.DIM_B), Some(1.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("A 2"))
-            .set(dimension(TestDims.TAG_B), Some("B 2"))
+            .set(dimension(TestDims.DIM_A), Some("A 2"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(4d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.TAG_A), Some("A 3"))
-            .set(dimension(TestDims.TAG_B), Some("B 2"))
+            .set(dimension(TestDims.DIM_A), Some("A 3"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .set(metric(TestTableFields.TEST_FIELD), Some(6d))
             .buildAndReset()
         )
@@ -1802,29 +1801,29 @@ class TsdbTest
 
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 1d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "A 1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "B 1"
+    r1.fieldValueByName[String]("A").value shouldBe "A 1"
+    r1.fieldValueByName[Short]("B").value shouldBe 1.toShort
 
     val r2 = rs(1)
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 3d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "A 2"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "B 1"
+    r2.fieldValueByName[String]("A").value shouldBe "A 2"
+    r2.fieldValueByName[Short]("B").value shouldBe 1.toShort
 
     val r3 = rs(2)
 
     r3.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r3.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r3.fieldValueByName[String]("TAG_A").value shouldBe "A 2"
-    r3.fieldValueByName[String]("TAG_B").value shouldBe "B 2"
+    r3.fieldValueByName[String]("A").value shouldBe "A 2"
+    r3.fieldValueByName[Short]("B").value shouldBe 2.toShort
 
     val r4 = rs(3)
 
     r4.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r4.fieldValueByName[Double]("sum_testField").value shouldBe 6d
-    r4.fieldValueByName[String]("TAG_A").value shouldBe "A 3"
-    r4.fieldValueByName[String]("TAG_B").value shouldBe "B 2"
+    r4.fieldValueByName[String]("A").value shouldBe "A 3"
+    r4.fieldValueByName[Short]("B").value shouldBe 2.toShort
 
   }
 
@@ -1843,7 +1842,7 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
+        dimension(TestDims.DIM_A) as "A",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       None,
@@ -1874,7 +1873,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -1886,27 +1885,27 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test13"))
+            .set(dimension(TestDims.DIM_A), Some("test13"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test13"))
+            .set(dimension(TestDims.DIM_A), Some("test13"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -1940,7 +1939,7 @@ class TsdbTest
         aggregate(Aggregation.min[String], TestTableFields.TEST_STRING_FIELD) as "min_testStringField"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -1953,7 +1952,7 @@ class TsdbTest
             time,
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_STRING_FIELD),
-            dimension(TestDims.TAG_A)
+            dimension(TestDims.DIM_A)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
@@ -1963,22 +1962,22 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_1"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1 + 1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_2"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1 + 2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_01_200"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1 + 3)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("001_02_1"))
             .buildAndReset()
@@ -2079,7 +2078,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2088,19 +2087,19 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA2"))
+            .set(dimension(TestDims.DIM_A), Some("testA2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA2"))
+            .set(dimension(TestDims.DIM_A), Some("testA2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2139,11 +2138,11 @@ class TsdbTest
         aggregate(Aggregation.min[Time], time) as "min_time",
         aggregate(Aggregation.max[Time], time) as "max_time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2154,7 +2153,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2163,18 +2162,18 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime3)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2185,8 +2184,8 @@ class TsdbTest
     r.fieldValueByName[Time]("min_time").value shouldBe Time(pointTime1)
     r.fieldValueByName[Time]("max_time").value shouldBe Time(pointTime3)
     r.fieldValueByName[Double]("sum_testField").value shouldBe 3d
-    r.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r.fieldValueByName[String]("A").value shouldBe "test1"
+    r.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "preserve const fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2202,11 +2201,11 @@ class TsdbTest
         const(BigDecimal(1)) as "dummy",
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2216,7 +2215,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2225,13 +2224,13 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2242,8 +2241,8 @@ class TsdbTest
     row.fieldValueByName[BigDecimal]("dummy").value shouldEqual BigDecimal(1)
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "be possible to make aggregations by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2258,11 +2257,11 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.count[String], dimension(TestDims.TAG_A)) as "count_TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_B))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2272,7 +2271,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2281,13 +2280,13 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2297,8 +2296,8 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    row.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[Long]("count_A").value shouldBe 2L
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "be possible to make aggregations on catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2315,11 +2314,11 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
+        dimension(TestDims.DIM_A) as "A",
         aggregate(Aggregation.count[String], link(TestLinks.TEST_LINK, "testField")) as "count_TestCatalog_testField"
       ),
       Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
     )
 
     (testCatalogServiceMock.condition _)
@@ -2334,7 +2333,7 @@ class TsdbTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+          in(dimension(TestDims.DIM_A), Set("test1", "test12"))
         )
       )
 
@@ -2358,11 +2357,11 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("test1", "test12"))
+            in(dimension(TestDims.DIM_A), Set("test1", "test12"))
           )
         ),
         *,
@@ -2371,19 +2370,19 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2395,13 +2394,13 @@ class TsdbTest
     val r1 = results(0)
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
     r1.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
 
     val r2 = results(1)
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test12"
+    r2.fieldValueByName[String]("A").value shouldBe "test12"
     r2.fieldValueByName[Long]("count_TestCatalog_testField").value shouldBe 2L
   }
 
@@ -2417,12 +2416,12 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.distinctCount[String], dimension(TestDims.TAG_A)) as "distinct_count_TAG_A",
-        aggregate(Aggregation.count[String], dimension(TestDims.TAG_A)) as "count_TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        aggregate(Aggregation.distinctCount[String], dimension(TestDims.DIM_A)) as "distinct_count_A",
+        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_B))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2432,7 +2431,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2441,33 +2440,33 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB2"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB2"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA2"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA2"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA2"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA2"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2480,16 +2479,16 @@ class TsdbTest
     val r1 = results(0)
     r1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("sum_testField").value shouldBe 2d
-    r1.fieldValueByName[Long]("count_TAG_A").value shouldBe 2L
-    r1.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 1
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
+    r1.fieldValueByName[Long]("count_A").value shouldBe 2L
+    r1.fieldValueByName[Int]("distinct_count_A").value shouldBe 1
+    r1.fieldValueByName[String]("B").value shouldBe "testB2"
 
     val r2 = results(1)
     r2.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r2.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r2.fieldValueByName[Long]("count_TAG_A").value shouldBe 4L
-    r2.fieldValueByName[Int]("distinct_count_TAG_A").value shouldBe 2
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "testB1"
+    r2.fieldValueByName[Long]("count_A").value shouldBe 4L
+    r2.fieldValueByName[Int]("distinct_count_A").value shouldBe 2
+    r2.fieldValueByName[String]("B").value shouldBe "testB1"
   }
 
   it should "calculate lag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2503,8 +2502,8 @@ class TsdbTest
         time as "time_time",
         windowFunction(WindowOperation.lag[Time], time) as "lag_time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
-        dimension(TestDims.TAG_B) as "TAG_B"
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
       ),
       Some(
         AndExpr(
@@ -2514,7 +2513,7 @@ class TsdbTest
           )
         )
       ),
-      Seq(dimension(TestDims.TAG_B)),
+      Seq(dimension(TestDims.DIM_B)),
       None
     )
 
@@ -2525,7 +2524,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A), dimension(TestDims.TAG_B)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2534,40 +2533,40 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB2"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB2"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA2"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA2"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("testA2"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA2"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2 + 1000)))
-            .set(dimension(TestDims.TAG_A), Some("testA1"))
-            .set(dimension(TestDims.TAG_B), Some("testB1"))
+            .set(dimension(TestDims.DIM_A), Some("testA1"))
+            .set(dimension(TestDims.DIM_B), Some("testB1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
       )
 
     val t = Table(
-      ("time_time", "lag_time_time", "testField", "TAG_A", "TAG_B"),
+      ("time_time", "lag_time_time", "testField", "A", "B"),
       (qtime.toLocalDateTime, None, 1d, "testA1", "testB2"),
       (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA1", "testB2"),
       (qtime.toLocalDateTime, None, 1d, "testA2", "testB1"),
@@ -2583,8 +2582,8 @@ class TsdbTest
       r.fieldValueByName[Time]("time_time").value.toLocalDateTime.withMillisOfSecond(0) shouldBe time
       r.fieldValueByName[Time]("lag_time_time").map(_.toLocalDateTime.withMillisOfSecond(0)) shouldBe lagTime
       r.fieldValueByName[Double]("testField").value shouldBe testField
-      r.fieldValueByName("TAG_A").value shouldBe tagA
-      r.fieldValueByName[String]("TAG_B").value shouldBe tagB
+      r.fieldValueByName("A").value shouldBe tagA
+      r.fieldValueByName[String]("B").value shouldBe tagB
     }
   }
 
@@ -2609,10 +2608,10 @@ class TsdbTest
             const[BigDecimal](0)
           )
         ) as "between_10_20",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2622,7 +2621,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2631,27 +2630,27 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(10d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(15d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2662,7 +2661,7 @@ class TsdbTest
     val group1 = results.next()
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[BigDecimal]("between_10_20").value shouldBe BigDecimal(2)
-    group1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    group1.fieldValueByName[String]("A").value shouldBe "test1"
   }
 
   it should "calculate conditional expressions with empty external link values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2687,10 +2686,10 @@ class TsdbTest
             const[BigDecimal](0)
           )
         ) as "between_10_20",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A))
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
     )
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -2706,7 +2705,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A)),
+          Set(time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2714,12 +2713,12 @@ class TsdbTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("test1")).buildAndReset()
+          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.DIM_A), Some("test1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("test1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.DIM_A), Some("test1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("test1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.DIM_A), Some("test1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("test1")).buildAndReset()
         )
       )
 
@@ -2728,7 +2727,7 @@ class TsdbTest
     val group1 = results.next()
     group1.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     group1.fieldValueByName[BigDecimal]("between_10_20").value shouldBe BigDecimal(0)
-    group1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    group1.fieldValueByName[String]("A").value shouldBe "test1"
   }
 
   it should "perform post filtering" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2743,10 +2742,10 @@ class TsdbTest
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        dimension(TestDims.TAG_A) as "TAG_A"
+        dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.TAG_A)),
+      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A)),
       None,
       Some(ge(sum(metric(TestTableFields.TEST_FIELD)), const[Double](3d)))
     )
@@ -2758,7 +2757,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2767,27 +2766,27 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test12"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset()
         )
@@ -2799,7 +2798,7 @@ class TsdbTest
     val r = results.head
     r.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     r.fieldValueByName[Double]("sum_testField").value shouldBe 4d
-    r.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r.fieldValueByName[String]("A").value shouldBe "test1"
   }
 
   it should "handle if external link doesn't return value" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2816,7 +2815,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         metric(TestTableFields.TEST_FIELD) as "testField",
-        dimension(TestDims.TAG_A) as "TAG_A",
+        dimension(TestDims.DIM_A) as "A",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       )
     )
@@ -2839,7 +2838,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2848,15 +2847,15 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(1d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
             .set(metric(TestTableFields.TEST_FIELD), Some(2d))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
-            .set(dimension(TestDims.TAG_A), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test2"))
             .set(metric(TestTableFields.TEST_FIELD), Some(3d))
             .buildAndReset()
         )
@@ -2868,17 +2867,17 @@ class TsdbTest
 
     val r1 = results(0)
     r1.fieldValueByName[Double]("testField").value shouldBe 1d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
     r1.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r2 = results(1)
     r2.fieldValueByName[Double]("testField").value shouldBe 2d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
+    r2.fieldValueByName[String]("A").value shouldBe "test1"
     r2.fieldValueByName[String]("TestCatalog_testField").value shouldBe "testFieldValue"
 
     val r3 = results(2)
     r3.fieldValueByName[Double]("testField").value shouldBe 3d
-    r3.fieldValueByName[String]("TAG_A").value shouldBe "test2"
+    r3.fieldValueByName[String]("A").value shouldBe "test2"
     r3.fieldValueByName[String]("TestCatalog_testField") shouldBe empty
   }
 
@@ -2891,7 +2890,7 @@ class TsdbTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK2, testCatalogServiceMock)
 
-    val sql = s"SELECT sum(CASE WHEN TAG_A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
+    val sql = s"SELECT sum(CASE WHEN A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
       s"WHERE time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}' GROUP BY d"
 
     val query = SqlParser.parse(sql).right.flatMap {
@@ -2909,7 +2908,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.TAG_A)),
+          Set(time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2917,9 +2916,9 @@ class TsdbTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.TAG_A), Some("1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("1")).buildAndReset(),
-          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.TAG_A), Some("2")).buildAndReset()
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.DIM_A), Some("1")).buildAndReset(),
+          b.set(time, Some(Time(pointTime1))).set(dimension(TestDims.DIM_A), Some("2")).buildAndReset()
         )
       )
 

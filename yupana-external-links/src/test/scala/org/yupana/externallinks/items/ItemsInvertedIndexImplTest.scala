@@ -54,22 +54,22 @@ class ItemsInvertedIndexImplTest
     )
 
     actual shouldEqual and(
-      DimIdInExpr(dimension(Dimensions.ITEM_TAG), SortedSetIterator(4, 5, 42)),
-      DimIdNotInExpr(dimension(Dimensions.ITEM_TAG), SortedSetIterator(2))
+      DimIdInExpr(Dimensions.ITEM, SortedSetIterator(4, 5, 42)),
+      DimIdNotInExpr(Dimensions.ITEM, SortedSetIterator(2))
     )
   }
 
   it should "put values storage" in withMocks { (index, dao, tsdb) =>
     val dictDao = mock[DictionaryDao]
-    val itemDict = new Dictionary(Dimensions.ITEM_TAG, dictDao)
-    (tsdb.dictionary _).expects(Dimensions.ITEM_TAG).returning(itemDict)
+    val itemDict = new Dictionary(Dimensions.ITEM, dictDao)
+    (tsdb.dictionary _).expects(Dimensions.ITEM).returning(itemDict)
     (dictDao.getIdsByValues _)
-      .expects(Dimensions.ITEM_TAG, Set("сигареты легкие", "папиросы", "молоко"))
+      .expects(Dimensions.ITEM, Set("сигареты легкие", "папиросы", "молоко"))
       .returning(Map("папиросы" -> 2))
-    (dictDao.createSeqId _).expects(Dimensions.ITEM_TAG).returning(3)
-    (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "сигареты легкие").returning(true)
-    (dictDao.createSeqId _).expects(Dimensions.ITEM_TAG).returning(4)
-    (dictDao.checkAndPut _).expects(Dimensions.ITEM_TAG, *, "молоко").returning(true)
+    (dictDao.createSeqId _).expects(Dimensions.ITEM).returning(3)
+    (dictDao.checkAndPut _).expects(Dimensions.ITEM, *, "сигареты легкие").returning(true)
+    (dictDao.createSeqId _).expects(Dimensions.ITEM).returning(4)
+    (dictDao.checkAndPut _).expects(Dimensions.ITEM, *, "молоко").returning(true)
 
     (dao.batchPut _).expects(where { vs: Map[String, Set[Long]] =>
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
@@ -91,7 +91,7 @@ class ItemsInvertedIndexImplTest
 
     inside(res) {
       case DimIdInExpr(d, vs) =>
-        d shouldEqual dimension(Dimensions.ITEM_TAG)
+        d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs Seq(2L, 3L, 6L)
     }
   }
@@ -107,7 +107,7 @@ class ItemsInvertedIndexImplTest
 
     inside(res) {
       case DimIdNotInExpr(d, vs) =>
-        d shouldEqual dimension(Dimensions.ITEM_TAG)
+        d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs Seq(1L, 3L)
     }
   }

@@ -58,15 +58,16 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
 object TS {
 
   class C1 extends ExternalLink {
+    override type DimType = String
     override val linkName: String = "c1"
-    override val dimension: Dimension = Dimension("t1")
+    override val dimension: Dimension.Aux[String] = DictionaryDimension("t1")
     override val fieldsNames: Set[String] = Set("f1")
   }
 
   val S1 = new Table(
     name = "s1",
     rowTimeSpan = 12,
-    dimensionSeq = Seq(Dimension("t1"), Dimension("t2")),
+    dimensionSeq = Seq(DictionaryDimension("t1"), DictionaryDimension("t2")),
     metrics = Seq(Metric[Long]("f1", 1), Metric[String]("f2", 2)),
     externalLinks = Seq(new C1)
   )

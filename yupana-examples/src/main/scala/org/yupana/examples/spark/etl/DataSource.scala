@@ -55,7 +55,7 @@ object DataSource {
     Receipt(
       date = date,
       receiptNumber = n,
-      operationType = if (Random.nextBoolean()) "BUY" else "SELL",
+      operationType = if (Random.nextBoolean()) 1 else 2,
       operator = if (Random.nextBoolean()) "Иванов Иван" else "Петров Петр",
       shiftNumber = Random.nextInt(5),
       kkmId = Random.nextInt(20),

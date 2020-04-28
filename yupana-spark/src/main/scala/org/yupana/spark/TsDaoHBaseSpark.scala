@@ -40,15 +40,15 @@ class TsDaoHBaseSpark(
       queryContext: InternalQueryContext,
       from: Long,
       to: Long,
-      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-  ): RDD[TSDOutputRow[IdType]] = {
+      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+  ): RDD[TSDOutputRow] = {
     if (rangeScanDims.nonEmpty) {
       val rdds = rangeScanDims.map { dimIds =>
         new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds)
       }
       sparkContext.union(rdds.toSeq)
     } else {
-      sparkContext.emptyRDD[TSDOutputRow[Long]]
+      sparkContext.emptyRDD[TSDOutputRow]
     }
   }
 }
