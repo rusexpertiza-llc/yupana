@@ -58,8 +58,7 @@ object DataType {
     DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
-    DataType[Boolean],
-    DataType[Byte]
+    DataType[Boolean]
   ).map(t => t.meta.sqlTypeName -> t).toMap
 
   def bySqlName(sqlName: String): DataType = types(sqlName)
