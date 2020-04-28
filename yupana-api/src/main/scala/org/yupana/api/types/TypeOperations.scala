@@ -50,6 +50,13 @@ object TypeOperations {
     Map.empty
   )
 
+  def byteOperations(dt: DataType.Aux[Byte]): TypeOperations[Byte] = TypeOperations(
+    Map.empty,
+    Map.empty,
+    Map.empty,
+    Map.empty
+  )
+
   def fracOperations[T: Fractional](dt: DataType.Aux[T]): TypeOperations[T] = TypeOperations(
     BinaryOperation.fractionalOperations(dt),
     UnaryOperation.numericOperations(dt),

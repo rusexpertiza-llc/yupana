@@ -54,7 +54,8 @@ object Tables {
       correctionDocumentNumber,
       correctionDocumentDateTime,
       taxationType,
-      acceptedAt
+      acceptedAt,
+      documentNumberField
     ),
     externalLinks = receiptExternalLinks
   )

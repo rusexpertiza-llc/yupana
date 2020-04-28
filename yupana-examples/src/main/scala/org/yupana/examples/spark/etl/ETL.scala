@@ -52,9 +52,9 @@ object ETL {
   def toItemDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
     val commonDims: Map[Dimension, Any] = Map(
-      Dimensions.KKM_ID -> receipt.kkmId.toString,
-      Dimensions.OPERATION_TYPE -> receipt.operationType,
-      Dimensions.SHIFT -> receipt.shiftNumber.toString,
+      Dimensions.KKM_ID -> receipt.kkmId,
+      Dimensions.OPERATION_TYPE -> receipt.operationType.toByte,
+      Dimensions.SHIFT -> receipt.shiftNumber.toShort,
       Dimensions.OPERATOR -> receipt.operator
     )
 
@@ -67,7 +67,8 @@ object ETL {
 
     receipt.items.zipWithIndex.flatMap {
       case (item, idx) =>
-        val dims: Map[Dimension, Any] = commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx)
+        val dims: Map[Dimension, Any] =
+          commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx.toShort)
 
         val itemMetrics = Seq(
           Some(MetricValue(ItemTableMetrics.sumField, item.sum)),
@@ -84,7 +85,8 @@ object ETL {
           item.calcSubjSing.map(v => MetricValue(ItemTableMetrics.calculationSubjectSignField, v)),
           item.measure.map(v => MetricValue(ItemTableMetrics.measureField, v)),
           item.nomenclatureType.map(v => MetricValue(ItemTableMetrics.nomenclatureTypeField, v)),
-          item.gtin.map(v => MetricValue(ItemTableMetrics.gtinField, v))
+          item.gtin.map(v => MetricValue(ItemTableMetrics.gtinField, v)),
+          item.nomenclatureCode.map(v => MetricValue(ItemTableMetrics.nomenclatureCodeField, v))
         ).flatten
 
         val metrics = commonMetrics ++ itemMetrics
@@ -104,7 +106,7 @@ object ETL {
 
     val dims: Map[Dimension, Any] = Map(
       Dimensions.KKM_ID -> receipt.kkmId,
-      Dimensions.OPERATION_TYPE -> receipt.operationType,
+      Dimensions.OPERATION_TYPE -> receipt.operationType.toByte,
       Dimensions.OPERATOR -> receipt.operator,
       Dimensions.SHIFT -> receipt.shiftNumber
     )

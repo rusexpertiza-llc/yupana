@@ -16,8 +16,9 @@
 
 package org.yupana.externallinks
 
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ ConstantExpr, DimensionExpr, Expression, InExpr, LinkExpr, NotInExpr }
+import org.yupana.api.query.{ ConstantExpr, DimensionExpr, Expression, InExpr, LinkExpr, NotInExpr, TimeExpr }
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
@@ -83,23 +84,60 @@ object ExternalLinkUtils {
       externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
-      exprs: Set[LinkExpr],
+      linkExprs: Set[LinkExpr],
       fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, String]
   ): Unit = {
-    val dimExpr = DimensionExpr(externalLink.dimension.aux)
-    val fields = exprs.map(_.linkField)
-    val dimValues = rows.flatMap(_.get[R](exprIndex, dimExpr)).toSet
-
-    val allFieldValues = fieldValuesForDimValues(fields, dimValues)
-
-    rows.foreach { vd =>
-      vd.get[R](exprIndex, dimExpr).foreach { dimValue =>
-        allFieldValues.row(dimValue).foreach {
-          case (field, value) =>
-            val linkExpr = LinkExpr(externalLink, field)
-            if (value != null && exprIndex.contains(linkExpr)) vd.set(exprIndex, linkExpr, Some(value))
+    val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
+    val fields = linkExprs.map(_.linkField)
+    val dimValues = rows.flatMap(r => r.get[R](dimExprIdx)).toSet
+    val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
+    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
+    rows.foreach { row =>
+      row.get[R](dimExprIdx).foreach { dimValue =>
+        allFieldsValues.row(dimValue).foreach {
+          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
         }
       }
+    }
+  }
+
+  def setLinkedValuesTimeSensitive[R](
+      externalLink: ExternalLink.Aux[R],
+      exprIndex: scala.collection.Map[Expression, Int],
+      rows: Seq[InternalRow],
+      linkExprs: Set[LinkExpr],
+      fieldValuesForDimValuesAndTimes: (Set[String], Set[(R, Time)]) => Table[(R, Time), String, String]
+  ): Unit = {
+    val dimExpr = DimensionExpr(externalLink.dimension.aux)
+    val fields = linkExprs.map(_.linkField)
+    def extractDimValueWithTime(r: InternalRow): Option[(R, Time)] = {
+      for {
+        d <- r.get[R](exprIndex, dimExpr)
+        t <- r.get[Time](exprIndex, TimeExpr)
+      } yield (d, t)
+    }
+    val dimValuesWithTimes = rows.flatMap(extractDimValueWithTime)
+    val allFieldsValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes.toSet)
+    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
+    rows.foreach { row =>
+      extractDimValueWithTime(row).foreach { dimValueAtTime =>
+        allFieldsValues.row(dimValueAtTime).foreach {
+          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
+        }
+      }
+    }
+  }
+
+  def updateRow(
+      row: InternalRow,
+      linkExprsMap: Map[String, LinkExpr],
+      exprIndex: scala.collection.Map[Expression, Int],
+      field: String,
+      value: String
+  ): Unit = {
+    val linkExpr = linkExprsMap(field)
+    if (value != null && exprIndex.contains(linkExpr)) {
+      row.set(exprIndex, linkExpr, Some(value))
     }
   }
 

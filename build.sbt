@@ -205,6 +205,7 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
       case PathList("javax", "servlet", _*)         => MergeStrategy.last
       case PathList("javax", "el", _*)              => MergeStrategy.last
+      case PathList("org", "objectweb", "asm", _*)  => MergeStrategy.last
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },

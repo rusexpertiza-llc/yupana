@@ -31,7 +31,6 @@ trait DataType extends Serializable {
   val storable: Storable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
-  val isArray: Boolean = false
   def operations: TypeOperations[T]
 
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
@@ -49,18 +48,6 @@ trait DataType extends Serializable {
   override def toString: String = s"${meta.sqlTypeName}"
 }
 
-class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
-  override type T = Array[TT]
-
-  override val isArray: Boolean = true
-  override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(valueType.meta)
-  override val readable: Readable[T] = Readable.arrayReadable(valueType.readable, valueType.classTag)
-  override val writable: Writable[T] = Writable.arrayWritable(valueType.writable)
-  override val classTag: ClassTag[T] = valueType.classTag.wrap
-
-  override def operations: TypeOperations[T] = TypeOperations.arrayOperations(valueType)
-}
-
 object DataType {
   private lazy val types = Seq(
     DataType[String],
@@ -71,20 +58,11 @@ object DataType {
     DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
-    DataType[Boolean]
+    DataType[Boolean],
+    DataType[Byte]
   ).map(t => t.meta.sqlTypeName -> t).toMap
 
-  private val ARRAY_PREFIX = "ARRAY["
-  private val ARRAY_SUFFIX = "]"
-
-  def bySqlName(sqlName: String): Option[DataType] = {
-    if (!sqlName.startsWith(ARRAY_PREFIX) || !sqlName.endsWith(ARRAY_SUFFIX)) {
-      types.get(sqlName)
-    } else {
-      val innerType = sqlName.substring(ARRAY_PREFIX.length, sqlName.length - ARRAY_SUFFIX.length)
-      types.get(innerType).map(t => arrayDt(t))
-    }
-  }
+  def bySqlName(sqlName: String): DataType = types(sqlName)
 
   type Aux[TT] = DataType { type T = TT }
 
@@ -100,6 +78,9 @@ object DataType {
 
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
+
+  implicit def byteDt: DataType.Aux[Byte] =
+    DataType[Byte]((r: DataType.Aux[Byte]) => TypeOperations.byteOperations(r))
 
   implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))

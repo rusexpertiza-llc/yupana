@@ -188,7 +188,7 @@ class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression
 }
 
 object LinkExpr {
-  def apply(link: ExternalLink, field: String): Expression.Aux[String] = new LinkExpr(link, field)
+  def apply(link: ExternalLink, field: String): LinkExpr = new LinkExpr(link, field)
   def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
 }
 
