@@ -23,7 +23,7 @@ import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.Time
-import org.yupana.api.schema.{ RawDimension, Table }
+import org.yupana.api.schema.{ DictionaryDimension, RawDimension, Table }
 import org.yupana.api.types.DataType
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
@@ -37,17 +37,17 @@ class TSDHBaseRowIterator(
 ) extends AbstractIterator[InternalRow]
     with StrictLogging {
 
-  val dimensions = context.table.dimensionSeq.toArray
+  private val dimensions = context.table.dimensionSeq.toArray
 
-  val maxFamiliesCount = context.table.metrics.map(_.group).distinct.size
+  private val maxFamiliesCount = context.table.metrics.map(_.group).distinct.size
 
-  val offsets = Array.ofDim[Int](maxFamiliesCount)
-  val endOffsets = Array.ofDim[Int](maxFamiliesCount)
+  private val offsets = Array.ofDim[Int](maxFamiliesCount)
+  private val endOffsets = Array.ofDim[Int](maxFamiliesCount)
 
-  var cells = Array.empty[Cell]
-  var familiesCount = 0
-  var currentTime = Long.MaxValue
-  var currentRowKey = Array.empty[Byte]
+  private var cells = Array.empty[Cell]
+  private var familiesCount = 0
+  private var currentTime = Long.MaxValue
+  private var currentRowKey = Array.empty[Byte]
 
   override def hasNext: Boolean = {
     rows.hasNext || currentTime != Long.MaxValue
@@ -84,7 +84,7 @@ class TSDHBaseRowIterator(
     currentTime = findMinTime()
   }
 
-  def nextDatapoint() = {
+  private def nextDatapoint() = {
     loadRow(currentRowKey)
     var nextMinTime = Long.MaxValue
     var i = 0
@@ -126,7 +126,7 @@ class TSDHBaseRowIterator(
         case Some(Left(metric)) =>
           val v = metric.dataType.storable.read(bb)
           internalRowBuilder.set(tag, Some(v))
-        case Some(Right(_)) =>
+        case Some(Right(_: DictionaryDimension)) =>
           val v = DataType.stringDt.storable.read(bb)
           internalRowBuilder.set(tag, Some(v))
         case None =>

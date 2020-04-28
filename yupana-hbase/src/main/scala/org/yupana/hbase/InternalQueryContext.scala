@@ -16,9 +16,9 @@
 
 package org.yupana.hbase
 
-import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr }
-import org.yupana.core.model.InternalQuery
+import org.yupana.api.query.Expression
 import org.yupana.api.schema.{ Dimension, Metric, Table }
+import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.mutable
@@ -28,41 +28,10 @@ case class InternalQueryContext(
     exprsIndexSeq: Seq[(Expression, Int)],
     tagFields: Array[Option[Either[Metric, Dimension]]],
     dimIndexMap: mutable.Map[Dimension, Int],
-    requiredDims: Set[Dimension],
     metricsCollector: MetricQueryCollector
 ) {
-
-  private val exprsTags: Array[Byte] = {
-    exprsIndexSeq.map {
-      case (expr, index) =>
-        expr match {
-          case MetricExpr(metric) =>
-            metric.tag
-          case DimensionExpr(dimension: Dimension) =>
-            table.dimensionTag(dimension)
-          case _ => 0.toByte
-        }
-    }.toArray
-  }
-
-  private val tagExprsIndexes = {
-    val arr = Array.ofDim[Array[Int]](Table.MAX_TAGS)
-    exprsTags.zipWithIndex.groupBy(_._1).mapValues(_.map(_._2)).foreach {
-      case (tag, exprIndexes) =>
-        arr(tag & 0xFF) = exprIndexes
-    }
-    arr
-  }
-
-  @inline
-  def tagForExprIndex(index: Int): Byte = exprsTags(index)
-
   @inline
   final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
-
-  def exprIndexesForTag(tag: Byte): Array[Int] = {
-    tagExprsIndexes(tag & 0xFF)
-  }
 }
 
 object InternalQueryContext {
@@ -77,14 +46,10 @@ object InternalQueryContext {
       tagFields(query.table.dimensionTag(dim) & 0xFF) = Some(Right(dim))
     }
 
-    val requiredDims: Set[Dimension] = query.exprs.collect {
-      case DimensionExpr(dim) => dim
-    }
-
     val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
 
     val exprsIndexSeq = query.exprs.toSeq.zipWithIndex
 
-    new InternalQueryContext(query.table, exprsIndexSeq, tagFields, dimIndexMap, requiredDims, metricCollector)
+    new InternalQueryContext(query.table, exprsIndexSeq, tagFields, dimIndexMap, metricCollector)
   }
 }
