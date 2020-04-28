@@ -17,14 +17,14 @@
 package org.yupana.spark
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.Dictionary
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider }
 import org.yupana.hbase.DictionaryDaoHBase
 
 class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Serializable {
-  override def dictionary(dimension: Dimension): Dictionary = {
+  override def dictionary(dimension: DictionaryDimension): Dictionary = {
     SparkDictionaryProvider.dictionaries.get(dimension) match {
       case Some(d) => d
       case None =>
@@ -51,5 +51,5 @@ class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Se
 
 object SparkDictionaryProvider {
   var dictionaryDao = Option.empty[DictionaryDao]
-  var dictionaries = Map.empty[Dimension, Dictionary]
+  var dictionaries = Map.empty[DictionaryDimension, Dictionary]
 }

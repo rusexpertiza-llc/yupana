@@ -20,11 +20,12 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
-import org.yupana.externallinks.SimpleExternalLinkConditionHandler
+import org.yupana.externallinks.ExternalLinkUtils
 
 abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[String], data: Array[Array[String]])
-    extends SimpleExternalLinkConditionHandler[T] {
+    extends ExternalLinkService[T] {
   def keyIndex: Int
 
   def fillKeyValues(indexMap: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit
@@ -65,13 +66,13 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
       valueData: Seq[InternalRow],
       exprs: Set[LinkExpr]
   ): Unit = {
-    val tagExpr = new DimensionExpr(externalLink.dimension)
-    val indexMap = Seq[Expression](TimeExpr, tagExpr, keyExpr).distinct.zipWithIndex.toMap
+    val dimExpr = DimensionExpr(externalLink.dimension.aux)
+    val indexMap = Seq[Expression](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
     val valueDataBuilder = new InternalRowBuilder(indexMap)
 
     val keyValueData = valueData.map { vd =>
       valueDataBuilder
-        .set(tagExpr, vd.get[String](exprIndex, tagExpr))
+        .set(dimExpr, vd.get[dimExpr.Out](exprIndex, dimExpr))
         .set(TimeExpr, vd.get[Time](exprIndex, TimeExpr))
         .buildAndReset()
     }
@@ -89,16 +90,22 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   }
 
   override def condition(condition: Condition): Condition = {
-    val keyCondition = super.condition(condition)
+    val keyCondition = ExternalLinkUtils.transformCondition(
+      externalLink.linkName,
+      condition,
+      includeCondition,
+      excludeCondition
+    )
+
     conditionForKeyValues(keyCondition)
   }
 
-  override def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
     InExpr(keyExpr, keyValues)
   }
 
-  override def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
     NotInExpr(keyExpr, keyValues)
   }

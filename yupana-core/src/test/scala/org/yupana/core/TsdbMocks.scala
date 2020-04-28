@@ -49,13 +49,13 @@ trait TsdbMocks extends MockFactory {
           case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
           case _: DimIdInExpr                                            => true
           case _: DimIdNotInExpr                                         => true
-          case BinaryOperationExpr(op, _: DimensionExpr, ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
+          case BinaryOperationExpr(op, _: DimensionExpr[_], ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
             true
-          case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr) if Set("==", "!=").contains(op.name) =>
+          case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr[_]) if Set("==", "!=").contains(op.name) =>
             true
-          case InExpr(_: DimensionExpr, _)    => true
-          case NotInExpr(_: DimensionExpr, _) => true
-          case _                              => false
+          case InExpr(_: DimensionExpr[_], _)    => true
+          case NotInExpr(_: DimensionExpr[_], _) => true
+          case _                                 => false
         }
       )
       .anyNumberOfTimes()

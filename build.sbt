@@ -228,10 +228,10 @@ lazy val versions = new {
   val fastparse212 = "2.1.3"
   val fastparse211 = "2.1.2"
 
-  val hbase = "1.3.1"
-  val hadoop = "2.8.3"
-  val spark = "2.4.3"
-  val akka = "2.5.29"
+  val hbase = "1.3.6"
+  val hadoop = "2.8.5"
+  val spark = "2.4.5"
+  val akka = "2.5.31"
 
   val lucene = "6.6.0"
   val ignite = "2.7.0"
@@ -239,10 +239,10 @@ lazy val versions = new {
   val caffeine = "2.8.0"
 
   val json4s = "3.5.3"
-  val spring = "5.0.8.RELEASE"
+  val spring = "5.2.2.RELEASE"
 
-  val flyway = "5.2.4"
-  val hikariCP = "3.4.1"
+  val flyway = "6.2.3"
+  val hikariCP = "3.4.2"
   val logback = "1.2.3"
   val h2Jdbc = "1.4.199"
   val postgresqlJdbc = "42.2.6"
@@ -250,7 +250,7 @@ lazy val versions = new {
   val scalaTest = "3.0.8"
   val scalaCheck = "1.14.3"
   val scalaMock = "4.4.0"
-  val sparkTesting = s"${spark}_0.12.0"
+  val sparkTesting = s"${spark}_0.14.0"
 
   val fastparse = Def.setting(
     CrossVersion.partialVersion(scalaVersion.value) match {

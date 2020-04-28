@@ -9,7 +9,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.{ Aggregation, UnaryOperation, Writable }
+import org.yupana.api.types.{ Aggregation, UnaryOperation, Storable }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
@@ -51,26 +51,12 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val dictDao = new DictionaryDao {
       override def createSeqId(dimension: Dimension): Int = ???
 
-      override def getValueById(dimension: Dimension, id: Long): Option[String] = ???
-
       val vals = (0 until N / 10000).map { b =>
         (0 until 10000).map { i =>
           val id = b * 10000 + i
           id.toLong -> "Test"
         }.toMap
       }.toArray
-
-      override def getValuesByIds(
-          dimension: Dimension,
-          ids: Set[Long]
-      ): Map[Long, String] = {
-        if (ids.nonEmpty) {
-          vals((ids.head / 10000).toInt)
-        } else {
-          Map.empty
-        }
-//        ids.map(i => i -> "Test").toMap
-      }
 
       override def getIdByValue(dimension: Dimension, value: String): Option[Long] = ???
 
@@ -95,11 +81,13 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       val rows = {
         val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
-        val v = tagged(1, 1.toDouble)
+        val v = tagged(1, 1.toDouble) ++
+          tagged(Table.DIM_TAG_OFFSET, "test1") ++
+          tagged((Table.DIM_TAG_OFFSET + 1).toByte, "test2")
 
         in.map { x =>
           val dimId = x
-          TSDOutputRow[Long](
+          TSDOutputRow(
             key = TSDRowKey(time - (time % testTable.rowTimeSpan), Array(Some(dimId), Some(dimId))),
             values = Array((x % 1000000, v))
           )
@@ -110,8 +98,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
           queryContext: InternalQueryContext,
           from: IdType,
           to: IdType,
-          rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-      ): Iterator[TSDOutputRow[IdType]] = {
+          rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+      ): Iterator[TSDOutputRow] = {
         rows.iterator
       }
 
@@ -151,7 +139,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //        in.map(_ => row).iterator
 //      }
 
-      def tagged[T](tag: Byte, value: T)(implicit writable: Writable[T]): Array[Byte] = {
+      def tagged[T](tag: Byte, value: T)(implicit writable: Storable[T]): Array[Byte] = {
         tag +: writable.write(value)
       }
 
@@ -180,8 +168,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
       const(Time(qtime.plusYears(1))),
       Seq(
         function(UnaryOperation.truncDay, time) as "time",
-        dimension(TestDims.TAG_A) as "tag_a",
-        dimension(TestDims.TAG_B) as "tag_b",
+        dimension(TestDims.DIM_A) as "tag_a",
+        dimension(TestDims.DIM_B) as "tag_b",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField"
       ),
       None,
@@ -204,6 +192,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       val r1 = result.next()
       r1.fieldValueByName[Double]("sum_testField").get shouldBe N.toDouble
+      r1.fieldValueByName[String]("tag_a").get shouldBe "test1"
+      r1.fieldValueByName[String]("tag_b").get shouldBe "test2"
 
       println(s"$p. Time: " + (System.nanoTime() - s) / (1000 * 1000))
 

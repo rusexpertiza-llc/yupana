@@ -41,7 +41,7 @@ class TsdbDataFilterTest
     s" AND time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}'"
 
   "TSDB" should "execute query with filter by values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, testField, TAG_A, TAG_B FROM test_table WHERE testField = 1012" + timeBounds()
+    val sql = "SELECT time AS time_time, testField, A, B FROM test_table WHERE testField = 1012" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -53,13 +53,13 @@ class TsdbDataFilterTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1012)))
+            equ(metric(TestTableFields.TEST_FIELD), const(1012d))
           )
         ),
         *,
@@ -69,13 +69,13 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset()
         )
       )
@@ -86,13 +86,13 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("testField").value shouldBe 1012d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[Short]("B").value shouldBe 2.toShort
   }
 
   it should "execute query with filter by values and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, abs(testField) AS abs_test_field, TAG_A, TAG_B FROM test_table " +
-      "WHERE testField = 1012 AND TAG_B = 'VB1'" + timeBounds()
+    val sql = "SELECT time AS time_time, abs(testField) AS abs_test_field, A, B FROM test_table " +
+      "WHERE testField = 1012 AND B = 31" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -104,14 +104,14 @@ class TsdbDataFilterTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1012))),
-            equ(dimension(TestDims.TAG_B), const("VB1"))
+            equ(metric(TestTableFields.TEST_FIELD), const(1012d)),
+            equ(dimension(TestDims.DIM_B), const(31.toShort))
           )
         ),
         *,
@@ -121,13 +121,13 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("VB1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some(31.toShort))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("VB1"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some(31.toShort))
             .buildAndReset()
         )
       )
@@ -138,12 +138,12 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("abs_test_field").value shouldBe 1012d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "VB1"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[Short]("B").value shouldBe 31
   }
 
   it should "execute query with filter by values not presented in query.fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, TAG_A, TAG_B FROM test_table WHERE testField <= 1012" + timeBounds()
+    val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField <= 1012" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -155,13 +155,13 @@ class TsdbDataFilterTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            le(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1012)))
+            le(metric(TestTableFields.TEST_FIELD), const(1012d))
           )
         ),
         *,
@@ -171,13 +171,13 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some(2.toShort))
             .buildAndReset()
         )
       )
@@ -188,12 +188,12 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[Short]("B").value shouldBe 2
   }
 
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time AS time_time, TAG_A, TAG_B FROM test_table WHERE testField != testField2" + timeBounds()
+    val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField != testField2" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -206,8 +206,8 @@ class TsdbDataFilterTest
             time,
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
             ge(time, const(Time(from))),
@@ -223,14 +223,14 @@ class TsdbDataFilterTest
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
-            .set(dimension(TestDims.TAG_A), Some("test11"))
-            .set(dimension(TestDims.TAG_B), Some("test12"))
+            .set(dimension(TestDims.DIM_A), Some("test11"))
+            .set(dimension(TestDims.DIM_B), Some("test12"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime + 100)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
             .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset()
         )
       )
@@ -241,12 +241,12 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
     an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test11"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test12"
+    row.fieldValueByName[String]("A").value shouldBe "test11"
+    row.fieldValueByName[String]("B").value shouldBe "test12"
   }
 
   it should "support IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT time, TAG_A, TAG_B, testField as F1 FROM test_table WHERE F1 IN (1012, 1014)" + timeBounds()
+    val sql = "SELECT time, A, B, testField as F1 FROM test_table WHERE F1 IN (1012, 1014)" + timeBounds()
     val query = createQuery(sql)
 
     val pointTime = from.getMillis + 10
@@ -258,8 +258,8 @@ class TsdbDataFilterTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
             ge(time, const(Time(from))),
@@ -274,13 +274,13 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1014d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset()
         )
       )
@@ -291,15 +291,15 @@ class TsdbDataFilterTest
 
     r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r1.fieldValueByName[Double]("F1").value shouldBe 1012d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r1.fieldValueByName[String]("A").value shouldBe "test1"
+    r1.fieldValueByName[String]("B").value shouldBe "test2"
 
     val r2 = iterator.next()
 
     r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     r2.fieldValueByName[Double]("F1").value shouldBe 1014d
-    r2.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    r2.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    r2.fieldValueByName[String]("A").value shouldBe "test1"
+    r2.fieldValueByName[String]("B").value shouldBe "test2"
 
     iterator.hasNext shouldBe false
   }
@@ -307,7 +307,7 @@ class TsdbDataFilterTest
   it should "support AND for values, catalogs and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-    val sql = "SELECT time, TAG_A, TAG_B, testField as F1 FROM test_table " +
+    val sql = "SELECT time, A, B, testField as F1 FROM test_table " +
       "WHERE F1 IN (1012, 1014) AND testStringField != 'Str@!' AND TestLink2_testField2 = 'Str@!Ster'" +
       timeBounds()
     val query = createQuery(sql)
@@ -328,7 +328,7 @@ class TsdbDataFilterTest
           lt(time, const(Time(to))),
           in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
           neq(metric(TestTableFields.TEST_STRING_FIELD), const("Str@!")),
-          in(dimension(TestDims.TAG_A), Set("test1"))
+          in(dimension(TestDims.DIM_A), Set("test1"))
         )
       )
 
@@ -342,15 +342,15 @@ class TsdbDataFilterTest
             time,
             metric(TestTableFields.TEST_STRING_FIELD),
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
             neq(metric(TestTableFields.TEST_STRING_FIELD), const("Str@!")),
-            in(dimension(TestDims.TAG_A), Set("test1"))
+            in(dimension(TestDims.DIM_A), Set("test1"))
           )
         ),
         *,
@@ -361,19 +361,19 @@ class TsdbDataFilterTest
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("asdsadasd"))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
             .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Str@!"))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.TAG_A), Some("test1"))
-            .set(dimension(TestDims.TAG_B), Some("test2"))
+            .set(dimension(TestDims.DIM_A), Some("test1"))
+            .set(dimension(TestDims.DIM_B), Some("test2"))
             .buildAndReset()
         )
       )
@@ -384,14 +384,14 @@ class TsdbDataFilterTest
 
     row.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
     row.fieldValueByName[Double]("F1").value shouldBe 1012d
-    row.fieldValueByName[String]("TAG_A").value shouldBe "test1"
-    row.fieldValueByName[String]("TAG_B").value shouldBe "test2"
+    row.fieldValueByName[String]("A").value shouldBe "test1"
+    row.fieldValueByName[String]("B").value shouldBe "test2"
   }
 
   it should "support IS NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val sql = "SELECT day(time) AS t, testField, TAG_A, TAG_B " +
+    val sql = "SELECT day(time) AS t, testField, A, B " +
       "FROM test_table WHERE TestLink_testField IS NULL" + timeBounds()
     val query = createQuery(sql)
 
@@ -423,8 +423,8 @@ class TsdbDataFilterTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           condition
         ),
@@ -435,13 +435,13 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime1)))
             .set(metric(TestTableFields.TEST_FIELD), Some(10d))
-            .set(dimension(TestDims.TAG_A), Some("test1a"))
-            .set(dimension(TestDims.TAG_B), Some("test2b"))
+            .set(dimension(TestDims.DIM_A), Some("test1a"))
+            .set(dimension(TestDims.DIM_B), Some("test2b"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
             .set(metric(TestTableFields.TEST_FIELD), Some(30d))
-            .set(dimension(TestDims.TAG_A), Some("test2a"))
-            .set(dimension(TestDims.TAG_B), Some("test3b"))
+            .set(dimension(TestDims.DIM_A), Some("test2a"))
+            .set(dimension(TestDims.DIM_B), Some("test3b"))
             .buildAndReset()
         )
       )
@@ -452,14 +452,14 @@ class TsdbDataFilterTest
     val r1 = results.head
     r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("testField").value shouldBe 10d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test1a"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test2b"
+    r1.fieldValueByName[String]("A").value shouldBe "test1a"
+    r1.fieldValueByName[String]("B").value shouldBe "test2b"
   }
 
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val sql = "SELECT day(time) AS t, testField, TAG_A, TAG_B, TestLink_testField AS ctf " +
+    val sql = "SELECT day(time) AS t, testField, A, B, TestLink_testField AS ctf " +
       "FROM test_table WHERE ctf IS NOT NULL" + timeBounds()
     val query = createQuery(sql)
 
@@ -491,8 +491,8 @@ class TsdbDataFilterTest
           Set[Expression](
             time,
             metric(TestTableFields.TEST_FIELD),
-            dimension(TestDims.TAG_A),
-            dimension(TestDims.TAG_B)
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
           ),
           condition
         ),
@@ -503,13 +503,13 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime1)))
             .set(metric(TestTableFields.TEST_FIELD), Some(10d))
-            .set(dimension(TestDims.TAG_A), Some("test1a"))
-            .set(dimension(TestDims.TAG_B), Some("test2b"))
+            .set(dimension(TestDims.DIM_A), Some("test1a"))
+            .set(dimension(TestDims.DIM_B), Some("test2b"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime1)))
             .set(metric(TestTableFields.TEST_FIELD), Some(30d))
-            .set(dimension(TestDims.TAG_A), Some("test2a"))
-            .set(dimension(TestDims.TAG_B), Some("test3b"))
+            .set(dimension(TestDims.DIM_A), Some("test2a"))
+            .set(dimension(TestDims.DIM_B), Some("test3b"))
             .buildAndReset()
         )
       )
@@ -520,8 +520,8 @@ class TsdbDataFilterTest
     val r1 = results.head
     r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
     r1.fieldValueByName[Double]("testField").value shouldBe 30d
-    r1.fieldValueByName[String]("TAG_A").value shouldBe "test2a"
-    r1.fieldValueByName[String]("TAG_B").value shouldBe "test3b"
+    r1.fieldValueByName[String]("A").value shouldBe "test2a"
+    r1.fieldValueByName[String]("B").value shouldBe "test3b"
     r1.fieldValueByName[String]("ctf").value shouldBe "some-value"
   }
 
@@ -530,9 +530,9 @@ class TsdbDataFilterTest
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
       val testCatalogServiceMock2 = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-      val sql = "SELECT day(time) AS t, testField, TAG_A, TAG_B, TestLink2_testField2 AS cf2 " +
+      val sql = "SELECT day(time) AS t, testField, A, B, TestLink2_testField2 AS cf2 " +
         "FROM test_table " +
-        "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND TAG_A != 'test1' AND TAG_B = 'testB2'" + timeBounds()
+        "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND A != 'test1' AND B = 15" + timeBounds()
       val query = createQuery(sql)
 
       val condition = and(
@@ -540,9 +540,9 @@ class TsdbDataFilterTest
         lt(time, const(Time(to))),
         isNull(link(TestLinks.TEST_LINK, "testField")),
         isNotNull(link(TestLinks.TEST_LINK2, "testField2")),
-        ge(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), const(BigDecimal(1000))),
-        neq(dimension(TestDims.TAG_A), const("test1")),
-        equ(dimension(TestDims.TAG_B), const("testB2"))
+        ge(metric(TestTableFields.TEST_FIELD), const(1000d)),
+        neq(dimension(TestDims.DIM_A), const("test1")),
+        equ(dimension(TestDims.DIM_B), const(15.toShort))
       )
 
       (testCatalogServiceMock.condition _).expects(condition).returning(condition)
@@ -579,8 +579,8 @@ class TsdbDataFilterTest
             Set[Expression](
               time,
               metric(TestTableFields.TEST_FIELD),
-              dimension(TestDims.TAG_A),
-              dimension(TestDims.TAG_B)
+              dimension(TestDims.DIM_A),
+              dimension(TestDims.DIM_B)
             ),
             condition
           ),
@@ -591,23 +591,23 @@ class TsdbDataFilterTest
           Iterator(
             b.set(time, Some(Time(pointTime1)))
               .set(metric(TestTableFields.TEST_FIELD), Some(1001d))
-              .set(dimension(TestDims.TAG_A), Some("test2a"))
-              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_A), Some("test2a"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1 + 10)))
               .set(metric(TestTableFields.TEST_FIELD), Some(1002d))
-              .set(dimension(TestDims.TAG_A), Some("test2a"))
-              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_A), Some("test2a"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1 + 10)))
               .set(metric(TestTableFields.TEST_FIELD), Some(103d))
-              .set(dimension(TestDims.TAG_A), Some("test2a"))
-              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_A), Some("test2a"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset(),
             b.set(time, Some(Time(pointTime1 + 10)))
               .set(metric(TestTableFields.TEST_FIELD), Some(1003d))
-              .set(dimension(TestDims.TAG_A), Some("test1a"))
-              .set(dimension(TestDims.TAG_B), Some("testB2"))
+              .set(dimension(TestDims.DIM_A), Some("test1a"))
+              .set(dimension(TestDims.DIM_B), Some(15.toShort))
               .buildAndReset()
           )
         )
@@ -618,8 +618,8 @@ class TsdbDataFilterTest
       val r1 = results.head
       r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
       r1.fieldValueByName[Double]("testField").value shouldBe 1003d
-      r1.fieldValueByName[String]("TAG_A").value shouldBe "test1a"
-      r1.fieldValueByName[String]("TAG_B").value shouldBe "testB2"
+      r1.fieldValueByName[String]("A").value shouldBe "test1a"
+      r1.fieldValueByName[Short]("B").value shouldBe 15.toShort
   }
 
   it should "support IS NULL and IS NOT NULL inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -650,7 +650,7 @@ class TsdbDataFilterTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(DimensionExpr(TestDims.TAG_A), Set("test1a", "test2a"))
+          in(DimensionExpr(TestDims.DIM_A), Set("test1a", "test2a"))
         )
       )
 
@@ -661,11 +661,11 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.TAG_A)),
+          Set[Expression](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.TAG_A), Set("test1a", "test2a"))
+            in(dimension(TestDims.DIM_A), Set("test1a", "test2a"))
           )
         ),
         *,
@@ -675,11 +675,11 @@ class TsdbDataFilterTest
         Iterator(
           b.set(time, Some(Time(pointTime1)))
             .set(metric(TestTableFields.TEST_FIELD), Some(1011d))
-            .set(dimension(TestDims.TAG_A), Some("test1a"))
+            .set(dimension(TestDims.DIM_A), Some("test1a"))
             .buildAndReset(),
           b.set(time, Some(Time(pointTime2)))
             .set(metric(TestTableFields.TEST_FIELD), Some(3001d))
-            .set(dimension(TestDims.TAG_A), Some("test2a"))
+            .set(dimension(TestDims.DIM_A), Some("test2a"))
             .buildAndReset()
         )
       )
@@ -706,7 +706,7 @@ class TsdbDataFilterTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            neq(double2bigDecimal(metric(TestTable2Fields.TEST_FIELD2)), const(BigDecimal(0)))
+            neq(metric(TestTable2Fields.TEST_FIELD2), const(0d))
           )
         ),
         *,

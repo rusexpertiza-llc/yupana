@@ -134,7 +134,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       val bytes = rts.map {
         case (rt, idx) =>
           val v = row.fieldByIndex[rt.T](idx)
-          val b = v.map(rt.writable.write).getOrElse(Array.empty[Byte])
+          val b = v.map(rt.storable.write).getOrElse(Array.empty[Byte])
           ByteString.copyFrom(b)
       }
       proto.Response(proto.Response.Resp.Result(proto.ResultChunk(bytes)))

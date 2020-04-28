@@ -30,7 +30,7 @@ case class HBaseScanPartition(
     fromTime: Long,
     toTime: Long,
     queryContext: InternalQueryContext,
-    rangeScanDimsIds: Map[Dimension, Seq[Long]]
+    rangeScanDimsIds: Map[Dimension, Seq[_]]
 ) extends Partition
 
 class HBaseScanRDD(
@@ -39,8 +39,8 @@ class HBaseScanRDD(
     queryContext: InternalQueryContext,
     fromTime: Long,
     toTime: Long,
-    rangeScanDimsIds: Map[Dimension, Seq[Long]]
-) extends RDD[TSDOutputRow[Long]](sc, Nil) {
+    rangeScanDimsIds: Map[Dimension, Seq[_]]
+) extends RDD[TSDOutputRow](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
     val regionLocator = connection().getRegionLocator(hTableName())
@@ -69,7 +69,7 @@ class HBaseScanRDD(
     partitions.asInstanceOf[Array[Partition]]
   }
 
-  override def compute(split: Partition, context: TaskContext): Iterator[TSDOutputRow[Long]] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[TSDOutputRow] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
 
     val scan = queryContext.metricsCollector.createScans.measure(1) {

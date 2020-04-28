@@ -20,7 +20,6 @@ import java.util.Properties
 
 import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.schema.{ Dimension, ExternalLink }
-import org.yupana.core.TsdbBase
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLinkConnection, SQLExternalLinkDescription }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
@@ -30,9 +29,10 @@ trait OrganisationCatalog extends ExternalLink {
   val TYPE = "type"
   val ID = "id"
 
-  override val linkName: String = "Organisations"
+  override type DimType = Int
 
-  override val dimension: Dimension = Dimensions.KKM_ID_TAG
+  override val linkName: String = "Organisations"
+  override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
 
   override val fieldsNames: Set[String] = Set(TYPE, ID)
 }
@@ -47,7 +47,7 @@ object OrganisationCatalogImpl {
       Map(
         OrganisationCatalog.TYPE -> "o.type",
         OrganisationCatalog.ID -> "o.org_id",
-        Dimensions.KKM_ID_TAG.name -> "k.device_id"
+        Dimensions.KKM_ID.name -> "k.device_id"
       )
     ),
     Some("kkms k INNER JOIN organisations o on k.org_id = o.id")
@@ -62,5 +62,5 @@ object OrganisationCatalogImpl {
   }
 }
 
-class OrganisationCatalogImpl(tsdb: TsdbBase, jdbcTemplate: JdbcTemplate)
-    extends SQLSourcedExternalLinkService(OrganisationCatalog, OrganisationCatalogImpl.description, jdbcTemplate, tsdb)
+class OrganisationCatalogImpl(jdbcTemplate: JdbcTemplate)
+    extends SQLSourcedExternalLinkService(OrganisationCatalog, OrganisationCatalogImpl.description, jdbcTemplate)
