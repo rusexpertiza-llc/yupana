@@ -54,8 +54,7 @@ object ETL {
     val commonDims: Map[Dimension, Any] = Map(
       Dimensions.KKM_ID -> receipt.kkmId,
       Dimensions.OPERATION_TYPE -> receipt.operationType.toByte,
-      Dimensions.SHIFT -> receipt.shiftNumber,
-      Dimensions.OPERATOR -> receipt.operator
+      Dimensions.SHIFT -> receipt.shiftNumber
     )
 
     val commonMetrics = Seq(
@@ -106,12 +105,12 @@ object ETL {
     val dims: Map[Dimension, Any] = Map(
       Dimensions.KKM_ID -> receipt.kkmId,
       Dimensions.OPERATION_TYPE -> receipt.operationType,
-      Dimensions.OPERATOR -> receipt.operator,
       Dimensions.SHIFT -> receipt.shiftNumber
     )
 
     val metrics = Seq(
       Some(MetricValue(ReceiptTableMetrics.totalSumField, receipt.totalSum)),
+      Some(MetricValue(ReceiptTableMetrics.operator, receipt.operator)),
       receipt.totalCashSum.map(v => MetricValue(ReceiptTableMetrics.cashSumField, v)),
       receipt.totalCardSum.map(v => MetricValue(ReceiptTableMetrics.cardSumField, v)),
       receipt.prePayment.map(v => MetricValue(ReceiptTableMetrics.prepaymentSumField, v)),
