@@ -65,7 +65,7 @@ class TSDHBaseRowIterator(
     internalRowBuilder.buildAndReset()
   }
 
-  def nextHBaseRow(): Unit = {
+  private def nextHBaseRow(): Unit = {
     val result = rows.next()
     currentRowKey = result.getRow
     cells = result.rawCells()
