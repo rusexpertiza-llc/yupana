@@ -54,7 +54,7 @@ object ETL {
     val commonDims: Map[Dimension, Any] = Map(
       Dimensions.KKM_ID -> receipt.kkmId,
       Dimensions.OPERATION_TYPE -> receipt.operationType.toByte,
-      Dimensions.SHIFT -> receipt.shiftNumber.toShort,
+      Dimensions.SHIFT -> receipt.shiftNumber,
       Dimensions.OPERATOR -> receipt.operator
     )
 
