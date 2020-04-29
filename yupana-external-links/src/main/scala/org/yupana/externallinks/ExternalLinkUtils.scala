@@ -90,17 +90,8 @@ object ExternalLinkUtils {
     val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
     val fields = linkExprs.map(_.linkField)
     val dimValues = rows.flatMap(r => r.get[R](dimExprIdx)).toSet
-
-    //val rowsByDimValues = rows.groupBy(r => r.get[String](dimExprIdx).getOrElse(""))
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
-    /*updateRows2(
-      rowsByDimValues,
-      exprIndex,
-      allFieldValues.asInstanceOf[SparseTable[String, String, String]].values,
-      linkExprs.map(e => e.linkField -> e).toMap
-    )*/
     val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
-
     rows.foreach { row =>
       row.get[R](dimExprIdx).foreach { dimValue =>
         allFieldsValues.row(dimValue).foreach {
