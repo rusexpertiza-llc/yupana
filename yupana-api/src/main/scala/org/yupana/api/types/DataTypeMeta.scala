@@ -19,7 +19,7 @@ package org.yupana.api.types
 import java.sql.Types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 /**
   * Contains different meta information for type `T`
@@ -65,6 +65,8 @@ object DataTypeMeta {
     DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
   implicit val periodMeta: DataTypeMeta[Period] =
     DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
+
+  implicit val blobMeta: DataTypeMeta[Blob] = DataTypeMeta(Types.BLOB, 131089, "BLOB", classOf[java.sql.Blob], 0, 0)
 
   implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
     DataTypeMeta(

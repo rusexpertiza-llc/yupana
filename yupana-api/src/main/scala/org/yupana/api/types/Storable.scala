@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 
 import org.joda.time.Period
 import org.joda.time.format.{ ISOPeriodFormat, PeriodFormatter }
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 import scala.annotation.implicitNotFound
 import scala.reflect.ClassTag
@@ -70,6 +70,8 @@ object Storable {
   implicit val timestampStorable: Storable[Time] = wrap(longStorable, (l: Long) => new Time(l), _.millis)
   implicit val periodStorable: Storable[Period] =
     wrap(stringStorable, (s: String) => ISOPeriodFormat.standard().parsePeriod(s), p => periodFormat.print(p))
+
+  implicit val blobStorable: Storable[Blob] = wrap(arrayStorable[Byte], Blob.apply, _.data)
 
   implicit def arrayStorable[T](implicit rt: Storable[T], ct: ClassTag[T]): Storable[Array[T]] =
     of(readArray(rt), arrayToBytes(rt))

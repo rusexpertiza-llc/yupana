@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 import scala.reflect.ClassTag
 
@@ -90,13 +90,15 @@ object DataType {
 
   def apply[T](implicit dt: DataType.Aux[T]): DataType.Aux[T] = dt
 
-  implicit val stringDt: DataType.Aux[String] = DataType[String](r => TypeOperations.stringOperations(r))
+  implicit val stringDt: DataType.Aux[String] = DataType[String](TypeOperations.stringOperations)
 
-  implicit val boolDt: DataType.Aux[Boolean] = DataType[Boolean](r => TypeOperations.boolOperations(r))
+  implicit val boolDt: DataType.Aux[Boolean] = DataType[Boolean](TypeOperations.boolOperations)
 
-  implicit val timeDt: DataType.Aux[Time] = DataType[Time](r => TypeOperations.timeOperations(r))
+  implicit val timeDt: DataType.Aux[Time] = DataType[Time](TypeOperations.timeOperations)
 
-  implicit val periodDt: DataType.Aux[Period] = DataType[Period](r => TypeOperations.periodOperations(r))
+  implicit val periodDt: DataType.Aux[Period] = DataType[Period](TypeOperations.periodOperations)
+
+  implicit val blobDt: DataType.Aux[Blob] = DataType[Blob](TypeOperations.blobOperations)
 
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
@@ -118,6 +120,21 @@ object DataType {
 
   implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Array[TT]] = {
     new ArrayDataType(dtt).aux
+  }
+
+  private def apply[TT](ops: TypeOperations[TT])(
+      implicit
+      s: Storable[TT],
+      m: DataTypeMeta[TT],
+      ct: ClassTag[TT],
+      bt: BoxingTag[TT]
+  ): DataType.Aux[TT] = new DataType {
+    override type T = TT
+    override val meta: DataTypeMeta[T] = m
+    override val storable: Storable[T] = s
+    override val classTag: ClassTag[T] = ct
+    override val boxingTag: BoxingTag[T] = bt
+    override lazy val operations: TypeOperations[TT] = ops
   }
 
   private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(

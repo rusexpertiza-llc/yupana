@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 /**
   * Operations registry for a type `T`.
@@ -57,28 +57,35 @@ object TypeOperations {
     Map.empty
   )
 
-  def stringOperations(dt: DataType.Aux[String]): TypeOperations[String] = TypeOperations(
+  def stringOperations: TypeOperations[String] = TypeOperations(
     BinaryOperation.stringOperations,
     UnaryOperation.stringOperations,
     Aggregation.stringAggregations,
     UnaryOperation.stringArrayOperations
   )
 
-  def boolOperations(dt: DataType.Aux[Boolean]): TypeOperations[Boolean] = TypeOperations(
+  def boolOperations: TypeOperations[Boolean] = TypeOperations(
     Map.empty,
     UnaryOperation.boolOperations,
     Map.empty,
     Map.empty
   )
 
-  def timeOperations(dt: DataType.Aux[Time]): TypeOperations[Time] = TypeOperations(
+  def timeOperations: TypeOperations[Time] = TypeOperations(
     BinaryOperation.timeOperations,
     UnaryOperation.timeOperations,
     Aggregation.timeAggregations,
     Map.empty
   )
 
-  def periodOperations(dt: DataType.Aux[Period]): TypeOperations[Period] = TypeOperations(
+  def blobOperations: TypeOperations[Blob] = TypeOperations(
+    Map.empty,
+    Map.empty,
+    Map.empty,
+    Map.empty
+  )
+
+  def periodOperations: TypeOperations[Period] = TypeOperations(
     BinaryOperation.periodOperations,
     Map.empty,
     Map.empty,
