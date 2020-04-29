@@ -95,7 +95,7 @@ object ExternalLinkUtils {
     rows.foreach { row =>
       row.get[R](dimExprIdx).foreach { dimValue =>
         allFieldsValues.row(dimValue).foreach {
-          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
+          case (field, value) => updateRow(row, linkExprsMap(field), exprIndex, field, value)
         }
       }
     }
@@ -123,20 +123,19 @@ object ExternalLinkUtils {
     rows.foreach { row =>
       extractDimValueWithTime(row).foreach { dimValueAtTime =>
         allFieldsValues.row(dimValueAtTime).foreach {
-          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
+          case (field, value) => updateRow(row, linkExprsMap(field), exprIndex, field, value)
         }
       }
     }
   }
 
-  def updateRow(
+  private def updateRow(
       row: InternalRow,
-      linkExprsMap: Map[String, LinkExpr],
+      linkExpr: LinkExpr,
       exprIndex: scala.collection.Map[Expression, Int],
       field: String,
       value: String
   ): Unit = {
-    val linkExpr = linkExprsMap(field)
     if (value != null && exprIndex.contains(linkExpr)) {
       row.set(exprIndex, linkExpr, Some(value))
     }
