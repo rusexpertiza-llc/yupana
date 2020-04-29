@@ -91,12 +91,11 @@ object ExternalLinkUtils {
     val fields = linkExprs.map(_.linkField)
     val dimValues = rows.flatMap(r => r.get[R](dimExprIdx)).toSet
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
-    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
+    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
     rows.foreach { row =>
       row.get[R](dimExprIdx).foreach { dimValue =>
-        allFieldsValues.row(dimValue).foreach {
-          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
-        }
+        val rowValues = allFieldsValues.row(dimValue)
+        updateRow(row, linkExprsIdx, rowValues)
       }
     }
   }
@@ -110,34 +109,34 @@ object ExternalLinkUtils {
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField)
+
     def extractDimValueWithTime(r: InternalRow): Option[(R, Time)] = {
       for {
         d <- r.get[R](exprIndex, dimExpr)
         t <- r.get[Time](exprIndex, TimeExpr)
       } yield (d, t)
     }
+
     val dimValuesWithTimes = rows.flatMap(extractDimValueWithTime)
     val allFieldsValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes.toSet)
-    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
+    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
+
     rows.foreach { row =>
       extractDimValueWithTime(row).foreach { dimValueAtTime =>
-        allFieldsValues.row(dimValueAtTime).foreach {
-          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
-        }
+        val values = allFieldsValues.row(dimValueAtTime)
+        updateRow(row, linkExprsIdx, values)
       }
     }
   }
 
-  def updateRow(
-      row: InternalRow,
-      linkExprsMap: Map[String, LinkExpr],
-      exprIndex: scala.collection.Map[Expression, Int],
-      field: String,
-      value: String
-  ): Unit = {
-    val linkExpr = linkExprsMap(field)
-    if (value != null && exprIndex.contains(linkExpr)) {
-      row.set(exprIndex, linkExpr, Some(value))
+  private def updateRow(row: InternalRow, exprIndex: Seq[(LinkExpr, Int)], values: Map[String, String]): Unit = {
+    exprIndex.foreach {
+      case (expr, idx) =>
+        values.get(expr.linkField).foreach { value =>
+          if (value != null) {
+            row.set(idx, Some(value))
+          }
+        }
     }
   }
 
