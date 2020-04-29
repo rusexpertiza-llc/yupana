@@ -92,7 +92,7 @@ object Filters {
     }
 
     def excludeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
-      val newIds = union(getIncIds(dim), is)
+      val newIds = union(getExcIds(dim), is)
 
       new Builder(incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
     }
