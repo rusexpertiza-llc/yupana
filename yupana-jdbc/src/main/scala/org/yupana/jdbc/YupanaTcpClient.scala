@@ -273,7 +273,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
             if (bytes.isEmpty) {
               None
             } else {
-              Some[Any](rt.readable.read(bytes.toByteArray))
+              Some[Any](rt.storable.read(bytes.toByteArray))
             }
         }
         .toArray

@@ -23,6 +23,7 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
+import org.yupana.externallinks.ExternalLinkUtils.updateRow
 
 object ExternalLinkUtils {
   def extractCatalogFields(
@@ -80,65 +81,74 @@ object ExternalLinkUtils {
     TimeBoundedCondition.merge(r).toCondition
   }
 
-  def setLinkedValues(
-      externalLink: ExternalLink,
+  def setLinkedValues[R](
+      externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr],
-      fieldValuesForDimValues: (Set[String], Set[String]) => Table[String, String, String]
+      fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, String]
   ): Unit = {
     val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
     val fields = linkExprs.map(_.linkField)
-    val dimValues = rows.flatMap(r => r.get[String](dimExprIdx)).toSet
+    val dimValues = rows.flatMap(r => r.get[R](dimExprIdx)).toSet
+
     //val rowsByDimValues = rows.groupBy(r => r.get[String](dimExprIdx).getOrElse(""))
-    val allFieldValues = fieldValuesForDimValues(fields, dimValues)
+    val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
     /*updateRows2(
       rowsByDimValues,
       exprIndex,
       allFieldValues.asInstanceOf[SparseTable[String, String, String]].values,
       linkExprs.map(e => e.linkField -> e).toMap
     )*/
-    updateRows(rows, exprIndex, dimExprIdx, allFieldValues, linkExprs.map(e => e.linkField -> e).toMap)
+    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
+
+    rows.foreach { row =>
+      row.get[R](dimExprIdx).foreach { dimValue =>
+        allFieldsValues.row(dimValue).foreach {
+          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
+        }
+      }
+    }
   }
 
-  def setLinkedValuesTimeSensitive(
-      externalLink: ExternalLink,
+  def setLinkedValuesTimeSensitive[R](
+      externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr],
-      fieldValuesForDimValuesAndTimes: (Set[String], Set[(String, Time)]) => Table[String, String, String]
+      fieldValuesForDimValuesAndTimes: (Set[String], Set[(R, Time)]) => Table[(R, Time), String, String]
   ): Unit = {
     val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
     val timeExprIdx = exprIndex(TimeExpr)
     val fields = linkExprs.map(_.linkField)
-    val dimValuesWithTimes = rows.flatMap { r =>
+    def extractDimValueWithTime(r: InternalRow): Option[(R, Time)] = {
       for {
-        d <- r.get[String](dimExprIdx)
+        d <- r.get[R](dimExprIdx)
         t <- r.get[Time](timeExprIdx)
       } yield (d, t)
-    }.toSet
-    val allFieldValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes)
-    updateRows(rows, exprIndex, dimExprIdx, allFieldValues, linkExprs.map(e => e.linkField -> e).toMap)
-  }
-
-  private def updateRows(
-      rows: Seq[InternalRow],
-      exprIndex: scala.collection.Map[Expression, Int],
-      dimExprIdx: Int,
-      allFieldsValues: Table[String, String, String],
-      linkExprs: Map[String, LinkExpr]
-  ): Unit = {
-
+    }
+    val dimValuesWithTimes = rows.flatMap(extractDimValueWithTime)
+    val allFieldsValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes.toSet)
+    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
     rows.foreach { row =>
-      row.get[String](dimExprIdx).foreach { dimValue =>
-        allFieldsValues.row(dimValue).foreach {
-          case (field, value) =>
-            val linkExpr = linkExprs(field)
-            if (value != null && exprIndex.contains(linkExpr)) {
-              row.set(exprIndex, linkExpr, Some(value))
-            }
+      extractDimValueWithTime(row).foreach { dimValueAtTime =>
+        allFieldsValues.row(dimValueAtTime).foreach {
+          case (field, value) => updateRow(row, linkExprsMap, exprIndex, field, value)
         }
       }
+    }
+  }
+
+  def updateRow(
+      row: InternalRow,
+      linkExprsMap: Map[String, LinkExpr],
+      exprIndex: scala.collection.Map[Expression, Int],
+      field: String,
+      value: String
+  ): Unit = {
+    val linkExpr = linkExprsMap(field)
+    if (value != null && exprIndex.contains(linkExpr)) {
+      row.set(exprIndex, linkExpr, Some(value))
     }
   }
 

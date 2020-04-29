@@ -16,13 +16,13 @@
 
 package org.yupana.schema
 
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.utils.Tokenizer
 
 object ItemDimension {
 
-  def apply(name: String): Dimension = {
-    Dimension(name, Some(hash))
+  def apply(name: String): DictionaryDimension = {
+    DictionaryDimension(name, Some(hash))
   }
 
   val stopWords: Set[String] = Set("kg", "ml", "lit", "litr", "gr", "sht")

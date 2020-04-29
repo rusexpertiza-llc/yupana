@@ -22,7 +22,7 @@ case class Receipt(
     date: LocalDateTime,
     kkmId: Int,
     receiptNumber: Int,
-    operationType: String,
+    operationType: Int,
     operator: String,
     shiftNumber: Int,
     items: Seq[Item],
@@ -44,7 +44,8 @@ case class Item(
     calcTypeSign: Option[Int] = None,
     calcSubjSing: Option[Int] = None,
     nomenclatureType: Option[String] = None,
-    gtin: Option[String] = None
+    gtin: Option[String] = None,
+    nomenclatureCode: Option[Array[Byte]] = None
 )
 
 object Tax {

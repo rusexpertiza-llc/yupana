@@ -7,7 +7,7 @@ import org.scalatest.{ EitherValues, FlatSpec, Inside, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
-import org.yupana.api.types.Writable
+import org.yupana.api.types.Storable
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
@@ -60,7 +60,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     val expected = Query(
       table = Some(Tables.itemsKkmTable),
-      fields = Seq(dimension(Dimensions.ITEM_TAG).toField),
+      fields = Seq(dimension(Dimensions.ITEM).toField),
       filter = Some(
         and(
           ge(time, const(Time(1234567L))),
@@ -69,7 +69,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           equ(metric(ItemTableMetrics.sumField), const(BigDecimal(300)))
         )
       ),
-      groupBy = Seq(dimension(Dimensions.ITEM_TAG))
+      groupBy = Seq(dimension(Dimensions.ITEM))
     )
 
     val qc = QueryContext(expected, None)
@@ -94,7 +94,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val data = resp.next()
     data shouldEqual Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("деталь от паровоза"))))
+        ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("деталь от паровоза"))))
       )
     )
 
@@ -125,10 +125,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       Seq(
         ParameterValues(
           Seq(
-            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(1, Value(Value.Value.DecimalValue("12345"))),
             ParameterValue(2, Value(Value.Value.TextValue("thing one"))),
-            ParameterValue(3, Value(Value.Value.TextValue("1"))),
-            ParameterValue(4, Value(Value.Value.TextValue("1"))),
+            ParameterValue(3, Value(Value.Value.DecimalValue("1"))),
+            ParameterValue(4, Value(Value.Value.DecimalValue("1"))),
             ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
             ParameterValue(6, Value(Value.Value.DecimalValue("100"))),
             ParameterValue(7, Value(Value.Value.DecimalValue("1")))
@@ -136,10 +136,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         ),
         ParameterValues(
           Seq(
-            ParameterValue(1, Value(Value.Value.TextValue("12345"))),
+            ParameterValue(1, Value(Value.Value.DecimalValue("12345"))),
             ParameterValue(2, Value(Value.Value.TextValue("thing two"))),
-            ParameterValue(3, Value(Value.Value.TextValue("1"))),
-            ParameterValue(4, Value(Value.Value.TextValue("2"))),
+            ParameterValue(3, Value(Value.Value.DecimalValue("1"))),
+            ParameterValue(4, Value(Value.Value.DecimalValue("2"))),
             ParameterValue(5, Value(Value.Value.TimeValue(1578426233000L))),
             ParameterValue(6, Value(Value.Value.DecimalValue("300"))),
             ParameterValue(7, Value(Value.Value.DecimalValue("2")))
@@ -154,10 +154,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           Tables.itemsKkmTable,
           1578426233000L,
           Map(
-            Dimensions.ITEM_TAG -> "thing one",
-            Dimensions.KKM_ID_TAG -> "12345",
-            Dimensions.POSITION_TAG -> "1",
-            Dimensions.OPERATION_TYPE_TAG -> "1"
+            Dimensions.ITEM -> "thing one",
+            Dimensions.KKM_ID -> 12345,
+            Dimensions.POSITION -> 1.toShort,
+            Dimensions.OPERATION_TYPE -> 1.toByte
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 1d), MetricValue(ItemTableMetrics.sumField, BigDecimal(100)))
         ),
@@ -165,10 +165,10 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
           Tables.itemsKkmTable,
           1578426233000L,
           Map(
-            Dimensions.ITEM_TAG -> "thing two",
-            Dimensions.KKM_ID_TAG -> "12345",
-            Dimensions.POSITION_TAG -> "2",
-            Dimensions.OPERATION_TYPE_TAG -> "1"
+            Dimensions.ITEM -> "thing two",
+            Dimensions.KKM_ID -> 12345,
+            Dimensions.POSITION -> 2.toShort,
+            Dimensions.OPERATION_TYPE -> 1.toByte
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 2d), MetricValue(ItemTableMetrics.sumField, BigDecimal(300)))
         )
@@ -179,7 +179,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     resp should contain theSameElementsInOrderAs Seq(
       Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
-      Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))),
+      Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))),
       Response(Response.Resp.ResultStatistics(ResultStatistics(-1, -1)))
     )
   }
@@ -268,7 +268,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
-      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[String]].write("OK")))))
+      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))
     )
   }
 
@@ -281,7 +281,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
-      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Writable[Int]].write(8)))))
+      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[Int]].write(8)))))
     )
   }
 }

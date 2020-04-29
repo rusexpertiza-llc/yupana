@@ -39,12 +39,12 @@ object QueryContext extends StrictLogging {
   def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
     import org.yupana.core.utils.QueryUtils.{ requiredDimensions, requiredLinks }
 
-    val requiredTags = query.groupBy.flatMap(requiredDimensions).toSet ++
+    val requiredDims = query.groupBy.flatMap(requiredDimensions).toSet ++
       query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
       postCondition.toSet.flatMap(requiredDimensions) ++
       query.postFilter.toSeq.flatMap(requiredDimensions)
 
-    val requiredDimExprs = requiredTags.map(DimensionExpr(_))
+    val requiredDimExprs = requiredDims.map(d => DimensionExpr(d.aux))
 
     val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
     val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))
@@ -97,9 +97,9 @@ object QueryContext extends StrictLogging {
       case a @ AggregateExpr(_, e)        => Set(a, e)
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
-      case t: DimensionExpr               => Set(t)
+      case d: DimensionExpr[_]            => Set(d)
       case c: LinkExpr                    => Set(c)
-      case v: MetricExpr[_]               => Set(v)
+      case m: MetricExpr[_]               => Set(m)
       case TimeExpr                       => Set(TimeExpr)
       case _                              => Set.empty
     }.flatten

@@ -51,6 +51,8 @@ trait ReceiptTableMetrics {
   val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
   val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
   val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
+  val documentNumberField = Metric[Long]("documentNumber", 30, rarelyQueried)
+  val operator = Metric[String]("operator", 31, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -84,10 +86,10 @@ trait ReceiptTableMetrics {
   object ReceiptRollupFields {
 
     val baseRollupFields = Seq(
-      QueryFieldToDimension(dimension(Dimensions.KKM_ID_TAG) as Dimensions.KKM_ID_TAG.name, Dimensions.KKM_ID_TAG),
+      QueryFieldToDimension(dimension(Dimensions.KKM_ID) as Dimensions.KKM_ID.name, Dimensions.KKM_ID),
       QueryFieldToDimension(
-        dimension(Dimensions.OPERATION_TYPE_TAG) as Dimensions.OPERATION_TYPE_TAG.name,
-        Dimensions.OPERATION_TYPE_TAG
+        dimension(Dimensions.OPERATION_TYPE) as Dimensions.OPERATION_TYPE.name,
+        Dimensions.OPERATION_TYPE
       ),
       QueryFieldToMetric(
         aggregate(Aggregation.sum[BigDecimal], metric(totalSumField)) as totalSumField.name,
@@ -153,12 +155,15 @@ trait ReceiptTableMetrics {
         aggregate(Aggregation.sum[Long], metric(itemsCountField)) as itemsCountField.name,
         itemsCountField
       ),
-      QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField)
+      QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField),
+      QueryFieldToMetric(
+        aggregate(Aggregation.count[Long], metric(documentNumberField)) as documentNumberField.name,
+        receiptCountField
+      )
     )
 
     val shiftRollupFields = Seq(
-      QueryFieldToDimension(dimension(Dimensions.SHIFT_TAG) as Dimensions.SHIFT_TAG.name, Dimensions.SHIFT_TAG),
-      QueryFieldToDimension(dimension(Dimensions.OPERATOR_TAG) as Dimensions.OPERATOR_TAG.name, Dimensions.OPERATOR_TAG)
+      QueryFieldToDimension(dimension(Dimensions.SHIFT) as Dimensions.SHIFT.name, Dimensions.SHIFT)
     )
 
     val additionalRollupFieldsFromDetails = Seq(
@@ -202,7 +207,7 @@ trait ReceiptTableMetrics {
     )
 
     val kkmDistinctCountRollupField = QueryFieldToMetric(
-      aggregate(Aggregation.distinctCount[String], dimension(Dimensions.KKM_ID_TAG)) as kkmDistinctCountField.name,
+      aggregate(Aggregation.distinctCount[Int], dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name,
       kkmDistinctCountField
     )
   }

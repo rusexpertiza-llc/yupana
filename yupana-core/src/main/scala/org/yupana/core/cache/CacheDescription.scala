@@ -16,6 +16,7 @@
 
 package org.yupana.core.cache
 
+import org.yupana.api.types.BoxingTag
 import org.yupana.core.cache.CacheFactory.CacheEngine.CacheEngine
 
 abstract class CacheDescription(val name: String, val suffix: String, val engine: CacheEngine) {

@@ -73,6 +73,8 @@ object DataRowRDD {
   private[DataRowRDD] val TYPE_MAP: Map[Int, DataType] = Map(
     Types.BOOLEAN -> BooleanType,
     Types.VARCHAR -> StringType,
+    Types.TINYINT -> ByteType,
+    Types.SMALLINT -> ShortType,
     Types.INTEGER -> IntegerType,
     Types.DOUBLE -> DoubleType,
     Types.BIGINT -> LongType,

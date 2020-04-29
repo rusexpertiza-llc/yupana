@@ -21,15 +21,20 @@ import scala.reflect.ClassTag
 abstract class SortedSetIterator[A: DimOrdering] extends Iterator[A] {
 
   def union(that: SortedSetIterator[A]): SortedSetIterator[A] = {
-    new SortedSetIteratorImpl(new UnionSortedIteratorImpl(Seq(this, that)))
+    if (this.isEmpty) that
+    else if (that.isEmpty) this
+    else new SortedSetIteratorImpl(new UnionSortedIteratorImpl(Seq(this, that)))
   }
 
   def intersect(that: SortedSetIterator[A]): SortedSetIterator[A] = {
-    new IntersectSortedIteratorImpl(Seq(this, that))
+    if (this.isEmpty) this
+    else if (that.isEmpty) that
+    else new IntersectSortedIteratorImpl(Seq(this, that))
   }
 
   def exclude(sub: SortedSetIterator[A]): SortedSetIterator[A] = {
-    new ExcludeSortedIteratorImpl(this, sub)
+    if (this.isEmpty || sub.isEmpty) this
+    else new ExcludeSortedIteratorImpl(this, sub)
   }
 
   def prefetch(prefetchElements: Int)(implicit ct: ClassTag[A]): PrefetchedSortedSetIterator[A] = {

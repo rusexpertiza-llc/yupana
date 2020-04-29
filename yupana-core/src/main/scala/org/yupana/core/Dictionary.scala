@@ -17,11 +17,11 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 
-class Dictionary(dimension: Dimension, dao: DictionaryDao) extends StrictLogging {
+class Dictionary(dimension: DictionaryDimension, dao: DictionaryDao) extends StrictLogging {
   private val cache = CacheFactory.initCache[String, Long](s"dictionary-${dimension.name}")
 
   def findIdByValue(value: String): Option[Long] = {
