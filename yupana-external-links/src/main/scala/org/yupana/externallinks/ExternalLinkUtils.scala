@@ -23,7 +23,6 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
-import org.yupana.externallinks.ExternalLinkUtils.updateRow
 
 object ExternalLinkUtils {
   def extractCatalogFields(
@@ -149,34 +148,6 @@ object ExternalLinkUtils {
     val linkExpr = linkExprsMap(field)
     if (value != null && exprIndex.contains(linkExpr)) {
       row.set(exprIndex, linkExpr, Some(value))
-    }
-  }
-
-  // Optimization candidate.
-  // Idea is to keep dimValue -> Seq[InternalRow] map instead of extracting dimValue from each row twice
-  // see 1. val dimValues = rows.flatMap(r => r.get[String](dimExprIdx)).toSet in setLinkedValues
-  // and 2. row.get[String](dimExprIdx).foreach { dimValue => in updateRows
-  // Shows good perforance boost in case when we have long sequences Seq[InternalRow]...
-  // But degrades in worst case, if we have one row per dimValue.
-  // See InternallRow's generation in benchmark state setup .set(dimExpr, Some((i - (i % 100)).toString))
-  // One dimValue per 100 rows is good, one per one is bad for this approach.
-  private def updateRows2(
-      rowsByDims: Map[String, Seq[InternalRow]],
-      exprIndex: scala.collection.Map[Expression, Int],
-      allFieldsValues: Map[String, Map[String, String]],
-      linkExprs: Map[String, LinkExpr]
-  ): Unit = {
-    allFieldsValues foreach {
-      case (dimValue, fieldValues) =>
-        rowsByDims(dimValue).foreach { row =>
-          fieldValues foreach {
-            case (field, value) =>
-              val linkExpr = linkExprs(field)
-              if (value != null && exprIndex.contains(linkExpr)) {
-                row.set(exprIndex, linkExpr, Some(value))
-              }
-          }
-        }
     }
   }
 
