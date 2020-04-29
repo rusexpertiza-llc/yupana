@@ -178,7 +178,7 @@ object Filters {
           r.asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
-          getIncValues(r).map(vs => r -> vs)
+          getExcValues(r).map(vs => r -> vs)
       }.toMap
     }
 
