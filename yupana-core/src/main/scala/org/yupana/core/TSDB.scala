@@ -19,7 +19,7 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ ExternalLink, Table }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.OnFinishIterator
@@ -52,7 +52,7 @@ class TSDB(
 
   def put(dataPoints: Seq[DataPoint]): Unit = {
     if (config.putEnabled) {
-      loadTagsIds(dataPoints)
+      loadDimIds(dataPoints)
       dao.put(dataPoints)
       externalLinks.foreach(_._2.put(dataPoints))
     } else throw new IllegalAccessException("Put is disabled")
@@ -133,14 +133,17 @@ class TSDB(
     dao.getRollupSpecialField(fieldName, table)
   }
 
-  private def loadTagsIds(dataPoints: Seq[DataPoint]): Unit = {
+  private def loadDimIds(dataPoints: Seq[DataPoint]): Unit = {
     dataPoints.groupBy(_.table).foreach {
       case (table, points) =>
-        table.dimensionSeq.map { tag =>
-          val values = points.flatMap { dp =>
-            dp.dimensions.get(tag).filter(_.trim.nonEmpty)
-          }
-          dictionary(tag).findIdsByValues(values.toSet)
+        table.dimensionSeq.foreach {
+          case dimension: DictionaryDimension =>
+            val values = points.flatMap { dp =>
+              dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
+            }
+            dictionary(dimension).findIdsByValues(values.toSet)
+
+          case _ =>
         }
     }
   }

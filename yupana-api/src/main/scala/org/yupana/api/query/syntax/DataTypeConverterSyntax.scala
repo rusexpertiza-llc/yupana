@@ -20,6 +20,10 @@ import org.yupana.api.query.{ Expression, TypeConvertExpr }
 import org.yupana.api.types.TypeConverter
 
 trait DataTypeConverterSyntax {
+  def byte2BigDecimal(e: Expression.Aux[Byte]): Expression.Aux[BigDecimal] =
+    convert[Byte, BigDecimal](e, TypeConverter.byte2BigDecimal)
+  def short2BigDecimal(e: Expression.Aux[Short]): Expression.Aux[BigDecimal] =
+    convert[Short, BigDecimal](e, TypeConverter.short2BigDecimal)
   def double2bigDecimal(e: Expression.Aux[Double]): Expression.Aux[BigDecimal] =
     convert[Double, BigDecimal](e, TypeConverter.double2BigDecimal)
   def long2BigDecimal(e: Expression.Aux[Long]): Expression.Aux[BigDecimal] =

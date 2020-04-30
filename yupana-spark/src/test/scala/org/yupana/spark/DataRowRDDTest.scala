@@ -20,7 +20,7 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
       table = Tables.itemsKkmTable,
       fields = Seq(
         time.toField,
-        dimension(Dimensions.ITEM_TAG).toField,
+        dimension(Dimensions.ITEM).toField,
         metric(ItemTableMetrics.quantityField).toField,
         metric(ItemTableMetrics.sumField).toField
       ),

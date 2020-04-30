@@ -4,10 +4,9 @@ import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
-import org.yupana.core.utils.metric.NoMetricCollector
 
 class DictionaryTest
     extends FlatSpec
@@ -27,68 +26,9 @@ class DictionaryTest
     CacheFactory.flushCaches()
   }
 
-  val testDim = Dimension("test")
+  val testDim = DictionaryDimension("test")
 
-  "Dictionary" should "use DAO in value method" in {
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-
-    (dictionaryDaoMock.getValueById _).expects(testDim, 1).returning(Some("value")).once()
-    dictionary.value(1) shouldEqual Some("value")
-  }
-
-  it should "use cache in value method" in {
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-
-    (dictionaryDaoMock.getValueById _).expects(testDim, 1).returning(Some("value")).once()
-    dictionary.value(1) shouldEqual Some("value")
-    dictionary.value(1) shouldEqual Some("value")
-  }
-
-  it should "absent cache in value method" in {
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-
-    (dictionaryDaoMock.getValueById _).expects(testDim, 1).returning(None).once()
-    dictionary.value(1) shouldBe empty
-    dictionary.value(1) shouldBe empty
-  }
-
-  it should "use DAO in values method" in {
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-
-    (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(1L, 2L, 3L))
-      .returning(Map(1L -> "value 1", 3L -> "value 3"))
-      .once()
-    dictionary.values(Set(1, 2, 3), NoMetricCollector) shouldEqual Map(1 -> "value 1", 3 -> "value 3")
-  }
-
-  it should "return empty map for empty ids set in values method" in {
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-    dictionary.values(Set.empty, NoMetricCollector) shouldBe Map.empty
-  }
-
-  it should "use caches in values method" in {
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionary = new Dictionary(testDim, dictionaryDaoMock)
-
-    (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(1L, 2L, 3L))
-      .returning(Map(1L -> "value 1", 3L -> "value 3"))
-      .once()
-    (dictionaryDaoMock.getValuesByIds _)
-      .expects(testDim, Set(4L))
-      .returning(Map(4L -> "value 4"))
-      .once()
-    dictionary.values(Set(1L, 2L, 3L), NoMetricCollector) shouldEqual Map(1L -> "value 1", 3L -> "value 3")
-    dictionary.values(Set(2L, 3L, 4L), NoMetricCollector) shouldEqual Map(4L -> "value 4", 3L -> "value 3")
-  }
-
-  it should "use DAO in findIdByValue method" in {
+  "Dictionary" should "use DAO in findIdByValue method" in {
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionary = new Dictionary(testDim, dictionaryDaoMock)
 

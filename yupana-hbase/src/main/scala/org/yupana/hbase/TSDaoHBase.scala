@@ -25,6 +25,7 @@ import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 
 import scala.collection.JavaConverters._
 
@@ -43,8 +44,8 @@ class TSDaoHBase(
       queryContext: InternalQueryContext,
       from: IdType,
       to: IdType,
-      rangeScanDims: Iterator[Map[Dimension, Seq[IdType]]]
-  ): Iterator[TSDOutputRow[IdType]] = {
+      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+  ): Iterator[HResult] = {
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
@@ -63,14 +64,13 @@ class TSDaoHBase(
     logger.trace(s"Put ${dataPoints.size} dataPoints to tsdb")
     logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPoints.mkString("\r\n")}")
 
-    createTsdRows(dataPoints, dictionaryProvider).foreach {
-      case (table, rows) =>
+    createPuts(dataPoints, dictionaryProvider).foreach {
+      case (table, puts) =>
         val hbaseTable = connection.getTable(tableName(namespace, table))
-        rows
-          .map(createPutOperation)
+        puts
           .sliding(putsBatchSize, putsBatchSize)
           .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-        logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: \r\n ${rows.mkString("\r\n")}")
+        logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
     }
   }
 

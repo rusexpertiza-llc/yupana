@@ -6,11 +6,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.Time
 
-class SerializationTest
-    extends FlatSpec
-    with Matchers
-    with ScalaCheckDrivenPropertyChecks
-    with TableDrivenPropertyChecks {
+class StorableTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks with TableDrivenPropertyChecks {
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
@@ -33,7 +29,7 @@ class SerializationTest
   it should "preserve Arrays of String on read write cycle" in readWriteTest[Array[String]]
 
   it should "compact numbers" in {
-    val writable = implicitly[Writable[Long]]
+    val storable = implicitly[Storable[Long]]
 
     val table = Table(
       ("Value", "Bytes count"),
@@ -55,23 +51,22 @@ class SerializationTest
     )
 
     forAll(table) { (x, len) =>
-      writable.write(x).length shouldEqual len
+      storable.write(x).length shouldEqual len
     }
   }
 
   it should "not read Long as Int if it overflows" in {
-    val writable = implicitly[Writable[Long]]
-    val readable = implicitly[Readable[Int]]
+    val longStorable = implicitly[Storable[Long]]
+    val intStorable = implicitly[Storable[Int]]
 
-    an[IllegalArgumentException] should be thrownBy readable.read(writable.write(3000000000L))
+    an[IllegalArgumentException] should be thrownBy intStorable.read(longStorable.write(3000000000L))
   }
 
-  private def readWriteTest[T: Readable: Writable: Arbitrary] = {
-    val readable = implicitly[Readable[T]]
-    val writable = implicitly[Writable[T]]
+  private def readWriteTest[T: Storable: Arbitrary] = {
+    val storable = implicitly[Storable[T]]
 
     forAll { t: T =>
-      readable.read(writable.write(t)) shouldEqual t
+      storable.read(storable.write(t)) shouldEqual t
     }
   }
 }

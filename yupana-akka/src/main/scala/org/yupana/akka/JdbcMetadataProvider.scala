@@ -58,7 +58,7 @@ class JdbcMetadataProvider(schema: Schema) {
         columnsArray(table.name, f.name, f.dataType.meta)
       }
 
-      val tagColumns = table.dimensionSeq.map(d => columnsArray(table.name, d.name, DataTypeMeta.stringMeta))
+      val dimColumns = table.dimensionSeq.map(d => columnsArray(table.name, d.name, d.dataType.meta))
       val timeColumn = columnsArray(table.name, "time", DataTypeMeta.timestampMeta)
 
       val catalogColumns = table.externalLinks.flatMap(catalog => {
@@ -67,7 +67,7 @@ class JdbcMetadataProvider(schema: Schema) {
         )
       })
 
-      ((metricColumns :+ timeColumn) ++ tagColumns ++ catalogColumns).iterator
+      ((metricColumns :+ timeColumn) ++ dimColumns ++ catalogColumns).iterator
     } map { data =>
       SimpleResult(
         "COLUMNS",

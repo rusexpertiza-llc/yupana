@@ -22,10 +22,10 @@ import org.yupana.schema.Dimensions
 trait RelatedItemsCatalog extends ExternalLink {
   val ITEM_FIELD = "item"
   val PHRASE_FIELDS = "phrase"
+  override type DimType = String
 
   override val linkName: String = "RelatedItemsCatalog"
-  override val dimension: Dimension = Dimensions.ITEM_TAG
-
+  override val dimension: Dimension.Aux[String] = Dimensions.ITEM
   override val fieldsNames: Set[String] = Set(
     ITEM_FIELD,
     PHRASE_FIELDS
