@@ -111,9 +111,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val mr = mapReduceEngine(metricCollector)
 
+    val table = query.table
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
       val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, query.table)))
+        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
       }
 
       new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
