@@ -1,9 +1,15 @@
 package org.yupana.core
 
+import java.nio.charset.{ Charset, StandardCharsets }
+import java.util.UUID
+
 import org.yupana.api.schema._
 
 object TestDims {
-  val DIM_A = DictionaryDimension("A")
+  val DIM_A = HashDimension(
+    "A",
+    (s: String) => (s.hashCode, UUID.nameUUIDFromBytes(s.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
+  )
   val DIM_B = RawDimension[Short]("B")
   val DIM_X = DictionaryDimension("X")
   val DIM_Y = RawDimension[Long]("Y")

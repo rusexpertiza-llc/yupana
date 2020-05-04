@@ -230,7 +230,7 @@ object HBaseUtils extends StrictLogging {
         else {
           val copy = new Array[Byte](vb.length)
           Array.copy(vb, 0, copy, 0, vb.length)
-          val incremented = Bytes.incrementBytes(copy, 1L)
+          val incremented = Bytes.unsignedCopyAndIncrement(copy)
           if (incremented != copy) {
             Array.copy(incremented, incremented.length - copy.length, copy, 0, copy.length)
           }
@@ -367,7 +367,7 @@ object HBaseUtils extends StrictLogging {
   private[hbase] def tableKeySize(table: Table): Int = {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map {
       case _: DictionaryDimension => Bytes.SIZEOF_LONG
-      case r: RawDimension[_]     => r.storable.size
+      case r: Dimension           => r.storable.size
     }.sum
   }
 
@@ -398,6 +398,11 @@ object HBaseUtils extends StrictLogging {
         case rd: RawDimension[_] =>
           val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
           rd.storable.write(v)
+
+        case hd: HashDimension[_, _] =>
+          val v = dataPoint.dimensions(dim).asInstanceOf[hd.T]
+          val hash = hd.hashFunction(v).asInstanceOf[hd.R]
+          hd.rStorable.write(hash)
       }
 
       buffer.put(bytes)
@@ -444,6 +449,10 @@ object HBaseUtils extends StrictLogging {
       case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
         val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
+        (tag, bytes)
+      case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
+        val tag = table.dimensionTag(d)
+        val bytes = d.tStorable.write(value.asInstanceOf[d.T])
         (tag, bytes)
     }
 

@@ -16,7 +16,8 @@
 
 package org.yupana.api.schema
 
-import org.yupana.api.types.{ DataType, FixedStorable }
+import org.yupana.api.types.DataType.Aux
+import org.yupana.api.types.{ DataType, FixedStorable, Storable }
 import org.yupana.api.utils.DimOrdering
 
 import scala.reflect.ClassTag
@@ -61,14 +62,14 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
 
   private def zeroHash(s: String): Int = 0
 
+  override def toString: String = s"DicDimension($name)"
+
   override def hashCode(): Int = name.hashCode
 
   override def equals(obj: Any): Boolean = obj match {
     case DictionaryDimension(n, _) => name == n
     case _                         => false
   }
-
-  override def toString: String = s"DicDimension($name)"
 }
 
 case class RawDimension[TT](override val name: String)(
@@ -83,4 +84,38 @@ case class RawDimension[TT](override val name: String)(
   override def tOrdering: DimOrdering[TT] = rOrdering
 
   override val dataType: DataType.Aux[T] = dt
+
+  override def hashCode(): Int = name.hashCode
+
+  override def equals(obj: Any): Boolean = obj match {
+    case RawDimension(n) => name == n
+    case _               => false
+  }
+
+  override def toString: String = s"RawDimension($name)"
+}
+
+case class HashDimension[TT, RR](override val name: String, hashFunction: TT => RR)(
+    implicit val rStorable: FixedStorable[RR],
+    implicit val tStorable: Storable[TT],
+    val rOrdering: DimOrdering[RR],
+    val tOrdering: DimOrdering[TT],
+    val rCt: ClassTag[RR],
+    dt: DataType.Aux[TT]
+) extends Dimension {
+
+  override type T = TT
+  override type R = RR
+
+  override def storable: FixedStorable[RR] = rStorable
+  override def dataType: Aux[TT] = dt
+
+  override def hashCode(): Int = name.hashCode
+
+  override def equals(obj: Any): Boolean = obj match {
+    case HashDimension(n, _) => name == n
+    case _                   => false
+  }
+
+  override def toString: String = s"HashDimension($name)"
 }

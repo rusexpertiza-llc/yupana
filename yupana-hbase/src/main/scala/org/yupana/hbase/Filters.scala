@@ -17,7 +17,7 @@
 package org.yupana.hbase
 
 import org.yupana.api.Time
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, RawDimension }
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 
 class Filters(
@@ -139,26 +139,53 @@ object Filters {
       excludeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
     }
 
+    private def valuesToHash[T, R](d: HashDimension[T, R], values: SortedSetIterator[T]): SortedSetIterator[R] = {
+      SortedSetIterator(values.map(d.hashFunction).toSeq.sortWith(d.rOrdering.lt).iterator)(d.rOrdering)
+    }
+
+    private def intersectIds[T](
+        ids1: Option[SortedSetIterator[T]],
+        ids2: Option[SortedSetIterator[T]]
+    ): Option[SortedSetIterator[T]] = {
+
+      (ids1, ids2) match {
+        case (Some(i1), Some(i2)) => Some(i1 intersect i2)
+        case (Some(i1), None)     => Some(i1)
+        case (None, Some(i2))     => Some(i2)
+        case (None, None)         => None
+      }
+    }
+
     def includeFilter(
         valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
     ): Map[Dimension, SortedSetIterator[_]] = {
       val dims = incValues.keySet ++ incIds.keySet
+
       dims.flatMap {
         case d: DictionaryDimension =>
           val valueIds = getIncValues(d).map(vs => valuesToIds(d, vs))
           val ids = getIncIds(d)
-          val r = (valueIds, ids) match {
-            case (Some(v), Some(i)) => Some(d -> (v intersect i))
-            case (Some(v), None)    => Some(d -> v)
-            case (None, Some(i))    => Some(d -> i)
-            case (None, None)       => None
-          }
-
-          r.asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
-
+          intersectIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
         case r: RawDimension[_] =>
           getIncValues(r).map(vs => r -> vs)
+        case h: HashDimension[_, _] =>
+          val valueIds = getIncValues[h.T](h).map(vs => valuesToHash[h.T, h.R](h, vs))
+          val ids = getIncIds[h.R](h)
+          intersectIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
       }.toMap
+    }
+
+    private def unionIds[T](
+        ids1: Option[SortedSetIterator[T]],
+        ids2: Option[SortedSetIterator[T]]
+    ): Option[SortedSetIterator[T]] = {
+
+      (ids1, ids2) match {
+        case (Some(i1), Some(i2)) => Some(i1 union i2)
+        case (Some(i1), None)     => Some(i1)
+        case (None, Some(i2))     => Some(i2)
+        case (None, None)         => None
+      }
     }
 
     def excludeFilter(
@@ -169,16 +196,14 @@ object Filters {
         case d: DictionaryDimension =>
           val valueIds = getExcValues(d).map(vs => valuesToIds(d, vs))
           val ids = getExcIds(d)
-          val r = (valueIds, ids) match {
-            case (Some(v), Some(i)) => Some(d -> (v union i))
-            case (Some(v), None)    => Some(d -> v)
-            case (None, Some(i))    => Some(d -> i)
-            case (None, None)       => None
-          }
-          r.asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          unionIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
           getExcValues(r).map(vs => r -> vs)
+        case h: HashDimension[_, _] =>
+          val valueIds = getExcValues(h).map(vs => valuesToHash(h, vs))
+          val ids = getExcIds(h)
+          unionIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
       }.toMap
     }
 

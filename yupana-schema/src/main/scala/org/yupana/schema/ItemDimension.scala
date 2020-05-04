@@ -16,13 +16,21 @@
 
 package org.yupana.schema
 
-import org.yupana.api.schema.DictionaryDimension
+import java.nio.charset.StandardCharsets
+import java.util.UUID
+
+import org.yupana.api.schema.HashDimension
 import org.yupana.utils.Tokenizer
 
 object ItemDimension {
 
-  def apply(name: String): DictionaryDimension = {
-    DictionaryDimension(name, Some(hash))
+  type KeyType = (Int, Long)
+
+  def apply(name: String): HashDimension[String, KeyType] = {
+    HashDimension(name, (s: String) => {
+      val sl = s.toLowerCase
+      (hash(sl), UUID.nameUUIDFromBytes(sl.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
+    })
   }
 
   val stopWords: Set[String] = Set("kg", "ml", "lit", "litr", "gr", "sht")

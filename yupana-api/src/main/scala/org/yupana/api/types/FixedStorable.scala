@@ -42,6 +42,16 @@ object FixedStorable {
   implicit val shortStorable: FixedStorable[Short] = of(jl.Short.BYTES, _.getShort, _.putShort)
   implicit val byteStorable: FixedStorable[Byte] = of(jl.Byte.BYTES, _.get, _.put)
   implicit val timeStorable: FixedStorable[Time] = wrap(longStorable, (l: Long) => new Time(l), _.millis)
+  implicit def tupleStorable[T, U](
+      implicit tStrable: FixedStorable[T],
+      uStorable: FixedStorable[U]
+  ): FixedStorable[(T, U)] = {
+    of(
+      tStrable.size + uStorable.size,
+      bb => (tStrable.read(bb), uStorable.read(bb)),
+      bb => d => bb.put(tStrable.write(d._1)).put(uStorable.write(d._2))
+    )
+  }
 
   def of[T](s: Int, r: ByteBuffer => T, w: ByteBuffer => T => ByteBuffer): FixedStorable[T] =
     new FixedStorable[T] {

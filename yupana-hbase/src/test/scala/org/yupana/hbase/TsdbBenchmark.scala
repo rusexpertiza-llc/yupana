@@ -145,7 +145,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
         (1 to N).map { i =>
           val dimId = i
           HBaseTestUtils
-            .row(time - (time % testTable.rowTimeSpan), dimId.toLong, dimId.toShort)
+            .row(time - (time % testTable.rowTimeSpan), HBaseTestUtils.dimAHash(dimId.toString), dimId.toShort)
             .cell("d1", time % testTable.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 1d)
             .field(TestTableFields.TEST_BIGDECIMAL_FIELD.tag, BigDecimal(1d))

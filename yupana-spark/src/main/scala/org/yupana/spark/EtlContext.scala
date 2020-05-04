@@ -22,6 +22,7 @@ import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
+import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 
 class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
@@ -36,13 +37,13 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
   private def init: (TSDB, ItemsInvertedIndexImpl) = {
     val tsdb = TSDBHBase(hBaseConfiguration, cfg.hbaseNamespace, schema, identity, cfg.properties, cfg)
     val hBaseConnection = new ExternalLinkHBaseConnection(hBaseConfiguration, cfg.hbaseNamespace)
-    val invertedIndexDao = new InvertedIndexDaoHBase[String, Long](
+    val invertedIndexDao = new InvertedIndexDaoHBase[String, ItemDimension.KeyType](
       hBaseConnection,
       ItemsInvertedIndexImpl.TABLE_NAME,
       Serializers.stringSerializer,
       Serializers.stringDeserializer,
-      Serializers.longSerializer,
-      Serializers.longDeserializer
+      Dimensions.ITEM.rStorable.write,
+      Dimensions.ITEM.rStorable.read
     )
     val itemsInvertedIndex =
       new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, cfg.putIntoInvertedIndex, ItemsInvertedIndex)
