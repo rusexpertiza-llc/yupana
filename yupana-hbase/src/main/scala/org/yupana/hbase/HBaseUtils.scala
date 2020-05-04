@@ -27,6 +27,7 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
@@ -344,7 +345,22 @@ object HBaseUtils extends StrictLogging {
             .setCompactionCompressionType(Algorithm.SNAPPY)
         )
       )
-      connection.getAdmin.createTable(desc)
+      val startTime = new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+      val endTime = new LocalDateTime()
+        .plusYears(1)
+        .withMonthOfYear(1)
+        .withDayOfMonth(1)
+        .withTime(0, 0, 0, 0)
+        .toDateTime(DateTimeZone.UTC)
+        .getMillis
+      val r = ((endTime - startTime) / table.rowTimeSpan).toInt * 10
+      val regions = if (r <= 500) r else 500
+      connection.getAdmin.createTable(
+        desc,
+        Bytes.toBytes(baseTime(startTime, table)),
+        Bytes.toBytes(baseTime(endTime, table)),
+        regions
+      )
     }
   }
 
