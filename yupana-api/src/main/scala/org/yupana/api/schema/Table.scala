@@ -26,6 +26,7 @@ import scala.collection.mutable
   * @param dimensionSeq sequence of dimensions for this table.
   * @param metrics metrics description for each data point of this table.
   * @param externalLinks external links applicable for this table.
+  * @param epochTime milliseconds elapsed since the Unix epoch before the beginning of time series
   */
 class Table(
     val name: String,
