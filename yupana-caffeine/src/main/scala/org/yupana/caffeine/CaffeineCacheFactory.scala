@@ -33,6 +33,8 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
 
   private var caches = Set.empty[CacheDescription]
 
+  override val name: String = "Caffeine"
+
   override def initCache(description: CacheDescription): Cache[description.Key, description.Value] = {
     init()
 

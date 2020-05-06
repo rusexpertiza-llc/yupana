@@ -33,6 +33,8 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
   private var cacheManager: Option[CacheManager] = None
   private var caches = Set.empty[CacheDescription]
 
+  override val name: String = "EhCache"
+
   override def initCache(description: CacheDescription): Cache[description.Key, description.Value] = {
     logger.info(s"Initializing cache ${description.fullName} in EhCache")
     if (cacheManager.isEmpty) initManager()
