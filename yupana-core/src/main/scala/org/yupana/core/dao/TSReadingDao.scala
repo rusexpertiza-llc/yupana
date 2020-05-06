@@ -17,8 +17,6 @@
 package org.yupana.core.dao
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.Dimension
-import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
@@ -30,8 +28,6 @@ trait TSReadingDao[Collection[_], IdType] {
       valueDataBuilder: InternalRowBuilder,
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow]
-
-  def valuesToIds(dimension: Dimension, values: SortedSetIterator[String]): SortedSetIterator[IdType]
 
   def isSupportedCondition(condition: Condition): Boolean
 }

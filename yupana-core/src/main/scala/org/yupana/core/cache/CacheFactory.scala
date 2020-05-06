@@ -19,6 +19,7 @@ package org.yupana.core.cache
 import java.util.{ Properties, ServiceLoader }
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.types.BoxingTag
 
 import scala.collection.JavaConverters._
 

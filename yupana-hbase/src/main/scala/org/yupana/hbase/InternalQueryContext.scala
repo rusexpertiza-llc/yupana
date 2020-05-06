@@ -16,37 +16,22 @@
 
 package org.yupana.hbase
 
-import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr }
-import org.yupana.core.model.InternalQuery
+import org.yupana.api.query.Expression
 import org.yupana.api.schema.{ Dimension, Metric, Table }
+import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.MetricQueryCollector
+
+import scala.collection.mutable
 
 case class InternalQueryContext(
     table: Table,
     exprsIndexSeq: Seq[(Expression, Int)],
     tagFields: Array[Option[Either[Metric, Dimension]]],
-    requiredDims: Set[Dimension],
+    dimIndexMap: mutable.Map[Dimension, Int],
     metricsCollector: MetricQueryCollector
 ) {
-
-  private val exprsTags: Array[Byte] = {
-    exprsIndexSeq.map {
-      case (expr, index) =>
-        expr match {
-          case MetricExpr(metric) =>
-            metric.tag
-          case DimensionExpr(dimension: Dimension) =>
-            table.dimensionTag(dimension)
-          case _ => 0.toByte
-        }
-    }.toArray
-  }
-
   @inline
-  def tagForExprIndex(index: Int): Byte = exprsTags(index)
-
-  @inline
-  def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
+  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
 }
 
 object InternalQueryContext {
@@ -61,12 +46,10 @@ object InternalQueryContext {
       tagFields(query.table.dimensionTag(dim) & 0xFF) = Some(Right(dim))
     }
 
-    val requiredDims = query.exprs.collect {
-      case DimensionExpr(dim) => dim
-    }
+    val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
 
     val exprsIndexSeq = query.exprs.toSeq.zipWithIndex
 
-    new InternalQueryContext(query.table, exprsIndexSeq, tagFields, requiredDims, metricCollector)
+    new InternalQueryContext(query.table, exprsIndexSeq, tagFields, dimIndexMap, metricCollector)
   }
 }

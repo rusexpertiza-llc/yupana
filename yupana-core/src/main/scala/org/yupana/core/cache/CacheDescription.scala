@@ -16,6 +16,8 @@
 
 package org.yupana.core.cache
 
+import org.yupana.api.types.BoxingTag
+
 abstract class CacheDescription(val name: String, val suffix: String, val engine: String) {
   type Key
   def keyBoxing: BoxingTag[Key]
