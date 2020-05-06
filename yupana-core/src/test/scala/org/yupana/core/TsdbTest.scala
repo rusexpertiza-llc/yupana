@@ -57,7 +57,6 @@ class TsdbTest
     val dp3 =
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
-//    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> 1L))
     (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Seq(dp1, dp2, dp3))

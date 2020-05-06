@@ -1,5 +1,6 @@
 package org.yupana.externallinks
 
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.Time
@@ -51,7 +52,8 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     1000,
     Seq(xDim, yDim),
     Seq.empty,
-    Seq(TestLink)
+    Seq(TestLink),
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   "ExternalLinkUtils" should "support == condition" in {

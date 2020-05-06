@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 

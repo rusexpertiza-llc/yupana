@@ -109,7 +109,7 @@ class TSDHBaseRowIterator(
     var i = 0
     val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
-      val value = dim.storable.read(bb)
+      val value = dim.rStorable.read(bb)
       if (dim.isInstanceOf[RawDimension[_]]) {
         internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, Some(value))
       }

@@ -1,8 +1,7 @@
 package org.yupana.hbase
 
 import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-import java.util.{ Properties, UUID }
+import java.util.Properties
 
 import org.apache.hadoop.hbase.client.{ Scan, Result => HResult }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
@@ -30,9 +29,9 @@ class TSDaoHBaseTest
     with BeforeAndAfterEach
     with OptionValues {
 
+  import HBaseTestUtils._
   import TestSchema._
   import org.yupana.api.query.syntax.All._
-  import HBaseTestUtils._
 
   type QueryRunner = MockFunction1[Seq[Scan], Iterator[HResult]]
 
@@ -59,10 +58,15 @@ class TSDaoHBaseTest
   }
 
   def scan(table: Table, from: Long, to: Long, range: Seq[Any]): FunctionAdapter1[Seq[Scan], Boolean] = {
-    scanM(table, from, to, Set(range))
+    scanMultiRanges(table, from, to, Set(range))
   }
 
-  def scanM(table: Table, from: Long, to: Long, ranges: Set[Seq[Any]]): FunctionAdapter1[Seq[Scan], Boolean] = {
+  def scanMultiRanges(
+      table: Table,
+      from: Long,
+      to: Long,
+      ranges: Set[Seq[Any]]
+  ): FunctionAdapter1[Seq[Scan], Boolean] = {
     where { (scans: Seq[Scan]) =>
       val scan = scans.head
       val filter = scan.getFilter.asInstanceOf[MultiRowRangeFilter]
@@ -76,12 +80,9 @@ class TSDaoHBaseTest
           var offset = 8
           range.zip(table.dimensionSeq).zipWithIndex.forall {
             case ((id, dim), idx) =>
-//              val e = if (idx == range.size - 1) id + 1 else id
-
-              // FIXME: This is quite ugly
-              val start = dim.storable.read(ByteBuffer.wrap(rowRange.getStartRow, offset, dim.storable.size))
-              val stop = dim.storable.read(ByteBuffer.wrap(rowRange.getStopRow, offset, dim.storable.size))
-              offset += dim.storable.size
+              val start = dim.rStorable.read(ByteBuffer.wrap(rowRange.getStartRow, offset, dim.rStorable.size))
+              val stop = dim.rStorable.read(ByteBuffer.wrap(rowRange.getStopRow, offset, dim.rStorable.size))
+              offset += dim.rStorable.size
 
               val tid = id.asInstanceOf[dim.R]
               dim.rOrdering.gte(tid, start) && (if (idx == range.size - 1) dim.rOrdering.lt(tid, stop)
@@ -265,7 +266,7 @@ class TSDaoHBaseTest
     val pointTime2 = 2200
 
     queryRunner
-      .expects(scanM(testTable, from, to, Set(Seq(dimAHash("test1")), Seq(dimAHash("test2")))))
+      .expects(scanMultiRanges(testTable, from, to, Set(Seq(dimAHash("test1")), Seq(dimAHash("test2")))))
       .returning(
         Iterator(
           HBaseTestUtils
@@ -387,7 +388,7 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scanM(
+        scanMultiRanges(
           testTable,
           from,
           to,
@@ -465,7 +466,7 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scanM(
+        scanMultiRanges(
           testTable,
           from,
           to,
@@ -751,7 +752,7 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scanM(
+        scanMultiRanges(
           testTable,
           from,
           to,
@@ -973,7 +974,7 @@ class TSDaoHBaseTest
 
     queryRunner
       .expects(
-        scanM(
+        scanMultiRanges(
           testTable,
           from,
           to,

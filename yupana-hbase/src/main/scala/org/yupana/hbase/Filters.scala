@@ -139,7 +139,7 @@ object Filters {
       excludeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
     }
 
-    private def valuesToHash[T, R](d: HashDimension[T, R], values: SortedSetIterator[T]): SortedSetIterator[R] = {
+    private def hashValues[T, R](d: HashDimension[T, R], values: SortedSetIterator[T]): SortedSetIterator[R] = {
       SortedSetIterator(values.map(d.hashFunction).toSeq.sortWith(d.rOrdering.lt).iterator)(d.rOrdering)
     }
 
@@ -169,7 +169,7 @@ object Filters {
         case r: RawDimension[_] =>
           getIncValues(r).map(vs => r -> vs)
         case h: HashDimension[_, _] =>
-          val valueIds = getIncValues[h.T](h).map(vs => valuesToHash[h.T, h.R](h, vs))
+          val valueIds = getIncValues[h.T](h).map(vs => hashValues[h.T, h.R](h, vs))
           val ids = getIncIds[h.R](h)
           intersectIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
       }.toMap
@@ -201,7 +201,7 @@ object Filters {
         case r: RawDimension[_] =>
           getExcValues(r).map(vs => r -> vs)
         case h: HashDimension[_, _] =>
-          val valueIds = getExcValues(h).map(vs => valuesToHash(h, vs))
+          val valueIds = getExcValues(h).map(vs => hashValues(h, vs))
           val ids = getExcIds(h)
           unionIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
       }.toMap

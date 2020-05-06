@@ -1,8 +1,9 @@
 package org.yupana.core
 
-import java.nio.charset.{ Charset, StandardCharsets }
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema._
 
 object TestDims {
@@ -81,7 +82,8 @@ object TestSchema {
       TestTableFields.TEST_LONG_FIELD,
       TestTableFields.TEST_BIGDECIMAL_FIELD
     ),
-    externalLinks = Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4)
+    externalLinks = Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4),
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   val testTable2 = new Table(
@@ -89,7 +91,8 @@ object TestSchema {
     rowTimeSpan = 7 * 24 * 3600 * 1000,
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
-    externalLinks = Seq()
+    externalLinks = Seq(),
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   val schema = Schema(Seq(testTable, testTable2), Seq.empty)
