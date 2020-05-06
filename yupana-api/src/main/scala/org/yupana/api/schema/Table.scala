@@ -26,13 +26,15 @@ import scala.collection.mutable
   * @param dimensionSeq sequence of dimensions for this table.
   * @param metrics metrics description for each data point of this table.
   * @param externalLinks external links applicable for this table.
+  * @param epochTime milliseconds elapsed since the Unix epoch before the beginning of time series
   */
 class Table(
     val name: String,
     val rowTimeSpan: Long,
     val dimensionSeq: Seq[Dimension],
     val metrics: Seq[Metric],
-    val externalLinks: Seq[ExternalLink]
+    val externalLinks: Seq[ExternalLink],
+    val epochTime: Long
 ) extends Serializable {
 
   private lazy val dimensionTagsMap = {
@@ -53,7 +55,7 @@ class Table(
   override def toString: String = s"Table($name)"
 
   def withExternalLinks(extraLinks: Seq[ExternalLink]): Table = {
-    new Table(name, rowTimeSpan, dimensionSeq, metrics, externalLinks ++ extraLinks)
+    new Table(name, rowTimeSpan, dimensionSeq, metrics, externalLinks ++ extraLinks, epochTime)
   }
 
   def withExternalLinkReplaced[O <: ExternalLink, N <: O](oldExternalLink: O, newExternalLink: N): Table = {
@@ -75,11 +77,18 @@ class Table(
       )
     }
 
-    new Table(name, rowTimeSpan, dimensionSeq, metrics, externalLinks.filter(_ != oldExternalLink) :+ newExternalLink)
+    new Table(
+      name,
+      rowTimeSpan,
+      dimensionSeq,
+      metrics,
+      externalLinks.filter(_ != oldExternalLink) :+ newExternalLink,
+      epochTime
+    )
   }
 
   def withMetrics(extraMetrics: Seq[Metric]): Table = {
-    new Table(name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks)
+    new Table(name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks, epochTime)
   }
 
   override def equals(obj: Any): Boolean = {

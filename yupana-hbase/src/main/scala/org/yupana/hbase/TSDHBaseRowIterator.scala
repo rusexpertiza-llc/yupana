@@ -23,7 +23,7 @@ import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.Time
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension, Table }
+import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
 import org.yupana.api.types.DataType
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
@@ -109,7 +109,7 @@ class TSDHBaseRowIterator(
     var i = 0
     val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
-      val value = dim.storable.read(bb)
+      val value = dim.rStorable.read(bb)
       if (dim.isInstanceOf[RawDimension[_]]) {
         internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, Some(value))
       }
@@ -128,6 +128,9 @@ class TSDHBaseRowIterator(
           internalRowBuilder.set(tag, Some(v))
         case Some(Right(_: DictionaryDimension)) =>
           val v = DataType.stringDt.storable.read(bb)
+          internalRowBuilder.set(tag, Some(v))
+        case Some(Right(hd: HashDimension[_, _])) =>
+          val v = hd.tStorable.read(bb)
           internalRowBuilder.set(tag, Some(v))
         case _ =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}")

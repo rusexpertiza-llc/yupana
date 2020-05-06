@@ -57,7 +57,6 @@ class TsdbTest
     val dp3 =
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
-    (dictionaryDaoMock.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> 1L))
     (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Seq(dp1, dp2, dp3))
@@ -154,7 +153,7 @@ class TsdbTest
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
-      DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123))
+      DimIdInExpr(TestDims.DIM_A, SortedSetIterator((123, 456L)))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -165,7 +164,7 @@ class TsdbTest
           TestSchema.testTable,
           Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
           and(
-            DimIdInExpr(TestDims.DIM_A, SortedSetIterator(123)),
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator((123, 456L))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -959,7 +958,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty)
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
           )
         )
 
@@ -971,7 +970,7 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty)
+              DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
             )
           ),
           *,
@@ -1127,7 +1126,7 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
+            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
           )
         )
 
@@ -1153,7 +1152,7 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(1, 2))
+              DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
             )
           ),
           *,
