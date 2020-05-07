@@ -42,7 +42,7 @@ class Table(
     mutable.Map(dimTags: _*)
   }
 
-  lazy val tagFields: Array[Option[Either[Metric, Dimension]]] = {
+  private lazy val tagFields: Array[Option[Either[Metric, Dimension]]] = {
     val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
 
     metrics.foreach { m =>
@@ -55,6 +55,9 @@ class Table(
 
     tagFields
   }
+
+  @inline
+  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
 
   @inline
   def dimensionTag(dimension: Dimension): Byte = {

@@ -17,7 +17,7 @@
 package org.yupana.hbase
 
 import org.yupana.api.query.Expression
-import org.yupana.api.schema.{ Dimension, Metric, Table }
+import org.yupana.api.schema.{Dimension, Table}
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.MetricQueryCollector
 
@@ -28,10 +28,7 @@ case class InternalQueryContext(
     exprsIndexSeq: Seq[(Expression, Int)],
     dimIndexMap: mutable.Map[Dimension, Int],
     metricsCollector: MetricQueryCollector
-) {
-  @inline
-  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = table.tagFields(tag & 0xFF)
-}
+)
 
 object InternalQueryContext {
   def apply(query: InternalQuery, metricCollector: MetricQueryCollector): InternalQueryContext = {
