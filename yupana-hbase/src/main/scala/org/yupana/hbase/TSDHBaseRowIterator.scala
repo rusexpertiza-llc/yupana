@@ -122,7 +122,7 @@ class TSDHBaseRowIterator(
     var correct = true
     while (bb.hasRemaining && correct) {
       val tag = bb.get()
-      context.fieldForTag(tag) match {
+      context.table.fieldForTag(tag) match {
         case Some(Left(metric)) =>
           val v = metric.dataType.storable.read(bb)
           internalRowBuilder.set(tag, Some(v))

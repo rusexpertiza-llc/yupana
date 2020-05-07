@@ -42,6 +42,23 @@ class Table(
     mutable.Map(dimTags: _*)
   }
 
+  private lazy val tagFields: Array[Option[Either[Metric, Dimension]]] = {
+    val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
+
+    metrics.foreach { m =>
+      tagFields(m.tag & 0xFF) = Some(Left(m))
+    }
+
+    dimensionSeq.foreach { dim =>
+      tagFields(dimensionTag(dim) & 0xFF) = Some(Right(dim))
+    }
+
+    tagFields
+  }
+
+  @inline
+  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
+
   @inline
   def dimensionTag(dimension: Dimension): Byte = {
     dimensionTagsMap(dimension)
