@@ -26,22 +26,19 @@ import scala.collection.mutable
 case class InternalQueryContext(
     table: Table,
     exprsIndexSeq: Seq[(Expression, Int)],
-    tagFields: Array[Option[Either[Metric, Dimension]]],
     dimIndexMap: mutable.Map[Dimension, Int],
     metricsCollector: MetricQueryCollector
 ) {
   @inline
-  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
+  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = table.tagFields(tag & 0xFF)
 }
 
 object InternalQueryContext {
   def apply(query: InternalQuery, metricCollector: MetricQueryCollector): InternalQueryContext = {
-    val tagFields = query.table.getTagFields
-
     val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
 
     val exprsIndexSeq = query.exprs.toSeq.zipWithIndex
 
-    new InternalQueryContext(query.table, exprsIndexSeq, tagFields, dimIndexMap, metricCollector)
+    new InternalQueryContext(query.table, exprsIndexSeq, dimIndexMap, metricCollector)
   }
 }

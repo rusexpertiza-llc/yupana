@@ -42,6 +42,20 @@ class Table(
     mutable.Map(dimTags: _*)
   }
 
+  lazy val tagFields: Array[Option[Either[Metric, Dimension]]] = {
+    val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
+
+    metrics.foreach { m =>
+      tagFields(m.tag & 0xFF) = Some(Left(m))
+    }
+
+    dimensionSeq.foreach { dim =>
+      tagFields(dimensionTag(dim) & 0xFF) = Some(Right(dim))
+    }
+
+    tagFields
+  }
+
   @inline
   def dimensionTag(dimension: Dimension): Byte = {
     dimensionTagsMap(dimension)
@@ -89,20 +103,6 @@ class Table(
 
   def withMetrics(extraMetrics: Seq[Metric]): Table = {
     new Table(name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks, epochTime)
-  }
-
-  def getTagFields: Array[Option[Either[Metric, Dimension]]] = {
-    val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
-
-    metrics.foreach { m =>
-      tagFields(m.tag & 0xFF) = Some(Left(m))
-    }
-
-    dimensionSeq.foreach { dim =>
-      tagFields(dimensionTag(dim) & 0xFF) = Some(Right(dim))
-    }
-
-    tagFields
   }
 
   override def equals(obj: Any): Boolean = {

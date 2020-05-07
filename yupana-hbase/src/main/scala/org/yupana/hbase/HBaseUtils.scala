@@ -30,7 +30,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.api.types.DataType
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
@@ -476,34 +475,5 @@ object HBaseUtils extends StrictLogging {
     }
 
     bb.array()
-  }
-
-  def getFieldValue[T](cell: Cell, tagFields: Array[Option[Either[Metric, Dimension]]], fieldTag: Byte): T = {
-
-    def extractValue(tag: Byte, tagValue: Any): Option[T] = {
-      if (tag == fieldTag) {
-        Some(tagValue.asInstanceOf[T])
-      } else None
-    }
-
-    var tagValue = Option.empty[T]
-    val bb = ByteBuffer.wrap(cell.getValueArray, cell.getValueOffset, cell.getValueLength)
-    while (bb.hasRemaining && tagValue.isEmpty) {
-      val tag = bb.get()
-      tagValue = tagFields(tag & 0xFF) match {
-        case Some(Left(metric)) =>
-          extractValue(tag, metric.dataType.storable.read(bb))
-        case Some(Right(_: DictionaryDimension)) =>
-          extractValue(tag, DataType.stringDt.storable.read(bb))
-        case Some(Right(hd: HashDimension[_, _])) =>
-          extractValue(tag, hd.tStorable.read(bb))
-        case _ =>
-          throw new RuntimeException(s"Unknown tag: $tag")
-      }
-    }
-
-    tagValue.getOrElse {
-      throw new RuntimeException(s"Required tag $fieldTag not found!")
-    }
   }
 }
