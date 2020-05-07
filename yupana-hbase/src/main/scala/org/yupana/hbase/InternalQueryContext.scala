@@ -17,7 +17,7 @@
 package org.yupana.hbase
 
 import org.yupana.api.query.Expression
-import org.yupana.api.schema.{Dimension, Table}
+import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.MetricQueryCollector
 
