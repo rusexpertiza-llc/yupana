@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.spark
+package org.yupana.spark.etl
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration

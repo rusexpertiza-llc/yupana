@@ -22,7 +22,8 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
-import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
+import org.yupana.spark.SparkConfUtils
+import org.yupana.spark.etl.{ EtlConfig, EtlContext }
 
 object ETL {
 
@@ -35,7 +36,7 @@ object ETL {
     val cfg = new EtlConfig(conf)
     val ctx = new EtlContext(cfg, ExampleSchema.schema)
 
-    import org.yupana.spark.ETLFunctions._
+    import org.yupana.spark.etl.ETLFunctions._
 
     val receiptsRdd = sc.parallelize(DataSource.getReceipts(1000))
 

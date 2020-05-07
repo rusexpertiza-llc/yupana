@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.spark
+package org.yupana.spark.etl
 
 import org.apache.spark.SparkConf
+import org.yupana.spark.Config
 
 class EtlConfig(sparkConf: SparkConf) extends Config(sparkConf) {
   val hbaseWriteBufferSize: Option[Long] =

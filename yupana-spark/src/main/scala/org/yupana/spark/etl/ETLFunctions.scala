@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.spark
+package org.yupana.spark.etl
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
