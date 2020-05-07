@@ -36,20 +36,26 @@ case class InternalQueryContext(
 
 object InternalQueryContext {
   def apply(query: InternalQuery, metricCollector: MetricQueryCollector): InternalQueryContext = {
-    val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
-
-    query.table.metrics.foreach { m =>
-      tagFields(m.tag & 0xFF) = Some(Left(m))
-    }
-
-    query.table.dimensionSeq.foreach { dim =>
-      tagFields(query.table.dimensionTag(dim) & 0xFF) = Some(Right(dim))
-    }
+    val tagFields = getTagFields(query.table)
 
     val dimIndexMap = mutable.HashMap(query.table.dimensionSeq.zipWithIndex: _*)
 
     val exprsIndexSeq = query.exprs.toSeq.zipWithIndex
 
     new InternalQueryContext(query.table, exprsIndexSeq, tagFields, dimIndexMap, metricCollector)
+  }
+
+  def getTagFields(table: Table): Array[Option[Either[Metric, Dimension]]] = {
+    val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
+
+    table.metrics.foreach { m =>
+      tagFields(m.tag & 0xFF) = Some(Left(m))
+    }
+
+    table.dimensionSeq.foreach { dim =>
+      tagFields(table.dimensionTag(dim) & 0xFF) = Some(Right(dim))
+    }
+
+    tagFields
   }
 }
