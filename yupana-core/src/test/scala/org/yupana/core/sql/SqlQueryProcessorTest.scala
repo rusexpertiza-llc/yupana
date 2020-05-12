@@ -316,8 +316,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
         bi(
           BinaryOperation.containsAny[String],
-          function(UnaryOperation.tokens, dimension(DIM_A)),
-          function(UnaryOperation.tokens, const("вода"))
+          function(UnaryOperation.tokens, lower(dimension(DIM_A))),
+          function(UnaryOperation.tokens, lower(const("вода")))
         )
       )
     }
@@ -377,7 +377,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 26, 0, 0, DateTimeZone.UTC)))),
-        equ(link(TestLinks.TEST_LINK, "testField"), const("ягода"))
+        equ(lower(link(TestLinks.TEST_LINK, "testField")), lower(const("ягода")))
       )
 
       q.groupBy should contain theSameElementsAs List(dimension(DIM_B), colorExpr)
@@ -581,7 +581,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
-        equ(dimension(DIM_X), const("1234567890"))
+        equ(lower(dimension(DIM_X)), lower(const("1234567890")))
       )
       q.groupBy shouldBe empty
       q.fields should contain theSameElementsInOrderAs List(
