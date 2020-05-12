@@ -96,9 +96,13 @@ trait TsdbBase extends StrictLogging {
     val preparedQuery = prepareQuery(query)
     logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val metricCollector = createMetricCollector(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
 
-    val simplified = preparedQuery.filter.map(ConditionUtils.simplify)
+    logger.debug(s"Optimized query: $optimizedQuery")
+
+    val metricCollector = createMetricCollector(optimizedQuery)
+
+    val simplified = optimizedQuery.filter.map(ConditionUtils.simplify)
 
     val substitutedCondition = simplified.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
@@ -107,7 +111,7 @@ trait TsdbBase extends StrictLogging {
 
     logger.debug(s"Post condition: $postCondition")
 
-    val queryContext = QueryContext(preparedQuery, postCondition)
+    val queryContext = QueryContext(optimizedQuery, postCondition)
 
     val mr = mapReduceEngine(metricCollector)
 

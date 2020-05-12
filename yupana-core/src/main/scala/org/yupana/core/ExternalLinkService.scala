@@ -20,6 +20,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
+import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -75,12 +76,11 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
-          if Set("==", "!=").contains(op.name) && c.linkName == externalLink.linkName =>
-        true
-      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName    => true
-      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName => true
-      case _                                                                   => false
+      case Equ(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
+      case Neq(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
+      case InExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName            => true
+      case NotInExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName         => true
+      case _                                                                                  => false
     }
   }
 

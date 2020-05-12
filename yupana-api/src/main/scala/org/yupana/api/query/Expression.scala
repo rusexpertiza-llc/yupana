@@ -35,6 +35,10 @@ sealed trait Expression extends Serializable {
 
   def fold[O](z: O)(f: (O, Expression) => O): O
 
+  def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    pf.applyOrElse(this, identity[Expression]).asInstanceOf[Expression.Aux[Out]]
+  }
+
   def aux: Expression.Aux[Out] = this.asInstanceOf[Expression.Aux[Out]]
 
   lazy val flatten: Set[Expression] = fold(Set.empty[Expression])(_ + _)
@@ -70,6 +74,9 @@ sealed trait WindowFunctionExpr extends Expression {
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    WindowFunctionExpr(operation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
+  }
 
   override def encode: String = s"winFunc(${operation.name},${expr.encode})"
   override def toString: String = s"${operation.name}($expr)"
@@ -95,14 +102,16 @@ sealed trait AggregateExpr extends Expression {
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
 
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    AggregateExpr(aggregation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
+  }
+
   override def encode: String = s"agg(${aggregation.name},${expr.encode})"
   override def toString: String = s"${aggregation.name}($expr)"
 }
 
 object AggregateExpr {
-  type Aux[T] = AggregateExpr { type Out = T }
-
-  def apply[T](a: Aggregation[T], e: Expression.Aux[T]): AggregateExpr.Aux[a.Out] = new AggregateExpr {
+  def apply[T](a: Aggregation[T], e: Expression.Aux[T]): Expression.Aux[a.Out] = new AggregateExpr {
     override type In = T
     override type Out = a.Out
     override def dataType: DataType.Aux[Out] = a.dataType
@@ -199,6 +208,14 @@ case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U], expr: Ex
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
 
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[U] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      UnaryOperationExpr(function, expr.transform(pf))
+    }
+  }
+
   override def encode: String = s"${function.name}($expr)"
 }
 
@@ -208,6 +225,13 @@ case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression.Aux[T
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[U] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      TypeConvertExpr(tc, expr.transform(pf))
+    }
+  }
 
   override def encode: String = s"${tc.functionName}($expr)"
 }
@@ -223,6 +247,14 @@ case class BinaryOperationExpr[T, U, O](
   override def fold[B](z: B)(f: (B, Expression) => B): B = {
     val z1 = a.fold(f(z, this))(f)
     b.fold(z1)(f)
+  }
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[O] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      BinaryOperationExpr(function, a.transform(pf), b.transform(pf))
+    }
   }
 
   override def toString: String = if (function.infix) s"$a $function $b" else s"$function($a, $b)"
@@ -244,6 +276,14 @@ case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(
     e2.fold(z1)(f)
   }
 
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[(T, U)] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      TupleExpr(e1.transform(pf), e2.transform(pf))
+    }
+  }
+
   override def encode: String = s"($e1, $e2)"
 }
 
@@ -254,6 +294,14 @@ case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDat
   override def kind: ExprKind = exprs.foldLeft(Const: ExprKind)((a, e) => ExprKind.combine(a, e.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = exprs.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Array[T]] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      ArrayExpr(exprs.map(_.transform(pf)))
+    }
+  }
 
   override def encode: String = exprs.mkString("[", ", ", "]")
   override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
@@ -266,12 +314,20 @@ case class ConditionExpr[T](
 ) extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[T] = positive.dataType
-  override def kind: ExprKind = ExprKind.combine(positive.kind, negative.kind)
+  override def kind: ExprKind = ExprKind.combine(condition.kind, ExprKind.combine(positive.kind, negative.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = {
     val z1 = condition.fold(f(z, this))(f)
     val z2 = positive.fold(z1)(f)
     negative.fold(z2)(f)
+  }
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[T] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      ConditionExpr(condition.transform(pf), positive.transform(pf), negative.transform(pf))
+    }
   }
 
   override def toString: String = s"IF ($condition) THEN $positive ELSE $negative"
@@ -288,6 +344,13 @@ trait InExpr extends Expression {
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Condition]
+    } else {
+      InExpr(expr.transform(pf), values)
+    }
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
   override def toString: String =
@@ -310,6 +373,13 @@ case class NotInExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Express
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Condition]
+    } else {
+      NotInExpr(expr.transform(pf), values)
+    }
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"notIn(${expr.encode}, (", ",", "))")
   override def toString: String =
@@ -345,6 +415,14 @@ case class AndExpr(conditions: Seq[Condition]) extends Expression {
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = conditions.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
 
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Boolean] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Boolean]]
+    } else {
+      AndExpr(conditions.map(_.transform(pf)))
+    }
+  }
+
   override def toString: String = conditions.mkString("(", " AND ", ")")
   override def encode: String = conditions.map(_.encode).sorted.mkString("and(", ",", ")")
 }
@@ -355,6 +433,14 @@ case class OrExpr(conditions: Seq[Condition]) extends Expression {
   override def kind: ExprKind = conditions.foldLeft(Const: ExprKind)((k, c) => ExprKind.combine(k, c.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = conditions.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Boolean] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Boolean]]
+    } else {
+      OrExpr(conditions.map(_.transform(pf)))
+    }
+  }
 
   override def toString: String = conditions.mkString("(", " OR ", ")")
   override def encode: String = conditions.map(_.encode).sorted.mkString("or(", ",", ")")

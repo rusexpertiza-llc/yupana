@@ -72,6 +72,9 @@ object BinaryOperation {
   val CONTAINS_ANY = "contains_any"
   val CONTAINS_SAME = "contains_same"
 
+//  def stringEqu: BinaryOperation.Aux[String, String, Boolean] = create(_.stringEqu, "==", DataType[Boolean])
+//  def stringNeq: BinaryOperation.Aux[String, String, Boolean] = create(_.stringNeq, "!=", DataType[Boolean])
+
   def equ[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.equ[T], "==", DataType[Boolean])
   def neq[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.neq[T], "!=", DataType[Boolean])
   def gt[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.gt[T], ">", DataType[Boolean])
@@ -197,6 +200,9 @@ object BinaryOperation {
 }
 
 trait BinaryOperations {
+//  def stringEqu(a: String, b: String): Boolean
+//  def stringNeq(a: String, b: String): Boolean
+
   def equ[T: Ordering](a: T, b: T): Boolean
   def neq[T: Ordering](a: T, b: T): Boolean
   def gt[T: Ordering](a: T, b: T): Boolean
