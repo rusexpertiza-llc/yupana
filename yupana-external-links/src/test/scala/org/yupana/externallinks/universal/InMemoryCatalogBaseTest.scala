@@ -34,7 +34,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       condition
     }
 
-    override def keyExpr: Expression.Aux[String] = lower(dimension(DictionaryDimension("TAG_X")))
+    override def keyExpr: Expression.Aux[String] = dimension(DictionaryDimension("TAG_X"))
   }
 
   class TestLink extends ExternalLink {
