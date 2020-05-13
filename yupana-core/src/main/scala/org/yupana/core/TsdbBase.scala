@@ -153,7 +153,7 @@ trait TsdbBase extends StrictLogging {
       metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
         val withValuesForFilter = it.map { row =>
-          evaluateFilterExprs(queryContext, row, metricCollector)
+          evaluateFilterExprs(queryContext, row)
         }
 
         val filtered = queryContext.postCondition match {
@@ -164,7 +164,7 @@ trait TsdbBase extends StrictLogging {
           case None => withValuesForFilter
         }
 
-        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
+        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row))
 
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
       }
@@ -256,22 +256,22 @@ trait TsdbBase extends StrictLogging {
 
   def evaluateFilterExprs(
       queryContext: QueryContext,
-      row: InternalRow,
-      metricCollector: MetricQueryCollector
+      row: InternalRow
   ): InternalRow = {
     queryContext.postCondition.foreach { expr =>
-      row.set(
-        queryContext.exprsIndex(expr),
-        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-      )
+      if (expr.kind != Const) {
+        row.set(
+          queryContext.exprsIndex(expr),
+          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        )
+      }
     }
     row
   }
 
   def evaluateExpressions(
       queryContext: QueryContext,
-      row: InternalRow,
-      metricCollector: MetricQueryCollector
+      row: InternalRow
   ): InternalRow = {
     queryContext.bottomExprs.foreach { expr =>
       row.set(

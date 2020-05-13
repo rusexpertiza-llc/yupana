@@ -52,7 +52,11 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("taga")))
+          and(
+            equ(lower(dimension(TestDims.DIM_A)), const("taga")),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
         ),
         *,
         *
@@ -94,7 +98,11 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("taga")))
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(lower(dimension(TestDims.DIM_A)), const("taga"))
+          )
         ),
         *,
         *
@@ -162,7 +170,7 @@ class TsdbArithmeticTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.DIM_A), Set("0000270761025003"))
+            in(lower(dimension(TestDims.DIM_A)), Set("0000270761025003"))
           )
         ),
         *,

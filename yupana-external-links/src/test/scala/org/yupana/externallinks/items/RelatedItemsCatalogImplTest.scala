@@ -20,7 +20,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("хлеб ржаной"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
     )
 
     val qc1 = QueryContext(expQuery1, None)
@@ -45,7 +45,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("бородинский"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
     )
 
     val qc2 = QueryContext(expQuery2, None)
@@ -66,8 +66,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS), Set("хлеб ржаной")),
-        notIn(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS), Set("бородинский"))
+        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS)), Set("хлеб ржаной")),
+        notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS)), Set("бородинский"))
       )
     )
 
@@ -94,7 +94,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(dimension(Dimensions.ITEM), Set("яйцо молодильное 1к"))
+      in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
     )
 
     val qc = QueryContext(expQuery, None)
@@ -117,7 +117,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD), Set("яйцо молодильное 1к"))
+        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
       )
     )
 

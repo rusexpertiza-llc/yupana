@@ -17,15 +17,15 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query._
 import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query._
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.{ ExternalLinkService, TsdbBase }
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
 import org.yupana.externallinks.ExternalLinkUtils
-import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.utils.{ Tokenizer, Transliterator }
 
 object ItemsInvertedIndexImpl {
@@ -50,7 +50,6 @@ object ItemsInvertedIndexImpl {
 }
 
 class ItemsInvertedIndexImpl(
-    tsdb: TsdbBase,
     invertedIndexDao: InvertedIndexDao[String, ItemDimension.KeyType],
     override val putEnabled: Boolean,
     override val externalLink: ItemsInvertedIndex
