@@ -16,7 +16,7 @@
 
 package org.yupana.jdbc
 
-import java.sql.{ ResultSet, SQLFeatureNotSupportedException, Array => SqlArray }
+import java.sql.{ ResultSet, Array => SqlArray }
 import java.util
 
 import org.yupana.api.query.SimpleResult
