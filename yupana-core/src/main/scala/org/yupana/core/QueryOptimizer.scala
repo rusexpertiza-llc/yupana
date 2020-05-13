@@ -16,16 +16,21 @@
 
 package org.yupana.core
 
-import org.yupana.api.query.{ Const, ConstantExpr, Expression, Query, QueryField }
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField }
 
 object QueryOptimizer {
 
   def optimize(query: Query): Query = {
     query.copy(
       fields = query.fields.map(optimizeField),
-      filter = query.filter.map(optimizeExpr),
-      postFilter = query.postFilter.map(optimizeExpr)
+      filter = query.filter.map(optimizeCondition),
+      postFilter = query.postFilter.map(optimizeCondition)
     )
+  }
+
+  def optimizeCondition(c: Condition): Condition = {
+    simplifyCondition(optimizeExpr(c))
   }
 
   def optimizeField(field: QueryField): QueryField = {
@@ -34,6 +39,50 @@ object QueryOptimizer {
 
   def optimizeExpr[T](expr: Expression.Aux[T]): Expression.Aux[T] = {
     expr.transform { case e if e.kind == Const => evaluateConstant(e.aux).aux }
+  }
+
+  def simplifyCondition(condition: Condition): Condition = {
+    condition match {
+      case AndExpr(cs) => and(cs.flatMap(optimizeAnd))
+      case OrExpr(cs)  => or(cs.flatMap(optimizeOr))
+      case c           => c
+    }
+  }
+
+  private def optimizeAnd(c: Condition): Seq[Condition] = {
+    c match {
+      case AndExpr(cs) => cs.flatMap(optimizeAnd)
+      case x           => Seq(simplifyCondition(x))
+    }
+  }
+
+  private def optimizeOr(c: Condition): Seq[Condition] = {
+    c match {
+      case OrExpr(cs) => cs.flatMap(optimizeOr)
+      case x          => Seq(simplifyCondition(x))
+    }
+  }
+
+  private def and(conditions: Seq[Condition]): Condition = {
+    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    if (nonEmpty.size == 1) {
+      nonEmpty.head
+    } else if (nonEmpty.nonEmpty) {
+      AndExpr(nonEmpty)
+    } else {
+      ConstantExpr(true)
+    }
+  }
+
+  private def or(conditions: Seq[Condition]): Condition = {
+    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    if (nonEmpty.size == 1) {
+      nonEmpty.head
+    } else if (nonEmpty.nonEmpty) {
+      OrExpr(nonEmpty)
+    } else {
+      ConstantExpr(true)
+    }
   }
 
   private def evaluateConstant[T](e: Expression.Aux[T]): Expression.Aux[T] = {
