@@ -318,7 +318,7 @@ trait TsdbBase extends StrictLogging {
 
     queryContext.aggregateExprs.foreach { aggExpr =>
       val agg = aggExpr.aggregation
-      val newValue = data.get[agg.Interim](queryContext, aggExpr).map(agg.postMap)
+      val newValue = agg.handleEmpty(data.get[agg.Interim](queryContext, aggExpr).map(agg.postMap))
       data.set(queryContext, aggExpr, newValue)
     }
     data

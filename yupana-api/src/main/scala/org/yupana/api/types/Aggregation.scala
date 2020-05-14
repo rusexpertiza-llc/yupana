@@ -66,6 +66,8 @@ trait Aggregation[T] extends Serializable {
     */
   def postMap(x: Interim)(implicit a: Aggregations): Out
 
+  def handleEmpty(x: Option[Out])(implicit a: Aggregations): Option[Out]
+
   /** Output data type */
   val dataType: DataType.Aux[Out]
 }
@@ -104,6 +106,7 @@ object Aggregation {
       override def map(t: T)(implicit a: Aggregations): U = f(a).map(t)
       override def reduce(x: U, y: U)(implicit a: Aggregations): U = f(a).reduce(x, y)
       override def postMap(x: U)(implicit a: Aggregations): V = f(a).postMap(x)
+      override def handleEmpty(x: Option[V])(implicit a: Aggregations): Option[V] = f(a).handleEmpty(x)
 
       override val dataType: DataType.Aux[Out] = dt
     }
@@ -143,7 +146,12 @@ object Aggregation {
   )
 }
 
-class AggregationImpl[T, I, O](val map: T => I, val reduce: (I, I) => I, val postMap: I => O)
+class AggregationImpl[T, I, O](
+    val map: T => I,
+    val reduce: (I, I) => I,
+    val postMap: I => O,
+    val handleEmpty: Option[O] => Option[O]
+)
 
 trait Aggregations {
   def sum[T: Numeric]: AggregationImpl[T, T, T]
