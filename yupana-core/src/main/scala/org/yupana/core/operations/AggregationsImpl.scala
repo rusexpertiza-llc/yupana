@@ -21,7 +21,7 @@ import org.yupana.api.types.{ AggregationImpl, Aggregations }
 trait AggregationsImpl extends Aggregations {
 
   override def sum[T](implicit n: Numeric[T]): AggregationImpl[T, T, T] =
-    new AggregationImpl(identity, n.plus, identity, v => defaultIfNone[T](v, implicitly[Numeric[T]].zero))
+    new AggregationImpl(identity, n.plus, identity, defaultIfNone[T](_, implicitly[Numeric[T]].zero))
 
   override def min[T](implicit o: Ordering[T]): AggregationImpl[T, T, T] =
     new AggregationImpl(identity, o.min, identity, identity)
@@ -29,10 +29,11 @@ trait AggregationsImpl extends Aggregations {
   override def max[T](implicit o: Ordering[T]): AggregationImpl[T, T, T] =
     new AggregationImpl(identity, o.max, identity, identity)
 
-  override def count[T]: AggregationImpl[T, Long, Long] = new AggregationImpl(_ => 1L, _ + _, identity, identity)
+  override def count[T]: AggregationImpl[T, Long, Long] =
+    new AggregationImpl(_ => 1L, _ + _, identity, defaultIfNone[Long](_, 0L))
 
   override def distinctCount[T]: AggregationImpl[T, Set[T], Int] =
-    new AggregationImpl(x => Set(x), _ union _, _.size, identity)
+    new AggregationImpl(x => Set(x), _ union _, _.size, defaultIfNone[Int](_, 0))
 
   override def distinctRandom[T]: AggregationImpl[T, Set[T], T] =
     new AggregationImpl(x => Set(x), _ union _, random, identity)
