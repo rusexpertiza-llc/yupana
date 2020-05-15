@@ -2,6 +2,8 @@ package org.yupana.hbase
 
 import java.util.Properties
 
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
+import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
@@ -10,15 +12,13 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.{ Aggregation, UnaryOperation, Storable }
+import org.yupana.api.types.{ Aggregation, UnaryOperation }
 import org.yupana.core.TestSchema.testTable
+import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
-import org.yupana.core._
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
-import org.apache.hadoop.hbase.util.Bytes
 
 import scala.util.Random
 
@@ -145,7 +145,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
         (1 to N).map { i =>
           val dimId = i
           HBaseTestUtils
-            .row(time - (time % testTable.rowTimeSpan), dimId.toLong, dimId.toShort)
+            .row(time - (time % testTable.rowTimeSpan), HBaseTestUtils.dimAHash(dimId.toString), dimId.toShort)
             .cell("d1", time % testTable.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 1d)
             .field(TestTableFields.TEST_BIGDECIMAL_FIELD.tag, BigDecimal(1d))

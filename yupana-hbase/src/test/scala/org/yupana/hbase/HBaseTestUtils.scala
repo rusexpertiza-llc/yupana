@@ -1,5 +1,8 @@
 package org.yupana.hbase
 
+import java.nio.charset.StandardCharsets
+import java.util.UUID
+
 import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
@@ -8,14 +11,18 @@ import org.yupana.api.types.DataType
 import scala.collection.JavaConverters._
 
 object HBaseTestUtils {
+  def dimAHash(s: String) = {
+    (s.hashCode, UUID.nameUUIDFromBytes(s.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
+  }
 
   def row(baseTime: Long, dims: Any*) = {
     val key = Bytes.toBytes(baseTime) ++ dims.foldLeft(Array.ofDim[Byte](0)) { (a, d) =>
       val dimBytes = d match {
-        case x: Long  => Bytes.toBytes(x)
-        case x: Short => Bytes.toBytes(x)
-        case x: Byte  => Bytes.toBytes(x)
-        case x: Int   => Bytes.toBytes(x)
+        case x: Long        => Bytes.toBytes(x)
+        case x: Short       => Bytes.toBytes(x)
+        case x: Byte        => Bytes.toBytes(x)
+        case x: Int         => Bytes.toBytes(x)
+        case x: (Int, Long) => Bytes.toBytes(x._1) ++ Bytes.toBytes(x._2)
       }
       a ++ dimBytes
     }

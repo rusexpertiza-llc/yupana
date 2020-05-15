@@ -111,9 +111,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val mr = mapReduceEngine(metricCollector)
 
+    val table = query.table
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
       val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, query.table)))
+        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
       }
 
       new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
@@ -308,8 +309,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     condition match {
       case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
       case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
-      case _: DimIdInExpr                                            => true
-      case _: DimIdNotInExpr                                         => true
+      case _: DimIdInExpr[_, _]                                      => true
+      case _: DimIdNotInExpr[_, _]                                   => true
       case Equ(_: DimensionExpr[_], ConstantExpr(_))                 => true
       case Equ(ConstantExpr(_), _: DimensionExpr[_])                 => true
       case Neq(_: DimensionExpr[_], ConstantExpr(_))                 => true

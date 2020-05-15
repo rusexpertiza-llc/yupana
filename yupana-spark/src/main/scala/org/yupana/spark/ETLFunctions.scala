@@ -28,7 +28,12 @@ import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(context: EtlContext, schema: Schema, dataPoints: RDD[DataPoint]): Unit = {
+  def processTransactions(
+      context: EtlContext,
+      schema: Schema,
+      dataPoints: RDD[DataPoint],
+      doInvalidateRollups: Boolean
+  ): Unit = {
 
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
@@ -39,11 +44,13 @@ object ETLFunctions extends StrictLogging {
 
         val byTable = dps.groupBy(_.table)
 
-        byTable.foreach {
-          case (t, ps) =>
-            if (schema.rollups.exists(_.fromTable.name == t.name)) {
-              invalidateRollups(context.tsdb, ps, t)
-            }
+        if (doInvalidateRollups) {
+          byTable.foreach {
+            case (t, ps) =>
+              if (schema.rollups.exists(_.fromTable.name == t.name)) {
+                invalidateRollups(context.tsdb, ps, t)
+              }
+          }
         }
       }
     }
@@ -73,9 +80,9 @@ object ETLFunctions extends StrictLogging {
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema): DStream[DataPoint] = {
+  def saveDataPoints(context: EtlContext, schema: Schema, invalidateRollups: Boolean = true): DStream[DataPoint] = {
     stream.foreachRDD { rdd =>
-      ETLFunctions.processTransactions(context, schema, rdd)
+      ETLFunctions.processTransactions(context, schema, rdd, invalidateRollups)
     }
 
     stream
@@ -83,7 +90,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 }
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
-    ETLFunctions.processTransactions(context, schema, rdd)
+  def saveDataPoints(context: EtlContext, schema: Schema, invalidateRollups: Boolean = false): Unit = {
+    ETLFunctions.processTransactions(context, schema, rdd, invalidateRollups)
   }
 }
