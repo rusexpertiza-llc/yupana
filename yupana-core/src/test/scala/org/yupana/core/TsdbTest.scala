@@ -2957,4 +2957,58 @@ class TsdbTest
 
     res shouldBe empty
   }
+
+  it should "handle None aggregate results" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+    val from = qtime.getMillis
+    val to = qtime.plusDays(1).getMillis
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        function(UnaryOperation.truncDay, time) as "time",
+        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        aggregate(Aggregation.count[Double], TestTableFields.TEST_FIELD) as "count_testField",
+        aggregate(Aggregation.distinctCount[Double], TestTableFields.TEST_FIELD) as "distinct_count_testField"
+      ),
+      None,
+      Seq(function(UnaryOperation.truncDay, time))
+    )
+
+    val pointTime1 = qtime.getMillis + 10
+    val pointTime2 = pointTime1 + 1
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime1)))
+            .set(metric(TestTableFields.TEST_FIELD), None)
+            .buildAndReset(),
+          b.set(time, Some(Time(pointTime2)))
+            .set(metric(TestTableFields.TEST_FIELD), None)
+            .buildAndReset()
+        )
+      )
+
+    val row = tsdb.query(query).head
+
+    row.fieldValueByName[Time]("time").value shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    row.fieldValueByName[Double]("sum_testField") shouldBe Some(0)
+    row.fieldValueByName[Double]("count_testField") shouldBe Some(0)
+    row.fieldValueByName[Double]("distinct_count_testField") shouldBe Some(0)
+  }
 }
