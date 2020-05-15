@@ -25,6 +25,16 @@ import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
 
 object ExternalLinkUtils {
+
+  /**
+    * Extracts external link fields from time bounded condition
+    * @note this function doesn't care if the field condition case sensitive or not
+    *
+    * @param simpleCondition condition to extract values from
+    * @param linkName the external link name.
+    * @return list of the fields and field values to be included, list of fields and field values to be excluded and
+    *         unmatched part of the condition.
+    */
   def extractCatalogFields(
       simpleCondition: TimeBoundedCondition,
       linkName: String
@@ -34,6 +44,24 @@ object ExternalLinkUtils {
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
+          case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+            ((field, Set(v)) :: cat, neg, oth)
+
+          case Equ(ConstantExpr(v: String), LinkExpr(c, field)) if c.linkName == linkName =>
+            ((field, Set(v)) :: cat, neg, oth)
+
+          case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
+            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
+
+          case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+            (cat, (field, Set(v)) :: neg, oth)
+
+          case Neq(ConstantExpr(v: String), LinkExpr(c, field)) if c.linkName == linkName =>
+            (cat, (field, Set(v)) :: neg, oth)
+
+          case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
+            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
+
           case Equ(Lower(LinkExpr(c, field)), ConstantExpr(v: String)) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 

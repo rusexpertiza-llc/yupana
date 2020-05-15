@@ -76,11 +76,17 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
+      case Equ(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName        => true
       case Equ(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
+      case Equ(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName        => true
       case Equ(ConstantExpr(_), Lower(LinkExpr(c, _))) if c.linkName == externalLink.linkName => true
+      case Neq(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName        => true
       case Neq(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
+      case Neq(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName        => true
       case Neq(ConstantExpr(_), Lower(LinkExpr(c, _))) if c.linkName == externalLink.linkName => true
+      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                   => true
       case InExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName            => true
+      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                => true
       case NotInExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName         => true
       case _                                                                                  => false
     }
