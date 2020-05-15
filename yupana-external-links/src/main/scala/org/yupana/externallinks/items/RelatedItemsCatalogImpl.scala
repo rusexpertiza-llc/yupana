@@ -82,9 +82,9 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
 
   protected def createFilter(field: String, values: Set[String]): Condition = {
     field match {
-      case externalLink.ITEM_FIELD    => in(lower(dimension(Dimensions.ITEM)), values)
-      case externalLink.PHRASE_FIELDS => in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), values)
-      case f                          => throw new IllegalArgumentException(s"Unsupported field $f")
+      case externalLink.ITEM_FIELD   => in(lower(dimension(Dimensions.ITEM)), values)
+      case externalLink.PHRASE_FIELD => in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), values)
+      case f                         => throw new IllegalArgumentException(s"Unsupported field $f")
     }
   }
 

@@ -66,8 +66,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS)), Set("хлеб ржаной")),
-        notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS)), Set("бородинский"))
+        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("хлеб ржаной")),
+        notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
       )
     )
 
