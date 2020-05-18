@@ -421,6 +421,25 @@ object SqlQueryProcessor extends QueryValidator {
     convertValue(state, v, ExprType.Cmp).right.flatMap(const => ExprPair.constCast(const, dataType))
   }
 
+  private def convertValues(
+      state: BuilderState,
+      vs: Seq[parser.Value],
+      dataType: DataType
+  ): Either[String, Seq[dataType.T]] = {
+    vs map {
+      case parser.StringValue(s) =>
+        ExprPair.constCast()
+
+      case parser.NumericValue(n) =>
+        Right(ConstantExpr(n))
+
+      case parser.TimestampValue(t) =>
+        Right(ConstantExpr(Time(t)))
+
+    }
+    Left("fff")
+  }
+
   private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
     v match {
       case parser.StringValue(s) =>

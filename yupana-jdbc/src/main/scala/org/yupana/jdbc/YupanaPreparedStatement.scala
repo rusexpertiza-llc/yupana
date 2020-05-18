@@ -90,7 +90,25 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setArray(parameterIndex: Int, x: SqlArray): Unit = {
-    throw new SQLFeatureNotSupportedException("SqlArrays are not supported")
+    x.getBaseType match {
+      case Types.VARCHAR =>
+        setParameter(parameterIndex, StringArrayValue(x.getArray.asInstanceOf[Array[String]]))
+
+      case Types.DECIMAL =>
+        setParameter(
+          parameterIndex,
+          NumericArrayValue(x.getArray.asInstanceOf[Array[java.math.BigDecimal]].map(BigDecimal(_)))
+        )
+
+      case Types.TIMESTAMP =>
+        setParameter(
+          parameterIndex,
+          TimestampArrayValue(x.getArray.asInstanceOf[Array[java.sql.Timestamp]].map(_.getTime))
+        )
+
+      case _ =>
+        throw new SQLFeatureNotSupportedException(s"Unsupported type for array ${x.getBaseTypeName}")
+    }
   }
 
   @throws[SQLException]

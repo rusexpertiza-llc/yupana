@@ -322,9 +322,12 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def createProtoValue(value: ParameterValue): Value = {
     value match {
-      case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
-      case StringValue(s)    => Value(Value.Value.TextValue(s))
-      case TimestampValue(m) => Value(Value.Value.TimeValue(m))
+      case NumericValue(n)         => Value(Value.Value.DecimalValue(n.toString()))
+      case StringValue(s)          => Value(Value.Value.TextValue(s))
+      case TimestampValue(m)       => Value(Value.Value.TimeValue(m))
+      case NumericArrayValue(vs)   => Value(Value.Value.DecimalArrayValue(DecimalArray(vs.map(_.toString()))))
+      case StringArrayValue(vs)    => Value(Value.Value.StringArrayValue(StringArray(vs)))
+      case TimestampArrayValue(vs) => Value(Value.Value.TimeArrayValue(TimeArray(vs)))
     }
   }
 }

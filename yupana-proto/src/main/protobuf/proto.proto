@@ -46,7 +46,22 @@ message Value {
         string textValue = 4;
         string decimalValue = 5;
         uint64 timeValue = 6;
+        StringArray stringArrayValue = 7;
+        DecimalArray decimalArrayValue = 8;
+        TimeArray timeArrayValue = 9;
     }
+}
+
+message StringArray {
+    repeated string values = 1;
+}
+
+message DecimalArray {
+    repeated string values = 1;
+}
+
+message TimeArray {
+    repeated uint64 values = 1;
 }
 
 message ResultChunk {

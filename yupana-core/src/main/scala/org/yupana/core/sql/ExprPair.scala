@@ -35,17 +35,21 @@ object ExprPair {
   }
 
   def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
-    if (const.dataType == dataType) {
-      Right(const.v.asInstanceOf[dataType.T])
+    constCast(const.v, const.dataType, dataType)
+  }
+
+  def constCast[T, U](const: T, constType: DataType.Aux[T], targetType: DataType.Aux[U]): Either[String, U] = {
+    if (constType == targetType) {
+      Right(const.asInstanceOf[U])
     } else {
-      TypeConverter(const.dataType, dataType.aux)
-        .map(conv => conv.direct(const.v))
+      TypeConverter(constType, targetType)
+        .map(conv => conv.direct(const))
         .orElse(
-          TypeConverter(dataType.aux, const.dataType)
-            .flatMap(conv => conv.reverse(const.v))
+          TypeConverter(targetType, constType)
+            .flatMap(conv => conv.reverse(const))
         )
         .toRight(
-          s"Cannot convert value '${const.v}' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
+          s"Cannot convert value '$const' of type ${constType.meta.sqlTypeName} to ${targetType.meta.sqlTypeName}"
         )
     }
   }

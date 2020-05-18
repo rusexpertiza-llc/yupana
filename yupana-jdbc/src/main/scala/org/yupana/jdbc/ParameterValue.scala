@@ -23,3 +23,9 @@ case class NumericValue(value: BigDecimal) extends ParameterValue
 case class StringValue(value: String) extends ParameterValue
 
 case class TimestampValue(millis: Long) extends ParameterValue
+
+case class StringArrayValue(values: Seq[String]) extends ParameterValue
+
+case class NumericArrayValue(values: Seq[BigDecimal]) extends ParameterValue
+
+case class TimestampArrayValue(values: Seq[Long]) extends ParameterValue

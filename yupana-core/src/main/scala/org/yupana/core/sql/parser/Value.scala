@@ -45,3 +45,15 @@ object TimestampValue {
 case class PeriodValue(value: Period) extends Value {
   override def asString: String = value.toString
 }
+
+case class StringArrayValue(value: Seq[String]) extends Value {
+  override def asString: String = value.mkString("_")
+}
+
+case class NumericArrayValue(value: Seq[BigDecimal]) extends Value {
+  override def asString: String = value.mkString("_")
+}
+
+case class TimestampArrayValue(value: Seq[LocalDateTime]) extends Value {
+  override def asString: String = value.mkString("_")
+}

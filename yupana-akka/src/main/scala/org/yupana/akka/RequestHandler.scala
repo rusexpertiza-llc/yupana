@@ -18,6 +18,7 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.StrictLogging
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.DataType
@@ -152,10 +153,14 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
   private def convertValue(value: proto.Value): Value = {
     value.value match {
-      case proto.Value.Value.TextValue(s)    => StringValue(s)
-      case proto.Value.Value.DecimalValue(n) => NumericValue(BigDecimal(n))
-      case proto.Value.Value.TimeValue(t)    => TimestampValue(t)
-      case proto.Value.Value.Empty           => throw new IllegalArgumentException("Empty value")
+      case proto.Value.Value.TextValue(s)          => StringValue(s)
+      case proto.Value.Value.DecimalValue(n)       => NumericValue(BigDecimal(n))
+      case proto.Value.Value.TimeValue(t)          => TimestampValue(t)
+      case proto.Value.Value.StringArrayValue(vs)  => StringArrayValue(vs.values)
+      case proto.Value.Value.DecimalArrayValue(vs) => NumericArrayValue(vs.values.map(x => BigDecimal(x)))
+      case proto.Value.Value.TimeArrayValue(vs) =>
+        TimestampArrayValue(vs.values.map(x => new LocalDateTime(x, DateTimeZone.UTC)))
+      case proto.Value.Value.Empty => throw new IllegalArgumentException("Empty value")
     }
   }
 }
