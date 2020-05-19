@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -316,7 +316,7 @@ case class NotInExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Express
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-case class DimIdInExpr(dim: DictionaryDimension, values: SortedSetIterator[Long]) extends Expression {
+case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
   override def kind: ExprKind = Simple
@@ -327,7 +327,7 @@ case class DimIdInExpr(dim: DictionaryDimension, values: SortedSetIterator[Long]
   override def toString: String = s"$dim ID IN (Iterator)"
 }
 
-case class DimIdNotInExpr(dim: DictionaryDimension, values: SortedSetIterator[Long]) extends Expression {
+case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
   override def kind: ExprKind = Simple

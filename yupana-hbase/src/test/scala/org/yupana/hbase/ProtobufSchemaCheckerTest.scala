@@ -1,5 +1,6 @@
 package org.yupana.hbase
 
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.{ FlatSpec, Inside, Matchers }
 import org.yupana.api.schema._
 
@@ -22,7 +23,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
     metrics = metrics,
-    externalLinks = Seq.empty
+    externalLinks = Seq.empty,
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   val table2 = new Table(
@@ -30,7 +32,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C, DIM_D),
     metrics = metrics,
-    externalLinks = Seq.empty
+    externalLinks = Seq.empty,
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   val TEST_LINK = new ExternalLink {
@@ -63,7 +66,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       rowTimeSpan = 86400000L * 31L,
       dimensionSeq = Seq(DIM_A, DIM_C),
       metrics = table1.metrics.take(2),
-      externalLinks = Seq(TEST_LINK)
+      externalLinks = Seq(TEST_LINK),
+      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
     )
 
     val mutatedTables = Seq(significantlyDifferentTable1, table2)
@@ -85,7 +89,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B_LOW_PRIORITY, METRIC_C, METRIC_D),
-      externalLinks = Seq(TEST_LINK)
+      externalLinks = Seq(TEST_LINK),
+      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
     )
 
     val mutatedTables = Seq(table1WithChangedGroups, table2)
@@ -106,7 +111,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B_WRONG_TAG, METRIC_C, METRIC_D),
-      externalLinks = Seq(TEST_LINK)
+      externalLinks = Seq(TEST_LINK),
+      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
     )
 
     val mutatedTables = Seq(table1WithChangedTag, table2)
@@ -125,7 +131,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = table1.metrics :+ Metric[BigDecimal]("extra_metric", 8),
-      externalLinks = Seq(TEST_LINK)
+      externalLinks = Seq(TEST_LINK),
+      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
     )
 
     val mutatedTables = Seq(slightlyDifferentTable1, table2)
@@ -137,7 +144,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     }
   }
 
-  it should "return check errors when a table has duplicated tags" in {
+  it should "returTSDaoHBaseTest.scala:4:25n check errors when a table has duplicated tags" in {
     val NEW_METRIC = Metric[Long]("new_metric", 2, 2)
 
     val table1WithNewMetric = new Table(
@@ -145,7 +152,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B, METRIC_C, METRIC_D, NEW_METRIC),
-      externalLinks = Seq(TEST_LINK)
+      externalLinks = Seq(TEST_LINK),
+      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
     )
 
     val mutatedTables = Seq(table1WithNewMetric, table2)

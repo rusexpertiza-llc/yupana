@@ -27,6 +27,7 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.dao.DictionaryProvider
@@ -52,6 +53,7 @@ object HBaseUtils extends StrictLogging {
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
+  private val MAX_INITIAL_REGIONS = 500
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -191,7 +193,7 @@ object HBaseUtils extends StrictLogging {
 
     val dimIdsList = dimIds.toList.map {
       case (dim, ids) =>
-        dim -> ids.toList.map(id => dim.storable.write(id.asInstanceOf[dim.R]))
+        dim -> ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
     }
 
     val crossJoinedDimIds = {
@@ -226,15 +228,10 @@ object HBaseUtils extends StrictLogging {
       val vb = dimIds(i)
       startBuffer.put(vb)
       val ve =
-        if (i < dimIds.length - 1) vb
-        else {
-          val copy = new Array[Byte](vb.length)
-          Array.copy(vb, 0, copy, 0, vb.length)
-          val incremented = Bytes.incrementBytes(copy, 1L)
-          if (incremented != copy) {
-            Array.copy(incremented, incremented.length - copy.length, copy, 0, copy.length)
-          }
-          copy
+        if (i < dimIds.length - 1) {
+          vb
+        } else {
+          Bytes.unsignedCopyAndIncrement(vb)
         }
       stopBuffer.put(ve)
     }
@@ -267,7 +264,7 @@ object HBaseUtils extends StrictLogging {
     var i = 0
     val bb = ByteBuffer.wrap(bytes, TAGS_POSITION_IN_ROW_KEY, bytes.length - TAGS_POSITION_IN_ROW_KEY)
     table.dimensionSeq.foreach { dim =>
-      val value = dim.storable.read(bb)
+      val value = dim.rStorable.read(bb)
       dimReprs(i) = Some(value)
       i += 1
     }
@@ -344,7 +341,21 @@ object HBaseUtils extends StrictLogging {
             .setCompactionCompressionType(Algorithm.SNAPPY)
         )
       )
-      connection.getAdmin.createTable(desc)
+      val endTime = new LocalDateTime()
+        .plusYears(1)
+        .withMonthOfYear(1)
+        .withDayOfMonth(1)
+        .withTime(0, 0, 0, 0)
+        .toDateTime(DateTimeZone.UTC)
+        .getMillis
+      val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
+      val regions = math.min(r, MAX_INITIAL_REGIONS)
+      connection.getAdmin.createTable(
+        desc,
+        Bytes.toBytes(baseTime(table.epochTime, table)),
+        Bytes.toBytes(baseTime(endTime, table)),
+        regions
+      )
     }
   }
 
@@ -365,10 +376,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   private[hbase] def tableKeySize(table: Table): Int = {
-    Bytes.SIZEOF_LONG + table.dimensionSeq.map {
-      case _: DictionaryDimension => Bytes.SIZEOF_LONG
-      case r: RawDimension[_]     => r.storable.size
-    }.sum
+    Bytes.SIZEOF_LONG + table.dimensionSeq.map(_.rStorable.size).sum
   }
 
   private[hbase] def rowKey(
@@ -397,7 +405,12 @@ object HBaseUtils extends StrictLogging {
 
         case rd: RawDimension[_] =>
           val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
-          rd.storable.write(v)
+          rd.rStorable.write(v)
+
+        case hd: HashDimension[_, _] =>
+          val v = dataPoint.dimensions(dim).asInstanceOf[hd.T]
+          val hash = hd.hashFunction(v).asInstanceOf[hd.R]
+          hd.rStorable.write(hash)
       }
 
       buffer.put(bytes)
@@ -444,6 +457,10 @@ object HBaseUtils extends StrictLogging {
       case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
         val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
+        (tag, bytes)
+      case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
+        val tag = table.dimensionTag(d)
+        val bytes = d.tStorable.write(value.asInstanceOf[d.T])
         (tag, bytes)
     }
 

@@ -25,6 +25,7 @@ import org.apache.spark.{ Partition, TaskContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataRow, QueryField }
+import org.yupana.api.types.ArrayDataType
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
 class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override val queryContext: QueryContext)
@@ -62,8 +63,15 @@ class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override
 
   private def fieldToSpark(field: QueryField): StructField = {
     val dataType = field.expr.dataType
-    val sparkType = DataRowRDD.TYPE_MAP
-      .getOrElse(dataType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
+    val sparkType = if (!dataType.isArray) {
+      DataRowRDD.TYPE_MAP
+        .getOrElse(dataType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
+    } else {
+      val adt = dataType.asInstanceOf[ArrayDataType[_]]
+      val innerType = DataRowRDD.TYPE_MAP
+        .getOrElse(adt.valueType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
+      ArrayType(innerType)
+    }
 
     StructField(field.name, sparkType, nullable = true)
   }

@@ -32,6 +32,8 @@ class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) 
     connection
   }
 
+  def close(): Unit = connection.close()
+
   def getTableName(tableNameString: String): TableName =
     TableName.valueOf(namespace, tableNameString)
 

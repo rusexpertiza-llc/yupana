@@ -32,8 +32,8 @@ class JCache[K, V](underlying: JavaCache[K, V]) extends Cache[K, V] {
   override def contains(key: K): Boolean = underlying.containsKey(key)
 
   override def putAll(batch: Map[K, V]): Unit = {
-    val treeMap = new util.TreeMap[K, V]()
-    treeMap.putAll(batch.asJava)
-    underlying.putAll(treeMap)
+    val map = new util.HashMap[K, V]()
+    map.putAll(batch.asJava)
+    underlying.putAll(map)
   }
 }

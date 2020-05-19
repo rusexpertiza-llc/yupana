@@ -6,7 +6,7 @@ import java.util.Properties
 
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTime, DateTimeZone }
+import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
 import org.yupana.api.query.DataPoint
@@ -171,7 +171,8 @@ object HBaseUtilsTest {
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C),
     metrics = Seq(TEST_FIELD),
-    externalLinks = Seq.empty
+    externalLinks = Seq.empty,
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   val TestTable2 = new Table(
@@ -179,6 +180,7 @@ object HBaseUtilsTest {
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(DIM_B, DIM_A, DIM_C),
     metrics = Seq(TEST_FIELD),
-    externalLinks = Seq.empty
+    externalLinks = Seq.empty,
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 }
