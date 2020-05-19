@@ -118,7 +118,15 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def sendRequest(request: Request): Unit = {
-    channel.write(createChunks(request.toByteArray))
+    try {
+      channel.write(createChunks(request.toByteArray))
+    } catch {
+      case io: IOException =>
+        logger.warning(s"Caught $io while trying to write to channel, let's retry")
+        Thread.sleep(1000)
+        ensureConnected()
+        channel.write(createChunks(request.toByteArray))
+    }
   }
 
   private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
