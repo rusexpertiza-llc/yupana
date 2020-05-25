@@ -34,7 +34,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       condition
     }
 
-    override def keyExpr: Expression.Aux[String] = DimensionExpr(DictionaryDimension("TAG_X"))
+    override def keyExpr: Expression.Aux[String] = dimension(DictionaryDimension("TAG_X"))
   }
 
   class TestLink extends ExternalLink {
@@ -109,42 +109,42 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
   }
 
   it should "support positive conditions" in {
-    testCatalog.condition(equ(link(testExternalLink, TestExternalLink.testField1), const("aaa"))) shouldEqual in(
-      dimension(DictionaryDimension("TAG_X")),
+    testCatalog.condition(equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))) shouldEqual in(
+      lower(dimension(DictionaryDimension("TAG_X"))),
       Set("aaa")
     )
 
     testCatalog.condition(
       and(
-        equ(link(testExternalLink, TestExternalLink.testField2), const("bar")),
-        equ(link(testExternalLink, TestExternalLink.testField1), const("bar"))
+        equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
+        equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("bar"))
       )
-    ) shouldEqual in(dimension(DictionaryDimension("TAG_X")), Set("bar"))
+    ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set("bar"))
 
     testCatalog.condition(
       and(
-        equ(link(testExternalLink, TestExternalLink.testField2), const("bar")),
-        in(link(testExternalLink, TestExternalLink.testField3), Set("abc"))
+        equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
+        in(lower(link(testExternalLink, TestExternalLink.testField3)), Set("abc"))
       )
-    ) shouldEqual in(dimension(DictionaryDimension("TAG_X")), Set.empty)
+    ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set.empty)
   }
 
   it should "support negativeCondition operation" in {
     testCatalog.condition(
-      neq(link(testExternalLink, TestExternalLink.testField2), const("bar"))
-    ) shouldEqual notIn(dimension(DictionaryDimension("TAG_X")), Set("foo", "bar"))
+      neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
+    ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
     testCatalog.condition(
       and(
-        neq(link(testExternalLink, TestExternalLink.testField2), const("bar")),
-        notIn(link(testExternalLink, TestExternalLink.testField3), Set("look"))
+        neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
+        notIn(lower(link(testExternalLink, TestExternalLink.testField3)), Set("look"))
       )
-    ) shouldEqual notIn(dimension(DictionaryDimension("TAG_X")), Set("foo", "bar"))
+    ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
     testCatalog.condition(
       and(
-        neq(link(testExternalLink, TestExternalLink.testField1), const("aaa")),
-        neq(link(testExternalLink, TestExternalLink.testField3), const("baz"))
+        neq(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa")),
+        neq(lower(link(testExternalLink, TestExternalLink.testField3)), const("baz"))
       )
-    ) shouldEqual notIn(dimension(DictionaryDimension("TAG_X")), Set("aaa", "foo"))
+    ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa", "foo"))
   }
 
   it should "validate data" in {

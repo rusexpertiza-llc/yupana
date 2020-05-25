@@ -96,18 +96,20 @@ trait TsdbBase extends StrictLogging {
     val preparedQuery = prepareQuery(query)
     logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val metricCollector = createMetricCollector(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
 
-    val simplified = preparedQuery.filter.map(ConditionUtils.simplify)
+    logger.debug(s"Optimized query: $optimizedQuery")
 
-    val substitutedCondition = simplified.map(c => substituteLinks(c, metricCollector))
+    val metricCollector = createMetricCollector(optimizedQuery)
+
+    val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
 
     val postCondition = substitutedCondition.map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
 
     logger.debug(s"Post condition: $postCondition")
 
-    val queryContext = QueryContext(preparedQuery, postCondition)
+    val queryContext = QueryContext(optimizedQuery, postCondition)
 
     val mr = mapReduceEngine(metricCollector)
 
@@ -149,7 +151,7 @@ trait TsdbBase extends StrictLogging {
       metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
         val withValuesForFilter = it.map { row =>
-          evaluateFilterExprs(queryContext, row, metricCollector)
+          evaluateFilterExprs(queryContext, row)
         }
 
         val filtered = queryContext.postCondition match {
@@ -160,7 +162,7 @@ trait TsdbBase extends StrictLogging {
           case None => withValuesForFilter
         }
 
-        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
+        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row))
 
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
       }
@@ -252,22 +254,22 @@ trait TsdbBase extends StrictLogging {
 
   def evaluateFilterExprs(
       queryContext: QueryContext,
-      row: InternalRow,
-      metricCollector: MetricQueryCollector
+      row: InternalRow
   ): InternalRow = {
     queryContext.postCondition.foreach { expr =>
-      row.set(
-        queryContext.exprsIndex(expr),
-        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
-      )
+      if (expr.kind != Const) {
+        row.set(
+          queryContext.exprsIndex(expr),
+          ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        )
+      }
     }
     row
   }
 
   def evaluateExpressions(
       queryContext: QueryContext,
-      row: InternalRow,
-      metricCollector: MetricQueryCollector
+      row: InternalRow
   ): InternalRow = {
     queryContext.bottomExprs.foreach { expr =>
       row.set(
