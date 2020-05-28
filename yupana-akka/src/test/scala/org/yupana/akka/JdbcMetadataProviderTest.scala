@@ -62,7 +62,7 @@ object TS {
     override type DimType = String
     override val linkName: String = "c1"
     override val dimension: Dimension.Aux[String] = DictionaryDimension("t1")
-    override val fieldsNames: Set[String] = Set("f1")
+    override val fields: Set[LinkField] = Set("f1").map(LinkField[String])
   }
 
   val S1 = new Table(

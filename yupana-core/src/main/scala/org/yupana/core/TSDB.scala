@@ -151,7 +151,7 @@ class TSDB(
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
     externalLinks.getOrElse(
       catalog,
-      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}")
+      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fields}")
     )
   }
 }

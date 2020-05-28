@@ -40,7 +40,7 @@ class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: 
       elRegistrator.registerExternalLink(el)
     }
     TsdbSpark.externalLinks
-      .getOrElse(el.linkName, throw new Exception(s"Can't find catalog ${el.linkName}: ${el.fieldsNames}"))
+      .getOrElse(el.linkName, throw new Exception(s"Can't find catalog ${el.linkName}: ${el.fields}"))
   }
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {

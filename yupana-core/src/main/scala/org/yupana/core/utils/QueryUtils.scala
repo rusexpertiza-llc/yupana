@@ -35,10 +35,10 @@ object QueryUtils {
     }
   }
 
-  def requiredLinks(e: Expression): Set[LinkExpr] = {
-    e.fold(Set.empty[LinkExpr]) {
-      case (s, l: LinkExpr) => s + l
-      case (s, _)           => s
+  def requiredLinks(e: Expression): Set[LinkExpr[_]] = {
+    e.fold(Set.empty[LinkExpr[_]]) {
+      case (s, l: LinkExpr[_]) => s + l
+      case (s, _)              => s
     }
   }
 

@@ -55,7 +55,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
   override def setLinkedValues(
       exprIndex: collection.Map[Expression, Int],
       rows: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     ExternalLinkUtils.setLinkedValues(
       externalLink.asInstanceOf[ExternalLink.Aux[externalLink.dimension.T]],
@@ -67,7 +67,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
   }
 
   override def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformCondition(externalLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, includeCondition, excludeCondition)
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
@@ -116,7 +116,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
       SparseTable(tableRows)
     } else {
       val missedKeys = tagValues diff tableRows.keys.toSet
-      val q = fieldsByTagsQuery(externalLink.fieldsNames, missedKeys.size)
+      val q = fieldsByTagsQuery(externalLink.fields.map(_.name), missedKeys.size)
       val params = missedKeys.map(_.asInstanceOf[Object]).toArray
       logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
       val dataFromDb = jdbc

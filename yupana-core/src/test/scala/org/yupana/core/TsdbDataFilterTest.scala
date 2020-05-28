@@ -7,7 +7,9 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
-import org.yupana.api.query.Expression
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.{ Expression, LinkExpr }
+import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
@@ -404,7 +406,7 @@ class TsdbDataFilterTest
     (testCatalogServiceMock.condition _).expects(condition).returning(condition)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) =>
         setCatalogValueByTag(
           qc,
@@ -472,7 +474,7 @@ class TsdbDataFilterTest
     (testCatalogServiceMock.condition _).expects(condition).returning(condition)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) =>
         setCatalogValueByTag(
           qc,
@@ -549,7 +551,7 @@ class TsdbDataFilterTest
       (testCatalogServiceMock2.condition _).expects(condition).returning(condition)
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
         .onCall((qc, datas, _) =>
           setCatalogValueByTag(
             qc,
@@ -560,7 +562,7 @@ class TsdbDataFilterTest
         )
 
       (testCatalogServiceMock2.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")))
+        .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")).asInstanceOf[Set[LinkExpr[_]]])
         .onCall((qc, datas, _) =>
           setCatalogValueByTag(
             qc,
@@ -633,7 +635,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) =>
         setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test1a" -> Map("testField" -> "c1-value")))
       )
@@ -723,5 +725,45 @@ class TsdbDataFilterTest
 
     val results = tsdb.query(query).toList
     results should have size 0
+  }
+
+  it should "support numeric filtering on external links fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+
+    val link5 = mockCatalogService(tsdb, TestLinks.TEST_LINK5)
+    val sql = "SELECT B FROM test_table WHERE TestLink5_testField5D > 20" + timeBounds()
+    val query = createQuery(sql)
+
+    val pointTime = from.getMillis + 10
+    val pointTime2 = pointTime + 10 * 1000
+
+    val doubleLinkExpr = linkT[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
+
+    (tsdbDaoMock.query _)
+      .expects(*, *, *)
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), Some(12)).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), Some(15)).buildAndReset()
+        )
+      )
+
+    (link5.setLinkedValues _)
+      .expects(*, *, *)
+      .onCall((idx, rs, _) =>
+        rs.foreach { r =>
+          val b = r.get[Int](idx, dimension(TestDims.DIM_B)).get
+          r.set(idx, doubleLinkExpr, Some(if (b == 12) 10.0 else 30.0))
+        }
+      )
+
+    (link5.condition _)
+      .expects(*)
+      .onCall((c: Condition) => c)
+
+    val rows = tsdb.query(query).iterator.toList
+
+    rows.size shouldEqual 1
+    val r1 = rows.head
+    r1.fieldValueByName[Int]("B").value shouldBe 15
   }
 }

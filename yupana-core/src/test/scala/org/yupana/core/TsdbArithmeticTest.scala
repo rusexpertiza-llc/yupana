@@ -7,6 +7,8 @@ import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
+import org.yupana.api.query.LinkExpr
+import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
@@ -144,7 +146,7 @@ class TsdbArithmeticTest
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) =>
         setCatalogValueByTag(
           qc,
@@ -387,5 +389,45 @@ class TsdbArithmeticTest
     r1.fieldValueByName[Double]("plus2").value shouldBe 6d
 
     rows should have size 1
+  }
+
+  it should "support arithmetic on external links" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+
+    val link5 = mockCatalogService(tsdb, TestLinks.TEST_LINK5)
+    val sql = "SELECT TestLink5_testField5D + 5 AS plus5 FROM test_table " + timeBounds(and = false)
+    val query = createQuery(sql)
+
+    val pointTime = from.getMillis + 10
+    val pointTime2 = pointTime + 10 * 1000
+
+    val doubleLinkExpr = linkT[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(dimension(TestDims.DIM_B), time),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), Some(12)).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), Some(15)).buildAndReset()
+        )
+      )
+
+    (link5.setLinkedValues _)
+      .expects(*, *, *)
+      .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, Some(15.23))))
+
+    val rows = tsdb.query(query).iterator.toList
+
+    val r1 = rows.head
+    r1.fieldValueByName[Double]("plus5").value shouldBe 20.23
+
+    rows should have size 2
   }
 }

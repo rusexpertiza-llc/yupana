@@ -4,7 +4,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, RawDimension }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, LinkField, RawDimension }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 
 class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
@@ -41,8 +41,9 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     override type DimType = Int
     override val linkName: String = "TestCatalog"
     override val dimension: Dimension.Aux[Int] = RawDimension[Int]("TAG_Y")
-    override val fieldsNames: Set[String] =
+    override val fields: Set[LinkField] =
       Set(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3)
+        .map(LinkField[String])
   }
 
   object TestExternalLink {
