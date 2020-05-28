@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.schema.externallinks
+package org.yupana.jdbc
 
-import org.yupana.api.schema.ExternalLink
-import org.yupana.schema.Dimensions
+import java.sql.SQLFeatureNotSupportedException
+import java.util
 
-trait ItemsInvertedIndex extends ExternalLink {
-  val PHRASE_FIELD = "phrase"
-  override type DimType = String
-  override val linkName: String = "ItemsInvertedIndex"
-  override val dimension = Dimensions.ITEM
-  override val fieldsNames: Set[String] = Set(PHRASE_FIELD)
+object JdbcUtils {
+  def checkTypeMapping(map: util.Map[String, Class[_]]): Unit = {
+    if (map != null && !map.isEmpty)
+      throw new SQLFeatureNotSupportedException("Custom type mappings are not supported")
+  }
 }
-
-object ItemsInvertedIndex extends ItemsInvertedIndex

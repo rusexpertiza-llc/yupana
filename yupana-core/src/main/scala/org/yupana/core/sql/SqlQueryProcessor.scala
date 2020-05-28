@@ -22,10 +22,10 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue, Schema, Table }
 import org.yupana.api.types._
+import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
-import org.yupana.core.utils.CollectionUtils
 
 class SqlQueryProcessor(schema: Schema) {
 

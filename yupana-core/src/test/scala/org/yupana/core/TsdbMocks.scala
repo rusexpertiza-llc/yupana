@@ -47,8 +47,8 @@ trait TsdbMocks extends MockFactory {
         c match {
           case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
           case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
-          case _: DimIdInExpr                                            => true
-          case _: DimIdNotInExpr                                         => true
+          case _: DimIdInExpr[_, _]                                      => true
+          case _: DimIdNotInExpr[_, _]                                   => true
           case BinaryOperationExpr(op, _: DimensionExpr[_], ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
             true
           case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr[_]) if Set("==", "!=").contains(op.name) =>

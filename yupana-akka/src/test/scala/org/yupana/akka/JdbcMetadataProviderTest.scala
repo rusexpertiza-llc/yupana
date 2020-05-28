@@ -1,5 +1,6 @@
 package org.yupana.akka
 
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
@@ -69,7 +70,8 @@ object TS {
     rowTimeSpan = 12,
     dimensionSeq = Seq(DictionaryDimension("t1"), DictionaryDimension("t2")),
     metrics = Seq(Metric[Long]("f1", 1), Metric[String]("f2", 2)),
-    externalLinks = Seq(new C1)
+    externalLinks = Seq(new C1),
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
   val schema = Schema(Seq(S1), Seq.empty)

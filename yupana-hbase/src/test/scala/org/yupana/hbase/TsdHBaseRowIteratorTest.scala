@@ -46,7 +46,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(1000, 10L, 10.toShort)
+        .row(1000, (10, 10L), 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -69,7 +69,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(1000, 10L, 10.toShort)
+        .row(1000, (10, 10L), 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -93,7 +93,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(1000, 10L, 10.toShort)
+        .row(1000, (10, 10L), 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -128,7 +128,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(1000, 10L, 10.toShort)
+        .row(1000, (10, 10L), 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -165,7 +165,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
 
     val rows = Iterator(
       HBaseTestUtils
-        .row(1000, 10L, 10.toShort)
+        .row(1000, (10, 10L), 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 42d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "e")
@@ -180,7 +180,7 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
         .field(TestTableFields.TEST_LONG_FIELD.tag, 54L)
         .hbaseRow,
       HBaseTestUtils
-        .row(1000, 10L, 10.toShort)
+        .row(1000, (10, 10L), 10.toShort)
         .cell("d1", 1)
         .field(TestTableFields.TEST_FIELD.tag, 142d)
         .field(TestTableFields.TEST_STRING_FIELD.tag, "2e")

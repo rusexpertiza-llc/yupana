@@ -1,8 +1,9 @@
 package org.yupana.jdbc
 
+import java.io.{ ByteArrayInputStream, CharArrayReader }
 import java.sql.{ Array => _, _ }
 import java.util.{ Calendar, Scanner, TimeZone }
-import java.{ math => jm }
+import java.{ util, math => jm }
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
@@ -388,6 +389,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
   it should "throw exception on unsupported getters" in {
     val rs = createResultSet
+    rs.next
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob("string")
@@ -404,9 +406,6 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getNString(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getNString("string")
 
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.getArray(1)
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.getArray("string")
-
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getURL(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getURL("string")
 
@@ -418,6 +417,52 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getRowId(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getRowId("string")
+  }
+
+  it should "support arrays" in {
+    val statement = mock[Statement]
+    val result = SimpleResult(
+      "test",
+      Seq("int", "array_string", "array_int"),
+      Seq(DataType[Int], DataType[Array[String]], DataType[Array[Int]]),
+      Iterator(Array[Option[Any]](Some(42), Some(Array("Foo", "bar")), Some(Array(1, 2, 4, 8))))
+    )
+
+    val rs = new YupanaResultSet(statement, result)
+    rs.next
+
+    the[SQLException] thrownBy rs.getArray(1) should have message "INTEGER is not an array"
+
+    val stringArray = rs.getArray(2)
+    stringArray.getBaseType shouldEqual Types.VARCHAR
+    stringArray.getBaseTypeName shouldEqual "VARCHAR"
+    stringArray.getArray shouldEqual Array("Foo", "bar")
+    val stringRs = stringArray.getResultSet()
+    stringRs.next()
+    stringRs.getInt("INDEX").shouldEqual(1)
+    stringRs.getString("VALUE").shouldEqual("Foo")
+    stringRs.next()
+    stringRs.getInt("INDEX").shouldEqual(2)
+    stringRs.getString("VALUE").shouldEqual("bar")
+    stringRs.next() shouldBe false
+
+    val intArray = rs.getArray("array_int")
+    intArray.getBaseType shouldEqual Types.INTEGER
+    intArray.getBaseTypeName shouldEqual "INTEGER"
+    intArray.getArray(2, 2) shouldEqual Array(2, 4)
+    val intRs = intArray.getResultSet(3, 1, new java.util.HashMap())
+    intRs.next()
+    intRs.getInt(1) shouldEqual (3)
+    intRs.getInt(2) shouldEqual (4)
+    intRs.next() shouldBe false
+
+    val mapping = new util.HashMap[String, Class[_]]()
+    mapping.put("SHORT", classOf[java.lang.Integer])
+    an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getArray(mapping)
+    an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getArray(1, 2, mapping)
+    an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getResultSet(1, 2, mapping)
+    an[SQLFeatureNotSupportedException] should be thrownBy intArray.getResultSet(mapping)
+
   }
 
   it should "throw exception on update operation" in {
@@ -486,6 +531,86 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBytes(1, Array[Byte](1, 2, 3))
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBytes("int", Array.emptyByteArray)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNString(1, "aaa")
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNString("string", "bbb")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateAsciiStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateAsciiStream(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateAsciiStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      3
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateAsciiStream(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes()),
+      4
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBinaryStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBinaryStream(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBinaryStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      3
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBinaryStream(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes()),
+      4
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBinaryStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBinaryStream(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes()),
+      4L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
   }
 
   private def createResultSet: YupanaResultSet = {

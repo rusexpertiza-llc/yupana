@@ -3,14 +3,14 @@ package org.yupana.externallinks.items
 import java.util.Properties
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, FlatSpec, Inside, Matchers }
+import org.scalatest._
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.{ Dictionary, TSDB }
+import org.yupana.core.TSDB
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryDao, InvertedIndexDao }
-import org.yupana.schema.Dimensions
+import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.schema.{ Dimensions, ItemDimension }
 
 class ItemsInvertedIndexImplTest
     extends FlatSpec
@@ -33,12 +33,12 @@ class ItemsInvertedIndexImplTest
   "ItemsInvertedIndex" should "substitute in condition" in withMocks { (index, dao, _) =>
     import org.yupana.api.query.syntax.All._
 
-    (dao.values _).expects("kolbas").returning(SortedSetIterator(1, 4, 5))
-    (dao.values _).expects("varen").returning(SortedSetIterator(2, 4, 5))
-    (dao.values _).expects("shchupalc").returning(SortedSetIterator(1, 42))
-    (dao.values _).expects("kalmar").returning(SortedSetIterator(42, 45, 48))
-    (dao.values _).expects("hol").returning(SortedSetIterator(1, 2))
-    (dao.values _).expects("kopchen").returning(SortedSetIterator(2, 3))
+    (dao.values _).expects("kolbas").returning(si("колбаса копчения", "колбаса вареная", "колбаса вареная молочная"))
+    (dao.values _).expects("varen").returning(si("колбаса копчения", "колбаса вареная", "колбаса вареная молочная"))
+    (dao.values _).expects("shchupalc").returning(si("щупальца краба", "щупальца кальмара"))
+    (dao.values _).expects("kalmar").returning(si("щупальца кальмара", "щупальца кальмара", "кальмар красный"))
+    (dao.values _).expects("hol").returning(si("мясо хол", "колбаса хол копчения"))
+    (dao.values _).expects("kopchen").returning(si("колбаса хол копчения", "рыба копченая"))
 
     val actual = index.condition(
       and(
@@ -54,24 +54,14 @@ class ItemsInvertedIndexImplTest
     )
 
     actual shouldEqual and(
-      DimIdInExpr(Dimensions.ITEM, SortedSetIterator(4, 5, 42)),
-      DimIdNotInExpr(Dimensions.ITEM, SortedSetIterator(2))
+      DimIdInExpr(Dimensions.ITEM, si("колбаса вареная", "колбаса вареная молочная", "щупальца кальмара")),
+      DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения"))
     )
   }
 
   it should "put values storage" in withMocks { (index, dao, tsdb) =>
-    val dictDao = mock[DictionaryDao]
-    val itemDict = new Dictionary(Dimensions.ITEM, dictDao)
-    (tsdb.dictionary _).expects(Dimensions.ITEM).returning(itemDict)
-    (dictDao.getIdsByValues _)
-      .expects(Dimensions.ITEM, Set("сигареты легкие", "папиросы", "молоко"))
-      .returning(Map("папиросы" -> 2))
-    (dictDao.createSeqId _).expects(Dimensions.ITEM).returning(3)
-    (dictDao.checkAndPut _).expects(Dimensions.ITEM, *, "сигареты легкие").returning(true)
-    (dictDao.createSeqId _).expects(Dimensions.ITEM).returning(4)
-    (dictDao.checkAndPut _).expects(Dimensions.ITEM, *, "молоко").returning(true)
 
-    (dao.batchPut _).expects(where { vs: Map[String, Set[Long]] =>
+    (dao.batchPut _).expects(where { vs: Map[String, Set[ItemDimension.KeyType]] =>
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
     })
 
@@ -81,10 +71,10 @@ class ItemsInvertedIndexImplTest
   it should "ignore handle prefixes" in withMocks { (index, dao, _) =>
     import org.yupana.api.query.syntax.All._
 
-    (dao.values _).expects("krasn").returning(SortedSetIterator(1, 2, 3))
-    (dao.values _).expects("yablok").returning(SortedSetIterator(2, 3, 5))
-    (dao.values _).expects("zhelt").returning(SortedSetIterator(6))
-    (dao.valuesByPrefix _).expects("banan").returning(SortedSetIterator(6, 7))
+    (dao.values _).expects("krasn").returning(si("красный болт", "красное яблоко", "еще красное яблоко"))
+    (dao.values _).expects("yablok").returning(si("еще красное яблоко", "красное яблоко", "сок яблоко"))
+    (dao.values _).expects("zhelt").returning(si("желтый банан"))
+    (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
     val res = index.condition(
       in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("красное яблоко", "банан% желтый"))
     )
@@ -92,14 +82,14 @@ class ItemsInvertedIndexImplTest
     inside(res) {
       case DimIdInExpr(d, vs) =>
         d shouldEqual Dimensions.ITEM
-        vs.toSeq should contain theSameElementsInOrderAs Seq(2L, 3L, 6L)
+        vs.toList should contain theSameElementsInOrderAs si("красное яблоко", "еще красное яблоко", "желтый банан").toList
     }
   }
 
   it should "ignore empty prefixes" in withMocks { (index, dao, _) =>
     import org.yupana.api.query.syntax.All._
 
-    (dao.values _).expects("sigaret").returning(SortedSetIterator(1, 3))
+    (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
     val res = index.condition(
       notIn(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("сигареты %"))
@@ -108,13 +98,22 @@ class ItemsInvertedIndexImplTest
     inside(res) {
       case DimIdNotInExpr(d, vs) =>
         d shouldEqual Dimensions.ITEM
-        vs.toSeq should contain theSameElementsInOrderAs Seq(1L, 3L)
+        vs.toSeq should contain theSameElementsInOrderAs si("сигареты винстон", "сигареты бонд").toList
     }
   }
 
-  def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, Long], TSDB) => Unit): Unit = {
+  def hashItem(item: String) = {
+    Dimensions.ITEM.hashFunction(item)
+  }
 
-    val dao = mock[InvertedIndexDao[String, Long]]
+  def si(ls: String*) = {
+    val s = ls.map(hashItem).sortWith(Dimensions.ITEM.rOrdering.lt)
+    SortedSetIterator(s.toIterator)
+  }
+
+  def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, ItemDimension.KeyType], TSDB) => Unit): Unit = {
+
+    val dao = mock[InvertedIndexDao[String, ItemDimension.KeyType]]
     val tsdb = mock[TSDB]
     val index = new ItemsInvertedIndexImpl(tsdb, dao, false, ItemsInvertedIndex)
 

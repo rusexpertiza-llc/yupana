@@ -150,11 +150,11 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
   }
 
   @throws[SQLException]
-  override def getTypeMap = throw new SQLFeatureNotSupportedException("Method not supported: Connection.getTypeMap()")
+  override def getTypeMap: util.Map[String, Class[_]] = null
 
   @throws[SQLException]
   override def setTypeMap(map: util.Map[String, Class[_]]): Unit = {
-    throw new SQLFeatureNotSupportedException("Method not supported: Connection.getTypeMap()")
+    JdbcUtils.checkTypeMapping(map)
   }
 
   @throws[SQLException]

@@ -24,7 +24,7 @@ import org.yupana.core.{ ExternalLinkService, TsdbBase }
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
 import org.yupana.externallinks.ExternalLinkUtils
-import org.yupana.schema.Dimensions
+import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.{ Tokenizer, Transliterator }
 
@@ -32,7 +32,7 @@ object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
 
-  def indexItems(items: Seq[(Long, String)]): Map[String, Seq[Long]] =
+  def indexItems(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
     items
       .flatMap {
         case (id, n) =>
@@ -51,7 +51,7 @@ object ItemsInvertedIndexImpl {
 
 class ItemsInvertedIndexImpl(
     tsdb: TsdbBase,
-    invertedIndexDao: InvertedIndexDao[String, Long],
+    invertedIndexDao: InvertedIndexDao[String, ItemDimension.KeyType],
     override val putEnabled: Boolean,
     override val externalLink: ItemsInvertedIndex
 ) extends ExternalLinkService[ItemsInvertedIndex]
@@ -71,17 +71,16 @@ class ItemsInvertedIndexImpl(
   }
 
   def putItemNames(names: Set[String]): Unit = {
-    val itemIds = tsdb.dictionary(Dimensions.ITEM).getOrCreateIdsForValues(names)
-    val items = itemIds.map(_.swap)
-    val wordIdMap = indexItems(items.toSeq)
+    val items = names.map(n => Dimensions.ITEM.hashFunction(n) -> n).toSeq
+    val wordIdMap = indexItems(items)
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 
-  def dimIdsForStemmedWord(word: String): SortedSetIterator[Long] = {
+  def dimIdsForStemmedWord(word: String): SortedSetIterator[ItemDimension.KeyType] = {
     invertedIndexDao.values(word)
   }
 
-  def dimIdsForPrefix(prefix: String): SortedSetIterator[Long] = {
+  def dimIdsForPrefix(prefix: String): SortedSetIterator[ItemDimension.KeyType] = {
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
@@ -108,14 +107,14 @@ class ItemsInvertedIndexImpl(
     ExternalLinkUtils.transformCondition(externalLink.linkName, condition, includeCondition, excludeCondition)
   }
 
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[Long]] = {
+  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
     fieldsValues.map {
       case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
       case (x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 
-  def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
+  def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
     val stemmedWords = words.map(Tokenizer.stem).map(Transliterator.transliterate)
