@@ -24,7 +24,7 @@ trait ItemsInvertedIndex extends ExternalLink {
   override type DimType = String
   override val linkName: String = "ItemsInvertedIndex"
   override val dimension = Dimensions.ITEM
-  override val fields = Set(LinkField[String](PHRASE_FIELD))
+  override val fields: Set[LinkField] = Set(LinkField[String](PHRASE_FIELD))
 }
 
 object ItemsInvertedIndex extends ItemsInvertedIndex
