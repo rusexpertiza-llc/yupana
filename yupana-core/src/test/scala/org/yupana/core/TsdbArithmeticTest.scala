@@ -400,7 +400,7 @@ class TsdbArithmeticTest
     val pointTime = from.getMillis + 10
     val pointTime2 = pointTime + 10 * 1000
 
-    val doubleLinkExpr = linkT[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
+    val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
     (tsdbDaoMock.query _)
       .expects(

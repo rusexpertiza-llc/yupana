@@ -33,7 +33,7 @@ trait ExpressionSyntax {
   def dimension[T](dim: Dimension.Aux[T]) = DimensionExpr(dim)
   def link(link: ExternalLink, fieldName: String): LinkExpr[String] =
     LinkExpr[String](link, LinkField[String](fieldName))
-  def linkT[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = LinkExpr[T](link, field)
+  def link[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = LinkExpr[T](link, field)
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
   def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression.Aux[T] = ConstantExpr[T](c)
 
