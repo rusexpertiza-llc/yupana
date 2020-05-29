@@ -152,7 +152,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
   private def fieldValuesInClauses(fieldValues: Seq[(FieldName, Set[FieldValue])]): Seq[String] = {
     fieldValues map {
       case (fieldName, possibleValues) =>
-        s"""${catalogFieldToSqlField(fieldName)} IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
+        s"""lower(${catalogFieldToSqlField(fieldName)}) IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
     }
   }
 
