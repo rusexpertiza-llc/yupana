@@ -201,7 +201,10 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
             if (!filterList.getFilters.isEmpty) {
               scan.setFilter(filterList)
             }
-            table.getScanner(scan).asScala
+            if (f.queryId.nonEmpty)
+              table.getScanner(scan).asScala.take(1)
+            else
+              table.getScanner(scan).asScala
         }
       case None =>
         table.getScanner(scan).asScala
