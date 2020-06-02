@@ -61,7 +61,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       and(
         gt(time, const(Time(1000))),
         lt(time, const(Time(2000))),
-        equ(link(TestLink, TestLink.field1), const("foo"))
+        equ(lower(link(TestLink, TestLink.field1)), const("foo"))
       )
     ) shouldEqual and(
       ge(time, const(Time(1001))),
@@ -73,8 +73,8 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
   it should "support IN condition" in {
     condition(
       and(
-        equ(link(TestLink, TestLink.field2), const("bar")),
-        in(link(TestLink, TestLink.field3), Set("aaa", "bbb")),
+        equ(lower(link(TestLink, TestLink.field2)), const("bar")),
+        in(lower(link(TestLink, TestLink.field3)), Set("aaa", "bbb")),
         neq(dimension(yDim), const(4))
       )
     ) shouldEqual and(
@@ -89,7 +89,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       and(
         ge(time, const(Time(1000))),
         lt(time, const(Time(2000))),
-        neq(link(TestLink, TestLink.field1), const("foo"))
+        neq(lower(link(TestLink, TestLink.field1)), const("foo"))
       )
     ) shouldEqual and(
       ge(time, const(Time(1000))),
@@ -102,7 +102,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     condition(
       and(
         in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
-        notIn(link(TestLink, TestLink.field1), Set("aaa", "bbb")),
+        notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb")),
         neq(dimension(yDim), const(33))
       )
     ) shouldEqual and(

@@ -45,8 +45,7 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
       Dimensions.ITEM.rStorable.write,
       Dimensions.ITEM.rStorable.read
     )
-    val itemsInvertedIndex =
-      new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, cfg.putIntoInvertedIndex, ItemsInvertedIndex)
+    val itemsInvertedIndex = new ItemsInvertedIndexImpl(invertedIndexDao, cfg.putIntoInvertedIndex, ItemsInvertedIndex)
     tsdb.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
     setup(tsdb)
     EtlContext.tsdb = Some(tsdb)

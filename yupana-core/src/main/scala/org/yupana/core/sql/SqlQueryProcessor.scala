@@ -171,7 +171,7 @@ object SqlQueryProcessor extends QueryValidator {
       expr: parser.SqlExpr,
       exprType: ExprType
   ): Either[String, Expression] = {
-    expr match {
+    val e = expr match {
       case parser.Case(cs, default) =>
         val converted = CollectionUtils.collectErrors(cs.map {
           case (condition, value) =>
@@ -237,6 +237,13 @@ object SqlQueryProcessor extends QueryValidator {
           fexpr <- createArrayUnaryFunctionExpr(f, vs).right
         } yield fexpr
     }
+
+    e.right.map { ex =>
+      if (exprType == ExprType.Cmp && ex.dataType == DataType[String]) {
+        UnaryOperationExpr(UnaryOperation.lower, ex.asInstanceOf[Expression.Aux[String]])
+      } else ex
+    }
+
   }
 
   private def createUMinus(
@@ -424,7 +431,8 @@ object SqlQueryProcessor extends QueryValidator {
   private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
     v match {
       case parser.StringValue(s) =>
-        Right(ConstantExpr(s))
+        val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
+        Right(ConstantExpr(const))
 
       case parser.NumericValue(n) =>
         Right(ConstantExpr(n))

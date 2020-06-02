@@ -19,9 +19,9 @@ package org.yupana.externallinks.universal
 import com.typesafe.scalalogging.StrictLogging
 import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ DimensionExpr, Expression, InExpr, LinkExpr, NotInExpr }
-import org.yupana.api.schema.ExternalLink
-import org.yupana.api.types.BoxingTag
+import org.yupana.api.query.{ Expression, LinkExpr }
+import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
@@ -41,6 +41,8 @@ class SQLSourcedExternalLinkService[DimensionValue](
 
   import SQLSourcedExternalLinkService._
   import config._
+
+  import org.yupana.api.query.syntax.All._
 
   private val mapping = config.fieldsMapping
 
@@ -69,13 +71,27 @@ class SQLSourcedExternalLinkService[DimensionValue](
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val tagValues = tagValuesForFieldsValues(values, "AND").filter(x => x != null)
-    InExpr(DimensionExpr(externalLink.dimension.aux), tagValues)
+    val dimValues = dimValuesForFieldsValues(values, "AND").filter(x => x != null)
+    if (externalLink.dimension.dataType == DataType[String]) {
+      in(
+        lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
+        dimValues.asInstanceOf[Set[String]]
+      )
+    } else {
+      in(dimension(externalLink.dimension.aux), dimValues)
+    }
   }
 
   private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val tagValues = tagValuesForFieldsValues(values, "OR").filter(x => x != null)
-    NotInExpr(DimensionExpr(externalLink.dimension.aux), tagValues)
+    val dimValues = dimValuesForFieldsValues(values, "OR").filter(x => x != null)
+    if (externalLink.dimension.dataType == DataType[String]) {
+      notIn(
+        lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
+        dimValues.asInstanceOf[Set[String]]
+      )
+    } else {
+      notIn(dimension(externalLink.dimension.aux), dimValues)
+    }
   }
 
   private def catalogFieldToSqlField(cf: FieldName): String = mapping.flatMap(_.get(cf)).getOrElse(camelToSnake(cf))
@@ -136,11 +152,11 @@ class SQLSourcedExternalLinkService[DimensionValue](
   private def fieldValuesInClauses(fieldValues: Seq[(FieldName, Set[FieldValue])]): Seq[String] = {
     fieldValues map {
       case (fieldName, possibleValues) =>
-        s"""${catalogFieldToSqlField(fieldName)} IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
+        s"""lower(${catalogFieldToSqlField(fieldName)}) IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
     }
   }
 
-  private def tagValuesForFieldsValues(
+  private def dimValuesForFieldsValues(
       fieldsValues: Seq[(FieldName, Set[FieldValue])],
       joiningOperator: String
   ): Set[DimensionValue] = {

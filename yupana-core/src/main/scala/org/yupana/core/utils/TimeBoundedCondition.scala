@@ -19,7 +19,7 @@ package org.yupana.core.utils
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
 import org.yupana.core.utils.ConditionMatchers._
 
 import scala.collection.mutable.ListBuffer
@@ -28,7 +28,7 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
   def toCondition: Condition = {
     import org.yupana.api.query.syntax.All._
 
-    ConditionUtils.simplify(
+    QueryOptimizer.simplifyCondition(
       AndExpr(
         Seq(
           from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true).aux),
@@ -49,7 +49,7 @@ object TimeBoundedCondition {
   }
 
   def apply(from: Long, to: Long, condition: Condition): TimeBoundedCondition = {
-    ConditionUtils.simplify(condition) match {
+    QueryOptimizer.simplifyCondition(condition) match {
       case AndExpr(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
       case o: OrExpr   => throw new IllegalArgumentException(s"Or not supported yet $o")
       case c           => TimeBoundedCondition(Some(from), Some(to), Seq(c))

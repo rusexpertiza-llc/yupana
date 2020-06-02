@@ -49,6 +49,8 @@ trait UnaryOperationsImpl extends UnaryOperations {
   override def truncSecond(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.secondOfDay())
 
   override def stringLength(s: Option[String]): Option[Int] = s.map(_.length)
+  override def lower(s: Option[String]): Option[String] = s.map(_.toLowerCase)
+  override def upper(s: Option[String]): Option[String] = s.map(_.toUpperCase)
 
   override def tokens(s: Option[String]): Option[Array[String]] = s.map(tokenize)
   override def splitString(s: Option[String]): Option[Array[String]] =

@@ -37,6 +37,8 @@ trait UnaryOperationSyntax {
   def extractSecond(e: Expression.Aux[Time]) = UnaryOperationExpr(UnaryOperation.extractSecond, e)
 
   def length(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.length, e)
+  def lower(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.lower, e)
+  def upper(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.upper, e)
   def tokens(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.tokens, e)
   def split(e: Expression.Aux[String]) = UnaryOperationExpr(UnaryOperation.splitString, e)
 
