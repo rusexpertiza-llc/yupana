@@ -2,15 +2,15 @@ package org.yupana.core
 
 import java.util.Properties
 
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.model.InternalQuery
-import org.yupana.core.utils.SparseTable
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
-import org.yupana.api.query.{ Expression, DimensionExpr }
+import org.yupana.api.query.Expression
+import org.yupana.core.cache.CacheFactory
+import org.yupana.core.model.InternalQuery
+import org.yupana.core.utils.SparseTable
 
 class TsdbDataFilterTest
     extends FlatSpec
@@ -318,8 +318,8 @@ class TsdbDataFilterTest
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
           in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
-          neq(metric(TestTableFields.TEST_STRING_FIELD), const("Str@!")),
-          equ(link(TestLinks.TEST_LINK2, "testField2"), const("Str@!Ster"))
+          neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
+          equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
         )
       )
       .returning(
@@ -541,7 +541,7 @@ class TsdbDataFilterTest
         isNull(link(TestLinks.TEST_LINK, "testField")),
         isNotNull(link(TestLinks.TEST_LINK2, "testField2")),
         ge(metric(TestTableFields.TEST_FIELD), const(1000d)),
-        neq(dimension(TestDims.DIM_A), const("test1")),
+        neq(lower(dimension(TestDims.DIM_A)), const("test1")),
         equ(dimension(TestDims.DIM_B), const(15.toShort))
       )
 
@@ -643,14 +643,14 @@ class TsdbDataFilterTest
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          equ(link(TestLinks.TEST_LINK2, "testField2"), const("test2"))
+          equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
         )
       )
       .returning(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          in(DimensionExpr(TestDims.DIM_A), Set("test1a", "test2a"))
+          in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
         )
       )
 
@@ -665,7 +665,7 @@ class TsdbDataFilterTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.DIM_A), Set("test1a", "test2a"))
+            in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
           )
         ),
         *,

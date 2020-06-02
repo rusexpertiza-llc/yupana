@@ -22,7 +22,8 @@ import scala.language.higherKinds
 import scala.reflect.ClassTag
 
 /**
-  * Defines basic operations on [[Collection]]
+  * Defines basic operations on `Collection`
+  * @tparam Collection collection for which operations are defined
   */
 trait MapReducible[Collection[_]] extends Serializable {
   def singleton[A: ClassTag](a: A): Collection[A]

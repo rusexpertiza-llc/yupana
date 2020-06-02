@@ -8,6 +8,7 @@ import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMet
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
+import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 import org.yupana.core.utils.Table
 
 trait TsdbMocks extends MockFactory {
@@ -49,13 +50,19 @@ trait TsdbMocks extends MockFactory {
           case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
           case _: DimIdInExpr[_, _]                                      => true
           case _: DimIdNotInExpr[_, _]                                   => true
-          case BinaryOperationExpr(op, _: DimensionExpr[_], ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
-            true
-          case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr[_]) if Set("==", "!=").contains(op.name) =>
-            true
-          case InExpr(_: DimensionExpr[_], _)    => true
-          case NotInExpr(_: DimensionExpr[_], _) => true
-          case _                                 => false
+          case Equ(_: DimensionExpr[_], ConstantExpr(_))                 => true
+          case Equ(ConstantExpr(_), _: DimensionExpr[_])                 => true
+          case Equ(Lower(_: DimensionExpr[_]), ConstantExpr(_))          => true
+          case Equ(ConstantExpr(_), Lower(_: DimensionExpr[_]))          => true
+          case Neq(_: DimensionExpr[_], ConstantExpr(_))                 => true
+          case Neq(ConstantExpr(_), _: DimensionExpr[_])                 => true
+          case Neq(Lower(_: DimensionExpr[_]), ConstantExpr(_))          => true
+          case Neq(Lower(ConstantExpr(_)), _: DimensionExpr[_])          => true
+          case InExpr(_: DimensionExpr[_], _)                            => true
+          case NotInExpr(_: DimensionExpr[_], _)                         => true
+          case InExpr(Lower(_: DimensionExpr[_]), _)                     => true
+          case NotInExpr(Lower(_: DimensionExpr[_]), _)                  => true
+          case _                                                         => false
         }
       )
       .anyNumberOfTimes()
@@ -91,6 +98,8 @@ trait TsdbMocks extends MockFactory {
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
+      .right
+      .map(QueryOptimizer.optimize)
       .fold(fail(_), identity)
   }
 }

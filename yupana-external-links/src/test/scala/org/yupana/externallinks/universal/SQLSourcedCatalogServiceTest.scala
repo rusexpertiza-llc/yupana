@@ -73,8 +73,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val inCondition = externalLinkService.condition(
       and(
-        in(link(externalLink, "f1"), Set("qwe", "ert")),
-        in(link(externalLink, "f2"), Set("asd", "fgh"))
+        in(lower(link(externalLink, "f1")), Set("qwe", "ert")),
+        in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
       )
     )
 
@@ -82,8 +82,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val notInCondition = externalLinkService.condition(
       and(
-        notIn(link(externalLink, "f1"), Set("qwe", "ert")),
-        notIn(link(externalLink, "f2"), Set("asd", "fgh"))
+        notIn(lower(link(externalLink, "f1")), Set("qwe", "ert")),
+        notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
       )
     )
 
@@ -136,8 +136,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val inCondition = externalLinkService.condition(
       and(
-        in(link(externalLink, "f1"), Set("hhh", "hhh3")),
-        in(link(externalLink, "f2"), Set("ggg2", "ggg3"))
+        in(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
+        in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
       )
     )
 
@@ -145,8 +145,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val notInCondition = externalLinkService.condition(
       and(
-        notIn(link(externalLink, "f1"), Set("hhh", "hhh3")),
-        notIn(link(externalLink, "f2"), Set("ggg2", "ggg3"))
+        notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
+        notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
       )
     )
 

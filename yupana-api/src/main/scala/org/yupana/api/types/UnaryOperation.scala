@@ -50,6 +50,8 @@ object UnaryOperation {
   val LENGTH = "length"
   val TOKENS = "tokens"
   val SPLIT = "split"
+  val LOWER = "lower"
+  val UPPER = "upper"
 
   val IS_NULL = "is_null"
   val IS_NOT_NULL = "is_not_null"
@@ -110,6 +112,8 @@ object UnaryOperation {
   val truncWeek: UnaryOperation.Aux[Time, Time] = create(_.truncWeek, TRUNC_WEEK, DataType[Time])
 
   val length: UnaryOperation.Aux[String, Int] = create(_.stringLength, LENGTH, DataType[Int])
+  val lower: UnaryOperation.Aux[String, String] = create(_.lower, LOWER, DataType[String])
+  val upper: UnaryOperation.Aux[String, String] = create(_.upper, UPPER, DataType[String])
   val tokens: UnaryOperation.Aux[String, Array[String]] = create(_.tokens, TOKENS, DataType[Array[String]])
   val splitString: UnaryOperation.Aux[String, Array[String]] = create(_.splitString, SPLIT, DataType[Array[String]])
 
@@ -133,7 +137,9 @@ object UnaryOperation {
   val stringOperations: Map[String, UnaryOperation[String]] = Map(
     LENGTH -> length,
     TOKENS -> tokens,
-    SPLIT -> splitString
+    SPLIT -> splitString,
+    LOWER -> lower,
+    UPPER -> upper
   )
 
   val boolOperations: Map[String, UnaryOperation[Boolean]] = Map(
@@ -228,6 +234,9 @@ trait UnaryOperations {
   def stringLength(s: Option[String]): Option[Int]
   def tokens(s: Option[String]): Option[Array[String]]
   def splitString(s: Option[String]): Option[Array[String]]
+
+  def lower(s: Option[String]): Option[String]
+  def upper(s: Option[String]): Option[String]
 
   def arrayToString[T](a: Option[Array[T]]): Option[String]
   def arrayLength[T](a: Option[Array[T]]): Option[Int]
