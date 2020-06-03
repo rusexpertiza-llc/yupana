@@ -22,7 +22,7 @@ import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
 
 trait TsdbQueryMetricsDao {
 
-  def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long
+  def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit
 
   def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics]
 
@@ -44,7 +44,6 @@ trait TsdbQueryMetricsDao {
 }
 
 case class QueryMetricsFilter(
-    rowKey: Option[Long] = None,
-    queryId: Option[String] = None,
+    queryId: Option[Long] = None,
     queryState: Option[QueryState] = None
 )

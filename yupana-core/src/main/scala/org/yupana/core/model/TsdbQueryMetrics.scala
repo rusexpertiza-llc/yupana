@@ -20,8 +20,7 @@ import org.joda.time.DateTime
 import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
-    rowKey: Long,
-    queryId: String,
+    queryId: Long,
     startDate: DateTime,
     totalDuration: Double = 0.0,
     query: String,
@@ -49,7 +48,6 @@ object TsdbQueryMetrics {
   val parseScanResultQualifier = "parse_scan_result"
   val dictionaryScanQualifier = "dictionary_scan"
 
-  val idColumn = "id"
   val queryIdColumn = "query_id"
   val stateColumn = "state"
   val engineColumn = "engine"
