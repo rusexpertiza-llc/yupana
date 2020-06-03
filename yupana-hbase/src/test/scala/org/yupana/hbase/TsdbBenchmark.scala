@@ -87,7 +87,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //    val in = (1 to N).toArray
 
     val metricDao = new TsdbQueryMetricsDao {
-      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long = ???
+      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit = ???
 
       override def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] =
         ???
