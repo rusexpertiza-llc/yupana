@@ -28,7 +28,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
 
   override val isEnabled: Boolean = true
 
-  val uuid: String = query.uuid
+  val queryId: String = query.id
 
   override val createDimensionFilters = MetricImpl("createQueries.tags")
   override val createScans = MetricImpl("createScans")

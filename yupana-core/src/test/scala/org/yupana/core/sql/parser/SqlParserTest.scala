@@ -920,14 +920,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "parse KILL QUERY statements with query_id" in {
-    SqlParser.parse("KILL QUERY WHERE QUERY_ID = 'qwe123'") shouldBe Right(
-      KillQuery(MetricsFilter(queryId = Some("qwe123")))
+    SqlParser.parse("KILL QUERY WHERE QUERY_ID = '1'") shouldBe Right(
+      KillQuery(MetricsFilter(queryId = Some("1")))
     )
   }
 
   it should "parse DELETE QUERIES statements with query_id" in {
-    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = 'qwe123'") shouldBe Right(
-      DeleteQueryMetrics(MetricsFilter(queryId = Some("qwe123")))
+    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(queryId = Some("1")))
     )
   }
 
