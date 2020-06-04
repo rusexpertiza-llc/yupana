@@ -20,7 +20,7 @@ import org.joda.time.DateTime
 import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
-    queryId: Long,
+    queryId: String,
     startDate: DateTime,
     totalDuration: Double = 0.0,
     query: String,

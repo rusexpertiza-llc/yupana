@@ -230,7 +230,7 @@ object SqlParser {
   def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
 
   def metricQueryIdFilter[_: P]: P[MetricsFilter] =
-    P(queryIdWord ~ "=" ~/ ValueParser.longNumber).map(queryId => MetricsFilter(queryId = Some(queryId)))
+    P(queryIdWord ~ "=" ~/ ValueParser.string).map(queryId => MetricsFilter(queryId = Some(queryId)))
   def metricStateFilter[_: P]: P[MetricsFilter] =
     P(stateWord ~ "=" ~/ ValueParser.string).map(state => MetricsFilter(state = Some(state)))
   def queryMetricsFilter[_: P]: P[MetricsFilter] = P(

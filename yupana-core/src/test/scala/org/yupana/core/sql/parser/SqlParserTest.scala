@@ -908,8 +908,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "parse SHOW QUERIES statements with query_id" in {
-    SqlParser.parse("SHOW QUERIES WHERE QUERY_ID = 1") shouldBe Right(
-      ShowQueryMetrics(Some(MetricsFilter(queryId = Some(1L))), None)
+    SqlParser.parse("SHOW QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
+      ShowQueryMetrics(Some(MetricsFilter(queryId = Some("1"))), None)
     )
   }
 
@@ -920,14 +920,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "parse KILL QUERY statements with query_id" in {
-    SqlParser.parse("KILL QUERY WHERE QUERY_ID = 1") shouldBe Right(
-      KillQuery(MetricsFilter(queryId = Some(1L)))
+    SqlParser.parse("KILL QUERY WHERE QUERY_ID = '1'") shouldBe Right(
+      KillQuery(MetricsFilter(queryId = Some("1")))
     )
   }
 
   it should "parse DELETE QUERIES statements with query_id" in {
-    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = 1") shouldBe Right(
-      DeleteQueryMetrics(MetricsFilter(queryId = Some(1L)))
+    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(queryId = Some("1")))
     )
   }
 

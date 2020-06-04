@@ -35,7 +35,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
 
   private val operationName: String = collectorContext.operationName
   private val metricsUpdateInterval: Int = collectorContext.metricsUpdateInterval
-  val queryId: Long = query.id
+  val queryId: String = query.id
 
   private def createMetric(qualifier: String): PersistentMetricImpl =
     PersistentMetricImpl(collectorContext, qualifier, query.id, this)
@@ -143,7 +143,7 @@ object PersistentMetricQueryCollector {
 case class PersistentMetricImpl(
     collectorContext: QueryCollectorContext,
     name: String,
-    queryId: Long,
+    queryId: String,
     metricCollector: PersistentMetricQueryCollector,
     count: LongAdder = new LongAdder(),
     time: LongAdder = new LongAdder()

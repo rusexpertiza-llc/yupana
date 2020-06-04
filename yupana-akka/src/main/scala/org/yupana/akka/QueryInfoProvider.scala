@@ -67,7 +67,7 @@ object QueryInfoProvider {
       qualifiers.flatMap(q => List(q + "_" + metricCount, q + "_" + metricTime, q + "_" + metricSpeed))
 
     val queryFieldTypes = List(
-      DataType[Long],
+      DataType[String],
       DataType[String],
       DataType[String],
       DataType[String],

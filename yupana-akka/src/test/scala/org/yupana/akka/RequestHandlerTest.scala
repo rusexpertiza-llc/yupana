@@ -232,7 +232,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       .returning(
         Seq(
           TsdbQueryMetrics(
-            323232L,
+            "323232",
             new DateTime(2019, 11, 13, 0, 0),
             0,
             "SELECT kkm FROM kkm_items",
@@ -262,8 +262,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val metricsDao = mock[TsdbQueryMetricsDao]
     val tsdb = new MockedTsdb(metricsDao)
 
-    (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some(12345L), None), QueryStates.Cancelled)
-    val query = SqlQuery("KILL QUERY WHERE query_id = 12345")
+    (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some("12345"), None), QueryStates.Cancelled)
+    val query = SqlQuery("KILL QUERY WHERE query_id = '12345'")
     val resp = Await.result(requestHandler.handleQuery(tsdb, query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
