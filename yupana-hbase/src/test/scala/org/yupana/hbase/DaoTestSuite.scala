@@ -9,7 +9,12 @@ trait HBaseTestBase {
   def connection: ExternalLinkHBaseConnection
 }
 
-class DaoTestSuite extends FlatSpec with BTreeIndexDaoHBaseTest with InvertedIndexDaoHBaseTest with BeforeAndAfterAll {
+class DaoTestSuite
+    extends FlatSpec
+    with BTreeIndexDaoHBaseTest
+    with InvertedIndexDaoHBaseTest
+    with DictionaryDaoHBaseTest
+    with BeforeAndAfterAll {
   private val utility = new HBaseTestingUtility
 
   override def getConfiguration: Configuration = utility.getConfiguration
