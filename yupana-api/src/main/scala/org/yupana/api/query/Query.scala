@@ -59,19 +59,24 @@ case class Query(
       builder.append(s"  FROM: ${t.name}")
     }
 
-    builder.append(s"""  FILTER:
-        |    $filter
+    filter.foreach { f =>
+      builder.append(s"""
+        |  FILTER:
+        |    $f
         |""".stripMargin)
+    }
 
     if (groupBy.nonEmpty) {
       builder.append(
-        s"""  GROUP BY: ${groupBy.mkString(",")}\n"""
+        s"""  GROUP BY: ${groupBy.mkString(", ")}\n"""
       )
     }
 
     limit.foreach(l => builder.append(s"  LIMIT: $l\n"))
     postFilter.foreach { pf =>
-      builder.append(s"  POSTFILTER: $pf")
+      builder.append(s"""  POSTFILTER:
+           |    $pf
+           |""".stripMargin)
     }
 
     builder.append(")")
