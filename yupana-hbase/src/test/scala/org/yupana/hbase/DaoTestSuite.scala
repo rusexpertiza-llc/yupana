@@ -14,6 +14,7 @@ class DaoTestSuite
     with BTreeIndexDaoHBaseTest
     with InvertedIndexDaoHBaseTest
     with DictionaryDaoHBaseTest
+    with TsdbQueryMetricsDaoHBaseTest
     with BeforeAndAfterAll {
   private val utility = new HBaseTestingUtility
 
