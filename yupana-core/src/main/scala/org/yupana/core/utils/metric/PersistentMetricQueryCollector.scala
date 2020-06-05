@@ -76,7 +76,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       postFilter,
       collectResultRows,
       dictionaryScan
-    )
+    ) ++ dynamicMetrics.values
 
   def getAndResetMetricsData: Map[String, MetricData] = {
     (dynamicMetrics.values ++ getMetrics).map { m =>
