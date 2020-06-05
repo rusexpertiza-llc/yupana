@@ -61,7 +61,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   private val startTime = System.nanoTime()
   private var lastSaveTime = startTime
 
-  def getMetrics: Seq[PersistentMetricImpl] =
+  def allMetrics: Seq[PersistentMetricImpl] =
     Seq(
       createDimensionFilters,
       createScans,
@@ -76,10 +76,10 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       postFilter,
       collectResultRows,
       dictionaryScan
-    )
+    ) ++ dynamicMetrics.values
 
   def getAndResetMetricsData: Map[String, MetricData] = {
-    (dynamicMetrics.values ++ getMetrics).map { m =>
+    allMetrics.map { m =>
       val cnt = m.count.sumThenReset()
       val time = asSeconds(m.time.sumThenReset())
       val speed = if (time != 0) cnt.toDouble / time else 0.0
@@ -109,7 +109,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   }
 
   override def finish(): Unit = {
-    getMetrics.sortBy(_.name).foreach { metric =>
+    allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
         s"${query.id} - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
       )
