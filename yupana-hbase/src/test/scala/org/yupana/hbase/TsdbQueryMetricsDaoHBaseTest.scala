@@ -36,6 +36,13 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with FlatSpecLike with 
     m.totalDuration shouldEqual 0d
     m.metrics.foreach { case (_, data) => data shouldEqual MetricData(0, 0, 0) }
 
+    When("Set running partitions called")
+    dao.setRunningPartitions(query.id, 2)
+
+    Then("it can be decremented")
+    dao.decrementRunningPartitions(query.id) shouldEqual 1
+    dao.decrementRunningPartitions(query.id) shouldEqual 0
+
     When("metrics are updated")
     dao.updateQueryMetrics(
       query.id,
