@@ -37,7 +37,13 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with FlatSpecLike with 
     m.metrics.foreach { case (_, data) => data shouldEqual MetricData(0, 0, 0) }
 
     When("metrics are updated")
-    dao.updateQueryMetrics(query.id, QueryStates.Finished, 42d, Map.empty, sparkQuery = false)
+    dao.updateQueryMetrics(
+      query.id,
+      QueryStates.Finished,
+      42d,
+      Map("create_scans" -> MetricData(1, 2, 3)),
+      sparkQuery = false
+    )
 
     Then("it should return updated data")
     val qsu = dao.queriesByFilter(Some(QueryMetricsFilter(queryState = Some(QueryStates.Finished)))).toList
@@ -48,7 +54,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with FlatSpecLike with 
     mu.engine shouldEqual "STANDALONE"
     mu.query shouldEqual query.toString
     mu.totalDuration shouldEqual 42d
-    mu.metrics.foreach { case (_, data) => data shouldEqual MetricData(0, 0, 0) }
+    mu.metrics("create_scans") shouldEqual MetricData(1, 2, 3)
 
     Then("No running queries available")
     dao.queriesByFilter(Some(QueryMetricsFilter(queryState = Some(QueryStates.Running)))) shouldBe empty

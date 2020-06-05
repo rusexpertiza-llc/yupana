@@ -234,6 +234,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     decrementRunningPartitions(queryId, 1)
   }
 
+  @tailrec
   private def decrementRunningPartitions(queryId: String, attempt: Int): Int = {
     val table = getTable
 
