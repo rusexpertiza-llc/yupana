@@ -308,6 +308,7 @@ val commonSettings = Seq(
     "-unchecked",
     "-feature",
     "-Xlint",
+    "-Xfatal-warnings",
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),
