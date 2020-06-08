@@ -29,6 +29,7 @@ import org.yupana.core.model.TsdbQueryMetrics._
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object TsdbQueryMetricsDaoHBase {
@@ -77,6 +78,8 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       metricValues: Map[String, MetricData],
       sparkQuery: Boolean
   ): Unit = {
+
+    @tailrec
     def tryUpdateMetrics(n: Int): Unit = {
       if (n != UPDATE_ATTEMPTS_LIMIT) {
         if (n != 0) {
@@ -231,6 +234,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     decrementRunningPartitions(queryId, 1)
   }
 
+  @tailrec
   private def decrementRunningPartitions(queryId: String, attempt: Int): Int = {
     val table = getTable
 
