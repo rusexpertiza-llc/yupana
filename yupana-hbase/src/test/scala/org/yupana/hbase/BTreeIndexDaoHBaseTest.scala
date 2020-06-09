@@ -1,22 +1,10 @@
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.HBaseTestingUtility
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers }
+import org.scalatest.{ FlatSpecLike, Matchers }
 
-class BTreeIndexDaoHBaseTest extends FlatSpec with Matchers with BeforeAndAfterAll {
-  val utility = new HBaseTestingUtility
-
-  override def beforeAll(): Unit = {
-    utility.startMiniCluster(1, 1)
-  }
-
-  override protected def afterAll(): Unit = {
-    utility.shutdownMiniCluster()
-  }
-
+trait BTreeIndexDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers {
   "BTreeIndexDaoHBase" should "put and get values by keys" in {
 
-    val connection = new ExternalLinkHBaseConnection(utility.getConfiguration, "test")
     val dao = new BTreeIndexDaoHBase(
       connection,
       "test",

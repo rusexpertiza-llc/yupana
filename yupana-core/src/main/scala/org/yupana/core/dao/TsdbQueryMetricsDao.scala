@@ -22,12 +22,12 @@ import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
 
 trait TsdbQueryMetricsDao {
 
-  def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long
+  def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit
 
   def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics]
 
   def updateQueryMetrics(
-      rowKey: Long,
+      queryId: String,
       queryState: QueryState,
       totalDuration: Double,
       metricValues: Map[String, MetricData],
@@ -36,15 +36,14 @@ trait TsdbQueryMetricsDao {
 
   def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit
 
-  def setRunningPartitions(queryRowKey: Long, partitions: Int): Unit
+  def setRunningPartitions(queryId: String, partitions: Int): Unit
 
-  def decrementRunningPartitions(queryRowKey: Long): Int
+  def decrementRunningPartitions(queryId: String): Int
 
   def deleteMetrics(filter: QueryMetricsFilter): Int
 }
 
 case class QueryMetricsFilter(
-    rowKey: Option[Long] = None,
     queryId: Option[String] = None,
     queryState: Option[QueryState] = None
 )
