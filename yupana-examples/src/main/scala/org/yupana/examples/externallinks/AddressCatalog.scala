@@ -73,27 +73,26 @@ class AddressCatalogImpl(override val externalLink: AddressCatalog) extends Exte
   }
 
   override def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, createInclude, createExclude)
+    ExternalLinkUtils.transformCondition(externalLink.linkName, condition, createInclude, createExclude)
   }
 
-  private def createInclude(values: Seq[(String, Set[String])]): Condition = {
-
-    val ids = values.map {
-      case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
-      case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
+  private def idsForValues(values: Seq[(String, Set[Any])]): Seq[Set[Int]] = {
+    values.map {
+      case (AddressCatalog.CITY, cities)    => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
+      case (AddressCatalog.LAT, latitudes)  => kkmAddressData.filter(x => latitudes.contains(x._2.lat)).map(_._1).toSet
+      case (AddressCatalog.LON, longitudes) => kkmAddressData.filter(x => longitudes.contains(x._2.lon)).map(_._1).toSet
+      case (f, _)                           => throw new IllegalArgumentException(s"Unknown field $f")
     }
+  }
 
+  private def createInclude(values: Seq[(String, Set[Any])]): Condition = {
+    val ids = idsForValues(values)
     val dimValues = CollectionUtils.intersectAll(ids)
-
     in(dimension(externalLink.dimension.aux), dimValues)
   }
 
-  private def createExclude(values: Seq[(String, Set[String])]): Condition = {
-    val ids = values.map {
-      case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
-      case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
-    }
-
+  private def createExclude(values: Seq[(String, Set[Any])]): Condition = {
+    val ids = idsForValues(values)
     val dimValues = ids.fold(Set.empty)(_ union _)
     notIn(dimension(externalLink.dimension.aux), dimValues)
   }
