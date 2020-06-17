@@ -35,6 +35,16 @@ trait LinkField extends Serializable {
   def aux: LinkField.Aux[T] = this
 
   override def toString: String = s"LinkField($name)"
+
+  override def equals(obj: Any): Boolean = {
+    if (obj == null) false
+    else
+      obj match {
+        case that: LinkField =>
+          this.name == that.name && this.dataType == that.dataType
+        case _ => false
+      }
+  }
 }
 
 object LinkField {
