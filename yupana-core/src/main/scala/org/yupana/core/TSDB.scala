@@ -71,7 +71,7 @@ class TSDB(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: Iterator[Array[Option[Any]]],
+      data: Iterator[Array[Any]],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 

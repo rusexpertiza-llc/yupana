@@ -326,7 +326,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
   override def getTableTypes: ResultSet = {
     val names = List("TABLE_TYPE")
     val dataTypes = List(DataType[String])
-    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Option[Any]](Some("TABLE"))))
+    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Any]("TABLE")))
     new YupanaResultSet(null, types)
   }
 

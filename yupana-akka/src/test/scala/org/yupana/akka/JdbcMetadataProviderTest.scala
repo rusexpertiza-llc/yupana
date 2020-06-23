@@ -20,11 +20,11 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
     val r = res.iterator.next
     val cols = metadataProvider.tableFieldNames.map(r.fieldValueByName[String])
     cols should contain theSameElementsInOrderAs Seq(
-      None,
-      None,
-      Some("s1"),
-      Some("TABLE"),
-      None
+      null,
+      null,
+      "s1",
+      "TABLE",
+      null
     )
   }
 
@@ -35,23 +35,23 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
     r should have size 6
 
     val timeColDescription = r.find(_.fieldValueByName[String]("COLUMN_NAME").contains("time")).value
-    timeColDescription.fieldValueByName[String]("TABLE_NAME").value shouldBe "s1"
-    timeColDescription.fieldValueByName[Int]("DATA_TYPE").value shouldBe 93
-    timeColDescription.fieldValueByName[String]("TYPE_NAME").value shouldBe "TIMESTAMP"
+    timeColDescription.fieldValueByName[String]("TABLE_NAME") shouldBe "s1"
+    timeColDescription.fieldValueByName[Int]("DATA_TYPE") shouldBe 93
+    timeColDescription.fieldValueByName[String]("TYPE_NAME") shouldBe "TIMESTAMP"
 
     val stringColsDescriptions = r.filter(_.fieldValueByName[String]("TYPE_NAME").contains("VARCHAR"))
     stringColsDescriptions should have size 4
     stringColsDescriptions foreach { d =>
-      d.fieldValueByName[String]("TABLE_NAME").value shouldBe "s1"
-      d.fieldValueByName[Int]("DATA_TYPE").value shouldBe 12
+      d.fieldValueByName[String]("TABLE_NAME") shouldBe "s1"
+      d.fieldValueByName[Int]("DATA_TYPE") shouldBe 12
     }
-    stringColsDescriptions.map(_.fieldValueByName("COLUMN_NAME")) should
-      contain theSameElementsAs Seq("t1", "t2", "f2", "c1_f1").map(Option(_))
+    stringColsDescriptions.map(_.fieldValueByName[String]("COLUMN_NAME")) should
+      contain theSameElementsAs Seq("t1", "t2", "f2", "c1_f1")
 
     val longColDescription = r.find(_.fieldValueByName[String]("COLUMN_NAME").contains("f1")).value
-    longColDescription.fieldValueByName[String]("TABLE_NAME").value shouldBe "s1"
-    longColDescription.fieldValueByName[Int]("DATA_TYPE").value shouldBe -5
-    longColDescription.fieldValueByName[String]("TYPE_NAME").value shouldBe "BIGINT"
+    longColDescription.fieldValueByName[String]("TABLE_NAME") shouldBe "s1"
+    longColDescription.fieldValueByName[Int]("DATA_TYPE") shouldBe -5
+    longColDescription.fieldValueByName[String]("TYPE_NAME") shouldBe "BIGINT"
   }
 
 }

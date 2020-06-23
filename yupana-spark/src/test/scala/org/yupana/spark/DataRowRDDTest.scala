@@ -34,10 +34,10 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
     val rdd = sc.parallelize(
       Seq(
         Array(
-          Some(Time(theTime)),
-          Some("болт М6"),
-          Some(42d),
-          None
+          Time(theTime),
+          "болт М6",
+          42d,
+          null
         )
       )
     )

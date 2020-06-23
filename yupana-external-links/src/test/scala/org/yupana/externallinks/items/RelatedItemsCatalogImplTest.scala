@@ -33,9 +33,9 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc1,
           Seq(
-            Array[Option[Any]](Some(123456), Some(Time(120))),
-            Array[Option[Any]](Some(123456), Some(Time(150))),
-            Array[Option[Any]](Some(345112), Some(Time(120)))
+            Array[Any](123456, Time(120)),
+            Array[Any](123456, Time(150)),
+            Array[Any](345112, Time(120))
           ).toIterator
         )
       )
@@ -56,8 +56,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc2,
           Seq(
-            Array[Option[Any]](Some(123456), Some(Time(125))),
-            Array[Option[Any]](Some(123456), Some(Time(120)))
+            Array[Any](123456, Time(125)),
+            Array[Any](123456, Time(120))
           ).toIterator
         )
       )
@@ -107,8 +107,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc,
           Seq(
-            Array[Option[Any]](Some(123456), Some(Time(220))),
-            Array[Option[Any]](Some(654321), Some(Time(330)))
+            Array[Any](123456, Time(220)),
+            Array[Any](654321, Time(330))
           ).toIterator
         )
       )

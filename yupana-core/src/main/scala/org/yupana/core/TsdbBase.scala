@@ -69,7 +69,7 @@ trait TsdbBase extends StrictLogging {
 
   def finalizeQuery(
       queryContext: QueryContext,
-      rows: Collection[Array[Option[Any]]],
+      rows: Collection[Array[Any]],
       metricCollector: MetricQueryCollector
   ): Result
 
