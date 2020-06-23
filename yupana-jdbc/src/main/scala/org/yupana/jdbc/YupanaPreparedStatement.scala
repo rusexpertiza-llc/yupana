@@ -150,7 +150,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setByte(parameterIndex: Int, x: Byte): Unit = {
-    throw new SQLFeatureNotSupportedException("Bytes are not supported")
+    setParameter(parameterIndex, NumericValue(BigDecimal(x)))
   }
 
   @throws[SQLException]
@@ -315,7 +315,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setTimestamp(parameterIndex: Int, x: Timestamp, cal: Calendar): Unit = {
-    throw new SQLFeatureNotSupportedException("Timestamp is not supported")
+    throw new SQLFeatureNotSupportedException("Calendars are not supported")
   }
 
   @throws[SQLException]
