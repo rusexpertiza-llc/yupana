@@ -87,12 +87,14 @@ object QueryOptimizer {
 
   private def evaluateConstant[T](e: Expression.Aux[T]): Expression.Aux[T] = {
     assert(e.kind == Const)
-    ConstantExpr(
-      ExpressionCalculator
-        .evaluateConstant(e)
-        .getOrElse(throw new IllegalAccessException(s"Cannot evaluate constant expression $e"))
-    )(
-      e.dataType
-    )
+    val eval = ExpressionCalculator.evaluateConstant(e)
+    if (eval != null) {
+      ConstantExpr(eval)(
+        e.dataType
+      )
+    } else {
+      throw new IllegalAccessException(s"Cannot evaluate constant expression $e")
+    }
+
   }
 }

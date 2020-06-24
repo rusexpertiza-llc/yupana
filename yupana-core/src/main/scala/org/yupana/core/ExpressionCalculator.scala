@@ -24,7 +24,7 @@ object ExpressionCalculator {
 
   implicit private val operations: Operations = Operations
 
-  def evaluateConstant(expr: Expression): Option[expr.Out] = {
+  def evaluateConstant(expr: Expression): expr.Out = {
     assert(expr.kind == Const)
     eval(expr, null, null)
   }
@@ -34,28 +34,27 @@ object ExpressionCalculator {
       queryContext: QueryContext,
       internalRow: InternalRow,
       tryEval: Boolean = true
-  ): Option[expr.Out] = {
+  ): expr.Out = {
     if (queryContext != null && queryContext.exprsIndex.contains(expr)
       && !internalRow.isEmpty(queryContext, expr) && tryEval) {
       eval(expr, queryContext, internalRow)
     } else {
-      None
+      null.asInstanceOf[expr.Out]
     }
   }
 
-  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): Option[expr.Out] = {
+  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
 
     val res = expr match {
-      case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
+      case ConstantExpr(x) => x//.asInstanceOf[expr.Out]
 
-      case TimeExpr         => None
-      case DimensionExpr(_) => None
-      case MetricExpr(_)    => None
-      case LinkExpr(_, _)   => None
+      case TimeExpr         => null
+      case DimensionExpr(_) => null
+      case MetricExpr(_)    => null
+      case LinkExpr(_, _)   => null
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, queryContext, internalRow)
-          .getOrElse(false)
         if (x) {
           evaluateExpression(positive, queryContext, internalRow)
         } else {
@@ -66,13 +65,10 @@ object ExpressionCalculator {
         f(evaluateExpression(e, queryContext, internalRow))
 
       case BinaryOperationExpr(f, a, b) =>
-        for {
-          ae <- evaluateExpression(a, queryContext, internalRow)
-          be <- evaluateExpression(b, queryContext, internalRow)
-        } yield f(ae, be)
+        f(evaluateExpression(a, queryContext, internalRow), evaluateExpression(b, queryContext, internalRow))
 
       case TypeConvertExpr(tc, e) =>
-        evaluateExpression(e, queryContext, internalRow).map(tc.direct)
+        tc.direct(evaluateExpression(e, queryContext, internalRow))
 
       case AggregateExpr(_, e) =>
         evaluateExpression(e, queryContext, internalRow)
@@ -81,28 +77,21 @@ object ExpressionCalculator {
         evaluateExpression(e, queryContext, internalRow)
 
       case InExpr(e, vs) =>
-        for {
-          eValue <- evaluateExpression(e, queryContext, internalRow)
-        } yield vs contains eValue
+        vs contains evaluateExpression(e, queryContext, internalRow)
 
       case NotInExpr(e, vs) =>
-        for {
-          eValue <- evaluateExpression(e, queryContext, internalRow)
-        } yield !vs.contains(eValue)
+        !vs.contains(evaluateExpression(e, queryContext, internalRow))
 
       case AndExpr(cs) =>
         val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
-        executed.reduce((a, b) => a.flatMap(x => b.map(y => x && y)))
+        executed.reduce((a, b) => a && b)
 
       case OrExpr(cs) =>
         val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
-        executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
+        executed.reduce((a, b) => a || b)
 
       case TupleExpr(e1, e2) =>
-        for {
-          a <- evaluateExpression(e1, queryContext, internalRow)
-          b <- evaluateExpression(e2, queryContext, internalRow)
-        } yield (a, b)
+        (evaluateExpression(e1, queryContext, internalRow), evaluateExpression(e2, queryContext, internalRow))
 
       case ae @ ArrayExpr(es) =>
         val values: Array[ae.elementDataType.T] =
@@ -119,12 +108,12 @@ object ExpressionCalculator {
           i += 1
         }
 
-        if (success) Some(values) else None
+        if (success) values else null
 
       case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
-    res.asInstanceOf[Option[expr.Out]]
+    res.asInstanceOf[expr.Out]
   }
 }

@@ -56,13 +56,13 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
-      ) shouldBe None
+      ) shouldBe null.asInstanceOf[Int]
       ExpressionCalculator.evaluateExpression(
         MetricExpr(Metric[Int]("anyMetric", 1)),
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
-      ) shouldBe None
+      ) shouldBe null.asInstanceOf[Int]
       val TestLink = new ExternalLink {
         override type DimType = String
         override val linkName: String = "test_link"
@@ -74,18 +74,17 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
-      ) shouldBe None
+      ) shouldBe null.asInstanceOf[Int]
     }
 
     "Evaluate constants" in {
       import org.yupana.api.query.syntax.All
       import org.yupana.api.query.syntax.All._
 
-      ExpressionCalculator.evaluateConstant(plus(const(2), times(const(2), const(2)))).value shouldEqual 6
-      ExpressionCalculator.evaluateConstant(divInt(All.length(const("9 letters")), const(3))).value shouldEqual 3
+      ExpressionCalculator.evaluateConstant(plus(const(2), times(const(2), const(2)))) shouldEqual 6
+      ExpressionCalculator.evaluateConstant(divInt(All.length(const("9 letters")), const(3))) shouldEqual 3
       ExpressionCalculator
-        .evaluateConstant(All.not(contains(const(Array(1L, 2L, 3L)), const(5L))))
-        .value shouldEqual true
+        .evaluateConstant(All.not(contains(const(Array(1L, 2L, 3L)), const(5L)))) shouldEqual true
     }
   }
 

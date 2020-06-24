@@ -157,7 +157,7 @@ trait TsdbBase extends StrictLogging {
         val filtered = queryContext.postCondition match {
           case Some(cond) =>
             withValuesForFilter.filter(row =>
-              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false)
             )
           case None => withValuesForFilter
         }
@@ -218,7 +218,7 @@ trait TsdbBase extends StrictLogging {
           metricCollector.postFilter.measure(batch.size) {
             val it = batch.iterator
             it.filter { row =>
-              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false)
             }
           }
         }
