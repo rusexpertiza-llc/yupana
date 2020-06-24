@@ -130,13 +130,13 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     val ib = new InternalRowBuilder(exprIndex, Some(table))
 
     val row1 = ib
-      .set(time, Some(Time(10L)))
-      .set(dimension(xDim), Some("foo"))
+      .set(time, Time(10L))
+      .set(dimension(xDim), "foo")
       .buildAndReset()
 
     val row2 = ib
-      .set(dimension(xDim), Some("bar"))
-      .set(time, Some(Time(20L)))
+      .set(dimension(xDim), "bar")
+      .set(time, Time(20L))
       .buildAndReset()
     val rows = Seq(row1, row2)
 
@@ -148,10 +148,10 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       testSetter
     )
 
-    row1.get(exprIndex, link(TestLink, TestLink.field1)).value shouldEqual "field1:foo"
-    row1.get(exprIndex, link(TestLink, TestLink.field2)).value shouldEqual "field2:foo"
-    row2.get(exprIndex, link(TestLink, TestLink.field1)).value shouldEqual "field1:bar"
-    row2.get(exprIndex, link(TestLink, TestLink.field2)).value shouldEqual "field2:bar"
+    row1.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
+    row1.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
+    row2.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
+    row2.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
   }
 
   it should "cross join multiple values" in {

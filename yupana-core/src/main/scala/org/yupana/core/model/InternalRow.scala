@@ -46,16 +46,16 @@ class InternalRow(val data: Array[Any]) extends Serializable {
     this
   }
 
-  def get[T](queryContext: QueryContext, expr: Expression): Option[T] = {
-    data(queryContext.exprsIndex(expr)).asInstanceOf[Option[T]]
+  def get[T](queryContext: QueryContext, expr: Expression): T = {
+    data(queryContext.exprsIndex(expr)).asInstanceOf[T]
   }
 
-  def get[T](exprIndex: scala.collection.Map[Expression, Int], expr: Expression): Option[T] = {
-    data(exprIndex(expr)).asInstanceOf[Option[T]]
+  def get[T](exprIndex: scala.collection.Map[Expression, Int], expr: Expression): T = {
+    data(exprIndex(expr)).asInstanceOf[T]
   }
 
-  def get[T](index: Int): Option[T] = {
-    data(index).asInstanceOf[Option[T]]
+  def get[T](index: Int): T = {
+    data(index).asInstanceOf[T]
   }
 
   def copy: InternalRow = {
@@ -82,7 +82,8 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
               Some(metric.tag)
             case DimensionExpr(dimension: Dimension) =>
               Some(t.dimensionTag(dimension))
-            case _ => None
+            case _ =>
+              None
           }
           tag.foreach { t =>
             tagIndexes(t & 0xFF) = index
@@ -102,7 +103,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     }
   }
 
-  def set(time: Option[Time]): Unit = {
+  def set(time: Time): Unit = {
     if (timeIndex != -1) data(timeIndex) = time
   }
 
@@ -116,7 +117,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     Array.copy(data, 0, dataCopy, 0, data.length)
     val result = new InternalRow(dataCopy)
 
-    data.indices.foreach(i => data(i) = None)
+    data.indices.foreach(i => data(i) = null)
 
     result
   }

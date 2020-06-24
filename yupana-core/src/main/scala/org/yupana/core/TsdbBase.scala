@@ -291,7 +291,7 @@ trait TsdbBase extends StrictLogging {
   def applyMapOperation(queryContext: QueryContext, values: InternalRow): InternalRow = {
     queryContext.aggregateExprs.foreach { ae =>
       val oldValue = values.get[ae.expr.Out](queryContext, ae.expr)
-      val newValue = oldValue.map(v => ae.aggregation.map(v))
+      val newValue = ae.aggregation.map(oldValue)
       values.set(queryContext, ae, newValue)
     }
     values
@@ -304,11 +304,7 @@ trait TsdbBase extends StrictLogging {
       val aValue = a.get[agg.Interim](queryContext, aggExpr)
       val bValue = b.get[agg.Interim](queryContext, aggExpr)
 
-      val newValue = aValue match {
-        case Some(av) =>
-          bValue.map(bv => agg.reduce(av, bv)).orElse(aValue)
-        case None => bValue
-      }
+      val newValue = agg.reduce(aValue, bValue)
       reduced.set(queryContext, aggExpr, newValue)
     }
 
@@ -319,7 +315,7 @@ trait TsdbBase extends StrictLogging {
 
     queryContext.aggregateExprs.foreach { aggExpr =>
       val agg = aggExpr.aggregation
-      val newValue = data.get[agg.Interim](queryContext, aggExpr).map(agg.postMap).orElse(agg.emptyValue)
+      val newValue = agg.postMap(data.get[agg.Interim](queryContext, aggExpr))
       data.set(queryContext, aggExpr, newValue)
     }
     data
@@ -328,7 +324,7 @@ trait TsdbBase extends StrictLogging {
   def evalExprsOnAggregatesAndWindows(queryContext: QueryContext, data: InternalRow): InternalRow = {
     queryContext.exprsOnAggregatesAndWindows.foreach { e =>
       val nullWindowExpressionsExists = e.flatten.exists {
-        case w: WindowFunctionExpr => data.get(queryContext, w).isEmpty
+        case w: WindowFunctionExpr => data.isEmpty(queryContext, w)
         case _                     => false
       }
       val evaluationResult =
