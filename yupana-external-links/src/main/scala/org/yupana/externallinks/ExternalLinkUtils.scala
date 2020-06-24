@@ -163,7 +163,7 @@ object ExternalLinkUtils {
       case (expr, idx) =>
         values.get(expr.linkField).foreach { value =>
           if (value != null) {
-            row.set(idx, Some(value))
+            row.set(idx, value)
           }
         }
     }

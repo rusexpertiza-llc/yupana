@@ -24,7 +24,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
       valueData.foreach { vd =>
         val tagValue = vd.get[Int](indexMap, DimensionExpr(externalLink.dimension))
-        val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
+        val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption).orNull
         vd.set(indexMap, keyExpr, keyValue)
       }
     }
@@ -101,9 +101,9 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
 
     val r3 = valueData(2)
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe empty
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe empty
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe empty
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe null
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe null
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe null
 
   }
 
