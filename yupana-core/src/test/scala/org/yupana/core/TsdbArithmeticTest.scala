@@ -63,13 +63,13 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
       )
@@ -109,15 +109,15 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("taga"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "taga")
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("taga"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "taga")
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
       )
@@ -178,17 +178,17 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "0000270761025003")
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "0000270761025003")
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
             .buildAndReset()
         )
       )
@@ -222,13 +222,13 @@ class TsdbArithmeticTest
         )
         .onCall((_, b, _) =>
           Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-              .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_FIELD), 1d)
+              .set(metric(TestTableFields.TEST_FIELD2), 2d)
               .buildAndReset(),
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-              .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_FIELD), 1d)
+              .set(metric(TestTableFields.TEST_FIELD2), 4d)
               .buildAndReset()
           )
         )
@@ -261,9 +261,9 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_LONG_FIELD), Some(3L))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
             .buildAndReset()
         )
       )
@@ -297,8 +297,8 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset()
+          b.set(time, Time(pointTime)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset(),
+          b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset()
         )
       )
 
@@ -335,14 +335,14 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Mayorova"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime2)))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Blatov"))
+          b.set(time, Time(pointTime2))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Blatov")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime3)))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Mayorova"))
+          b.set(time, Time(pointTime3))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
             .buildAndReset()
         )
       )
@@ -374,8 +374,8 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(metric(TestTableFields.TEST_FIELD), Some(5d)).buildAndReset()
+          b.set(time, Time(pointTime)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
+          b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 5d).buildAndReset()
         )
       )
 

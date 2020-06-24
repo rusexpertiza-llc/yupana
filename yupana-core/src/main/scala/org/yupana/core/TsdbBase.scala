@@ -328,7 +328,7 @@ trait TsdbBase extends StrictLogging {
         case _                     => false
       }
       val evaluationResult =
-        if (nullWindowExpressionsExists) None
+        if (nullWindowExpressionsExists) null
         else ExpressionCalculator.evaluateExpression(e, queryContext, data)
       data.set(queryContext, e, evaluationResult)
     }

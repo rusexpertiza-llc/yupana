@@ -2579,7 +2579,10 @@ class TsdbTest
       val r = results.next()
 
       r.fieldValueByName[Time]("time_time").toLocalDateTime.withMillisOfSecond(0) shouldBe time
-      r.fieldValueByName[Time]("lag_time_time").toLocalDateTime.withMillisOfSecond(0) shouldBe lagTime
+      val rowLagTime = r.fieldValueByName[Time]("lag_time_time")
+      if (rowLagTime != null) {
+        rowLagTime.toLocalDateTime.withMillisOfSecond(0) shouldBe lagTime
+      }
       r.fieldValueByName[Double]("testField") shouldBe testField
       r.fieldValueByName[String]("A") shouldBe tagA
       r.fieldValueByName[String]("B") shouldBe tagB
@@ -2860,7 +2863,7 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList.sortBy(_.fields.filter(_ != null).toList.map(_.toString).mkString(","))
 
     results should have size (3)
 
@@ -2877,7 +2880,7 @@ class TsdbTest
     val r3 = results(2)
     r3.fieldValueByName[Double]("testField") shouldBe 3d
     r3.fieldValueByName[String]("A") shouldBe "test2"
-    r3.fieldValueByName[String]("TestCatalog_testField") shouldBe empty
+    r3.fieldValueByName[String]("TestCatalog_testField") shouldBe null
   }
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2994,10 +2997,10 @@ class TsdbTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), None)
+            .set(metric(TestTableFields.TEST_FIELD), null)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
-            .set(metric(TestTableFields.TEST_FIELD), None)
+            .set(metric(TestTableFields.TEST_FIELD), null)
             .buildAndReset()
         )
       )
@@ -3006,7 +3009,7 @@ class TsdbTest
 
     row.fieldValueByName[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.fieldValueByName[Double]("sum_testField") shouldBe 0
-    row.fieldValueByName[Double]("count_testField") shouldBe 0
-    row.fieldValueByName[Double]("distinct_count_testField") shouldBe 0
+    row.fieldValueByName[Double]("count_testField") shouldBe 2
+    row.fieldValueByName[Double]("distinct_count_testField") shouldBe 1
   }
 }

@@ -50,7 +50,7 @@ object ExpressionCalculator {
   private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
 
     val res = expr match {
-      case ConstantExpr(x) => x//.asInstanceOf[expr.Out]
+      case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
       case TimeExpr         => null
       case DimensionExpr(_) => null
@@ -69,7 +69,13 @@ object ExpressionCalculator {
         f(evaluateExpression(e, queryContext, internalRow))
 
       case BinaryOperationExpr(f, a, b) =>
-        f(evaluateExpression(a, queryContext, internalRow), evaluateExpression(b, queryContext, internalRow))
+        val left = evaluateExpression(a, queryContext, internalRow)
+        val right = evaluateExpression(b, queryContext, internalRow)
+        if (left != null && right != null) {
+          f(left, right)
+        } else {
+          null
+        }
 
       case TypeConvertExpr(tc, e) =>
         tc.direct(evaluateExpression(e, queryContext, internalRow))

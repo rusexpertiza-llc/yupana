@@ -55,7 +55,7 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
     val values = fields.indices.map(idx =>
       a(dataIndexForFieldIndex(idx)) match {
         case Time(t) => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
-        case x             => x
+        case x       => x
       }
     )
     Row(values: _*)

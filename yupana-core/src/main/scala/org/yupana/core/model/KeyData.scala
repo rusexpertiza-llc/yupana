@@ -26,7 +26,6 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
 
   private var data: Array[Any] = _
 
-
   //TODO: row.get[Any] - fix it!
   override def hashCode(): Int = {
     import scala.util.hashing.MurmurHash3._

@@ -19,6 +19,5 @@ package org.yupana.core.operations
 import org.yupana.api.types.WindowOperations
 
 trait WindowOperationsImpl extends WindowOperations {
-  override def lag[T](values: Array[T], index: Int): T =
-    if (index > 0) values(index - 1) else null.asInstanceOf[T]
+  override def lag[T](values: Array[T], index: Int): T = if (index > 0) values(index - 1) else null.asInstanceOf[T]
 }

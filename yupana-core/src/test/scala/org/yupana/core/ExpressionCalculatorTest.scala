@@ -18,7 +18,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         nullQueryContext,
         new InternalRow(Array.empty),
         tryEval = false
-      ) shouldBe None
+      ) shouldBe null
       val queryContextWithoutThatExpr = QueryContext(
         null,
         None,
@@ -35,7 +35,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         queryContextWithoutThatExpr,
         new InternalRow(Array.empty),
         tryEval = false
-      ) shouldBe None
+      ) shouldBe null
     }
 
     "Never try to evaluate time, dim, metric or link expressions" in {
@@ -50,19 +50,19 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         Seq.empty,
         Array.empty
       )
-      ExpressionCalculator.evaluateExpression(TimeExpr, queryContext, new InternalRow(Array.empty), tryEval = true) shouldBe None
+      ExpressionCalculator.evaluateExpression(TimeExpr, queryContext, new InternalRow(Array.empty), tryEval = true) shouldBe null
       ExpressionCalculator.evaluateExpression(
         DimensionExpr(RawDimension[Int]("anyDim")),
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
-      ) shouldBe null.asInstanceOf[Int]
+      ) shouldBe null.asInstanceOf[String]
       ExpressionCalculator.evaluateExpression(
         MetricExpr(Metric[Int]("anyMetric", 1)),
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
-      ) shouldBe null.asInstanceOf[Int]
+      ) shouldBe null.asInstanceOf[String]
       val TestLink = new ExternalLink {
         override type DimType = String
         override val linkName: String = "test_link"
@@ -74,7 +74,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         queryContext,
         new InternalRow(Array.empty),
         tryEval = true
-      ) shouldBe null.asInstanceOf[Int]
+      ) shouldBe null
     }
 
     "Evaluate constants" in {
