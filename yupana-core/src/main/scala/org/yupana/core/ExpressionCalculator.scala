@@ -35,11 +35,15 @@ object ExpressionCalculator {
       internalRow: InternalRow,
       tryEval: Boolean = true
   ): expr.Out = {
-    if (queryContext != null && queryContext.exprsIndex.contains(expr)
-      && !internalRow.isEmpty(queryContext, expr) && tryEval) {
-      eval(expr, queryContext, internalRow)
+    val res = if (queryContext != null && queryContext.exprsIndex.contains(expr)) {
+      internalRow.get[expr.Out](queryContext, expr)
     } else {
       null.asInstanceOf[expr.Out]
+    }
+    if (res == null && tryEval) {
+      eval(expr, queryContext, internalRow)
+    } else {
+      res
     }
   }
 

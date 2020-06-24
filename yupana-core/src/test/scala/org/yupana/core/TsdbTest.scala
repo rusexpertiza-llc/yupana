@@ -227,9 +227,9 @@ class TsdbTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(dimension(TestDims.DIM_A), Some("test12"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(dimension(TestDims.DIM_A), "test12")
             .buildAndReset()
         )
       )
@@ -360,7 +360,7 @@ class TsdbTest
         )
       )
 
-    val rows = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val rows = tsdb.query(query).toList.sortBy(_.fields.filter(_ != null).toList.map(_.toString).mkString(","))
     rows should have size 2
 
     val row1 = rows(0)
@@ -2566,12 +2566,12 @@ class TsdbTest
 
     val t = Table(
       ("time_time", "lag_time_time", "testField", "A", "B"),
-      (qtime.toLocalDateTime, None, 1d, "testA1", "testB2"),
-      (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA1", "testB2"),
-      (qtime.toLocalDateTime, None, 1d, "testA2", "testB1"),
-      (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA2", "testB1"),
-      (qtime.toLocalDateTime, Some(qtime.toLocalDateTime), 1d, "testA1", "testB1"),
-      (qtime.toLocalDateTime.plusSeconds(1), Some(qtime.toLocalDateTime), 1d, "testA1", "testB1")
+      (qtime.toLocalDateTime, null, 1d, "testA1", "testB2"),
+      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", "testB2"),
+      (qtime.toLocalDateTime, null, 1d, "testA2", "testB1"),
+      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA2", "testB1"),
+      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", "testB1"),
+      (qtime.toLocalDateTime.plusSeconds(1), qtime.toLocalDateTime, 1d, "testA1", "testB1")
     )
     val results = tsdb.query(query).iterator
 

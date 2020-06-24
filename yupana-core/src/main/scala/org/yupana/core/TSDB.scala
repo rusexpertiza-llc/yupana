@@ -115,7 +115,7 @@ class TSDB(
           case (winFuncExpr, groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = winFuncExpr.operation(group.asInstanceOf[Array[Option[winFuncExpr.expr.Out]]], index)
+              val value = winFuncExpr.operation(group.asInstanceOf[Array[winFuncExpr.expr.Out]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }
