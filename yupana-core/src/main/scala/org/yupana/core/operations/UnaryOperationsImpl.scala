@@ -24,45 +24,50 @@ import org.yupana.utils.Tokenizer
 import scala.collection.AbstractIterator
 
 trait UnaryOperationsImpl extends UnaryOperations {
-  //TODO: check null everywhere
-  override def unaryMinus[N](n: N)(implicit numeric: Numeric[N]): N = numeric.negate(n)
-  override def abs[N](n: N)(implicit numeric: Numeric[N]): N = numeric.abs(n)
+  override def unaryMinus[N](n: N)(implicit numeric: Numeric[N]): N = orNull[N, N](n)(numeric.negate)
+  override def abs[N](n: N)(implicit numeric: Numeric[N]): N = orNull[N, N](n)(numeric.abs)
 
   override def isNull[T](t: T): Boolean = t == null
   override def isNotNull[T](t: T): Boolean = t != null
 
   override def not(x: Boolean): Boolean = !x
 
-  override def extractYear(t: Time): Int = t.toLocalDateTime.getYear
-  override def extractMonth(t: Time): Int = t.toLocalDateTime.getMonthOfYear
-  override def extractDay(t: Time): Int = t.toLocalDateTime.getDayOfMonth
-  override def extractHour(t: Time): Int = t.toLocalDateTime.getHourOfDay
-  override def extractMinute(t: Time): Int = t.toLocalDateTime.getMinuteOfHour
-  override def extractSecond(t: Time): Int = t.toLocalDateTime.getSecondOfMinute
+  override def extractYear(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getYear)
+  override def extractMonth(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getMonthOfYear)
+  override def extractDay(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getDayOfMonth)
+  override def extractHour(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getHourOfDay)
+  override def extractMinute(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getMinuteOfHour)
+  override def extractSecond(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getSecondOfMinute)
 
-  override def trunc(fieldType: DateTimeFieldType)(time: Time): Time = truncateTime(time, fieldType)
-  override def truncYear(t: Time): Time = truncateTime(t, DateTimeFieldType.year())
-  override def truncMonth(t: Time): Time = truncateTime(t, DateTimeFieldType.monthOfYear())
-  override def truncWeek(t: Time): Time = truncateTime(t, DateTimeFieldType.weekOfWeekyear())
-  override def truncDay(t: Time): Time = truncateTime(t, DateTimeFieldType.dayOfMonth())
-  override def truncHour(t: Time): Time = truncateTime(t, DateTimeFieldType.hourOfDay())
-  override def truncMinute(t: Time): Time = truncateTime(t, DateTimeFieldType.minuteOfHour())
-  override def truncSecond(t: Time): Time = truncateTime(t, DateTimeFieldType.secondOfDay())
+  override def trunc(fieldType: DateTimeFieldType)(time: Time): Time =
+    orNull[Time, Time](time)(truncateTime(_, fieldType))
+  override def truncYear(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.year()))
+  override def truncMonth(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.monthOfYear()))
+  override def truncWeek(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.weekOfWeekyear()))
+  override def truncDay(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.dayOfMonth()))
+  override def truncHour(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.hourOfDay()))
+  override def truncMinute(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.minuteOfHour()))
+  override def truncSecond(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.secondOfDay()))
 
-  override def stringLength(s: String): Int = s.length
-  override def lower(s: String): String = s.toLowerCase
-  override def upper(s: String): String = s.toUpperCase
+  override def stringLength(s: String): Int = if (s != null) s.length else 0
+  override def lower(s: String): String = orNull[String, String](s)(_.toLowerCase)
+  override def upper(s: String): String = orNull[String, String](s)(_.toUpperCase)
 
-  override def tokens(s: String): Array[String] = tokenize(s)
+  override def tokens(s: String): Array[String] = orNull[String, Array[String]](s)(tokenize)
   override def splitString(s: String): Array[String] =
-    splitBy(s, !_.isLetterOrDigit).toArray
+    orNull[String, Array[String]](s)(splitBy(_, !_.isLetterOrDigit).toArray)
 
-  override def arrayToString[T](a: Array[T]): String = a.mkString("(", ", ", ")")
-  override def arrayLength[T](a: Array[T]): Int = a.length
-  override def tokenizeArray(a: Array[String]): Array[String] = a.flatMap(tokenize)
+  override def arrayToString[T](a: Array[T]): String = orNull[Array[T], String](a)(_.mkString("(", ", ", ")"))
+  override def arrayLength[T](a: Array[T]): Int = if (a != null) a.length else 0
+  override def tokenizeArray(a: Array[String]): Array[String] =
+    orNull[Array[String], Array[String]](a)(_.flatMap(tokenize))
 
   private def truncateTime(time: Time, interval: DateTimeFieldType): Time = {
-    Time(time.toDateTime.property(interval).roundFloorCopy().getMillis)
+    orNull[Time, Time](time)(t => Time(t.toDateTime.property(interval).roundFloorCopy().getMillis))
+  }
+
+  private def orNull[T, O](v: T)(f: T => O): O = {
+    if (v != null) f(v) else null.asInstanceOf[O]
   }
 
   private def tokenize(s: String): Array[String] = Tokenizer.transliteratedTokens(s).toArray
