@@ -742,8 +742,8 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), Some(12)).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), Some(15)).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15).buildAndReset()
         )
       )
 
@@ -751,8 +751,8 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((idx, rs, _) =>
         rs.foreach { r =>
-          val b = r.get[Int](idx, dimension(TestDims.DIM_B)).get
-          r.set(idx, doubleLinkExpr, Some(if (b == 12) 10.0 else 30.0))
+          val b = r.get[Int](idx, dimension(TestDims.DIM_B))
+          r.set(idx, doubleLinkExpr, if (b == 12) 10.0 else 30.0)
         }
       )
 
@@ -764,6 +764,6 @@ class TsdbDataFilterTest
 
     rows.size shouldEqual 1
     val r1 = rows.head
-    r1.fieldValueByName[Int]("B").value shouldBe 15
+    r1.fieldValueByName[Int]("B") shouldBe 15
   }
 }

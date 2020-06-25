@@ -414,19 +414,19 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), Some(12)).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), Some(15)).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15).buildAndReset()
         )
       )
 
     (link5.setLinkedValues _)
       .expects(*, *, *)
-      .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, Some(15.23))))
+      .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, 15.23)))
 
     val rows = tsdb.query(query).iterator.toList
 
     val r1 = rows.head
-    r1.fieldValueByName[Double]("plus5").value shouldBe 20.23
+    r1.fieldValueByName[Double]("plus5") shouldBe 20.23
 
     rows should have size 2
   }
