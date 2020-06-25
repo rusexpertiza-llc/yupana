@@ -16,7 +16,7 @@
 
 package org.yupana.schema.externallinks
 
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField }
 import org.yupana.schema.Dimensions
 
 trait RelatedItemsCatalog extends ExternalLink {
@@ -26,9 +26,9 @@ trait RelatedItemsCatalog extends ExternalLink {
 
   override val linkName: String = "RelatedItemsCatalog"
   override val dimension: Dimension.Aux[String] = Dimensions.ITEM
-  override val fieldsNames: Set[String] = Set(
-    ITEM_FIELD,
-    PHRASE_FIELD
+  override val fields: Set[LinkField] = Set(
+    LinkField[String](ITEM_FIELD),
+    LinkField[String](PHRASE_FIELD)
   )
 }
 

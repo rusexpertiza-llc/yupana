@@ -38,7 +38,7 @@ trait ExternalLinkService[T <: ExternalLink] {
   def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit
 
   /**

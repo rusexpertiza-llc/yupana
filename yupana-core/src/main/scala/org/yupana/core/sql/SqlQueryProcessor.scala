@@ -527,7 +527,7 @@ object SqlQueryProcessor extends QueryValidator {
     table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(d => DimensionExpr(d.aux))
   }
 
-  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr] = {
+  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr[_]] = {
 
     val pos = fieldName.indexOf('_')
 
@@ -536,8 +536,8 @@ object SqlQueryProcessor extends QueryValidator {
       val catField = fieldName.substring(pos + 1)
       for {
         c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
-        f <- c.fieldsNames.find(_ equalsIgnoreCase catField)
-      } yield new LinkExpr(c, f)
+        f <- c.fields.find { m => m.name equalsIgnoreCase catField }
+      } yield new LinkExpr(c, f.aux)
     } else {
       None
     }
