@@ -38,58 +38,82 @@ object ExternalLinkUtils {
   def extractCatalogFields(
       simpleCondition: TimeBoundedCondition,
       linkName: String
-  ): (List[(String, Set[String])], List[(String, Set[String])], List[Condition]) = {
+  ): (List[(String, Set[Any])], List[(String, Set[Any])], List[Condition]) = {
     simpleCondition.conditions.foldLeft(
-      (List.empty[(String, Set[String])], List.empty[(String, Set[String])], List.empty[Condition])
+      (List.empty[(String, Set[Any])], List.empty[(String, Set[Any])], List.empty[Condition])
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
-          case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+          case Equ(LinkExpr(c, field), ConstantExpr(v: Any)) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 
-          case Equ(ConstantExpr(v: String), LinkExpr(c, field)) if c.linkName == linkName =>
+          case Equ(ConstantExpr(v: Any), LinkExpr(c, field)) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 
           case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
+            ((field, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
+          case Neq(LinkExpr(c, field), ConstantExpr(v: Any)) if c.linkName == linkName =>
             (cat, (field, Set(v)) :: neg, oth)
 
-          case Neq(ConstantExpr(v: String), LinkExpr(c, field)) if c.linkName == linkName =>
+          case Neq(ConstantExpr(v: Any), LinkExpr(c, field)) if c.linkName == linkName =>
             (cat, (field, Set(v)) :: neg, oth)
 
           case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
+            (cat, (field, cs.asInstanceOf[Set[Any]]) :: neg, oth)
 
-          case Equ(Lower(LinkExpr(c, field)), ConstantExpr(v: String)) if c.linkName == linkName =>
+          case Equ(Lower(LinkExpr(c, field)), ConstantExpr(v: Any)) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 
-          case Equ(ConstantExpr(v: String), Lower(LinkExpr(c, field))) if c.linkName == linkName =>
+          case Equ(ConstantExpr(v: Any), Lower(LinkExpr(c, field))) if c.linkName == linkName =>
             ((field, Set(v)) :: cat, neg, oth)
 
           case InExpr(Lower(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
+            ((field, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case Neq(Lower(LinkExpr(c, field)), ConstantExpr(v: String)) if c.linkName == linkName =>
+          case Neq(Lower(LinkExpr(c, field)), ConstantExpr(v: Any)) if c.linkName == linkName =>
             (cat, (field, Set(v)) :: neg, oth)
 
-          case Neq(ConstantExpr(v: String), Lower(LinkExpr(c, field))) if c.linkName == linkName =>
+          case Neq(ConstantExpr(v: Any), Lower(LinkExpr(c, field))) if c.linkName == linkName =>
             (cat, (field, Set(v)) :: neg, oth)
 
           case NotInExpr(Lower(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
+            (cat, (field, cs.asInstanceOf[Set[Any]]) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)
         }
     }
   }
 
+  def extractCatalogFieldsT[T](
+      simpleCondition: TimeBoundedCondition,
+      linkName: String
+  ): (List[(String, Set[T])], List[(String, Set[T])], List[Condition]) = {
+    val (inc, exc, cond) = extractCatalogFields(simpleCondition, linkName)
+    (inc.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) }, exc.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) }, cond)
+  }
+
+  def transformConditionT[T](
+      linkName: String,
+      condition: Condition,
+      includeCondition: Seq[(String, Set[T])] => Condition,
+      excludeCondition: Seq[(String, Set[T])] => Condition
+  ): Condition = {
+    transformCondition(
+      linkName,
+      condition, { metricsWithValues: Seq[(String, Set[Any])] =>
+        includeCondition(metricsWithValues.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) })
+      }, { metricsWithValues: Seq[(String, Set[Any])] =>
+        excludeCondition(metricsWithValues.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) })
+      }
+    )
+  }
+
   def transformCondition(
       linkName: String,
       condition: Condition,
-      includeCondition: Seq[(String, Set[String])] => Condition,
-      excludeCondition: Seq[(String, Set[String])] => Condition
+      includeCondition: Seq[(String, Set[Any])] => Condition,
+      excludeCondition: Seq[(String, Set[Any])] => Condition
   ): Condition = {
     val tbcs = TimeBoundedCondition(condition)
 
@@ -118,11 +142,11 @@ object ExternalLinkUtils {
       externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
-      linkExprs: Set[LinkExpr],
-      fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, String]
+      linkExprs: Set[LinkExpr[_]],
+      fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, Any]
   ): Unit = {
     val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
-    val fields = linkExprs.map(_.linkField)
+    val fields = linkExprs.map(_.linkField.name)
     val dimValues = rows.map(r => r.get[R](dimExprIdx)).toSet
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
     val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
@@ -137,11 +161,11 @@ object ExternalLinkUtils {
       externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression, Int],
       rows: Seq[InternalRow],
-      linkExprs: Set[LinkExpr],
-      fieldValuesForDimValuesAndTimes: (Set[String], Set[(R, Time)]) => Table[(R, Time), String, String]
+      linkExprs: Set[LinkExpr[_]],
+      fieldValuesForDimValuesAndTimes: (Set[String], Set[(R, Time)]) => Table[(R, Time), String, Any]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
-    val fields = linkExprs.map(_.linkField)
+    val fields = linkExprs.map(_.linkField.name)
 
     def extractDimValueWithTime(r: InternalRow): (R, Time) = {
       (r.get[R](exprIndex, dimExpr), r.get[Time](exprIndex, TimeExpr))
@@ -158,10 +182,10 @@ object ExternalLinkUtils {
     }
   }
 
-  private def updateRow(row: InternalRow, exprIndex: Seq[(LinkExpr, Int)], values: Map[String, String]): Unit = {
+  private def updateRow(row: InternalRow, exprIndex: Seq[(LinkExpr[_], Int)], values: Map[String, Any]): Unit = {
     exprIndex.foreach {
       case (expr, idx) =>
-        values.get(expr.linkField).foreach { value =>
+        values.get(expr.linkField.name).foreach { value =>
           if (value != null) {
             row.set(idx, value)
           }

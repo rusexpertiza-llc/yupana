@@ -30,7 +30,7 @@ case class QueryContext(
     topRowExprs: Array[Expression],
     exprsOnAggregatesAndWindows: Array[Expression],
     bottomExprs: Array[Expression],
-    linkExprs: Seq[LinkExpr],
+    linkExprs: Seq[LinkExpr[_]],
     groupByExprs: Array[Expression]
 )
 
@@ -98,7 +98,7 @@ object QueryContext extends StrictLogging {
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
       case d: DimensionExpr[_]            => Set(d)
-      case c: LinkExpr                    => Set(c)
+      case c: LinkExpr[_]                 => Set(c)
       case m: MetricExpr[_]               => Set(m)
       case TimeExpr                       => Set(TimeExpr)
       case _                              => Set.empty

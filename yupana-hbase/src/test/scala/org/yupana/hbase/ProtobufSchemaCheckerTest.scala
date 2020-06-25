@@ -40,7 +40,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     override type DimType = Int
     override val linkName: String = "test_link"
     override val dimension: Dimension.Aux[Int] = DIM_B
-    override val fieldsNames: Set[String] = Set("foo", "bar")
+    override val fields: Set[LinkField] = Set("foo", "bar").map(LinkField[String])
   }
 
   val tables = Seq(table1, table2)

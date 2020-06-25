@@ -54,7 +54,8 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       val to =
         tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
-      val (includeValues, excludeValues, other) = ExternalLinkUtils.extractCatalogFields(tbc, externalLink.linkName)
+      val (includeValues, excludeValues, other) =
+        ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
       // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
@@ -114,7 +115,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     // may be throw exception here?
   }

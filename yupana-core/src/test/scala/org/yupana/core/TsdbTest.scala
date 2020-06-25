@@ -793,7 +793,7 @@ class TsdbTest
     val pointTime2 = pointTime1 + 1
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
@@ -1036,7 +1036,7 @@ class TsdbTest
     val pointTime2 = pointTime1 + 1
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
@@ -1131,7 +1131,7 @@ class TsdbTest
         )
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
         .onCall((qc, datas, _) => {
           setCatalogValueByTag(
             qc,
@@ -1257,7 +1257,7 @@ class TsdbTest
         )
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
         .onCall((qc, datas, _) => {
           setCatalogValueByTag(
             qc,
@@ -1849,7 +1849,7 @@ class TsdbTest
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
@@ -2054,7 +2054,7 @@ class TsdbTest
           link(TestLinks.TEST_LINK3, "testField3-1"),
           link(TestLinks.TEST_LINK3, "testField3-2"),
           link(TestLinks.TEST_LINK3, "testField3-3")
-        )
+        ).asInstanceOf[Set[LinkExpr[_]]]
       )
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(
@@ -2337,7 +2337,7 @@ class TsdbTest
       )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
@@ -2695,7 +2695,7 @@ class TsdbTest
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable.empty)
       })
@@ -2823,7 +2823,7 @@ class TsdbTest
     )
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")))
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
       .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,

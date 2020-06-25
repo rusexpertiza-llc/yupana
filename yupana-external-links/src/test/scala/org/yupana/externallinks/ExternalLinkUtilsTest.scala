@@ -6,7 +6,7 @@ import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, RawDimension }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, LinkField, RawDimension }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -16,7 +16,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
   import org.yupana.api.query.syntax.All._
 
   private def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformCondition(TestLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils.transformConditionT[String](TestLink.linkName, condition, includeCondition, excludeCondition)
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
@@ -43,7 +43,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     override type DimType = String
     override val linkName: String = "Test"
     override val dimension: DictionaryDimension = xDim
-    override val fieldsNames: Set[String] = Set(field1, field2, field3)
+    override val fields: Set[LinkField] = Set(field1, field2, field3).map(LinkField[String])
 
   }
 

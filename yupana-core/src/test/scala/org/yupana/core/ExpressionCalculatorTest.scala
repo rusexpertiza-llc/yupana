@@ -2,7 +2,7 @@ package org.yupana.core
 
 import org.scalatest.{ Matchers, OptionValues, WordSpecLike }
 import org.yupana.api.query.{ DimensionExpr, LinkExpr, MetricExpr, TimeExpr }
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, Metric, RawDimension }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, LinkField, Metric, RawDimension }
 import org.yupana.core.model.InternalRow
 
 import scala.collection.mutable
@@ -60,14 +60,13 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
       ExpressionCalculator.evaluateExpression(
         MetricExpr(Metric[Int]("anyMetric", 1)),
         queryContext,
-        new InternalRow(Array.empty),
-        tryEval = true
+        new InternalRow(Array.empty)
       ) shouldBe null.asInstanceOf[String]
       val TestLink = new ExternalLink {
         override type DimType = String
         override val linkName: String = "test_link"
         override val dimension: Dimension.Aux[String] = DictionaryDimension("testDim")
-        override val fieldsNames: Set[String] = Set("foo", "bar")
+        override val fields: Set[LinkField] = Set("foo", "bar").map(LinkField[String])
       }
       ExpressionCalculator.evaluateExpression(
         LinkExpr(TestLink, "foo"),
