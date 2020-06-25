@@ -121,7 +121,12 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
       new Get(skey).setMaxResultsPerColumnFamily(BATCH_SIZE)
     }
 
-    val results = table.get(gets.asJava).zip(keySeq)
+    val results = gets
+      .grouped(BATCH_SIZE)
+      .flatMap(batch => table.get(batch.asJava))
+      .toArray
+      .zip(keySeq)
+
     val (completed, partial) = results.partition { case (res, _) => res.rawCells().length < BATCH_SIZE }
 
     val iterators = partial.map { case (_, key) => scanValues(key) }
