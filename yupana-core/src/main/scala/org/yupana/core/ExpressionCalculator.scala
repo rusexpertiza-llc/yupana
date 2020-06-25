@@ -110,11 +110,11 @@ object ExpressionCalculator {
         var i = 0
 
         while (i < es.length && success) {
-          evaluateExpression(es(i), queryContext, internalRow) match {
-            case Some(v) => values(i) = v.asInstanceOf[ae.elementDataType.T]
-            case None    => success = false
+          val v = evaluateExpression(es(i), queryContext, internalRow)
+          values(i) = v
+          if (v == null) {
+            success = false
           }
-
           i += 1
         }
 
