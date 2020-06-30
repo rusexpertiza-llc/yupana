@@ -145,11 +145,11 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
 
     val rows = result.toIterator.toList
 
-    rows(0).fieldValueByName[Time]("time") shouldEqual Time(13333L)
-    rows(0).fieldValueByName[String]("item") shouldEqual "икра баклажанная"
+    rows(0).get[Time]("time") shouldEqual Time(13333L)
+    rows(0).get[String]("item") shouldEqual "икра баклажанная"
 
-    rows(1).fieldValueByName[Time]("time") shouldEqual Time(21112L)
-    rows(1).fieldValueByName[String]("item") shouldEqual "икра баклажанная"
+    rows(1).get[Time]("time") shouldEqual Time(21112L)
+    rows(1).get[String]("item") shouldEqual "икра баклажанная"
   }
 
   it should "handle error response on query" in {

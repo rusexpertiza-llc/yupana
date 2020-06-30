@@ -79,10 +79,10 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("some_sum") shouldBe 3d
+    r1.get[Double]("some_sum") shouldBe 3d
 
     val r2 = rows.next()
-    r2.fieldValueByName[Double]("some_sum") shouldBe 7d
+    r2.get[Double]("some_sum") shouldBe 7d
 
     rows.hasNext shouldBe false
   }
@@ -127,8 +127,8 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("stf") shouldBe 4d
-    r1.fieldValueByName[Double]("mult") shouldBe 8d
+    r1.get[Double]("stf") shouldBe 4d
+    r1.get[Double]("mult") shouldBe 8d
 
     rows.hasNext shouldBe false
   }
@@ -198,7 +198,7 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("totalSum") shouldBe -6d
+    r1.get[Double]("totalSum") shouldBe -6d
 
     rows.hasNext shouldBe false
   }
@@ -238,8 +238,8 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query).iterator
 
       val r1 = rows.next()
-      r1.fieldValueByName[Long]("plus4") shouldBe 4
-      r1.fieldValueByName[Long]("plus5") shouldBe 3
+      r1.get[Long]("plus4") shouldBe 4
+      r1.get[Long]("plus5") shouldBe 3
 
       rows.hasNext shouldBe false
   }
@@ -273,7 +273,7 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("plus2") shouldBe 4d
+    r1.get[Double]("plus2") shouldBe 4d
 
     rows.hasNext shouldBe false
   }
@@ -307,9 +307,9 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[String]("A") shouldBe "0000270761025003"
-    r1.fieldValueByName[Time]("time") shouldBe Time(pointTime2)
-    r1.fieldValueByName[Time]("lag_time") shouldBe Time(pointTime)
+    r1.get[String]("A") shouldBe "0000270761025003"
+    r1.get[Time]("time") shouldBe Time(pointTime2)
+    r1.get[Time]("lag_time") shouldBe Time(pointTime)
 
     rows.hasNext shouldBe false
   }
@@ -352,8 +352,8 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator.toList
     rows should have size 1
     val row = rows.head
-    row.fieldValueByName[String]("operator") shouldBe "Blatov"
-    row.fieldValueByName[String]("lag_operator") shouldBe "Mayorova"
+    row.get[String]("operator") shouldBe "Blatov"
+    row.get[String]("lag_operator") shouldBe "Mayorova"
   }
 
   it should "handle arithmetic with window functions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -384,9 +384,9 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator.toList
 
     val r1 = rows.head
-    r1.fieldValueByName[Double]("testField") shouldBe 5d
-    r1.fieldValueByName[Double]("lag(testField)") shouldBe 1d
-    r1.fieldValueByName[Double]("plus2") shouldBe 6d
+    r1.get[Double]("testField") shouldBe 5d
+    r1.get[Double]("lag(testField)") shouldBe 1d
+    r1.get[Double]("plus2") shouldBe 6d
 
     rows should have size 1
   }
@@ -426,7 +426,7 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator.toList
 
     val r1 = rows.head
-    r1.fieldValueByName[Double]("plus5") shouldBe 20.23
+    r1.get[Double]("plus5") shouldBe 20.23
 
     rows should have size 2
   }

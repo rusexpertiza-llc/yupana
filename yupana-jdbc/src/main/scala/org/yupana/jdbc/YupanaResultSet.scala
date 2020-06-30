@@ -234,7 +234,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
     checkRow()
-    val cell = currentRow.fieldByIndex[T](i - 1)
+    val cell = currentRow.get[T](i - 1)
     if (cell == null) {
       wasNullValue = true
       default
@@ -249,7 +249,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def getReference[T >: Null](i: Int, f: Any => T): T = {
     checkRow()
-    val cell = currentRow.fieldByIndex[T](i - 1)
+    val cell = currentRow.get[T](i - 1)
     if (cell == null) {
       wasNullValue = true
       cell

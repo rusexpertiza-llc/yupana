@@ -71,11 +71,29 @@ class DataRow(
     dataIndexForFieldIndex: Int => Int
 ) {
 
-  def fieldValueByName[T](name: String): T = {
+  def get[T](name: String): T = {
     fields(dataIndexForFieldName(name)).asInstanceOf[T]
   }
 
-  def fieldByIndex[T](index: Int): T = {
+  def get[T](index: Int): T = {
     fields(dataIndexForFieldIndex(index)).asInstanceOf[T]
+  }
+
+  def getOption[T](name: String): Option[T] = {
+    Option(fields(dataIndexForFieldName(name))).asInstanceOf[Option[T]]
+  }
+
+  def getOption[T](index: Int): Option[T] = {
+    Option(fields(dataIndexForFieldIndex(index))).asInstanceOf[Option[T]]
+  }
+
+  def getOrElse[T](name: String, default: => T): T = {
+    val idx = dataIndexForFieldName(name)
+    if (fields(idx) != null) fields(idx).asInstanceOf[T] else default
+  }
+
+  def getOrElse[T](index: Int, default: => T): T = {
+    val idx = dataIndexForFieldIndex(index)
+    if (fields(idx) != null) fields(idx).asInstanceOf[T] else default
   }
 }

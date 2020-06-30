@@ -133,7 +133,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
     val results = result.iterator.map { row =>
       val bytes = rts.map {
         case (rt, idx) =>
-          val v = row.fieldByIndex[rt.T](idx)
+          val v = row.get[rt.T](idx)
           val b = if (v != null) rt.storable.write(v) else Array.empty[Byte]
           ByteString.copyFrom(b)
       }

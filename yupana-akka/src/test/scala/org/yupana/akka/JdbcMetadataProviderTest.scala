@@ -18,7 +18,7 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
     res.fieldNames should contain theSameElementsAs metadataProvider.tableFieldNames
     res.dataTypes should contain only DataType[String]
     val r = res.iterator.next
-    val cols = metadataProvider.tableFieldNames.map(r.fieldValueByName[String])
+    val cols = metadataProvider.tableFieldNames.map(r.get[String])
     cols should contain theSameElementsInOrderAs Seq(
       null,
       null,
@@ -34,24 +34,24 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
     val r = res.iterator.toList
     r should have size 6
 
-    val timeColDescription = r.find(_.fieldValueByName[String]("COLUMN_NAME").contains("time")).value
-    timeColDescription.fieldValueByName[String]("TABLE_NAME") shouldBe "s1"
-    timeColDescription.fieldValueByName[Int]("DATA_TYPE") shouldBe 93
-    timeColDescription.fieldValueByName[String]("TYPE_NAME") shouldBe "TIMESTAMP"
+    val timeColDescription = r.find(_.get[String]("COLUMN_NAME").contains("time")).value
+    timeColDescription.get[String]("TABLE_NAME") shouldBe "s1"
+    timeColDescription.get[Int]("DATA_TYPE") shouldBe 93
+    timeColDescription.get[String]("TYPE_NAME") shouldBe "TIMESTAMP"
 
-    val stringColsDescriptions = r.filter(_.fieldValueByName[String]("TYPE_NAME").contains("VARCHAR"))
+    val stringColsDescriptions = r.filter(_.get[String]("TYPE_NAME").contains("VARCHAR"))
     stringColsDescriptions should have size 4
     stringColsDescriptions foreach { d =>
-      d.fieldValueByName[String]("TABLE_NAME") shouldBe "s1"
-      d.fieldValueByName[Int]("DATA_TYPE") shouldBe 12
+      d.get[String]("TABLE_NAME") shouldBe "s1"
+      d.get[Int]("DATA_TYPE") shouldBe 12
     }
-    stringColsDescriptions.map(_.fieldValueByName[String]("COLUMN_NAME")) should
+    stringColsDescriptions.map(_.get[String]("COLUMN_NAME")) should
       contain theSameElementsAs Seq("t1", "t2", "f2", "c1_f1")
 
-    val longColDescription = r.find(_.fieldValueByName[String]("COLUMN_NAME").contains("f1")).value
-    longColDescription.fieldValueByName[String]("TABLE_NAME") shouldBe "s1"
-    longColDescription.fieldValueByName[Int]("DATA_TYPE") shouldBe -5
-    longColDescription.fieldValueByName[String]("TYPE_NAME") shouldBe "BIGINT"
+    val longColDescription = r.find(_.get[String]("COLUMN_NAME").contains("f1")).value
+    longColDescription.get[String]("TABLE_NAME") shouldBe "s1"
+    longColDescription.get[Int]("DATA_TYPE") shouldBe -5
+    longColDescription.get[String]("TYPE_NAME") shouldBe "BIGINT"
   }
 
 }

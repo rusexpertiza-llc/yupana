@@ -86,10 +86,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time") shouldBe Time(pointTime)
-    row.fieldValueByName[Double]("testField") shouldBe 1012d
-    row.fieldValueByName[String]("A") shouldBe "test1"
-    row.fieldValueByName[Short]("B") shouldBe 2.toShort
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    row.get[Double]("testField") shouldBe 1012d
+    row.get[String]("A") shouldBe "test1"
+    row.get[Short]("B") shouldBe 2.toShort
   }
 
   it should "execute query with filter by values and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -138,10 +138,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time") shouldBe Time(pointTime)
-    row.fieldValueByName[Double]("abs_test_field") shouldBe 1012d
-    row.fieldValueByName[String]("A") shouldBe "test1"
-    row.fieldValueByName[Short]("B") shouldBe 31
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    row.get[Double]("abs_test_field") shouldBe 1012d
+    row.get[String]("A") shouldBe "test1"
+    row.get[Short]("B") shouldBe 31
   }
 
   it should "execute query with filter by values not presented in query.fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -188,10 +188,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time") shouldBe Time(pointTime)
-    an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("A") shouldBe "test1"
-    row.fieldValueByName[Short]("B") shouldBe 2
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
+    row.get[String]("A") shouldBe "test1"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -241,10 +241,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time") shouldBe Time(pointTime)
-    an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("A") shouldBe "test11"
-    row.fieldValueByName[String]("B") shouldBe "test12"
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
+    row.get[String]("A") shouldBe "test11"
+    row.get[String]("B") shouldBe "test12"
   }
 
   it should "support IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -291,17 +291,17 @@ class TsdbDataFilterTest
 
     val r1 = iterator.next()
 
-    r1.fieldValueByName[Time]("time") shouldBe Time(pointTime)
-    r1.fieldValueByName[Double]("F1") shouldBe 1012d
-    r1.fieldValueByName[String]("A") shouldBe "test1"
-    r1.fieldValueByName[String]("B") shouldBe "test2"
+    r1.get[Time]("time") shouldBe Time(pointTime)
+    r1.get[Double]("F1") shouldBe 1012d
+    r1.get[String]("A") shouldBe "test1"
+    r1.get[String]("B") shouldBe "test2"
 
     val r2 = iterator.next()
 
-    r2.fieldValueByName[Time]("time") shouldBe Time(pointTime)
-    r2.fieldValueByName[Double]("F1") shouldBe 1014d
-    r2.fieldValueByName[String]("A") shouldBe "test1"
-    r2.fieldValueByName[String]("B") shouldBe "test2"
+    r2.get[Time]("time") shouldBe Time(pointTime)
+    r2.get[Double]("F1") shouldBe 1014d
+    r2.get[String]("A") shouldBe "test1"
+    r2.get[String]("B") shouldBe "test2"
 
     iterator.hasNext shouldBe false
   }
@@ -384,10 +384,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time") shouldBe Time(pointTime)
-    row.fieldValueByName[Double]("F1") shouldBe 1012d
-    row.fieldValueByName[String]("A") shouldBe "test1"
-    row.fieldValueByName[String]("B") shouldBe "test2"
+    row.get[Time]("time") shouldBe Time(pointTime)
+    row.get[Double]("F1") shouldBe 1012d
+    row.get[String]("A") shouldBe "test1"
+    row.get[String]("B") shouldBe "test2"
   }
 
   it should "support IS NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -452,10 +452,10 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.fieldValueByName[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("testField") shouldBe 10d
-    r1.fieldValueByName[String]("A") shouldBe "test1a"
-    r1.fieldValueByName[String]("B") shouldBe "test2b"
+    r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Double]("testField") shouldBe 10d
+    r1.get[String]("A") shouldBe "test1a"
+    r1.get[String]("B") shouldBe "test2b"
   }
 
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -520,11 +520,11 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.fieldValueByName[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("testField") shouldBe 30d
-    r1.fieldValueByName[String]("A") shouldBe "test2a"
-    r1.fieldValueByName[String]("B") shouldBe "test3b"
-    r1.fieldValueByName[String]("ctf") shouldBe "some-value"
+    r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Double]("testField") shouldBe 30d
+    r1.get[String]("A") shouldBe "test2a"
+    r1.get[String]("B") shouldBe "test3b"
+    r1.get[String]("ctf") shouldBe "some-value"
   }
 
   it should "support IS NULL and IS NOT NULL for catalog fields within AND among other conditions" in withTsdbMock {
@@ -618,10 +618,10 @@ class TsdbDataFilterTest
       results should have size 1
 
       val r1 = results.head
-      r1.fieldValueByName[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
-      r1.fieldValueByName[Double]("testField") shouldBe 1003d
-      r1.fieldValueByName[String]("A") shouldBe "test1a"
-      r1.fieldValueByName[Short]("B") shouldBe 15.toShort
+      r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+      r1.get[Double]("testField") shouldBe 1003d
+      r1.get[String]("A") shouldBe "test1a"
+      r1.get[Short]("B") shouldBe 15.toShort
   }
 
   it should "support IS NULL and IS NOT NULL inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -690,8 +690,8 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.fieldValueByName[Time]("d") shouldBe Time(from.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("quantity") shouldBe 1011d
+    r1.get[Time]("d") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Double]("quantity") shouldBe 1011d
   }
 
   it should "filter before calculation if possible" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -764,6 +764,6 @@ class TsdbDataFilterTest
 
     rows.size shouldEqual 1
     val r1 = rows.head
-    r1.fieldValueByName[Int]("B") shouldBe 15
+    r1.get[Int]("B") shouldBe 15
   }
 }
