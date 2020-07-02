@@ -2947,16 +2947,23 @@ class TsdbTest
   }
 
   it should "be able to filter without table" in withTsdbMock { (tsdb, _) =>
-    val res = tsdb
+    tsdb
       .query(
         Query(
           None,
           Seq(minus(const(10), const(3)) as "seven"),
           Some(le(minus(const(10), const(3)), const(5)))
         )
-      )
+      ) shouldBe empty
 
-    res shouldBe empty
+    tsdb
+      .query(
+        Query(
+          None,
+          Seq(minus(const(10), const(3)) as "seven"),
+          Some(ge(minus(const(10), const(3)), const(5)))
+        )
+      ) should have size 1
   }
 
   it should "handle None aggregate results" in withTsdbMock { (tsdb, tsdbDaoMock) =>

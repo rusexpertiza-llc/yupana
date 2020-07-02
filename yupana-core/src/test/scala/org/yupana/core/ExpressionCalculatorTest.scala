@@ -11,37 +11,9 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
 
   "Expression calculator" should {
 
-    "Evaluate expression to None" in {
-      val nullQueryContext: QueryContext = null
-      ExpressionCalculator.evaluateExpression(
-        DimensionExpr(DictionaryDimension("testDim")),
-        nullQueryContext,
-        new InternalRow(Array.empty),
-        tryEval = false
-      ) shouldBe null
-      val queryContextWithoutThatExpr = QueryContext(
-        null,
-        None,
-        mutable.HashMap.empty,
-        Array.empty,
-        Array.empty,
-        Array.empty,
-        Array.empty,
-        Seq.empty,
-        Array.empty
-      )
-      ExpressionCalculator.evaluateExpression(
-        DimensionExpr(DictionaryDimension("testDim")),
-        queryContextWithoutThatExpr,
-        new InternalRow(Array.empty),
-        tryEval = false
-      ) shouldBe null
-    }
-
     "Never try to evaluate time, dim, metric or link expressions" in {
       val queryContext = QueryContext(
         null,
-        None,
         mutable.HashMap.empty,
         Array.empty,
         Array.empty,
@@ -50,12 +22,11 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         Seq.empty,
         Array.empty
       )
-      ExpressionCalculator.evaluateExpression(TimeExpr, queryContext, new InternalRow(Array.empty), tryEval = true) shouldBe null
+      ExpressionCalculator.evaluateExpression(TimeExpr, queryContext, new InternalRow(Array.empty)) shouldBe null
       ExpressionCalculator.evaluateExpression(
         DimensionExpr(RawDimension[Int]("anyDim")),
         queryContext,
-        new InternalRow(Array.empty),
-        tryEval = true
+        new InternalRow(Array.empty)
       ) shouldBe null.asInstanceOf[String]
       ExpressionCalculator.evaluateExpression(
         MetricExpr(Metric[Int]("anyMetric", 1)),
@@ -71,8 +42,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
       ExpressionCalculator.evaluateExpression(
         LinkExpr(TestLink, "foo"),
         queryContext,
-        new InternalRow(Array.empty),
-        tryEval = true
+        new InternalRow(Array.empty)
       ) shouldBe null
     }
 

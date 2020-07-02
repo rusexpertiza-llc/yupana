@@ -29,18 +29,24 @@ object ExpressionCalculator {
     eval(expr, null, null)
   }
 
+  def preEvaluated(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
+    expr match {
+      case ConstantExpr(v) => v.asInstanceOf[expr.Out]
+      case _               => internalRow.get[expr.Out](queryContext, expr)
+    }
+  }
+
   def evaluateExpression(
       expr: Expression,
       queryContext: QueryContext,
-      internalRow: InternalRow,
-      tryEval: Boolean = true
+      internalRow: InternalRow
   ): expr.Out = {
     val res = if (queryContext != null && queryContext.exprsIndex.contains(expr)) {
       internalRow.get[expr.Out](queryContext, expr)
     } else {
       null.asInstanceOf[expr.Out]
     }
-    if (res == null && tryEval) {
+    if (res == null) {
       eval(expr, queryContext, internalRow)
     } else {
       res
