@@ -71,6 +71,18 @@ class DataRow(
     dataIndexForFieldIndex: Int => Int
 ) {
 
+  def isEmpty(name: String): Boolean = {
+    fields(dataIndexForFieldName(name)) == null
+  }
+
+  def isEmpty(index: Int): Boolean = {
+    fields(dataIndexForFieldIndex(index)) == null
+  }
+
+  def isDefined(name: String): Boolean = !isEmpty(name)
+
+  def isDefined(index: Int): Boolean = !isEmpty(index)
+
   def get[T](name: String): T = {
     fields(dataIndexForFieldName(name)).asInstanceOf[T]
   }
