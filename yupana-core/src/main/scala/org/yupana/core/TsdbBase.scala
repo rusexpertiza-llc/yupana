@@ -105,11 +105,11 @@ trait TsdbBase extends StrictLogging {
     val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
 
-    val postCondition = substitutedCondition.map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
+    val condition = substitutedCondition.map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
 
-    logger.debug(s"Post condition: $postCondition")
+    logger.debug(s"Final condition: $condition")
 
-    val queryContext = QueryContext(optimizedQuery, postCondition)
+    val queryContext = QueryContext(optimizedQuery, condition)
 
     val mr = mapReduceEngine(metricCollector)
 
@@ -150,7 +150,7 @@ trait TsdbBase extends StrictLogging {
 
       metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
-        val filtered = postCondition match {
+        val filtered = condition match {
           case Some(cond) =>
             val withValuesForFilter = it.map(row => evaluateFilterExprs(queryContext, cond, row))
             withValuesForFilter.filter(row => ExpressionCalculator.preEvaluated(cond, queryContext, row))
