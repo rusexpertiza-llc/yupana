@@ -99,6 +99,10 @@ object SqlQueryProcessor extends QueryValidator {
     "now" -> ((s: BuilderState) => ConstantExpr(Time(s.queryStartTime)))
   )
 
+  val function1Registry: Map[String, Expression => Either[String, Expression]] = Map(
+    "id" -> createDimIdExpr
+  )
+
   object ExprType extends Enumeration {
     type ExprType = Value
     val Cmp, Math = Value
@@ -260,7 +264,8 @@ object SqlQueryProcessor extends QueryValidator {
     for {
       _ <- createWindowFunctionExpr(fun, expr).left
       _ <- createAggregateExpr(fun, expr).left
-      m <- createUnaryFunctionExpr(fun, expr).left
+      _ <- createUnaryFunctionExpr(fun, expr).left
+      m <- createSyntheticUnaryExpr(fun, expr).left
       _ <- createArrayUnaryFunctionExpr(fun, Seq(expr)).left
     } yield m
   }
@@ -313,6 +318,10 @@ object SqlQueryProcessor extends QueryValidator {
     uf.map(f =>
       UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
     )
+  }
+
+  private def createSyntheticUnaryExpr(fun: String, expr: Expression) = {
+    function1Registry.get(fun).toRight(s"Unknown synthetic function $fun").flatMap(_(expr))
   }
 
   private def createBinary(
@@ -612,5 +621,12 @@ object SqlQueryProcessor extends QueryValidator {
     }
 
     CollectionUtils.collectErrors(vs.toSeq)
+  }
+
+  private def createDimIdExpr(expr: Expression): Either[String, Expression] = {
+    expr match {
+      case DimensionExpr(dim) => Right(DimensionIdExpr(dim))
+      case _                  => Left("Function id is applicable only to dimensions")
+    }
   }
 }
