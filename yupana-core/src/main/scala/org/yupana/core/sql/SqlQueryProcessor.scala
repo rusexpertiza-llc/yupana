@@ -328,7 +328,7 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def createSyntheticUnaryExpr(fun: String, expr: Expression) = {
-    function1Registry.get(fun).toRight(s"Unknown synthetic function $fun").flatMap(_(expr))
+    function1Registry.get(fun).toRight(s"Unknown synthetic function $fun").right.flatMap(_(expr))
   }
 
   private def createBinary(
