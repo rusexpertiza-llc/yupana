@@ -98,6 +98,7 @@ object QueryContext extends StrictLogging {
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
       case d: DimensionExpr[_]            => Set(d)
+      case i: DimensionIdExpr             => Set(i)
       case c: LinkExpr[_]                 => Set(c)
       case m: MetricExpr[_]               => Set(m)
       case TimeExpr                       => Set(TimeExpr)

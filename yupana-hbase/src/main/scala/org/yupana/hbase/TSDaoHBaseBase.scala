@@ -248,6 +248,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Equ(ConstantExpr(c), Lower(DimensionExpr(dim))) =>
           builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
+        case Equ(DimensionIdExpr(dim), ConstantExpr(c: Long)) =>
+          filters.copy(incIds = DimensionFilter[Long](dim, c) and filters.incIds)
+
+        case Equ(ConstantExpr(c: Long), DimensionIdExpr(dim)) =>
+          filters.copy(incIds = DimensionFilter[Long](dim, c) and filters.incIds)
+
         case Equ(TimeExpr, ConstantExpr(c: Time)) =>
           builder.includeTime(c)
 
@@ -268,6 +274,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
         case DimIdInExpr(dim, dimIds) =>
           builder.includeIds(dim, dimIds)
+
+        case InExpr(DimensionIdExpr(dim), dimIds) =>
+          val idFilter =
+            if (dimIds.nonEmpty) DimensionFilter(dim, dimIds.asInstanceOf[Set[Long]]) else NoResult[IdType]()
+          filters.copy(incIds = idFilter and filters.incIds)
 
         case Neq(DimensionExpr(dim), ConstantExpr(c)) =>
           builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
@@ -292,6 +303,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
         case NotInExpr(Lower(DimensionExpr(dim)), consts) =>
           builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+
+        case NotInExpr(DimensionIdExpr(dim), dimIds) =>
+          val idFilter =
+            if (dimIds.nonEmpty) DimensionFilter(dim, dimIds.asInstanceOf[Set[Long]]) else NoResult[IdType]()
+          filters.copy(excIds = idFilter or filters.excIds)
 
         case NotInExpr(_: TimeExpr.type, consts) =>
           builder.excludeTime(consts.asInstanceOf[Set[Time]])
@@ -341,10 +357,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       case Neq(ConstantExpr(_), _: DimensionExpr[_])                 => true
       case Neq(Lower(_: DimensionExpr[_]), ConstantExpr(_))          => true
       case Neq(Lower(ConstantExpr(_)), _: DimensionExpr[_])          => true
+      case Equ(_: DimensionIdExpr, ConstantExpr(_))                  => true
+      case Equ(ConstantExpr(_), _: DimensionIdExpr)                  => true
+      case Neq(_: DimensionIdExpr, ConstantExpr(_))                  => true
+      case Neq(ConstantExpr(_), _: DimensionIdExpr)                  => true
       case InExpr(_: DimensionExpr[_], _)                            => true
       case NotInExpr(_: DimensionExpr[_], _)                         => true
       case InExpr(Lower(_: DimensionExpr[_]), _)                     => true
       case NotInExpr(Lower(_: DimensionExpr[_]), _)                  => true
+      case InExpr(_: DimensionIdExpr, _)                             => true
+      case NotInExpr(_: DimensionIdExpr, _)                          => true
       case _                                                         => false
     }
   }

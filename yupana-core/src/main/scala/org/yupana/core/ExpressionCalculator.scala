@@ -52,10 +52,11 @@ object ExpressionCalculator {
     val res = expr match {
       case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
 
-      case TimeExpr         => None
-      case DimensionExpr(_) => None
-      case MetricExpr(_)    => None
-      case LinkExpr(_, _)   => None
+      case TimeExpr           => None
+      case DimensionExpr(_)   => None
+      case DimensionIdExpr(_) => None
+      case MetricExpr(_)      => None
+      case LinkExpr(_, _)     => None
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, queryContext, internalRow)
