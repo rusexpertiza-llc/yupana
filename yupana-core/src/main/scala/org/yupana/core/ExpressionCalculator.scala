@@ -41,11 +41,17 @@ object ExpressionCalculator {
       queryContext: QueryContext,
       internalRow: InternalRow
   ): expr.Out = {
-    val res = if (queryContext != null && queryContext.exprsIndex.contains(expr)) {
-      internalRow.get[expr.Out](queryContext, expr)
+    val res = if (queryContext != null) {
+      val idx = queryContext.exprsIndex.getOrElse(expr, -1)
+      if (idx >= 0) {
+        internalRow.get[expr.Out](idx)
+      } else {
+        null.asInstanceOf[expr.Out]
+      }
     } else {
       null.asInstanceOf[expr.Out]
     }
+
     if (res == null) {
       eval(expr, queryContext, internalRow)
     } else {
