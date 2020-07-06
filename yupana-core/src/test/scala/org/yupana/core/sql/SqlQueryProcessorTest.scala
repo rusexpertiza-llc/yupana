@@ -1050,6 +1050,38 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     }
   }
 
+  it should "handle dimension ids" in {
+    testQuery("""SELECT id(TAG_A) as a_id, TAG_A as a
+        |  FROM test_table
+        |  WHERE time >= timestamp '2020-07-03' AND time <= timestamp '2020-07-06'
+        |        AND id(TAG_A) IN (1,2,3)
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+      q.fields should contain theSameElementsInOrderAs Seq(
+        DimensionIdExpr(TAG_A) as "a_id",
+        DimensionExpr(TAG_A) as "a"
+      )
+      q.filter.value shouldEqual and(
+        ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
+        le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
+        in(DimensionIdExpr(TAG_A), Set(1L, 2L, 3L))
+      )
+    }
+  }
+
+  it should "not allow to use id on other objects" in {
+    val q = """SELECT id(testField), testField
+              |  FROM test_table
+              |  WHERE time >= timestamp '2020-07-03' AND time <= timestamp '2020-07-06'
+              |        AND id(TAG_A) IN (1,2,3)
+              |""".stripMargin
+
+    inside(createQuery(q)) {
+      case Left(msg) =>
+        msg shouldEqual "Function id is applicable only to dimensions"
+    }
+  }
+
   it should "handle standard health check" in {
     testQuery("SELECT 1 as one") { q =>
       q.table shouldBe empty

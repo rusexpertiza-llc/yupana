@@ -259,6 +259,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Equ(ConstantExpr(c: String), DimensionExpr(dim)) =>
           filters.copy(incValues = DimensionFilter[String](dim, c) and filters.incValues)
 
+        case Equ(DimensionIdExpr(dim), ConstantExpr(c: Long)) =>
+          filters.copy(incIds = DimensionFilter[Long](dim, c) and filters.incIds)
+
+        case Equ(ConstantExpr(c: Long), DimensionIdExpr(dim)) =>
+          filters.copy(incIds = DimensionFilter[Long](dim, c) and filters.incIds)
+
         case Equ(TimeExpr, ConstantExpr(c: Time)) =>
           filters.copy(incTime = DimensionFilter[Time](TIME, c) and filters.incTime)
 
@@ -279,6 +285,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           val idFilter = if (dimIds.nonEmpty) DimensionFilter(Map(dim -> dimIds)) else NoResult[IdType]()
           filters.copy(incIds = idFilter and filters.incIds)
 
+        case InExpr(DimensionIdExpr(dim), dimIds) =>
+          val idFilter =
+            if (dimIds.nonEmpty) DimensionFilter(dim, dimIds.asInstanceOf[Set[Long]]) else NoResult[IdType]()
+          filters.copy(incIds = idFilter and filters.incIds)
+
         case Neq(DimensionExpr(dim), ConstantExpr(c: String)) =>
           filters.copy(excValues = DimensionFilter[String](dim, c).or(filters.excValues))
 
@@ -295,6 +306,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           val valFilter =
             if (consts.nonEmpty) DimensionFilter(dim, consts.asInstanceOf[Set[String]]) else NoResult[String]()
           filters.copy(excValues = valFilter or filters.excValues)
+
+        case NotInExpr(DimensionIdExpr(dim), dimIds) =>
+          val idFilter =
+            if (dimIds.nonEmpty) DimensionFilter(dim, dimIds.asInstanceOf[Set[Long]]) else NoResult[IdType]()
+          filters.copy(excIds = idFilter or filters.excIds)
 
         case NotInExpr(_: TimeExpr.type, consts) =>
           val valFilter =
@@ -388,6 +404,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         context.exprs.foreach {
           case e @ DimensionExpr(dim) =>
             valueDataBuilder.set(e, row.key.dimIds(context.dimIndexMap(dim)))
+          case e @ DimensionIdExpr(dim) =>
+            valueDataBuilder.set(e, row.key.dimIds(context.dimIndexMap(dim)))
           case e @ MetricExpr(field) =>
             valueDataBuilder.set(e, rowValues(field.tag))
           case TimeExpr => valueDataBuilder.set(TimeExpr, Some(Time(time)))
@@ -429,8 +447,14 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       case Equ(ConstantExpr(_), _: DimensionExpr)                    => true
       case Neq(_: DimensionExpr, ConstantExpr(_))                    => true
       case Neq(ConstantExpr(_), _: DimensionExpr)                    => true
+      case Equ(_: DimensionIdExpr, ConstantExpr(_))                  => true
+      case Equ(ConstantExpr(_), _: DimensionIdExpr)                  => true
+      case Neq(_: DimensionIdExpr, ConstantExpr(_))                  => true
+      case Neq(ConstantExpr(_), _: DimensionIdExpr)                  => true
       case InExpr(_: DimensionExpr, _)                               => true
       case NotInExpr(_: DimensionExpr, _)                            => true
+      case InExpr(_: DimensionIdExpr, _)                             => true
+      case NotInExpr(_: DimensionIdExpr, _)                          => true
       case _                                                         => false
     }
   }

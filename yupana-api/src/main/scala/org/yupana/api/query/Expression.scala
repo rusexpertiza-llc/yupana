@@ -163,6 +163,22 @@ object DimensionExpr {
   def unapply(expr: DimensionExpr): Option[Dimension] = Some(expr.dimension)
 }
 
+class DimensionIdExpr(val dimension: Dimension) extends Expression {
+  override type Out = Long
+  override val dataType: DataType.Aux[Long] = DataType[Long]
+  override def kind: ExprKind = Simple
+
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
+
+  override def encode: String = s"dimId(${dimension.name})"
+  def toField: QueryField = QueryField(dimension.name, this)
+}
+
+object DimensionIdExpr {
+  def apply(dimension: Dimension): DimensionIdExpr = new DimensionIdExpr(dimension)
+  def unapply(expr: DimensionIdExpr): Option[Dimension] = Some(expr.dimension)
+}
+
 case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[metric.T] = metric.dataType
