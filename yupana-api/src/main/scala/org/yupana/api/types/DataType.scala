@@ -92,6 +92,8 @@ object DataType {
 
   implicit val stringDt: DataType.Aux[String] = DataType[String](r => TypeOperations.stringOperations(r))
 
+//  implicit val hexDt: DataType.Aux[HexString] = DataType[HexString](r => TypeOperations.hexStringOperations(r))
+
   implicit val boolDt: DataType.Aux[Boolean] = DataType[Boolean](r => TypeOperations.boolOperations(r))
 
   implicit val timeDt: DataType.Aux[Time] = DataType[Time](r => TypeOperations.timeOperations(r))

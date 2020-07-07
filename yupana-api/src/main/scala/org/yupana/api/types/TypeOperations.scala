@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ HexString, Time }
 
 /**
   * Operations registry for a type `T`.
@@ -103,4 +103,7 @@ object TypeOperations {
       Map.empty
     )
   }
+
+  def hexStringOperations[T](dt: DataType.Aux[HexString]): TypeOperations[HexString] =
+    TypeOperations(Map.empty, Map.empty, Map.empty, Map.empty)
 }

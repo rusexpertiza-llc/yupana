@@ -174,8 +174,8 @@ object DimensionExpr {
 }
 
 class DimensionIdExpr(val dimension: Dimension) extends Expression {
-  override type Out = Long
-  override val dataType: DataType.Aux[Long] = DataType[Long]
+  override type Out = String
+  override val dataType: DataType.Aux[String] = DataType[String]
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)

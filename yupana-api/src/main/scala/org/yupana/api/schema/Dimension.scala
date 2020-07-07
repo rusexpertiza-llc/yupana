@@ -34,7 +34,7 @@ sealed trait Dimension {
   def name: String
   def dataType: DataType.Aux[T]
 
-  def aux: Dimension.Aux[T] = this
+  def aux: Dimension.Aux2[T, R] = this
 }
 
 object Dimension {

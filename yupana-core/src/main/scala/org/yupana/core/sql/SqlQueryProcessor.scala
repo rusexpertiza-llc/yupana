@@ -26,6 +26,7 @@ import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
+import org.yupana.core.utils.ConditionMatchers.Lower
 
 class SqlQueryProcessor(schema: Schema) {
 
@@ -619,8 +620,9 @@ object SqlQueryProcessor extends QueryValidator {
 
   private def createDimIdExpr(expr: Expression): Either[String, Expression] = {
     expr match {
-      case DimensionExpr(dim) => Right(DimensionIdExpr(dim))
-      case _                  => Left("Function id is applicable only to dimensions")
+      case DimensionExpr(dim)        => Right(DimensionIdExpr(dim))
+      case Lower(DimensionExpr(dim)) => Right(DimensionIdExpr(dim))
+      case _                         => Left("Function id is applicable only to dimensions")
     }
   }
 }

@@ -17,6 +17,7 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.commons.codec.binary.Hex
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
@@ -233,6 +234,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
+  private def dimValueFromString[R](dim: Dimension.Aux2[_, R], value: String): R = {
+    dim.rStorable.read(Hex.decodeHex(value.toCharArray))
+  }
+
   def createFilters(condition: Option[Condition]): Filters = {
     def createFilters(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
@@ -248,11 +253,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Equ(ConstantExpr(c), Lower(DimensionExpr(dim))) =>
           builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
-        case Equ(DimensionIdExpr(dim), ConstantExpr(c: Long)) =>
-          filters.copy(incIds = DimensionFilter[Long](dim, c) and filters.incIds)
+        case Equ(DimensionIdExpr(dim), ConstantExpr(c: String)) =>
+          builder.includeId(dim.aux, dimValueFromString(dim.aux, c))
 
-        case Equ(ConstantExpr(c: Long), DimensionIdExpr(dim)) =>
-          filters.copy(incIds = DimensionFilter[Long](dim, c) and filters.incIds)
+        case Equ(ConstantExpr(c: String), DimensionIdExpr(dim)) =>
+          builder.includeId(dim.aux, dimValueFromString(dim.aux, c))
 
         case Equ(TimeExpr, ConstantExpr(c: Time)) =>
           builder.includeTime(c)
@@ -276,9 +281,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           builder.includeIds(dim, dimIds)
 
         case InExpr(DimensionIdExpr(dim), dimIds) =>
-          val idFilter =
-            if (dimIds.nonEmpty) DimensionFilter(dim, dimIds.asInstanceOf[Set[Long]]) else NoResult[IdType]()
-          filters.copy(incIds = idFilter and filters.incIds)
+          builder.includeIds(dim.aux, dimIds.asInstanceOf[Set[String]].map(v => dimValueFromString(dim.aux, v)))
 
         case Neq(DimensionExpr(dim), ConstantExpr(c)) =>
           builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
@@ -305,9 +308,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
 
         case NotInExpr(DimensionIdExpr(dim), dimIds) =>
-          val idFilter =
-            if (dimIds.nonEmpty) DimensionFilter(dim, dimIds.asInstanceOf[Set[Long]]) else NoResult[IdType]()
-          filters.copy(excIds = idFilter or filters.excIds)
+          builder.excludeIds(dim.aux, dimIds.asInstanceOf[Set[String]].map(v => dimValueFromString(dim.aux, v)))
 
         case NotInExpr(_: TimeExpr.type, consts) =>
           builder.excludeTime(consts.asInstanceOf[Set[Time]])

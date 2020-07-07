@@ -1054,20 +1054,20 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   }
 
   it should "handle dimension ids" in {
-    testQuery("""SELECT id(TAG_A) as a_id, TAG_A as a
+    testQuery("""SELECT id(A) as a_id, A as a
         |  FROM test_table
         |  WHERE time >= timestamp '2020-07-03' AND time <= timestamp '2020-07-06'
-        |        AND id(TAG_A) IN (1,2,3)
+        |        AND id(A) IN ('1','2f','fa')
         |""".stripMargin) { q =>
       q.table.value shouldEqual TestSchema.testTable
       q.fields should contain theSameElementsInOrderAs Seq(
-        DimensionIdExpr(TAG_A) as "a_id",
-        DimensionExpr(TAG_A) as "a"
+        DimensionIdExpr(DIM_A) as "a_id",
+        DimensionExpr(DIM_A) as "a"
       )
       q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
-        in(DimensionIdExpr(TAG_A), Set(1L, 2L, 3L))
+        in(DimensionIdExpr(DIM_A), Set("1", "2f", "fa"))
       )
     }
   }
@@ -1076,7 +1076,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     val q = """SELECT id(testField), testField
               |  FROM test_table
               |  WHERE time >= timestamp '2020-07-03' AND time <= timestamp '2020-07-06'
-              |        AND id(TAG_A) IN (1,2,3)
+              |        AND id(A) IN (1,2,3)
               |""".stripMargin
 
     inside(createQuery(q)) {
