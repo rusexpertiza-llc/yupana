@@ -19,7 +19,7 @@ package org.yupana.api.types
 import java.sql.Types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ HexString, Time }
 
 /**
   * Contains different meta information for type `T`
@@ -66,7 +66,8 @@ object DataTypeMeta {
   implicit val periodMeta: DataTypeMeta[Period] =
     DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
 
-//  implicit val hexStringMeta: DataTypeMeta[HexString] = DataTypeMeta(Types.)
+  implicit val hexStringMeta: DataTypeMeta[HexString] =
+    DataTypeMeta(Types.VARCHAR, Integer.MAX_VALUE, "HEX", classOf[java.lang.String], Integer.MAX_VALUE, 0)
 
   implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
     DataTypeMeta(

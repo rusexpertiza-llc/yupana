@@ -16,8 +16,11 @@
 
 package org.yupana.api.types
 
+import org.yupana.api.HexString
+
 /**
   * Converter from type `In` to `Out`. Usually works with numeric types, increasing precision.
+  *
   * @param dataType output data type
   * @param functionName name of this converter
   * @param direct conversion function from `In` to `Out`
@@ -58,6 +61,9 @@ object TypeConverter {
   val byte2BigDecimal: TypeConverter[Byte, BigDecimal] =
     of(x => BigDecimal(x), x => if (x.isValidByte) Some(x.toByte) else None)
 
+  val hexToString: TypeConverter[HexString, String] =
+    of(x => x.hex, x => if (HexString.isValidHex(x)) Some(HexString(x)) else None)
+
   def of[T, U](f: T => U, rev: U => Option[T])(
       implicit
       rtt: DataType.Aux[T],
@@ -86,7 +92,8 @@ object TypeConverter {
     entry[Int, Long](int2Long),
     entry[Int, BigDecimal](int2BigDecimal),
     entry[Short, BigDecimal](short2BigDecimal),
-    entry[Byte, BigDecimal](byte2BigDecimal)
+    entry[Byte, BigDecimal](byte2BigDecimal),
+    entry[HexString, String](hexToString)
   )
 
 }

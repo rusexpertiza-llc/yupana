@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ HexString, Time }
 
 import scala.reflect.ClassTag
 
@@ -41,7 +41,7 @@ trait DataType extends Serializable {
     else
       obj match {
         case that: DataType =>
-          this.meta == that.meta
+          this.classTag == that.classTag
         case _ => false
       }
   }
@@ -92,7 +92,8 @@ object DataType {
 
   implicit val stringDt: DataType.Aux[String] = DataType[String](r => TypeOperations.stringOperations(r))
 
-//  implicit val hexDt: DataType.Aux[HexString] = DataType[HexString](r => TypeOperations.hexStringOperations(r))
+  implicit val hexDt: DataType.Aux[HexString] =
+    DataType[HexString]((r: DataType.Aux[HexString]) => TypeOperations.hexStringOperations(r))
 
   implicit val boolDt: DataType.Aux[Boolean] = DataType[Boolean](r => TypeOperations.boolOperations(r))
 

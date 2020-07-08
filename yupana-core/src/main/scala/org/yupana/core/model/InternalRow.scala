@@ -17,7 +17,7 @@
 package org.yupana.core.model
 
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr, TimeExpr }
+import org.yupana.api.query.{ DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr }
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.QueryContext
 
@@ -72,8 +72,13 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
           val tag = expr match {
             case MetricExpr(metric) =>
               Some(metric.tag)
+
             case DimensionExpr(dimension: Dimension) =>
               Some(table.dimensionTag(dimension))
+
+            case DimensionIdExpr(dimension: Dimension) =>
+              Some(table.dimensionTag(dimension))
+
             case _ => None
           }
           tag.foreach { t =>

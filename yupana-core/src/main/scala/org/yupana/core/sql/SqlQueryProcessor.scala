@@ -243,10 +243,11 @@ object SqlQueryProcessor extends QueryValidator {
         } yield fexpr
     }
 
-    e.right.map { ex =>
-      if (exprType == ExprType.Cmp && ex.dataType == DataType[String]) {
+    e.right.map {
+      case die: DimensionIdExpr => die
+      case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] =>
         UnaryOperationExpr(UnaryOperation.lower, ex.asInstanceOf[Expression.Aux[String]])
-      } else ex
+      case ex => ex
     }
 
   }

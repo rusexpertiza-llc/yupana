@@ -16,15 +16,18 @@
 
 package org.yupana.api
 
-case class HexString(hex: String) {
-  def toBytes: Array[Byte] = HexString.stringToBytes(hex)
+case class HexString(bytes: Array[Byte]) {
+  lazy val hex: String = HexString.bytesToString(bytes)
+
+  override def toString: String = s"0x$hex"
 }
 
 object HexString {
   private val digits = Array('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f')
 
-  def apply(bytes: Array[Byte]): HexString = {
-    new HexString(bytesToString(bytes))
+  def apply(string: String): HexString = {
+    if (!HexString.isValidHex(string)) throw new IllegalArgumentException(s"$string is not valid hex value")
+    new HexString(stringToBytes(string))
   }
 
   def bytesToString(bytes: Array[Byte]): String = {
@@ -41,15 +44,16 @@ object HexString {
 
   def stringToBytes(string: String): Array[Byte] = {
     assert(isValidHex(string))
-    val result = new Array[Byte](string.length >> 1)
+    val fixed = if (string.length % 2 == 0) string else '0' + string
+    val result = new Array[Byte](fixed.length >> 1)
 
     result.indices.foreach { i =>
-      result(i) = (Character.digit(string(i * 2 + 1), 16) + Character.digit(string(i * 2), 16) * 16).toByte
+      result(i) = (Character.digit(fixed(i * 2 + 1), 16) + Character.digit(fixed(i * 2), 16) * 16).toByte
     }
 
     result
   }
 
   def isValidHex(string: String): Boolean =
-    string.length % 2 == 0 && string.toLowerCase.forall(c => c.isDigit || (c >= 'a' && c <= 'f'))
+    string.toLowerCase.forall(c => c.isDigit || (c >= 'a' && c <= 'f'))
 }

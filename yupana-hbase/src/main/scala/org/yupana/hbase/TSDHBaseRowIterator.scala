@@ -103,7 +103,7 @@ class TSDHBaseRowIterator(
     nextMinTime
   }
 
-  private def loadRow(rowKey: Array[Byte]) = {
+  private def loadRow(rowKey: Array[Byte]): Unit = {
     val baseTime = Bytes.toLong(rowKey)
     internalRowBuilder.set(Some(Time(baseTime + currentTime)))
     var i = 0
