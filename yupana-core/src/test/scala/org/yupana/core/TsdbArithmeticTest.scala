@@ -65,13 +65,13 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
       )
@@ -79,10 +79,10 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("some_sum").value shouldBe 3d
+    r1.get[Double]("some_sum") shouldBe 3d
 
     val r2 = rows.next()
-    r2.fieldValueByName[Double]("some_sum").value shouldBe 7d
+    r2.get[Double]("some_sum") shouldBe 7d
 
     rows.hasNext shouldBe false
   }
@@ -111,15 +111,15 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("taga"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "taga")
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("taga"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "taga")
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
       )
@@ -127,8 +127,8 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("stf").value shouldBe 4d
-    r1.fieldValueByName[Double]("mult").value shouldBe 8d
+    r1.get[Double]("stf") shouldBe 4d
+    r1.get[Double]("mult") shouldBe 8d
 
     rows.hasNext shouldBe false
   }
@@ -180,17 +180,17 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "0000270761025003")
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(dimension(TestDims.DIM_A), Some("0000270761025003"))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("3"))
+          b.set(time, Time(pointTime))
+            .set(dimension(TestDims.DIM_A), "0000270761025003")
+            .set(metric(TestTableFields.TEST_FIELD), 3d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
             .buildAndReset()
         )
       )
@@ -198,7 +198,7 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("totalSum").value shouldBe -6d
+    r1.get[Double]("totalSum") shouldBe -6d
 
     rows.hasNext shouldBe false
   }
@@ -224,13 +224,13 @@ class TsdbArithmeticTest
         )
         .onCall((_, b, _) =>
           Iterator(
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-              .set(metric(TestTableFields.TEST_FIELD2), Some(2d))
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_FIELD), 1d)
+              .set(metric(TestTableFields.TEST_FIELD2), 2d)
               .buildAndReset(),
-            b.set(time, Some(Time(pointTime)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-              .set(metric(TestTableFields.TEST_FIELD2), Some(4d))
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_FIELD), 1d)
+              .set(metric(TestTableFields.TEST_FIELD2), 4d)
               .buildAndReset()
           )
         )
@@ -238,8 +238,8 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query).iterator
 
       val r1 = rows.next()
-      r1.fieldValueByName[Long]("plus4").value shouldBe 4
-      r1.fieldValueByName[Long]("plus5").value shouldBe 3
+      r1.get[Long]("plus4") shouldBe 4
+      r1.get[Long]("plus5") shouldBe 3
 
       rows.hasNext shouldBe false
   }
@@ -263,9 +263,9 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1d))
-            .set(metric(TestTableFields.TEST_LONG_FIELD), Some(3L))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
             .buildAndReset()
         )
       )
@@ -273,7 +273,7 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[Double]("plus2").value shouldBe 4d
+    r1.get[Double]("plus2") shouldBe 4d
 
     rows.hasNext shouldBe false
   }
@@ -299,17 +299,17 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_A), Some("0000270761025003")).buildAndReset()
+          b.set(time, Time(pointTime)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset(),
+          b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset()
         )
       )
 
     val rows = tsdb.query(query).iterator
 
     val r1 = rows.next()
-    r1.fieldValueByName[String]("A").value shouldBe "0000270761025003"
-    r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime2)
-    r1.fieldValueByName[Time]("lag_time").value shouldBe Time(pointTime)
+    r1.get[String]("A") shouldBe "0000270761025003"
+    r1.get[Time]("time") shouldBe Time(pointTime2)
+    r1.get[Time]("lag_time") shouldBe Time(pointTime)
 
     rows.hasNext shouldBe false
   }
@@ -337,14 +337,14 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Mayorova"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime2)))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Blatov"))
+          b.set(time, Time(pointTime2))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Blatov")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime3)))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Mayorova"))
+          b.set(time, Time(pointTime3))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
             .buildAndReset()
         )
       )
@@ -352,8 +352,8 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query).iterator.toList
     rows should have size 1
     val row = rows.head
-    row.fieldValueByName[String]("operator").value shouldBe "Blatov"
-    row.fieldValueByName[String]("lag_operator").value shouldBe "Mayorova"
+    row.get[String]("operator") shouldBe "Blatov"
+    row.get[String]("lag_operator") shouldBe "Mayorova"
   }
 
   it should "handle arithmetic with window functions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -376,17 +376,17 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(metric(TestTableFields.TEST_FIELD), Some(1d)).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(metric(TestTableFields.TEST_FIELD), Some(5d)).buildAndReset()
+          b.set(time, Time(pointTime)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
+          b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 5d).buildAndReset()
         )
       )
 
     val rows = tsdb.query(query).iterator.toList
 
     val r1 = rows.head
-    r1.fieldValueByName[Double]("testField").value shouldBe 5d
-    r1.fieldValueByName[Double]("lag(testField)").value shouldBe 1d
-    r1.fieldValueByName[Double]("plus2").value shouldBe 6d
+    r1.get[Double]("testField") shouldBe 5d
+    r1.get[Double]("lag(testField)") shouldBe 1d
+    r1.get[Double]("plus2") shouldBe 6d
 
     rows should have size 1
   }
@@ -414,19 +414,19 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), Some(12)).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), Some(15)).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15).buildAndReset()
         )
       )
 
     (link5.setLinkedValues _)
       .expects(*, *, *)
-      .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, Some(15.23))))
+      .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, 15.23)))
 
     val rows = tsdb.query(query).iterator.toList
 
     val r1 = rows.head
-    r1.fieldValueByName[Double]("plus5").value shouldBe 20.23
+    r1.get[Double]("plus5") shouldBe 20.23
 
     rows should have size 2
   }

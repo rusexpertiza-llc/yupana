@@ -105,13 +105,13 @@ class TSDHBaseRowIterator(
 
   private def loadRow(rowKey: Array[Byte]) = {
     val baseTime = Bytes.toLong(rowKey)
-    internalRowBuilder.set(Some(Time(baseTime + currentTime)))
+    internalRowBuilder.set(Time(baseTime + currentTime))
     var i = 0
     val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
       val value = dim.rStorable.read(bb)
       if (dim.isInstanceOf[RawDimension[_]]) {
-        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, Some(value))
+        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
       }
       i += 1
     }
@@ -125,13 +125,13 @@ class TSDHBaseRowIterator(
       context.table.fieldForTag(tag) match {
         case Some(Left(metric)) =>
           val v = metric.dataType.storable.read(bb)
-          internalRowBuilder.set(tag, Some(v))
+          internalRowBuilder.set(tag, v)
         case Some(Right(_: DictionaryDimension)) =>
           val v = DataType.stringDt.storable.read(bb)
-          internalRowBuilder.set(tag, Some(v))
+          internalRowBuilder.set(tag, v)
         case Some(Right(hd: HashDimension[_, _])) =>
           val v = hd.tStorable.read(bb)
-          internalRowBuilder.set(tag, Some(v))
+          internalRowBuilder.set(tag, v)
         case _ =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}")
           correct = false

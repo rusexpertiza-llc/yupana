@@ -71,7 +71,7 @@ class TSDB(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: Iterator[Array[Option[Any]]],
+      data: Iterator[Array[Any]],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
@@ -103,7 +103,10 @@ class TSDB(
       case winFuncExpr: WindowFunctionExpr =>
         val values = grouped.mapValues {
           case (vs, rowNumIndex) =>
-            val funcValues = vs.map(_.get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr))
+            val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
+            vs.indices.foreach { i =>
+              funcValues(i) = vs(i).get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr)
+            }
             (funcValues, rowNumIndex)
         }
         winFuncExpr -> values
@@ -115,7 +118,7 @@ class TSDB(
           case (winFuncExpr, groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = winFuncExpr.operation(group.asInstanceOf[Array[Option[winFuncExpr.expr.Out]]], index)
+              val value = winFuncExpr.operation(group.asInstanceOf[Array[winFuncExpr.expr.Out]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }

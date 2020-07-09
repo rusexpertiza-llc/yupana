@@ -84,10 +84,9 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
     keyValueData.zip(valueData).foreach {
       case (kvd, vd) =>
-        kvd.get[String](indexMap(keyExpr)).foreach { keyValue =>
-          exprs.foreach { expr =>
-            vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField.name)(keyValue))
-          }
+        val keyValue = kvd.get[String](indexMap(keyExpr))
+        exprs.foreach { expr =>
+          vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField.name)(keyValue))
         }
     }
   }
@@ -130,10 +129,10 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     } else Set.empty
   }
 
-  private def fieldValueForKeyValue(fieldName: String)(keyValue: String): Option[String] = {
+  private def fieldValueForKeyValue(fieldName: String)(keyValue: String): String = {
     val idx = getFieldIndex(fieldName)
     val rows = multiIndex(keyIndex).getOrElse(keyValue, Set.empty)
-    rows.map(row => data(row)(idx)).headOption
+    rows.map(row => data(row)(idx)).headOption.orNull
   }
 
   private def getFieldIndex(field: String): Int = {

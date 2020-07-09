@@ -28,7 +28,7 @@ import org.yupana.api.query.{ DataRow, QueryField }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
-class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override val queryContext: QueryContext)
+class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val queryContext: QueryContext)
     extends RDD[DataRow](rows)
     with TsdbResultBase[RDD] {
 
@@ -51,11 +51,11 @@ class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override
     StructType(fields)
   }
 
-  private def createRow(a: Array[Option[Any]], fields: Seq[QueryField]): Row = {
+  private def createRow(a: Array[Any], fields: Seq[QueryField]): Row = {
     val values = fields.indices.map(idx =>
       a(dataIndexForFieldIndex(idx)) match {
-        case Some(Time(t)) => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
-        case x             => x.orNull
+        case Time(t) => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
+        case x       => x
       }
     )
     Row(values: _*)

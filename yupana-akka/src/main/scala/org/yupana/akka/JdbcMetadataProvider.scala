@@ -46,8 +46,8 @@ class JdbcMetadataProvider(schema: Schema) {
   val tableFieldNames = List("TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "TABLE_TYPE", "REMARKS")
 
   def listTables: Result = {
-    val data: Iterator[Array[Option[Any]]] = schema.tables.keys.map { name =>
-      Array[Option[Any]](None, None, Some(name), Some("TABLE"), None)
+    val data: Iterator[Array[Any]] = schema.tables.keys.map { name =>
+      Array[Any](null, null, name, "TABLE", null)
     }.iterator
     SimpleResult("TABLES", tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
   }
@@ -75,30 +75,30 @@ class JdbcMetadataProvider(schema: Schema) {
       )
     } toRight s"Unknown schema '$tableName'"
 
-  private def columnsArray[T](tableName: String, name: String, typeMeta: DataTypeMeta[T]): Array[Option[Any]] = {
+  private def columnsArray[T](tableName: String, name: String, typeMeta: DataTypeMeta[T]): Array[Any] = {
     columnsArray(tableName, name, typeMeta.sqlType, typeMeta.sqlTypeName)
   }
 
-  private def columnsArray(tableName: String, name: String, sqlType: Int, typeName: String): Array[Option[Any]] = {
-    Array[Option[Any]](
-      None,
-      None,
-      Some(tableName),
-      Some(name),
-      Some(sqlType),
-      Some(typeName),
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None
+  private def columnsArray(tableName: String, name: String, sqlType: Int, typeName: String): Array[Any] = {
+    Array[Any](
+      null,
+      null,
+      tableName,
+      name,
+      sqlType,
+      typeName,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
     )
   }
 }

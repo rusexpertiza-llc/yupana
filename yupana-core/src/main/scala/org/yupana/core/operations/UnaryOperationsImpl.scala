@@ -24,44 +24,50 @@ import org.yupana.utils.Tokenizer
 import scala.collection.AbstractIterator
 
 trait UnaryOperationsImpl extends UnaryOperations {
-  override def unaryMinus[N](n: Option[N])(implicit numeric: Numeric[N]): Option[N] = n.map(numeric.negate)
-  override def abs[N](n: Option[N])(implicit numeric: Numeric[N]): Option[N] = n.map(numeric.abs)
+  override def unaryMinus[N](n: N)(implicit numeric: Numeric[N]): N = orNull[N, N](n)(numeric.negate)
+  override def abs[N](n: N)(implicit numeric: Numeric[N]): N = orNull[N, N](n)(numeric.abs)
 
-  override def isNull[T](t: Option[T]): Option[Boolean] = Some(t.isEmpty)
-  override def isNotNull[T](t: Option[T]): Option[Boolean] = Some(t.isDefined)
+  override def isNull[T](t: T): Boolean = t == null
+  override def isNotNull[T](t: T): Boolean = t != null
 
-  override def not(x: Option[Boolean]): Option[Boolean] = x.map(!_)
+  override def not(x: Boolean): Boolean = !x
 
-  override def extractYear(t: Option[Time]): Option[Int] = t.map(_.toLocalDateTime.getYear)
-  override def extractMonth(t: Option[Time]): Option[Int] = t.map(_.toLocalDateTime.getMonthOfYear)
-  override def extractDay(t: Option[Time]): Option[Int] = t.map(_.toLocalDateTime.getDayOfMonth)
-  override def extractHour(t: Option[Time]): Option[Int] = t.map(_.toLocalDateTime.getHourOfDay)
-  override def extractMinute(t: Option[Time]): Option[Int] = t.map(_.toLocalDateTime.getMinuteOfHour)
-  override def extractSecond(t: Option[Time]): Option[Int] = t.map(_.toLocalDateTime.getSecondOfMinute)
+  override def extractYear(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getYear)
+  override def extractMonth(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getMonthOfYear)
+  override def extractDay(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getDayOfMonth)
+  override def extractHour(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getHourOfDay)
+  override def extractMinute(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getMinuteOfHour)
+  override def extractSecond(t: Time): Int = orNull[Time, Int](t)(_.toLocalDateTime.getSecondOfMinute)
 
-  override def trunc(fieldType: DateTimeFieldType)(time: Option[Time]): Option[Time] = truncateTime(time, fieldType)
-  override def truncYear(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.year())
-  override def truncMonth(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.monthOfYear())
-  override def truncWeek(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.weekOfWeekyear())
-  override def truncDay(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.dayOfMonth())
-  override def truncHour(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.hourOfDay())
-  override def truncMinute(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.minuteOfHour())
-  override def truncSecond(t: Option[Time]): Option[Time] = truncateTime(t, DateTimeFieldType.secondOfDay())
+  override def trunc(fieldType: DateTimeFieldType)(time: Time): Time =
+    orNull[Time, Time](time)(truncateTime(_, fieldType))
+  override def truncYear(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.year()))
+  override def truncMonth(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.monthOfYear()))
+  override def truncWeek(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.weekOfWeekyear()))
+  override def truncDay(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.dayOfMonth()))
+  override def truncHour(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.hourOfDay()))
+  override def truncMinute(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.minuteOfHour()))
+  override def truncSecond(t: Time): Time = orNull[Time, Time](t)(truncateTime(_, DateTimeFieldType.secondOfDay()))
 
-  override def stringLength(s: Option[String]): Option[Int] = s.map(_.length)
-  override def lower(s: Option[String]): Option[String] = s.map(_.toLowerCase)
-  override def upper(s: Option[String]): Option[String] = s.map(_.toUpperCase)
+  override def stringLength(s: String): Int = if (s != null) s.length else 0
+  override def lower(s: String): String = orNull[String, String](s)(_.toLowerCase)
+  override def upper(s: String): String = orNull[String, String](s)(_.toUpperCase)
 
-  override def tokens(s: Option[String]): Option[Array[String]] = s.map(tokenize)
-  override def splitString(s: Option[String]): Option[Array[String]] =
-    s.map(v => splitBy(v, !_.isLetterOrDigit).toArray)
+  override def tokens(s: String): Array[String] = orNull[String, Array[String]](s)(tokenize)
+  override def splitString(s: String): Array[String] =
+    orNull[String, Array[String]](s)(splitBy(_, !_.isLetterOrDigit).toArray)
 
-  override def arrayToString[T](a: Option[Array[T]]): Option[String] = a.map(_.mkString("(", ", ", ")"))
-  override def arrayLength[T](a: Option[Array[T]]): Option[Int] = a.map(_.length)
-  override def tokenizeArray(a: Option[Array[String]]): Option[Array[String]] = a.map(_.flatMap(tokenize))
+  override def arrayToString[T](a: Array[T]): String = orNull[Array[T], String](a)(_.mkString("(", ", ", ")"))
+  override def arrayLength[T](a: Array[T]): Int = if (a != null) a.length else 0
+  override def tokenizeArray(a: Array[String]): Array[String] =
+    orNull[Array[String], Array[String]](a)(_.flatMap(tokenize))
 
-  private def truncateTime(time: Option[Time], interval: DateTimeFieldType): Option[Time] = {
-    time.map(t => Time(t.toDateTime.property(interval).roundFloorCopy().getMillis))
+  private def truncateTime(time: Time, interval: DateTimeFieldType): Time = {
+    orNull[Time, Time](time)(t => Time(t.toDateTime.property(interval).roundFloorCopy().getMillis))
+  }
+
+  private def orNull[T, O](v: T)(f: T => O): O = {
+    if (v != null) f(v) else null.asInstanceOf[O]
   }
 
   private def tokenize(s: String): Array[String] = Tokenizer.transliteratedTokens(s).toArray

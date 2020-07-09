@@ -23,10 +23,9 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
     override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
       valueData.foreach { vd =>
-        vd.get[Int](indexMap, DimensionExpr(externalLink.dimension)).foreach { tagValue =>
-          val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
-          vd.set(indexMap, keyExpr, keyValue)
-        }
+        val tagValue = vd.get[Int](indexMap, DimensionExpr(externalLink.dimension))
+        val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption).orNull
+        vd.set(indexMap, keyExpr, keyValue)
       }
     }
 
@@ -77,9 +76,9 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     val builder = new InternalRowBuilder(exprIndex, None)
 
     val valueData = Seq(
-      builder.set(time, Some(Time(100))).set(dimension(RawDimension[Int]("TAG_Y")), Some(1)).buildAndReset(),
-      builder.set(time, Some(Time(200))).set(dimension(RawDimension[Int]("TAG_Y")), Some(4)).buildAndReset(),
-      builder.set(time, Some(Time(300))).set(dimension(RawDimension[Int]("TAG_Y")), Some(42)).buildAndReset()
+      builder.set(time, Time(100)).set(dimension(RawDimension[Int]("TAG_Y")), 1).buildAndReset(),
+      builder.set(time, Time(200)).set(dimension(RawDimension[Int]("TAG_Y")), 4).buildAndReset(),
+      builder.set(time, Time(300)).set(dimension(RawDimension[Int]("TAG_Y")), 42).buildAndReset()
     )
 
     testCatalog.setLinkedValues(
@@ -93,19 +92,19 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     )
 
     val r1 = valueData(0)
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual Some("foo")
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual Some("bar")
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual Some("baz")
+    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "foo"
+    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bar"
+    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "baz"
 
     val r2 = valueData(1)
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual Some("aaa")
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual Some("bbb")
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual Some("at")
+    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "aaa"
+    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bbb"
+    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
 
     val r3 = valueData(2)
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe empty
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe empty
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe empty
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe null
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe null
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe null
 
   }
 

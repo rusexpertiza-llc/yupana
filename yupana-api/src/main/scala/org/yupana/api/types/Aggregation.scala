@@ -41,9 +41,6 @@ trait Aggregation[T] extends Serializable {
   /** This aggregation name */
   val name: String
 
-  /** Default empty aggregation value */
-  def emptyValue(implicit a: Aggregations): Option[Out]
-
   /**
     * Map input value of type `T` to `Interim` type
     * @param t value to be mapped
@@ -107,7 +104,6 @@ object Aggregation {
       override def map(t: T)(implicit a: Aggregations): U = f(a).map(t)
       override def reduce(x: U, y: U)(implicit a: Aggregations): U = f(a).reduce(x, y)
       override def postMap(x: U)(implicit a: Aggregations): V = f(a).postMap(x)
-      override def emptyValue(implicit a: Aggregations): Option[V] = f(a).emptyValue
 
       override val dataType: DataType.Aux[Out] = dt
     }
@@ -150,8 +146,7 @@ object Aggregation {
 class AggregationImpl[T, I, O](
     val map: T => I,
     val reduce: (I, I) => I,
-    val postMap: I => O,
-    val emptyValue: Option[O]
+    val postMap: I => O
 )
 
 trait Aggregations {
