@@ -35,7 +35,7 @@ case class TypeOperations[T](
 ) {
   def biOperation[U](name: String, argType: DataType.Aux[U]): Option[BinaryOperation.Aux[T, U, _]] = {
     binaryOperations
-      .get((name, argType.meta.sqlTypeName))
+      .get((name, argType.meta.realSqlType))
       .map(op => op.asInstanceOf[BinaryOperation.Aux[T, U, op.Out]])
   }
   def unaryOperation(name: String): Option[UnaryOperation[T]] = unaryOperations.get(name)
@@ -105,5 +105,10 @@ object TypeOperations {
   }
 
   def hexStringOperations[T](dt: DataType.Aux[HexString]): TypeOperations[HexString] =
-    TypeOperations(Map.empty, Map.empty, Map.empty, Map.empty)
+    TypeOperations(
+      BinaryOperation.hexStringOperations,
+      Map.empty,
+      Aggregation.hexAggregations,
+      Map.empty
+    )
 }

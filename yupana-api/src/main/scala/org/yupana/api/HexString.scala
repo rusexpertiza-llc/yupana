@@ -16,8 +16,19 @@
 
 package org.yupana.api
 
+import scala.util.hashing.MurmurHash3
+
 case class HexString(bytes: Array[Byte]) {
   lazy val hex: String = HexString.bytesToString(bytes)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case HexString(thatBytes) => this.bytes sameElements thatBytes
+    case _                    => false
+  }
+
+  override def hashCode(): Int = {
+    MurmurHash3.arrayHash(bytes)
+  }
 
   override def toString: String = s"0x$hex"
 }

@@ -16,7 +16,7 @@
 
 package org.yupana.core.model
 
-import org.yupana.api.Time
+import org.yupana.api.{ HexString, Time }
 import org.yupana.api.query.{ DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr }
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.QueryContext
@@ -61,7 +61,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     extends Serializable {
   private val data = Array.fill(exprIndex.size)(Option.empty[Any])
 
-  val timeIndex = exprIndex.getOrElse(TimeExpr, -1)
+  val timeIndex: Int = exprIndex.getOrElse(TimeExpr, -1)
 
   private val tagExprsIndexes: Array[Int] = table match {
     case Some(table) =>
@@ -76,9 +76,6 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
             case DimensionExpr(dimension: Dimension) =>
               Some(table.dimensionTag(dimension))
 
-            case DimensionIdExpr(dimension: Dimension) =>
-              Some(table.dimensionTag(dimension))
-
             case _ => None
           }
           tag.foreach { t =>
@@ -90,14 +87,41 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     case None => Array.empty
   }
 
+  private val dimIdIndex: Array[Int] = table match {
+    case Some(table) =>
+      val tagIndex = Array.fill[Int](Table.MAX_TAGS)(-1)
+
+      exprIndex.toSeq.foreach {
+        case (DimensionIdExpr(dimension: Dimension), index) =>
+          val t = table.dimensionTag(dimension)
+          tagIndex(t & 0xFF) = index
+
+        case _ =>
+      }
+
+      tagIndex
+
+    case None =>
+      Array.empty
+  }
+
   def this(queryContext: QueryContext) = this(queryContext.exprsIndex, queryContext.query.table)
 
-  def set(tag: Byte, v: Option[Any]): Unit = {
+  def set(tag: Int, v: Option[Any]): Unit = {
     val index = tagExprsIndexes(tag & 0xFF)
     if (index != -1) {
       data(index) = v
     }
   }
+
+  def setId(tag: Int, v: Option[HexString]): Unit = {
+    val index = dimIdIndex(tag & 0xFF)
+    if (index != -1) {
+      data(index) = v
+    }
+  }
+
+  def needId(tag: Int): Boolean = dimIdIndex(tag & 0xFF) != -1
 
   def set(time: Option[Time]): Unit = {
     if (timeIndex != -1) data(timeIndex) = time

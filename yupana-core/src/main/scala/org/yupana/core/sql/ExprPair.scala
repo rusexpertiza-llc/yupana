@@ -39,13 +39,14 @@ object ExprPair {
       Right(const.v.asInstanceOf[dataType.T])
     } else {
       TypeConverter(const.dataType, dataType.aux)
-        .map(conv => conv.direct(const.v))
+        .map(conv => conv.convert(const.v))
         .orElse(
-          TypeConverter(dataType.aux, const.dataType)
-            .flatMap(conv => conv.reverse(const.v))
+          TypeConverter
+            .partial(const.dataType, dataType.aux)
+            .flatMap(conv => conv.convert(const.v))
         )
         .toRight(
-          s"Cannot convert value '${const.v}' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
+          s"Cannot convert value '${const.v}' of type ${const.dataType.meta.realSqlType} to ${dataType.meta.realSqlType}"
         )
     }
   }
@@ -75,6 +76,6 @@ object ExprPair {
         TypeConverter(cb.dataType, ca.dataType)
           .map(bToA => ExprPair[ca.Out](ca.aux, TypeConvertExpr(bToA, cb.aux)))
       )
-      .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
+      .toRight(s"Incompatible types ${ca.dataType.meta.realSqlType}($ca) and ${cb.dataType.meta.realSqlType}($cb)")
   }
 }

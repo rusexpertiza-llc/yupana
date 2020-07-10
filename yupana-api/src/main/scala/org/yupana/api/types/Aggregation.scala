@@ -16,7 +16,7 @@
 
 package org.yupana.api.types
 
-import org.yupana.api.Time
+import org.yupana.api.{ HexString, Time }
 
 /**
   * Aggregation definition
@@ -118,6 +118,12 @@ object Aggregation {
     COUNT -> Aggregation.count[String],
     DISTINCT_COUNT -> Aggregation.distinctCount[String],
     DISTINCT_RANDOM -> Aggregation.distinctRandom[String]
+  )
+
+  lazy val hexAggregations: Map[String, Aggregation[HexString]] = Map(
+    COUNT -> Aggregation.count[HexString],
+    DISTINCT_COUNT -> Aggregation.distinctCount[HexString],
+    DISTINCT_RANDOM -> Aggregation.distinctRandom[HexString]
   )
 
   lazy val timeAggregations: Map[String, Aggregation[Time]] = Map(

@@ -233,7 +233,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def dimValueFromString[R](dim: Dimension.Aux2[_, R], value: HexString): R = {
+  private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: HexString): R = {
     dim.rStorable.read(value.bytes)
   }
 
@@ -253,10 +253,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
         case Equ(DimensionIdExpr(dim), ConstantExpr(c: HexString)) =>
-          builder.includeId(dim.aux, dimValueFromString(dim.aux, c))
+          builder.includeId(dim.aux, dimIdValueFromString(dim.aux, c))
 
         case Equ(ConstantExpr(c: HexString), DimensionIdExpr(dim)) =>
-          builder.includeId(dim.aux, dimValueFromString(dim.aux, c))
+          builder.includeId(dim.aux, dimIdValueFromString(dim.aux, c))
 
         case Equ(TimeExpr, ConstantExpr(c: Time)) =>
           builder.includeTime(c)
@@ -280,7 +280,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           builder.includeIds(dim, dimIds)
 
         case InExpr(DimensionIdExpr(dim), dimIds) =>
-          builder.includeIds(dim.aux, dimIds.asInstanceOf[Set[HexString]].map(v => dimValueFromString(dim.aux, v)))
+          println(s"!!!! include ids $dimIds")
+          builder.includeIds(dim.aux, dimIds.asInstanceOf[Set[HexString]].map(v => dimIdValueFromString(dim.aux, v)))
 
         case Neq(DimensionExpr(dim), ConstantExpr(c)) =>
           builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
@@ -307,7 +308,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
 
         case NotInExpr(DimensionIdExpr(dim), dimIds) =>
-          builder.excludeIds(dim.aux, dimIds.asInstanceOf[Set[HexString]].map(v => dimValueFromString(dim.aux, v)))
+          builder.excludeIds(dim.aux, dimIds.asInstanceOf[Set[HexString]].map(v => dimIdValueFromString(dim.aux, v)))
 
         case NotInExpr(_: TimeExpr.type, consts) =>
           builder.excludeTime(consts.asInstanceOf[Set[Time]])

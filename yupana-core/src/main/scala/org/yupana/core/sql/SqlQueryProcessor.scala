@@ -244,12 +244,10 @@ object SqlQueryProcessor extends QueryValidator {
     }
 
     e.right.map {
-      case die: DimensionIdExpr => die
-      case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] =>
+      case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] && ex.kind != Const =>
         UnaryOperationExpr(UnaryOperation.lower, ex.asInstanceOf[Expression.Aux[String]])
       case ex => ex
     }
-
   }
 
   private def createUMinus(
@@ -261,7 +259,7 @@ object SqlQueryProcessor extends QueryValidator {
     expr match {
       // TODO: this may be removed when we will calculate constant values before query execution
       case parser.Constant(parser.NumericValue(n)) => Right(ConstantExpr(-n))
-      case x =>
+      case _ =>
         for {
           e <- createExpr(state, resolver, expr, exprType).right
           u <- createUnaryFunctionExpr("-", e).right
@@ -359,7 +357,7 @@ object SqlQueryProcessor extends QueryValidator {
           pair <- ExprPair.alignTypes(l, r).right
           biOperation <- pair.dataType.operations
             .biOperation(fun, pair.dataType)
-            .toRight(s"Unsupported operation $fun on ${l.dataType} and ${r.dataType}")
+            .toRight(s"Unsupported operation $fun on ${l.dataType.meta.realSqlType} and ${r.dataType.meta.realSqlType}")
             .right
         } yield {
           BinaryOperationExpr[pair.T, pair.T, biOperation.Out](biOperation, pair.a, pair.b).asInstanceOf[Expression]

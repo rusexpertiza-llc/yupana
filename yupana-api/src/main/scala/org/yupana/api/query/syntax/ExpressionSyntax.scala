@@ -62,10 +62,10 @@ trait ExpressionSyntax {
     BinaryOperationExpr(BinaryOperation.ge, left, right)
   def le[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
     BinaryOperationExpr(BinaryOperation.le, left, right)
-  def equ[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.equ, left, right)
-  def neq[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.neq, left, right)
+  def equ[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.equ[T], left, right)
+  def neq[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.neq[T], left, right)
 
   def isNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNull[T], e)
   def isNotNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNotNull[T], e)

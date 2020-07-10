@@ -19,13 +19,13 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   "SqlQueryProcessor" should "create queries" in {
     testQuery("""SELECT MAX(testField) FROM test_table
-        |   WHERE time >= TIMESTAMP '2017-06-12' AND time < TIMESTAMP '2017-06-30' and a = '223322'
+        |   WHERE time >= TIMESTAMP '2017-06-12' AND time < TIMESTAMP '2017-06-30' and a = 'AbraCadabra'
         |   GROUP BY day(time)""".stripMargin) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldEqual and(
         ge[Time](time, const(Time(new DateTime(2017, 6, 12, 0, 0, DateTimeZone.UTC)))),
         lt[Time](time, const(Time(new DateTime(2017, 6, 30, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(dimension(DIM_A)), lower(const("223322")))
+        equ(lower(dimension(DIM_A)), const("abracadabra"))
       )
       x.groupBy should contain theSameElementsAs Seq[Expression](truncDay(time))
       x.fields should contain theSameElementsInOrderAs List(
@@ -182,8 +182,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       x.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(link(TestLinks.TEST_LINK, "testField")), lower(const("простокваша"))),
-        equ(lower(dimension(DIM_A)), lower(const("12345")))
+        equ(lower(link(TestLinks.TEST_LINK, "testField")), const("простокваша")),
+        equ(lower(dimension(DIM_A)), const("12345"))
       )
       x.groupBy should contain theSameElementsAs Seq(truncDay(time), link(TestLinks.TEST_LINK, "testField"))
       x.fields should contain theSameElementsInOrderAs List(
@@ -303,7 +303,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       """
         |SELECT a, array_to_string(tokens(a))
         |  FROM test_table
-        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(a), tokens('вода'))
+        |  WHERE time >= timestamp '2019-03-14' and time < TIMESTAMP '2019-03-15' and contains_any(tokens(a), tokens('ВОДА'))
       """.stripMargin
     ) { q =>
       q.table.value.name shouldEqual "test_table"
@@ -317,7 +317,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         bi(
           BinaryOperation.containsAny[String],
           function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-          function(UnaryOperation.tokens, lower(const("вода")))
+          function(UnaryOperation.tokens, const("вода"))
         )
       )
     }
@@ -328,9 +328,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |SELECT
         |  b,
         |  case
-        |    when contains_any(tokens(a), tokens('крыжовник')) then 'зеленые'
-        |    when contains_any(tokens(a), tokens('клубника', 'малина')) then 'красные'
-        |    when contains_any(tokens(a), tokens('черника', 'ежевика', 'ирга')) then 'черные'
+        |    when contains_any(tokens(a), tokens('крЫжовник')) then 'зеленые'
+        |    when contains_any(tokens(a), tokens('клубника', 'малина')) then 'КРАСНЫЕ'
+        |    when contains_any(tokens(a), tokens('черника', 'ежевика', 'ИРГА')) then 'черные'
         |    else 'прочие' as color,
         |  sum(testField)
         |FROM test_table
@@ -343,23 +343,23 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         bi(
           BinaryOperation.containsAny[String],
           function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-          function(UnaryOperation.tokens, lower(const("крыжовник")))
+          function(UnaryOperation.tokens, const("крыжовник"))
         ),
         const("зеленые"),
         condition(
           bi(
             BinaryOperation.containsAny[String],
             function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-            function(UnaryOperation.tokenizeArray, array(lower(const("клубника")), lower(const("малина"))))
+            function(UnaryOperation.tokenizeArray, array(const("клубника"), const("малина")))
           ),
-          const("красные"),
+          const("КРАСНЫЕ"),
           condition(
             bi(
               BinaryOperation.containsAny[String],
               function(UnaryOperation.tokens, lower(dimension(DIM_A))),
               function(
                 UnaryOperation.tokenizeArray,
-                array(lower(const("черника")), lower(const("ежевика")), lower(const("ирга")))
+                array(const("черника"), const("ежевика"), const("ирга"))
               )
             ),
             const("черные"),
@@ -377,7 +377,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 26, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(link(TestLinks.TEST_LINK, "testField")), lower(const("ягода")))
+        equ(lower(link(TestLinks.TEST_LINK, "testField")), const("ягода"))
       )
 
       q.groupBy should contain theSameElementsAs List(dimension(DIM_B), colorExpr)
@@ -405,7 +405,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         q.filter.value shouldBe and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          equ(lower(dimension(DIM_A)), lower(const("123456789")))
+          equ(lower(dimension(DIM_A)), const("123456789"))
         )
         q.groupBy should contain theSameElementsAs List(dimension(DIM_B), truncMonth(time))
         q.fields should contain theSameElementsInOrderAs List(
@@ -431,7 +431,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 10, 23, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2017, 11, 2, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(dimension(DIM_X)), lower(const("0001388410039121")))
+        equ(lower(dimension(DIM_X)), const("0001388410039121"))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_X), time)
       q.fields should contain theSameElementsInOrderAs List(
@@ -581,7 +581,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(dimension(DIM_X)), lower(const("1234567890")))
+        equ(lower(dimension(DIM_X)), const("1234567890"))
       )
       q.groupBy shouldBe empty
       q.fields should contain theSameElementsInOrderAs List(
@@ -879,7 +879,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         truncDay(time) as "d"
       )
       q.filter.value shouldBe and(
-        equ(lower(link(TestLinks.TEST_LINK2, "testField2")), lower(const("464"))),
+        equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("464")),
         lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
         ge(time, const(Time(new DateTime(2018, 7, 1, 0, 0, DateTimeZone.UTC))))
       )
@@ -918,7 +918,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         ge(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 9, 1, 0, 0, DateTimeZone.UTC)))),
         lt(metric(TestTableFields.TEST_FIELD), const(50000d)),
-        equ(lower(dimension(DIM_A)), lower(const("0000348521023155")))
+        equ(lower(dimension(DIM_A)), const("0000348521023155"))
       )
 
       q.groupBy should contain theSameElementsAs Seq(
@@ -1068,6 +1068,24 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
         in(DimensionIdExpr(DIM_A), Set(HexString("1"), HexString("2f"), HexString("fa")))
+      )
+    }
+  }
+
+  it should "handle id in conditions" in {
+    testQuery("""SELECT A
+                |  FROM test_table
+                |  WHERE time >= timestamp '2020-07-03' AND time <= timestamp '2020-07-06'
+                |        AND id(A) = 'ab'
+                |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+      q.fields should contain theSameElementsInOrderAs Seq(
+        DimensionExpr(DIM_A).toField
+      )
+      q.filter.value shouldEqual and(
+        ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
+        le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
+        equ(DimensionIdExpr(DIM_A), const(HexString("ab")))
       )
     }
   }

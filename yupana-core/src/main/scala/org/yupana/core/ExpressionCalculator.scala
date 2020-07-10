@@ -77,7 +77,7 @@ object ExpressionCalculator {
         } yield f(ae, be)
 
       case TypeConvertExpr(tc, e) =>
-        evaluateExpression(e, queryContext, internalRow).map(tc.direct)
+        evaluateExpression(e, queryContext, internalRow).map(tc.convert)
 
       case AggregateExpr(_, e) =>
         evaluateExpression(e, queryContext, internalRow)
