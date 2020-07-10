@@ -182,8 +182,10 @@ object Filters {
           val valueIds = getIncValues(d).map(vs => valuesToIds(d, vs))
           val ids = getIncIds(d)
           intersectIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+
         case r: RawDimension[_] =>
-          getIncValues(r).map(vs => r -> vs)
+          intersectIds(getIncIds(r), getIncValues(r)).map(vs => r -> vs)
+
         case h: HashDimension[_, _] =>
           val valueIds = getIncValues[h.T](h).map(vs => hashValues[h.T, h.R](h, vs))
           val ids = getIncIds[h.R](h)
@@ -215,7 +217,8 @@ object Filters {
           unionIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
-          getExcValues(r).map(vs => r -> vs)
+          unionIds(getExcIds(r), getExcValues(r)).map(vs => r -> vs)
+
         case h: HashDimension[_, _] =>
           val valueIds = getExcValues(h).map(vs => hashValues(h, vs))
           val ids = getExcIds(h)
