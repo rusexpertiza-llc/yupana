@@ -46,7 +46,7 @@ trait DataType extends Serializable {
       }
   }
 
-  override def toString: String = s"${meta.realSqlType}"
+  override def toString: String = s"${meta.sqlTypeName}"
 }
 
 class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {

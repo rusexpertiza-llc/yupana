@@ -30,7 +30,6 @@ import org.yupana.api.Time
   * @param precision field precision for numeric types
   * @param isSigned specifies if the numeric type signed
   * @param scale scale for numeric types
-  * @param aliasName type alias name. It can be used when you need wrap a new type around existing one
   * @tparam T real scala type
   */
 case class DataTypeMeta[T](
@@ -40,11 +39,8 @@ case class DataTypeMeta[T](
     javaTypeName: String,
     precision: Int,
     isSigned: Boolean,
-    scale: Int,
-    aliasName: Option[String]
-) {
-  def realSqlType: String = aliasName.getOrElse(sqlTypeName)
-}
+    scale: Int
+)
 
 object DataTypeMeta {
   private val SIGNED_TYPES =
@@ -82,7 +78,7 @@ object DataTypeMeta {
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =
-    DataTypeMeta(t, ds, tn, jt.getCanonicalName, p, SIGNED_TYPES.contains(t), s, None)
+    DataTypeMeta(t, ds, tn, jt.getCanonicalName, p, SIGNED_TYPES.contains(t), s)
 
   def tuple[T, U](implicit tMeta: DataTypeMeta[T], uMeta: DataTypeMeta[U]): DataTypeMeta[(T, U)] = DataTypeMeta(
     Types.OTHER,
@@ -91,18 +87,6 @@ object DataTypeMeta {
     classOf[(T, U)].getCanonicalName,
     tMeta.precision + uMeta.precision,
     isSigned = false,
-    0,
-    None
-  )
-
-  def typeAlias[T, U](m: DataTypeMeta[T], alias: String): DataTypeMeta[U] = new DataTypeMeta[U](
-    m.sqlType,
-    m.displaySize,
-    m.sqlTypeName,
-    m.javaTypeName,
-    m.precision,
-    m.isSigned,
-    m.scale,
-    Some(alias)
+    0
   )
 }

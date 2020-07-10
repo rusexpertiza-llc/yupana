@@ -35,7 +35,7 @@ case class TypeOperations[T](
 ) {
   def biOperation[U](name: String, argType: DataType.Aux[U]): Option[BinaryOperation.Aux[T, U, _]] = {
     binaryOperations
-      .get((name, argType.meta.realSqlType))
+      .get((name, argType.meta.sqlTypeName))
       .map(op => op.asInstanceOf[BinaryOperation.Aux[T, U, op.Out]])
   }
   def unaryOperation(name: String): Option[UnaryOperation[T]] = unaryOperations.get(name)

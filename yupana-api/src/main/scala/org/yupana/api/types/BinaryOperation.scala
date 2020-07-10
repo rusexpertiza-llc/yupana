@@ -196,7 +196,7 @@ object BinaryOperation {
       argType: DataType.Aux[U],
       op: BinaryOperation.Aux[T, U, _]
   ): ((String, String), BinaryOperation[T]) = {
-    (name, argType.meta.realSqlType) -> op
+    (name, argType.meta.sqlTypeName) -> op
   }
 }
 
