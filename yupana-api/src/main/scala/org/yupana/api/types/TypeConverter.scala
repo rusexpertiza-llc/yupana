@@ -16,8 +16,6 @@
 
 package org.yupana.api.types
 
-import org.yupana.api.HexString
-
 /**
   * Converter from type `In` to `Out`. Usually works with numeric types, increasing precision.
   *
@@ -91,9 +89,6 @@ object TypeConverter {
     mkPartial(x => if (x.isValidShort) Some(x.toShort) else None)
   val bigDecimal2Byte: PartialConverter[BigDecimal, Byte] = mkPartial(x => if (x.isValidByte) Some(x.toByte) else None)
 
-  val string2Hex: PartialConverter[String, HexString] =
-    mkPartial(x => if (HexString.isValidHex(x)) Some(HexString(x)) else None)
-
   def mkTotal[T, U](f: T => U)(
       implicit
       dtt: DataType.Aux[T],
@@ -147,8 +142,7 @@ object TypeConverter {
     pEntry[BigDecimal, Long](bigDecimal2Long),
     pEntry[BigDecimal, Int](bigDecimal2Int),
     pEntry[BigDecimal, Short](bigDecimal2Short),
-    pEntry[BigDecimal, Byte](bigDecimal2Byte),
-    pEntry[String, HexString](string2Hex)
+    pEntry[BigDecimal, Byte](bigDecimal2Byte)
   )
 
 }

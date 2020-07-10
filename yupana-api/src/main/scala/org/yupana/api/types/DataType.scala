@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.{ HexString, Time }
+import org.yupana.api.Time
 
 import scala.reflect.ClassTag
 
@@ -91,9 +91,6 @@ object DataType {
   def apply[T](implicit dt: DataType.Aux[T]): DataType.Aux[T] = dt
 
   implicit val stringDt: DataType.Aux[String] = DataType[String](r => TypeOperations.stringOperations(r))
-
-  implicit val hexDt: DataType.Aux[HexString] =
-    DataType[HexString]((r: DataType.Aux[HexString]) => TypeOperations.hexStringOperations(r))
 
   implicit val boolDt: DataType.Aux[Boolean] = DataType[Boolean](r => TypeOperations.boolOperations(r))
 

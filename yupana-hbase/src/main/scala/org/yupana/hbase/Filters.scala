@@ -139,20 +139,12 @@ object Filters {
       excludeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
     }
 
-    def includeId[R](dim: Dimension.Aux2[_, R], id: R): Builder = {
-      includeIds(dim, SortedSetIterator(id)(dim.rOrdering))
+    def includeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
+      includeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
     }
 
-    def includeIds[R](dim: Dimension.Aux2[_, R], ids: Set[R]): Builder = {
-      includeIds(dim, SortedSetIterator(ids.toList.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
-    }
-
-    def excludeId[R](dim: Dimension.Aux2[_, R], id: R): Builder = {
-      excludeIds(dim, SortedSetIterator(id)(dim.rOrdering))
-    }
-
-    def excludeIds[R](dim: Dimension.Aux2[_, R], ids: Set[R]): Builder = {
-      excludeIds(dim, SortedSetIterator(ids.toList.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
+    def excludeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
+      excludeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
     }
 
     private def hashValues[T, R](d: HashDimension[T, R], values: SortedSetIterator[T]): SortedSetIterator[R] = {

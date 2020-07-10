@@ -2,7 +2,7 @@ package org.yupana.core.sql
 
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime, Period }
 import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
-import org.yupana.api.{ HexString, Time }
+import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types._
@@ -1067,7 +1067,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
-        in(DimensionIdExpr(DIM_A), Set(HexString("1"), HexString("2f"), HexString("fa")))
+        in(DimensionIdExpr(DIM_A), Set("1", "2f", "fa"))
       )
     }
   }
@@ -1085,7 +1085,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.filter.value shouldEqual and(
         ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
-        equ(DimensionIdExpr(DIM_A), const(HexString("ab")))
+        equ(DimensionIdExpr(DIM_A), const("ab"))
       )
     }
   }

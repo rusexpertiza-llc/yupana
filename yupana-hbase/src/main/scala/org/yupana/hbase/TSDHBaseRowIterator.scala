@@ -19,10 +19,11 @@ package org.yupana.hbase
 import java.nio.ByteBuffer
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.{ Cell, CellUtil }
+import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.{ HexString, Time }
+import org.apache.hadoop.hbase.{ Cell, CellUtil }
+import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
 import org.yupana.api.types.DataType
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
@@ -119,7 +120,7 @@ class TSDHBaseRowIterator(
       if (internalRowBuilder.needId(Table.DIM_TAG_OFFSET + i)) {
         bb.reset()
         bb.get(bytes)
-        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i), HexString(bytes))
+        internalRowBuilder.setId(Table.DIM_TAG_OFFSET + i, new String(Hex.encodeHex(bytes)))
       }
 
       i += 1

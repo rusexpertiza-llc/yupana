@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.{ HexString, Time }
+import org.yupana.api.Time
 
 /**
   * Binary operation definition
@@ -158,8 +158,6 @@ object BinaryOperation {
   val stringOperations: Map[(String, String), BinaryOperation[String]] = Map(
     entry(PLUS, DataType[String], create[String, String, String](_.plus, "+", DataType[String]))
   ) ++ ordOperations(DataType[String])
-
-  val hexStringOperations: Map[(String, String), BinaryOperation[HexString]] = eqOperations(DataType[HexString])
 
   def tupleOperations[A, B](
       aOps: Map[(String, String), BinaryOperation[A]],

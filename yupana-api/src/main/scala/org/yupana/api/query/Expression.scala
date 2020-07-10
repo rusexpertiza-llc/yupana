@@ -16,7 +16,7 @@
 
 package org.yupana.api.query
 
-import org.yupana.api.{ HexString, Time }
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
 import org.yupana.api.types._
@@ -174,8 +174,8 @@ object DimensionExpr {
 }
 
 class DimensionIdExpr(val dimension: Dimension) extends Expression {
-  override type Out = HexString
-  override val dataType: DataType.Aux[HexString] = DataType[HexString]
+  override type Out = String
+  override val dataType: DataType.Aux[String] = DataType[String]
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)

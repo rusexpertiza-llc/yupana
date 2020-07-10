@@ -16,8 +16,8 @@
 
 package org.yupana.core.model
 
-import org.yupana.api.{ HexString, Time }
-import org.yupana.api.query.{ DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr }
+import org.yupana.api.Time
+import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.QueryContext
 
@@ -123,7 +123,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     }
   }
 
-  def setId(tag: Int, v: HexString): Unit = {
+  def setId(tag: Int, v: String): Unit = {
     val index = dimIdIndex(tag & 0xFF)
     if (index != -1) {
       data(index) = v

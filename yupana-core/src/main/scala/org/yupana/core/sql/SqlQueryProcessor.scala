@@ -244,6 +244,7 @@ object SqlQueryProcessor extends QueryValidator {
     }
 
     e.right.map {
+      case die: DimensionIdExpr => die
       case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] && ex.kind != Const =>
         UnaryOperationExpr(UnaryOperation.lower, ex.asInstanceOf[Expression.Aux[String]])
       case ex => ex
