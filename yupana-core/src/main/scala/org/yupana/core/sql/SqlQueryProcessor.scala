@@ -572,10 +572,12 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Array[ConstantExpr]] = {
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
-        case Right(e) if (e.kind == Const) =>
-          ExpressionCalculator.evaluateConstant(e) match {
-            case Some(v) => Right(ConstantExpr(v)(e.dataType).asInstanceOf[ConstantExpr])
-            case None    => Left(s"Cannon evaluate $e")
+        case Right(e) if e.kind == Const =>
+          val eval = ExpressionCalculator.evaluateConstant(e)
+          if (eval != null) {
+            Right(ConstantExpr(eval)(e.dataType).asInstanceOf[ConstantExpr])
+          } else {
+            Left(s"Cannon evaluate $e")
           }
         case Right(e) => Left(s"$e is not constant")
 

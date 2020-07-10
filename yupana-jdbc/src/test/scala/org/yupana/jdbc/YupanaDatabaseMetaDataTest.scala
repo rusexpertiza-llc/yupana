@@ -199,8 +199,8 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
       Seq("TABLE_NAME", "TABLE_TYPE"),
       Seq(DataType[String], DataType[String]),
       Seq(
-        Array[Option[Any]](Some("EMPLOYEES"), None),
-        Array[Option[Any]](Some("DEPARTMENTS"), Some("TABLE"))
+        Array[Any]("EMPLOYEES", null),
+        Array[Any]("DEPARTMENTS", "TABLE")
       ).iterator
     )
 
@@ -221,8 +221,8 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
       Seq("TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"),
       Seq(DataType[String], DataType[String]),
       Seq(
-        Array[Option[Any]](Some("EMPLOYEES"), Some("NAME"), Some("VARCHAR")),
-        Array[Option[Any]](Some("EMPLOYEES"), Some("AGE"), Some("INTEGER"))
+        Array[Any]("EMPLOYEES", "NAME", "VARCHAR"),
+        Array[Any]("EMPLOYEES", "AGE", "INTEGER")
       ).iterator
     )
 

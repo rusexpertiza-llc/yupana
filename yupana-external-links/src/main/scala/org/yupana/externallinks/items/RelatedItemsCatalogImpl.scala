@@ -103,11 +103,10 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     val timeIdx = result.queryContext.exprsIndex(time)
     val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID))
 
-    val extracted = tsdb.mapReduceEngine(NoMetricCollector).flatMap(result.rows) { a =>
-      for {
-        kkmId <- a(kkmIdIdx)
-        time <- a(timeIdx)
-      } yield Set((time.asInstanceOf[Time], kkmId.asInstanceOf[Int]))
+    val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.rows) { a =>
+      val kkmId = a(kkmIdIdx)
+      val time = a(timeIdx)
+      Set((time.asInstanceOf[Time], kkmId.asInstanceOf[Int]))
     }
 
     tsdb.mapReduceEngine(NoMetricCollector).fold(extracted)(Set.empty)(_ ++ _).toSeq

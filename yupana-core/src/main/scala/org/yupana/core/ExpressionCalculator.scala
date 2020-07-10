@@ -24,43 +24,54 @@ object ExpressionCalculator {
 
   implicit private val operations: Operations = Operations
 
-  def evaluateConstant(expr: Expression): Option[expr.Out] = {
+  def evaluateConstant(expr: Expression): expr.Out = {
     assert(expr.kind == Const)
     eval(expr, null, null)
+  }
+
+  def preEvaluated(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
+    expr match {
+      case ConstantExpr(v) => v.asInstanceOf[expr.Out]
+      case _               => internalRow.get[expr.Out](queryContext, expr)
+    }
   }
 
   def evaluateExpression(
       expr: Expression,
       queryContext: QueryContext,
-      internalRow: InternalRow,
-      tryEval: Boolean = true
-  ): Option[expr.Out] = {
-    val res = if (queryContext != null && queryContext.exprsIndex.contains(expr)) {
-      internalRow.get[expr.Out](queryContext, expr)
+      internalRow: InternalRow
+  ): expr.Out = {
+    val res = if (queryContext != null) {
+      val idx = queryContext.exprsIndex.getOrElse(expr, -1)
+      if (idx >= 0) {
+        internalRow.get[expr.Out](idx)
+      } else {
+        null.asInstanceOf[expr.Out]
+      }
     } else {
-      None
+      null.asInstanceOf[expr.Out]
     }
-    if (res.isEmpty && tryEval) {
+
+    if (res == null) {
       eval(expr, queryContext, internalRow)
     } else {
       res
     }
   }
 
-  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): Option[expr.Out] = {
+  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
 
     val res = expr match {
-      case ConstantExpr(x) => Some(x).asInstanceOf[Option[expr.Out]]
+      case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr           => None
-      case DimensionExpr(_)   => None
-      case DimensionIdExpr(_) => None
-      case MetricExpr(_)      => None
-      case LinkExpr(_, _)     => None
+      case TimeExpr           => null
+      case DimensionExpr(_)   => null
+      case DimensionIdExpr(_) => null
+      case MetricExpr(_)      => null
+      case LinkExpr(_, _)     => null
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, queryContext, internalRow)
-          .getOrElse(false)
         if (x) {
           evaluateExpression(positive, queryContext, internalRow)
         } else {
@@ -71,13 +82,16 @@ object ExpressionCalculator {
         f(evaluateExpression(e, queryContext, internalRow))
 
       case BinaryOperationExpr(f, a, b) =>
-        for {
-          ae <- evaluateExpression(a, queryContext, internalRow)
-          be <- evaluateExpression(b, queryContext, internalRow)
-        } yield f(ae, be)
+        val left = evaluateExpression(a, queryContext, internalRow)
+        val right = evaluateExpression(b, queryContext, internalRow)
+        if (left != null && right != null) {
+          f(left, right)
+        } else {
+          null
+        }
 
       case TypeConvertExpr(tc, e) =>
-        evaluateExpression(e, queryContext, internalRow).map(tc.convert)
+        tc.convert(evaluateExpression(e, queryContext, internalRow))
 
       case AggregateExpr(_, e) =>
         evaluateExpression(e, queryContext, internalRow)
@@ -86,28 +100,21 @@ object ExpressionCalculator {
         evaluateExpression(e, queryContext, internalRow)
 
       case InExpr(e, vs) =>
-        for {
-          eValue <- evaluateExpression(e, queryContext, internalRow)
-        } yield vs contains eValue
+        vs contains evaluateExpression(e, queryContext, internalRow)
 
       case NotInExpr(e, vs) =>
-        for {
-          eValue <- evaluateExpression(e, queryContext, internalRow)
-        } yield !vs.contains(eValue)
+        !vs.contains(evaluateExpression(e, queryContext, internalRow))
 
       case AndExpr(cs) =>
         val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
-        executed.reduce((a, b) => a.flatMap(x => b.map(y => x && y)))
+        executed.reduce((a, b) => a && b)
 
       case OrExpr(cs) =>
         val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
-        executed.reduce((a, b) => a.flatMap(x => b.map(y => x || y)))
+        executed.reduce((a, b) => a || b)
 
       case TupleExpr(e1, e2) =>
-        for {
-          a <- evaluateExpression(e1, queryContext, internalRow)
-          b <- evaluateExpression(e2, queryContext, internalRow)
-        } yield (a, b)
+        (evaluateExpression(e1, queryContext, internalRow), evaluateExpression(e2, queryContext, internalRow))
 
       case ae @ ArrayExpr(es) =>
         val values: Array[ae.elementDataType.T] =
@@ -116,20 +123,20 @@ object ExpressionCalculator {
         var i = 0
 
         while (i < es.length && success) {
-          evaluateExpression(es(i), queryContext, internalRow) match {
-            case Some(v) => values(i) = v.asInstanceOf[ae.elementDataType.T]
-            case None    => success = false
+          val v = evaluateExpression(es(i), queryContext, internalRow)
+          values(i) = v
+          if (v == null) {
+            success = false
           }
-
           i += 1
         }
 
-        if (success) Some(values) else None
+        if (success) values else null
 
       case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
-    res.asInstanceOf[Option[expr.Out]]
+    res.asInstanceOf[expr.Out]
   }
 }

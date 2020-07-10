@@ -80,7 +80,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         new TsdbServerResult(
           qc,
           Seq(
-            Array[Option[Any]](Some("деталь от паровоза"))
+            Array[Any]("деталь от паровоза")
           ).toIterator
         )
       )

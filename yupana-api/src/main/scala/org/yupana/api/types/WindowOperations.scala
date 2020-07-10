@@ -37,7 +37,7 @@ trait WindowOperation[T] extends Serializable {
     * @param wo instance of window operations implementation
     * @return result value
     */
-  def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[Out]
+  def apply(values: Array[T], index: Int)(implicit wo: WindowOperations): Out
   val dataType: DataType.Aux[Out]
 }
 
@@ -51,12 +51,12 @@ object WindowOperation {
 
   def create[T, V](
       n: String,
-      f: WindowOperations => (Array[Option[T]], Int) => Option[V],
+      f: WindowOperations => (Array[T], Int) => V,
       dt: DataType.Aux[V]
   ): Aux[T, V] = new WindowOperation[T] {
     override type Out = V
     override val name: String = n
-    override def apply(values: Array[Option[T]], index: Int)(implicit wo: WindowOperations): Option[V] =
+    override def apply(values: Array[T], index: Int)(implicit wo: WindowOperations): V =
       f(wo)(values, index)
     override val dataType: DataType.Aux[V] = dt
   }
@@ -87,5 +87,5 @@ object TypeWindowOperations {
 }
 
 trait WindowOperations {
-  def lag[T](values: Array[Option[T]], index: Int): Option[T]
+  def lag[T](values: Array[T], index: Int): T
 }

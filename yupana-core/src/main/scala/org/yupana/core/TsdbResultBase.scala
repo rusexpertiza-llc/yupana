@@ -25,7 +25,7 @@ trait TsdbResultBase[T[_]] {
   protected lazy val nameIndexMap: Map[String, Int] = nameIndex.toMap
   protected lazy val fieldIndex: Array[Int] = nameIndex.map(_._2).toArray
 
-  def rows: T[Array[Option[Any]]]
+  def rows: T[Array[Any]]
 
   def queryContext: QueryContext
 

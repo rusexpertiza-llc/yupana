@@ -119,7 +119,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       }
 
       new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).get.millis))
+        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
     }
   }
 

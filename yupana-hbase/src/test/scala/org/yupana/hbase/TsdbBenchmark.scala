@@ -248,8 +248,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
       val result = tsdb.query(query).iterator
 
       val r1 = result.next()
-      r1.fieldValueByName[Double]("sum_testField").get shouldBe N.toDouble
-      r1.fieldValueByName[String]("tag_a").get shouldBe "test1"
+      r1.get[Double]("sum_testField") shouldBe N.toDouble
+      r1.get[String]("tag_a") shouldBe "test1"
 
       println(s"$p. Time: " + (System.nanoTime() - s) / (1000 * 1000))
 

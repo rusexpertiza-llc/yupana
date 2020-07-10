@@ -147,14 +147,13 @@ object ExternalLinkUtils {
   ): Unit = {
     val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
     val fields = linkExprs.map(_.linkField.name)
-    val dimValues = rows.flatMap(r => r.get[R](dimExprIdx)).toSet
+    val dimValues = rows.map(r => r.get[R](dimExprIdx)).toSet
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
     val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
     rows.foreach { row =>
-      row.get[R](dimExprIdx).foreach { dimValue =>
-        val rowValues = allFieldsValues.row(dimValue)
-        updateRow(row, linkExprsIdx, rowValues)
-      }
+      val dimValue = row.get[R](dimExprIdx)
+      val rowValues = allFieldsValues.row(dimValue)
+      updateRow(row, linkExprsIdx, rowValues)
     }
   }
 
@@ -168,22 +167,18 @@ object ExternalLinkUtils {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField.name)
 
-    def extractDimValueWithTime(r: InternalRow): Option[(R, Time)] = {
-      for {
-        d <- r.get[R](exprIndex, dimExpr)
-        t <- r.get[Time](exprIndex, TimeExpr)
-      } yield (d, t)
+    def extractDimValueWithTime(r: InternalRow): (R, Time) = {
+      (r.get[R](exprIndex, dimExpr), r.get[Time](exprIndex, TimeExpr))
     }
 
-    val dimValuesWithTimes = rows.flatMap(extractDimValueWithTime)
+    val dimValuesWithTimes = rows.map(extractDimValueWithTime)
     val allFieldsValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes.toSet)
     val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
 
     rows.foreach { row =>
-      extractDimValueWithTime(row).foreach { dimValueAtTime =>
-        val values = allFieldsValues.row(dimValueAtTime)
-        updateRow(row, linkExprsIdx, values)
-      }
+      val dimValueAtTime = extractDimValueWithTime(row)
+      val values = allFieldsValues.row(dimValueAtTime)
+      updateRow(row, linkExprsIdx, values)
     }
   }
 
@@ -192,7 +187,7 @@ object ExternalLinkUtils {
       case (expr, idx) =>
         values.get(expr.linkField.name).foreach { value =>
           if (value != null) {
-            row.set(idx, Some(value))
+            row.set(idx, value)
           }
         }
     }

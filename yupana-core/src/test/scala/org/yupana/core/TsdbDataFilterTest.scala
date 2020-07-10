@@ -69,15 +69,15 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some(2.toShort))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime + 100)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some(2.toShort))
+          b.set(time, Time(pointTime + 100))
+            .set(metric(TestTableFields.TEST_FIELD), 1013d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -86,10 +86,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
-    row.fieldValueByName[Double]("testField").value shouldBe 1012d
-    row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[Short]("B").value shouldBe 2.toShort
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    row.get[Double]("testField") shouldBe 1012d
+    row.get[String]("A") shouldBe "test1"
+    row.get[Short]("B") shouldBe 2.toShort
   }
 
   it should "execute query with filter by values and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -121,15 +121,15 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some(31.toShort))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), 31.toShort)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime + 100)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some(31.toShort))
+          b.set(time, Time(pointTime + 100))
+            .set(metric(TestTableFields.TEST_FIELD), 1013d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), 31.toShort)
             .buildAndReset()
         )
       )
@@ -138,10 +138,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
-    row.fieldValueByName[Double]("abs_test_field").value shouldBe 1012d
-    row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[Short]("B").value shouldBe 31
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    row.get[Double]("abs_test_field") shouldBe 1012d
+    row.get[String]("A") shouldBe "test1"
+    row.get[Short]("B") shouldBe 31
   }
 
   it should "execute query with filter by values not presented in query.fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -171,15 +171,15 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some(2.toShort))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime + 100)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some(2.toShort))
+          b.set(time, Time(pointTime + 100))
+            .set(metric(TestTableFields.TEST_FIELD), 1013d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -188,10 +188,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
-    an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[Short]("B").value shouldBe 2
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
+    row.get[String]("A") shouldBe "test1"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -222,17 +222,17 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
-            .set(dimension(TestDims.DIM_A), Some("test11"))
-            .set(dimension(TestDims.DIM_B), Some("test12"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(metric(TestTableFields.TEST_FIELD2), 1013d)
+            .set(dimension(TestDims.DIM_A), "test11")
+            .set(dimension(TestDims.DIM_B), "test12")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime + 100)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(metric(TestTableFields.TEST_FIELD2), Some(1013d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+          b.set(time, Time(pointTime + 100))
+            .set(metric(TestTableFields.TEST_FIELD), 1013d)
+            .set(metric(TestTableFields.TEST_FIELD2), 1013d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
       )
@@ -241,10 +241,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time_time").value shouldBe Time(pointTime)
-    an[NoSuchElementException] should be thrownBy row.fieldValueByName[Double]("testField")
-    row.fieldValueByName[String]("A").value shouldBe "test11"
-    row.fieldValueByName[String]("B").value shouldBe "test12"
+    row.get[Time]("time_time") shouldBe Time(pointTime)
+    an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
+    row.get[String]("A") shouldBe "test11"
+    row.get[String]("B") shouldBe "test12"
   }
 
   it should "support IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -274,15 +274,15 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1014d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1014d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
       )
@@ -291,17 +291,17 @@ class TsdbDataFilterTest
 
     val r1 = iterator.next()
 
-    r1.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
-    r1.fieldValueByName[Double]("F1").value shouldBe 1012d
-    r1.fieldValueByName[String]("A").value shouldBe "test1"
-    r1.fieldValueByName[String]("B").value shouldBe "test2"
+    r1.get[Time]("time") shouldBe Time(pointTime)
+    r1.get[Double]("F1") shouldBe 1012d
+    r1.get[String]("A") shouldBe "test1"
+    r1.get[String]("B") shouldBe "test2"
 
     val r2 = iterator.next()
 
-    r2.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
-    r2.fieldValueByName[Double]("F1").value shouldBe 1014d
-    r2.fieldValueByName[String]("A").value shouldBe "test1"
-    r2.fieldValueByName[String]("B").value shouldBe "test2"
+    r2.get[Time]("time") shouldBe Time(pointTime)
+    r2.get[Double]("F1") shouldBe 1014d
+    r2.get[String]("A") shouldBe "test1"
+    r2.get[String]("B") shouldBe "test2"
 
     iterator.hasNext shouldBe false
   }
@@ -360,22 +360,22 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("asdsadasd"))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "asdsadasd")
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1012d))
-            .set(metric(TestTableFields.TEST_STRING_FIELD), Some("Str@!"))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1012d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "Str@!")
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1013d))
-            .set(dimension(TestDims.DIM_A), Some("test1"))
-            .set(dimension(TestDims.DIM_B), Some("test2"))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 1013d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
       )
@@ -384,10 +384,10 @@ class TsdbDataFilterTest
     rows should have size 1
     val row = rows.head
 
-    row.fieldValueByName[Time]("time").value shouldBe Time(pointTime)
-    row.fieldValueByName[Double]("F1").value shouldBe 1012d
-    row.fieldValueByName[String]("A").value shouldBe "test1"
-    row.fieldValueByName[String]("B").value shouldBe "test2"
+    row.get[Time]("time") shouldBe Time(pointTime)
+    row.get[Double]("F1") shouldBe 1012d
+    row.get[String]("A") shouldBe "test1"
+    row.get[String]("B") shouldBe "test2"
   }
 
   it should "support IS NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -435,15 +435,15 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime1)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(10d))
-            .set(dimension(TestDims.DIM_A), Some("test1a"))
-            .set(dimension(TestDims.DIM_B), Some("test2b"))
+          b.set(time, Time(pointTime1))
+            .set(metric(TestTableFields.TEST_FIELD), 10d)
+            .set(dimension(TestDims.DIM_A), "test1a")
+            .set(dimension(TestDims.DIM_B), "test2b")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime1)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(30d))
-            .set(dimension(TestDims.DIM_A), Some("test2a"))
-            .set(dimension(TestDims.DIM_B), Some("test3b"))
+          b.set(time, Time(pointTime1))
+            .set(metric(TestTableFields.TEST_FIELD), 30d)
+            .set(dimension(TestDims.DIM_A), "test2a")
+            .set(dimension(TestDims.DIM_B), "test3b")
             .buildAndReset()
         )
       )
@@ -452,10 +452,10 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("testField").value shouldBe 10d
-    r1.fieldValueByName[String]("A").value shouldBe "test1a"
-    r1.fieldValueByName[String]("B").value shouldBe "test2b"
+    r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Double]("testField") shouldBe 10d
+    r1.get[String]("A") shouldBe "test1a"
+    r1.get[String]("B") shouldBe "test2b"
   }
 
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -503,15 +503,15 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime1)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(10d))
-            .set(dimension(TestDims.DIM_A), Some("test1a"))
-            .set(dimension(TestDims.DIM_B), Some("test2b"))
+          b.set(time, Time(pointTime1))
+            .set(metric(TestTableFields.TEST_FIELD), 10d)
+            .set(dimension(TestDims.DIM_A), "test1a")
+            .set(dimension(TestDims.DIM_B), "test2b")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime1)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(30d))
-            .set(dimension(TestDims.DIM_A), Some("test2a"))
-            .set(dimension(TestDims.DIM_B), Some("test3b"))
+          b.set(time, Time(pointTime1))
+            .set(metric(TestTableFields.TEST_FIELD), 30d)
+            .set(dimension(TestDims.DIM_A), "test2a")
+            .set(dimension(TestDims.DIM_B), "test3b")
             .buildAndReset()
         )
       )
@@ -520,11 +520,11 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("testField").value shouldBe 30d
-    r1.fieldValueByName[String]("A").value shouldBe "test2a"
-    r1.fieldValueByName[String]("B").value shouldBe "test3b"
-    r1.fieldValueByName[String]("ctf").value shouldBe "some-value"
+    r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Double]("testField") shouldBe 30d
+    r1.get[String]("A") shouldBe "test2a"
+    r1.get[String]("B") shouldBe "test3b"
+    r1.get[String]("ctf") shouldBe "some-value"
   }
 
   it should "support IS NULL and IS NOT NULL for catalog fields within AND among other conditions" in withTsdbMock {
@@ -591,25 +591,25 @@ class TsdbDataFilterTest
         )
         .onCall((_, b, _) =>
           Iterator(
-            b.set(time, Some(Time(pointTime1)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1001d))
-              .set(dimension(TestDims.DIM_A), Some("test2a"))
-              .set(dimension(TestDims.DIM_B), Some(15.toShort))
+            b.set(time, Time(pointTime1))
+              .set(metric(TestTableFields.TEST_FIELD), 1001d)
+              .set(dimension(TestDims.DIM_A), "test2a")
+              .set(dimension(TestDims.DIM_B), 15.toShort)
               .buildAndReset(),
-            b.set(time, Some(Time(pointTime1 + 10)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1002d))
-              .set(dimension(TestDims.DIM_A), Some("test2a"))
-              .set(dimension(TestDims.DIM_B), Some(15.toShort))
+            b.set(time, Time(pointTime1 + 10))
+              .set(metric(TestTableFields.TEST_FIELD), 1002d)
+              .set(dimension(TestDims.DIM_A), "test2a")
+              .set(dimension(TestDims.DIM_B), 15.toShort)
               .buildAndReset(),
-            b.set(time, Some(Time(pointTime1 + 10)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(103d))
-              .set(dimension(TestDims.DIM_A), Some("test2a"))
-              .set(dimension(TestDims.DIM_B), Some(15.toShort))
+            b.set(time, Time(pointTime1 + 10))
+              .set(metric(TestTableFields.TEST_FIELD), 103d)
+              .set(dimension(TestDims.DIM_A), "test2a")
+              .set(dimension(TestDims.DIM_B), 15.toShort)
               .buildAndReset(),
-            b.set(time, Some(Time(pointTime1 + 10)))
-              .set(metric(TestTableFields.TEST_FIELD), Some(1003d))
-              .set(dimension(TestDims.DIM_A), Some("test1a"))
-              .set(dimension(TestDims.DIM_B), Some(15.toShort))
+            b.set(time, Time(pointTime1 + 10))
+              .set(metric(TestTableFields.TEST_FIELD), 1003d)
+              .set(dimension(TestDims.DIM_A), "test1a")
+              .set(dimension(TestDims.DIM_B), 15.toShort)
               .buildAndReset()
           )
         )
@@ -618,10 +618,10 @@ class TsdbDataFilterTest
       results should have size 1
 
       val r1 = results.head
-      r1.fieldValueByName[Time]("t").value shouldBe Time(from.withMillisOfDay(0).getMillis)
-      r1.fieldValueByName[Double]("testField").value shouldBe 1003d
-      r1.fieldValueByName[String]("A").value shouldBe "test1a"
-      r1.fieldValueByName[Short]("B").value shouldBe 15.toShort
+      r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+      r1.get[Double]("testField") shouldBe 1003d
+      r1.get[String]("A") shouldBe "test1a"
+      r1.get[Short]("B") shouldBe 15.toShort
   }
 
   it should "support IS NULL and IS NOT NULL inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -675,13 +675,13 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime1)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(1011d))
-            .set(dimension(TestDims.DIM_A), Some("test1a"))
+          b.set(time, Time(pointTime1))
+            .set(metric(TestTableFields.TEST_FIELD), 1011d)
+            .set(dimension(TestDims.DIM_A), "test1a")
             .buildAndReset(),
-          b.set(time, Some(Time(pointTime2)))
-            .set(metric(TestTableFields.TEST_FIELD), Some(3001d))
-            .set(dimension(TestDims.DIM_A), Some("test2a"))
+          b.set(time, Time(pointTime2))
+            .set(metric(TestTableFields.TEST_FIELD), 3001d)
+            .set(dimension(TestDims.DIM_A), "test2a")
             .buildAndReset()
         )
       )
@@ -690,8 +690,8 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.fieldValueByName[Time]("d").value shouldBe Time(from.withMillisOfDay(0).getMillis)
-    r1.fieldValueByName[Double]("quantity").value shouldBe 1011d
+    r1.get[Time]("d") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Double]("quantity") shouldBe 1011d
   }
 
   it should "filter before calculation if possible" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -716,9 +716,9 @@ class TsdbDataFilterTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime)))
-            .set(metric(TestTable2Fields.TEST_FIELD2), Some(0d))
-            .set(metric(TestTable2Fields.TEST_FIELD3), Some(BigDecimal(5)))
+          b.set(time, Time(pointTime))
+            .set(metric(TestTable2Fields.TEST_FIELD2), 0d)
+            .set(metric(TestTable2Fields.TEST_FIELD3), BigDecimal(5))
             .buildAndReset()
         )
       )
@@ -742,8 +742,8 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), Some(12)).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), Some(15)).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15).buildAndReset()
         )
       )
 
@@ -751,8 +751,8 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((idx, rs, _) =>
         rs.foreach { r =>
-          val b = r.get[Int](idx, dimension(TestDims.DIM_B)).get
-          r.set(idx, doubleLinkExpr, Some(if (b == 12) 10.0 else 30.0))
+          val b = r.get[Int](idx, dimension(TestDims.DIM_B))
+          r.set(idx, doubleLinkExpr, if (b == 12) 10.0 else 30.0)
         }
       )
 
@@ -764,6 +764,6 @@ class TsdbDataFilterTest
 
     rows.size shouldEqual 1
     val r1 = rows.head
-    r1.fieldValueByName[Int]("B").value shouldBe 15
+    r1.get[Int]("B") shouldBe 15
   }
 }

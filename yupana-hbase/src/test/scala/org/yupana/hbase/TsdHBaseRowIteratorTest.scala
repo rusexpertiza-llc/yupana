@@ -58,11 +58,11 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
     val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
 
     val dp1 = it.next()
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(42d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(43d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("e")
-    dp1.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(44L)
-    dp1.get(queryContext, time) shouldBe Some(Time(1001))
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    dp1.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    dp1.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    dp1.get[Time](queryContext, time) shouldBe Time(1001)
   }
 
   it should "iterate on one hbase row and one DataPoint adn two column families" in {
@@ -82,11 +82,11 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
     val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
 
     val dp1 = it.next()
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(42d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(43d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("e")
-    dp1.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(44L)
-    dp1.get(queryContext, time) shouldBe Some(Time(1001))
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    dp1.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    dp1.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    dp1.get[Time](queryContext, time) shouldBe Time(1001)
   }
 
   it should "iterate on one hbase row and two DataPoints" in {
@@ -110,18 +110,18 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
     val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
 
     val dp1 = it.next()
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(42d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(43d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("e")
-    dp1.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(44L)
-    dp1.get(queryContext, time) shouldBe Some(Time(1001))
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    dp1.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    dp1.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    dp1.get[Time](queryContext, time) shouldBe Time(1001)
 
     val dp2 = it.next()
-    dp2.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(52d)
-    dp2.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(53d)
-    dp2.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("ee")
-    dp2.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(54L)
-    dp2.get(queryContext, time) shouldBe Some(Time(1002))
+    dp2.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
+    dp2.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
+    dp2.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
+    dp2.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
+    dp2.get[Time](queryContext, time) shouldBe Time(1002)
   }
 
   it should "iterate on one hbase row and two DataPoints and two families" in {
@@ -147,18 +147,18 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
     val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
 
     val dp1 = it.next()
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(42d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(43d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("e")
-    dp1.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(44L)
-    dp1.get(queryContext, time) shouldBe Some(Time(1001))
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    dp1.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    dp1.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    dp1.get[Time](queryContext, time) shouldBe Time(1001)
 
     val dp2 = it.next()
-    dp2.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(52d)
-    dp2.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(53d)
-    dp2.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("ee")
-    dp2.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(54L)
-    dp2.get(queryContext, time) shouldBe Some(Time(1002))
+    dp2.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
+    dp2.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
+    dp2.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
+    dp2.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
+    dp2.get[Time](queryContext, time) shouldBe Time(1002)
   }
 
   it should "iterate on two hbase row and two DataPoints and two families" in {
@@ -199,32 +199,32 @@ class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
     val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
 
     val dp1 = it.next()
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(42d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(43d)
-    dp1.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("e")
-    dp1.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(44L)
-    dp1.get(queryContext, time) shouldBe Some(Time(1001))
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    dp1.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    dp1.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    dp1.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    dp1.get[Time](queryContext, time) shouldBe Time(1001)
 
     val dp2 = it.next()
-    dp2.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(52d)
-    dp2.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(53d)
-    dp2.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("ee")
-    dp2.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(54L)
-    dp2.get(queryContext, time) shouldBe Some(Time(1002))
+    dp2.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
+    dp2.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
+    dp2.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
+    dp2.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
+    dp2.get[Time](queryContext, time) shouldBe Time(1002)
 
     val dp3 = it.next()
-    dp3.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(142d)
-    dp3.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(143d)
-    dp3.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("2e")
-    dp3.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(144L)
-    dp3.get(queryContext, time) shouldBe Some(Time(1001))
+    dp3.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 142d
+    dp3.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 143d
+    dp3.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "2e"
+    dp3.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 144L
+    dp3.get[Time](queryContext, time) shouldBe Time(1001)
 
     val dp4 = it.next()
-    dp4.get(queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe Some(152d)
-    dp4.get(queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe Some(153d)
-    dp4.get(queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe Some("2ee")
-    dp4.get(queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe Some(154L)
-    dp4.get(queryContext, time) shouldBe Some(Time(1002))
+    dp4.get[Double](queryContext, metric(TestTableFields.TEST_FIELD)) shouldBe 152d
+    dp4.get[Double](queryContext, metric(TestTableFields.TEST_FIELD2)) shouldBe 153d
+    dp4.get[String](queryContext, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "2ee"
+    dp4.get[Long](queryContext, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 154L
+    dp4.get[Time](queryContext, time) shouldBe Time(1002)
   }
 
 }

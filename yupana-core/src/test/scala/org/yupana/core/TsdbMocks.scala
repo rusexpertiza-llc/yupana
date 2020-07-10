@@ -79,11 +79,10 @@ trait TsdbMocks extends MockFactory {
       catalogValues: Table[String, String, String]
   ): Unit = {
     datas.foreach { v =>
-      v.get[String](exprIndex, DimensionExpr(catalog.dimension)).foreach { tagValue =>
-        catalogValues.row(tagValue).foreach {
-          case (field, value) =>
-            v.set(exprIndex, LinkExpr(catalog, field), Some(value))
-        }
+      val tagValue = v.get[String](exprIndex, DimensionExpr(catalog.dimension))
+      catalogValues.row(tagValue).foreach {
+        case (field, value) =>
+          v.set(exprIndex, LinkExpr(catalog, field), value)
       }
     }
   }
