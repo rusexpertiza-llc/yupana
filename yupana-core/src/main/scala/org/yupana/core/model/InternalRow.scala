@@ -17,7 +17,7 @@
 package org.yupana.core.model
 
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimensionExpr, Expression, MetricExpr, TimeExpr }
+import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.QueryContext
 
@@ -80,8 +80,10 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
           val tag = expr match {
             case MetricExpr(metric) =>
               Some(metric.tag)
+
             case DimensionExpr(dimension: Dimension) =>
               Some(t.dimensionTag(dimension))
+
             case _ =>
               None
           }
@@ -94,6 +96,24 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     case None => Array.empty
   }
 
+  private val dimIdIndex: Array[Int] = table match {
+    case Some(table) =>
+      val tagIndex = Array.fill[Int](Table.MAX_TAGS)(-1)
+
+      exprIndex.toSeq.foreach {
+        case (DimensionIdExpr(dimension: Dimension), index) =>
+          val t = table.dimensionTag(dimension)
+          tagIndex(t & 0xFF) = index
+
+        case _ =>
+      }
+
+      tagIndex
+
+    case None =>
+      Array.empty
+  }
+
   def this(queryContext: QueryContext) = this(queryContext.exprsIndex, queryContext.query.table)
 
   def set(tag: Byte, v: Any): Unit = {
@@ -102,6 +122,15 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
       data(index) = v
     }
   }
+
+  def setId(tag: Byte, v: String): Unit = {
+    val index = dimIdIndex(tag & 0xFF)
+    if (index != -1) {
+      data(index) = v
+    }
+  }
+
+  def needId(tag: Byte): Boolean = dimIdIndex(tag & 0xFF) != -1
 
   def set(time: Time): Unit = {
     if (timeIndex != -1) data(timeIndex) = time

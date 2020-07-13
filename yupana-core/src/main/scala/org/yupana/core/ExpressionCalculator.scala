@@ -64,10 +64,11 @@ object ExpressionCalculator {
     val res = expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr         => null
-      case DimensionExpr(_) => null
-      case MetricExpr(_)    => null
-      case LinkExpr(_, _)   => null
+      case TimeExpr           => null
+      case DimensionExpr(_)   => null
+      case DimensionIdExpr(_) => null
+      case MetricExpr(_)      => null
+      case LinkExpr(_, _)     => null
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, queryContext, internalRow)
@@ -90,7 +91,7 @@ object ExpressionCalculator {
         }
 
       case TypeConvertExpr(tc, e) =>
-        tc.direct(evaluateExpression(e, queryContext, internalRow))
+        tc.convert(evaluateExpression(e, queryContext, internalRow))
 
       case AggregateExpr(_, e) =>
         evaluateExpression(e, queryContext, internalRow)

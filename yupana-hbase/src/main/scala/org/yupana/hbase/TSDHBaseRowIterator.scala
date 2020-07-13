@@ -19,9 +19,10 @@ package org.yupana.hbase
 import java.nio.ByteBuffer
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.{ Cell, CellUtil }
+import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
 import org.yupana.api.types.DataType
@@ -60,7 +61,7 @@ class TSDHBaseRowIterator(
       throw new IllegalStateException("Next on empty iterator")
     }
 
-    currentTime = nextDatapoint()
+    currentTime = nextDataPoint()
 
     internalRowBuilder.buildAndReset()
   }
@@ -84,7 +85,7 @@ class TSDHBaseRowIterator(
     currentTime = findMinTime()
   }
 
-  private def nextDatapoint() = {
+  private def nextDataPoint(): Long = {
     loadRow(currentRowKey)
     var nextMinTime = Long.MaxValue
     var i = 0
@@ -103,16 +104,25 @@ class TSDHBaseRowIterator(
     nextMinTime
   }
 
-  private def loadRow(rowKey: Array[Byte]) = {
+  private def loadRow(rowKey: Array[Byte]): Unit = {
     val baseTime = Bytes.toLong(rowKey)
     internalRowBuilder.set(Time(baseTime + currentTime))
     var i = 0
     val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
+      val bytes = new Array[Byte](dim.rStorable.size)
+      bb.mark()
+
       val value = dim.rStorable.read(bb)
       if (dim.isInstanceOf[RawDimension[_]]) {
         internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
       }
+      if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
+        bb.reset()
+        bb.get(bytes)
+        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
+      }
+
       i += 1
     }
   }

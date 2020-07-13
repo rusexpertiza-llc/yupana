@@ -18,19 +18,34 @@ package org.yupana.api.types
 
 /**
   * Converter from type `In` to `Out`. Usually works with numeric types, increasing precision.
+  *
   * @param dataType output data type
   * @param functionName name of this converter
-  * @param direct conversion function from `In` to `Out`
-  * @param reverse conversion from `Out` to `In`. This might loose precision.
+  * @param convert conversion function from `In` to `Out`
   * @tparam In input type
   * @tparam Out output type
   */
 class TypeConverter[In, Out](
     val dataType: DataType.Aux[Out],
     val functionName: String,
-    val direct: In => Out,
-    val reverse: Out => Option[In]
+    val convert: In => Out
 ) extends Serializable
+
+/**
+  * Converter from type `In` to `Out` which might fail on some values. This can be used on numeric types decreasing size
+  * (e.g. convert Long to Int if it possible).
+  *
+  * @param dataType output data type
+  * @param functionName name of this converter
+  * @param convert conversion function from `In` to `Out`
+  * @tparam In input type
+  * @tparam Out output type
+  */
+class PartialConverter[In, Out](
+    val dataType: DataType.Aux[Out],
+    val functionName: String,
+    val convert: In => Option[Out]
+)
 
 object TypeConverter {
 
@@ -46,28 +61,53 @@ object TypeConverter {
     converters.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[TypeConverter[T, U]]]
   }
 
-  val double2BigDecimal: TypeConverter[Double, BigDecimal] = of(x => BigDecimal(x), x => Some(x.toDouble))
-  val long2BigDecimal: TypeConverter[Long, BigDecimal] =
-    of(x => BigDecimal(x), x => if (x.isValidLong) Some(x.longValue) else None)
-  val long2Double: TypeConverter[Long, Double] = of(_.toDouble, _ => None)
-  val int2Long: TypeConverter[Int, Long] = of(_.toLong, x => if (x.isValidInt) Some(x.toInt) else None)
-  val int2BigDecimal: TypeConverter[Int, BigDecimal] =
-    of(x => BigDecimal(x), x => if (x.isValidInt) Some(x.toInt) else None)
-  val short2BigDecimal: TypeConverter[Short, BigDecimal] =
-    of(x => BigDecimal(x), x => if (x.isValidShort) Some(x.toShort) else None)
-  val byte2BigDecimal: TypeConverter[Byte, BigDecimal] =
-    of(x => BigDecimal(x), x => if (x.isValidByte) Some(x.toByte) else None)
+  /**
+    * Look up for partial converter from `T` to `U`
+    * @param a input data type
+    * @param b output data type
+    * @tparam T input type
+    * @tparam U output type
+    * @return a converter instance if available
+    */
+  def partial[T, U](implicit a: DataType.Aux[T], b: DataType.Aux[U]): Option[PartialConverter[T, U]] = {
+    partials.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[PartialConverter[T, U]]]
+  }
 
-  def of[T, U](f: T => U, rev: U => Option[T])(
+  val double2BigDecimal: TypeConverter[Double, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val long2BigDecimal: TypeConverter[Long, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val long2Double: TypeConverter[Long, Double] = mkTotal(_.toDouble)
+  val int2Long: TypeConverter[Int, Long] = mkTotal(_.toLong)
+  val int2BigDecimal: TypeConverter[Int, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val short2BigDecimal: TypeConverter[Short, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val byte2BigDecimal: TypeConverter[Byte, BigDecimal] = mkTotal(x => BigDecimal(x))
+
+  val bigDecimal2Double: PartialConverter[BigDecimal, Double] = mkPartial(x => Some(x.toDouble))
+  val bigDecimal2Long: PartialConverter[BigDecimal, Long] =
+    mkPartial(x => if (x.isValidLong) Some(x.longValue) else None)
+  val bigDecimal2Int: PartialConverter[BigDecimal, Int] = mkPartial(x => if (x.isValidInt) Some(x.toInt) else None)
+  val bigDecimal2Short: PartialConverter[BigDecimal, Short] =
+    mkPartial(x => if (x.isValidShort) Some(x.toShort) else None)
+  val bigDecimal2Byte: PartialConverter[BigDecimal, Byte] = mkPartial(x => if (x.isValidByte) Some(x.toByte) else None)
+
+  def mkTotal[T, U](f: T => U)(
       implicit
-      rtt: DataType.Aux[T],
-      rtu: DataType.Aux[U]
+      dtt: DataType.Aux[T],
+      dtu: DataType.Aux[U]
   ): TypeConverter[T, U] = {
     new TypeConverter[T, U](
-      rtu,
-      rtt.meta.sqlTypeName.toLowerCase + "2" + rtu.meta.sqlTypeName.toLowerCase,
-      f,
-      rev
+      dtu,
+      dtt.meta.sqlTypeName.toLowerCase + "2" + dtu.meta.sqlTypeName.toLowerCase,
+      f
+    )
+  }
+
+  def mkPartial[T, U](
+      f: T => Option[U]
+  )(implicit dtt: DataType.Aux[T], dtu: DataType.Aux[U]): PartialConverter[T, U] = {
+    new PartialConverter[T, U](
+      dtu,
+      dtt.meta.sqlTypeName.toLowerCase + "2" + dtu.meta.sqlTypeName.toLowerCase,
+      f
     )
   }
 
@@ -79,6 +119,14 @@ object TypeConverter {
     ((dtt.meta.sqlTypeName, dtu.meta.sqlTypeName), tc)
   }
 
+  private def pEntry[T, U](pc: PartialConverter[T, U])(
+      implicit
+      dtt: DataType.Aux[T],
+      dtu: DataType.Aux[U]
+  ): ((String, String), PartialConverter[T, U]) = {
+    ((dtt.meta.sqlTypeName, dtu.meta.sqlTypeName), pc)
+  }
+
   private val converters: Map[(String, String), TypeConverter[_, _]] = Map(
     entry[Double, BigDecimal](double2BigDecimal),
     entry[Long, BigDecimal](long2BigDecimal),
@@ -87,6 +135,14 @@ object TypeConverter {
     entry[Int, BigDecimal](int2BigDecimal),
     entry[Short, BigDecimal](short2BigDecimal),
     entry[Byte, BigDecimal](byte2BigDecimal)
+  )
+
+  private val partials: Map[(String, String), PartialConverter[_, _]] = Map(
+    pEntry[BigDecimal, Double](bigDecimal2Double),
+    pEntry[BigDecimal, Long](bigDecimal2Long),
+    pEntry[BigDecimal, Int](bigDecimal2Int),
+    pEntry[BigDecimal, Short](bigDecimal2Short),
+    pEntry[BigDecimal, Byte](bigDecimal2Byte)
   )
 
 }

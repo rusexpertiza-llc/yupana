@@ -41,7 +41,7 @@ trait DataType extends Serializable {
     else
       obj match {
         case that: DataType =>
-          this.meta == that.meta
+          this.classTag == that.classTag
         case _ => false
       }
   }

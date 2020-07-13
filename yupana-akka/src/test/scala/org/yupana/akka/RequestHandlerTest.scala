@@ -54,7 +54,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         ParameterValue(1, Value(Value.Value.TimeValue(1234567L))),
         ParameterValue(2, Value(Value.Value.TimeValue(2345678L))),
         ParameterValue(4, Value(Value.Value.DecimalValue("300"))),
-        ParameterValue(3, Value(Value.Value.TextValue("деталь")))
+        ParameterValue(3, Value(Value.Value.TextValue("Деталь")))
       )
     )
 
@@ -65,7 +65,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         and(
           ge(time, const(Time(1234567L))),
           lt(time, const(Time(2345678L))),
-          equ(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), lower(const("деталь"))),
+          equ(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), const("деталь")),
           equ(metric(ItemTableMetrics.sumField), const(BigDecimal(300)))
         )
       ),
