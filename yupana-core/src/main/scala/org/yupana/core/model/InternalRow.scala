@@ -116,21 +116,21 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
 
   def this(queryContext: QueryContext) = this(queryContext.exprsIndex, queryContext.query.table)
 
-  def set(tag: Int, v: Any): Unit = {
+  def set(tag: Byte, v: Any): Unit = {
     val index = tagExprsIndexes(tag & 0xFF)
     if (index != -1) {
       data(index) = v
     }
   }
 
-  def setId(tag: Int, v: String): Unit = {
+  def setId(tag: Byte, v: String): Unit = {
     val index = dimIdIndex(tag & 0xFF)
     if (index != -1) {
       data(index) = v
     }
   }
 
-  def needId(tag: Int): Boolean = dimIdIndex(tag & 0xFF) != -1
+  def needId(tag: Byte): Boolean = dimIdIndex(tag & 0xFF) != -1
 
   def set(time: Time): Unit = {
     if (timeIndex != -1) data(timeIndex) = time

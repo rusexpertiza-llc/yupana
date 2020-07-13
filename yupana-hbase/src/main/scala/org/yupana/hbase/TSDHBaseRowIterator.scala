@@ -115,12 +115,12 @@ class TSDHBaseRowIterator(
 
       val value = dim.rStorable.read(bb)
       if (dim.isInstanceOf[RawDimension[_]]) {
-        internalRowBuilder.set(Table.DIM_TAG_OFFSET + i, value)
+        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
       }
-      if (internalRowBuilder.needId(Table.DIM_TAG_OFFSET + i)) {
+      if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
         bb.reset()
         bb.get(bytes)
-        internalRowBuilder.setId(Table.DIM_TAG_OFFSET + i, new String(Hex.encodeHex(bytes)))
+        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
       }
 
       i += 1
