@@ -50,7 +50,7 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
         StructField("time", TimestampType),
         StructField("item", StringType),
         StructField("quantity", DoubleType),
-        StructField("sum", DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2))
+        StructField("sum", DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 6))
       )
     )
 
