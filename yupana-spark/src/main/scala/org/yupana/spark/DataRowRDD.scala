@@ -86,7 +86,7 @@ object DataRowRDD {
     Types.INTEGER -> IntegerType,
     Types.DOUBLE -> DoubleType,
     Types.BIGINT -> LongType,
-    Types.DECIMAL -> DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2),
+    Types.DECIMAL -> DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 6),
     Types.TIMESTAMP -> TimestampType
   )
 }
