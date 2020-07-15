@@ -105,7 +105,7 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
 
     val data2 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.EMPTY))
       )
     )
 
@@ -149,7 +149,7 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
 
     rows(1).get[Time]("time") shouldEqual Time(21112L)
-    rows(1).get[String]("item") shouldEqual "икра баклажанная"
+    rows(1).get[String]("item") shouldEqual null
   }
 
   it should "handle error response on query" in {
