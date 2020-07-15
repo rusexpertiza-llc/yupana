@@ -78,8 +78,26 @@ object ExpressionCalculator {
           evaluateExpression(negative, queryContext, internalRow)
         }
 
-      case UnaryOperationExpr(f, e) =>
-        f(evaluateExpression(e, queryContext, internalRow))
+      case TrunkYearExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncYear)
+
+      case TrunkMonthExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncMonth)
+
+      case TrunkDayExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncDay)
+
+      case TrunkWeekExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncWeek)
+
+      case TrunkHourExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncHour)
+
+      case TrunkMinuteExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncMinute)
+
+      case TrunkSecondExpr(e) =>
+        evaluateUnary(queryContext, internalRow)(e, Operations.truncSecond)
 
       case BinaryOperationExpr(f, a, b) =>
         val left = evaluateExpression(a, queryContext, internalRow)
@@ -133,10 +151,15 @@ object ExpressionCalculator {
 
         if (success) values else null
 
-      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
+//      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
     res.asInstanceOf[expr.Out]
+  }
+
+  private def evaluateUnary[T, U](qc: QueryContext, internalRow: InternalRow)(e: Expression.Aux[T], f: T => U): U = {
+    val ev = evaluateExpression(e, qc, internalRow)
+    if (ev != null) f(ev) else null.asInstanceOf[U]
   }
 }

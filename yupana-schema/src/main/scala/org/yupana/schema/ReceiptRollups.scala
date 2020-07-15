@@ -16,8 +16,7 @@
 
 package org.yupana.schema
 
-import org.joda.time.DateTimeFieldType
-import org.yupana.api.query.{ DimensionExpr, Expression }
+import org.yupana.api.query._
 import org.yupana.api.schema.Rollup
 
 object ReceiptRollups {
@@ -30,7 +29,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ shiftRollupFields ++ additionalRollupFieldsFromDetails,
     fromTable = Tables.receiptTable,
     toTable = Tables.receiptByDayTable,
-    downsamplingInterval = Some(DateTimeFieldType.dayOfYear())
+    timeExpr = TrunkDayExpr(TimeExpr)
   )
 
   val receiptDayAllKkmsRollup = Rollup(
@@ -42,7 +41,7 @@ object ReceiptRollups {
     ) ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByDayAllKkmsTable,
-    downsamplingInterval = Some(DateTimeFieldType.dayOfYear())
+    timeExpr = TrunkDayExpr(TimeExpr)
   )
 
   val receiptWeekRollup = Rollup(
@@ -52,7 +51,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByWeekTable,
-    downsamplingInterval = Some(DateTimeFieldType.weekOfWeekyear())
+    timeExpr = TrunkWeekExpr(TimeExpr)
   )
 
   val receiptMonthRollup = Rollup(
@@ -62,7 +61,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,
-    downsamplingInterval = Some(DateTimeFieldType.monthOfYear())
+    timeExpr = TrunkMonthExpr(TimeExpr)
   )
 
 }

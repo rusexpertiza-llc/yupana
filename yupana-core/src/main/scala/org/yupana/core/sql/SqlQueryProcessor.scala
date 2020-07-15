@@ -26,7 +26,6 @@ import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
-import org.yupana.core.utils.ConditionMatchers.Lower
 
 class SqlQueryProcessor(schema: Schema) {
 
@@ -101,8 +100,11 @@ object SqlQueryProcessor extends QueryValidator {
   )
 
   val function1Registry: Map[String, Expression => Either[String, Expression]] = Map(
-    "id" -> createDimIdExpr
+    "id" -> createDimIdExpr,
+    "trunkDay" -> unary(TrunkDayExpr.apply)
   )
+
+  def unary(function: Expression => Expression): Either[String, Expression]
 
   object ExprType extends Enumeration {
     type ExprType = Value
@@ -246,7 +248,7 @@ object SqlQueryProcessor extends QueryValidator {
     e.right.map {
       case die: DimensionIdExpr => die
       case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] && ex.kind != Const =>
-        UnaryOperationExpr(UnaryOperation.lower, ex.asInstanceOf[Expression.Aux[String]])
+        LowerExpr(ex.asInstanceOf[Expression.Aux[String]])
       case ex => ex
     }
   }
@@ -398,12 +400,12 @@ object SqlQueryProcessor extends QueryValidator {
       case parser.IsNull(e) =>
         for {
           ne <- createExpr(state, nameResolver, e, ExprType.Math).right
-        } yield UnaryOperationExpr(UnaryOperation.isNull, ne.aux)
+        } yield IsNullExpr(ne.aux)
 
       case parser.IsNotNull(e) =>
         for {
           nne <- createExpr(state, nameResolver, e, ExprType.Math).right
-        } yield UnaryOperationExpr(UnaryOperation.isNotNull, nne.aux)
+        } yield IsNotNullExpr(nne.aux)
 
       case parser.In(e, vs) =>
         for {
@@ -622,9 +624,9 @@ object SqlQueryProcessor extends QueryValidator {
 
   private def createDimIdExpr(expr: Expression): Either[String, Expression] = {
     expr match {
-      case DimensionExpr(dim)        => Right(DimensionIdExpr(dim))
-      case Lower(DimensionExpr(dim)) => Right(DimensionIdExpr(dim))
-      case _                         => Left("Function id is applicable only to dimensions")
+      case DimensionExpr(dim)            => Right(DimensionIdExpr(dim))
+      case LowerExpr(DimensionExpr(dim)) => Right(DimensionIdExpr(dim))
+      case _                             => Left("Function id is applicable only to dimensions")
     }
   }
 }

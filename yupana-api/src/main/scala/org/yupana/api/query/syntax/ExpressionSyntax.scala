@@ -24,7 +24,7 @@ import org.yupana.api.types._
 trait ExpressionSyntax {
   val time: TimeExpr.type = TimeExpr
 
-  def function[T, U](f: UnaryOperation.Aux[T, U], e: Expression.Aux[T]) = UnaryOperationExpr(f, e)
+//  def function[T, U](f: UnaryOperation.Aux[T, U], e: Expression.Aux[T]) = UnaryOperationExpr(f, e)
   def convert[T, U](tc: TypeConverter[T, U], e: Expression.Aux[T]) = TypeConvertExpr(tc, e)
 
   def tuple[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) =
@@ -66,9 +66,6 @@ trait ExpressionSyntax {
     BinaryOperationExpr(BinaryOperation.equ[T], left, right)
   def neq[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
     BinaryOperationExpr(BinaryOperation.neq[T], left, right)
-
-  def isNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNull[T], e)
-  def isNotNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNotNull[T], e)
 }
 
 object ExpressionSyntax extends ExpressionSyntax

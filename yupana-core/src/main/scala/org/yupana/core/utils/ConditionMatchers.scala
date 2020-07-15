@@ -17,8 +17,7 @@
 package org.yupana.core.utils
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ BinaryOperationExpr, Expression, UnaryOperationExpr }
-import org.yupana.api.types.UnaryOperation
+import org.yupana.api.query.{ BinaryOperationExpr, Expression }
 
 object ConditionMatchers {
 
@@ -27,15 +26,6 @@ object ConditionMatchers {
       condition match {
         case BinaryOperationExpr(op, a, b) if op.name == "==" => Some((a, b))
         case _                                                => None
-      }
-    }
-  }
-
-  object Lower {
-    def unapply(expr: Expression): Option[Expression] = {
-      expr match {
-        case UnaryOperationExpr(f, e) if f.name == UnaryOperation.LOWER => Some(e)
-        case _                                                          => None
       }
     }
   }

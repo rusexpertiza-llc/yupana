@@ -16,10 +16,9 @@
 
 package org.yupana.api.schema
 
-import org.joda.time.DateTimeFieldType
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.types.UnaryOperation
 
 /**
   * Definition of persistent rollup
@@ -27,7 +26,7 @@ import org.yupana.api.types.UnaryOperation
   * @param filter condition to gather data
   * @param groupBy expressions to group by data
   * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
-  * @param downsamplingInterval grouping interval type
+  * @param timeExpr time expression to group values
   * @param fromTable table to read data
   * @param toTable table to write data
   */
@@ -36,21 +35,14 @@ case class Rollup(
     filter: Option[Condition],
     groupBy: Seq[Expression],
     fields: Seq[QueryFieldProjection],
-    downsamplingInterval: Option[DateTimeFieldType],
+    timeExpr: Expression.Aux[Time],
     fromTable: Table,
     toTable: Table
 ) extends Serializable {
 
-  lazy val timeExpr: Expression = downsamplingInterval match {
-    case Some(f) =>
-      UnaryOperationExpr(UnaryOperation.trunc(f), TimeExpr)
-    case None =>
-      TimeExpr
-  }
-
   lazy val timeField: QueryField = timeExpr as Table.TIME_FIELD_NAME
   lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields
-  lazy val allGroupBy: Seq[Expression] = if (downsamplingInterval.isDefined) timeExpr +: groupBy else groupBy
+  lazy val allGroupBy: Seq[Expression] = if (timeExpr != TimeExpr) timeExpr +: groupBy else groupBy
 
   lazy val tagResultNameMap: Map[String, String] = allFields.collect {
     case QueryFieldToDimension(queryField, dimension) =>
