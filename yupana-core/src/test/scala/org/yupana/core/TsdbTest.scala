@@ -2979,7 +2979,8 @@ class TsdbTest
         function(UnaryOperation.truncDay, time) as "time",
         aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
         aggregate(Aggregation.count[Double], TestTableFields.TEST_FIELD) as "count_testField",
-        aggregate(Aggregation.distinctCount[Double], TestTableFields.TEST_FIELD) as "distinct_count_testField"
+        aggregate(Aggregation.distinctCount[Double], TestTableFields.TEST_FIELD) as "distinct_count_testField",
+        count(const(1)) as "record_count"
       ),
       None,
       Seq(function(UnaryOperation.truncDay, time))
@@ -3016,7 +3017,8 @@ class TsdbTest
 
     row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
     row.get[Double]("sum_testField") shouldBe 0
-    row.get[Double]("count_testField") shouldBe 2
-    row.get[Double]("distinct_count_testField") shouldBe 1
+    row.get[Long]("count_testField") shouldBe 0
+    row.get[Long]("distinct_count_testField") shouldBe 0
+    row.get[Long]("record_count") shouldBe 2
   }
 }

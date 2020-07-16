@@ -286,7 +286,7 @@ trait TsdbBase extends StrictLogging {
   def applyMapOperation(queryContext: QueryContext, values: InternalRow): InternalRow = {
     queryContext.aggregateExprs.foreach { ae =>
       val oldValue = values.get[ae.expr.Out](queryContext, ae.expr)
-      val newValue = ae.aggregation.map(oldValue)
+      val newValue = if (oldValue != null) ae.aggregation.map(oldValue) else null
       values.set(queryContext, ae, newValue)
     }
     values
@@ -299,7 +299,11 @@ trait TsdbBase extends StrictLogging {
       val aValue = a.get[agg.Interim](queryContext, aggExpr)
       val bValue = b.get[agg.Interim](queryContext, aggExpr)
 
-      val newValue = agg.reduce(aValue, bValue)
+      val newValue = if (aValue != null) {
+        if (bValue != null) {
+          agg.reduce(aValue, bValue)
+        } else aValue
+      } else bValue
       reduced.set(queryContext, aggExpr, newValue)
     }
 
@@ -310,7 +314,9 @@ trait TsdbBase extends StrictLogging {
 
     queryContext.aggregateExprs.foreach { aggExpr =>
       val agg = aggExpr.aggregation
-      val newValue = agg.postMap(data.get[agg.Interim](queryContext, aggExpr))
+      val oldValue = data.get[agg.Interim](queryContext, aggExpr)
+      val newValue =
+        if (oldValue != null) agg.postMap(oldValue) else agg.emptyValue.getOrElse(null.asInstanceOf[agg.Out])
       data.set(queryContext, aggExpr, newValue)
     }
     data
