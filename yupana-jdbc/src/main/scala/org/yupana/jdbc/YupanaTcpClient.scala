@@ -196,55 +196,55 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
     new Iterator[ResultChunk] {
 
-      var statistics: Option[ResultStatistics] = Option.empty
-      var current: Option[ResultChunk] = Option.empty
-      var errorMessage: Option[String] = Option.empty
+      var statistics: ResultStatistics = null
+      var current: ResultChunk = null
+      var errorMessage: String = null
 
       readNext()
 
-      override def hasNext: Boolean = responses.hasNext && statistics.isEmpty && errorMessage.isEmpty
+      override def hasNext: Boolean = responses.hasNext && statistics == null && errorMessage == null
 
       override def next(): ResultChunk = {
-        val result = current.get
+        val result = current
         readNext()
         result
       }
 
       private def readNext(): Unit = {
-        current = None
+        current = null
         do {
           responses.next() match {
             case Response.Resp.Result(result) =>
-              current = Some(result)
+              current = result
 
             case Response.Resp.ResultHeader(_) =>
-              errorMessage = Some(error("Duplicate header received"))
+              errorMessage = error("Duplicate header received")
 
             case Response.Resp.Pong(_) =>
-              errorMessage = Some(error("Unexpected TspPong response"))
+              errorMessage = error("Unexpected TspPong response")
 
             case Response.Resp.Heartbeat(time) =>
               heartbeat(time)
 
             case Response.Resp.Error(e) =>
-              errorMessage = Some(error(e))
+              errorMessage = error(e)
 
             case Response.Resp.ResultStatistics(stat) =>
               logger.fine(s"Got statistics $stat")
-              statistics = Some(stat)
+              statistics = stat
 
             case Response.Resp.Empty =>
           }
-        } while (current.isEmpty && statistics.isEmpty && errorMessage.isEmpty && responses.hasNext)
+        } while (current == null && statistics == null && errorMessage == null && responses.hasNext)
 
-        if (statistics.nonEmpty || errorMessage.nonEmpty) {
+        if (statistics != null || errorMessage != null) {
           channel.close()
-          errorMessage.foreach { e =>
-            throw new IllegalArgumentException(e)
+          if (errorMessage != null) {
+            throw new IllegalArgumentException(errorMessage)
           }
         }
 
-        if (!responses.hasNext && statistics.isEmpty) {
+        if (!responses.hasNext && statistics == null) {
           channel.close()
           throw new IllegalArgumentException("Unexpected end of response")
         }
@@ -283,7 +283,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         .map {
           case (rt, bytes) =>
             if (bytes.isEmpty) {
-              None
+              null
             } else {
               rt.storable.read(bytes.toByteArray)
             }
