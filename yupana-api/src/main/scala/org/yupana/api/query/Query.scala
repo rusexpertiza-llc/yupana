@@ -21,7 +21,6 @@ import java.util.UUID
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
-import org.yupana.api.types.BinaryOperation
 
 /**
   * Query to TSDB
@@ -98,8 +97,8 @@ object Query {
 
     val newCondition = AndExpr(
       Seq(
-        BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, from),
-        BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, to)
+        GeExpr(TimeExpr, from),
+        LtExpr(TimeExpr, to)
       ) ++ filter
     )
 
