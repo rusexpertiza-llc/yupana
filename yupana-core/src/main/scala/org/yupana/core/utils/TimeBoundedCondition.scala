@@ -20,7 +20,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
-import org.yupana.core.utils.ConditionMatchers._
 
 import scala.collection.mutable.ListBuffer
 
@@ -103,17 +102,17 @@ object TimeBoundedCondition {
     }
 
     and.conditions.foreach {
-      case c @ Gt(TimeExpr, e) => updateFrom(c, e, 1L)
-      case c @ Lt(e, TimeExpr) => updateFrom(c, e, 1L)
+      case c @ GtExpr(_: TimeExpr.type, e) => updateFrom(c, e, 1L)
+      case c @ LtExpr(e, _: TimeExpr.type) => updateFrom(c, e, 1L)
 
-      case c @ Ge(TimeExpr, e) => updateFrom(c, e, 0L)
-      case c @ Le(e, TimeExpr) => updateFrom(c, e, 0L)
+      case c @ GeExpr(_: TimeExpr.type, e) => updateFrom(c, e, 0L)
+      case c @ LeExpr(e, _: TimeExpr.type) => updateFrom(c, e, 0L)
 
-      case c @ Lt(TimeExpr, e) => updateTo(c, e, 0L)
-      case c @ Gt(e, TimeExpr) => updateTo(c, e, 0L)
+      case c @ LtExpr(_: TimeExpr.type, e) => updateTo(c, e, 0L)
+      case c @ GtExpr(e, _: TimeExpr.type) => updateTo(c, e, 0L)
 
-      case c @ Le(TimeExpr, e) => updateTo(c, e, 1L)
-      case c @ Ge(e, TimeExpr) => updateTo(c, e, 1L)
+      case c @ LeExpr(_: TimeExpr.type, e) => updateTo(c, e, 1L)
+      case c @ GeExpr(e, _: TimeExpr.type) => updateTo(c, e, 1L)
 
       case c @ (AndExpr(_) | OrExpr(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
 

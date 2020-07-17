@@ -16,62 +16,59 @@
 
 package org.yupana.core.utils
 
-import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ BinaryOperationExpr, Expression }
-
 object ConditionMatchers {
 
-  object Equ {
-    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-      condition match {
-        case BinaryOperationExpr(op, a, b) if op.name == "==" => Some((a, b))
-        case _                                                => None
-      }
-    }
-  }
-
-  object Neq {
-    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-      condition match {
-        case BinaryOperationExpr(op, a, b) if op.name == "!=" => Some((a, b))
-        case _                                                => None
-      }
-    }
-  }
-
-  object Lt {
-    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-      condition match {
-        case BinaryOperationExpr(op, a, b) if op.name == "<" => Some((a, b))
-        case _                                               => None
-      }
-    }
-  }
-
-  object Gt {
-    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-      condition match {
-        case BinaryOperationExpr(op, a, b) if op.name == ">" => Some((a, b))
-        case _                                               => None
-      }
-    }
-  }
-
-  object Le {
-    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-      condition match {
-        case BinaryOperationExpr(op, a, b) if op.name == "<=" => Some((a, b))
-        case _                                                => None
-      }
-    }
-  }
-
-  object Ge {
-    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-      condition match {
-        case BinaryOperationExpr(op, a, b) if op.name == ">=" => Some((a, b))
-        case _                                                => None
-      }
-    }
-  }
+//  object Equ {
+//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
+//      condition match {
+//        case BinaryOperationExpr(op, a, b) if op.name == "==" => Some((a, b))
+//        case _                                                => None
+//      }
+//    }
+//  }
+//
+//  object Neq {
+//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
+//      condition match {
+//        case BinaryOperationExpr(op, a, b) if op.name == "!=" => Some((a, b))
+//        case _                                                => None
+//      }
+//    }
+//  }
+//
+//  object Lt {
+//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
+//      condition match {
+//        case BinaryOperationExpr(op, a, b) if op.name == "<" => Some((a, b))
+//        case _                                               => None
+//      }
+//    }
+//  }
+//
+//  object Gt {
+//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
+//      condition match {
+//        case BinaryOperationExpr(op, a, b) if op.name == ">" => Some((a, b))
+//        case _                                               => None
+//      }
+//    }
+//  }
+//
+//  object Le {
+//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
+//      condition match {
+//        case BinaryOperationExpr(op, a, b) if op.name == "<=" => Some((a, b))
+//        case _                                                => None
+//      }
+//    }
+//  }
+//
+//  object Ge {
+//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
+//      condition match {
+//        case BinaryOperationExpr(op, a, b) if op.name == ">=" => Some((a, b))
+//        case _                                                => None
+//      }
+//    }
+//  }
 }

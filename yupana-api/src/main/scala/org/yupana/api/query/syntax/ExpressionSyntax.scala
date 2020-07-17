@@ -40,8 +40,8 @@ trait ExpressionSyntax {
   def aggregate[T](a: Aggregation[T], f: Metric.Aux[T]): Expression.Aux[a.Out] = aggregate(a, metric(f))
   def aggregate[T](a: Aggregation[T], e: Expression.Aux[T]): Expression.Aux[a.Out] = AggregateExpr(a, e)
 
-  def bi[T, U, O](op: BinaryOperation.Aux[T, U, O], a: Expression.Aux[T], b: Expression.Aux[U]) =
-    BinaryOperationExpr(op, a, b)
+//  def bi[T, U, O](op: BinaryOperation.Aux[T, U, O], a: Expression.Aux[T], b: Expression.Aux[U]) =
+//    BinaryOperationExpr(op, a, b)
 
   def windowFunction[T](wf: WindowOperation[T], e: Expression.Aux[T]) = WindowFunctionExpr(wf, e)
 
@@ -55,17 +55,17 @@ trait ExpressionSyntax {
   def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*)).aux
 
   def gt[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.gt, left, right)
+    GtExpr(left, right)
   def lt[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.lt, left, right)
+    LtExpr(left, right)
   def ge[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.ge, left, right)
+    GeExpr(left, right)
   def le[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.le, left, right)
+    LeExpr(left, right)
   def equ[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.equ[T], left, right)
+    EqExpr(left, right)
   def neq[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.neq[T], left, right)
+    NeqExpr(left, right)
 }
 
 object ExpressionSyntax extends ExpressionSyntax
