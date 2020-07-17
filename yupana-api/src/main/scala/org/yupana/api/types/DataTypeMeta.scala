@@ -43,6 +43,9 @@ case class DataTypeMeta[T](
 )
 
 object DataTypeMeta {
+
+  val MONEY_SCALE = 2
+
   private val SIGNED_TYPES =
     Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL, Types.SMALLINT, Types.TINYINT)
 
@@ -60,7 +63,7 @@ object DataTypeMeta {
     DataTypeMeta(Types.DOUBLE, 25, "DOUBLE", classOf[java.lang.Double], 17, 17)
   implicit val longMeta: DataTypeMeta[Long] = DataTypeMeta(Types.BIGINT, 20, "BIGINT", classOf[java.lang.Long], 19, 0)
   implicit val decimalMeta: DataTypeMeta[BigDecimal] =
-    DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, 0)
+    DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, MONEY_SCALE)
   implicit val timestampMeta: DataTypeMeta[Time] =
     DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
   implicit val periodMeta: DataTypeMeta[Period] =
@@ -75,6 +78,10 @@ object DataTypeMeta {
       Integer.MAX_VALUE,
       0
     )
+  }
+
+  def scaledDecimalMeta(scale: Int): DataTypeMeta[BigDecimal] = {
+    DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, scale)
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =

@@ -10,7 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, DataTypeMeta }
 
 class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
@@ -226,7 +226,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     meta.getTableName(3) shouldEqual "test"
     meta.getSchemaName(3) shouldEqual "test"
     meta.getPrecision(3) shouldEqual 0
-    meta.getScale(3) shouldEqual 0
+    meta.getScale(3) shouldEqual DataTypeMeta.MONEY_SCALE
     meta.getColumnDisplaySize(3) shouldEqual 131089
     meta.isSearchable(3) shouldBe true
     meta.isReadOnly(3) shouldBe true
