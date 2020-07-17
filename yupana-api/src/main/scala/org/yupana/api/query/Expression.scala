@@ -19,6 +19,7 @@ package org.yupana.api.query
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
+import org.yupana.api.types.DataType.Aux
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -130,6 +131,14 @@ abstract class ConstantExpr extends Expression {
   override def encode: String = s"const($v:${v.getClass.getSimpleName})"
   override def kind: ExprKind = Const
 
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
+}
+
+case class PlaceholderExpr[T](implicit val dataType: DataType.Aux[T]) extends Expression {
+  override type Out = T
+  override def kind: ExprKind = Simple
+
+  override def encode: String = s"?:${dataType.classTag.runtimeClass.getSimpleName}"
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 }
 
