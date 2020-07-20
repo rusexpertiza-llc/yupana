@@ -62,8 +62,7 @@ object DataTypeMeta {
   implicit val doubleMeta: DataTypeMeta[Double] =
     DataTypeMeta(Types.DOUBLE, 25, "DOUBLE", classOf[java.lang.Double], 17, 17)
   implicit val longMeta: DataTypeMeta[Long] = DataTypeMeta(Types.BIGINT, 20, "BIGINT", classOf[java.lang.Long], 19, 0)
-  implicit val decimalMeta: DataTypeMeta[BigDecimal] =
-    DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, MONEY_SCALE)
+  implicit val decimalMeta: DataTypeMeta[BigDecimal] = scaledDecimalMeta(MONEY_SCALE)
   implicit val timestampMeta: DataTypeMeta[Time] =
     DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
   implicit val periodMeta: DataTypeMeta[Period] =
