@@ -3,9 +3,9 @@ package org.yupana.core.sql
 import fastparse._
 import fastparse.MultiLineWhitespace._
 import org.yupana.api.Time
-import org.yupana.api.query.ConstantExpr
+import org.yupana.api.query._
 import org.yupana.api.schema.Schema
-import org.yupana.core.sql.parser.ValueParser
+import org.yupana.api.types.DataType
 
 class NewParser(schema: Schema) {
   private def selectWord[_: P] = P(IgnoreCase("SELECT"))
@@ -71,37 +71,86 @@ class NewParser(schema: Schema) {
 
   // Expressions
 
-  def constExpr[_: P]: P[ConstantExpr] = P(ValueParser.value).map(ConstantExpr.apply)
+  def constExpr[_: P]: P[Expression] = NewValueParser.value
 
-}
+  private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
 
-object NewParser {
-
-  private def convertValue(v: parser.Value /*, exprType: ExprType*/ ): Either[String, ConstantExpr] = {
-    v match {
-      case parser.StringValue(s) =>
-//        val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
-        val const = s
-        Right(ConstantExpr(const))
-
-      case parser.NumericValue(n) =>
-        Right(ConstantExpr(n))
-
-      case parser.TimestampValue(t) =>
-        Right(ConstantExpr(Time(t)))
-
-      case parser.PeriodValue(p) //if exprType == ExprType.Cmp =>
-//        if (p.getYears == 0 && p.getMonths == 0) {
-          Right(ConstantExpr(p.toStandardDuration.getMillis))
-//        } else {
-//          Left(s"Period $p cannot be used as duration, because it has months or years")
-//        }
-
-      case parser.PeriodValue(p) => Right(ConstantExpr(p))
-
-      case parser.Placeholder =>
-//        state.nextPlaceholderValue().right.flatMap(v => convertValue(state, v, exprType))
+  private def chained1[E, _: P](firstElem: => P[E], elem: => P[E], op: => P[(E, E) => E]): P[E] = {
+    P(firstElem ~ (op ~ elem).rep).map {
+      case (first, rest) =>
+        rest.foldLeft(first) { case (l, (fun, r)) => fun(l, r) }
     }
   }
 
+  private def plus[_: P] = P("+").map(_ => PlusExpr)
+  private def minus[_: P] = P("-").map(_ => MinusExpr)
+  private def multiply[_: P] = P("*").map(_ => TimesExpr)
+  private def divide[_: P] = P("/").map(_ => DivIntExpr)
+
+  def expr[_: P]: P[Expression] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+
+  def minusMathTerm[_: P]: P[Expression] = P("-" ~ mathTerm).map(x => UnaryMinusExpr(x.aux))
+
+  def mathTerm[_: P]: P[Expression] = chained(mathFactor, multiply | divide)
+
+  def mathFactor[_: P]: P[Expression] =
+    P(functionCallExpr | /* caseExpr | */ constExpr | fieldNameExpr | "(" ~ expr ~ ")")
+
+  def fieldNameExpr[_: P]: P[Expression] = fieldWithSchema.flatMap(recognizeField)
+
+  def field[_: P]: P[QueryField] = P(expr ~~ alias.?).map {
+    case (e, a) =>
+      QueryField(a.getOrElse("FIXME"), e)
+  } // FIXME
+
+  def functionCallExpr[_: P]: P[Expression] =
+    unary("trunkYear", DataType[Time], TrunkYearExpr.apply) |
+      unary("trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
+      unary("trunkDay", DataType[Time], TrunkDayExpr.apply) |
+      unary("trunkHour", DataType[Time], TrunkHourExpr.apply) |
+      unary("trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
+      unary("trunkSecond", DataType[Time], TrunkSecondExpr.apply)
+
+  private def unary[T, _: P](
+      fn: String,
+      tpe: DataType.Aux[T],
+      create: Expression.Aux[T] => Expression
+  ): P[Expression] = {
+    P(fn ~ "(" ~ expr ~ ")").flatMap { e =>
+      if (e.dataType == tpe)
+        Pass(create(e.asInstanceOf[Expression.Aux[T]]))
+      else Fail(s"Function $fn can not be applied to ${e.dataType}")
+    }
+  }
+
+  private def recognizeField[_: P](name: String): P[Expression] = ???
 }
+
+//object NewParser {
+//
+//  private def convertValue[_: P](v: parser.Value /*, exprType: ExprType*/ ): P[ConstantExpr] = {
+//    v match {
+//      case parser.StringValue(s) =>
+////        val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
+//        val const = s
+//        Pass(ConstantExpr(const))
+//
+//      case parser.NumericValue(n) => Pass(ConstantExpr(n))
+//
+//      case parser.TimestampValue(t) => Pass(ConstantExpr(Time(t)))
+//
+//      case parser.PeriodValue(p) => //if exprType == ExprType.Cmp =>
+////        if (p.getYears == 0 && p.getMonths == 0) {
+//        Pass(ConstantExpr(p.toStandardDuration.getMillis))
+////        } else {
+////          Left(s"Period $p cannot be used as duration, because it has months or years")
+////        }
+//
+//      case parser.PeriodValue(p) => Pass(ConstantExpr(p))
+//
+//      case parser.Placeholder =>
+////        state.nextPlaceholderValue().right.flatMap(v => convertValue(state, v, exprType))
+//    }
+//  }
+//
+//}

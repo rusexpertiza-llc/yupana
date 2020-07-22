@@ -19,7 +19,6 @@ package org.yupana.api.query
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
-import org.yupana.api.types.DataType.Aux
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -134,7 +133,7 @@ abstract class ConstantExpr extends Expression {
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 }
 
-case class PlaceholderExpr[T](implicit val dataType: DataType.Aux[T]) extends Expression {
+case class PlaceholderExpr[T]()(implicit val dataType: DataType.Aux[T]) extends Expression {
   override type Out = T
   override def kind: ExprKind = Simple
 
@@ -209,7 +208,7 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   def toField: QueryField = QueryField(metric.name, this)
 }
 
-class LinkExpr[T](val link: ExternalLink, val linkField: LinkField.Aux[T]) extends Expression {
+case class LinkExpr[T](val link: ExternalLink, val linkField: LinkField.Aux[T]) extends Expression {
   override type Out = T
   override val dataType: DataType.Aux[linkField.T] = linkField.dataType
   override def kind: ExprKind = Simple
@@ -222,9 +221,9 @@ class LinkExpr[T](val link: ExternalLink, val linkField: LinkField.Aux[T]) exten
 }
 
 object LinkExpr {
-  def apply[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = new LinkExpr(link, field)
+//  def apply[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = new LinkExpr(link, field)
   def apply(link: ExternalLink, field: String): LinkExpr[String] = new LinkExpr(link, LinkField[String](field))
-  def unapply(expr: LinkExpr[_]): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField.name))
+//  def unapply(expr: LinkExpr[_]): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField.name))
 }
 
 abstract class UnaryOperationExpr[T, U](

@@ -104,7 +104,12 @@ object SqlQueryProcessor extends QueryValidator {
     "trunkDay" -> unary(TrunkDayExpr.apply)
   )
 
-  def unary(function: Expression => Expression): Either[String, Expression]
+  def unary[T](
+      c: SimpleUnaryCompanion[T]
+  )(f: Expression.Aux[T] => Expression): Expression => Either[String, Expression] = { e =>
+    if (e.dataType == c.argType) Right(f(e.asInstanceOf[Expression.Aux[T]]))
+    else Left(s"Incompatible types ${e.dataType} and ${c.argType}")
+  }
 
   object ExprType extends Enumeration {
     type ExprType = Value
