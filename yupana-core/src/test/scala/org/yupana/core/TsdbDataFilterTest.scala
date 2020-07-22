@@ -306,6 +306,63 @@ class TsdbDataFilterTest
     iterator.hasNext shouldBe false
   }
 
+  it should "support NOT IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT time, A, B, testField as F1 FROM test_table WHERE F1 NOT IN (123, 456)" + timeBounds()
+    val query = createQuery(sql)
+
+    val pointTime = from.getMillis + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(metric(TestTableFields.TEST_FIELD), Set(123d, 456d))
+          )
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 123d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 234d)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), null)
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
+            .buildAndReset()
+        )
+      )
+
+    val iterator = tsdb.query(query).iterator
+
+    val r = iterator.next()
+
+    r.get[Time]("time") shouldBe Time(pointTime)
+    r.get[Double]("F1") shouldBe 234d
+    r.get[String]("A") shouldBe "test1"
+    r.get[String]("B") shouldBe "test2"
+
+    iterator.hasNext shouldBe false
+  }
+
   it should "support AND for values, catalogs and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
