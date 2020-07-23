@@ -20,6 +20,7 @@ import org.yupana.core.QueryContext
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
+import org.yupana.schema.Tables
 
 object BenchLink extends ExternalLink {
 
@@ -36,7 +37,7 @@ object BenchLink extends ExternalLink {
 class ExternalLinkBenchmarks {
 
   @Benchmark
-  def setLinkedValues(state: BenchmarkState): Unit = {
+  def setLinkedValues(state: ExternalLinkBenchmarkState): Unit = {
     ExternalLinkUtils.setLinkedValues[Int](
       state.externalLink,
       state.exprIndex,
@@ -47,7 +48,7 @@ class ExternalLinkBenchmarks {
   }
 
   @Benchmark
-  def setLinkedValuesTimeSensitive(state: BenchmarkState): Unit = {
+  def setLinkedValuesTimeSensitive(state: ExternalLinkBenchmarkState): Unit = {
     ExternalLinkUtils.setLinkedValuesTimeSensitive[Int](
       state.externalLink,
       state.exprIndex,
@@ -72,11 +73,11 @@ class ExternalLinkBenchmarks {
 }
 
 @State(Scope.Benchmark)
-class BenchmarkState {
+class ExternalLinkBenchmarkState {
 
   val dim: RawDimension[Int] = BenchLink.dim
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
-  val table = new YTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink))
+  val table = new YTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
   val linkExpr: LinkExpr = LinkExpr(BenchLink, BenchLink.F1)
   val t0 = new DateTime("2019-04-20")
   val t1: DateTime = t0.plusYears(1)

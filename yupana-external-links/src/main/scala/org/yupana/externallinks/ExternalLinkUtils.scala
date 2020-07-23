@@ -91,11 +91,12 @@ object ExternalLinkUtils {
     val fields = linkExprs.map(_.linkField)
     val dimValues = rows.flatMap(r => r.get[R](dimExprIdx)).toSet
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
-    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
+    val linkExprsMap = linkExprs.map(e => e.linkField -> exprIndex(e)).toMap
+
     rows.foreach { row =>
       row.get[R](dimExprIdx).foreach { dimValue =>
         allFieldsValues.row(dimValue).foreach {
-          case (field, value) => updateRow(row, linkExprsMap(field), exprIndex, field, value)
+          case (field, value) => row.set(linkExprsMap(field), Option(value))
         }
       }
     }
@@ -119,25 +120,13 @@ object ExternalLinkUtils {
     }
     val dimValuesWithTimes = rows.flatMap(extractDimValueWithTime)
     val allFieldsValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes.toSet)
-    val linkExprsMap = linkExprs.map(e => e.linkField -> e).toMap
+    val linkExprsMap = linkExprs.map(e => e.linkField -> exprIndex(e)).toMap
     rows.foreach { row =>
       extractDimValueWithTime(row).foreach { dimValueAtTime =>
         allFieldsValues.row(dimValueAtTime).foreach {
-          case (field, value) => updateRow(row, linkExprsMap(field), exprIndex, field, value)
+          case (field, value) => row.set(linkExprsMap(field), Option(value))
         }
       }
-    }
-  }
-
-  private def updateRow(
-      row: InternalRow,
-      linkExpr: LinkExpr,
-      exprIndex: scala.collection.Map[Expression, Int],
-      field: String,
-      value: String
-  ): Unit = {
-    if (value != null && exprIndex.contains(linkExpr)) {
-      row.set(exprIndex, linkExpr, Some(value))
     }
   }
 
