@@ -111,6 +111,50 @@ class NewParser(schema: Schema) {
       unary("trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
       unary("trunkSecond", DataType[Time], TrunkSecondExpr.apply)
 
+  def limit[_: P]: P[Int] = P(limitWord ~/ NewValueParser.intNumber)
+
+  /* SELECT */
+
+  def select[_: P]: P[Query] = P(selectFields.flatMap(selectFrom))
+
+  /* SHOW */
+  def tables[_: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
+
+  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
+
+  def queries[_: P]: P[ShowQueryMetrics] =
+    P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
+
+  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries))
+
+  /* KILL */
+  def metricQueryIdFilter[_: P]: P[MetricsFilter] =
+    P(queryIdWord ~ "=" ~/ NewValueParser.string).map(queryId => MetricsFilter(queryId = Some(queryId)))
+  def metricStateFilter[_: P]: P[MetricsFilter] =
+    P(stateWord ~ "=" ~/ NewValueParser.string).map(state => MetricsFilter(state = Some(state)))
+  def queryMetricsFilter[_: P]: P[MetricsFilter] = P(
+    whereWord ~ (metricQueryIdFilter | metricStateFilter)
+  )
+
+  def kill[_: P]: P[Statement] = P(killWord ~/ queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
+
+  /* DELETE */
+  def delete[_: P]: P[DeleteQueryMetrics] =
+    P(deleteWord ~/ queriesWord ~/ queryMetricsFilter).map(DeleteQueryMetrics)
+
+  /* UPSERT */
+  def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
+
+  def values[_: P](count: Int): P[Seq[Seq[Expression]]] =
+    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
+
+  def upsert[_: P]: P[Upsert] =
+    P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
+      case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
+    }
+
+  def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
+
   private def unary[T, _: P](
       fn: String,
       tpe: DataType.Aux[T],
