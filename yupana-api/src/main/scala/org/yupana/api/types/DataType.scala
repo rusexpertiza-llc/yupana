@@ -32,7 +32,10 @@ trait DataType extends Serializable {
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
   val isArray: Boolean = false
-  def operations: TypeOperations[T]
+  val ordering: Option[Ordering[T]]
+  val integral: Option[Integral[T]]
+  val fractional: Option[Fractional[T]]
+//  def operations: TypeOperations[T]
 
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
 
@@ -58,7 +61,9 @@ class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override val classTag: ClassTag[T] = valueType.classTag.wrap
   override val boxingTag: BoxingTag[Array[TT]] = BoxingTag.arrayBoxing(valueType.classTag)
 
-  override def operations: TypeOperations[T] = TypeOperations.arrayOperations(valueType)
+  override val ordering: Option[Ordering[Array[TT]]] = None
+  override val integral: Option[Integral[Array[TT]]] = None
+  override val fractional: Option[Fractional[Array[TT]]] = None
 }
 
 object DataType {
@@ -90,19 +95,19 @@ object DataType {
 
   def apply[T](implicit dt: DataType.Aux[T]): DataType.Aux[T] = dt
 
-  implicit val stringDt: DataType.Aux[String] = DataType[String](r => TypeOperations.stringOperations(r))
+  implicit val stringDt: DataType.Aux[String] = create[String](Some(Ordering[String]), None, None)
 
-  implicit val boolDt: DataType.Aux[Boolean] = DataType[Boolean](r => TypeOperations.boolOperations(r))
+  implicit val boolDt: DataType.Aux[Boolean] = create[Boolean](Some(Ordering[Boolean]), None, None)
 
-  implicit val timeDt: DataType.Aux[Time] = DataType[Time](r => TypeOperations.timeOperations(r))
+  implicit val timeDt: DataType.Aux[Time] = create[Time](Some(Ordering[Time]), None, None)
 
-  implicit val periodDt: DataType.Aux[Period] = DataType[Period](r => TypeOperations.periodOperations(r))
+  implicit val periodDt: DataType.Aux[Period] = create[Period](None, None, None)
 
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
-    DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
+    create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
 
   implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
-    DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))
+    create[T](Some(Ordering[T]), None, Some(implicitly[Fractional[T]]))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
     new DataType {
@@ -111,8 +116,9 @@ object DataType {
       override val storable: Storable[T] = Storable.noop
       override val classTag: ClassTag[T] = implicitly[ClassTag[(TT, UU)]]
       override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(TT, UU)]]
-
-      override def operations: TypeOperations[T] = TypeOperations.tupleOperations(dtt, dtu)
+      override val ordering: Option[Ordering[(TT, UU)]] = None
+      override val integral: Option[Integral[(TT, UU)]] = None
+      override val fractional: Option[Fractional[(TT, UU)]] = None
     }
   }
 
@@ -120,7 +126,7 @@ object DataType {
     new ArrayDataType(dtt).aux
   }
 
-  private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(
+  private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
       implicit
       s: Storable[TT],
       m: DataTypeMeta[TT],
@@ -132,6 +138,8 @@ object DataType {
     override val storable: Storable[T] = s
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
-    override lazy val operations: TypeOperations[TT] = getOps(this)
+    override val ordering: Option[Ordering[TT]] = o
+    override val integral: Option[Integral[TT]] = i
+    override val fractional: Option[Fractional[TT]] = f
   }
 }

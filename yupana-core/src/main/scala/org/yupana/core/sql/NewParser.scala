@@ -7,6 +7,10 @@ import org.yupana.api.query._
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.DataType
 
+sealed trait SqlFields
+case class SqlFieldList(fields: Seq[QueryField]) extends SqlFields
+case object SqlFieldsAll extends SqlFields
+
 class NewParser(schema: Schema) {
   private def selectWord[_: P] = P(IgnoreCase("SELECT"))
   private def showWord[_: P] = P(IgnoreCase("SHOW"))
@@ -103,6 +107,25 @@ class NewParser(schema: Schema) {
       QueryField(a.getOrElse("FIXME"), e)
   } // FIXME
 
+  def op[_: P]: P[(Expression, Expression) => Expression.Condition] = P(
+    P("=").map(_ => EqExpr) |
+      P("<>").map(_ => NeqExpr) |
+      P("!=").map(_ => NeqExpr) |
+      P(">=").map(_ => GeExpr) |
+      P(">").map(_ => GtExpr) |
+      P("<=").map(_ => LeExpr) |
+      P("<").map(_ => LtExpr)
+  )
+
+  private def cmpExpr[T, _: P](
+      cTor: (Expression.Aux[T], Expression.Aux[T], Ordering[T]) => Expression.Condition
+  ): P[(Expression, Expression) => Expression.Condition] = { (a, b) =>
+    ExprPair.alignTypes(a, b) match {
+      case Right(pair) if pair.dataType.ordering.isDefined => cTor(pair.a, pair.b, pair.dataType.ordering.get)
+      case Left(msg)                                       => Fail(msg)
+    }
+  }
+
   def functionCallExpr[_: P]: P[Expression] =
     unary("trunkYear", DataType[Time], TrunkYearExpr.apply) |
       unary("trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
@@ -111,9 +134,81 @@ class NewParser(schema: Schema) {
       unary("trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
       unary("trunkSecond", DataType[Time], TrunkSecondExpr.apply)
 
+  def callOrField[_: P]: P[Expression] = functionCallExpr | fieldNameExpr
+
+  def comparison[_: P]: P[Expression => Expression.Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
+
+  def in[_: P]: P[Expression => Expression.Condition] =
+    P(inWord ~/ "(" ~ NewValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => InExpr(e, vs))
+
+  def notIn[_: P]: P[Expression => Expression.Condition] =
+    P(notWord ~ inWord ~/ "(" ~ NewValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotInExpr(e, vs))
+
+  def isNull[_: P]: P[Expression => Expression.Condition] = P(isWord ~ nullWord).map(_ => IsNullExpr)
+
+  def isNotNull[_: P]: P[Expression => Expression.Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNullExpr)
+
+  def condition[_: P]: P[Expression.Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
+    case (x, y) if y.nonEmpty => OrExpr(x +: y)
+    case (x, _)               => x
+  }
+
+  def logicalTerm[_: P]: P[Expression.Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
+    case (x, y) if y.nonEmpty => AndExpr(x +: y)
+    case (x, _)               => x
+  }
+
+  def boolExpr[_: P]: P[Expression.Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull).?).map {
+    case (e, Some(f)) => f(e)
+    case (e, None)    => e
+  }
+
+  def logicalFactor[_: P]: P[Expression.Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
+
   def limit[_: P]: P[Int] = P(limitWord ~/ NewValueParser.intNumber)
 
+  def where[_: P]: P[Expression.Condition] = P(whereWord ~/ condition)
+
+  def grouping[_: P]: P[Expression] = callOrField
+
+  def groupings[_: P]: P[Seq[Expression]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
+
+  def having[_: P]: P[Expression.Condition] = P(havingWord ~/ condition)
+
   /* SELECT */
+
+  def fieldList[_: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
+  def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
+
+  def selectFields[_: P]: P[SqlFields] = P(selectWord ~/ (fieldList | allFields))
+
+  /*def nestedSelectFrom[_: P](fields: SqlFields): P[Query] = {
+    P(fromWord ~ "(" ~/ select ~ ")" ~/ (asWord.? ~ notKeyword).?).map {
+      case (sel, _) =>
+        fields match {
+          case SqlFieldsAll => sel
+
+          case SqlFieldList(fs) =>
+            val newFields = sel.fields match {
+              case SqlFieldList(inner) =>
+                fs.map(f => f.copy(expr = substituteNested(f.expr, inner)))
+
+              case SqlFieldsAll => fs
+            }
+            sel.copy(fields = SqlFieldList(newFields))
+        }
+    }
+  }*/
+
+  def normalSelectFrom[_: P](fields: SqlFields): P[Query] = {
+    P((fromWord ~ schemaName).? ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
+      case (s, c, gs, h, l) => Query(s, fields, c, gs.getOrElse(Seq.empty), h, l)
+    }
+  }
+
+  def selectFrom[_: P](fields: SqlFields): P[Query] = {
+    P( /*nestedSelectFrom(fields) |*/ normalSelectFrom(fields))
+  }
 
   def select[_: P]: P[Query] = P(selectFields.flatMap(selectFrom))
 

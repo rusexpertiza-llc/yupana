@@ -85,22 +85,22 @@ object TypeOperations {
     Map.empty
   )
 
-  def tupleOperations[T, U](dtt: DataType.Aux[T], dtu: DataType.Aux[U]): TypeOperations[(T, U)] = {
-
-    TypeOperations(
-      BinaryOperation.tupleOperations(dtt.operations.binaryOperations, dtu.operations.binaryOperations),
-      UnaryOperation.tupleOperations(dtt.operations.unaryOperations, dtu.operations.unaryOperations),
-      Map.empty,
-      Map.empty
-    )
-  }
-
-  def arrayOperations[T](dtt: DataType.Aux[T]): TypeOperations[Array[T]] = {
-    TypeOperations(
-      BinaryOperation.arrayOperations[T](dtt),
-      UnaryOperation.arrayOperations[T] ++ dtt.operations.arrayOperations,
-      Map.empty,
-      Map.empty
-    )
-  }
+//  def tupleOperations[T, U](dtt: DataType.Aux[T], dtu: DataType.Aux[U]): TypeOperations[(T, U)] = {
+//
+//    TypeOperations(
+//      BinaryOperation.tupleOperations(dtt.operations.binaryOperations, dtu.operations.binaryOperations),
+//      UnaryOperation.tupleOperations(dtt.operations.unaryOperations, dtu.operations.unaryOperations),
+//      Map.empty,
+//      Map.empty
+//    )
+//  }
+//
+//  def arrayOperations[T](dtt: DataType.Aux[T]): TypeOperations[Array[T]] = {
+//    TypeOperations(
+//      BinaryOperation.arrayOperations[T](dtt),
+//      UnaryOperation.arrayOperations[T] ++ dtt.operations.arrayOperations,
+//      Map.empty,
+//      Map.empty
+//    )
+//  }
 }

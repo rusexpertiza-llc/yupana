@@ -100,16 +100,16 @@ object SqlQueryProcessor extends QueryValidator {
   )
 
   val function1Registry: Map[String, Expression => Either[String, Expression]] = Map(
-    "id" -> createDimIdExpr,
-    "trunkDay" -> unary(TrunkDayExpr.apply)
+    "id" -> createDimIdExpr //,
+//    "trunkDay" -> unary(TrunkDayExpr.apply)
   )
 
-  def unary[T](
-      c: SimpleUnaryCompanion[T]
-  )(f: Expression.Aux[T] => Expression): Expression => Either[String, Expression] = { e =>
-    if (e.dataType == c.argType) Right(f(e.asInstanceOf[Expression.Aux[T]]))
-    else Left(s"Incompatible types ${e.dataType} and ${c.argType}")
-  }
+//  def unary[T](
+//      c: SimpleUnaryCompanion[T]
+//  )(f: Expression.Aux[T] => Expression): Expression => Either[String, Expression] = { e =>
+//    if (e.dataType == c.argType) Right(f(e.asInstanceOf[Expression.Aux[T]]))
+//    else Left(s"Incompatible types ${e.dataType} and ${c.argType}")
+//  }
 
   object ExprType extends Enumeration {
     type ExprType = Value
@@ -147,14 +147,15 @@ object SqlQueryProcessor extends QueryValidator {
       select: parser.Select,
       state: BuilderState
   ): Either[String, Seq[QueryField]] = {
-    select.fields match {
-      case SqlFieldList(fs) =>
-        val fields = fs.map(f => getField(table, f, state))
-        CollectionUtils.collectErrors(fields)
-
-      case SqlFieldsAll =>
-        Left("All fields matching is not supported")
-    }
+    ???
+//    select.fields match {
+//      case SqlFieldList(fs) =>
+//        val fields = fs.map(f => getField(table, f, state))
+//        CollectionUtils.collectErrors(fields)
+//
+//      case SqlFieldsAll =>
+//        Left("All fields matching is not supported")
+//    }
   }
 
   private def getField(
@@ -330,8 +331,8 @@ object SqlQueryProcessor extends QueryValidator {
       .unaryOperation(fun)
       .toRight(s"Function $fun is not defined on type ${expr.dataType}")
       .right
-    uf.map(f =>
-      UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
+    uf.map(f => ???
+//      UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
     )
   }
 
@@ -356,7 +357,7 @@ object SqlQueryProcessor extends QueryValidator {
   def createBiFunction(fun: String, l: Expression, r: Expression): Either[String, Expression] = {
     val expr = l.dataType.operations
       .biOperation(fun, r.dataType)
-      .map(op => BinaryOperationExpr[l.Out, r.Out, op.Out](op, l, r))
+      .map(op => ???) // BinaryOperationExpr[l.Out, r.Out, op.Out](op, l, r))
 
     expr match {
       case Some(e) => Right(e)
@@ -368,7 +369,8 @@ object SqlQueryProcessor extends QueryValidator {
             .toRight(s"Unsupported operation $fun on ${l.dataType} and ${r.dataType}")
             .right
         } yield {
-          BinaryOperationExpr[pair.T, pair.T, biOperation.Out](biOperation, pair.a, pair.b).asInstanceOf[Expression]
+          ???
+//          BinaryOperationExpr[pair.T, pair.T, biOperation.Out](biOperation, pair.a, pair.b).asInstanceOf[Expression]
         }
     }
   }
@@ -501,11 +503,11 @@ object SqlQueryProcessor extends QueryValidator {
 
   private def substituteGroupings(select: parser.Select): Seq[parser.SqlExpr] = {
     select.groupings.map {
-      case g @ parser.FieldName(n) =>
-        select.fields match {
-          case SqlFieldList(fields) => fields.find(_.alias.contains(n)).map(_.expr).getOrElse(g)
-          case SqlFieldsAll         => g
-        }
+//      case g @ parser.FieldName(n) =>
+//        select.fields match {
+//          case SqlFieldList(fields) => fields.find(_.alias.contains(n)).map(_.expr).getOrElse(g)
+//          case SqlFieldsAll         => g
+//        }
       case x => x
     }
   }
