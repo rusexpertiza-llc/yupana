@@ -62,17 +62,7 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
   }
 
   private def fieldToSpark(field: QueryField): StructField = {
-    val dataType = field.expr.dataType
-    val sparkType = if (!dataType.isArray) {
-      DataRowRDD.TYPE_MAP
-        .getOrElse(dataType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
-    } else {
-      val adt = dataType.asInstanceOf[ArrayDataType[_]]
-      val innerType = DataRowRDD.TYPE_MAP
-        .getOrElse(adt.valueType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
-      ArrayType(innerType)
-    }
-
+    val sparkType = DataRowRDD.yupanaToSparkType(field.expr.dataType)
     StructField(field.name, sparkType, nullable = true)
   }
 }
@@ -86,7 +76,21 @@ object DataRowRDD {
     Types.INTEGER -> IntegerType,
     Types.DOUBLE -> DoubleType,
     Types.BIGINT -> LongType,
-    Types.DECIMAL -> DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2),
     Types.TIMESTAMP -> TimestampType
   )
+
+  def yupanaToSparkType(yupanaDataType: org.yupana.api.types.DataType): DataType = {
+    if (yupanaDataType.meta.sqlType == Types.DECIMAL) {
+      DataTypes.createDecimalType(DecimalType.MAX_PRECISION, yupanaDataType.meta.scale)
+    } else if (yupanaDataType.isArray) {
+      val adt = yupanaDataType.asInstanceOf[ArrayDataType[_]]
+      val innerType = yupanaToSparkType(adt.valueType)
+      ArrayType(innerType)
+    } else {
+      TYPE_MAP.getOrElse(
+        yupanaDataType.meta.sqlType,
+        throw new IllegalArgumentException(s"Unsupported data type $yupanaDataType")
+      )
+    }
+  }
 }
