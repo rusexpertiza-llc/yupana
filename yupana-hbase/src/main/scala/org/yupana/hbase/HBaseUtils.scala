@@ -224,16 +224,16 @@ object HBaseUtils extends StrictLogging {
     val stopBuffer = ByteBuffer.allocate(keySize)
     startBuffer.put(Bytes.toBytes(baseTime))
     stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
-    dimIds.indices.foreach { i =>
-      val vb = dimIds(i)
-      startBuffer.put(vb)
-      val ve =
-        if (i < dimIds.length - 1) {
-          vb
-        } else {
-          Bytes.unsignedCopyAndIncrement(vb)
-        }
-      stopBuffer.put(ve)
+    if (dimIds.nonEmpty) {
+      val dimBuffer = ByteBuffer.allocate(keySize - java.lang.Long.BYTES)
+      dimIds.foreach { dimBytes =>
+        dimBuffer.put(dimBytes)
+      }
+      val dimBytes = new Array[Byte](dimBuffer.position())
+      dimBuffer.rewind()
+      dimBuffer.get(dimBytes)
+      startBuffer.put(dimBytes)
+      stopBuffer.put(Bytes.unsignedCopyAndIncrement(dimBytes))
     }
 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
