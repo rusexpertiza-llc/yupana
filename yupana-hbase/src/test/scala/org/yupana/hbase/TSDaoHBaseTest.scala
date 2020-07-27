@@ -73,7 +73,7 @@ class TSDaoHBaseTest
       val rowRanges = filter.getRowRanges.asScala
 
       val rangesChecks = for {
-        time <- (baseTime(from) to baseTime(to) by testTable.rowTimeSpan)
+        time <- (baseTime(from) to baseTime(to) by table.rowTimeSpan)
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
@@ -254,12 +254,12 @@ class TSDaoHBaseTest
     val pointTime = 2000
 
     queryRunner
-      .expects(scan(testTable, from, to, Seq(dimAHash("test1"), -1.toShort)))
+      .expects(scan(testTable3, from, to, Seq(dimAHash("test1"), -1.toShort)))
       .returning(
         Iterator(
           HBaseTestUtils
-            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("test1"), 2.toShort, 1L)
-            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .row(pointTime - (pointTime % testTable3.rowTimeSpan), dimAHash("test1"), 2.toShort, 1L)
+            .cell("d1", pointTime % testTable3.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 1d)
             .field(Table.DIM_TAG_OFFSET, "test1")
             .hbaseRow
@@ -518,43 +518,50 @@ class TSDaoHBaseTest
     queryRunner
       .expects(
         scanMultiRanges(
-          testTable,
+          testTable3,
           from,
           to,
           Set(
-            Seq(dimAHash("A 1"), 1.toShort),
-            Seq(dimAHash("A 2"), 1.toShort),
-            Seq(dimAHash("A 3"), 1.toShort)
+            Seq(dimAHash("A 1"), 1.toShort, 42L),
+            Seq(dimAHash("A 2"), 1.toShort, 42L),
+            Seq(dimAHash("A 3"), 1.toShort, 42L)
           )
         )
       )
       .returning(
         Iterator(
           HBaseTestUtils
-            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("A 1"), 1.toShort)
-            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .row(pointTime - (pointTime % testTable3.rowTimeSpan), dimAHash("A 1"), 1.toShort, 42L)
+            .cell("d1", pointTime % testTable3.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 1d)
             .field(Table.DIM_TAG_OFFSET, "A 1")
+            .field(Table.DIM_TAG_OFFSET + 1, "X 2")
             .hbaseRow,
           HBaseTestUtils
-            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("A 2"), 1.toShort)
-            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .row(pointTime - (pointTime % testTable3.rowTimeSpan), dimAHash("A 2"), 1.toShort, 42L)
+            .cell("d1", pointTime % testTable3.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 3d)
             .field(Table.DIM_TAG_OFFSET, "A 2")
+            .field(Table.DIM_TAG_OFFSET + 1, "X 2")
             .hbaseRow
         )
       )
 
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.DIM_X, Set("X 1", "X 2"))
+      .returning(Map("X 2" -> 42L))
+
     val res = dao
       .query(
         InternalQuery(
-          testTable,
+          testTable3,
           exprs.toSet,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            equ(dimension(TestDims.DIM_B), const(1.toShort))
+            equ(dimension(TestDims.DIM_B), const(1.toShort)),
+            in(dimension(TestDims.DIM_X), Set("X 1", "X 2"))
           )
         ),
         valueDataBuilder,
