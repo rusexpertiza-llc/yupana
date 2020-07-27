@@ -73,27 +73,45 @@ class TSDaoHBaseTest
       val rowRanges = filter.getRowRanges.asScala
 
       val rangesChecks = for {
-        time <- (baseTime(from) to baseTime(to) by testTable.rowTimeSpan)
+        time <- (baseTime(from) to baseTime(to) by table.rowTimeSpan)
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
           var offset = 8
-          range.zip(table.dimensionSeq).zipWithIndex.forall {
-            case ((id, dim), idx) =>
+          val valuesAndLimits = range.zip(table.dimensionSeq).map {
+            case (id, dim) =>
               val start = dim.rStorable.read(ByteBuffer.wrap(rowRange.getStartRow, offset, dim.rStorable.size))
               val stop = dim.rStorable.read(ByteBuffer.wrap(rowRange.getStopRow, offset, dim.rStorable.size))
-              offset += dim.rStorable.size
 
               val tid = id.asInstanceOf[dim.R]
-              dim.rOrdering.gte(tid, start) && (if (idx == range.size - 1) dim.rOrdering.lt(tid, stop)
-                                                else dim.rOrdering.lte(tid, stop))
-          } &&
+              val allZeros = (offset to (offset + dim.rStorable.size))
+                .forall(i => rowRange.getStopRow()(i) == 0)
+
+              offset += dim.rStorable.size
+              (tid, start, stop, dim.rOrdering, allZeros)
+          }
+
+          val goodStart = valuesAndLimits.forall {
+            case (i, b, _, ord, _) => ord.gte(i, b)
+          }
+
+          val valuable = valuesAndLimits.reverse.dropWhile(_._5).toList
+
+          val goodStop = valuable match {
+            case (i, _, e, ord, _) :: tail =>
+              ord.lt(i, e) && tail.forall {
+                case (i, _, e, ord, _) => ord.lte(i, e)
+              }
+            case _ => true
+          }
+
+          goodStart && goodStop &&
           time == Bytes.toLong(rowRange.getStartRow) &&
           time == Bytes.toLong(rowRange.getStopRow)
         }
       }
 
-      rangesChecks.forall(b => b) &&
+      rangesChecks.forall(_ == true) &&
       baseTime(from) == Bytes.toLong(scan.getStartRow) &&
       baseTime(to) == Bytes.toLong(scan.getStopRow)
     }
@@ -159,8 +177,6 @@ class TSDaoHBaseTest
         )
       )
 
-//    (dictionary.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> (1, 1L)))
-
     val res = dao
       .query(
         InternalQuery(
@@ -208,14 +224,59 @@ class TSDaoHBaseTest
         )
       )
 
-//    (dictionary.getIdsByValues _).expects(TestDims.DIM_A, Set("test1")).returning(Map("test1" -> 1L))
-
     val res = dao
       .query(
         InternalQuery(
           testTable,
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1")))
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
+
+    res.size shouldEqual 1
+
+    val r = res.head
+    r.get[Time](0) shouldEqual Time(pointTime)
+    r.get[String](1) shouldEqual "test1"
+    r.get[Short](2) shouldEqual 2.toShort
+    r.get[Double](3) shouldEqual 1d
+  }
+
+  it should "handle tag repr overflow while filtering" in withMock { (dao, dictionary, queryRunner) =>
+    val from = 1000
+    val to = 5000
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+    val pointTime = 2000
+
+    queryRunner
+      .expects(scan(testTable3, from, to, Seq(dimAHash("test1"), -1.toShort)))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime - (pointTime % testTable3.rowTimeSpan), dimAHash("test1"), 2.toShort, 1L)
+            .cell("d1", pointTime % testTable3.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .hbaseRow
+        )
+      )
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable3,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(dimension(TestDims.DIM_A), const("test1")),
+            equ(dimension(TestDims.DIM_B), const(-1.toShort))
+          )
         ),
         valueDataBuilder,
         NoMetricCollector
@@ -280,10 +341,6 @@ class TSDaoHBaseTest
             .hbaseRow
         )
       )
-
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("test1", "test2"))
-//      .returning(Map("test1" -> 1L, "test2" -> 2L))
 
     val res = dao
       .query(
@@ -358,8 +415,6 @@ class TSDaoHBaseTest
         )
       )
 
-//    (dictionary.getIdsByValues _).expects(TestDims.DIM_A, Set("test2")).returning(Map("test2" -> 2L))
-
     dao.query(
       InternalQuery(
         testTable,
@@ -431,10 +486,6 @@ class TSDaoHBaseTest
         )
       )
 
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("A 1", "A 2", "A 3"))
-//      .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
-
     val res = dao
       .query(
         InternalQuery(
@@ -467,47 +518,50 @@ class TSDaoHBaseTest
     queryRunner
       .expects(
         scanMultiRanges(
-          testTable,
+          testTable3,
           from,
           to,
           Set(
-            Seq(dimAHash("A 1"), 1.toShort),
-            Seq(dimAHash("A 2"), 1.toShort),
-            Seq(dimAHash("A 3"), 1.toShort)
+            Seq(dimAHash("A 1"), 1.toShort, 42L),
+            Seq(dimAHash("A 2"), 1.toShort, 42L),
+            Seq(dimAHash("A 3"), 1.toShort, 42L)
           )
         )
       )
       .returning(
         Iterator(
           HBaseTestUtils
-            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("A 1"), 1.toShort)
-            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .row(pointTime - (pointTime % testTable3.rowTimeSpan), dimAHash("A 1"), 1.toShort, 42L)
+            .cell("d1", pointTime % testTable3.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 1d)
             .field(Table.DIM_TAG_OFFSET, "A 1")
+            .field(Table.DIM_TAG_OFFSET + 1, "X 2")
             .hbaseRow,
           HBaseTestUtils
-            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("A 2"), 1.toShort)
-            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .row(pointTime - (pointTime % testTable3.rowTimeSpan), dimAHash("A 2"), 1.toShort, 42L)
+            .cell("d1", pointTime % testTable3.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 3d)
             .field(Table.DIM_TAG_OFFSET, "A 2")
+            .field(Table.DIM_TAG_OFFSET + 1, "X 2")
             .hbaseRow
         )
       )
 
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("A 1", "A 2", "A 3"))
-//      .returning(Map("A 1" -> 1L, "A 2" -> 2L, "A 3" -> 3L))
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.DIM_X, Set("X 1", "X 2"))
+      .returning(Map("X 2" -> 42L))
 
     val res = dao
       .query(
         InternalQuery(
-          testTable,
+          testTable3,
           exprs.toSet,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            equ(dimension(TestDims.DIM_B), const(1.toShort))
+            equ(dimension(TestDims.DIM_B), const(1.toShort)),
+            in(dimension(TestDims.DIM_X), Set("X 1", "X 2"))
           )
         ),
         valueDataBuilder,
@@ -680,10 +734,6 @@ class TSDaoHBaseTest
         )
       )
 
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("test11", "test12", "test14", "test15"))
-//      .returning(Map("test11" -> 1, "test12" -> 2, "test14" -> 4, "test15" -> 5))
-
     val results = dao
       .query(
         InternalQuery(
@@ -712,14 +762,6 @@ class TSDaoHBaseTest
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     queryRunner.expects(Seq.empty).returning(Iterator.empty)
-
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("tagValue1"))
-//      .returning(Map("tagValue1" -> 1L))
-//
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("tagValue2"))
-//      .returning(Map("tagValue2" -> 2L))
 
     val results = dao
       .query(
@@ -826,14 +868,6 @@ class TSDaoHBaseTest
         )
       )
 
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("test11", "test12"))
-//      .returning(Map("test11" -> 1, "test12" -> 2))
-//
-//    (dictionary.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("test14"))
-//      .returning(Map("test14" -> 4))
-
     val results = dao
       .query(
         InternalQuery(
@@ -862,8 +896,6 @@ class TSDaoHBaseTest
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
-
-//    (dictionaryDao.getIdsByValues _).expects(TestDims.DIM_A, Set("tag_a")).returning(Map("tag_a" -> 1))
 
     queryRunner
       .expects(
@@ -915,8 +947,6 @@ class TSDaoHBaseTest
     val pointTime1 = 2000
     val pointTime2 = 2500
 
-//    (dictionaryDao.getIdsByValues _).expects(TestDims.DIM_A, Set("test42")).returning(Map("test42" -> 42L))
-
     queryRunner
       .expects(
         scan(testTable, from, to, Seq(dimAHash("test42")))
@@ -967,10 +997,6 @@ class TSDaoHBaseTest
     val pointTime1 = 1010
     val pointTime2 = 1020
     val pointTime3 = 1030
-
-//    (dictionaryDao.getIdsByValues _)
-//      .expects(TestDims.DIM_A, Set("test42", "test51"))
-//      .returning(Map("test42" -> 42L, "test51" -> 51L))
 
     queryRunner
       .expects(
