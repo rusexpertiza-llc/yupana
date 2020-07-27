@@ -299,6 +299,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Neq(ConstantExpr(c), Lower(DimensionExpr(dim))) =>
           builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
 
+        case Neq(DimensionIdExpr(dim), ConstantExpr(c: String)) =>
+          builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
+
+        case Neq(ConstantExpr(c: String), DimensionIdExpr(dim)) =>
+          builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
+
         case Neq(TimeExpr, ConstantExpr(c: Time)) =>
           builder.excludeTime(c)
 

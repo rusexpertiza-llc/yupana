@@ -10,7 +10,7 @@ import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Expression }
+import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
@@ -250,7 +250,7 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable3))
     val pointTime = 2000
 
     queryRunner
@@ -511,7 +511,7 @@ class TSDaoHBaseTest
     val to = 5000
     val exprs =
       Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
-    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable3))
 
     val pointTime = 2000
 
@@ -887,6 +887,122 @@ class TSDaoHBaseTest
       .toList
 
     results should have size 1
+  }
+
+  it should "support dimension id eq" in withMock { (dao, _, queryRunner) =>
+    val from = 1000
+    val to = 5000
+    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 2000
+
+    queryRunner
+      .expects(
+        scanMultiRanges(
+          testTable,
+          from,
+          to,
+          Set(
+            Seq((1234, 12345678L))
+          )
+        )
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), (1234, 12345678L), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "test12")
+            .hbaseRow
+        )
+      )
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(DimensionIdExpr(TestDims.DIM_A), const("000004d20000000000bc614e"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
+
+    res.size shouldEqual 1
+
+    res(0).get[Time](0) shouldEqual Time(pointTime1)
+    res(0).get[Short](1) shouldEqual 5.toShort
+    res(0).get[Double](2) shouldEqual 7d
+  }
+
+  it should "support dimension id not eq" in withMock { (dao, dictionary, queryRunner) =>
+    val from = 1000
+    val to = 5000
+    val exprs =
+      Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_X))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable3))
+
+    val pointTime1 = 2000
+
+    queryRunner
+      .expects(
+        scanMultiRanges(
+          testTable3,
+          from,
+          to,
+          Set(
+            Seq(dimAHash("test me"), 42.toShort, 3L)
+          )
+        )
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable3.rowTimeSpan), (1234, 12345678L), 5.toShort, 3L)
+            .cell("d1", pointTime1 % testTable3.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 7d)
+            .field(Table.DIM_TAG_OFFSET, "test12")
+            .field(Table.DIM_TAG_OFFSET + 2, "Bar")
+            .hbaseRow
+        )
+      )
+
+    (dictionary.getIdsByValues _)
+      .expects(TestDims.DIM_X, Set("Foo", "Bar", "Baz"))
+      .returning(Map("Foo" -> 1L, "Bar" -> 3L))
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable3,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(dimension(TestDims.DIM_A), const("test me")),
+            equ(dimension(TestDims.DIM_B), const(42.toShort)),
+            in(dimension(TestDims.DIM_X), Set("Foo", "Bar", "Baz")),
+            neq(DimensionIdExpr(TestDims.DIM_X), const("0000000000000001"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
+
+    res.size shouldEqual 1
+
+    res(0).get[Time](0) shouldEqual Time(pointTime1)
+    res(0).get[Short](1) shouldEqual 5.toShort
+    res(0).get[Double](2) shouldEqual 7d
+    res(0).get[String](3) shouldEqual "Bar"
   }
 
   it should "support exact time values" in withMock { (dao, dictionaryDao, queryRunner) =>
