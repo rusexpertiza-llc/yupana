@@ -106,5 +106,21 @@ object TestSchema {
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
+  val testTable3 = new Table(
+    name = "test_table",
+    rowTimeSpan = 24 * 60 * 60 * 1000,
+    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_X),
+    metrics = Seq(
+      TestTableFields.TEST_FIELD,
+      TestTableFields.TEST_STRING_FIELD,
+      TestTableFields.TEST_FIELD2,
+      TestTableFields.TEST_LONG_FIELD,
+      TestTableFields.TEST_BIGDECIMAL_FIELD
+    ),
+    externalLinks =
+      Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+  )
+
   val schema = Schema(Seq(testTable, testTable2), Seq.empty)
 }
