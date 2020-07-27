@@ -218,23 +218,21 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]): RowRange = {
-    val timeInc = if (dimIds.isEmpty) 1 else 0
+    val tmpBuffer = ByteBuffer.allocate(keySize)
+
+    tmpBuffer.put(Bytes.toBytes(baseTime))
+    dimIds.foreach { dimBytes =>
+      tmpBuffer.put(dimBytes)
+    }
+
+    val bytes = new Array[Byte](tmpBuffer.position())
+    tmpBuffer.rewind()
+    tmpBuffer.get(bytes)
 
     val startBuffer = ByteBuffer.allocate(keySize)
     val stopBuffer = ByteBuffer.allocate(keySize)
-    startBuffer.put(Bytes.toBytes(baseTime))
-    stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
-    if (dimIds.nonEmpty) {
-      val dimBuffer = ByteBuffer.allocate(keySize - java.lang.Long.BYTES)
-      dimIds.foreach { dimBytes =>
-        dimBuffer.put(dimBytes)
-      }
-      val dimBytes = new Array[Byte](dimBuffer.position())
-      dimBuffer.rewind()
-      dimBuffer.get(dimBytes)
-      startBuffer.put(dimBytes)
-      stopBuffer.put(Bytes.unsignedCopyAndIncrement(dimBytes))
-    }
+    startBuffer.put(bytes)
+    stopBuffer.put(Bytes.unsignedCopyAndIncrement(bytes))
 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }
