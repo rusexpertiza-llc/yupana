@@ -102,7 +102,7 @@ class TSDaoHBaseTest
               ord.lt(i, e) && tail.forall {
                 case (i, _, e, ord, _) => ord.lte(i, e)
               }
-            case Nil => true
+            case _ => true
           }
 
           goodStart && goodStop &&
