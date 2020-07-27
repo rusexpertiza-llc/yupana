@@ -142,4 +142,18 @@ object DataType {
     override val integral: Option[Integral[TT]] = i
     override val fractional: Option[Fractional[TT]] = f
   }
+
+  def scaledDecimalDt(scale: Int)(
+      implicit
+      s: Storable[BigDecimal],
+      ct: ClassTag[BigDecimal],
+      bt: BoxingTag[BigDecimal]
+  ): DataType.Aux[BigDecimal] = new DataType {
+    override type T = BigDecimal
+    override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
+    override val storable: Storable[T] = s
+    override val classTag: ClassTag[T] = ct
+    override val boxingTag: BoxingTag[T] = bt
+    override lazy val operations: TypeOperations[BigDecimal] = TypeOperations.fracOperations(this)
+  }
 }

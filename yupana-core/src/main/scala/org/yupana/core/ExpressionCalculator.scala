@@ -121,7 +121,8 @@ object ExpressionCalculator {
         vs contains evaluateExpression(e, queryContext, internalRow)
 
       case NotInExpr(e, vs) =>
-        !vs.contains(evaluateExpression(e, queryContext, internalRow))
+        val eValue = evaluateExpression(e, queryContext, internalRow)
+        eValue != null && !vs.contains(eValue)
 
       case AndExpr(cs) =>
         val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))

@@ -28,6 +28,11 @@ object HBaseTestUtils {
     new RowBuilder(key, Nil)
   }
 
+  def row[A: TypeTag, B: TypeTag, C: TypeTag](baseTime: Long, a: A, b: B, c: C): RowBuilder = {
+    val key = Bytes.toBytes(baseTime) ++ toBytes(a) ++ toBytes(b) ++ toBytes(c)
+    new RowBuilder(key, Nil)
+  }
+
   private lazy val mirror = runtimeMirror(getClass.getClassLoader)
 
   private def typeToTag[T](tpe: Type): TypeTag[T] = {
