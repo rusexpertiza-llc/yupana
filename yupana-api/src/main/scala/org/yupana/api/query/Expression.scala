@@ -453,7 +453,7 @@ case class NeqExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class LtExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
+case class LtExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, "<", true) {
   override type Self = LtExpr[T]
 
@@ -461,7 +461,7 @@ case class LtExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class GtExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
+case class GtExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, ">", true) {
   override type Self = GtExpr[T]
 
@@ -469,7 +469,7 @@ case class GtExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class LeExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
+case class LeExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, "<=", true) {
   override type Self = LeExpr[T]
 
@@ -477,7 +477,7 @@ case class LeExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class GeExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
+case class GeExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, ">=", true) {
   override type Self = GeExpr[T]
 

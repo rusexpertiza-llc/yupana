@@ -3,9 +3,12 @@ package org.yupana.core.sql
 import fastparse._
 import fastparse.MultiLineWhitespace._
 import org.yupana.api.Time
+import org.yupana.api.query.Expression.{ Aux, Condition }
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.DataType
+
+import scala.language.higherKinds
 
 sealed trait SqlFields
 case class SqlFieldList(fields: Seq[QueryField]) extends SqlFields
@@ -107,6 +110,18 @@ class NewParser(schema: Schema) {
       QueryField(a.getOrElse("FIXME"), e)
   } // FIXME
 
+  trait Bind[A[_], Z] {
+    def apply[T](x: A[T]): Z
+  }
+
+  trait Bind2[A[_], B[_], Z] {
+    def apply[T](x: A[T], y: B[T]): Z
+  }
+
+  trait Bind3[A[_], B[_], C[_], Z] {
+    def apply[T](x: A[T], y: B[T], z: C[T]): Z
+  }
+
   def op[_: P]: P[(Expression, Expression) => Expression.Condition] = P(
     P("=").map(_ => EqExpr) |
       P("<>").map(_ => NeqExpr) |
@@ -114,14 +129,22 @@ class NewParser(schema: Schema) {
       P(">=").map(_ => GeExpr) |
       P(">").map(_ => GtExpr) |
       P("<=").map(_ => LeExpr) |
-      P("<").map(_ => LtExpr)
+      P("<").flatMap(_ =>
+        cmpExpr(
+          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+              LtExpr(x, y)(z)
+          }
+        )
+      )
   )
 
-  private def cmpExpr[T, _: P](
-      cTor: (Expression.Aux[T], Expression.Aux[T], Ordering[T]) => Expression.Condition
-  ): P[(Expression, Expression) => Expression.Condition] = { (a, b) =>
+  private def cmpExpr[_: P](
+//      cTor: (Expression.Aux[T], Expression.Aux[T], Ordering[T]) => Expression.Condition
+      cTor: Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition]
+  ): (Expression, Expression) => P[Expression.Condition] = { (a: Expression, b: Expression) =>
     ExprPair.alignTypes(a, b) match {
-      case Right(pair) if pair.dataType.ordering.isDefined => cTor(pair.a, pair.b, pair.dataType.ordering.get)
+      case Right(pair) if pair.dataType.ordering.isDefined => Pass(cTor(pair.a, pair.b, pair.dataType.ordering.get))
       case Left(msg)                                       => Fail(msg)
     }
   }
