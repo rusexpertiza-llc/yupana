@@ -277,8 +277,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
       case Left(err)    => throw new IllegalArgumentException(s"Cannot read data: $err")
     }
 
-    val values = res.flatMap { row =>
-      val v = dataTypes
+    val values = res.map { row =>
+      dataTypes
         .zip(row.values)
         .map {
           case (rt, bytes) =>
@@ -289,7 +289,6 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
             }
         }
         .toArray
-      Some(v)
     }
 
     SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)

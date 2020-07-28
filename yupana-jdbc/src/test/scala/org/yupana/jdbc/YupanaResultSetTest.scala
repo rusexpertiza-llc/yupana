@@ -365,6 +365,49 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getLong("long") shouldEqual 0L
   }
 
+  it should "provide correct info about null values" in {
+    val statement = mock[Statement]
+    val time = LocalDateTime.now()
+
+    val result = SimpleResult(
+      "test",
+      Seq("int", "string", "double", "time"),
+      Seq(DataType[Int], DataType[String], DataType[Double], DataType[Time]),
+      Iterator(
+        Array[Any](42, null, null, Time(time)),
+        Array[Any](null, "not null", 88d, null)
+      )
+    )
+
+    val resultSet = new YupanaResultSet(statement, result)
+
+    resultSet.next
+    resultSet.getInt(1) shouldEqual 42
+    resultSet.wasNull shouldBe false
+
+    resultSet.getString(2) shouldEqual null
+    resultSet.wasNull shouldBe true
+
+    resultSet.getDouble(3) shouldEqual 0d
+    resultSet.wasNull shouldBe true
+
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.toDateTime.getMillis)
+    resultSet.wasNull shouldBe false
+
+    resultSet.next
+    resultSet.getInt(1) shouldEqual 0
+    resultSet.wasNull shouldBe true
+
+    resultSet.getString(2) shouldEqual "not null"
+    resultSet.wasNull shouldBe false
+
+    resultSet.getDouble(3) shouldEqual 88d
+    resultSet.wasNull shouldBe false
+
+    resultSet.getTimestamp(4) shouldEqual null
+    resultSet.wasNull shouldBe true
+  }
+
   it should "support closing" in {
     val resultSet = createResultSet
 
