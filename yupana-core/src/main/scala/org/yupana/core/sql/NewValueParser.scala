@@ -3,8 +3,6 @@ package org.yupana.core.sql
 import fastparse._
 import NoWhitespace._
 import org.joda.time.{ LocalDateTime, Period }
-import org.yupana.api.Time
-import org.yupana.api.query.{ ConstantExpr, Expression, PlaceholderExpr }
 
 object NewValueParser {
   private def wsp[_: P] = P(CharsWhileIn(" \t", 0))
@@ -15,15 +13,11 @@ object NewValueParser {
 
   private def toWord[_: P] = P(IgnoreCase("TO"))
 
-//  def placeholder[_: P]: P[PlaceholderExpr.type] = P("?").map(_ => PlaceholderExpr())
-
   private def digit[_: P] = P(CharIn("0-9").!)
 
   private def digits[_: P]: P[String] = P(CharsWhileIn("0-9").!)
 
   def intNumber[_: P]: P[Int] = P(digits).map(_.toInt)
-
-  def longNumber[_: P]: P[Long] = P(digits).map(_.toLong)
 
   def number[_: P]: P[BigDecimal] = P(digits ~ ("." ~ digits).!.?).map {
     case (x, y) => BigDecimal(x + y.getOrElse(""))
@@ -69,11 +63,9 @@ object NewValueParser {
     P("{" ~ wsp ~ tsWord ~/ wsp ~ "'" ~ dateAndTime ~ "'" ~ wsp ~ "}")
   }
 
-  def numericValue[_: P]: P[ConstantExpr] = P(number).map(ConstantExpr.apply)
-  def stringValue[_: P]: P[ConstantExpr] = P(string).map(ConstantExpr.apply)
-  def timestampValue[_: P]: P[ConstantExpr] = P(pgTimestamp | msTimestamp).map(ts => ConstantExpr(Time(ts)))
+  def timestamp[_: P]: P[LocalDateTime] = P(pgTimestamp | msTimestamp)
 
-  def INTERVAL_PARTS[_: P]: List[IntervalPart] = List(
+  private def INTERVAL_PARTS[_: P]: List[IntervalPart] = List(
     IntervalPart(
       "SECOND",
       () =>
@@ -111,11 +103,9 @@ object NewValueParser {
     parsers.reduceLeft((x, y) => () => x() | y())()
   }
 
-//  def periodValue[_: P]: P[PeriodValue] = {
-//    P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue)
-//  }
+  def period[_: P]: P[Period] = {
+    P(intervalWord ~/ wsp ~ (duration | singleFieldDuration))
+  }
 
-  def value[_: P]: P[Expression] = P(numericValue | timestampValue | /*periodValue |*/ stringValue /* | placeholder*/ )
-
-  case class IntervalPart(name: String, parser: () => P[Period], separator: () => P[Unit])
+  private case class IntervalPart(name: String, parser: () => P[Period], separator: () => P[Unit])
 }

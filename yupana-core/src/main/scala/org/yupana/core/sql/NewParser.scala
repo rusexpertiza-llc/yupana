@@ -2,6 +2,7 @@ package org.yupana.core.sql
 
 import fastparse._
 import fastparse.MultiLineWhitespace._
+import org.joda.time.Period
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.{ Aux, Condition }
 import org.yupana.api.query._
@@ -77,8 +78,20 @@ class NewParser(schema: Schema) {
   def alias[_: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
 
   // Expressions
+  def numericConst[_: P]: P[ConstantExpr] = P(NewValueParser.number).map(ConstantExpr.apply[BigDecimal])
+  def stringConst[_: P]: P[ConstantExpr] = P(NewValueParser.string).map(ConstantExpr.apply[String])
+  def timestampConst[_: P]: P[ConstantExpr] = P(NewValueParser.timestamp).map(ts => ConstantExpr(Time(ts)))
+  def periodConst[_: P]: P[ConstantExpr] = NewValueParser.period.map(ConstantExpr.apply[Period])
+  def durationConst[_: P]: P[ConstantExpr] =
+    NewValueParser.period.flatMap(p =>
+      if (p.getYears == 0 && p.getMonths == 0) {
+        Pass(ConstantExpr(p.toStandardDuration.getMillis))
+      } else {
+        Fail(s"Period $p cannot be used as duration, because it has months or years")
+      }
+    )
 
-  def constExpr[_: P]: P[Expression] = NewValueParser.value
+  def constExpr[_: P]: P[Expression] = P(numericConst | stringConst | timestampConst | periodConst | durationConst)
 
   private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
 
@@ -123,12 +136,46 @@ class NewParser(schema: Schema) {
   }
 
   def op[_: P]: P[(Expression, Expression) => Expression.Condition] = P(
-    P("=").map(_ => EqExpr) |
-      P("<>").map(_ => NeqExpr) |
-      P("!=").map(_ => NeqExpr) |
-      P(">=").map(_ => GeExpr) |
-      P(">").map(_ => GtExpr) |
-      P("<=").map(_ => LeExpr) |
+    P("=").map(_ =>
+      cmpExpr(
+        new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
+          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T]): Condition =
+            EqExpr(x, y)
+        }
+      )
+    ) |
+      P("<>" | "!=").map(_ =>
+        cmpExpr(
+          new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
+            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T]): Condition =
+              NeqExpr(x, y)
+          }
+        )
+      ) |
+      P(">=").map(_ =>
+        cmpExpr(
+          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+              GeExpr(x, y)(z)
+          }
+        )
+      ) |
+      P(">").map(_ =>
+        cmpExpr(
+          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+              GtExpr(x, y)(z)
+          }
+        )
+      ) |
+      P("<=").map(_ =>
+        cmpExpr(
+          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+              LeExpr(x, y)(z)
+          }
+        )
+      ) |
       P("<").flatMap(_ =>
         cmpExpr(
           new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
@@ -140,7 +187,6 @@ class NewParser(schema: Schema) {
   )
 
   private def cmpExpr[_: P](
-//      cTor: (Expression.Aux[T], Expression.Aux[T], Ordering[T]) => Expression.Condition
       cTor: Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition]
   ): (Expression, Expression) => P[Expression.Condition] = { (a: Expression, b: Expression) =>
     ExprPair.alignTypes(a, b) match {

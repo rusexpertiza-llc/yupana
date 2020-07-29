@@ -154,6 +154,8 @@ object DataType {
     override val storable: Storable[T] = s
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
-    override lazy val operations: TypeOperations[BigDecimal] = TypeOperations.fracOperations(this)
+    override val ordering: Option[Ordering[T]] = Some(implicitly[Ordering[BigDecimal]])
+    override val integral: Option[Integral[T]] = None
+    override val fractional: Option[Fractional[T]] = Some(implicitly[Fractional[BigDecimal]])
   }
 }
