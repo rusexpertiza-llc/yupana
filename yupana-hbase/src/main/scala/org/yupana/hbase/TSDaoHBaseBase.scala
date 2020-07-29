@@ -273,6 +273,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case Equ(ConstantExpr(v: (_, _)), TupleExpr(e1, e2)) =>
           val filters1 = createFilters(InExpr(e1.aux, Set(v._1.asInstanceOf[e1.Out])), builder)
           createFilters(InExpr(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
+
+        case _ => builder
       }
     }
 
@@ -301,6 +303,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
         case Neq(ConstantExpr(c: Time), TimeExpr) =>
           builder.excludeTime(c)
+
+        case _ => builder
       }
     }
 
