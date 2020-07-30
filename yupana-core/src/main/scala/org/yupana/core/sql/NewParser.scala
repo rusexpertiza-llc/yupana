@@ -6,8 +6,9 @@ import org.joda.time.Period
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.{ Aux, Condition }
 import org.yupana.api.query._
-import org.yupana.api.schema.Schema
+import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CollectionUtils
 
 import scala.language.higherKinds
 
@@ -16,6 +17,8 @@ case class SqlFieldList(fields: Seq[QueryField]) extends SqlFields
 case object SqlFieldsAll extends SqlFields
 
 class NewParser(schema: Schema) {
+  type Recognizer = String => P[Expression]
+
   private def selectWord[_: P] = P(IgnoreCase("SELECT"))
   private def showWord[_: P] = P(IgnoreCase("SHOW"))
   private def tablesWord[_: P] = P(IgnoreCase("TABLES"))
@@ -91,7 +94,7 @@ class NewParser(schema: Schema) {
       }
     )
 
-  def constExpr[_: P]: P[Expression] = P(numericConst | stringConst | timestampConst | periodConst | durationConst)
+  def constExpr[_: P]: P[ConstantExpr] = P(numericConst | stringConst | timestampConst | periodConst | durationConst)
 
   private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
 
@@ -107,18 +110,19 @@ class NewParser(schema: Schema) {
   private def multiply[_: P] = P("*").map(_ => TimesExpr)
   private def divide[_: P] = P("/").map(_ => DivIntExpr)
 
-  def expr[_: P]: P[Expression] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def expr[_: P](r: Recognizer): P[Expression] =
+    chained1(minusMathTerm(r) | mathTerm(r), mathTerm(r), plus | minus)
 
-  def minusMathTerm[_: P]: P[Expression] = P("-" ~ mathTerm).map(x => UnaryMinusExpr(x.aux))
+  def minusMathTerm[_: P](r: Recognizer): P[Expression] = P("-" ~ mathTerm(r)).map(x => UnaryMinusExpr(x.aux))
 
-  def mathTerm[_: P]: P[Expression] = chained(mathFactor, multiply | divide)
+  def mathTerm[_: P](r: Recognizer): P[Expression] = chained(mathFactor(r), multiply | divide)
 
-  def mathFactor[_: P]: P[Expression] =
-    P(functionCallExpr | /* caseExpr | */ constExpr | fieldNameExpr | "(" ~ expr ~ ")")
+  def mathFactor[_: P](r: Recognizer): P[Expression] =
+    P(functionCallExpr | /* caseExpr | */ constExpr | fieldNameExpr(r) | "(" ~ expr ~ ")")
 
-  def fieldNameExpr[_: P]: P[Expression] = fieldWithSchema.flatMap(recognizeField)
+  def fieldNameExpr[_: P](r: Recognizer): P[Expression] = fieldWithSchema.flatMap(r)
 
-  def field[_: P]: P[QueryField] = P(expr ~~ alias.?).map {
+  def field[_: P](r: Recognizer): P[QueryField] = P(expr(r) ~~ alias.?).map {
     case (e, a) =>
       QueryField(a.getOrElse("FIXME"), e)
   } // FIXME
@@ -137,7 +141,7 @@ class NewParser(schema: Schema) {
 
   def op[_: P]: P[(Expression, Expression) => Expression.Condition] = P(
     P("=").map(_ =>
-      cmpExpr(
+      binaryExpr(
         new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
           override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T]): Condition =
             EqExpr(x, y)
@@ -145,7 +149,7 @@ class NewParser(schema: Schema) {
       )
     ) |
       P("<>" | "!=").map(_ =>
-        cmpExpr(
+        binaryExpr(
           new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
             override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T]): Condition =
               NeqExpr(x, y)
@@ -195,6 +199,15 @@ class NewParser(schema: Schema) {
     }
   }
 
+  private def binaryExpr[O, _: P](
+      cTor: Bind2[Expression.Aux, Expression.Aux, Expression.Aux[O]]
+  ): (Expression, Expression) => P[Expression.Aux[O]] = { (a: Expression, b: Expression) =>
+    ExprPair.alignTypes(a, b) match {
+      case Right(pair) if pair.dataType.ordering.isDefined => Pass(cTor(pair.a, pair.b))
+      case Left(msg)                                       => Fail(msg)
+    }
+  }
+
   def functionCallExpr[_: P]: P[Expression] =
     unary("trunkYear", DataType[Time], TrunkYearExpr.apply) |
       unary("trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
@@ -205,17 +218,36 @@ class NewParser(schema: Schema) {
 
   def callOrField[_: P]: P[Expression] = functionCallExpr | fieldNameExpr
 
-  def comparison[_: P]: P[Expression => Expression.Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
+  def comparison[_: P]: P[Expression.Condition] = P(expr ~ op ~/ expr).map { case (a, o, b) => o(a, b) }
 
-  def in[_: P]: P[Expression => Expression.Condition] =
-    P(inWord ~/ "(" ~ NewValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => InExpr(e, vs))
+  def in[_: P](r: Recognizer): P[Expression.Condition] =
+    P(expr(r) ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")").flatMap {
+      case (e, vs) =>
+        convertConstants(vs, e.dataType.aux) match {
+          case Right(values) => Pass(InExpr(e.aux, values.toSet))
+          case Left(msg)     => Fail(msg)
+        }
+    }
 
-  def notIn[_: P]: P[Expression => Expression.Condition] =
-    P(notWord ~ inWord ~/ "(" ~ NewValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotInExpr(e, vs))
+  def notIn[_: P](r: Recognizer): P[Expression.Condition] =
+    P(expr(r) ~ notWord ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")").flatMap {
+      case (e, vs) =>
+        convertConstants(vs, e.dataType.aux) match {
+          case Right(values) => Pass(NotInExpr(e.aux, values.toSet))
+          case Left(msg)     => Fail(msg)
+        }
+    }
 
-  def isNull[_: P]: P[Expression => Expression.Condition] = P(isWord ~ nullWord).map(_ => IsNullExpr)
+  def isNull[_: P](r: Recognizer): P[Expression.Condition] =
+    P(expr(r) ~ isWord ~ nullWord).map(e => IsNullExpr(e.aux))
 
-  def isNotNull[_: P]: P[Expression => Expression.Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNullExpr)
+  def isNotNull[_: P](r: Recognizer): P[Expression.Condition] =
+    P(expr(r) ~ isWord ~ notWord ~ nullWord).map(e => IsNotNullExpr(e.aux))
+
+  def boolExpr[_: P]: P[Expression.Condition] = P(comparison | in | notIn | isNull | isNotNull | expr).flatMap { e =>
+    if (e.dataType == DataType[Boolean]) Pass(e.asInstanceOf[Expression.Condition])
+    else Fail("Expression shall have type BOOL")
+  }
 
   def condition[_: P]: P[Expression.Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => OrExpr(x +: y)
@@ -225,11 +257,6 @@ class NewParser(schema: Schema) {
   def logicalTerm[_: P]: P[Expression.Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
     case (x, y) if y.nonEmpty => AndExpr(x +: y)
     case (x, _)               => x
-  }
-
-  def boolExpr[_: P]: P[Expression.Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull).?).map {
-    case (e, Some(f)) => f(e)
-    case (e, None)    => e
   }
 
   def logicalFactor[_: P]: P[Expression.Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
@@ -246,10 +273,12 @@ class NewParser(schema: Schema) {
 
   /* SELECT */
 
-  def fieldList[_: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
+  def fieldList[_: P](r: Recognizer): P[SqlFieldList] =
+    P(field(r).rep(min = 1, sep = ",")).map(SqlFieldList)
   def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
 
-  def selectFields[_: P]: P[SqlFields] = P(selectWord ~/ (fieldList | allFields))
+  def selectFields[_: P](r: Recognizer): P[SqlFields] =
+    P(selectWord ~/ (fieldList(r) | allFields))
 
   /*def nestedSelectFrom[_: P](fields: SqlFields): P[Query] = {
     P(fromWord ~ "(" ~/ select ~ ")" ~/ (asWord.? ~ notKeyword).?).map {
@@ -269,9 +298,15 @@ class NewParser(schema: Schema) {
     }
   }*/
 
+  def table[_: P]: P[Table] = P(schemaName).flatMap(tableByName)
+
   def normalSelectFrom[_: P](fields: SqlFields): P[Query] = {
-    P((fromWord ~ schemaName).? ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
-      case (s, c, gs, h, l) => Query(s, fields, c, gs.getOrElse(Seq.empty), h, l)
+    fields match {
+      case SqlFieldsAll => Fail("* is not supported")
+      case SqlFieldList(fs) =>
+        P((fromWord ~ table).? ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
+          case (t, c, gs, h, l) => Query(t, fs, c, gs.getOrElse(Seq.empty), l, h)
+        }
     }
   }
 
@@ -310,7 +345,7 @@ class NewParser(schema: Schema) {
   def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
 
   def values[_: P](count: Int): P[Seq[Seq[Expression]]] =
-    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
+    ("(" ~/ expr(noField).rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
   def upsert[_: P]: P[Upsert] =
     P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
@@ -331,7 +366,73 @@ class NewParser(schema: Schema) {
     }
   }
 
-  private def recognizeField[_: P](name: String): P[Expression] = ???
+  private def tableByName[_: P](tableName: String): P[Table] = {
+    optionToP(schema.getTable(tableName), s"Unknown table '$tableName'")
+  }
+
+  private def noField[_: P](name: String): P[Expression] = Fail("Table not defined, so no fields allowed")
+
+  private def fieldByName[_: P](table: Table)(name: String): P[Expression] = {
+    optionToP(getFieldByName(table)(name), s"Unknown field $name")
+  }
+
+  private def fieldOrAlias[_: P](table: Table, fields: Seq[QueryField])(name: String): P[Expression] = {
+    optionToP(
+      fields.find(_.name == name).map(_.expr) orElse getFieldByName(table)(name),
+      s"Unknown field $name"
+    )
+  }
+
+  private def getFieldByName(table: Table)(name: String): Option[Expression] = {
+    val lowerName = name.toLowerCase
+    if (lowerName == Table.TIME_FIELD_NAME) {
+      Some(TimeExpr)
+    } else {
+      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(table, name)
+    }
+  }
+
+  private def getMetricExpr(table: Table, fieldName: String): Option[MetricExpr[_]] = {
+    table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.aux))
+  }
+
+  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr[_]] = {
+    table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(d => DimensionExpr(d.aux))
+  }
+
+  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr[_]] = {
+
+    val pos = fieldName.indexOf('_')
+
+    if (pos > 0) {
+      val catName = fieldName.substring(0, pos)
+      val catField = fieldName.substring(pos + 1)
+      for {
+        c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
+        f <- c.fields.find { m => m.name equalsIgnoreCase catField }
+      } yield new LinkExpr(c, f.aux)
+    } else {
+      None
+    }
+  }
+
+  private def convertConstants(consts: Seq[ConstantExpr], dataType: DataType): Either[String, Seq[dataType.T]] = {
+    CollectionUtils.collectErrors(consts.map(c => ExprPair.constCast(c, dataType)))
+  }
+
+  private def optionToP[_: P, T](v: Option[T], msg: String): P[T] = {
+    v match {
+      case Some(t) => Pass(t)
+      case None    => Fail(msg)
+    }
+  }
+
+//  private def eitherToP[_: P, T](v: Either[String, T]): P[T] = {
+//    v match {
+//      case Right(t)  => Pass(t)
+//      case Left(msg) => Fail(msg)
+//    }
+//  }
 }
 
 //object NewParser {
