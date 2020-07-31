@@ -38,20 +38,20 @@ object QueryInfoProvider {
 
     val filter = sqlFilter.map(getFilter)
     val metrics = tsdb.metricsDao.queriesByFilter(filter, limit)
-    val data: Iterator[Array[Option[Any]]] = metrics.map { queryMetrics =>
-      Array[Option[Any]](
-        Some(queryMetrics.queryId),
-        Some(queryMetrics.engine),
-        Some(queryMetrics.state.name),
-        Some(queryMetrics.query),
-        Some(Time(queryMetrics.startDate)),
-        Some(queryMetrics.totalDuration)
+    val data: Iterator[Array[Any]] = metrics.map { queryMetrics =>
+      Array[Any](
+        queryMetrics.queryId,
+        queryMetrics.engine,
+        queryMetrics.state.name,
+        queryMetrics.query,
+        Time(queryMetrics.startDate),
+        queryMetrics.totalDuration
       ) ++ qualifiers.flatMap { q =>
         queryMetrics.metrics.get(q) match {
           case Some(metric) =>
-            Array(Some(metric.count.toString), Some(metric.time.toString), Some(metric.speed.toString))
+            Array(metric.count.toString, metric.time.toString, metric.speed.toString)
           case None =>
-            Array(Some("-"), Some("-"), Some("-"))
+            Array("-", "-", "-")
         }
       }
     }.iterator
@@ -81,11 +81,11 @@ object QueryInfoProvider {
 
   def handleKillQuery(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
     tsdb.metricsDao.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
-    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
+    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
   }
 
   def handleDeleteQueryMetrics(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
     val deleted = tsdb.metricsDao.deleteMetrics(getFilter(sqlFilter))
-    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(Some(deleted))))
+    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(deleted)))
   }
 }

@@ -33,6 +33,8 @@ class IgniteCacheFactory extends CacheFactory with StrictLogging {
   private var caches = Set.empty[CacheDescription]
   private var defaultCacheSize: Int = _
 
+  override val name: String = "Ignite"
+
   override def initCache(description: CacheDescription): Cache[description.Key, description.Value] = {
     logger.info(s"Initializing cache ${description.fullName} in Ignite")
     if (ignite.isEmpty) initIgnite()

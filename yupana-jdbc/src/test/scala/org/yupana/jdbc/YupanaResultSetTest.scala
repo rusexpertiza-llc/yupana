@@ -10,7 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, DataTypeMeta }
 
 class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
@@ -21,7 +21,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string", "double"),
       Seq(DataType[Int], DataType[String], DataType[Double]),
       Iterator(
-        Array[Option[Any]](Some(42), Some("foo"), None)
+        Array[Any](42, "foo", null)
       )
     )
 
@@ -50,13 +50,13 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string"),
       Seq(DataType[Int], DataType[String]),
       Iterator(
-        Array[Option[Any]](Some(1), Some("aaa")),
-        Array[Option[Any]](Some(2), Some("bbb")),
-        Array[Option[Any]](Some(3), Some("ccc")),
-        Array[Option[Any]](Some(4), Some("ddd")),
-        Array[Option[Any]](Some(5), Some("eee")),
-        Array[Option[Any]](Some(6), Some("fff")),
-        Array[Option[Any]](Some(7), Some("ggg"))
+        Array[Any](1, "aaa"),
+        Array[Any](2, "bbb"),
+        Array[Any](3, "ccc"),
+        Array[Any](4, "ddd"),
+        Array[Any](5, "eee"),
+        Array[Any](6, "fff"),
+        Array[Any](7, "ggg")
       )
     )
 
@@ -137,8 +137,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string"),
       Seq(DataType[Int], DataType[String]),
       Iterator(
-        Array[Option[Any]](Some(1), Some("aaa")),
-        Array[Option[Any]](Some(2), Some("bbb"))
+        Array[Any](1, "aaa"),
+        Array[Any](2, "bbb")
       )
     )
 
@@ -226,7 +226,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     meta.getTableName(3) shouldEqual "test"
     meta.getSchemaName(3) shouldEqual "test"
     meta.getPrecision(3) shouldEqual 0
-    meta.getScale(3) shouldEqual 0
+    meta.getScale(3) shouldEqual DataTypeMeta.MONEY_SCALE
     meta.getColumnDisplaySize(3) shouldEqual 131089
     meta.isSearchable(3) shouldBe true
     meta.isReadOnly(3) shouldBe true
@@ -271,16 +271,16 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
         DataType[BigDecimal]
       ),
       Iterator(
-        Array[Option[Any]](
-          Some(Time(time)),
-          Some(false),
-          Some(42),
-          Some("foo"),
-          Some(55.5d),
-          Some(10L),
-          Some(BigDecimal(1234.321))
+        Array[Any](
+          Time(time),
+          false,
+          42,
+          "foo",
+          55.5d,
+          10L,
+          BigDecimal(1234.321)
         ),
-        Array[Option[Any]](None, None, None, None, None, None)
+        Array[Any](null, null, null, null, null, null)
       )
     )
 
@@ -365,6 +365,49 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getLong("long") shouldEqual 0L
   }
 
+  it should "provide correct info about null values" in {
+    val statement = mock[Statement]
+    val time = LocalDateTime.now()
+
+    val result = SimpleResult(
+      "test",
+      Seq("int", "string", "double", "time"),
+      Seq(DataType[Int], DataType[String], DataType[Double], DataType[Time]),
+      Iterator(
+        Array[Any](42, null, null, Time(time)),
+        Array[Any](null, "not null", 88d, null)
+      )
+    )
+
+    val resultSet = new YupanaResultSet(statement, result)
+
+    resultSet.next
+    resultSet.getInt(1) shouldEqual 42
+    resultSet.wasNull shouldBe false
+
+    resultSet.getString(2) shouldEqual null
+    resultSet.wasNull shouldBe true
+
+    resultSet.getDouble(3) shouldEqual 0d
+    resultSet.wasNull shouldBe true
+
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.toDateTime.getMillis)
+    resultSet.wasNull shouldBe false
+
+    resultSet.next
+    resultSet.getInt(1) shouldEqual 0
+    resultSet.wasNull shouldBe true
+
+    resultSet.getString(2) shouldEqual "not null"
+    resultSet.wasNull shouldBe false
+
+    resultSet.getDouble(3) shouldEqual 88d
+    resultSet.wasNull shouldBe false
+
+    resultSet.getTimestamp(4) shouldEqual null
+    resultSet.wasNull shouldBe true
+  }
+
   it should "support closing" in {
     val resultSet = createResultSet
 
@@ -425,7 +468,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       "test",
       Seq("int", "array_string", "array_int"),
       Seq(DataType[Int], DataType[Array[String]], DataType[Array[Int]]),
-      Iterator(Array[Option[Any]](Some(42), Some(Array("Foo", "bar")), Some(Array(1, 2, 4, 8))))
+      Iterator(Array[Any](42, Array("Foo", "bar"), Array(1, 2, 4, 8)))
     )
 
     val rs = new YupanaResultSet(statement, result)
@@ -620,7 +663,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string", "double", "time"),
       Seq(DataType[Int], DataType[String], DataType[BigDecimal], DataType[Time]),
       Iterator(
-        Array[Option[Any]](Some(42), Some("foo"), None, Some(Time(1234567L)))
+        Array[Any](42, "foo", null, Time(1234567L))
       )
     )
 

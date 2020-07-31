@@ -20,7 +20,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("хлеб ржаной"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
     )
 
     val qc1 = QueryContext(expQuery1, None)
@@ -33,9 +33,9 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc1,
           Seq(
-            Array[Option[Any]](Some(123456), Some(Time(120))),
-            Array[Option[Any]](Some(123456), Some(Time(150))),
-            Array[Option[Any]](Some(345112), Some(Time(120)))
+            Array[Any](123456, Time(120)),
+            Array[Any](123456, Time(150)),
+            Array[Any](345112, Time(120))
           ).toIterator
         )
       )
@@ -45,7 +45,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("бородинский"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
     )
 
     val qc2 = QueryContext(expQuery2, None)
@@ -56,8 +56,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc2,
           Seq(
-            Array[Option[Any]](Some(123456), Some(Time(125))),
-            Array[Option[Any]](Some(123456), Some(Time(120)))
+            Array[Any](123456, Time(125)),
+            Array[Any](123456, Time(120))
           ).toIterator
         )
       )
@@ -66,8 +66,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS), Set("хлеб ржаной")),
-        notIn(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELDS), Set("бородинский"))
+        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("хлеб ржаной")),
+        notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
       )
     )
 
@@ -94,7 +94,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(dimension(Dimensions.ITEM), Set("яйцо молодильное 1к"))
+      in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
     )
 
     val qc = QueryContext(expQuery, None)
@@ -107,8 +107,8 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
         new TsdbServerResult(
           qc,
           Seq(
-            Array[Option[Any]](Some(123456), Some(Time(220))),
-            Array[Option[Any]](Some(654321), Some(Time(330)))
+            Array[Any](123456, Time(220)),
+            Array[Any](654321, Time(330))
           ).toIterator
         )
       )
@@ -117,7 +117,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD), Set("яйцо молодильное 1к"))
+        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
       )
     )
 

@@ -167,7 +167,7 @@ object HBaseUtils extends StrictLogging {
           val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
+              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
             )
           }
           hasNext
@@ -218,23 +218,21 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]): RowRange = {
-    val timeInc = if (dimIds.isEmpty) 1 else 0
+    val tmpBuffer = ByteBuffer.allocate(keySize)
+
+    tmpBuffer.put(Bytes.toBytes(baseTime))
+    dimIds.foreach { dimBytes =>
+      tmpBuffer.put(dimBytes)
+    }
+
+    val bytes = new Array[Byte](tmpBuffer.position())
+    tmpBuffer.rewind()
+    tmpBuffer.get(bytes)
 
     val startBuffer = ByteBuffer.allocate(keySize)
     val stopBuffer = ByteBuffer.allocate(keySize)
-    startBuffer.put(Bytes.toBytes(baseTime))
-    stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
-    dimIds.indices.foreach { i =>
-      val vb = dimIds(i)
-      startBuffer.put(vb)
-      val ve =
-        if (i < dimIds.length - 1) {
-          vb
-        } else {
-          Bytes.unsignedCopyAndIncrement(vb)
-        }
-      stopBuffer.put(ve)
-    }
+    startBuffer.put(bytes)
+    stopBuffer.put(Bytes.unsignedCopyAndIncrement(bytes))
 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }

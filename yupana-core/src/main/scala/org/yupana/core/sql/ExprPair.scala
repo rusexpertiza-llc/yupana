@@ -39,10 +39,11 @@ object ExprPair {
       Right(const.v.asInstanceOf[dataType.T])
     } else {
       TypeConverter(const.dataType, dataType.aux)
-        .map(conv => conv.direct(const.v))
+        .map(conv => conv.convert(const.v))
         .orElse(
-          TypeConverter(dataType.aux, const.dataType)
-            .flatMap(conv => conv.reverse(const.v))
+          TypeConverter
+            .partial(const.dataType, dataType.aux)
+            .flatMap(conv => conv.convert(const.v))
         )
         .toRight(
           s"Cannot convert value '${const.v}' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"

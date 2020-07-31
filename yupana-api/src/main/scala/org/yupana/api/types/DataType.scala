@@ -41,7 +41,7 @@ trait DataType extends Serializable {
     else
       obj match {
         case that: DataType =>
-          this.meta == that.meta
+          this.classTag == that.classTag
         case _ => false
       }
   }
@@ -133,5 +133,19 @@ object DataType {
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
     override lazy val operations: TypeOperations[TT] = getOps(this)
+  }
+
+  def scaledDecimalDt(scale: Int)(
+      implicit
+      s: Storable[BigDecimal],
+      ct: ClassTag[BigDecimal],
+      bt: BoxingTag[BigDecimal]
+  ): DataType.Aux[BigDecimal] = new DataType {
+    override type T = BigDecimal
+    override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
+    override val storable: Storable[T] = s
+    override val classTag: ClassTag[T] = ct
+    override val boxingTag: BoxingTag[T] = bt
+    override lazy val operations: TypeOperations[BigDecimal] = TypeOperations.fracOperations(this)
   }
 }

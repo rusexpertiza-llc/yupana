@@ -26,6 +26,9 @@ import org.yupana.externallinks.ExternalLinkUtils
 
 abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[String], data: Array[Array[String]])
     extends ExternalLinkService[T] {
+
+  import org.yupana.api.query.syntax.All._
+
   def keyIndex: Int
 
   def fillKeyValues(indexMap: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit
@@ -35,11 +38,11 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   def keyExpr: Expression.Aux[String]
 
   def validate(): Unit = {
-    if (orderedFields.size != externalLink.fieldsNames.size)
-      throw new IllegalArgumentException(s"orderedFields have to have ${externalLink.fieldsNames.size} items")
+    if (orderedFields.size != externalLink.fields.size)
+      throw new IllegalArgumentException(s"orderedFields have to have ${externalLink.fields.size} items")
 
     orderedFields
-      .find(x => !externalLink.fieldsNames.contains(x))
+      .find(x => !externalLink.fields.map(_.name).contains(x))
       .foreach(x => throw new IllegalArgumentException(s"Unknown field '$x'"))
 
     if (data.exists(_.length != orderedFields.size))
@@ -49,11 +52,11 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   private lazy val fieldIndex: Map[String, Int] = orderedFields.zipWithIndex.toMap
 
   private lazy val multiIndex: Array[Map[String, Set[Int]]] = {
-    val result = Array.fill(externalLink.fieldsNames.size)(Map.empty[String, Set[Int]])
+    val result = Array.fill(externalLink.fields.size)(Map.empty[String, Set[Int]])
     data.indices foreach { idx =>
       val row = data(idx)
       row.indices foreach { col =>
-        val value = row(col)
+        val value = row(col).toLowerCase
         result(col) += value -> (result(col).getOrElse(value, Set.empty) + idx)
       }
     }
@@ -64,7 +67,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   override def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val indexMap = Seq[Expression](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
@@ -81,16 +84,15 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
     keyValueData.zip(valueData).foreach {
       case (kvd, vd) =>
-        kvd.get[String](indexMap(keyExpr)).foreach { keyValue =>
-          exprs.foreach { expr =>
-            vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField)(keyValue))
-          }
+        val keyValue = kvd.get[String](indexMap(keyExpr))
+        exprs.foreach { expr =>
+          vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField.name)(keyValue))
         }
     }
   }
 
   override def condition(condition: Condition): Condition = {
-    val keyCondition = ExternalLinkUtils.transformCondition(
+    val keyCondition = ExternalLinkUtils.transformConditionT[String](
       externalLink.linkName,
       condition,
       includeCondition,
@@ -102,12 +104,12 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
-    InExpr(keyExpr, keyValues)
+    in(lower(keyExpr), keyValues)
   }
 
   private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
-    NotInExpr(keyExpr, keyValues)
+    notIn(lower(keyExpr), keyValues)
   }
 
   private def keyValuesForFieldValues(
@@ -127,10 +129,10 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     } else Set.empty
   }
 
-  private def fieldValueForKeyValue(fieldName: String)(keyValue: String): Option[String] = {
+  private def fieldValueForKeyValue(fieldName: String)(keyValue: String): String = {
     val idx = getFieldIndex(fieldName)
     val rows = multiIndex(keyIndex).getOrElse(keyValue, Set.empty)
-    rows.map(row => data(row)(idx)).headOption
+    rows.map(row => data(row)(idx)).headOption.orNull
   }
 
   private def getFieldIndex(field: String): Int = {

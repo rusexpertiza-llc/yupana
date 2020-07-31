@@ -2,8 +2,10 @@ import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
 
+ThisBuild / useCoursier := false
+
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
   .settings(
     allSettings,
     noPublishSettings,
@@ -78,11 +80,7 @@ lazy val core = (project in file("yupana-core"))
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse.value,
-      "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
-      "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite,
-      "org.ehcache"                   %  "ehcache"                      % versions.ehcache,
-      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
-      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine,
+      "javax.cache"                   %  "cache-api"                    % "1.1.1",
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
@@ -117,7 +115,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test")
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
@@ -183,7 +181,42 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
-  .dependsOn(schema, core)
+  .dependsOn(schema, core, ehcache % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val ehcache = (project in file("yupana-ehcache"))
+  .settings(
+    name := "yupana-ehcache",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.ehcache"                   %  "ehcache"                      % versions.ehcache
+    )
+  )
+  .dependsOn(core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val caffeine = (project in file("yupana-caffeine"))
+  .settings(
+    name := "yupana-caffeine",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
+      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+    )
+  )
+  .dependsOn(core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val ignite = (project in file("yupana-ignite"))
+  .settings(
+    name := "yupana-ignite",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
+      "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
+    )
+  )
+  .dependsOn(core)
   .disablePlugins(AssemblyPlugin)
 
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
@@ -220,7 +253,7 @@ lazy val examples = (project in file("yupana-examples"))
     },
     assembly := assembly.dependsOn(writeAssemblyName).value
   )
-  .dependsOn(spark, akka, hbase, schema, externalLinks)
+  .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))
@@ -243,7 +276,7 @@ lazy val versions = new {
   val akka = "2.5.31"
 
   val lucene = "6.6.0"
-  val ignite = "2.7.0"
+  val ignite = "2.8.0"
   val ehcache = "3.3.2"
   val caffeine = "2.8.0"
 
@@ -272,14 +305,15 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.11",
-  crossScalaVersions := Seq("2.11.12", "2.12.11"),
+  scalaVersion := "2.12.12",
+  crossScalaVersions := Seq("2.11.12", "2.12.12"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-deprecation",
     "-unchecked",
     "-feature",
     "-Xlint",
+    "-Xfatal-warnings",
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),

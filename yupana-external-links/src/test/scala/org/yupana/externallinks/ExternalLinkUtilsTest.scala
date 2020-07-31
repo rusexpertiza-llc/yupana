@@ -6,7 +6,7 @@ import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, RawDimension }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, LinkField, RawDimension }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -16,7 +16,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
   import org.yupana.api.query.syntax.All._
 
   private def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformCondition(TestLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils.transformConditionT[String](TestLink.linkName, condition, includeCondition, excludeCondition)
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
@@ -43,7 +43,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     override type DimType = String
     override val linkName: String = "Test"
     override val dimension: DictionaryDimension = xDim
-    override val fieldsNames: Set[String] = Set(field1, field2, field3)
+    override val fields: Set[LinkField] = Set(field1, field2, field3).map(LinkField[String])
 
   }
 
@@ -61,7 +61,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       and(
         gt(time, const(Time(1000))),
         lt(time, const(Time(2000))),
-        equ(link(TestLink, TestLink.field1), const("foo"))
+        equ(lower(link(TestLink, TestLink.field1)), const("foo"))
       )
     ) shouldEqual and(
       ge(time, const(Time(1001))),
@@ -73,8 +73,8 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
   it should "support IN condition" in {
     condition(
       and(
-        equ(link(TestLink, TestLink.field2), const("bar")),
-        in(link(TestLink, TestLink.field3), Set("aaa", "bbb")),
+        equ(lower(link(TestLink, TestLink.field2)), const("bar")),
+        in(lower(link(TestLink, TestLink.field3)), Set("aaa", "bbb")),
         neq(dimension(yDim), const(4))
       )
     ) shouldEqual and(
@@ -89,7 +89,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       and(
         ge(time, const(Time(1000))),
         lt(time, const(Time(2000))),
-        neq(link(TestLink, TestLink.field1), const("foo"))
+        neq(lower(link(TestLink, TestLink.field1)), const("foo"))
       )
     ) shouldEqual and(
       ge(time, const(Time(1000))),
@@ -102,7 +102,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     condition(
       and(
         in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
-        notIn(link(TestLink, TestLink.field1), Set("aaa", "bbb")),
+        notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb")),
         neq(dimension(yDim), const(33))
       )
     ) shouldEqual and(
@@ -130,13 +130,13 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
     val ib = new InternalRowBuilder(exprIndex, Some(table))
 
     val row1 = ib
-      .set(time, Some(Time(10L)))
-      .set(dimension(xDim), Some("foo"))
+      .set(time, Time(10L))
+      .set(dimension(xDim), "foo")
       .buildAndReset()
 
     val row2 = ib
-      .set(dimension(xDim), Some("bar"))
-      .set(time, Some(Time(20L)))
+      .set(dimension(xDim), "bar")
+      .set(time, Time(20L))
       .buildAndReset()
     val rows = Seq(row1, row2)
 
@@ -148,10 +148,10 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       testSetter
     )
 
-    row1.get(exprIndex, link(TestLink, TestLink.field1)).value shouldEqual "field1:foo"
-    row1.get(exprIndex, link(TestLink, TestLink.field2)).value shouldEqual "field2:foo"
-    row2.get(exprIndex, link(TestLink, TestLink.field1)).value shouldEqual "field1:bar"
-    row2.get(exprIndex, link(TestLink, TestLink.field2)).value shouldEqual "field2:bar"
+    row1.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
+    row1.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
+    row2.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
+    row2.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
   }
 
   it should "cross join multiple values" in {

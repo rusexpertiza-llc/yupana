@@ -44,9 +44,13 @@ Apache Spark.
    - [yupana-jdbc](#structure-jdbc)
    - [yupana-akka](#structure-akka)
    - [yupana-spark](#structure-spark)
+   - [yupana-caffeine](#structure-caffeine)
+   - [yupana-ehcache](#structure-caffeine)
+   - [yupana-ignite](#structure-caffeine)
    - [yupana-schema](#structure-schema)
    - [yupana-external-links](#structure-links)
    - [yupana-examples](#structure-examples)
+   - [caches](#structure-caches)
 
 ## Общие сведения о Yupana <a href="#yupana"></a>
 
@@ -74,7 +78,7 @@ HBase. Данные сохраняются в виде отдельных вре
 3. Apache HBase 1.3.x с поддержкой сжатия Snappy;
 4. Apache Spark 2.4.x для запуска запросов на кластере.  Кроме того, в прилагаемых примерах загрузка данных также производится
    из Spark-приложения, хотя это и не является обязательным условием;
-5. Кластер Apache Ignite 2.7.0 при использовании распределенных кэшей в Ignite (опционально);
+5. Кластер Apache Ignite 2.8.0 при использовании распределенных кэшей в Ignite (опционально);
 6. sbt -- для сборки проекта.
 
 ### Сборка проекта <a href="#build"></a>
@@ -343,6 +347,7 @@ SELECT
 | split          | унарная       | строка                  | массив строк    | Разбиение строки на слова по пробелам                                             |
 | length         | унарная       | строки, массивы         | строки, массивы | Длина строки или количество элементов в массиве                                   |
 | array_to_string| унарная       | массив                  | строка          | Преобразование массивы в строку в формате "( a, b, .., n)"                        |
+| id             | унарная       | размерность             | число           | Идентификатор значения размерности в словаре                                      |
 | +              | инфиксная     | число, строка, интервал | тот же          | Сложение                                                                          |
 | -              | инфиксная     | число                   | тот же          | Вычитание                                                                         |
 | *              | инфиксная     | число                   | тот же          | Умножение                                                                         |
@@ -436,7 +441,29 @@ JDBC драйвер для Yupana.
 
 Реализация внешних связей, таких как инвертированный индекс, поиск сопутствующих товаров и связи на базе SQL таблиц.
 
+### yupana-caffeine <a href="#structure-caffeine"></a>
+
+Реализация кэшей на базе Caffeine.
+
+### yupana-ehcache <a href="#structure-caffeine"></a>
+
+Реализация кэшей на базе EhCache.
+
+### yupana-ignite <a href="#structure-caffeine"></a>
+
+Реализация кэшей на базе Apache Ignite.
+
 ### yupana-examples <a href="#structure-examples"></a>
 
 Пример использования Yupana.  Содержит типичный набор приложений для работы с Yupana: сервер обработки запросов, ETL для
 загрузки данных и приложения для запуска тяжелых вычислений на Spark.
+
+### Кэширование <a href="#structure-caches"></a>
+
+Для ускорения работы Yupana использует кэши.  Имеется несколько реализаций кэшей для Yupana:
+
+  - `yupana-ehache`
+  - `yupana-caffeine`
+  - `yupana-ignite`
+
+При использовании Yupana рекомендуется выбрать одну или несколько реализаций кэшей и сделать соответствующие настройки.

@@ -43,11 +43,11 @@ class ItemsInvertedIndexImplTest
     val actual = index.condition(
       and(
         in(
-          link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
+          lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
           Set("колбаса вареная", "щупальца кальмара")
         ),
         neq(
-          link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD),
+          lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
           const("хол копчения")
         )
       )
@@ -76,7 +76,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
     val res = index.condition(
-      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("красное яблоко", "банан% желтый"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
     )
 
     inside(res) {
@@ -92,7 +92,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
     val res = index.condition(
-      notIn(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("сигареты %"))
+      notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
     )
 
     inside(res) {
@@ -115,7 +115,7 @@ class ItemsInvertedIndexImplTest
 
     val dao = mock[InvertedIndexDao[String, ItemDimension.KeyType]]
     val tsdb = mock[TSDB]
-    val index = new ItemsInvertedIndexImpl(tsdb, dao, false, ItemsInvertedIndex)
+    val index = new ItemsInvertedIndexImpl(dao, false, ItemsInvertedIndex)
 
     body(index, dao, tsdb)
   }

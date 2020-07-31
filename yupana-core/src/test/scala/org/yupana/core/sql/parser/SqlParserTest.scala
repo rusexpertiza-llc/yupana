@@ -920,14 +920,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "parse KILL QUERY statements with query_id" in {
-    SqlParser.parse("KILL QUERY WHERE QUERY_ID = 'qwe123'") shouldBe Right(
-      KillQuery(MetricsFilter(queryId = Some("qwe123")))
+    SqlParser.parse("KILL QUERY WHERE QUERY_ID = '1'") shouldBe Right(
+      KillQuery(MetricsFilter(queryId = Some("1")))
     )
   }
 
   it should "parse DELETE QUERIES statements with query_id" in {
-    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = 'qwe123'") shouldBe Right(
-      DeleteQueryMetrics(MetricsFilter(queryId = Some("qwe123")))
+    SqlParser.parse("DELETE QUERIES WHERE QUERY_ID = '1'") shouldBe Right(
+      DeleteQueryMetrics(MetricsFilter(queryId = Some("1")))
     )
   }
 
@@ -1033,6 +1033,16 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           )
         )
     }
+  }
+
+  it should "support unary minus in IN" in {
+    parsed("""SELECT field FROM table WHERE id IN (1, 2, -3)""") {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs Seq(SqlField(FieldName("field")))
+        condition shouldEqual In(FieldName("id"), Seq(NumericValue(1), NumericValue(2), NumericValue(-3)))
+    }
+
   }
 
   it should "parse selects without schema" in {

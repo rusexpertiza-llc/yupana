@@ -36,7 +36,7 @@ object TestLinks {
     override type DimType = String
     override val linkName: String = "TestLink"
     override val dimension: Dimension.Aux[String] = TestDims.DIM_A
-    override val fieldsNames: Set[String] = Set("testField")
+    override val fields: Set[LinkField] = Set("testField").map(LinkField[String])
   }
 
   val TEST_LINK: TestLink = new TestLink
@@ -45,7 +45,7 @@ object TestLinks {
     override type DimType = String
     override val linkName: String = "TestLink2"
     override val dimension: Dimension.Aux[String] = TestDims.DIM_A
-    override val fieldsNames: Set[String] = Set("testField2")
+    override val fields: Set[LinkField] = Set("testField2").map(LinkField[String])
   }
 
   val TEST_LINK2: TestLink2 = new TestLink2
@@ -54,7 +54,8 @@ object TestLinks {
     override type DimType = String
     override val linkName: String = "TestLink3"
     override val dimension: Dimension.Aux[String] = TestDims.DIM_A
-    override val fieldsNames: Set[String] = Set("testField3_1", "testField3_2", "testField3_3")
+    override val fields: Set[LinkField] =
+      Set("testField3_1", "testField3_2", "testField3_3").map(LinkField[String])
   }
 
   val TEST_LINK3: TestLink3 = new TestLink3
@@ -63,10 +64,19 @@ object TestLinks {
     override type DimType = Short
     override val linkName: String = "TestLink4"
     override val dimension: Dimension.Aux[Short] = TestDims.DIM_B
-    override val fieldsNames: Set[String] = Set("testField4")
+    override val fields: Set[LinkField] = Set("testField4").map(LinkField[String])
   }
 
   val TEST_LINK4: TestLink4 = new TestLink4
+
+  class TestLink5 extends ExternalLink {
+    override type DimType = Short
+    override val linkName: String = "TestLink5"
+    override val dimension: Dimension.Aux[Short] = TestDims.DIM_B
+    override val fields: Set[LinkField] = Set(LinkField[Double]("testField5D"), LinkField[String]("testField5S"))
+  }
+
+  val TEST_LINK5: TestLink5 = new TestLink5
 }
 
 object TestSchema {
@@ -82,7 +92,8 @@ object TestSchema {
       TestTableFields.TEST_LONG_FIELD,
       TestTableFields.TEST_BIGDECIMAL_FIELD
     ),
-    externalLinks = Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4),
+    externalLinks =
+      Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
@@ -92,6 +103,22 @@ object TestSchema {
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
     externalLinks = Seq(),
+    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+  )
+
+  val testTable3 = new Table(
+    name = "test_table",
+    rowTimeSpan = 24 * 60 * 60 * 1000,
+    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_X),
+    metrics = Seq(
+      TestTableFields.TEST_FIELD,
+      TestTableFields.TEST_STRING_FIELD,
+      TestTableFields.TEST_FIELD2,
+      TestTableFields.TEST_LONG_FIELD,
+      TestTableFields.TEST_BIGDECIMAL_FIELD
+    ),
+    externalLinks =
+      Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 

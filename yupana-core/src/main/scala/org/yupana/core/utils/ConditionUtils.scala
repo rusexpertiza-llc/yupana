@@ -18,16 +18,9 @@ package org.yupana.core.utils
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.core.QueryOptimizer
 
 object ConditionUtils {
-  def simplify(condition: Condition): Condition = {
-    condition match {
-      case AndExpr(cs) => and(cs.flatMap(optimizeAnd))
-      case OrExpr(cs)  => or(cs.flatMap(optimizeOr))
-      case c           => c
-    }
-  }
-
   def flatMap(c: Condition)(f: Condition => Condition): Condition = {
     def doFlat(xs: Seq[Condition]): Seq[Condition] = {
       xs.flatMap(x =>
@@ -38,11 +31,13 @@ object ConditionUtils {
       )
     }
 
-    c match {
-      case AndExpr(cs) => and(doFlat(cs))
-      case OrExpr(cs)  => or(doFlat(cs))
+    val mapped = c match {
+      case AndExpr(cs) => AndExpr(doFlat(cs))
+      case OrExpr(cs)  => OrExpr(doFlat(cs))
       case x           => f(x)
     }
+
+    QueryOptimizer.simplifyCondition(mapped)
   }
 
   def merge(a: Condition, b: Condition): Condition = {
@@ -75,42 +70,6 @@ object ConditionUtils {
 
     val (a, b) = doSplit(c)
 
-    (simplify(a), simplify(b))
-  }
-
-  private def optimizeAnd(c: Condition): Seq[Condition] = {
-    c match {
-      case AndExpr(cs) => cs.flatMap(optimizeAnd)
-      case x           => Seq(simplify(x))
-    }
-  }
-
-  private def optimizeOr(c: Condition): Seq[Condition] = {
-    c match {
-      case OrExpr(cs) => cs.flatMap(optimizeOr)
-      case x          => Seq(simplify(x))
-    }
-  }
-
-  private def and(conditions: Seq[Condition]): Condition = {
-    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
-    if (nonEmpty.size == 1) {
-      nonEmpty.head
-    } else if (nonEmpty.nonEmpty) {
-      AndExpr(nonEmpty)
-    } else {
-      ConstantExpr(true)
-    }
-  }
-
-  private def or(conditions: Seq[Condition]): Condition = {
-    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
-    if (nonEmpty.size == 1) {
-      nonEmpty.head
-    } else if (nonEmpty.nonEmpty) {
-      OrExpr(nonEmpty)
-    } else {
-      ConstantExpr(true)
-    }
+    (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
 }
