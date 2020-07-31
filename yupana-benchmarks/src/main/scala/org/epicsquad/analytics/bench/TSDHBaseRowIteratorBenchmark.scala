@@ -1,12 +1,12 @@
 package org.epicsquad.analytics.bench
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
+import org.joda.time.{DateTimeZone, LocalDateTime}
+import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
-import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
+import org.yupana.core.QueryContext
+import org.yupana.core.model.{InternalQuery, InternalRowBuilder}
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase._
 
@@ -33,8 +33,8 @@ class TSDHBaseRowBencmarkState {
     val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
     (1 to N).map { i =>
       val dimId = i
-      HBaseTestUtils
-        .row(time - (time % TestSchema.testTable.rowTimeSpan), HBaseTestUtils.dimAHash(dimId.toString), dimId.toShort)
+      BenchHBaseTestUtils
+        .row(time - (time % TestSchema.testTable.rowTimeSpan), BenchHBaseTestUtils.dimAHash(dimId.toString), dimId.toShort)
         .cell("d1", time % TestSchema.testTable.rowTimeSpan)
         .field(TestTableFields.TEST_FIELD.tag, 1d)
         .field(TestTableFields.TEST_BIGDECIMAL_FIELD.tag, BigDecimal(10.23))
