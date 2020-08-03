@@ -37,8 +37,8 @@ class TsdbBenchmarks {
   def queryBenchmark(state: TsdbBenchmarksState): Unit = {
     val result = state.tsdb.query(state.query).iterator
     val r1 = result.next()
-    println(r1.fieldValueByName[BigDecimal]("sum_testField").get.doubleValue() == state.N.toDouble)
-    println(r1.fieldValueByName[String]("tag_a").get == "test1")
+    println(r1.get[BigDecimal]("sum_testField").doubleValue() == state.N.toDouble)
+    println(r1.get[String]("tag_a") == "test1")
   }
 
 }
@@ -75,27 +75,22 @@ class TsdbBenchmarksState {
   }
 
   def initTsdb: TSDB = {
-
     val metricDao = new TsdbQueryMetricsDao {
-      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long = ???
-
-      override def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] =
+      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit =
         ???
-
-      override def updateQueryMetrics(
-                                       rowKey: Long,
-                                       queryState: QueryStates.QueryState,
-                                       totalDuration: Double,
-                                       metricValues: Map[String, MetricData],
-                                       sparkQuery: Boolean
-                                     ): Unit = ???
-
-      override def setRunningPartitions(queryRowKey: Long, partitions: Int): Unit = ???
-
-      override def decrementRunningPartitions(queryRowKey: Long): Int = ???
-
-      override def setQueryState(filter: QueryMetricsFilter, queryState: QueryStates.QueryState): Unit = ???
-
+      override def queriesByFilter(filter: Option[QueryMetricsFilter],
+                                   limit: Option[Int]): Iterable[TsdbQueryMetrics] =
+        ???
+      override def updateQueryMetrics(queryId: String,
+                                      queryState: QueryStates.QueryState,
+                                      totalDuration: Double,
+                                      metricValues: Map[String, MetricData],
+                                      sparkQuery: Boolean): Unit = ???
+      override def setQueryState(filter: QueryMetricsFilter,
+                                 queryState: QueryStates.QueryState): Unit = ???
+      override def setRunningPartitions(queryId: String, partitions: Int): Unit =
+        ???
+      override def decrementRunningPartitions(queryId: String): Int = ???
       override def deleteMetrics(filter: QueryMetricsFilter): Int = ???
     }
 

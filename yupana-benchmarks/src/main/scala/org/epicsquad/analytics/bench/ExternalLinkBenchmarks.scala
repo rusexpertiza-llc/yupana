@@ -4,7 +4,7 @@ import org.joda.time.DateTime
 import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{Dimension, ExternalLink, RawDimension, Table => YTable}
+import org.yupana.api.schema.{Dimension, ExternalLink, LinkField, RawDimension, Table => YTable}
 import org.yupana.api.types.BinaryOperation
 import org.yupana.core.QueryContext
 import org.yupana.core.model.{InternalRow, InternalRowBuilder}
@@ -21,7 +21,7 @@ object BenchLink extends ExternalLink {
   val F2 = "f2"
   override val linkName: String = "benchLink"
   override val dimension: Dimension.Aux[Int] = dim
-  override val fieldsNames: Set[String] = Set(F1, F2)
+  override val fields: Set[LinkField] = Set(F1, F2).map(LinkField[String])
 }
 
 class ExternalLinkBenchmarks {
@@ -68,7 +68,7 @@ class ExternalLinkBenchmarkState {
   val dim: RawDimension[Int] = BenchLink.dim
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
   val table = new YTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
-  val linkExpr: LinkExpr = LinkExpr(BenchLink, BenchLink.F1)
+  val linkExpr: LinkExpr[_] = LinkExpr(BenchLink, BenchLink.F1)
   val t0 = new DateTime("2019-04-20")
   val t1: DateTime = t0.plusYears(1)
   val query = new Query(
@@ -89,9 +89,9 @@ class ExternalLinkBenchmarkState {
   var exprIndex: Map[Expression, Int] = queryContext.exprsIndex.toMap
   var rows: Seq[InternalRow] = 1 to 10000 map { i =>
     new InternalRowBuilder(exprIndex, None)
-      .set(dimExpr, Some(i - (i % 2)))
-      .set(TimeExpr, Some(Time(System.currentTimeMillis())))
+      .set(dimExpr, i - (i % 2))
+      .set(TimeExpr, Time(System.currentTimeMillis()))
       .buildAndReset()
   }
-  var exprs: Set[LinkExpr] = Set(linkExpr)
+  var exprs: Set[LinkExpr[_]] = Set(linkExpr)
 }

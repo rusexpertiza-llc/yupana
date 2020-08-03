@@ -9,24 +9,56 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.types.DataType
 
 import scala.collection.JavaConverters._
+import scala.reflect.api
+import scala.reflect.api.{ TypeCreator, Universe }
+import scala.reflect.runtime.universe._
 
 object BenchHBaseTestUtils {
-  def dimAHash(s: String) = {
+  def dimAHash(s: String): (Int, Long) = {
     (s.hashCode, UUID.nameUUIDFromBytes(s.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
   }
 
-  def row(baseTime: Long, dims: Any*) = {
-    val key = Bytes.toBytes(baseTime) ++ dims.foldLeft(Array.ofDim[Byte](0)) { (a, d) =>
-      val dimBytes = d match {
-        case x: Long        => Bytes.toBytes(x)
-        case x: Short       => Bytes.toBytes(x)
-        case x: Byte        => Bytes.toBytes(x)
-        case x: Int         => Bytes.toBytes(x)
-        case x: (Int, Long) => Bytes.toBytes(x._1) ++ Bytes.toBytes(x._2)
-      }
-      a ++ dimBytes
-    }
+  def row[A: TypeTag](baseTime: Long, a: A): RowBuilder = {
+    val key = Bytes.toBytes(baseTime) ++ toBytes(a)
     new RowBuilder(key, Nil)
+  }
+
+  def row[A: TypeTag, B: TypeTag](baseTime: Long, a: A, b: B): RowBuilder = {
+    val key = Bytes.toBytes(baseTime) ++ toBytes(a) ++ toBytes(b)
+    new RowBuilder(key, Nil)
+  }
+
+  def row[A: TypeTag, B: TypeTag, C: TypeTag](baseTime: Long, a: A, b: B, c: C): RowBuilder = {
+    val key = Bytes.toBytes(baseTime) ++ toBytes(a) ++ toBytes(b) ++ toBytes(c)
+    new RowBuilder(key, Nil)
+  }
+
+  private lazy val mirror = runtimeMirror(getClass.getClassLoader)
+
+  private def typeToTag[T](tpe: Type): TypeTag[T] = {
+    TypeTag(
+      mirror,
+      new TypeCreator {
+        override def apply[U <: Universe with Singleton](m: api.Mirror[U]): U#Type = {
+          if (m eq mirror) {
+            tpe.asInstanceOf[U#Type]
+          } else throw new IllegalArgumentException("Wrong mirror")
+        }
+      }
+    )
+  }
+
+  private def toBytes[T](t: T)(implicit typeTag: TypeTag[T]): Array[Byte] = {
+    t match {
+      case x: Long  => Bytes.toBytes(x)
+      case x: Short => Bytes.toBytes(x)
+      case x: Byte  => Bytes.toBytes(x)
+      case x: Int   => Bytes.toBytes(x)
+      case x: (_, _) =>
+        val List(aTpe, bTpe) = typeTag.tpe.typeArgs
+        toBytes(x._1)(typeToTag(aTpe)) ++ toBytes(x._2)(typeToTag(bTpe))
+      case _ => throw new IllegalArgumentException(s"Unsupported type ${typeTag.tpe}")
+    }
   }
 
   class RowBuilder(key: Array[Byte], cells: List[(String, Long, Array[Byte])]) {

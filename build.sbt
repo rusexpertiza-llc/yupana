@@ -259,7 +259,7 @@ lazy val examples = (project in file("yupana-examples"))
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings)
-  .dependsOn(core, externalLinks, hbase, hbase % "compile->test")
+  .dependsOn(core, externalLinks, caffeine, hbase, hbase % "compile->test")
 
 lazy val versions = new {
   val joda = "2.10.5"
