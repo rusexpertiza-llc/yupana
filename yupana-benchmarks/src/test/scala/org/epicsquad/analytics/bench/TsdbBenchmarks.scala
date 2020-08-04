@@ -5,7 +5,7 @@ import java.util.Properties
 import org.apache.hadoop.hbase.client.{ConnectionFactory, HBaseAdmin, Scan, Result => HResult, Table => HTable}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
-import org.epicsquad.analytics.bench.TestSchema.testTable
+import org.yupana.core.TestSchema.testTable
 import org.joda.time.{DateTimeZone, LocalDateTime}
 import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
@@ -17,13 +17,13 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.model.{MetricData, QueryStates, TsdbQueryMetrics}
 import org.yupana.core.utils.metric.{ConsoleMetricQueryCollector, MetricQueryCollector}
-import org.yupana.core.{MapReducible, SimpleTsdbConfig, TSDB}
-import org.yupana.hbase.{InternalQueryContext, TSDaoHBaseBase}
+import org.yupana.core._
+import org.yupana.hbase.{HBaseTestUtils, InternalQueryContext, TSDaoHBaseBase}
 
 class TsdbBenchmarks {
 
   @Benchmark
-  def hbaseBenchmark1(state: TsdbBenchmarksState): Unit = {
+  def hbaseBenchmark(state: TsdbBenchmarksState): Unit = {
     import scala.collection.JavaConverters._
 
     val table = state.hbaseTable
@@ -129,8 +129,8 @@ class TsdbBenchmarksState {
         val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
         (1 to N).map { i =>
           val dimId = i
-          BenchHBaseTestUtils
-            .row(time - (time % testTable.rowTimeSpan), BenchHBaseTestUtils.dimAHash(dimId.toString), dimId.toShort)
+          HBaseTestUtils
+            .row(time - (time % testTable.rowTimeSpan), HBaseTestUtils.dimAHash(dimId.toString), dimId.toShort)
             .cell("d1", time % testTable.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 1d)
             .field(TestTableFields.TEST_BIGDECIMAL_FIELD.tag, BigDecimal(1d))

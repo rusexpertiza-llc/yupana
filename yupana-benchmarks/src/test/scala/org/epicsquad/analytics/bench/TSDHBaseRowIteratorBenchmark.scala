@@ -5,7 +5,7 @@ import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
-import org.yupana.core.QueryContext
+import org.yupana.core.{QueryContext, TestDims, TestSchema, TestTableFields}
 import org.yupana.core.model.{InternalQuery, InternalRowBuilder}
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase._
