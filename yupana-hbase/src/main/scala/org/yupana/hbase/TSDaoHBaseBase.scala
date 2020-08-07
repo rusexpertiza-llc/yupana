@@ -104,7 +104,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val includeRowFilter = DimensionFilter(
       prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
     )
-    val rowFilter = createRowFilter(query.table, includeRowFilter, filters.excludeDims)
+    val excludeRowFilter = DimensionFilter(
+      filters.excludeDims.toMap
+        .filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    )
+
+    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
 
     val mr = mapReduceEngine(metricCollector)
