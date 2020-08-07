@@ -20,8 +20,8 @@ import java.io.IOException
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table }
-import org.apache.hadoop.hbase.{ HBaseConfiguration, HTableDescriptor, TableExistsException, TableName }
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table, TableDescriptor }
+import org.apache.hadoop.hbase.{ HBaseConfiguration, TableExistsException, TableName }
 
 class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) extends StrictLogging {
   protected lazy val connection: Connection = createConnectionAndNamespace
@@ -52,7 +52,7 @@ class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) 
     }
   }
 
-  def checkTablesExistsElseCreate(tableDescriptor: HTableDescriptor): Unit = {
+  def checkTablesExistsElseCreate(tableDescriptor: TableDescriptor): Unit = {
     try {
       if (!connection.getAdmin.tableExists(tableDescriptor.getTableName)) {
         connection.getAdmin.createTable(tableDescriptor)

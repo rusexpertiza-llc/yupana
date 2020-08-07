@@ -116,17 +116,14 @@ object HBaseTestUtils {
     override def getQualifierLength = qualifier.length
     override def getTimestamp = 0L
     override def getTypeByte = 0
-    override def getMvccVersion = 0L
     override def getValueArray: Array[Byte] = value
     override def getValueOffset = 0
     override def getValueLength = value.length
     override def getTagsArray: Array[Byte] = null
     override def getTagsOffset = 0
-    override def getValue: Array[Byte] = null
-    override def getFamily: Array[Byte] = null
-    override def getQualifier: Array[Byte] = null
-    override def getRow: Array[Byte] = null
     override def getSequenceId = 0L
     override def getTagsLength = 0
+    override def getSerializedSize: Int = 0
+    override def heapSize(): Long = 0L
   }
 }

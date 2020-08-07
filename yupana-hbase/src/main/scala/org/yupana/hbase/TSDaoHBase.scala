@@ -79,8 +79,8 @@ class TSDaoHBase(
     val hbaseTable = connection.getTable(tableName(namespace, table))
     val scan = new Scan()
       .addColumn(rollupStatusFamily, rollupStatusField)
-      .setStartRow(Bytes.toBytes(fromTime))
-      .setStopRow(Bytes.toBytes(toTime))
+      .withStartRow(Bytes.toBytes(fromTime))
+      .withStopRow(Bytes.toBytes(toTime))
     val scanner = hbaseTable.getScanner(scan)
     val statuses = scanner.asScala.toIterator.flatMap { result =>
       val time = Bytes.toLong(result.getRow)
@@ -108,13 +108,11 @@ class TSDaoHBase(
   ): Boolean = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
     val hbaseTable = connection.getTable(tableName(namespace, table))
-    hbaseTable.checkAndPut(
-      Bytes.toBytes(time),
-      rollupStatusFamily,
-      rollupStatusField,
-      oldStatus.map(_.getBytes).orNull,
-      new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
-    )
+    hbaseTable
+      .checkAndMutate(Bytes.toBytes(time), rollupStatusFamily)
+      .qualifier(rollupStatusField)
+      .ifEquals(oldStatus.map(_.getBytes).orNull)
+      .thenPut(new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus)))
   }
 
   override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {

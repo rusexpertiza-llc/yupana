@@ -105,6 +105,11 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test,
       "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test,
       "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-metrics-api"            % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-http"                   % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-metrics"                % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test classifier "tests",
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase                    % Test classifier "tests",
       "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test,
       "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test classifier "tests",
@@ -265,7 +270,7 @@ lazy val versions = new {
   val fastparse212 = "2.1.3"
   val fastparse211 = "2.1.2"
 
-  val hbase = "1.3.6"
+  val hbase = "2.2.5"
   val hadoop = "2.8.5"
   val spark = "2.4.5"
   val akka = "2.5.31"

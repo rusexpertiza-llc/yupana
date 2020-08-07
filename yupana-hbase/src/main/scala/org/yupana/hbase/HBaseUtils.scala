@@ -139,7 +139,7 @@ object HBaseUtils extends StrictLogging {
         }
     }
 
-    val scan = new Scan(startKey, stopKey)
+    val scan = new Scan().withStartRow(startKey).withStopRow(stopKey)
     filter.foreach(scan.setFilter)
 
     familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
@@ -167,7 +167,7 @@ object HBaseUtils extends StrictLogging {
           val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
+              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
             )
           }
           hasNext
@@ -283,11 +283,15 @@ object HBaseUtils extends StrictLogging {
 
       logger.info(s"Writing TSDB Schema definition to namespace $namespace")
 
-      val tableDesc = new HTableDescriptor(metaTableName)
-        .addFamily(
-          new HColumnDescriptor(tsdbSchemaFamily)
+      val tableDesc = TableDescriptorBuilder
+        .newBuilder(metaTableName)
+        .setColumnFamily(
+          ColumnFamilyDescriptorBuilder
+            .newBuilder(tsdbSchemaFamily)
             .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+            .build()
         )
+        .build()
       connection.getAdmin.createTable(tableDesc)
       val table = connection.getTable(metaTableName)
       val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, tsdbSchemaBytes)
@@ -330,15 +334,19 @@ object HBaseUtils extends StrictLogging {
   def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
     val hbaseTable = tableName(namespace, table)
     if (!connection.getAdmin.tableExists(hbaseTable)) {
-      val desc = new HTableDescriptor(hbaseTable)
       val fieldGroups = table.metrics.map(_.group).toSet
-      fieldGroups foreach (group =>
-        desc.addFamily(
-          new HColumnDescriptor(family(group))
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-            .setCompactionCompressionType(Algorithm.SNAPPY)
-        )
+      val families = fieldGroups map (group =>
+        ColumnFamilyDescriptorBuilder
+          .newBuilder(family(group))
+          .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+          .setCompactionCompressionType(Algorithm.SNAPPY)
+          .build()
       )
+      val desc = TableDescriptorBuilder
+        .newBuilder(hbaseTable)
+        .setColumnFamilies(families.asJavaCollection)
+        .build()
+
       val endTime = new LocalDateTime()
         .plusYears(1)
         .withMonthOfYear(1)
@@ -360,11 +368,14 @@ object HBaseUtils extends StrictLogging {
   def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
     val name = tableName(namespace, table)
     val hbaseTable = connection.getTable(name)
-    val tableDesc = hbaseTable.getTableDescriptor
-    if (!tableDesc.hasFamily(rollupStatusFamily)) {
-      connection.getAdmin.addColumn(
+    val tableDesc = hbaseTable.getDescriptor
+    if (!tableDesc.hasColumnFamily(rollupStatusFamily)) {
+      connection.getAdmin.addColumnFamily(
         name,
-        new HColumnDescriptor(rollupStatusFamily).setDataBlockEncoding(DataBlockEncoding.PREFIX)
+        ColumnFamilyDescriptorBuilder
+          .newBuilder(rollupStatusFamily)
+          .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+          .build()
       )
     }
   }

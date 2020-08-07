@@ -2,7 +2,7 @@ package org.yupana.hbase
 
 import java.util.Properties
 
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, Scan, Result => HResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.joda.time.{ DateTimeZone, LocalDateTime }
@@ -24,7 +24,7 @@ import scala.util.Random
 
 class TsdbBenchmark extends FlatSpec with Matchers {
 
-  "HBAse" should "be fast" taggedAs Slow in {
+  "HBase" should "be fast" taggedAs Slow in {
     val hbaseConfiguration = HBaseConfiguration.create()
     hbaseConfiguration.set("hbase.zookeeper.quorum", "localhost:2181")
     hbaseConfiguration.set("zookeeper.session.timeout", "9000000")
@@ -32,7 +32,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //    hbaseConfiguration.set("hbase.client.scanner.max.result.size", "50000000")
 //    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, props)
 
-    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+//    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+
     val nameSpace = "schema43"
 
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
@@ -53,11 +54,11 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val start = System.currentTimeMillis()
     val result = table.getScanner(scan)
     val dps = result.iterator().asScala.foldLeft(0L) { (c, r) =>
-      c + r.rawCells().size
+      c + r.rawCells().length
     }
 
     println(dps)
-    println(scan.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
+    println(result.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
     println("TIME: " + (System.currentTimeMillis() - start))
   }
 

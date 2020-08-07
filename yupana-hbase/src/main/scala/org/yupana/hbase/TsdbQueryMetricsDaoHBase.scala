@@ -18,9 +18,9 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
-import org.apache.hadoop.hbase.filter.{ CompareFilter, FilterList, SingleColumnValueFilter }
+import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
+import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableName }
 import org.joda.time.DateTime
 import org.yupana.api.query.Query
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
@@ -136,13 +136,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
                     )
                 }
             }
-            val result = table.checkAndPut(
-              Bytes.toBytes(queryId),
-              FAMILY,
-              TOTAL_DURATION_QUALIFIER,
-              Bytes.toBytes(query.totalDuration),
-              put
-            )
+            val result = table
+              .checkAndMutate(Bytes.toBytes(queryId), FAMILY)
+              .qualifier(TOTAL_DURATION_QUALIFIER)
+              .ifEquals(Bytes.toBytes(query.totalDuration))
+              .thenPut(put)
+
             if (!result) {
               Thread.sleep(util.Random.nextInt(MAX_SLEEP_TIME_BETWEEN_ATTEMPTS))
               tryUpdateMetrics(n + 1)
@@ -181,7 +180,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
                 new SingleColumnValueFilter(
                   FAMILY,
                   STATE_QUALIFIER,
-                  CompareFilter.CompareOp.EQUAL,
+                  CompareOperator.EQUAL,
                   Bytes.toBytes(queryState.name)
                 )
               )
@@ -211,13 +210,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       case Some(query) =>
         val put = new Put(Bytes.toBytes(query.queryId))
         put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
-        table.checkAndPut(
-          Bytes.toBytes(query.queryId),
-          FAMILY,
-          STATE_QUALIFIER,
-          Bytes.toBytes(QueryStates.Running.name),
-          put
-        )
+        table
+          .checkAndMutate(Bytes.toBytes(query.queryId), FAMILY)
+          .qualifier(STATE_QUALIFIER)
+          .ifEquals(Bytes.toBytes(QueryStates.Running.name))
+          .thenPut(put)
+
       case None =>
         throw new IllegalArgumentException(s"Query not found by filter $filter!")
     }
@@ -246,13 +244,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
 
     val put = new Put(Bytes.toBytes(queryId))
     put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(decrementedRunningPartitions))
-    val successes = table.checkAndPut(
-      Bytes.toBytes(queryId),
-      FAMILY,
-      RUNNING_PARTITIONS_QUALIFIER,
-      Bytes.toBytes(runningPartitions),
-      put
-    )
+    val successes = table
+      .checkAndMutate(Bytes.toBytes(queryId), FAMILY)
+      .qualifier(RUNNING_PARTITIONS_QUALIFIER)
+      .ifEquals(Bytes.toBytes(runningPartitions))
+      .thenPut(put)
+
     if (successes) {
       decrementedRunningPartitions
     } else if (attempt < UPDATE_ATTEMPTS_LIMIT) {
@@ -308,9 +305,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     try {
       val tableName = getTableName(namespace)
       if (!connection.getAdmin.tableExists(tableName)) {
-        val desc = new HTableDescriptor(tableName)
-          .addFamily(new HColumnDescriptor(FAMILY))
-          .addFamily(new HColumnDescriptor(ID_FAMILY))
+        val desc = TableDescriptorBuilder
+          .newBuilder(tableName)
+          .setColumnFamilies(
+            Seq(ColumnFamilyDescriptorBuilder.of(FAMILY), ColumnFamilyDescriptorBuilder.of(ID_FAMILY)).asJava
+          )
+          .build()
         connection.getAdmin.createTable(desc)
       }
     } catch {

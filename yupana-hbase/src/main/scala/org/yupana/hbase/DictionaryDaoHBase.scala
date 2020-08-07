@@ -99,7 +99,9 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
           val rangeFilter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
           val start = rangeFilter.getRowRanges.asScala.head.getStartRow
           val end = Bytes.padTail(rangeFilter.getRowRanges.asScala.last.getStopRow, 1)
-          val scan = new Scan(start, end)
+          val scan = new Scan()
+            .withStartRow(start)
+            .withStopRow(end)
             .addFamily(dataFamily)
             .setFilter(rangeFilter)
 
@@ -125,7 +127,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
     val table = getTable(dimension.name)
     val rput = new Put(valueBytes).addColumn(dataFamily, column, idBytes)
-    table.checkAndPut(valueBytes, dataFamily, column, null, rput)
+    table.checkAndMutate(valueBytes, dataFamily).qualifier(column).ifNotExists().thenPut(rput)
   }
 
   override def createSeqId(dimension: Dimension): Int = {
@@ -142,9 +144,12 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       try {
         val tableName = getTableName(namespace, dimension.name)
         if (!connection.getAdmin.tableExists(tableName)) {
-          val desc = new HTableDescriptor(tableName)
-            .addFamily(new HColumnDescriptor(seqFamily))
-            .addFamily(new HColumnDescriptor(dataFamily))
+          val desc = TableDescriptorBuilder
+            .newBuilder(tableName)
+            .setColumnFamilies(
+              Seq(ColumnFamilyDescriptorBuilder.of(seqFamily), ColumnFamilyDescriptorBuilder.of(dataFamily)).asJava
+            )
+            .build()
           connection.getAdmin.createTable(desc)
         }
       } catch {
