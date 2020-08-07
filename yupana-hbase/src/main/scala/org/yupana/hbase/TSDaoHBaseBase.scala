@@ -106,9 +106,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     )
     val excludeRowFilter = DimensionFilter(
       filters.excludeDims
-      .toMap
-      .map { case (d, it) => d -> it.prefetch(RANGE_FILTERS_LIMIT) }
-      .filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+        .toMap
+        .filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
     )
 
     val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
