@@ -222,9 +222,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val includeMap = include.toMap.map { case (k, v) => k -> v.toSet }
     val excludeMap = exclude.toMap.map { case (k, v) => k -> v.toSet }
 
-    println(s"includeMap2: $includeMap")
-    println(s"excludeMap2: $excludeMap")
-
     if (excludeMap.nonEmpty) {
       if (includeMap.nonEmpty) {
         rowFilter(
