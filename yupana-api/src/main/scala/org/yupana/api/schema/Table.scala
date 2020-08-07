@@ -86,7 +86,7 @@ class Table(
       )
     }
 
-    val unsupportedFields = oldExternalLink.fieldsNames -- newExternalLink.fieldsNames
+    val unsupportedFields = oldExternalLink.fields -- newExternalLink.fields
 
     if (unsupportedFields.nonEmpty) {
       throw new IllegalArgumentException(

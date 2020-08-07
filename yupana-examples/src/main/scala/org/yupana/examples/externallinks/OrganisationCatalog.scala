@@ -19,7 +19,7 @@ package org.yupana.examples.externallinks
 import java.util.Properties
 
 import org.springframework.jdbc.core.JdbcTemplate
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField }
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLinkConnection, SQLExternalLinkDescription }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
@@ -34,7 +34,7 @@ trait OrganisationCatalog extends ExternalLink {
   override val linkName: String = "Organisations"
   override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
 
-  override val fieldsNames: Set[String] = Set(TYPE, ID)
+  override val fields: Set[LinkField] = Set(LinkField[String](TYPE), LinkField[String](ID))
 }
 
 object OrganisationCatalog extends OrganisationCatalog

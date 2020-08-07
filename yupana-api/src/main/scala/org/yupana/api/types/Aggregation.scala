@@ -41,9 +41,6 @@ trait Aggregation[T] extends Serializable {
   /** This aggregation name */
   val name: String
 
-  /** Default empty aggregation value */
-  def emptyValue(implicit a: Aggregations): Option[Out]
-
   /**
     * Map input value of type `T` to `Interim` type
     * @param t value to be mapped
@@ -68,6 +65,9 @@ trait Aggregation[T] extends Serializable {
     * @return converted value
     */
   def postMap(x: Interim)(implicit a: Aggregations): Out
+
+  /** Default empty aggregation value */
+  def emptyValue(implicit a: Aggregations): Option[Out]
 
   /** Output data type */
   val dataType: DataType.Aux[Out]

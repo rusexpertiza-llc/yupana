@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -173,6 +173,22 @@ object DimensionExpr {
     Some(expr.dimension.asInstanceOf[Dimension.Aux[expr.Out]])
 }
 
+class DimensionIdExpr(val dimension: Dimension) extends Expression {
+  override type Out = String
+  override val dataType: DataType.Aux[String] = DataType[String]
+  override def kind: ExprKind = Simple
+
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
+
+  override def encode: String = s"dimId(${dimension.name})"
+  def toField: QueryField = QueryField(dimension.name, this)
+}
+
+object DimensionIdExpr {
+  def apply(dimension: Dimension): DimensionIdExpr = new DimensionIdExpr(dimension)
+  def unapply(expr: DimensionIdExpr): Option[Dimension] = Some(expr.dimension)
+}
+
 case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[metric.T] = metric.dataType
@@ -184,21 +200,22 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   def toField: QueryField = QueryField(metric.name, this)
 }
 
-class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression {
-  override type Out = String
-  override val dataType: DataType.Aux[String] = DataType[String]
+class LinkExpr[T](val link: ExternalLink, val linkField: LinkField.Aux[T]) extends Expression {
+  override type Out = T
+  override val dataType: DataType.Aux[linkField.T] = linkField.dataType
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"link(${link.linkName}, $linkField)"
-  def queryFieldName: String = link.linkName + "_" + linkField
+  override def encode: String = s"link(${link.linkName}, ${linkField.name})"
+  def queryFieldName: String = link.linkName + "_" + linkField.name
   def toField: QueryField = QueryField(queryFieldName, this)
 }
 
 object LinkExpr {
-  def apply(link: ExternalLink, field: String): LinkExpr = new LinkExpr(link, field)
-  def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
+  def apply[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = new LinkExpr(link, field)
+  def apply(link: ExternalLink, field: String): LinkExpr[String] = new LinkExpr(link, LinkField[String](field))
+  def unapply(expr: LinkExpr[_]): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField.name))
 }
 
 case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U], expr: Expression.Aux[T]) extends Expression {

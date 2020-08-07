@@ -26,6 +26,7 @@ import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
+import org.yupana.core.utils.ConditionMatchers.Lower
 
 class SqlQueryProcessor(schema: Schema) {
 
@@ -97,6 +98,10 @@ object SqlQueryProcessor extends QueryValidator {
 
   val function0Registry: Map[String, BuilderState => Expression] = Map(
     "now" -> ((s: BuilderState) => ConstantExpr(Time(s.queryStartTime)))
+  )
+
+  val function1Registry: Map[String, Expression => Either[String, Expression]] = Map(
+    "id" -> createDimIdExpr
   )
 
   object ExprType extends Enumeration {
@@ -238,12 +243,12 @@ object SqlQueryProcessor extends QueryValidator {
         } yield fexpr
     }
 
-    e.right.map { ex =>
-      if (exprType == ExprType.Cmp && ex.dataType == DataType[String]) {
+    e.right.map {
+      case die: DimensionIdExpr => die
+      case ex if exprType == ExprType.Cmp && ex.dataType == DataType[String] && ex.kind != Const =>
         UnaryOperationExpr(UnaryOperation.lower, ex.asInstanceOf[Expression.Aux[String]])
-      } else ex
+      case ex => ex
     }
-
   }
 
   private def createUMinus(
@@ -255,7 +260,7 @@ object SqlQueryProcessor extends QueryValidator {
     expr match {
       // TODO: this may be removed when we will calculate constant values before query execution
       case parser.Constant(parser.NumericValue(n)) => Right(ConstantExpr(-n))
-      case x =>
+      case _ =>
         for {
           e <- createExpr(state, resolver, expr, exprType).right
           u <- createUnaryFunctionExpr("-", e).right
@@ -267,7 +272,8 @@ object SqlQueryProcessor extends QueryValidator {
     for {
       _ <- createWindowFunctionExpr(fun, expr).left
       _ <- createAggregateExpr(fun, expr).left
-      m <- createUnaryFunctionExpr(fun, expr).left
+      _ <- createUnaryFunctionExpr(fun, expr).left
+      m <- createSyntheticUnaryExpr(fun, expr).left
       _ <- createArrayUnaryFunctionExpr(fun, Seq(expr)).left
     } yield m
   }
@@ -320,6 +326,10 @@ object SqlQueryProcessor extends QueryValidator {
     uf.map(f =>
       UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
     )
+  }
+
+  private def createSyntheticUnaryExpr(fun: String, expr: Expression) = {
+    function1Registry.get(fun).toRight(s"Unknown synthetic function $fun").right.flatMap(_(expr))
   }
 
   private def createBinary(
@@ -527,7 +537,7 @@ object SqlQueryProcessor extends QueryValidator {
     table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(d => DimensionExpr(d.aux))
   }
 
-  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr] = {
+  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr[_]] = {
 
     val pos = fieldName.indexOf('_')
 
@@ -536,8 +546,8 @@ object SqlQueryProcessor extends QueryValidator {
       val catField = fieldName.substring(pos + 1)
       for {
         c <- table.externalLinks.find(_.linkName equalsIgnoreCase catName)
-        f <- c.fieldsNames.find(_ equalsIgnoreCase catField)
-      } yield new LinkExpr(c, f)
+        f <- c.fields.find { m => m.name equalsIgnoreCase catField }
+      } yield new LinkExpr(c, f.aux)
     } else {
       None
     }
@@ -563,10 +573,12 @@ object SqlQueryProcessor extends QueryValidator {
   ): Either[String, Array[ConstantExpr]] = {
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
-        case Right(e) if (e.kind == Const) =>
-          ExpressionCalculator.evaluateConstant(e) match {
-            case Some(v) => Right(ConstantExpr(v)(e.dataType).asInstanceOf[ConstantExpr])
-            case None    => Left(s"Cannon evaluate $e")
+        case Right(e) if e.kind == Const =>
+          val eval = ExpressionCalculator.evaluateConstant(e)
+          if (eval != null) {
+            Right(ConstantExpr(eval)(e.dataType).asInstanceOf[ConstantExpr])
+          } else {
+            Left(s"Cannon evaluate $e")
           }
         case Right(e) => Left(s"$e is not constant")
 
@@ -606,5 +618,13 @@ object SqlQueryProcessor extends QueryValidator {
     }
 
     CollectionUtils.collectErrors(vs.toSeq)
+  }
+
+  private def createDimIdExpr(expr: Expression): Either[String, Expression] = {
+    expr match {
+      case DimensionExpr(dim)        => Right(DimensionIdExpr(dim))
+      case Lower(DimensionExpr(dim)) => Right(DimensionIdExpr(dim))
+      case _                         => Left("Function id is applicable only to dimensions")
+    }
   }
 }

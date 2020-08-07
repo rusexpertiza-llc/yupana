@@ -24,14 +24,15 @@ import scala.util.hashing.MurmurHash3
 
 class KeyData(@transient val queryContext: QueryContext, @transient val row: InternalRow) extends Serializable {
 
-  private var data: Array[Option[Any]] = _
+  private var data: Array[Any] = _
 
+  //TODO: row.get[Any] - fix it!
   override def hashCode(): Int = {
     import scala.util.hashing.MurmurHash3._
 
     if (queryContext != null) {
       val h = queryContext.groupByExprs.foldLeft(MurmurHash3.arraySeed) { (h, e) =>
-        mix(h, row.get(queryContext, e).##)
+        mix(h, row.get[Any](queryContext, e).##)
       }
       finalizeHash(h, queryContext.groupByExprs.length)
     } else {
@@ -47,14 +48,14 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
         } else if (this.queryContext != null && that.queryContext != null) {
           queryContext.groupByExprs.foldLeft(true) { (a, e) =>
             val i = queryContext.exprsIndex(e)
-            a && this.row.get(i) == that.row.get(i)
+            a && this.row.get[Any](i) == that.row.get[Any](i)
           }
         } else if (this.queryContext != null) {
           queryContext.groupByExprs.indices
-            .forall(idx => this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
+            .forall(idx => this.row.get[Any](queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
         } else if (that.queryContext != null) {
           that.queryContext.groupByExprs.indices
-            .forall(idx => that.row.get(that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
+            .forall(idx => that.row.get[Any](that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
         } else {
           this.data sameElements that.data
         }
@@ -63,11 +64,11 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     }
   }
 
-  private def calcData: Array[Option[Any]] = {
-    val keyData = Array.ofDim[Option[Any]](queryContext.groupByExprs.length)
+  private def calcData: Array[Any] = {
+    val keyData = Array.ofDim[Any](queryContext.groupByExprs.length)
 
     keyData.indices foreach { i =>
-      keyData(i) = row.get(queryContext, queryContext.groupByExprs(i))
+      keyData(i) = row.get[Any](queryContext, queryContext.groupByExprs(i))
     }
 
     keyData
@@ -80,6 +81,6 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
   }
 
   private def readObject(ois: ObjectInputStream): Unit = {
-    data = ois.readObject().asInstanceOf[Array[Option[Any]]]
+    data = ois.readObject().asInstanceOf[Array[Any]]
   }
 }

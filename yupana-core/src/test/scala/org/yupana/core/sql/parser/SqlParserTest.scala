@@ -1035,6 +1035,16 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "support unary minus in IN" in {
+    parsed("""SELECT field FROM table WHERE id IN (1, 2, -3)""") {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs Seq(SqlField(FieldName("field")))
+        condition shouldEqual In(FieldName("id"), Seq(NumericValue(1), NumericValue(2), NumericValue(-3)))
+    }
+
+  }
+
   it should "parse selects without schema" in {
     parsed("""SELECT field, sum(sum) sum WHERE time > TIMESTAMP '2017-01-03'""") {
       case Select(None, SqlFieldList(fields), Some(condition), Nil, None, None) =>

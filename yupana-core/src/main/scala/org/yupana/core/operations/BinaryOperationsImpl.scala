@@ -44,8 +44,8 @@ trait BinaryOperationsImpl extends BinaryOperations {
   override def containsSame[T](a: Array[T], b: Array[T]): Boolean = a sameElements b
 
   // Ordering operations
-  override def equ[T](a: T, b: T)(implicit ordering: Ordering[T]): Boolean = ordering.equiv(a, b)
-  override def neq[T](a: T, b: T)(implicit ordering: Ordering[T]): Boolean = !ordering.equiv(a, b)
+  override def equ[T](a: T, b: T): Boolean = a == b
+  override def neq[T](a: T, b: T): Boolean = a != b
   override def gt[T](a: T, b: T)(implicit ordering: Ordering[T]): Boolean = ordering.gt(a, b)
   override def lt[T](a: T, b: T)(implicit ordering: Ordering[T]): Boolean = ordering.lt(a, b)
   override def ge[T](a: T, b: T)(implicit ordering: Ordering[T]): Boolean = ordering.gteq(a, b)

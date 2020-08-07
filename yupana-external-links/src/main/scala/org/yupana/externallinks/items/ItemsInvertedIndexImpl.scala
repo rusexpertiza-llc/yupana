@@ -99,11 +99,11 @@ class ItemsInvertedIndexImpl(
   override def setLinkedValues(
       exprIndex: collection.Map[Expression, Int],
       rows: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
   override def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformCondition(externalLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, includeCondition, excludeCondition)
   }
 
   private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
