@@ -20,7 +20,6 @@ import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.HBaseAdmin
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.core.SimpleTsdbConfig
 import org.yupana.examples.ExampleSchema
@@ -45,7 +44,6 @@ object Main extends StrictLogging {
     hbaseConfiguration.set("hbase.client.scanner.timeout.period", "180000")
     HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.properties)
 
-    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
     logger.info("TSDB HBase Configuration: {} works fine", hbaseConfiguration)
 
     val schema = ExampleSchema.schema

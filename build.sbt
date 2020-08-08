@@ -148,8 +148,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
       "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
-      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
+      "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting   % Test
     ),
