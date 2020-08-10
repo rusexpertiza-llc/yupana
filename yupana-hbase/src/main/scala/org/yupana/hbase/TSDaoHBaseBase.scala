@@ -104,10 +104,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val includeRowFilter = DimensionFilter(
       prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
     )
-    val excludeRowFilter = DimensionFilter(
-      filters.excludeDims.toMap
-        .filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
-    )
+    val excludeRowFilter = filters.excludeDims.toMap
+      .filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
 
     val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(from, to, filters.includeTime, filters.excludeTime)
@@ -214,11 +212,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   private def createRowFilter(
       table: Table,
       include: DimensionFilter[IdType],
-      exclude: DimensionFilter[IdType]
+      exclude: Map[Dimension, SortedSetIterator[IdType]]
   ): Filtration.RowFilter = {
 
     val includeMap = include.toMap.map { case (k, v) => k -> v.toSet }
-    val excludeMap = exclude.toMap.map { case (k, v) => k -> v.toSet }
+    val excludeMap = exclude.map { case (k, v)       => k -> v.toSet }
 
     if (excludeMap.nonEmpty) {
       if (includeMap.nonEmpty) {
