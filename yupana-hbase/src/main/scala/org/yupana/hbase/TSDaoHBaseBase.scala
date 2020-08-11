@@ -104,7 +104,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val includeRowFilter = prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
 
-    val rowFilter = createRowFilter(query.table, includeRowFilter, filters.allExcludes)
+    val excludeRowFilter = filters.allExcludes.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+
+    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
       from,
       to,
