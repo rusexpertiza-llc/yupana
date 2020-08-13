@@ -8,6 +8,7 @@ import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMet
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
+import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 import org.yupana.core.utils.Table
 
 trait TsdbMocks extends MockFactory {
@@ -24,16 +25,15 @@ trait TsdbMocks extends MockFactory {
 
     (catalogService.isSupportedCondition _)
       .stubs(*)
-      .onCall(
-        (condition: Condition) =>
-          condition match {
-            case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
-                if Set("==", "!=").contains(op.name) && c.linkName == catalog.linkName =>
-              true
-            case InExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
-            case NotInExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
-            case _                                                              => false
-          }
+      .onCall((condition: Condition) =>
+        condition match {
+          case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
+              if Set("==", "!=").contains(op.name) && c.linkName == catalog.linkName =>
+            true
+          case InExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
+          case NotInExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
+          case _                                                              => false
+        }
       )
 
     catalogService
@@ -44,26 +44,31 @@ trait TsdbMocks extends MockFactory {
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
-      .onCall(
-        (c: Condition) =>
-          c match {
-            case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
-            case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
-            case _: DimIdInExpr                                            => true
-            case _: DimIdNotInExpr                                         => true
-            case BinaryOperationExpr(op, _: DimensionExpr, ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
-              true
-            case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr) if Set("==", "!=").contains(op.name) =>
-              true
-            case InExpr(_: DimensionExpr, _)    => true
-            case NotInExpr(_: DimensionExpr, _) => true
-            case _                              => false
-          }
+      .onCall((c: Condition) =>
+        c match {
+          case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
+          case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
+          case _: DimIdInExpr[_, _]                                      => true
+          case _: DimIdNotInExpr[_, _]                                   => true
+          case Equ(_: DimensionExpr[_], ConstantExpr(_))                 => true
+          case Equ(ConstantExpr(_), _: DimensionExpr[_])                 => true
+          case Equ(Lower(_: DimensionExpr[_]), ConstantExpr(_))          => true
+          case Equ(ConstantExpr(_), Lower(_: DimensionExpr[_]))          => true
+          case Neq(_: DimensionExpr[_], ConstantExpr(_))                 => true
+          case Neq(ConstantExpr(_), _: DimensionExpr[_])                 => true
+          case Neq(Lower(_: DimensionExpr[_]), ConstantExpr(_))          => true
+          case Neq(Lower(ConstantExpr(_)), _: DimensionExpr[_])          => true
+          case InExpr(_: DimensionExpr[_], _)                            => true
+          case NotInExpr(_: DimensionExpr[_], _)                         => true
+          case InExpr(Lower(_: DimensionExpr[_]), _)                     => true
+          case NotInExpr(Lower(_: DimensionExpr[_]), _)                  => true
+          case _                                                         => false
+        }
       )
       .anyNumberOfTimes()
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity)
+    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
     body(tsdb, tsdbDaoMock)
   }
 
@@ -74,11 +79,10 @@ trait TsdbMocks extends MockFactory {
       catalogValues: Table[String, String, String]
   ): Unit = {
     datas.foreach { v =>
-      v.get[String](exprIndex, DimensionExpr(catalog.dimension)).foreach { tagValue =>
-        catalogValues.row(tagValue).foreach {
-          case (field, value) =>
-            v.set(exprIndex, LinkExpr(catalog, field), Some(value))
-        }
+      val tagValue = v.get[String](exprIndex, DimensionExpr(catalog.dimension))
+      catalogValues.row(tagValue).foreach {
+        case (field, value) =>
+          v.set(exprIndex, LinkExpr(catalog, field), value)
       }
     }
   }
@@ -93,6 +97,8 @@ trait TsdbMocks extends MockFactory {
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
+      .right
+      .map(QueryOptimizer.optimize)
       .fold(fail(_), identity)
   }
 }

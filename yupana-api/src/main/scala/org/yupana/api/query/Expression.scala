@@ -18,7 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
 import org.yupana.api.types._
 import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
@@ -29,11 +29,15 @@ sealed trait Expression extends Serializable {
 
   def kind: ExprKind
 
-  def as(name: String) = QueryField(name, this)
+  def as(name: String): QueryField = QueryField(name, this)
 
   def encode: String
 
   def fold[O](z: O)(f: (O, Expression) => O): O
+
+  def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    pf.applyOrElse(this, identity[Expression]).asInstanceOf[Expression.Aux[Out]]
+  }
 
   def aux: Expression.Aux[Out] = this.asInstanceOf[Expression.Aux[Out]]
 
@@ -70,6 +74,9 @@ sealed trait WindowFunctionExpr extends Expression {
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    WindowFunctionExpr(operation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
+  }
 
   override def encode: String = s"winFunc(${operation.name},${expr.encode})"
   override def toString: String = s"${operation.name}($expr)"
@@ -95,14 +102,16 @@ sealed trait AggregateExpr extends Expression {
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
 
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    AggregateExpr(aggregation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
+  }
+
   override def encode: String = s"agg(${aggregation.name},${expr.encode})"
   override def toString: String = s"${aggregation.name}($expr)"
 }
 
 object AggregateExpr {
-  type Aux[T] = AggregateExpr { type Out = T }
-
-  def apply[T](a: Aggregation[T], e: Expression.Aux[T]): AggregateExpr.Aux[a.Out] = new AggregateExpr {
+  def apply[T](a: Aggregation[T], e: Expression.Aux[T]): Expression.Aux[a.Out] = new AggregateExpr {
     override type In = T
     override type Out = a.Out
     override def dataType: DataType.Aux[Out] = a.dataType
@@ -144,23 +153,40 @@ case object TimeExpr extends Expression {
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
   override def encode: String = s"time()"
-  def toField = QueryField("time", this)
+  def toField: QueryField = QueryField("time", this)
 }
 
-class DimensionExpr(val dimension: Dimension) extends Expression {
+class DimensionExpr[T](val dimension: Dimension.Aux[T]) extends Expression {
+  override type Out = T
+  override val dataType: DataType.Aux[dimension.T] = dimension.dataType
+  override def kind: ExprKind = Simple
+
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
+
+  override def encode: String = s"dim(${dimension.name})"
+  def toField: QueryField = QueryField(dimension.name, this)
+}
+
+object DimensionExpr {
+  def apply[T](dimension: Dimension.Aux[T]): DimensionExpr[T] = new DimensionExpr(dimension)
+  def unapply(expr: DimensionExpr[_]): Option[Dimension.Aux[expr.Out]] =
+    Some(expr.dimension.asInstanceOf[Dimension.Aux[expr.Out]])
+}
+
+class DimensionIdExpr(val dimension: Dimension) extends Expression {
   override type Out = String
   override val dataType: DataType.Aux[String] = DataType[String]
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"dim(${dimension.name})"
-  def toField = QueryField(dimension.name, this)
+  override def encode: String = s"dimId(${dimension.name})"
+  def toField: QueryField = QueryField(dimension.name, this)
 }
 
-object DimensionExpr {
-  def apply(dimension: Dimension): DimensionExpr = new DimensionExpr(dimension)
-  def unapply(expr: DimensionExpr): Option[Dimension] = Some(expr.dimension)
+object DimensionIdExpr {
+  def apply(dimension: Dimension): DimensionIdExpr = new DimensionIdExpr(dimension)
+  def unapply(expr: DimensionIdExpr): Option[Dimension] = Some(expr.dimension)
 }
 
 case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
@@ -171,24 +197,25 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
   override def encode: String = s"metric(${metric.name})"
-  def toField = QueryField(metric.name, this)
+  def toField: QueryField = QueryField(metric.name, this)
 }
 
-class LinkExpr(val link: ExternalLink, val linkField: String) extends Expression {
-  override type Out = String
-  override val dataType: DataType.Aux[String] = DataType[String]
+class LinkExpr[T](val link: ExternalLink, val linkField: LinkField.Aux[T]) extends Expression {
+  override type Out = T
+  override val dataType: DataType.Aux[linkField.T] = linkField.dataType
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"link(${link.linkName}, $linkField)"
-  def queryFieldName: String = link.linkName + "_" + linkField
-  def toField = QueryField(queryFieldName, this)
+  override def encode: String = s"link(${link.linkName}, ${linkField.name})"
+  def queryFieldName: String = link.linkName + "_" + linkField.name
+  def toField: QueryField = QueryField(queryFieldName, this)
 }
 
 object LinkExpr {
-  def apply(link: ExternalLink, field: String): Expression.Aux[String] = new LinkExpr(link, field)
-  def unapply(expr: LinkExpr): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField))
+  def apply[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = new LinkExpr(link, field)
+  def apply(link: ExternalLink, field: String): LinkExpr[String] = new LinkExpr(link, LinkField[String](field))
+  def unapply(expr: LinkExpr[_]): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField.name))
 }
 
 case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U], expr: Expression.Aux[T]) extends Expression {
@@ -197,6 +224,14 @@ case class UnaryOperationExpr[T, U](function: UnaryOperation.Aux[T, U], expr: Ex
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[U] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      UnaryOperationExpr(function, expr.transform(pf))
+    }
+  }
 
   override def encode: String = s"${function.name}($expr)"
 }
@@ -207,6 +242,13 @@ case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression.Aux[T
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[U] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      TypeConvertExpr(tc, expr.transform(pf))
+    }
+  }
 
   override def encode: String = s"${tc.functionName}($expr)"
 }
@@ -222,6 +264,14 @@ case class BinaryOperationExpr[T, U, O](
   override def fold[B](z: B)(f: (B, Expression) => B): B = {
     val z1 = a.fold(f(z, this))(f)
     b.fold(z1)(f)
+  }
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[O] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      BinaryOperationExpr(function, a.transform(pf), b.transform(pf))
+    }
   }
 
   override def toString: String = if (function.infix) s"$a $function $b" else s"$function($a, $b)"
@@ -243,6 +293,14 @@ case class TupleExpr[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(
     e2.fold(z1)(f)
   }
 
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[(T, U)] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      TupleExpr(e1.transform(pf), e2.transform(pf))
+    }
+  }
+
   override def encode: String = s"($e1, $e2)"
 }
 
@@ -253,6 +311,14 @@ case class ArrayExpr[T](exprs: Array[Expression.Aux[T]])(implicit val elementDat
   override def kind: ExprKind = exprs.foldLeft(Const: ExprKind)((a, e) => ExprKind.combine(a, e.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = exprs.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Array[T]] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      ArrayExpr(exprs.map(_.transform(pf)))
+    }
+  }
 
   override def encode: String = exprs.mkString("[", ", ", "]")
   override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
@@ -265,12 +331,20 @@ case class ConditionExpr[T](
 ) extends Expression {
   override type Out = T
   override def dataType: DataType.Aux[T] = positive.dataType
-  override def kind: ExprKind = ExprKind.combine(positive.kind, negative.kind)
+  override def kind: ExprKind = ExprKind.combine(condition.kind, ExprKind.combine(positive.kind, negative.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = {
     val z1 = condition.fold(f(z, this))(f)
     val z2 = positive.fold(z1)(f)
     negative.fold(z2)(f)
+  }
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[T] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Out]]
+    } else {
+      ConditionExpr(condition.transform(pf), positive.transform(pf), negative.transform(pf))
+    }
   }
 
   override def toString: String = s"IF ($condition) THEN $positive ELSE $negative"
@@ -287,6 +361,13 @@ trait InExpr extends Expression {
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Condition]
+    } else {
+      InExpr(expr.transform(pf), values)
+    }
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
   override def toString: String =
@@ -309,32 +390,39 @@ case class NotInExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Express
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Condition]
+    } else {
+      NotInExpr(expr.transform(pf), values)
+    }
+  }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"notIn(${expr.encode}, (", ",", "))")
   override def toString: String =
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-case class DimIdInExpr(expr: DimensionExpr, values: SortedSetIterator[Long]) extends Expression {
+case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
-  override def kind: ExprKind = expr.kind
+  override def kind: ExprKind = Simple
 
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"idIn(${expr.encode}, (Iterator))"
-  override def toString: String = expr.toString + " ID IN (Iterator)"
+  override def encode: String = s"idIn($dim, (Iterator))"
+  override def toString: String = s"$dim ID IN (Iterator)"
 }
 
-case class DimIdNotInExpr(expr: DimensionExpr, values: SortedSetIterator[Long]) extends Expression {
+case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
-  override def kind: ExprKind = expr.kind
+  override def kind: ExprKind = Simple
 
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 
-  override def encode: String = s"idNotIn(${expr.encode}, (Iterator))"
-  override def toString: String = expr.toString + " ID NOT IN (Iterator)"
+  override def encode: String = s"idNotIn($dim, (Iterator))"
+  override def toString: String = s"$dim ID NOT IN (Iterator)"
 }
 
 case class AndExpr(conditions: Seq[Condition]) extends Expression {
@@ -343,6 +431,14 @@ case class AndExpr(conditions: Seq[Condition]) extends Expression {
   override def kind: ExprKind = conditions.foldLeft(Const: ExprKind)((k, c) => ExprKind.combine(k, c.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = conditions.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Boolean] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Boolean]]
+    } else {
+      AndExpr(conditions.map(_.transform(pf)))
+    }
+  }
 
   override def toString: String = conditions.mkString("(", " AND ", ")")
   override def encode: String = conditions.map(_.encode).sorted.mkString("and(", ",", ")")
@@ -354,6 +450,14 @@ case class OrExpr(conditions: Seq[Condition]) extends Expression {
   override def kind: ExprKind = conditions.foldLeft(Const: ExprKind)((k, c) => ExprKind.combine(k, c.kind))
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = conditions.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
+
+  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Boolean] = {
+    if (pf.isDefinedAt(this)) {
+      pf(this).asInstanceOf[Expression.Aux[Boolean]]
+    } else {
+      OrExpr(conditions.map(_.transform(pf)))
+    }
+  }
 
   override def toString: String = conditions.mkString("(", " OR ", ")")
   override def encode: String = conditions.map(_.encode).sorted.mkString("or(", ",", ")")

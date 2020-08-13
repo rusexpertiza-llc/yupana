@@ -24,6 +24,7 @@ import java.util.logging.Logger
 
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
@@ -46,6 +47,11 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   def query(query: String, params: Map[Int, ParameterValue]): Result = {
     val request = createProtoQuery(query, params)
+    execRequestQuery(request)
+  }
+
+  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
+    val request = creteProtoBatchQuery(query, params)
     execRequestQuery(request)
   }
 
@@ -113,7 +119,15 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def sendRequest(request: Request): Unit = {
-    channel.write(createChunks(request.toByteArray))
+    try {
+      channel.write(createChunks(request.toByteArray))
+    } catch {
+      case io: IOException =>
+        logger.warning(s"Caught $io while trying to write to channel, let's retry")
+        Thread.sleep(1000)
+        ensureConnected()
+        channel.write(createChunks(request.toByteArray))
+    }
   }
 
   private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
@@ -182,52 +196,57 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
     new Iterator[ResultChunk] {
 
-      var statistics: Option[ResultStatistics] = Option.empty
-      var current: Option[ResultChunk] = Option.empty
-      var errorMessage: Option[String] = Option.empty
+      var statistics: ResultStatistics = null
+      var current: ResultChunk = null
+      var errorMessage: String = null
 
       readNext()
 
-      override def hasNext: Boolean = responses.hasNext && statistics.isEmpty && errorMessage.isEmpty
+      override def hasNext: Boolean = responses.hasNext && statistics == null && errorMessage == null
 
       override def next(): ResultChunk = {
-        val result = current.get
+        val result = current
         readNext()
         result
       }
 
       private def readNext(): Unit = {
-        current = None
+        current = null
         do {
           responses.next() match {
             case Response.Resp.Result(result) =>
-              current = Some(result)
+              current = result
 
             case Response.Resp.ResultHeader(_) =>
-              errorMessage = Some(error("Duplicate header received"))
+              errorMessage = error("Duplicate header received")
 
             case Response.Resp.Pong(_) =>
-              errorMessage = Some(error("Unexpected TspPong response"))
+              errorMessage = error("Unexpected TspPong response")
 
             case Response.Resp.Heartbeat(time) =>
               heartbeat(time)
 
             case Response.Resp.Error(e) =>
-              errorMessage = Some(error(e))
+              errorMessage = error(e)
 
             case Response.Resp.ResultStatistics(stat) =>
               logger.fine(s"Got statistics $stat")
-              statistics = Some(stat)
+              statistics = stat
 
             case Response.Resp.Empty =>
           }
-        } while (current.isEmpty && statistics.isEmpty && errorMessage.isEmpty && responses.hasNext)
+        } while (current == null && statistics == null && errorMessage == null && responses.hasNext)
 
-        if (statistics.nonEmpty || errorMessage.nonEmpty) {
+        if (statistics != null || errorMessage != null) {
           channel.close()
-          errorMessage.foreach { e =>
-            throw new IllegalArgumentException(e)
+          if (errorMessage != null) {
+            throw new IllegalArgumentException(errorMessage)
           }
+        }
+
+        if (!responses.hasNext && statistics == null) {
+          channel.close()
+          throw new IllegalArgumentException("Unexpected end of response")
         }
       }
 
@@ -251,23 +270,25 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {
     val names = header.fields.map(_.name)
-    val dataTypes = header.fields.map { resultField =>
-      DataType.bySqlName(resultField.`type`)
+    val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
+      DataType.bySqlName(resultField.`type`).toRight(s"Unknown type ${resultField.`type`}")
+    }) match {
+      case Right(types) => types
+      case Left(err)    => throw new IllegalArgumentException(s"Cannot read data: $err")
     }
 
-    val values = res.flatMap { row =>
-      val v = dataTypes
+    val values = res.map { row =>
+      dataTypes
         .zip(row.values)
         .map {
           case (rt, bytes) =>
             if (bytes.isEmpty) {
-              None
+              null
             } else {
-              Some[Any](rt.readable.read(bytes.toByteArray))
+              rt.storable.read(bytes.toByteArray)
             }
         }
         .toArray
-      Some(v)
     }
 
     SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)
@@ -279,6 +300,21 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         SqlQuery(query, params.map {
           case (i, v) => ParameterValue(i, createProtoValue(v))
         }.toSeq)
+      )
+    )
+  }
+
+  private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Request = {
+    Request(
+      Request.Req.BatchSqlQuery(
+        BatchSqlQuery(
+          query,
+          params.map(vs =>
+            ParameterValues(vs.map {
+              case (i, v) => ParameterValue(i, createProtoValue(v))
+            }.toSeq)
+          )
+        )
       )
     )
   }

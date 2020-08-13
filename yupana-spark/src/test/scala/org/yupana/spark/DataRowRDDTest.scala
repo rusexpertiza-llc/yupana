@@ -8,6 +8,7 @@ import org.joda.time.LocalDateTime
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
+import org.yupana.api.types.DataTypeMeta
 import org.yupana.core.QueryContext
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
@@ -20,24 +21,24 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
       table = Tables.itemsKkmTable,
       fields = Seq(
         time.toField,
-        dimension(Dimensions.ITEM_TAG).toField,
+        dimension(Dimensions.ITEM).toField,
         metric(ItemTableMetrics.quantityField).toField,
         metric(ItemTableMetrics.sumField).toField
       ),
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = QueryContext(query, const(true))
+    val queryContext = QueryContext(query, None)
 
     val theTime = LocalDateTime.now().minusHours(1)
 
     val rdd = sc.parallelize(
       Seq(
         Array(
-          Some(Time(theTime)),
-          Some("болт М6"),
-          Some(42d),
-          None
+          Time(theTime),
+          "болт М6",
+          42d,
+          null
         )
       )
     )
@@ -50,7 +51,7 @@ class DataRowRDDTest extends FlatSpec with Matchers with DataFrameSuiteBase {
         StructField("time", TimestampType),
         StructField("item", StringType),
         StructField("quantity", DoubleType),
-        StructField("sum", DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2))
+        StructField("sum", DataTypes.createDecimalType(DecimalType.MAX_PRECISION, DataTypeMeta.MONEY_SCALE))
       )
     )
 

@@ -35,10 +35,10 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
 
   private val operationName: String = collectorContext.operationName
   private val metricsUpdateInterval: Int = collectorContext.metricsUpdateInterval
-  val uuid: String = query.uuid
+  val queryId: String = query.id
 
   private def createMetric(qualifier: String): PersistentMetricImpl =
-    PersistentMetricImpl(collectorContext, qualifier, query.uuid, this)
+    PersistentMetricImpl(collectorContext, qualifier, query.id, this)
 
   override val createDimensionFilters: PersistentMetricImpl = createMetric(createDimensionFiltersQualifier)
   override val createScans: PersistentMetricImpl = createMetric(createScansQualifier)
@@ -52,15 +52,16 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   override val reduceOperation: PersistentMetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: PersistentMetricImpl = createMetric(postFilterQualifier)
   override val collectResultRows: PersistentMetricImpl = createMetric(collectResultRowsQualifier)
+  override val dictionaryScan: PersistentMetricImpl = createMetric(dictionaryScanQualifier)
 
-  private val queryRowKey = collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
-  logger.info(s"$queryRowKey - ${query.uuidLog}; operation: $operationName started, query: $query")
+  collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
+  logger.info(s"${query.id} - ${query.uuidLog}; operation: $operationName started, query: $query")
 
   private val dynamicMetrics = mutable.Map.empty[String, PersistentMetricImpl]
   private val startTime = System.nanoTime()
   private var lastSaveTime = startTime
 
-  def getMetrics: Seq[PersistentMetricImpl] =
+  def allMetrics: Seq[PersistentMetricImpl] =
     Seq(
       createDimensionFilters,
       createScans,
@@ -73,11 +74,12 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
       windowFunctions,
       reduceOperation,
       postFilter,
-      collectResultRows
-    )
+      collectResultRows,
+      dictionaryScan
+    ) ++ dynamicMetrics.values
 
   def getAndResetMetricsData: Map[String, MetricData] = {
-    (dynamicMetrics.values ++ getMetrics).map { m =>
+    allMetrics.map { m =>
       val cnt = m.count.sumThenReset()
       val time = asSeconds(m.time.sumThenReset())
       val speed = if (time != 0) cnt.toDouble / time else 0.0
@@ -97,7 +99,7 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
     val duration = totalDuration
     collectorContext
       .metricsDao()
-      .updateQueryMetrics(queryRowKey, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
+      .updateQueryMetrics(query.id, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
   }
 
   private def totalDuration: Double = {
@@ -107,24 +109,23 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
   }
 
   override def finish(): Unit = {
-
-    getMetrics.sortBy(_.name).foreach { metric =>
+    allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
-        s"$queryRowKey - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
+        s"${query.id} - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
       )
     }
     saveQueryMetrics(QueryStates.Finished)
     logger.info(
-      s"$queryRowKey - ${query.uuidLog}; operation: $operationName finished; time: $totalDuration; query: $query"
+      s"${query.id} - ${query.uuidLog}; operation: $operationName finished; time: $totalDuration; query: $query"
     )
   }
 
   override def setRunningPartitions(partitions: Int): Unit = {
-    collectorContext.metricsDao().setRunningPartitions(queryRowKey, partitions)
+    collectorContext.metricsDao().setRunningPartitions(query.id, partitions)
   }
 
   override def finishPartition(): Unit = {
-    val restPartitions = collectorContext.metricsDao().decrementRunningPartitions(queryRowKey)
+    val restPartitions = collectorContext.metricsDao().decrementRunningPartitions(query.id)
     saveQueryMetrics(QueryStates.Running)
 
     if (restPartitions <= 0) {

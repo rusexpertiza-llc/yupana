@@ -19,7 +19,7 @@ package org.yupana.examples.spark.etl
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.MetricValue
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
 import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
@@ -51,11 +51,10 @@ object ETL {
 
   def toItemDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
-    val commonDims = Map(
-      Dimensions.KKM_ID_TAG -> receipt.kkmId.toString,
-      Dimensions.OPERATION_TYPE_TAG -> receipt.operationType,
-      Dimensions.SHIFT_TAG -> receipt.shiftNumber.toString,
-      Dimensions.OPERATOR_TAG -> receipt.operator
+    val commonDims: Map[Dimension, Any] = Map(
+      Dimensions.KKM_ID -> receipt.kkmId,
+      Dimensions.OPERATION_TYPE -> receipt.operationType.toByte,
+      Dimensions.SHIFT -> receipt.shiftNumber
     )
 
     val commonMetrics = Seq(
@@ -67,7 +66,8 @@ object ETL {
 
     receipt.items.zipWithIndex.flatMap {
       case (item, idx) =>
-        val dims = commonDims ++ Map(Dimensions.ITEM_TAG -> item.name, Dimensions.POSITION_TAG -> idx.toString)
+        val dims: Map[Dimension, Any] =
+          commonDims ++ Map(Dimensions.ITEM -> item.name, Dimensions.POSITION -> idx.toShort)
 
         val itemMetrics = Seq(
           Some(MetricValue(ItemTableMetrics.sumField, item.sum)),
@@ -84,7 +84,8 @@ object ETL {
           item.calcSubjSing.map(v => MetricValue(ItemTableMetrics.calculationSubjectSignField, v)),
           item.measure.map(v => MetricValue(ItemTableMetrics.measureField, v)),
           item.nomenclatureType.map(v => MetricValue(ItemTableMetrics.nomenclatureTypeField, v)),
-          item.gtin.map(v => MetricValue(ItemTableMetrics.gtinField, v))
+          item.gtin.map(v => MetricValue(ItemTableMetrics.gtinField, v)),
+          item.nomenclatureCode.map(v => MetricValue(ItemTableMetrics.nomenclatureCodeField, v))
         ).flatten
 
         val metrics = commonMetrics ++ itemMetrics
@@ -102,15 +103,15 @@ object ETL {
 
   def toReceiptDataPoints(receipt: Receipt): Seq[DataPoint] = {
 
-    val dims = Map(
-      Dimensions.KKM_ID_TAG -> receipt.kkmId.toString,
-      Dimensions.OPERATION_TYPE_TAG -> receipt.operationType,
-      Dimensions.OPERATOR_TAG -> receipt.operator,
-      Dimensions.SHIFT_TAG -> receipt.shiftNumber.toString
+    val dims: Map[Dimension, Any] = Map(
+      Dimensions.KKM_ID -> receipt.kkmId,
+      Dimensions.OPERATION_TYPE -> receipt.operationType.toByte,
+      Dimensions.SHIFT -> receipt.shiftNumber
     )
 
     val metrics = Seq(
       Some(MetricValue(ReceiptTableMetrics.totalSumField, receipt.totalSum)),
+      Some(MetricValue(ReceiptTableMetrics.operator, receipt.operator)),
       receipt.totalCashSum.map(v => MetricValue(ReceiptTableMetrics.cashSumField, v)),
       receipt.totalCardSum.map(v => MetricValue(ReceiptTableMetrics.cardSumField, v)),
       receipt.prePayment.map(v => MetricValue(ReceiptTableMetrics.prepaymentSumField, v)),
@@ -126,8 +127,7 @@ object ETL {
       receipt.taxes.get(Tax.tax18000).map(v => MetricValue(ReceiptTableMetrics.tax18000Field, v)),
       receipt.taxes.get(Tax.tax20000).map(v => MetricValue(ReceiptTableMetrics.tax20000Field, v)),
       receipt.taxes.get(Tax.taxNo).map(v => MetricValue(ReceiptTableMetrics.taxNoField, v)),
-      Some(MetricValue(ReceiptTableMetrics.itemsCountField, receipt.items.distinct.size)),
-      Some(MetricValue(ReceiptTableMetrics.transactionIdField, receipt.receiptNumber.toString))
+      Some(MetricValue(ReceiptTableMetrics.itemsCountField, receipt.items.distinct.size))
     ).flatten
 
     val dp = DataPoint(

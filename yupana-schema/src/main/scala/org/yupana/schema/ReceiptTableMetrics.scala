@@ -37,7 +37,6 @@ trait ReceiptTableMetrics {
   val tax20000Field = Metric[BigDecimal]("tax20000", 27, rarelyQueried)
   val taxNoField = Metric[BigDecimal]("taxNo", 20, rarelyQueried)
   val itemsCountField = Metric[Long]("itemsCount", 11)
-  val transactionIdField = Metric[String]("transactionId", 12, rarelyQueried)
   val minTimeField = Metric[Time]("minTime", 13, rarelyQueried)
   val maxTimeField = Metric[Time]("maxTime", 14, rarelyQueried)
   val receiptCountField = Metric[Long]("receiptCount", 15)
@@ -50,6 +49,10 @@ trait ReceiptTableMetrics {
   val prepaymentSumField = Metric[BigDecimal]("prepaymentSum", 23, rarelyQueried)
   val taxationType = Metric[Int]("taxationType", 24, rarelyQueried)
   val acceptedAt = Metric[Time]("acceptedAt", 25, rarelyQueried)
+  val cashReceiptCountField = Metric[Long]("cashReceiptCount", 28)
+  val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
+  val documentNumberField = Metric[Long]("documentNumber", 30, rarelyQueried)
+  val operator = Metric[String]("operator", 31, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -68,24 +71,25 @@ trait ReceiptTableMetrics {
     tax18000Field,
     tax20000Field,
     taxNoField,
-    itemsCountField,
-    transactionIdField
+    itemsCountField
   )
 
   val rollupFields = Seq(
     minTimeField,
     maxTimeField,
-    receiptCountField
+    receiptCountField,
+    cashReceiptCountField,
+    cardReceiptCountField
   )
   import org.yupana.api.query.syntax.All._
 
   object ReceiptRollupFields {
 
     val baseRollupFields = Seq(
-      QueryFieldToDimension(dimension(Dimensions.KKM_ID_TAG) as Dimensions.KKM_ID_TAG.name, Dimensions.KKM_ID_TAG),
+      QueryFieldToDimension(dimension(Dimensions.KKM_ID) as Dimensions.KKM_ID.name, Dimensions.KKM_ID),
       QueryFieldToDimension(
-        dimension(Dimensions.OPERATION_TYPE_TAG) as Dimensions.OPERATION_TYPE_TAG.name,
-        Dimensions.OPERATION_TYPE_TAG
+        dimension(Dimensions.OPERATION_TYPE) as Dimensions.OPERATION_TYPE.name,
+        Dimensions.OPERATION_TYPE
       ),
       QueryFieldToMetric(
         aggregate(Aggregation.sum[BigDecimal], metric(totalSumField)) as totalSumField.name,
@@ -151,24 +155,37 @@ trait ReceiptTableMetrics {
         aggregate(Aggregation.sum[Long], metric(itemsCountField)) as itemsCountField.name,
         itemsCountField
       ),
+      QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField),
       QueryFieldToMetric(
-        aggregate(Aggregation.min[String], metric(transactionIdField)) as transactionIdField.name,
-        transactionIdField
-      ),
-      QueryFieldToMetric(aggregate(Aggregation.sum[BigDecimal], metric(taxNoField)) as taxNoField.name, taxNoField)
+        aggregate(Aggregation.count[Long], metric(documentNumberField)) as documentNumberField.name,
+        receiptCountField
+      )
     )
 
     val shiftRollupFields = Seq(
-      QueryFieldToDimension(dimension(Dimensions.SHIFT_TAG) as Dimensions.SHIFT_TAG.name, Dimensions.SHIFT_TAG),
-      QueryFieldToDimension(dimension(Dimensions.OPERATOR_TAG) as Dimensions.OPERATOR_TAG.name, Dimensions.OPERATOR_TAG)
+      QueryFieldToDimension(dimension(Dimensions.SHIFT) as Dimensions.SHIFT.name, Dimensions.SHIFT)
     )
 
     val additionalRollupFieldsFromDetails = Seq(
       QueryFieldToMetric(aggregate(Aggregation.min[Time], time) as minTimeField.name, minTimeField),
       QueryFieldToMetric(aggregate(Aggregation.max[Time], time) as maxTimeField.name, maxTimeField),
       QueryFieldToMetric(
-        aggregate(Aggregation.count[String], metric(transactionIdField)) as receiptCountField.name,
+        aggregate(Aggregation.count[Time], time) as receiptCountField.name,
         receiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(
+          Aggregation.sum[Long],
+          condition[Long](gt(metric(cashSumField), const(BigDecimal(0))), const(1L), const(0L))
+        ) as cashReceiptCountField.name,
+        cashReceiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(
+          Aggregation.sum[Long],
+          condition[Long](gt(metric(cardSumField), const(BigDecimal(0))), const(1L), const(0L))
+        ) as cardReceiptCountField.name,
+        cardReceiptCountField
       )
     )
 
@@ -178,11 +195,19 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(
         aggregate(Aggregation.sum[Long], metric(receiptCountField)) as receiptCountField.name,
         receiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(Aggregation.sum[Long], metric(cashReceiptCountField)) as cashReceiptCountField.name,
+        cashReceiptCountField
+      ),
+      QueryFieldToMetric(
+        aggregate(Aggregation.sum[Long], metric(cardReceiptCountField)) as cardReceiptCountField.name,
+        cardReceiptCountField
       )
     )
 
     val kkmDistinctCountRollupField = QueryFieldToMetric(
-      aggregate(Aggregation.distinctCount[String], dimension(Dimensions.KKM_ID_TAG)) as kkmDistinctCountField.name,
+      aggregate(Aggregation.distinctCount[Int], dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name,
       kkmDistinctCountField
     )
   }

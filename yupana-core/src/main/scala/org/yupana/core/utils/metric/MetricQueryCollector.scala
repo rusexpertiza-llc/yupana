@@ -20,7 +20,7 @@ import org.yupana.core.model.QueryStates.QueryState
 
 trait MetricQueryCollector extends Serializable {
 
-  def uuid: String
+  def queryId: String
 
   def dynamicMetric(name: String): Metric
 
@@ -44,6 +44,7 @@ trait MetricQueryCollector extends Serializable {
   val readExternalLinks: Metric = NoMetric
   val scan: Metric = NoMetric
   val parseScanResult: Metric = NoMetric
+  val dictionaryScan: Metric = NoMetric
 }
 
 object NoMetricCollector extends MetricQueryCollector {
@@ -58,7 +59,7 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override def finishPartition(): Unit = {}
 
-  override val uuid: String = ""
+  override val queryId: String = ""
 
   override val isEnabled: Boolean = false
 }

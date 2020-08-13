@@ -38,17 +38,21 @@ object QueryInfoProvider {
 
     val filter = sqlFilter.map(getFilter)
     val metrics = tsdb.metricsDao.queriesByFilter(filter, limit)
-    val data: Iterator[Array[Option[Any]]] = metrics.map { queryMetrics =>
-      Array[Option[Any]](
-        Some(queryMetrics.queryId),
-        Some(queryMetrics.engine),
-        Some(queryMetrics.state.name),
-        Some(queryMetrics.query),
-        Some(Time(queryMetrics.startDate)),
-        Some(queryMetrics.totalDuration)
+    val data: Iterator[Array[Any]] = metrics.map { queryMetrics =>
+      Array[Any](
+        queryMetrics.queryId,
+        queryMetrics.engine,
+        queryMetrics.state.name,
+        queryMetrics.query,
+        Time(queryMetrics.startDate),
+        queryMetrics.totalDuration
       ) ++ qualifiers.flatMap { q =>
-        val metric = queryMetrics.metrics(q)
-        Array(Some(metric.count.toDouble), Some(metric.time), Some(metric.speed))
+        queryMetrics.metrics.get(q) match {
+          case Some(metric) =>
+            Array(metric.count.toString, metric.time.toString, metric.speed.toString)
+          case None =>
+            Array("-", "-", "-")
+        }
       }
     }.iterator
 
@@ -70,18 +74,18 @@ object QueryInfoProvider {
       DataType[Time],
       DataType[Double]
     ) ++
-      (0 until qualifiers.size * 3).map(_ => DataType[Double])
+      (0 until qualifiers.size * 3).map(_ => DataType[String])
 
     SimpleResult("QUERIES", queryFieldNames, queryFieldTypes, data)
   }
 
   def handleKillQuery(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
     tsdb.metricsDao.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
-    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array(Some("OK"))))
+    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
   }
 
   def handleDeleteQueryMetrics(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
     val deleted = tsdb.metricsDao.deleteMetrics(getFilter(sqlFilter))
-    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(Some(deleted))))
+    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(deleted)))
   }
 }

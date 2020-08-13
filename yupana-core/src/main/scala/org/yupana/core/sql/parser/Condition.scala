@@ -38,12 +38,11 @@ case class Le(a: SqlExpr, b: SqlExpr) extends Comparison
 case class And(cs: Seq[Condition]) extends Condition {
   override def simplify: Condition = {
     And(
-      cs.flatMap(
-        c =>
-          c match {
-            case And(ccs) => ccs map (_.simplify)
-            case x        => Seq(x)
-          }
+      cs.flatMap(c =>
+        c match {
+          case And(ccs) => ccs map (_.simplify)
+          case x        => Seq(x)
+        }
       )
     )
   }
@@ -52,12 +51,11 @@ case class And(cs: Seq[Condition]) extends Condition {
 case class Or(cs: Seq[Condition]) extends Condition {
   override def simplify: Condition = {
     Or(
-      cs.flatMap(
-        c =>
-          c match {
-            case Or(ccs) => ccs map (_.simplify)
-            case x       => Seq(x)
-          }
+      cs.flatMap(c =>
+        c match {
+          case Or(ccs) => ccs map (_.simplify)
+          case x       => Seq(x)
+        }
       )
     )
   }

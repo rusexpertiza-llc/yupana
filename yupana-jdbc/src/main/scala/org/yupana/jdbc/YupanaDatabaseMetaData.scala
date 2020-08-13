@@ -36,7 +36,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxColumnsInSelect: Int = 0
 
-  override def nullPlusNonNullIsNull() = false
+  override def nullPlusNonNullIsNull() = true
 
   override def supportsCatalogsInDataManipulation() = false
 
@@ -110,7 +110,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxRowSize = 0
 
-  override def supportsUnion() = true
+  override def supportsUnion() = false
 
   override def supportsOpenCursorsAcrossCommit() = false
 
@@ -151,9 +151,9 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def dataDefinitionIgnoredInTransactions = false
 
-  override def getJDBCMajorVersion = 1
+  override def getJDBCMajorVersion = 4
 
-  override def getJDBCMinorVersion = 0
+  override def getJDBCMinorVersion = 1
 
   override def getMaxColumnNameLength = 0
 
@@ -264,7 +264,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def deletesAreDetected(`type`: Int) = false
 
-  override def supportsDataManipulationTransactionsOnly() = true
+  override def supportsDataManipulationTransactionsOnly() = false
 
   override def supportsLikeEscapeClause() = false
 
@@ -298,7 +298,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsTransactions() = false
 
-  override def storesLowerCaseQuotedIdentifiers() = false
+  override def storesLowerCaseQuotedIdentifiers() = true
 
   override def supportsANSI92EntryLevelSQL() = false
 
@@ -326,7 +326,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
   override def getTableTypes: ResultSet = {
     val names = List("TABLE_TYPE")
     val dataTypes = List(DataType[String])
-    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Option[Any]](Some("TABLE"))))
+    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Any]("TABLE")))
     new YupanaResultSet(null, types)
   }
 

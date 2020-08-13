@@ -26,11 +26,13 @@ trait ExternalLink extends Serializable {
   /** Name of this external link */
   val linkName: String
 
+  type DimType
+
   /** Attached dimension */
-  val dimension: Dimension
+  val dimension: Dimension.Aux[DimType]
 
   /** Set of field names for this link */
-  val fieldsNames: Set[String]
+  val fields: Set[LinkField]
 
   override def hashCode(): Int = linkName.hashCode
 
@@ -40,4 +42,8 @@ trait ExternalLink extends Serializable {
   }
 
   override def toString: String = s"ExternalLink($linkName)"
+}
+
+object ExternalLink {
+  type Aux[T] = ExternalLink { type DimType = T }
 }

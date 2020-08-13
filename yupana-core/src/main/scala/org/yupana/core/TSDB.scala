@@ -19,37 +19,43 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ ExternalLink, Table }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.OnFinishIterator
 import org.yupana.core.utils.metric._
 
-// NOTE: dao is TSDaoHBase because TSDB has put and rollup related method.  Possible it better to not have them here
 class TSDB(
     override val dao: TSDao[Iterator, Long],
     val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
-    override val extractBatchSize: Int = 10000,
-    config: TSDBConfig = TSDBConfig()
+    config: TsdbConfig
 ) extends TsdbBase
     with StrictLogging {
 
   override type Collection[X] = Iterator[X]
   override type Result = TsdbServerResult
 
-  private var catalogs = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
+  override lazy val extractBatchSize: Int = config.extractBatchSize
+
+  private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
   override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Iterator] = MapReducible.iteratorMR
 
-  def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
-    catalogs += (catalog -> catalogService)
+  def registerExternalLink(
+      externalLink: ExternalLink,
+      externalLinkService: ExternalLinkService[_ <: ExternalLink]
+  ): Unit = {
+    externalLinks += (externalLink -> externalLinkService)
   }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {
-    loadTagsIds(dataPoints)
-    dao.put(dataPoints)
+    if (config.putEnabled) {
+      loadDimIds(dataPoints)
+      dao.put(dataPoints)
+      externalLinks.foreach(_._2.put(dataPoints))
+    } else throw new IllegalAccessException("Put is disabled")
   }
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
@@ -65,7 +71,7 @@ class TSDB(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: Iterator[Array[Option[Any]]],
+      data: Iterator[Array[Any]],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
@@ -97,7 +103,10 @@ class TSDB(
       case winFuncExpr: WindowFunctionExpr =>
         val values = grouped.mapValues {
           case (vs, rowNumIndex) =>
-            val funcValues = vs.map(_.get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr))
+            val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
+            vs.indices.foreach { i =>
+              funcValues(i) = vs(i).get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr)
+            }
             (funcValues, rowNumIndex)
         }
         winFuncExpr -> values
@@ -109,7 +118,7 @@ class TSDB(
           case (winFuncExpr, groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = winFuncExpr.operation(group.asInstanceOf[Array[Option[winFuncExpr.expr.Out]]], index)
+              val value = winFuncExpr.operation(group.asInstanceOf[Array[winFuncExpr.expr.Out]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }
@@ -127,21 +136,25 @@ class TSDB(
     dao.getRollupSpecialField(fieldName, table)
   }
 
-  private def loadTagsIds(dataPoints: Seq[DataPoint]): Unit = {
+  private def loadDimIds(dataPoints: Seq[DataPoint]): Unit = {
     dataPoints.groupBy(_.table).foreach {
       case (table, points) =>
-        table.dimensionSeq.map { tag =>
-          val values = points.flatMap { dp =>
-            dp.dimensions.get(tag).filter(_.trim.nonEmpty)
-          }
-          dictionary(tag).findIdsByValues(values.toSet)
+        table.dimensionSeq.foreach {
+          case dimension: DictionaryDimension =>
+            val values = points.flatMap { dp =>
+              dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
+            }
+            dictionary(dimension).findIdsByValues(values.toSet)
+
+          case _ =>
         }
     }
   }
 
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
-    catalogs.getOrElse(catalog, throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}"))
+    externalLinks.getOrElse(
+      catalog,
+      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fields}")
+    )
   }
 }
-
-case class TSDBConfig(collectMetrics: Boolean = false, metricsUpdateInterval: Int = 30000)

@@ -23,13 +23,17 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.TSDB
 import org.yupana.hbase.HBaseUtils
-import org.yupana.schema.Dimensions
 
 import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(context: EtlContext, schema: Schema, dataPoints: RDD[DataPoint]): Unit = {
+  def processTransactions(
+      context: EtlContext,
+      schema: Schema,
+      dataPoints: RDD[DataPoint],
+      doInvalidateRollups: Boolean
+  ): Unit = {
 
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
@@ -38,18 +42,15 @@ object ETLFunctions extends StrictLogging {
         logger.trace(s"Put ${dps.size} datapoints")
         context.tsdb.put(dps)
 
-        if (context.cfg.loadInvertedIndex) {
-          val names = dps.flatMap(_.dimensions.get(Dimensions.ITEM_TAG)).toSet
-          context.itemsInvertedIndex.putItemNames(names)
-        }
-
         val byTable = dps.groupBy(_.table)
 
-        byTable.foreach {
-          case (t, ps) =>
-            if (schema.rollups.exists(_.fromTable.name == t.name)) {
-              invalidateRollups(context.tsdb, ps, t)
-            }
+        if (doInvalidateRollups) {
+          byTable.foreach {
+            case (t, ps) =>
+              if (schema.rollups.exists(_.fromTable.name == t.name)) {
+                invalidateRollups(context.tsdb, ps, t)
+              }
+          }
         }
       }
     }
@@ -79,9 +80,9 @@ object ETLFunctions extends StrictLogging {
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema): DStream[DataPoint] = {
+  def saveDataPoints(context: EtlContext, schema: Schema, invalidateRollups: Boolean = true): DStream[DataPoint] = {
     stream.foreachRDD { rdd =>
-      ETLFunctions.processTransactions(context, schema, rdd)
+      ETLFunctions.processTransactions(context, schema, rdd, invalidateRollups)
     }
 
     stream
@@ -89,7 +90,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 }
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema): Unit = {
-    ETLFunctions.processTransactions(context, schema, rdd)
+  def saveDataPoints(context: EtlContext, schema: Schema, invalidateRollups: Boolean = false): Unit = {
+    ETLFunctions.processTransactions(context, schema, rdd, invalidateRollups)
   }
 }

@@ -28,9 +28,10 @@ import scala.reflect.ClassTag
 trait DataType extends Serializable {
   type T
   val meta: DataTypeMeta[T]
-  val readable: Readable[T]
-  val writable: Writable[T]
+  val storable: Storable[T]
   val classTag: ClassTag[T]
+  val boxingTag: BoxingTag[T]
+  val isArray: Boolean = false
   def operations: TypeOperations[T]
 
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
@@ -40,12 +41,24 @@ trait DataType extends Serializable {
     else
       obj match {
         case that: DataType =>
-          this.meta == that.meta
+          this.classTag == that.classTag
         case _ => false
       }
   }
 
   override def toString: String = s"${meta.sqlTypeName}"
+}
+
+class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
+  override type T = Array[TT]
+
+  override val isArray: Boolean = true
+  override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(valueType.meta)
+  override val storable: Storable[T] = Storable.arrayStorable(valueType.storable, valueType.classTag)
+  override val classTag: ClassTag[T] = valueType.classTag.wrap
+  override val boxingTag: BoxingTag[Array[TT]] = BoxingTag.arrayBoxing(valueType.classTag)
+
+  override def operations: TypeOperations[T] = TypeOperations.arrayOperations(valueType)
 }
 
 object DataType {
@@ -54,12 +67,24 @@ object DataType {
     DataType[Double],
     DataType[Long],
     DataType[Int],
+    DataType[Short],
+    DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
     DataType[Boolean]
   ).map(t => t.meta.sqlTypeName -> t).toMap
 
-  def bySqlName(sqlName: String): DataType = types(sqlName)
+  private val ARRAY_PREFIX = "ARRAY["
+  private val ARRAY_SUFFIX = "]"
+
+  def bySqlName(sqlName: String): Option[DataType] = {
+    if (!sqlName.startsWith(ARRAY_PREFIX) || !sqlName.endsWith(ARRAY_SUFFIX)) {
+      types.get(sqlName)
+    } else {
+      val innerType = sqlName.substring(ARRAY_PREFIX.length, sqlName.length - ARRAY_SUFFIX.length)
+      types.get(innerType).map(t => arrayDt(t))
+    }
+  }
 
   type Aux[TT] = DataType { type T = TT }
 
@@ -73,48 +98,54 @@ object DataType {
 
   implicit val periodDt: DataType.Aux[Period] = DataType[Period](r => TypeOperations.periodOperations(r))
 
-  implicit def intDt[T: Readable: Writable: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
+  implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.intOperations(r))
 
-  implicit def fracDt[T: Readable: Writable: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
+  implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     DataType[T]((r: DataType.Aux[T]) => TypeOperations.fracOperations(r))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
     new DataType {
       override type T = (TT, UU)
       override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(dtt.meta, dtu.meta)
-      override val readable: Readable[T] = Readable.noop
-      override val writable: Writable[T] = Writable.noop
+      override val storable: Storable[T] = Storable.noop
       override val classTag: ClassTag[T] = implicitly[ClassTag[(TT, UU)]]
+      override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(TT, UU)]]
 
       override def operations: TypeOperations[T] = TypeOperations.tupleOperations(dtt, dtu)
     }
   }
 
   implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Array[TT]] = {
-    new DataType {
-      override type T = Array[TT]
-      override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(dtt.meta)
-      override val readable: Readable[T] = Readable.arrayReadable(dtt.readable, dtt.classTag)
-      override val writable: Writable[T] = Writable.arrayWritable(dtt.writable)
-      override val classTag: ClassTag[T] = dtt.classTag.wrap
-
-      override def operations: TypeOperations[T] = TypeOperations.arrayOperations(dtt)
-    }
+    new ArrayDataType(dtt).aux
   }
 
   private def apply[TT](getOps: DataType.Aux[TT] => TypeOperations[TT])(
       implicit
-      r: Readable[TT],
-      w: Writable[TT],
+      s: Storable[TT],
       m: DataTypeMeta[TT],
-      ct: ClassTag[TT]
+      ct: ClassTag[TT],
+      bt: BoxingTag[TT]
   ): DataType.Aux[TT] = new DataType {
     override type T = TT
     override val meta: DataTypeMeta[T] = m
-    override val readable: Readable[T] = r
-    override val writable: Writable[T] = w
+    override val storable: Storable[T] = s
     override val classTag: ClassTag[T] = ct
+    override val boxingTag: BoxingTag[T] = bt
     override lazy val operations: TypeOperations[TT] = getOps(this)
+  }
+
+  def scaledDecimalDt(scale: Int)(
+      implicit
+      s: Storable[BigDecimal],
+      ct: ClassTag[BigDecimal],
+      bt: BoxingTag[BigDecimal]
+  ): DataType.Aux[BigDecimal] = new DataType {
+    override type T = BigDecimal
+    override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
+    override val storable: Storable[T] = s
+    override val classTag: ClassTag[T] = ct
+    override val boxingTag: BoxingTag[T] = bt
+    override lazy val operations: TypeOperations[BigDecimal] = TypeOperations.fracOperations(this)
   }
 }

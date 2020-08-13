@@ -72,8 +72,8 @@ object BinaryOperation {
   val CONTAINS_ANY = "contains_any"
   val CONTAINS_SAME = "contains_same"
 
-  def equ[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.equ[T], "==", DataType[Boolean])
-  def neq[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.neq[T], "!=", DataType[Boolean])
+  def equ[T]: BinaryOperation.Aux[T, T, Boolean] = create(_.equ[T], "==", DataType[Boolean])
+  def neq[T]: BinaryOperation.Aux[T, T, Boolean] = create(_.neq[T], "!=", DataType[Boolean])
   def gt[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.gt[T], ">", DataType[Boolean])
   def lt[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.lt[T], "<", DataType[Boolean])
   def ge[T: Ordering]: BinaryOperation.Aux[T, T, Boolean] = create(_.ge[T], ">=", DataType[Boolean])
@@ -116,14 +116,18 @@ object BinaryOperation {
     override val name: String = n
   }
 
-  def ordOperations[T: Ordering](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] = Map(
+  def eqOperations[T](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] = Map(
     entry(EQ, dt, BinaryOperation.equ),
-    entry(NE, dt, BinaryOperation.neq),
-    entry(LT, dt, BinaryOperation.lt),
-    entry(GT, dt, BinaryOperation.gt),
-    entry(LE, dt, BinaryOperation.le),
-    entry(GE, dt, BinaryOperation.ge)
+    entry(NE, dt, BinaryOperation.neq)
   )
+
+  def ordOperations[T: Ordering](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] =
+    Map(
+      entry(LT, dt, BinaryOperation.lt),
+      entry(GT, dt, BinaryOperation.gt),
+      entry(LE, dt, BinaryOperation.le),
+      entry(GE, dt, BinaryOperation.ge)
+    ) ++ eqOperations(dt)
 
   def integralOperations[T: Integral](dt: DataType.Aux[T]): Map[(String, String), BinaryOperation[T]] =
     Map(
@@ -197,8 +201,8 @@ object BinaryOperation {
 }
 
 trait BinaryOperations {
-  def equ[T: Ordering](a: T, b: T): Boolean
-  def neq[T: Ordering](a: T, b: T): Boolean
+  def equ[T](a: T, b: T): Boolean
+  def neq[T](a: T, b: T): Boolean
   def gt[T: Ordering](a: T, b: T): Boolean
   def lt[T: Ordering](a: T, b: T): Boolean
   def ge[T: Ordering](a: T, b: T): Boolean

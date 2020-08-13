@@ -20,24 +20,25 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 
 trait ExternalLinkService[T <: ExternalLink] {
 
   def externalLink: T
 
+  val putEnabled: Boolean = false
+
   /**
     * Sets requested external link expressions values into a batch of ValueData
     *
     * @param exprIndex expression index for provided ValueData
-    * @param valueData batch of ValueData
+    * @param rows rows to be updated
     * @param exprs expressions to be set
     */
   def setLinkedValues(
       exprIndex: scala.collection.Map[Expression, Int],
-      valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      rows: Seq[InternalRow],
+      exprs: Set[LinkExpr[_]]
   ): Unit
 
   /**
@@ -75,40 +76,21 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
-          if Set("==", "!=").contains(op.name) && c.linkName == externalLink.linkName =>
-        true
-      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName    => true
-      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName => true
-      case _                                                                   => false
+      case Equ(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName        => true
+      case Equ(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
+      case Equ(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName        => true
+      case Equ(ConstantExpr(_), Lower(LinkExpr(c, _))) if c.linkName == externalLink.linkName => true
+      case Neq(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName        => true
+      case Neq(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
+      case Neq(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName        => true
+      case Neq(ConstantExpr(_), Lower(LinkExpr(c, _))) if c.linkName == externalLink.linkName => true
+      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                   => true
+      case InExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName            => true
+      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                => true
+      case NotInExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName         => true
+      case _                                                                                  => false
     }
   }
-}
 
-object ExternalLinkService {
-  def extractCatalogFields(
-      simpleCondition: TimeBoundedCondition,
-      linkName: String
-  ): (List[(String, Set[String])], List[(String, Set[String])], List[Condition]) = {
-    simpleCondition.conditions.foldLeft(
-      (List.empty[(String, Set[String])], List.empty[(String, Set[String])], List.empty[Condition])
-    ) {
-      case ((cat, neg, oth), cond) =>
-        cond match {
-          case Equ(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
-            ((field, Set(v)) :: cat, neg, oth)
-
-          case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[String]]) :: cat, neg, oth)
-
-          case Neq(LinkExpr(c, field), ConstantExpr(v: String)) if c.linkName == linkName =>
-            (cat, (field, Set(v)) :: neg, oth)
-
-          case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[String]]) :: neg, oth)
-
-          case _ => (cat, neg, cond :: oth)
-        }
-    }
-  }
+  def put(dataPoints: Seq[DataPoint]): Unit = {}
 }

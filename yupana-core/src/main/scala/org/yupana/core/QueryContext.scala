@@ -24,31 +24,30 @@ import scala.collection.mutable
 
 case class QueryContext(
     query: Query,
-    postCondition: Option[Condition],
     exprsIndex: mutable.HashMap[Expression, Int],
     aggregateExprs: Array[AggregateExpr],
     topRowExprs: Array[Expression],
     exprsOnAggregatesAndWindows: Array[Expression],
     bottomExprs: Array[Expression],
-    linkExprs: Seq[LinkExpr],
+    linkExprs: Seq[LinkExpr[_]],
     groupByExprs: Array[Expression]
 )
 
 object QueryContext extends StrictLogging {
 
-  def apply(query: Query, postCondition: Condition): QueryContext = {
+  def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
     import org.yupana.core.utils.QueryUtils.{ requiredDimensions, requiredLinks }
 
-    val requiredTags = query.groupBy.flatMap(requiredDimensions).toSet ++
+    val requiredDims = query.groupBy.flatMap(requiredDimensions).toSet ++
       query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
-      requiredDimensions(postCondition) ++
+      postCondition.toSet.flatMap(requiredDimensions) ++
       query.postFilter.toSeq.flatMap(requiredDimensions)
 
-    val requiredDimExprs = requiredTags.map(DimensionExpr(_))
+    val requiredDimExprs = requiredDims.map(d => DimensionExpr(d.aux))
 
     val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
     val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))
-    val dataFiltersExternalLinks = requiredLinks(postCondition)
+    val dataFiltersExternalLinks = postCondition.toSet.flatMap(requiredLinks)
     val havingExternalLinks = query.postFilter.toSeq.flatMap(requiredLinks)
 
     val linkExprs =
@@ -57,8 +56,8 @@ object QueryContext extends StrictLogging {
     val topExprs: Set[Expression] = query.fields.map(_.expr).toSet ++
       (query.groupBy.toSet ++
         requiredDimExprs ++
-        query.postFilter.toSet +
-        postCondition +
+        query.postFilter.toSet ++
+        postCondition.toSet +
         TimeExpr).filterNot(_.isInstanceOf[ConstantExpr])
 
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
@@ -79,12 +78,8 @@ object QueryContext extends StrictLogging {
 
     val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
 
-    val optionPost = if (postCondition == ConstantExpr(true)) None else Some(postCondition)
-
     new QueryContext(
       query,
-      optionPost,
-//      postCondition.exprs.toArray,
       exprsIndex,
       aggregateExprs.toArray,
       (topRowExprs -- bottomExprs).toArray,
@@ -100,9 +95,10 @@ object QueryContext extends StrictLogging {
       case a @ AggregateExpr(_, e)        => Set(a, e)
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
-      case t: DimensionExpr               => Set(t)
-      case c: LinkExpr                    => Set(c)
-      case v: MetricExpr[_]               => Set(v)
+      case d: DimensionExpr[_]            => Set(d)
+      case i: DimensionIdExpr             => Set(i)
+      case c: LinkExpr[_]                 => Set(c)
+      case m: MetricExpr[_]               => Set(m)
       case TimeExpr                       => Set(TimeExpr)
       case _                              => Set.empty
     }.flatten

@@ -19,13 +19,13 @@ package org.yupana.core
 import org.yupana.api.query.Result
 import org.yupana.api.types.DataType
 
-class TsdbServerResult(override val queryContext: QueryContext, data: Iterator[Array[Option[Any]]])
+class TsdbServerResult(override val queryContext: QueryContext, data: Iterator[Array[Any]])
     extends Result
     with TsdbResultBase[Iterator] {
 
-  override def name: String = queryContext.query.table.name
+  override def name: String = queryContext.query.table.map(_.name).getOrElse("RESULT")
 
-  override def rows: Iterator[Array[Option[Any]]] = data
+  override def rows: Iterator[Array[Any]] = data
 
   override val dataTypes: Seq[DataType] = queryContext.query.fields.map(_.expr.dataType)
   override val fieldNames: Seq[String] = nameIndex.map(_._1)

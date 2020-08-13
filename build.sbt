@@ -1,8 +1,11 @@
 import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
+import sbt.Keys.excludeDependencies
+
+ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples)
+  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
   .settings(
     allSettings,
     noPublishSettings,
@@ -75,14 +78,11 @@ lazy val core = (project in file("yupana-core"))
     name := "yupana-core",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.typesafe.scala-logging"  %% "scala-logging"                % versions.scalaLogging,
-      "com.lihaoyi"                 %% "fastparse"                    % versions.fastparse.value,
-      "org.apache.ignite"           %  "ignite-core"                  % versions.ignite,
-      "org.apache.ignite"           %  "ignite-slf4j"                 % versions.ignite,
-      "org.ehcache"                 %  "ehcache"                      % versions.ehcache,
-
-      "org.scalatest"               %% "scalatest"                    % versions.scalaTest          % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock          % Test
+      "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
+      "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse.value,
+      "javax.cache"                   %  "cache-api"                    % "1.1.1",
+      "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
+      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
   .dependsOn(api, utils)
@@ -115,7 +115,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test")
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
@@ -181,7 +181,42 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
-  .dependsOn(schema, core)
+  .dependsOn(schema, core, ehcache % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val ehcache = (project in file("yupana-ehcache"))
+  .settings(
+    name := "yupana-ehcache",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.ehcache"                   %  "ehcache"                      % versions.ehcache
+    )
+  )
+  .dependsOn(core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val caffeine = (project in file("yupana-caffeine"))
+  .settings(
+    name := "yupana-caffeine",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
+      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+    )
+  )
+  .dependsOn(core)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val ignite = (project in file("yupana-ignite"))
+  .settings(
+    name := "yupana-ignite",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
+      "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
+    )
+  )
+  .dependsOn(core)
   .disablePlugins(AssemblyPlugin)
 
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
@@ -199,6 +234,9 @@ lazy val examples = (project in file("yupana-examples"))
       "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc % Runtime,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
     ),
+    excludeDependencies ++= Seq(
+      "asm" % "asm"
+    ),
     assembly / assemblyMergeStrategy := {
       case PathList("org", "apache", "jasper", _*)  => MergeStrategy.last
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
@@ -215,11 +253,11 @@ lazy val examples = (project in file("yupana-examples"))
     },
     assembly := assembly.dependsOn(writeAssemblyName).value
   )
-  .dependsOn(spark, akka, hbase, schema, externalLinks)
+  .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
-  val joda = "2.10.3"
+  val joda = "2.10.5"
 
   val protobufJava = "2.6.1"
 
@@ -227,28 +265,29 @@ lazy val versions = new {
   val fastparse212 = "2.1.3"
   val fastparse211 = "2.1.2"
 
-  val hbase = "1.3.1"
-  val hadoop = "2.8.3"
-  val spark = "2.4.3"
-  val akka = "2.5.26"
+  val hbase = "1.3.6"
+  val hadoop = "2.8.5"
+  val spark = "2.4.5"
+  val akka = "2.5.31"
 
   val lucene = "6.6.0"
-  val ignite = "2.7.0"
+  val ignite = "2.8.0"
   val ehcache = "3.3.2"
+  val caffeine = "2.8.0"
 
   val json4s = "3.5.3"
-  val spring = "5.0.8.RELEASE"
+  val spring = "5.2.2.RELEASE"
 
-  val flyway = "5.2.4"
-  val hikariCP = "3.3.1"
+  val flyway = "6.2.3"
+  val hikariCP = "3.4.2"
   val logback = "1.2.3"
   val h2Jdbc = "1.4.199"
   val postgresqlJdbc = "42.2.6"
 
   val scalaTest = "3.0.8"
-  val scalaCheck = "1.14.2"
+  val scalaCheck = "1.14.3"
   val scalaMock = "4.4.0"
-  val sparkTesting = s"${spark}_0.12.0"
+  val sparkTesting = s"${spark}_0.14.0"
 
   val fastparse = Def.setting(
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -261,18 +300,20 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.10",
-  crossScalaVersions := Seq("2.11.12", "2.12.10"),
+  scalaVersion := "2.12.12",
+  crossScalaVersions := Seq("2.11.12", "2.12.12"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-deprecation",
     "-unchecked",
     "-feature",
     "-Xlint",
+    "-Xfatal-warnings",
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),
   Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
+  testOptions in Test += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   parallelExecution in Test := false,
   coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))

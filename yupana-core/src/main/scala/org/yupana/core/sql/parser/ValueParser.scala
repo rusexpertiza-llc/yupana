@@ -38,10 +38,8 @@ object ValueParser {
 
   def intNumber[_: P]: P[Int] = P(digits).map(_.toInt)
 
-  def longNumber[_: P]: P[Long] = P(digits).map(_.toLong)
-
-  def number[_: P]: P[BigDecimal] = P(digits ~ ("." ~ digits).!.?).map {
-    case (x, y) => BigDecimal(x + y.getOrElse(""))
+  def number[_: P]: P[BigDecimal] = P("-".!.? ~ digits ~ ("." ~ digits).!.?).map {
+    case (m, x, y) => BigDecimal(m.getOrElse("") + x + y.getOrElse(""))
   }
 
   private def stringCharacter[_: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
@@ -114,11 +112,10 @@ object ValueParser {
         val p = vs
           .map(p => () => p.parser() ~ p.separator())
           .reduceRight((a, b) => () => P(b() ~ a()).map { case (x, y) => x plus y })
-        Some(
-          () =>
-            P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
-              .map { case (x, y) => x plus y }
-              .opaque(s"${vs.last.name} TO ${v.name}")
+        Some(() =>
+          P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
+            .map { case (x, y) => x plus y }
+            .opaque(s"${vs.last.name} TO ${v.name}")
         )
 
       case Nil => None

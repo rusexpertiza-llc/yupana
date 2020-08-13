@@ -4,7 +4,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, LinkField, RawDimension }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 
 class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
@@ -16,17 +16,16 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
         Seq(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3),
         data
       ) {
-    val valueToKeys: Map[String, Seq[String]] =
-      Map("a" -> Seq("foo", "aaa"), "b" -> Seq("foo"), "c" -> Seq("bar"), "d" -> Seq("aaa"))
+    val valueToKeys: Map[Int, Seq[String]] =
+      Map(1 -> Seq("foo", "aaa"), 2 -> Seq("foo"), 3 -> Seq("bar"), 4 -> Seq("aaa"))
 
     override def keyIndex: Int = 0
 
     override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
       valueData.foreach { vd =>
-        vd.get[String](indexMap, DimensionExpr(externalLink.dimension)).foreach { tagValue =>
-          val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
-          vd.set(indexMap, keyExpr, keyValue)
-        }
+        val tagValue = vd.get[Int](indexMap, DimensionExpr(externalLink.dimension))
+        val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption).orNull
+        vd.set(indexMap, keyExpr, keyValue)
       }
     }
 
@@ -34,14 +33,16 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       condition
     }
 
-    override def keyExpr: Expression.Aux[String] = DimensionExpr(Dimension("TAG_X"))
+    override def keyExpr: Expression.Aux[String] = dimension(DictionaryDimension("TAG_X"))
   }
 
   class TestLink extends ExternalLink {
+    override type DimType = Int
     override val linkName: String = "TestCatalog"
-    override val dimension: Dimension = Dimension("TAG_Y")
-    override val fieldsNames: Set[String] =
+    override val dimension: Dimension.Aux[Int] = RawDimension[Int]("TAG_Y")
+    override val fields: Set[LinkField] =
       Set(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3)
+        .map(LinkField[String])
   }
 
   object TestExternalLink {
@@ -66,18 +67,18 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
   "InMemoryCatalogBase" should "fill value data" in {
     val exprIndex = Seq[Expression](
       time,
-      dimension(Dimension("TAG_Y")),
+      dimension(RawDimension[Int]("TAG_Y")),
       link(testExternalLink, TestExternalLink.testField1),
       link(testExternalLink, TestExternalLink.testField2),
       link(testExternalLink, TestExternalLink.testField3)
     ).zipWithIndex.toMap
 
-    val builder = new InternalRowBuilder(exprIndex)
+    val builder = new InternalRowBuilder(exprIndex, None)
 
     val valueData = Seq(
-      builder.set(time, Some(Time(100))).set(dimension(Dimension("TAG_Y")), Some("a")).buildAndReset(),
-      builder.set(time, Some(Time(200))).set(dimension(Dimension("TAG_Y")), Some("d")).buildAndReset(),
-      builder.set(time, Some(Time(300))).set(dimension(Dimension("TAG_Y")), Some("agr")).buildAndReset()
+      builder.set(time, Time(100)).set(dimension(RawDimension[Int]("TAG_Y")), 1).buildAndReset(),
+      builder.set(time, Time(200)).set(dimension(RawDimension[Int]("TAG_Y")), 4).buildAndReset(),
+      builder.set(time, Time(300)).set(dimension(RawDimension[Int]("TAG_Y")), 42).buildAndReset()
     )
 
     testCatalog.setLinkedValues(
@@ -91,58 +92,71 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     )
 
     val r1 = valueData(0)
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual Some("foo")
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual Some("bar")
-    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual Some("baz")
+    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "foo"
+    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bar"
+    r1.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "baz"
 
     val r2 = valueData(1)
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual Some("aaa")
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual Some("bbb")
-    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual Some("at")
+    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "aaa"
+    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bbb"
+    r2.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
 
     val r3 = valueData(2)
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe empty
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe empty
-    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe empty
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField1)) shouldBe null
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField2)) shouldBe null
+    r3.get[String](exprIndex, link(testExternalLink, TestExternalLink.testField3)) shouldBe null
 
   }
 
   it should "support positive conditions" in {
-    testCatalog.condition(equ(link(testExternalLink, TestExternalLink.testField1), const("aaa"))) shouldEqual in(
-      dimension(Dimension("TAG_X")),
+    testCatalog.condition(equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))) shouldEqual in(
+      lower(dimension(DictionaryDimension("TAG_X"))),
       Set("aaa")
     )
 
     testCatalog.condition(
       and(
-        equ(link(testExternalLink, TestExternalLink.testField2), const("bar")),
-        equ(link(testExternalLink, TestExternalLink.testField1), const("bar"))
+        equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
+        equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("bar"))
       )
-    ) shouldEqual in(dimension(Dimension("TAG_X")), Set("bar"))
+    ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set("bar"))
 
     testCatalog.condition(
       and(
-        equ(link(testExternalLink, TestExternalLink.testField2), const("bar")),
-        in(link(testExternalLink, TestExternalLink.testField3), Set("abc"))
+        equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
+        in(lower(link(testExternalLink, TestExternalLink.testField3)), Set("abc"))
       )
-    ) shouldEqual in(dimension(Dimension("TAG_X")), Set.empty)
+    ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set.empty)
   }
 
   it should "support negativeCondition operation" in {
     testCatalog.condition(
-      neq(link(testExternalLink, TestExternalLink.testField2), const("bar"))
-    ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("foo", "bar"))
+      neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
+    ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
     testCatalog.condition(
       and(
-        neq(link(testExternalLink, TestExternalLink.testField2), const("bar")),
-        notIn(link(testExternalLink, TestExternalLink.testField3), Set("look"))
+        neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
+        notIn(lower(link(testExternalLink, TestExternalLink.testField3)), Set("look"))
       )
-    ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("foo", "bar"))
+    ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
     testCatalog.condition(
       and(
-        neq(link(testExternalLink, TestExternalLink.testField1), const("aaa")),
-        neq(link(testExternalLink, TestExternalLink.testField3), const("baz"))
+        neq(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa")),
+        neq(lower(link(testExternalLink, TestExternalLink.testField3)), const("baz"))
       )
-    ) shouldEqual notIn(dimension(Dimension("TAG_X")), Set("aaa", "foo"))
+    ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa", "foo"))
+  }
+
+  it should "validate data" in {
+    testCatalog.validate()
+
+    val invalidData = Array(
+      Array("foo", "bar", "baz"),
+      Array("foo", "quux"),
+      Array("bar", "bar", "look")
+    )
+
+    val link = new TestExternalLink(invalidData, testExternalLink)
+    the[IllegalArgumentException] thrownBy link.validate() should have message "Data must have exactly 3 columns"
   }
 }

@@ -18,8 +18,9 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.{ Query, Result }
+import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.schema.Schema
+import org.yupana.api.types.DataType
 import org.yupana.core.TSDB
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -30,15 +31,14 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class RequestHandler(schema: Schema) extends StrictLogging {
 
-  val sqlQueryProcessor = new SqlQueryProcessor(schema)
-  val metadataProvider = new JdbcMetadataProvider(schema)
+  private val sqlQueryProcessor = new SqlQueryProcessor(schema)
+  private val metadataProvider = new JdbcMetadataProvider(schema)
 
   def handleQuery(tsdb: TSDB, sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
 
-    val queryLog = s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}"""
-    logger.debug(queryLog)
+    logger.debug(s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}""")
 
     Future {
 
@@ -52,6 +52,10 @@ class RequestHandler(schema: Schema) extends StrictLogging {
             Right(resultToProto(rs))
           }
 
+        case upsert: Upsert =>
+          val params = Seq(sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap)
+          doUpsert(tsdb, upsert, params)
+
         case ShowTables => Right(resultToProto(metadataProvider.listTables))
 
         case ShowColumns(tableName) => metadataProvider.describeTable(tableName).right map resultToProto
@@ -64,6 +68,22 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
         case DeleteQueryMetrics(filter) =>
           Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(tsdb, filter)))
+      }
+    }
+  }
+
+  def handleBatchQuery(tsdb: TSDB, batchSqlQuery: proto.BatchSqlQuery)(
+      implicit ec: ExecutionContext
+  ): Future[Either[String, Iterator[proto.Response]]] = {
+    logger.debug(s"Processing batch SQL ${batchSqlQuery.sql} with ${batchSqlQuery.batch.size}")
+
+    Future {
+      SqlParser.parse(batchSqlQuery.sql).right.flatMap {
+        case upsert: Upsert =>
+          val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
+          doUpsert(tsdb, upsert, params)
+
+        case _ => Left(s"Only UPSERT can have batch parameters, but got ${batchSqlQuery.sql}")
       }
     }
   }
@@ -95,13 +115,26 @@ class RequestHandler(schema: Schema) extends StrictLogging {
     }
   }
 
+  private def doUpsert(
+      tsdb: TSDB,
+      upsert: Upsert,
+      params: Seq[Map[Int, Value]]
+  ): Either[String, Iterator[proto.Response]] = {
+    sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
+      tsdb.put(dps)
+      Right(
+        resultToProto(SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK"))))
+      )
+    }
+  }
+
   private def resultToProto(result: Result): Iterator[proto.Response] = {
     val rts = result.dataTypes.zipWithIndex
     val results = result.iterator.map { row =>
       val bytes = rts.map {
         case (rt, idx) =>
-          val v = row.fieldByIndex[rt.T](idx)
-          val b = v.map(rt.writable.write).getOrElse(Array.empty[Byte])
+          val v = row.get[rt.T](idx)
+          val b = if (v != null) rt.storable.write(v) else Array.empty[Byte]
           ByteString.copyFrom(b)
       }
       proto.Response(proto.Response.Resp.Result(proto.ResultChunk(bytes)))

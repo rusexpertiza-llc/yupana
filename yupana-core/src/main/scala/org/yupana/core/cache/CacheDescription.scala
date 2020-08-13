@@ -16,9 +16,9 @@
 
 package org.yupana.core.cache
 
-import org.yupana.core.cache.CacheFactory.CacheEngine.CacheEngine
+import org.yupana.api.types.BoxingTag
 
-abstract class CacheDescription(val name: String, val suffix: String, val engine: CacheEngine) {
+abstract class CacheDescription(val name: String, val suffix: String, val engine: String) {
   type Key
   def keyBoxing: BoxingTag[Key]
 
@@ -43,7 +43,7 @@ abstract class CacheDescription(val name: String, val suffix: String, val engine
 object CacheDescription {
   type Aux[K, V] = CacheDescription { type Key = K; type Value = V }
 
-  def apply[K, V](name: String, suffix: String, engine: CacheEngine)(
+  def apply[K, V](name: String, suffix: String, engine: String)(
       implicit
       kTag: BoxingTag[K],
       vTag: BoxingTag[V]

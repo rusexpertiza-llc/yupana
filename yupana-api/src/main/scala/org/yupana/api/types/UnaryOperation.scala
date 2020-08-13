@@ -40,7 +40,7 @@ trait UnaryOperation[T] extends Serializable {
     * @param unaryOperations unary functions implementation instance
     * @return optional calculated value
     */
-  def apply(t: Option[T])(implicit unaryOperations: UnaryOperations): Option[Out]
+  def apply(t: T)(implicit unaryOperations: UnaryOperations): Out
 
   override def toString: String = name
 }
@@ -50,6 +50,8 @@ object UnaryOperation {
   val LENGTH = "length"
   val TOKENS = "tokens"
   val SPLIT = "split"
+  val LOWER = "lower"
+  val UPPER = "upper"
 
   val IS_NULL = "is_null"
   val IS_NOT_NULL = "is_not_null"
@@ -110,6 +112,8 @@ object UnaryOperation {
   val truncWeek: UnaryOperation.Aux[Time, Time] = create(_.truncWeek, TRUNC_WEEK, DataType[Time])
 
   val length: UnaryOperation.Aux[String, Int] = create(_.stringLength, LENGTH, DataType[Int])
+  val lower: UnaryOperation.Aux[String, String] = create(_.lower, LOWER, DataType[String])
+  val upper: UnaryOperation.Aux[String, String] = create(_.upper, UPPER, DataType[String])
   val tokens: UnaryOperation.Aux[String, Array[String]] = create(_.tokens, TOKENS, DataType[Array[String]])
   val splitString: UnaryOperation.Aux[String, Array[String]] = create(_.splitString, SPLIT, DataType[Array[String]])
 
@@ -120,20 +124,22 @@ object UnaryOperation {
     create(_.tokenizeArray, TOKENS, DataType[Array[String]])
 
   def create[T, U](
-      fun: UnaryOperations => Option[T] => Option[U],
+      fun: UnaryOperations => T => U,
       n: String,
       dt: DataType.Aux[U]
   ): UnaryOperation.Aux[T, U] = new UnaryOperation[T] {
     override type Out = U
     override val name: String = n
     override def dataType: DataType.Aux[U] = dt
-    override def apply(t: Option[T])(implicit unaryOperations: UnaryOperations): Option[U] = fun(unaryOperations)(t)
+    override def apply(t: T)(implicit unaryOperations: UnaryOperations): U = fun(unaryOperations)(t)
   }
 
   val stringOperations: Map[String, UnaryOperation[String]] = Map(
     LENGTH -> length,
     TOKENS -> tokens,
-    SPLIT -> splitString
+    SPLIT -> splitString,
+    LOWER -> lower,
+    UPPER -> upper
   )
 
   val boolOperations: Map[String, UnaryOperation[Boolean]] = Map(
@@ -190,11 +196,8 @@ object UnaryOperation {
 
         override def dataType: DataType.Aux[(ao.Out, bo.Out)] = DataType.tupleDt(ao.dataType, bo.dataType)
 
-        override def apply(t: Option[(A, B)])(implicit unaryOperations: UnaryOperations): Option[(ao.Out, bo.Out)] = {
-          for {
-            a <- ao(t.map(_._1))
-            b <- bo(t.map(_._2))
-          } yield (a, b)
+        override def apply(t: (A, B))(implicit unaryOperations: UnaryOperations): (ao.Out, bo.Out) = {
+          (ao(t._1), bo(t._2))
         }
       }
     }.toMap
@@ -202,36 +205,39 @@ object UnaryOperation {
 }
 
 trait UnaryOperations {
-  def unaryMinus[N: Numeric](n: Option[N]): Option[N]
-  def abs[N: Numeric](n: Option[N]): Option[N]
+  def unaryMinus[N: Numeric](n: N): N
+  def abs[N: Numeric](n: N): N
 
-  def isNull[T](t: Option[T]): Option[Boolean]
-  def isNotNull[T](t: Option[T]): Option[Boolean]
-  def not(x: Option[Boolean]): Option[Boolean]
+  def isNull[T](t: T): Boolean
+  def isNotNull[T](t: T): Boolean
+  def not(x: Boolean): Boolean
 
-  def extractYear(t: Option[Time]): Option[Int]
-  def extractMonth(t: Option[Time]): Option[Int]
-  def extractDay(t: Option[Time]): Option[Int]
-  def extractHour(t: Option[Time]): Option[Int]
-  def extractMinute(t: Option[Time]): Option[Int]
-  def extractSecond(t: Option[Time]): Option[Int]
+  def extractYear(t: Time): Int
+  def extractMonth(t: Time): Int
+  def extractDay(t: Time): Int
+  def extractHour(t: Time): Int
+  def extractMinute(t: Time): Int
+  def extractSecond(t: Time): Int
 
-  def trunc(fieldType: DateTimeFieldType)(time: Option[Time]): Option[Time]
-  def truncYear(t: Option[Time]): Option[Time]
-  def truncMonth(t: Option[Time]): Option[Time]
-  def truncWeek(t: Option[Time]): Option[Time]
-  def truncDay(t: Option[Time]): Option[Time]
-  def truncHour(t: Option[Time]): Option[Time]
-  def truncMinute(t: Option[Time]): Option[Time]
-  def truncSecond(t: Option[Time]): Option[Time]
+  def trunc(fieldType: DateTimeFieldType)(time: Time): Time
+  def truncYear(t: Time): Time
+  def truncMonth(t: Time): Time
+  def truncWeek(t: Time): Time
+  def truncDay(t: Time): Time
+  def truncHour(t: Time): Time
+  def truncMinute(t: Time): Time
+  def truncSecond(t: Time): Time
 
-  def stringLength(s: Option[String]): Option[Int]
-  def tokens(s: Option[String]): Option[Array[String]]
-  def splitString(s: Option[String]): Option[Array[String]]
+  def stringLength(s: String): Int
+  def tokens(s: String): Array[String]
+  def splitString(s: String): Array[String]
 
-  def arrayToString[T](a: Option[Array[T]]): Option[String]
-  def arrayLength[T](a: Option[Array[T]]): Option[Int]
-  def tokenizeArray(a: Option[Array[String]]): Option[Array[String]]
+  def lower(s: String): String
+  def upper(s: String): String
+
+  def arrayToString[T](a: Array[T]): String
+  def arrayLength[T](a: Array[T]): Int
+  def tokenizeArray(a: Array[String]): Array[String]
 }
 
 trait Operations {

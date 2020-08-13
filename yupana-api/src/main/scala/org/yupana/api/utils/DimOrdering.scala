@@ -16,7 +16,7 @@
 
 package org.yupana.api.utils
 
-trait DimOrdering[T] {
+trait DimOrdering[T] extends Serializable {
   def gt(a: T, b: T): Boolean
   def lt(a: T, b: T): Boolean
 
@@ -29,9 +29,26 @@ trait DimOrdering[T] {
 
 object DimOrdering {
 
+  implicit val byteDimOrdering: DimOrdering[Byte] =
+    fromCmp((a, b) => java.lang.Byte.compare((a + Byte.MinValue).toByte, (b + Byte.MinValue).toByte))
+  implicit val shortDimOrdering: DimOrdering[Short] =
+    fromCmp((a, b) => java.lang.Short.compare((a + Short.MinValue).toShort, (b + Short.MinValue).toShort))
   implicit val intDimOrdering: DimOrdering[Int] = fromCmp(java.lang.Integer.compareUnsigned)
   implicit val longDimOrdering: DimOrdering[Long] = fromCmp(java.lang.Long.compareUnsigned)
   implicit val stringDimOrdering: DimOrdering[String] = fromCmp(Ordering[String].compare)
+
+  implicit def tupleDimOrdering[T, U](implicit tOrd: DimOrdering[T], uOrd: DimOrdering[U]): DimOrdering[(T, U)] = {
+    fromCmp {
+      case ((t1, u1), (t2, u2)) =>
+        if (t1 != t2) {
+          if (tOrd.lt(t1, t2)) -1 else 1
+        } else {
+          if (u1 == u2) 0
+          else if (uOrd.lt(u1, u2)) -1
+          else 1
+        }
+    }
+  }
 
   def fromCmp[T](cmp: (T, T) => Int): DimOrdering[T] = new DimOrdering[T] {
     override def lt(x: T, y: T): Boolean = cmp(x, y) < 0

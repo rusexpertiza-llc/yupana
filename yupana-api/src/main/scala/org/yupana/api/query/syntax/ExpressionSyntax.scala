@@ -18,7 +18,7 @@ package org.yupana.api.query.syntax
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink, Metric }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
 import org.yupana.api.types._
 
 trait ExpressionSyntax {
@@ -30,8 +30,10 @@ trait ExpressionSyntax {
   def tuple[T, U](e1: Expression.Aux[T], e2: Expression.Aux[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) =
     TupleExpr(e1, e2)
   def array[T](es: Expression.Aux[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Array(es: _*))
-  def dimension(dim: Dimension) = new DimensionExpr(dim)
-  def link(link: ExternalLink, fieldName: String) = new LinkExpr(link, fieldName)
+  def dimension[T](dim: Dimension.Aux[T]) = DimensionExpr(dim)
+  def link(link: ExternalLink, fieldName: String): LinkExpr[String] =
+    LinkExpr[String](link, LinkField[String](fieldName))
+  def link[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = LinkExpr[T](link, field)
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
   def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression.Aux[T] = ConstantExpr[T](c)
 
@@ -60,10 +62,10 @@ trait ExpressionSyntax {
     BinaryOperationExpr(BinaryOperation.ge, left, right)
   def le[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
     BinaryOperationExpr(BinaryOperation.le, left, right)
-  def equ[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.equ, left, right)
-  def neq[T: Ordering](left: Expression.Aux[T], right: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.neq, left, right)
+  def equ[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.equ[T], left, right)
+  def neq[T](left: Expression.Aux[T], right: Expression.Aux[T]) =
+    BinaryOperationExpr(BinaryOperation.neq[T], left, right)
 
   def isNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNull[T], e)
   def isNotNull[T](e: Expression.Aux[T]) = UnaryOperationExpr(UnaryOperation.isNotNull[T], e)

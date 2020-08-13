@@ -16,35 +16,38 @@
 
 package org.yupana.schema
 
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Table }
 import org.yupana.schema.externallinks._
 
 object Tables {
+
+  val epochTime = new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
 
   val itemExternalLinks: Seq[ExternalLink] = Seq(ItemsInvertedIndex, RelatedItemsCatalog)
 
   val itemsKkmTable = new Table(
     name = "items_kkm",
     rowTimeSpan = 86400000L * 30L,
-    dimensionSeq =
-      Seq(Dimensions.ITEM_TAG, Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG, Dimensions.POSITION_TAG),
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.POSITION),
     metrics = ItemTableMetrics.metrics,
-    externalLinks = itemExternalLinks
+    externalLinks = itemExternalLinks,
+    epochTime
   )
 
   val kkmItemsTable = new Table(
     name = "kkm_items",
     rowTimeSpan = 86400000L * 30L,
-    dimensionSeq =
-      Seq(Dimensions.KKM_ID_TAG, Dimensions.ITEM_TAG, Dimensions.OPERATION_TYPE_TAG, Dimensions.POSITION_TAG),
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE, Dimensions.POSITION),
     metrics = ItemTableMetrics.metrics,
-    externalLinks = itemExternalLinks
+    externalLinks = itemExternalLinks,
+    epochTime
   )
 
   import ReceiptTableMetrics._
 
   val receiptDimensionSeq: Seq[Dimension] =
-    Seq(Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG, Dimensions.SHIFT_TAG, Dimensions.OPERATOR_TAG)
+    Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.SHIFT)
   val receiptExternalLinks: Seq[ExternalLink] = Seq()
 
   val receiptTable = new Table(
@@ -56,9 +59,12 @@ object Tables {
       correctionDocumentNumber,
       correctionDocumentDateTime,
       taxationType,
-      acceptedAt
+      acceptedAt,
+      documentNumberField,
+      operator
     ),
-    externalLinks = receiptExternalLinks
+    externalLinks = receiptExternalLinks,
+    epochTime
   )
 
   val receiptByDayTable = new Table(
@@ -66,23 +72,26 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = receiptDimensionSeq,
     metrics = baseFields ++ rollupFields,
-    externalLinks = receiptExternalLinks
+    externalLinks = receiptExternalLinks,
+    epochTime
   )
 
   val receiptByWeekTable = new Table(
     name = "receipt_by_week",
     rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG),
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = baseFields ++ rollupFields,
-    externalLinks = receiptExternalLinks
+    externalLinks = receiptExternalLinks,
+    epochTime
   )
 
   val receiptByMonthTable = new Table(
     name = "receipt_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.KKM_ID_TAG, Dimensions.OPERATION_TYPE_TAG),
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = baseFields ++ rollupFields,
-    externalLinks = receiptExternalLinks
+    externalLinks = receiptExternalLinks,
+    epochTime
   )
 
   val receiptByDayAllKkmsTable = new Table(
@@ -90,6 +99,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq.empty,
     metrics = kkmDistinctCountField +: rollupFields,
-    externalLinks = receiptExternalLinks
+    externalLinks = receiptExternalLinks,
+    epochTime
   )
 }

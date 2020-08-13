@@ -16,52 +16,94 @@
 
 package org.yupana.examples.externallinks
 
-import org.yupana.api.schema.{ Dimension, ExternalLink }
-import org.yupana.core.TsdbBase
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query._
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField }
+import org.yupana.core.ExternalLinkService
+import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table }
-import org.yupana.externallinks.DimValueBasedExternalLinkService
+import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Dimensions
 
 trait AddressCatalog extends ExternalLink {
   val CITY = "city"
+  val LAT = "lat"
+  val LON = "lon"
+
+  override type DimType = Int
 
   override val linkName: String = "AddressCatalog"
-  override val dimension: Dimension = Dimensions.KKM_ID_TAG
-  override val fieldsNames: Set[String] = Set(CITY)
+  override val dimension: Dimension.Aux[Int] = Dimensions.KKM_ID
+  override val fields: Set[LinkField] = Set(LinkField[String](CITY), LinkField[Double](LAT), LinkField[Double](LON))
 }
 
 object AddressCatalog extends AddressCatalog
 
-class AddressCatalogImpl(tsdb: TsdbBase, override val externalLink: AddressCatalog)
-    extends DimValueBasedExternalLinkService[AddressCatalog](tsdb) {
+case class AddressData(city: String, lat: Double, lon: Double) {
+  def asMap: Map[String, Any] = Map(
+    AddressCatalog.CITY -> city,
+    AddressCatalog.LAT -> lat,
+    AddressCatalog.LON -> lon
+  )
+}
 
-  val kkmAddressData: Seq[(String, String)] = (1 to 20).map(id => (id.toString, if (id < 15) "Москва" else "Таганрог"))
+class AddressCatalogImpl(override val externalLink: AddressCatalog) extends ExternalLinkService[AddressCatalog] {
+  import syntax.All._
 
-  override def dimValuesForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {
-    val ids = fieldsValues.map {
-      case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2)).map(_._1).toSet
-      case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
+  val kkmAddressData: Seq[(Int, AddressData)] =
+    (1 to 20).map { id =>
+      (
+        id,
+        if (id < 15) AddressData("Москва", -26.668287, 153.102198) else AddressData("Таганрог", 61.314494, 10.303508)
+      )
     }
 
-    CollectionUtils.intersectAll(ids)
+  override def setLinkedValues(
+      exprIndex: collection.Map[Expression, Int],
+      rows: Seq[InternalRow],
+      exprs: Set[LinkExpr[_]]
+  ): Unit = {
+    ExternalLinkUtils.setLinkedValues(
+      externalLink,
+      exprIndex,
+      rows,
+      exprs,
+      fieldValuesForDimValues
+    )
   }
 
-  override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): Set[String] = {
-    val ids = fieldsValues.map {
-      case (AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2)).map(_._1).toSet
-      case (f, _)                        => throw new IllegalArgumentException(s"Unknown field $f")
+  override def condition(condition: Condition): Condition = {
+    ExternalLinkUtils.transformCondition(externalLink.linkName, condition, createInclude, createExclude)
+  }
+
+  private def idsForValues(values: Seq[(String, Set[Any])]): Seq[Set[Int]] = {
+    values.map {
+      case (AddressCatalog.CITY, cities)    => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
+      case (AddressCatalog.LAT, latitudes)  => kkmAddressData.filter(x => latitudes.contains(x._2.lat)).map(_._1).toSet
+      case (AddressCatalog.LON, longitudes) => kkmAddressData.filter(x => longitudes.contains(x._2.lon)).map(_._1).toSet
+      case (f, _)                           => throw new IllegalArgumentException(s"Unknown field $f")
     }
-
-    ids.fold(Set.empty)(_ union _)
   }
 
-  override def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[String]): Table[String, String, String] = {
-    val unknownFields = fields.filterNot(_ == AddressCatalog.CITY)
+  private def createInclude(values: Seq[(String, Set[Any])]): Condition = {
+    val ids = idsForValues(values)
+    val dimValues = CollectionUtils.intersectAll(ids)
+    in(dimension(externalLink.dimension.aux), dimValues)
+  }
+
+  private def createExclude(values: Seq[(String, Set[Any])]): Condition = {
+    val ids = idsForValues(values)
+    val dimValues = ids.fold(Set.empty)(_ union _)
+    notIn(dimension(externalLink.dimension.aux), dimValues)
+  }
+
+  private def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[Int]): Table[Int, String, Any] = {
+    val unknownFields = fields.diff(externalLink.fields.map(_.name))
     if (unknownFields.nonEmpty) throw new IllegalArgumentException(s"Unknown fields $unknownFields")
 
     val values = kkmAddressData
       .filter(x => kkmIds.contains(x._1))
-      .map { case (kkmId, city) => kkmId -> Map(AddressCatalog.CITY -> city) }
+      .map { case (kkmId, addr) => kkmId -> addr.asMap.filterKeys(fields.contains) }
       .toMap
     SparseTable(values)
   }

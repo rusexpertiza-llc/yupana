@@ -18,34 +18,86 @@ package org.yupana.externallinks.universal
 
 import com.typesafe.scalalogging.StrictLogging
 import org.springframework.jdbc.core.JdbcTemplate
-import org.yupana.api.schema.ExternalLink
-import org.yupana.core.TsdbBase
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.{ Expression, LinkExpr }
+import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.types.{ BoxingTag, DataType }
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.{ Cache, CacheFactory }
+import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ SparseTable, Table }
-import org.yupana.externallinks.DimValueBasedExternalLinkService
+import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
 
 import scala.collection.JavaConverters._
 
-class SQLSourcedExternalLinkService(
-    override val externalLink: ExternalLink,
+class SQLSourcedExternalLinkService[DimensionValue](
+    override val externalLink: ExternalLink.Aux[DimensionValue],
     config: SQLExternalLinkDescription,
-    jdbc: JdbcTemplate,
-    tsdb: TsdbBase
-) extends DimValueBasedExternalLinkService[ExternalLink](tsdb)
+    jdbc: JdbcTemplate
+) extends ExternalLinkService[ExternalLink]
     with StrictLogging {
 
   import SQLSourcedExternalLinkService._
   import config._
 
-  private val mapping = config.fieldsMapping
-  private val inverseMapping = mapping.map(_.map(_.swap))
+  import org.yupana.api.query.syntax.All._
 
-  def catalogFieldToSqlField(cf: FieldName): String = mapping.flatMap(_.get(cf)).getOrElse(camelToSnake(cf))
-  def catalogFieldToSqlFieldWithAlias(cf: FieldName): String =
+  private val mapping = config.fieldsMapping
+
+  private val fieldValuesForDimValuesCache: Cache[DimensionValue, Map[FieldName, FieldValue]] =
+    CacheFactory.initCache[DimensionValue, Map[FieldName, FieldValue]](externalLink.linkName + "_fields")(
+      externalLink.dimension.dataType.boxingTag,
+      BoxingTag[Map[FieldName, FieldValue]]
+    )
+
+  override def setLinkedValues(
+      exprIndex: collection.Map[Expression, Int],
+      rows: Seq[InternalRow],
+      exprs: Set[LinkExpr[_]]
+  ): Unit = {
+    ExternalLinkUtils.setLinkedValues(
+      externalLink.asInstanceOf[ExternalLink.Aux[externalLink.dimension.T]],
+      exprIndex,
+      rows,
+      exprs,
+      fieldValuesForDimValues
+    )
+  }
+
+  override def condition(condition: Condition): Condition = {
+    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, includeCondition, excludeCondition)
+  }
+
+  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+    val dimValues = dimValuesForFieldsValues(values, "AND").filter(x => x != null)
+    if (externalLink.dimension.dataType == DataType[String]) {
+      in(
+        lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
+        dimValues.asInstanceOf[Set[String]]
+      )
+    } else {
+      in(dimension(externalLink.dimension.aux), dimValues)
+    }
+  }
+
+  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+    val dimValues = dimValuesForFieldsValues(values, "OR").filter(x => x != null)
+    if (externalLink.dimension.dataType == DataType[String]) {
+      notIn(
+        lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
+        dimValues.asInstanceOf[Set[String]]
+      )
+    } else {
+      notIn(dimension(externalLink.dimension.aux), dimValues)
+    }
+  }
+
+  private def catalogFieldToSqlField(cf: FieldName): String = mapping.flatMap(_.get(cf)).getOrElse(camelToSnake(cf))
+
+  private def catalogFieldToSqlFieldWithAlias(cf: FieldName): String =
     s"${catalogFieldToSqlField(cf)} AS ${SQLSourcedExternalLinkService.camelToSnake(cf)}"
-  def sqlFieldToCatalogField(sf: FieldName): String = inverseMapping.flatMap(_.get(sf)).getOrElse(snakeToCamel(sf))
 
   def projection(fields: Set[FieldName]): String = {
     (fields + dimensionName).map(catalogFieldToSqlFieldWithAlias).mkString(", ")
@@ -53,46 +105,32 @@ class SQLSourcedExternalLinkService(
 
   def relation: String = config.relation.getOrElse(camelToSnake(linkName))
 
-  override def fieldValuesForDimValues(
+  def fieldValuesForDimValues(
       fields: Set[FieldName],
       tagValues: Set[DimensionValue]
   ): Table[DimensionValue, FieldName, FieldValue] = {
 
-    def withLinkName(dimVal: DimensionValue): String = s"${externalLink.linkName}:$dimVal"
-    def withoutLinkName(cacheKey: String): DimensionValue = cacheKey.substring(cacheKey.indexOf(':') + 1)
+    val tableRows = fieldValuesForDimValuesCache.getAll(tagValues)
 
-    val tableRows = fieldValuesForDimValuesCache.getAll(tagValues.map(withLinkName)).map {
-      case (k, v) => withoutLinkName(k) -> v
-    }
     if (tagValues.forall(tableRows.contains)) {
       SparseTable(tableRows)
     } else {
       val missedKeys = tagValues diff tableRows.keys.toSet
-      val q = fieldsByTagsQuery(externalLink.fieldsNames, missedKeys.size)
+      val q = fieldsByTagsQuery(externalLink.fields.map(_.name), missedKeys.size)
       val params = missedKeys.map(_.asInstanceOf[Object]).toArray
       logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
       val dataFromDb = jdbc
         .queryForList(q, params: _*)
         .asScala
-        .map(
-          vs =>
-            vs.asScala.toMap
-              .mapValues(_.toString)
-              .map { case (k, v) => snakeToCamel(k) -> v }
+        .map(vs =>
+          vs.asScala.toMap
+            .map { case (k, v) => snakeToCamel(k) -> v }
         )
         .groupBy(m => m(dimensionName))
-        .mapValues(_.head - dimensionName)
-      fieldValuesForDimValuesCache.putAll(dataFromDb.map { case (k, v) => withLinkName(k) -> v })
+        .map { case (k, v) => k.asInstanceOf[DimensionValue] -> (v.head - dimensionName).mapValues(_.toString) }
+      fieldValuesForDimValuesCache.putAll(dataFromDb)
       SparseTable(tableRows ++ dataFromDb)
     }
-  }
-
-  override def dimValuesForAllFieldsValues(fieldsValues: Seq[(FieldName, Set[FieldValue])]): Set[DimensionValue] = {
-    tagValuesForFieldsValues(fieldsValues, "AND")
-  }
-
-  override def dimValuesForAnyFieldsValues(fieldsValues: Seq[(FieldName, Set[FieldValue])]): Set[DimensionValue] = {
-    tagValuesForFieldsValues(fieldsValues, "OR")
   }
 
   private def fieldsByTagsQuery(fields: Set[FieldName], tagValuesCount: Int): String = {
@@ -114,18 +152,25 @@ class SQLSourcedExternalLinkService(
   private def fieldValuesInClauses(fieldValues: Seq[(FieldName, Set[FieldValue])]): Seq[String] = {
     fieldValues map {
       case (fieldName, possibleValues) =>
-        s"""${catalogFieldToSqlField(fieldName)} IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
+        s"""lower(${catalogFieldToSqlField(fieldName)}) IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
     }
   }
 
-  private def tagValuesForFieldsValues(
+  private def dimValuesForFieldsValues(
       fieldsValues: Seq[(FieldName, Set[FieldValue])],
       joiningOperator: String
   ): Set[DimensionValue] = {
     val q = tagsByFieldsQuery(fieldsValues, joiningOperator)
     val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object]).toArray
     logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
-    jdbc.queryForList(q, params, classOf[DimensionValue]).asScala.toSet
+    jdbc
+      .queryForList(
+        q,
+        params,
+        externalLink.dimension.dataType.classTag.runtimeClass.asInstanceOf[Class[DimensionValue]]
+      )
+      .asScala
+      .toSet
   }
 
 }
@@ -144,7 +189,4 @@ object SQLSourcedExternalLinkService {
   def snakeToCamel(s: String): String = {
     snakeParts.replaceAllIn(s, _.group(1).toUpperCase())
   }
-
-  val fieldValuesForDimValuesCache: Cache[String, Map[FieldName, FieldValue]] =
-    CacheFactory.initCache[String, Map[FieldName, FieldValue]]("UniversalCatalogFieldValuesCache")
 }

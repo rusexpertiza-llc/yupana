@@ -22,9 +22,11 @@ import scala.language.higherKinds
 import scala.reflect.ClassTag
 
 /**
-  * Defines basic operations on [[Collection]]
+  * Defines basic operations on `Collection`
+  * @tparam Collection collection for which operations are defined
   */
 trait MapReducible[Collection[_]] extends Serializable {
+  def singleton[A: ClassTag](a: A): Collection[A]
   def filter[A: ClassTag](c: Collection[A])(f: A => Boolean): Collection[A]
 
   def map[A: ClassTag, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
@@ -41,6 +43,7 @@ trait MapReducible[Collection[_]] extends Serializable {
 
 object MapReducible {
   val iteratorMR: MapReducible[Iterator] = new MapReducible[Iterator] {
+    override def singleton[A: ClassTag](a: A): Iterator[A] = Iterator(a)
     override def filter[A: ClassTag](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 
     override def map[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => B): Iterator[B] = it.map(f)

@@ -43,6 +43,7 @@ class ServerMock {
             v.write(resp).get(1, TimeUnit.SECONDS)
           }
           p.success(bytes)
+          v.close()
         }
 
         override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)

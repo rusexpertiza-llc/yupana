@@ -17,21 +17,22 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query._
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.TsdbBase
-import org.yupana.core.cache.CacheFactory
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.utils.{ SparseTable, Table }
-import org.yupana.externallinks.DimIdBasedExternalLinkService
-import org.yupana.schema.Dimensions
+import org.yupana.core.model.InternalRow
+import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.utils.{ Tokenizer, Transliterator }
 
 object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
 
-  def indexItems(items: Seq[(Long, String)]): Map[String, Seq[Long]] =
+  def indexItems(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
     items
       .flatMap {
         case (id, n) =>
@@ -49,65 +50,70 @@ object ItemsInvertedIndexImpl {
 }
 
 class ItemsInvertedIndexImpl(
-    tsdb: TsdbBase,
-    invertedIndexDao: InvertedIndexDao[String, Long],
+    invertedIndexDao: InvertedIndexDao[String, ItemDimension.KeyType],
+    override val putEnabled: Boolean,
     override val externalLink: ItemsInvertedIndex
-) extends DimIdBasedExternalLinkService[ItemsInvertedIndex](tsdb)
+) extends ExternalLinkService[ItemsInvertedIndex]
     with StrictLogging {
 
   import ItemsInvertedIndexImpl._
   import externalLink._
 
-  private val dimIdsByStemmedWordCache = CacheFactory.initCache[String, Array[Long]]("dim_ids_by_word")
+  override def put(dataPoints: Seq[DataPoint]): Unit = {
+    if (putEnabled) {
+      val items = dataPoints
+        .flatMap(dp => dp.dimensionValue(Dimensions.ITEM))
+        .toSet
+        .filter(_.trim.nonEmpty)
+      putItemNames(items)
+    }
+  }
 
   def putItemNames(names: Set[String]): Unit = {
-    val itemIds = tsdb.dictionary(Dimensions.ITEM_TAG).getOrCreateIdsForValues(names)
-    val items = itemIds.map(_.swap)
-    val wordIdMap = indexItems(items.toSeq)
+    val items = names.map(n => Dimensions.ITEM.hashFunction(n) -> n).toSeq
+    val wordIdMap = indexItems(items)
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 
-  def dimIdsForStemmedWord(word: String): SortedSetIterator[Long] = {
+  def dimIdsForStemmedWord(word: String): SortedSetIterator[ItemDimension.KeyType] = {
     invertedIndexDao.values(word)
   }
 
-  def dimIdsForPrefix(prefix: String): SortedSetIterator[Long] = {
+  def dimIdsForPrefix(prefix: String): SortedSetIterator[ItemDimension.KeyType] = {
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
-  def dimIdsForStemmedWordsCached(word: String, synonyms: Set[String]): Set[Long] = {
-    dimIdsByStemmedWordCache
-      .caching(word) {
-        val dimIds = invertedIndexDao.allValues(synonyms)
-        logger.info(s"synonyms: $synonyms")
-        logger.info(s"found dimIds: ${dimIds.length}")
-        dimIds.toArray
-      }
-      .toSet
+  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+    val ids = getPhraseIds(values)
+    val it = SortedSetIterator.intersectAll(ids)
+    DimIdInExpr(externalLink.dimension, it)
   }
 
-  override def dimIdsForAllFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
-    val ids = getPhraseIds(fieldsValues)
-    SortedSetIterator.intersectAll(ids)
+  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+    val ids = getPhraseIds(values)
+    val it = SortedSetIterator.unionAll(ids)
+    DimIdNotInExpr(externalLink.dimension, it)
   }
 
-  override def dimIdsForAnyFieldsValues(fieldsValues: Seq[(String, Set[String])]): SortedSetIterator[Long] = {
-    val ids = getPhraseIds(fieldsValues)
-    SortedSetIterator.unionAll(ids)
+  // Read only external link
+  override def setLinkedValues(
+      exprIndex: collection.Map[Expression, Int],
+      rows: Seq[InternalRow],
+      exprs: Set[LinkExpr[_]]
+  ): Unit = {}
+
+  override def condition(condition: Condition): Condition = {
+    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, includeCondition, excludeCondition)
   }
 
-  override def fieldValuesForDimIds(fields: Set[String], dimIds: Set[Long]): Table[Long, String, String] = {
-    SparseTable.empty
-  }
-
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[Long]] = {
+  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
     fieldsValues.map {
       case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
       case (x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 
-  def dimIdsForPhrase(phrase: String): SortedSetIterator[Long] = {
+  def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
     val stemmedWords = words.map(Tokenizer.stem).map(Transliterator.transliterate)

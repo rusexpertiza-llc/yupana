@@ -21,12 +21,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.operations.Operations
-import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 
 import scala.language.higherKinds
 
@@ -52,7 +52,7 @@ trait TsdbBase extends StrictLogging {
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
 
-  def dictionary(dimension: Dimension): Dictionary = dictionaryProvider.dictionary(dimension)
+  def dictionary(dimension: DictionaryDimension): Dictionary = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 
@@ -69,7 +69,7 @@ trait TsdbBase extends StrictLogging {
 
   def finalizeQuery(
       queryContext: QueryContext,
-      rows: Collection[Array[Option[Any]]],
+      rows: Collection[Array[Any]],
       metricCollector: MetricQueryCollector
   ): Result
 
@@ -96,36 +96,50 @@ trait TsdbBase extends StrictLogging {
     val preparedQuery = prepareQuery(query)
     logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val metricCollector = createMetricCollector(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
 
-    val simplified = ConditionUtils.simplify(preparedQuery.filter)
+    logger.debug(s"Optimized query: $optimizedQuery")
 
-    val substitutedCondition = substituteLinks(simplified, metricCollector)
+    val metricCollector = createMetricCollector(optimizedQuery)
+
+    val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
 
-    val postCondition = ConditionUtils.split(substitutedCondition)(dao.isSupportedCondition)._2
+    val condition = substitutedCondition.map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
 
-    logger.debug(s"Post condition: $postCondition")
+    logger.debug(s"Final condition: $condition")
 
-    val queryContext = QueryContext(preparedQuery, postCondition)
+    val queryContext = QueryContext(optimizedQuery, condition)
 
-    val daoExprs = queryContext.bottomExprs.collect {
-      case e: DimensionExpr => e
-      case e: MetricExpr[_] => e
-      case TimeExpr         => TimeExpr
+    val mr = mapReduceEngine(metricCollector)
+
+    val rows = queryContext.query.table match {
+      case Some(table) =>
+        val daoExprs = queryContext.bottomExprs.collect {
+          case e: DimensionExpr[_] => e
+          case e: DimensionIdExpr  => e
+          case e: MetricExpr[_]    => e
+          case TimeExpr            => TimeExpr
+        }
+
+        substitutedCondition match {
+          case Some(c) =>
+            val internalQuery = InternalQuery(table, daoExprs.toSet, c)
+            dao.query(internalQuery, new InternalRowBuilder(queryContext), metricCollector)
+
+          case None =>
+            throw new IllegalArgumentException("Empty condition")
+        }
+      case None =>
+        val rb = new InternalRowBuilder(queryContext)
+        mr.singleton(rb.buildAndReset())
     }
-
-    val internalQuery = InternalQuery(queryContext.query.table, daoExprs.toSet, substitutedCondition)
-
-    val rows = dao.query(internalQuery, new InternalRowBuilder(queryContext), metricCollector)
-
     val processedRows = new AtomicInteger(0)
     val processedDataPoints = new AtomicInteger(0)
+
     val resultRows = new AtomicInteger(0)
 
     val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
-
-    val mr = mapReduceEngine(metricCollector)
 
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
       val batchSize = batch.size
@@ -137,19 +151,14 @@ trait TsdbBase extends StrictLogging {
 
       metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
-        val withValuesForFilter = it.map { row =>
-          evaluateFilterExprs(queryContext, row, metricCollector)
-        }
-
-        val filtered = queryContext.postCondition match {
+        val filtered = condition match {
           case Some(cond) =>
-            withValuesForFilter.filter(
-              row => ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
-            )
-          case None => withValuesForFilter
+            val withValuesForFilter = it.map(row => evaluateFilterExprs(queryContext, cond, row))
+            withValuesForFilter.filter(row => ExpressionCalculator.preEvaluated(cond, queryContext, row))
+          case None => it
         }
 
-        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row, metricCollector))
+        val withExprValues = filtered.map(row => evaluateExpressions(queryContext, row))
 
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
       }
@@ -205,7 +214,7 @@ trait TsdbBase extends StrictLogging {
           metricCollector.postFilter.measure(batch.size) {
             val it = batch.iterator
             it.filter { row =>
-              ExpressionCalculator.evaluateExpression(cond, queryContext, row, tryEval = false).getOrElse(false)
+              ExpressionCalculator.preEvaluated(cond, queryContext, row)
             }
           }
         }
@@ -236,19 +245,18 @@ trait TsdbBase extends StrictLogging {
         val catalog = linkService(c)
         catalog.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet)
     }
-
     rows
   }
 
   def evaluateFilterExprs(
       queryContext: QueryContext,
-      row: InternalRow,
-      metricCollector: MetricQueryCollector
+      postCondition: Expression.Condition,
+      row: InternalRow
   ): InternalRow = {
-    queryContext.postCondition.foreach { expr =>
+    if (postCondition.kind != Const) {
       row.set(
-        queryContext.exprsIndex(expr),
-        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        queryContext.exprsIndex(postCondition),
+        ExpressionCalculator.evaluateExpression(postCondition, queryContext, row)
       )
     }
     row
@@ -256,8 +264,7 @@ trait TsdbBase extends StrictLogging {
 
   def evaluateExpressions(
       queryContext: QueryContext,
-      row: InternalRow,
-      metricCollector: MetricQueryCollector
+      row: InternalRow
   ): InternalRow = {
     queryContext.bottomExprs.foreach { expr =>
       row.set(
@@ -279,7 +286,7 @@ trait TsdbBase extends StrictLogging {
   def applyMapOperation(queryContext: QueryContext, values: InternalRow): InternalRow = {
     queryContext.aggregateExprs.foreach { ae =>
       val oldValue = values.get[ae.expr.Out](queryContext, ae.expr)
-      val newValue = oldValue.map(v => ae.aggregation.map(v))
+      val newValue = if (oldValue != null) ae.aggregation.map(oldValue) else null
       values.set(queryContext, ae, newValue)
     }
     values
@@ -292,11 +299,11 @@ trait TsdbBase extends StrictLogging {
       val aValue = a.get[agg.Interim](queryContext, aggExpr)
       val bValue = b.get[agg.Interim](queryContext, aggExpr)
 
-      val newValue = aValue match {
-        case Some(av) =>
-          bValue.map(bv => agg.reduce(av, bv)).orElse(aValue)
-        case None => bValue
-      }
+      val newValue = if (aValue != null) {
+        if (bValue != null) {
+          agg.reduce(aValue, bValue)
+        } else aValue
+      } else bValue
       reduced.set(queryContext, aggExpr, newValue)
     }
 
@@ -307,7 +314,9 @@ trait TsdbBase extends StrictLogging {
 
     queryContext.aggregateExprs.foreach { aggExpr =>
       val agg = aggExpr.aggregation
-      val newValue = data.get[agg.Interim](queryContext, aggExpr).map(agg.postMap)
+      val oldValue = data.get[agg.Interim](queryContext, aggExpr)
+      val newValue =
+        if (oldValue != null) agg.postMap(oldValue) else agg.emptyValue.getOrElse(null.asInstanceOf[agg.Out])
       data.set(queryContext, aggExpr, newValue)
     }
     data
@@ -316,11 +325,11 @@ trait TsdbBase extends StrictLogging {
   def evalExprsOnAggregatesAndWindows(queryContext: QueryContext, data: InternalRow): InternalRow = {
     queryContext.exprsOnAggregatesAndWindows.foreach { e =>
       val nullWindowExpressionsExists = e.flatten.exists {
-        case w: WindowFunctionExpr => data.get(queryContext, w).isEmpty
+        case w: WindowFunctionExpr => data.isEmpty(queryContext, w)
         case _                     => false
       }
       val evaluationResult =
-        if (nullWindowExpressionsExists) None
+        if (nullWindowExpressionsExists) null
         else ExpressionCalculator.evaluateExpression(e, queryContext, data)
       data.set(queryContext, e, evaluationResult)
     }
@@ -332,11 +341,10 @@ trait TsdbBase extends StrictLogging {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val substituted = linkServices.map(
-      service =>
-        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-          service.condition(condition)
-        }
+    val substituted = linkServices.map(service =>
+      metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
+        service.condition(condition)
+      }
     )
 
     if (substituted.nonEmpty) {
