@@ -219,6 +219,13 @@ lazy val ignite = (project in file("yupana-ignite"))
   .dependsOn(core)
   .disablePlugins(AssemblyPlugin)
 
+lazy val docs = (project in file("yupana-docs"))
+  .settings(
+    name := "Yupana",
+    paradoxTheme := Some(builtinParadoxTheme("generic"))
+  )
+  .enablePlugins(ParadoxSitePlugin)
+
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
 
 lazy val examples = (project in file("yupana-examples"))

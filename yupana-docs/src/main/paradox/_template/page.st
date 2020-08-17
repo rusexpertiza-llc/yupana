@@ -22,18 +22,16 @@
     </header>
 
     <div class="container-fluid">
-      <div class="row">
-        <div class="col">
+      <div class="row flex-xl-nowrap">
+        <div class="col-md-3 col-xl-2 bd-sidebar">
           $partials/nav()$
         </div>
-        <div class="col-6">
-          <div class="container">
-            $page.content$
-          </div>
-        </div>
-        <div class="col">
+        <nav class="d-none d-xl-block col-xl-2 bd-toc" aria-label="secondary-navigation">
           $partials/toc()$
-        </div>
+        </nav>
+        <main class="col-md-9 col-xl-8 py-md-3 pl-md-5 bd-content" role="main">
+          $page.content$
+        </main>
       </div>
     </div>
 
