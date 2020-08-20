@@ -25,7 +25,6 @@ import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
-import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 class SqlQueryProcessor(schema: Schema) {
 
@@ -316,24 +315,26 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def createAggregateExpr(fun: String, expr: Expression) = {
-    val agg = expr.dataType.operations.aggregation(fun).toRight(s"Unknown aggregate function $fun")
-    agg.right.map(a => AggregateExpr(a, expr.aux))
+  private def createAggregateExpr(fun: String, expr: Expression): Either[String, Expression] = {
+//    val agg = expr.dataType.operations.aggregation(fun).toRight(s"Unknown aggregate function $fun")
+//    agg.right.map(a => AggregateExpr(a, expr.aux))
+    ???
   }
 
-  private def createWindowFunctionExpr(fun: String, expr: Expression) = {
+  private def createWindowFunctionExpr(fun: String, expr: Expression): Either[String, Expression] = {
     val func = TypeWindowOperations.getFunction(fun, expr.dataType).toRight(s"Unknown window operation $fun")
     func.right.map(f => WindowFunctionExpr(f, expr.aux))
   }
 
-  private def createUnaryFunctionExpr(fun: String, expr: Expression) = {
-    val uf = expr.dataType.operations
-      .unaryOperation(fun)
-      .toRight(s"Function $fun is not defined on type ${expr.dataType}")
-      .right
-    uf.map(f => ???
-//      UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
-    )
+  private def createUnaryFunctionExpr(fun: String, expr: Expression): Either[String, Expression] = {
+    ???
+//    val uf = expr.dataType.operations
+//      .unaryOperation(fun)
+//      .toRight(s"Function $fun is not defined on type ${expr.dataType}")
+//      .right
+//    uf.map(f => ???
+////      UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
+//    )
   }
 
   private def createSyntheticUnaryExpr(fun: String, expr: Expression) = {
@@ -355,24 +356,25 @@ object SqlQueryProcessor extends QueryValidator {
     } yield biFunction
 
   def createBiFunction(fun: String, l: Expression, r: Expression): Either[String, Expression] = {
-    val expr = l.dataType.operations
-      .biOperation(fun, r.dataType)
-      .map(op => ???) // BinaryOperationExpr[l.Out, r.Out, op.Out](op, l, r))
-
-    expr match {
-      case Some(e) => Right(e)
-      case None =>
-        for {
-          pair <- ExprPair.alignTypes(l, r).right
-          biOperation <- pair.dataType.operations
-            .biOperation(fun, pair.dataType)
-            .toRight(s"Unsupported operation $fun on ${l.dataType} and ${r.dataType}")
-            .right
-        } yield {
-          ???
-//          BinaryOperationExpr[pair.T, pair.T, biOperation.Out](biOperation, pair.a, pair.b).asInstanceOf[Expression]
-        }
-    }
+    ???
+//    val expr = l.dataType.operations
+//      .biOperation(fun, r.dataType)
+//      .map(op => ???) // BinaryOperationExpr[l.Out, r.Out, op.Out](op, l, r))
+//
+//    expr match {
+//      case Some(e) => Right(e)
+//      case None =>
+//        for {
+//          pair <- ExprPair.alignTypes(l, r).right
+//          biOperation <- pair.dataType.operations
+//            .biOperation(fun, pair.dataType)
+//            .toRight(s"Unsupported operation $fun on ${l.dataType} and ${r.dataType}")
+//            .right
+//        } yield {
+//          ???
+////          BinaryOperationExpr[pair.T, pair.T, biOperation.Out](biOperation, pair.a, pair.b).asInstanceOf[Expression]
+//        }
+//    }
   }
 
   def createBooleanExpr(l: Expression, r: Expression, fun: String): Either[String, Expression.Aux[Boolean]] = {

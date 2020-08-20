@@ -130,14 +130,14 @@ object Query {
 }
 
 case class Upsert(
-    schemaName: String,
+    table: Table,
     fieldNames: Seq[String],
     values: Seq[Seq[Expression]]
 ) extends Statement
 
 case object ShowTables extends Statement
 
-case class ShowColumns(table: String) extends Statement
+case class ShowColumns(table: Table) extends Statement
 
 case class MetricsFilter(queryId: Option[String] = None, state: Option[String] = None)
 

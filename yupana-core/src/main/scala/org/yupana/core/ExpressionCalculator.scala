@@ -22,8 +22,6 @@ import org.yupana.core.operations.Operations
 
 object ExpressionCalculator {
 
-  implicit private val operations: Operations = Operations
-
   def evaluateConstant(expr: Expression): expr.Out = {
     assert(expr.kind == Const)
     eval(expr, null, null)
@@ -99,14 +97,8 @@ object ExpressionCalculator {
       case TrunkSecondExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncSecond)
 
-      case BinaryOperationExpr(f, a, b) =>
-        val left = evaluateExpression(a, queryContext, internalRow)
-        val right = evaluateExpression(b, queryContext, internalRow)
-        if (left != null && right != null) {
-          f(left, right)
-        } else {
-          null
-        }
+      case p @ PlusExpr(a, b) =>
+        evaluateBinary(queryContext, internalRow)(a, b, p.numeric.plus)
 
       case TypeConvertExpr(tc, e) =>
         tc.convert(evaluateExpression(e, queryContext, internalRow))
@@ -159,8 +151,21 @@ object ExpressionCalculator {
     res.asInstanceOf[expr.Out]
   }
 
-  private def evaluateUnary[T, U](qc: QueryContext, internalRow: InternalRow)(e: Expression.Aux[T], f: T => U): U = {
+  private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow)(e: Expression.Aux[A], f: A => O): O = {
     val ev = evaluateExpression(e, qc, internalRow)
-    if (ev != null) f(ev) else null.asInstanceOf[U]
+    if (ev != null) f(ev) else null.asInstanceOf[O]
+  }
+
+  private def evaluateBinary[A, B, O](
+      qc: QueryContext,
+      internalRow: InternalRow
+  )(a: Expression.Aux[A], b: Expression.Aux[B], f: (A, B) => O): O = {
+    val left = evaluateExpression(a, qc, internalRow)
+    val right = evaluateExpression(b, qc, internalRow)
+    if (left != null && right != null) {
+      f(left, right)
+    } else {
+      null.asInstanceOf[O]
+    }
   }
 }

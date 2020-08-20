@@ -75,7 +75,7 @@ object SqlParser {
   )
   private def asterisk[_: P] = P("*")
 
-  private def plus[_: P] = P("+").map(_ => Plus)
+  private def plus[_: P]: P[(SqlExpr, SqlExpr) => Plus] = P("+").map(_ => Plus)
   private def minus[_: P] = P("-").map(_ => Minus)
   private def multiply[_: P] = P("*").map(_ => Multiply)
   private def divide[_: P] = P("/").map(_ => Divide)

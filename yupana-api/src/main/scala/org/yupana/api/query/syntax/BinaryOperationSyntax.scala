@@ -17,19 +17,13 @@
 package org.yupana.api.query.syntax
 
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
 
 trait BinaryOperationSyntax {
-  def minus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
-    MinusExpr(a, b)
-  def plus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
-    PlusExpr(a, b)
-  def times[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
-    TimesExpr(a, b)
-  def divInt[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Integral[T], dt: DataType.Aux[T]) =
-    DivIntExpr(a, b)
-  def divFrac[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Fractional[T], dt: DataType.Aux[T]) =
-    DivFracExpr(a, b)
+  def minus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T]) = MinusExpr(a, b)
+  def plus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T]) = PlusExpr(a, b)
+  def times[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T]) = TimesExpr(a, b)
+  def divInt[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Integral[T]) = DivIntExpr(a, b)
+  def divFrac[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Fractional[T]) = DivFracExpr(a, b)
 
   def contains[T](a: Expression.Aux[Array[T]], b: Expression.Aux[T]) = ContainsExpr(a, b)
   def containsAll[T](a: Expression.Aux[Array[T]], b: Expression.Aux[Array[T]]) = ContainsAllExpr(a, b)

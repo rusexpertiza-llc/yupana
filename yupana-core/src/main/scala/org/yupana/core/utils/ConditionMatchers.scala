@@ -16,59 +16,44 @@
 
 package org.yupana.core.utils
 
+import org.yupana.api.query.{ EqExpr, Expression, InExpr, NeqExpr, NotInExpr }
+
 object ConditionMatchers {
 
-//  object Equ {
-//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-//      condition match {
-//        case BinaryOperationExpr(op, a, b) if op.name == "==" => Some((a, b))
-//        case _                                                => None
-//      }
-//    }
-//  }
-//
-//  object Neq {
-//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-//      condition match {
-//        case BinaryOperationExpr(op, a, b) if op.name == "!=" => Some((a, b))
-//        case _                                                => None
-//      }
-//    }
-//  }
-//
-//  object Lt {
-//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-//      condition match {
-//        case BinaryOperationExpr(op, a, b) if op.name == "<" => Some((a, b))
-//        case _                                               => None
-//      }
-//    }
-//  }
-//
-//  object Gt {
-//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-//      condition match {
-//        case BinaryOperationExpr(op, a, b) if op.name == ">" => Some((a, b))
-//        case _                                               => None
-//      }
-//    }
-//  }
-//
-//  object Le {
-//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-//      condition match {
-//        case BinaryOperationExpr(op, a, b) if op.name == "<=" => Some((a, b))
-//        case _                                                => None
-//      }
-//    }
-//  }
-//
-//  object Ge {
-//    def unapply(condition: Condition): Option[(Expression, Expression)] = {
-//      condition match {
-//        case BinaryOperationExpr(op, a, b) if op.name == ">=" => Some((a, b))
-//        case _                                                => None
-//      }
-//    }
-//  }
+  // This is an ugly hack to allow pattern match on GADT
+  object EqString {
+    def unapply(condition: Expression): Option[(Expression.Aux[String], Expression.Aux[String])] = {
+      condition match {
+        case EqExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Expression.Aux[String]]))
+        case _            => None
+      }
+    }
+  }
+
+  object NeqString {
+    def unapply(condition: Expression): Option[(Expression.Aux[String], Expression.Aux[String])] = {
+      condition match {
+        case NeqExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Expression.Aux[String]]))
+        case _             => None
+      }
+    }
+  }
+
+  object InString {
+    def unapply(condition: Expression): Option[(Expression.Aux[String], Set[String])] = {
+      condition match {
+        case InExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Set[String]]))
+        case _            => None
+      }
+    }
+  }
+
+  object NotInString {
+    def unapply(condition: Expression): Option[(Expression.Aux[String], Set[String])] = {
+      condition match {
+        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Set[String]]))
+        case _               => None
+      }
+    }
+  }
 }

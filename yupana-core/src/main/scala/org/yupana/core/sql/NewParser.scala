@@ -2,9 +2,10 @@ package org.yupana.core.sql
 
 import fastparse._
 import fastparse.MultiLineWhitespace._
+import fastparse.internal.Util
 import org.joda.time.Period
 import org.yupana.api.Time
-import org.yupana.api.query.Expression.{ Aux, Condition }
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.api.types.DataType
@@ -73,10 +74,10 @@ class NewParser(schema: Schema) {
   private def asterisk[_: P] = P("*")
 
   def name[_: P]: P[String] = P(CharsWhileIn("a-zA-Z0-9_").!.filter(s => s.nonEmpty && s.exists(_.isLetter)))
-  def schemaName[_: P]: P[String] = P(name | "\"" ~ name ~ "\"")
-  def fieldWithSchema[_: P]: P[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
+  def tableName[_: P]: P[String] = P(name | "\"" ~ name ~ "\"")
+  def fieldWithSchema[_: P]: P[String] = P((tableName ~ ".").? ~ tableName).map(_._2)
 
-  def notKeyword[_: P]: P[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
+  def notKeyword[_: P]: P[String] = P(tableName.filter(s => !keywords.contains(s.toLowerCase)))
 
   def alias[_: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
 
@@ -96,29 +97,71 @@ class NewParser(schema: Schema) {
 
   def constExpr[_: P]: P[ConstantExpr] = P(numericConst | stringConst | timestampConst | periodConst | durationConst)
 
-  private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
+  private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => P[E]]): P[E] = chained1(elem, elem, op)
 
-  private def chained1[E, _: P](firstElem: => P[E], elem: => P[E], op: => P[(E, E) => E]): P[E] = {
-    P(firstElem ~ (op ~ elem).rep).map {
+  private def chained1[E, _: P](firstElem: => P[E], elem: => P[E], op: => P[(E, E) => P[E]]): P[E] = {
+    def p = firstElem ~ (op ~ elem).rep
+
+    p.flatMap {
       case (first, rest) =>
-        rest.foldLeft(first) { case (l, (fun, r)) => fun(l, r) }
+        rest.foldLeft(Pass(first)) { case (a, (f, e)) => a.flatMap(x => f(x, e)) }
     }
   }
 
-  private def plus[_: P] = P("+").map(_ => PlusExpr)
-  private def minus[_: P] = P("-").map(_ => MinusExpr)
-  private def multiply[_: P] = P("*").map(_ => TimesExpr)
-  private def divide[_: P] = P("/").map(_ => DivIntExpr)
+  private def plus[_: P]: P[(Expression, Expression) => P[Expression]] =
+    numExpr(
+      P("+"),
+      new Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux] {
+        override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], n: Numeric[T]): Expression.Aux[T] =
+          PlusExpr(x, y)(n)
+      }
+    )
+
+  private def minus[_: P]: P[(Expression, Expression) => P[Expression]] =
+    numExpr(
+      P("-"),
+      new Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux] {
+        override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], n: Numeric[T]): Expression.Aux[T] =
+          MinusExpr(x, y)(n)
+      }
+    )
+
+  private def multiply[_: P]: P[(Expression, Expression) => P[Expression]] =
+    numExpr(
+      P("*"),
+      new Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux] {
+        override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], n: Numeric[T]): Expression.Aux[T] =
+          TimesExpr(x, y)(n)
+      }
+    )
+
+  private def divide[_: P]: P[(Expression, Expression) => P[Expression]] =
+    P("/").map(_ =>
+      (a: Expression, b: Expression) =>
+        ExprPair.alignTypes(a, b) match {
+          case Right(pair) if pair.dataType.integral.isDefined =>
+            Pass(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
+          case Right(pair) if pair.dataType.fractional.isDefined =>
+            Pass(DivFracExpr(pair.a, pair.b)(pair.dataType.fractional.get))
+          case Right(pair) => Fail(s"Cannot apply math operations to ${pair.dataType}")
+          case Left(msg)   => Fail(msg)
+        }
+    )
 
   def expr[_: P](r: Recognizer): P[Expression] =
     chained1(minusMathTerm(r) | mathTerm(r), mathTerm(r), plus | minus)
 
-  def minusMathTerm[_: P](r: Recognizer): P[Expression] = P("-" ~ mathTerm(r)).map(x => UnaryMinusExpr(x.aux))
+  def minusMathTerm[_: P](r: Recognizer): P[Expression] = P("-" ~ mathTerm(r)).flatMap { x =>
+    x.dataType.numeric match {
+      case Some(n) => Pass(UnaryMinusExpr(x.aux)(n, x.dataType))
+      case None    => Fail(s"Unary minus cannot be applied to $x of type ${x.dataType}")
+    }
+  }
 
   def mathTerm[_: P](r: Recognizer): P[Expression] = chained(mathFactor(r), multiply | divide)
 
   def mathFactor[_: P](r: Recognizer): P[Expression] =
-    P(functionCallExpr | /* caseExpr | */ constExpr | fieldNameExpr(r) | "(" ~ expr ~ ")")
+    P(functionCallExpr(r) | /* caseExpr | */ constExpr | fieldNameExpr(r) | "(" ~ expr(r) ~ ")")
 
   def fieldNameExpr[_: P](r: Recognizer): P[Expression] = fieldWithSchema.flatMap(r)
 
@@ -139,7 +182,11 @@ class NewParser(schema: Schema) {
     def apply[T](x: A[T], y: B[T], z: C[T]): Z
   }
 
-  def op[_: P]: P[(Expression, Expression) => Expression.Condition] = P(
+  trait Bind3R[A[_], B[_], C[_], Z[_]] {
+    def apply[T](x: A[T], y: B[T], z: C[T]): Z[T]
+  }
+
+  def op[_: P]: P[(Expression, Expression) => P[Expression.Condition]] = P(
     P("=").map(_ =>
       binaryExpr(
         new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
@@ -156,47 +203,62 @@ class NewParser(schema: Schema) {
           }
         )
       ) |
-      P(">=").map(_ =>
-        cmpExpr(
-          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
-              GeExpr(x, y)(z)
-          }
-        )
+      cmpExpr(
+        P(">="),
+        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+            GeExpr(x, y)(z)
+        }
       ) |
-      P(">").map(_ =>
-        cmpExpr(
-          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
-              GtExpr(x, y)(z)
-          }
-        )
+      cmpExpr(
+        P(">"),
+        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+            GtExpr(x, y)(z)
+        }
       ) |
-      P("<=").map(_ =>
-        cmpExpr(
-          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
-              LeExpr(x, y)(z)
-          }
-        )
+      cmpExpr(
+        P("<="),
+        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+            LeExpr(x, y)(z)
+        }
       ) |
-      P("<").flatMap(_ =>
-        cmpExpr(
-          new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
-              LtExpr(x, y)(z)
-          }
-        )
+      cmpExpr(
+        P("<"),
+        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+            LtExpr(x, y)(z)
+        }
       )
   )
 
+  private def numExpr[_: P](
+      p: => P[Unit],
+      cTor: Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux]
+  ): P[(Expression, Expression) => P[Expression]] = {
+    p.map(_ =>
+      (a: Expression, b: Expression) =>
+        ExprPair.alignTypes(a, b) match {
+          case Right(pair) if pair.dataType.numeric.isDefined => Pass(cTor(pair.a, pair.b, pair.dataType.numeric.get))
+          case Right(pair)                                    => Fail(s"Cannot apply math operations to ${pair.dataType}")
+          case Left(msg)                                      => Fail(msg)
+        }
+    )
+  }
+
   private def cmpExpr[_: P](
+      p: => P[Unit],
       cTor: Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition]
-  ): (Expression, Expression) => P[Expression.Condition] = { (a: Expression, b: Expression) =>
-    ExprPair.alignTypes(a, b) match {
-      case Right(pair) if pair.dataType.ordering.isDefined => Pass(cTor(pair.a, pair.b, pair.dataType.ordering.get))
-      case Left(msg)                                       => Fail(msg)
-    }
+  ): P[(Expression, Expression) => P[Expression.Condition]] = {
+    p.map(_ =>
+      (a: Expression, b: Expression) =>
+        ExprPair.alignTypes(a, b) match {
+          case Right(pair) if pair.dataType.ordering.isDefined => Pass(cTor(pair.a, pair.b, pair.dataType.ordering.get))
+          case Right(_)                                        => Fail(s"Cannot compare types ${a.dataType} and ${b.dataType}")
+          case Left(msg)                                       => Fail(msg)
+        }
+    )
   }
 
   private def binaryExpr[O, _: P](
@@ -208,17 +270,19 @@ class NewParser(schema: Schema) {
     }
   }
 
-  def functionCallExpr[_: P]: P[Expression] =
-    unary("trunkYear", DataType[Time], TrunkYearExpr.apply) |
-      unary("trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
-      unary("trunkDay", DataType[Time], TrunkDayExpr.apply) |
-      unary("trunkHour", DataType[Time], TrunkHourExpr.apply) |
-      unary("trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
-      unary("trunkSecond", DataType[Time], TrunkSecondExpr.apply)
+  def functionCallExpr[_: P](r: Recognizer): P[Expression] =
+    unary(r, "trunkYear", DataType[Time], TrunkYearExpr.apply) |
+      unary(r, "trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
+      unary(r, "trunkDay", DataType[Time], TrunkDayExpr.apply) |
+      unary(r, "trunkHour", DataType[Time], TrunkHourExpr.apply) |
+      unary(r, "trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
+      unary(r, "trunkSecond", DataType[Time], TrunkSecondExpr.apply)
 
-  def callOrField[_: P]: P[Expression] = functionCallExpr | fieldNameExpr
+  def callOrField[_: P](r: Recognizer): P[Expression] = functionCallExpr(r) | fieldNameExpr(r)
 
-  def comparison[_: P]: P[Expression.Condition] = P(expr ~ op ~/ expr).map { case (a, o, b) => o(a, b) }
+  def comparison[_: P](r: Recognizer): P[Expression.Condition] = P(expr(r) ~ op ~/ expr(r)).flatMap {
+    case (a, o, b) => o(a, b)
+  }
 
   def in[_: P](r: Recognizer): P[Expression.Condition] =
     P(expr(r) ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")").flatMap {
@@ -244,32 +308,34 @@ class NewParser(schema: Schema) {
   def isNotNull[_: P](r: Recognizer): P[Expression.Condition] =
     P(expr(r) ~ isWord ~ notWord ~ nullWord).map(e => IsNotNullExpr(e.aux))
 
-  def boolExpr[_: P]: P[Expression.Condition] = P(comparison | in | notIn | isNull | isNotNull | expr).flatMap { e =>
-    if (e.dataType == DataType[Boolean]) Pass(e.asInstanceOf[Expression.Condition])
-    else Fail("Expression shall have type BOOL")
-  }
+  def boolExpr[_: P](r: Recognizer): P[Expression.Condition] =
+    P(comparison(r) | in(r) | notIn(r) | isNull(r) | isNotNull(r) | expr(r)).flatMap { e =>
+      if (e.dataType == DataType[Boolean]) Pass(e.asInstanceOf[Expression.Condition])
+      else Fail("Expression shall have type BOOL")
+    }
 
-  def condition[_: P]: P[Expression.Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
+  def condition[_: P](r: Recognizer): P[Expression.Condition] = P(logicalTerm(r) ~ (orWord ~/ logicalTerm(r)).rep).map {
     case (x, y) if y.nonEmpty => OrExpr(x +: y)
     case (x, _)               => x
   }
 
-  def logicalTerm[_: P]: P[Expression.Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
-    case (x, y) if y.nonEmpty => AndExpr(x +: y)
-    case (x, _)               => x
-  }
+  def logicalTerm[_: P](r: Recognizer): P[Expression.Condition] =
+    P(logicalFactor(r) ~ (andWord ~/ logicalFactor(r)).rep).map {
+      case (x, y) if y.nonEmpty => AndExpr(x +: y)
+      case (x, _)               => x
+    }
 
-  def logicalFactor[_: P]: P[Expression.Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
+  def logicalFactor[_: P](r: Recognizer): P[Expression.Condition] = P(boolExpr(r) | ("(" ~ condition(r) ~ ")"))
 
   def limit[_: P]: P[Int] = P(limitWord ~/ NewValueParser.intNumber)
 
-  def where[_: P]: P[Expression.Condition] = P(whereWord ~/ condition)
+  def where[_: P](r: Recognizer): P[Expression.Condition] = P(whereWord ~/ condition(r))
 
-  def grouping[_: P]: P[Expression] = callOrField
+  def grouping[_: P](r: Recognizer): P[Expression] = callOrField(r)
 
-  def groupings[_: P]: P[Seq[Expression]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
+  def groupings[_: P](r: Recognizer): P[Seq[Expression]] = P(groupWord ~/ byWord ~ grouping(r).rep(1, ","))
 
-  def having[_: P]: P[Expression.Condition] = P(havingWord ~/ condition)
+  def having[_: P](r: Recognizer): P[Expression.Condition] = P(havingWord ~/ condition(r))
 
   /* SELECT */
 
@@ -298,13 +364,13 @@ class NewParser(schema: Schema) {
     }
   }*/
 
-  def table[_: P]: P[Table] = P(schemaName).flatMap(tableByName)
+  def table[_: P]: P[Table] = P(tableName).flatMap(tableByName)
 
-  def normalSelectFrom[_: P](fields: SqlFields): P[Query] = {
+  def normalSelectFrom[_: P](fields: SqlFields, r: Recognizer): P[Query] = {
     fields match {
       case SqlFieldsAll => Fail("* is not supported")
       case SqlFieldList(fs) =>
-        P((fromWord ~ table).? ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
+        P((fromWord ~ table).? ~/ where(r).? ~ groupings(r).? ~ having(r).? ~ limit.?).map {
           case (t, c, gs, h, l) => Query(t, fs, c, gs.getOrElse(Seq.empty), l, h)
         }
     }
@@ -319,7 +385,7 @@ class NewParser(schema: Schema) {
   /* SHOW */
   def tables[_: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
-  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
+  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ tableName).map(ShowColumns)
 
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
@@ -348,18 +414,24 @@ class NewParser(schema: Schema) {
     ("(" ~/ expr(noField).rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
   def upsert[_: P]: P[Upsert] =
-    P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
-      case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
+    for {
+      fv <- P(upsertWord ~ intoWord ~/ tableName ~/ upsertFields ~ valuesWord)
+      (tableName, fields) = fv
+      vs <- values(fields.size)
+      table <- tableByName(tableName)
+    } yield {
+      Upsert(table, fields, vs)
     }
 
   def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
 
   private def unary[T, _: P](
+      r: Recognizer,
       fn: String,
       tpe: DataType.Aux[T],
       create: Expression.Aux[T] => Expression
   ): P[Expression] = {
-    P(fn ~ "(" ~ expr ~ ")").flatMap { e =>
+    P(fn ~ "(" ~ expr(r) ~ ")").flatMap { e =>
       if (e.dataType == tpe)
         Pass(create(e.asInstanceOf[Expression.Aux[T]]))
       else Fail(s"Function $fn can not be applied to ${e.dataType}")
@@ -416,14 +488,32 @@ class NewParser(schema: Schema) {
     }
   }
 
-  private def convertConstants(consts: Seq[ConstantExpr], dataType: DataType): Either[String, Seq[dataType.T]] = {
-    CollectionUtils.collectErrors(consts.map(c => ExprPair.constCast(c, dataType)))
+  private def convertConstants(constants: Seq[ConstantExpr], dataType: DataType): Either[String, Seq[dataType.T]] = {
+    CollectionUtils.collectErrors(constants.map(c => ExprPair.constCast(c, dataType)))
   }
 
   private def optionToP[_: P, T](v: Option[T], msg: String): P[T] = {
     v match {
       case Some(t) => Pass(t)
       case None    => Fail(msg)
+    }
+  }
+
+  private def formatFailure(sql: String, f: Parsed.Failure): String = {
+    val trace = f.trace()
+    val expected = trace.terminals.render
+    val actual = Util.literalize(f.extra.input.slice(f.index, f.index + 10))
+    val position = f.extra.input.prettyIndex(f.index)
+
+    s"""Invalid SQL statement: '$sql'
+        |Expect $expected, but got $actual at $position""".stripMargin
+
+  }
+
+  def parse(sql: String): Either[String, Statement] = {
+    fastparse.parse(sql, statement(_)) match {
+      case Parsed.Success(statement, _) => Right(statement)
+      case f: Parsed.Failure            => Left(formatFailure(sql, f))
     }
   }
 
