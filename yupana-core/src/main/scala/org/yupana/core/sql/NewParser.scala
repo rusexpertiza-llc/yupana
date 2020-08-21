@@ -18,7 +18,7 @@ case class SqlFieldList(fields: Seq[QueryField]) extends SqlFields
 case object SqlFieldsAll extends SqlFields
 
 class NewParser(schema: Schema) {
-  type Recognizer = String => P[Expression]
+  type Recognizer = String => Either[String, Expression]
 
   private def selectWord[_: P] = P(IgnoreCase("SELECT"))
   private def showWord[_: P] = P(IgnoreCase("SHOW"))
@@ -163,7 +163,7 @@ class NewParser(schema: Schema) {
   def mathFactor[_: P](r: Recognizer): P[Expression] =
     P(functionCallExpr(r) | /* caseExpr | */ constExpr | fieldNameExpr(r) | "(" ~ expr(r) ~ ")")
 
-  def fieldNameExpr[_: P](r: Recognizer): P[Expression] = fieldWithSchema.flatMap(r)
+  def fieldNameExpr[_: P](r: Recognizer): P[Expression] = fieldWithSchema.flatMap(x => r(x).fold(Fail(_), Pass(_)))
 
   def field[_: P](r: Recognizer): P[QueryField] = P(expr(r) ~~ alias.?).map {
     case (e, a) =>
@@ -284,23 +284,29 @@ class NewParser(schema: Schema) {
     case (a, o, b) => o(a, b)
   }
 
-  def in[_: P](r: Recognizer): P[Expression.Condition] =
-    P(expr(r) ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")").flatMap {
+  def in[_: P](r: Recognizer): P[Expression.Condition] = {
+    def p = P(expr(r) ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")")
+
+    p.flatMap {
       case (e, vs) =>
         convertConstants(vs, e.dataType.aux) match {
           case Right(values) => Pass(InExpr(e.aux, values.toSet))
           case Left(msg)     => Fail(msg)
         }
     }
+  }
 
-  def notIn[_: P](r: Recognizer): P[Expression.Condition] =
-    P(expr(r) ~ notWord ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")").flatMap {
+  def notIn[_: P](r: Recognizer): P[Expression.Condition] = {
+    def p = P(expr(r) ~ notWord ~ inWord ~/ "(" ~ constExpr.rep(min = 1, sep = ",") ~ ")")
+
+    p.flatMap {
       case (e, vs) =>
         convertConstants(vs, e.dataType.aux) match {
           case Right(values) => Pass(NotInExpr(e.aux, values.toSet))
           case Left(msg)     => Fail(msg)
         }
     }
+  }
 
   def isNull[_: P](r: Recognizer): P[Expression.Condition] =
     P(expr(r) ~ isWord ~ nullWord).map(e => IsNullExpr(e.aux))
@@ -366,7 +372,7 @@ class NewParser(schema: Schema) {
 
   def table[_: P]: P[Table] = P(tableName).flatMap(tableByName)
 
-  def normalSelectFrom[_: P](fields: SqlFields, r: Recognizer): P[Query] = {
+  def normalSelectFrom[_: P](r: Recognizer, fields: SqlFields): P[Query] = {
     fields match {
       case SqlFieldsAll => Fail("* is not supported")
       case SqlFieldList(fs) =>
@@ -376,16 +382,16 @@ class NewParser(schema: Schema) {
     }
   }
 
-  def selectFrom[_: P](fields: SqlFields): P[Query] = {
-    P( /*nestedSelectFrom(fields) |*/ normalSelectFrom(fields))
+  def selectFrom[_: P](r: Recognizer)(fields: SqlFields): P[Query] = {
+    P( /*nestedSelectFrom(fields) |*/ normalSelectFrom(r, fields))
   }
 
-  def select[_: P]: P[Query] = P(selectFields.flatMap(selectFrom))
+  def select[_: P](r: Recognizer): P[Query] = P(selectFields(r).flatMap(selectFrom(r)))
 
   /* SHOW */
   def tables[_: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
-  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ tableName).map(ShowColumns)
+  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ tableName).flatMap(tableByName).map(ShowColumns)
 
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
@@ -423,7 +429,7 @@ class NewParser(schema: Schema) {
       Upsert(table, fields, vs)
     }
 
-  def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
+  def statement[_: P](r: Recognizer): P[Statement] = P((select(r) | upsert | show | kill | delete) ~ ";".? ~ End)
 
   private def unary[T, _: P](
       r: Recognizer,
@@ -442,17 +448,20 @@ class NewParser(schema: Schema) {
     optionToP(schema.getTable(tableName), s"Unknown table '$tableName'")
   }
 
-  private def noField[_: P](name: String): P[Expression] = Fail("Table not defined, so no fields allowed")
+  private def noField[_: P](name: String): Either[String, Expression] = Left("Table not defined, so no fields allowed")
 
-  private def fieldByName[_: P](table: Table)(name: String): P[Expression] = {
-    optionToP(getFieldByName(table)(name), s"Unknown field $name")
+  private def nullField(name: String): Either[String, Expression] = Right(NullExpr)
+
+  private def fieldByName(table: Table)(name: String): Either[String, Expression] = {
+    getFieldByName(table)(name).toRight(s"Unknown field $name")
   }
 
-  private def fieldOrAlias[_: P](table: Table, fields: Seq[QueryField])(name: String): P[Expression] = {
-    optionToP(
-      fields.find(_.name == name).map(_.expr) orElse getFieldByName(table)(name),
-      s"Unknown field $name"
-    )
+  private def fieldOrAlias[_: P](table: Table, fields: Seq[QueryField])(name: String): Either[String, Expression] = {
+    fields
+      .find(_.name == name)
+      .map(_.expr)
+      .orElse(getFieldByName(table)(name))
+      .toRight(s"Unknown field $name")
   }
 
   private def getFieldByName(table: Table)(name: String): Option[Expression] = {
@@ -511,10 +520,15 @@ class NewParser(schema: Schema) {
   }
 
   def parse(sql: String): Either[String, Statement] = {
-    fastparse.parse(sql, statement(_)) match {
-      case Parsed.Success(statement, _) => Right(statement)
-      case f: Parsed.Failure            => Left(formatFailure(sql, f))
+    fastparse.parse(sql, statement(nullField)(_)) match {
+      case Parsed.Success(Query(Some(table), _, _, _, _, _), _) =>
+        fastparse.parse(sql, statement(fieldByName(table))(_)) match {
+          case Parsed.Success(statement, _) => Right(statement)
+          case f: Parsed.Failure            => Left(formatFailure(sql, f))
+        }
+      case f: Parsed.Failure => Left(formatFailure(sql, f))
     }
+
   }
 
 //  private def eitherToP[_: P, T](v: Either[String, T]): P[T] = {

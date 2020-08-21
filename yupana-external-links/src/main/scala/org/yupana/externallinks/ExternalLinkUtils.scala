@@ -18,10 +18,10 @@ package org.yupana.externallinks
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ ConstantExpr, DimensionExpr, Expression, InExpr, LinkExpr, NotInExpr, TimeExpr }
+import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
+import org.yupana.core.utils.ConditionMatchers._
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
 
 object ExternalLinkUtils {
@@ -44,41 +44,41 @@ object ExternalLinkUtils {
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
-          case Equ(LinkExpr(c, field), ConstantExpr(v: Any)) if c.linkName == linkName =>
-            ((field, Set(v)) :: cat, neg, oth)
+          case EqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
+            ((field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case Equ(ConstantExpr(v: Any), LinkExpr(c, field)) if c.linkName == linkName =>
-            ((field, Set(v)) :: cat, neg, oth)
+          case EqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
+            ((field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
+            ((field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case Neq(LinkExpr(c, field), ConstantExpr(v: Any)) if c.linkName == linkName =>
-            (cat, (field, Set(v)) :: neg, oth)
+          case NeqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
+            (cat, (field.name, Set[Any](v)) :: neg, oth)
 
-          case Neq(ConstantExpr(v: Any), LinkExpr(c, field)) if c.linkName == linkName =>
-            (cat, (field, Set(v)) :: neg, oth)
+          case NeqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
+            (cat, (field.name, Set[Any](v)) :: neg, oth)
 
           case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[Any]]) :: neg, oth)
+            (cat, (field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
 
-          case Equ(Lower(LinkExpr(c, field)), ConstantExpr(v: Any)) if c.linkName == linkName =>
-            ((field, Set(v)) :: cat, neg, oth)
+          case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
+            ((field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case Equ(ConstantExpr(v: Any), Lower(LinkExpr(c, field))) if c.linkName == linkName =>
-            ((field, Set(v)) :: cat, neg, oth)
+          case EqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+            ((field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case InExpr(Lower(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            ((field, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
+          case InString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
+            ((field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case Neq(Lower(LinkExpr(c, field)), ConstantExpr(v: Any)) if c.linkName == linkName =>
-            (cat, (field, Set(v)) :: neg, oth)
+          case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
+            (cat, (field.name, Set[Any](v)) :: neg, oth)
 
-          case Neq(ConstantExpr(v: Any), Lower(LinkExpr(c, field))) if c.linkName == linkName =>
-            (cat, (field, Set(v)) :: neg, oth)
+          case NeqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+            (cat, (field.name, Set[Any](v)) :: neg, oth)
 
-          case NotInExpr(Lower(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            (cat, (field, cs.asInstanceOf[Set[Any]]) :: neg, oth)
+          case NotInString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
+            (cat, (field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)
         }

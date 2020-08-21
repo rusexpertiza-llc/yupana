@@ -68,6 +68,8 @@ object DataTypeMeta {
   implicit val periodMeta: DataTypeMeta[Period] =
     DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
 
+  implicit val nullMeta: DataTypeMeta[Null] = DataTypeMeta(Types.NULL, 4, "NULL", null, 0, 0)
+
   implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
     DataTypeMeta(
       Types.ARRAY,

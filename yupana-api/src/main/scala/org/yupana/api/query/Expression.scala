@@ -153,6 +153,14 @@ object ConstantExpr {
   def unapply(c: ConstantExpr): Option[c.Out] = Some(c.v)
 }
 
+case object NullExpr extends Expression {
+  override type Out = Null
+  override val dataType: DataType.Aux[Null] = DataType[Null]
+  override def kind: ExprKind = Const
+  override def encode: String = "null"
+  override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
+}
+
 case object TimeExpr extends Expression {
   override type Out = Time
   override val dataType: DataType.Aux[Time] = DataType[Time]
@@ -208,7 +216,7 @@ case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression {
   def toField: QueryField = QueryField(metric.name, this)
 }
 
-case class LinkExpr[T](val link: ExternalLink, val linkField: LinkField.Aux[T]) extends Expression {
+case class LinkExpr[T](link: ExternalLink, linkField: LinkField.Aux[T]) extends Expression {
   override type Out = T
   override val dataType: DataType.Aux[linkField.T] = linkField.dataType
   override def kind: ExprKind = Simple

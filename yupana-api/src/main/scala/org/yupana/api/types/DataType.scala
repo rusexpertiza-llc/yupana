@@ -127,6 +127,17 @@ object DataType {
     new ArrayDataType(dtt).aux
   }
 
+  implicit val nullDt: DataType.Aux[Null] = new DataType {
+    override type T = Null
+    override val meta: DataTypeMeta[Null] = implicitly[DataTypeMeta[Null]]
+    override val storable: Storable[Null] = Storable.noop
+    override val classTag: ClassTag[Null] = implicitly[ClassTag[Null]]
+    override val boxingTag: BoxingTag[Null] = BoxingTag[Null]
+    override val ordering: Option[Ordering[Null]] = None
+    override val integral: Option[Integral[Null]] = None
+    override val fractional: Option[Fractional[Null]] = None
+  }
+
   private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
       implicit
       s: Storable[TT],
