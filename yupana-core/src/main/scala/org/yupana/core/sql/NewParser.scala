@@ -18,7 +18,7 @@ case class SqlFieldList(fields: Seq[QueryField]) extends SqlFields
 case object SqlFieldsAll extends SqlFields
 
 class NewParser(schema: Schema) {
-  type Recognizer = String => P[Expression]
+  type Recognizer = String => P[Expression[_]]
 
   private def selectWord[_: P] = P(IgnoreCase("SELECT"))
   private def showWord[_: P] = P(IgnoreCase("SHOW"))
@@ -82,11 +82,11 @@ class NewParser(schema: Schema) {
   def alias[_: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
 
   // Expressions
-  def numericConst[_: P]: P[ConstantExpr] = P(NewValueParser.number).map(ConstantExpr.apply[BigDecimal])
-  def stringConst[_: P]: P[ConstantExpr] = P(NewValueParser.string).map(ConstantExpr.apply[String])
-  def timestampConst[_: P]: P[ConstantExpr] = P(NewValueParser.timestamp).map(ts => ConstantExpr(Time(ts)))
-  def periodConst[_: P]: P[ConstantExpr] = NewValueParser.period.map(ConstantExpr.apply[Period])
-  def durationConst[_: P]: P[ConstantExpr] =
+  def numericConst[_: P]: P[ConstantExpr[BigDecimal]] = P(NewValueParser.number).map(ConstantExpr.apply[BigDecimal])
+  def stringConst[_: P]: P[ConstantExpr[String]] = P(NewValueParser.string).map(ConstantExpr.apply[String])
+  def timestampConst[_: P]: P[ConstantExpr[Time]] = P(NewValueParser.timestamp).map(ts => ConstantExpr(Time(ts)))
+  def periodConst[_: P]: P[ConstantExpr[Period]] = NewValueParser.period.map(ConstantExpr.apply[Period])
+  def durationConst[_: P]: P[ConstantExpr[Long]] =
     NewValueParser.period.flatMap(p =>
       if (p.getYears == 0 && p.getMonths == 0) {
         Pass(ConstantExpr(p.toStandardDuration.getMillis))
@@ -95,7 +95,7 @@ class NewParser(schema: Schema) {
       }
     )
 
-  def constExpr[_: P]: P[ConstantExpr] = P(numericConst | stringConst | timestampConst | periodConst | durationConst)
+  def constExpr[_: P]: P[ConstantExpr[_]] = P(numericConst | stringConst | timestampConst | periodConst | durationConst)
 
   private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => P[E]]): P[E] = chained1(elem, elem, op)
 
@@ -108,36 +108,36 @@ class NewParser(schema: Schema) {
     }
   }
 
-  private def plus[_: P]: P[(Expression, Expression) => P[Expression]] =
+  private def plus[_: P]: P[(Expression[_], Expression[_]) => P[Expression[_]]] =
     numExpr(
       P("+"),
-      new Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux] {
-        override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], n: Numeric[T]): Expression.Aux[T] =
+      new Bind3R[Expression, Expression, Numeric, Expression] {
+        override def apply[T](x: Expression[T], y: Expression[T], n: Numeric[T]): Expression[T] =
           PlusExpr(x, y)(n)
       }
     )
 
-  private def minus[_: P]: P[(Expression, Expression) => P[Expression]] =
+  private def minus[_: P]: P[(Expression[_], Expression[_]) => P[Expression[_]]] =
     numExpr(
       P("-"),
-      new Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux] {
-        override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], n: Numeric[T]): Expression.Aux[T] =
+      new Bind3R[Expression, Expression, Numeric, Expression] {
+        override def apply[T](x: Expression[T], y: Expression[T], n: Numeric[T]): Expression[T] =
           MinusExpr(x, y)(n)
       }
     )
 
-  private def multiply[_: P]: P[(Expression, Expression) => P[Expression]] =
+  private def multiply[_: P]: P[(Expression[_], Expression[_]) => P[Expression[_]]] =
     numExpr(
       P("*"),
-      new Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux] {
-        override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], n: Numeric[T]): Expression.Aux[T] =
+      new Bind3R[Expression, Expression, Numeric, Expression] {
+        override def apply[T](x: Expression[T], y: Expression[T], n: Numeric[T]): Expression[T] =
           TimesExpr(x, y)(n)
       }
     )
 
-  private def divide[_: P]: P[(Expression, Expression) => P[Expression]] =
+  private def divide[_: P]: P[(Expression[_], Expression[_]) => P[Expression[_]]] =
     P("/").map(_ =>
-      (a: Expression, b: Expression) =>
+      (a: Expression[_], b: Expression[_]) =>
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.integral.isDefined =>
             Pass(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
@@ -148,22 +148,22 @@ class NewParser(schema: Schema) {
         }
     )
 
-  def expr[_: P](r: Recognizer): P[Expression] =
+  def expr[_: P](r: Recognizer): P[Expression[_]] =
     chained1(minusMathTerm(r) | mathTerm(r), mathTerm(r), plus | minus)
 
-  def minusMathTerm[_: P](r: Recognizer): P[Expression] = P("-" ~ mathTerm(r)).flatMap { x =>
+  def minusMathTerm[_: P](r: Recognizer): P[Expression[_]] = P("-" ~ mathTerm(r)).flatMap { x =>
     x.dataType.numeric match {
       case Some(n) => Pass(UnaryMinusExpr(x.aux)(n, x.dataType))
       case None    => Fail(s"Unary minus cannot be applied to $x of type ${x.dataType}")
     }
   }
 
-  def mathTerm[_: P](r: Recognizer): P[Expression] = chained(mathFactor(r), multiply | divide)
+  def mathTerm[_: P](r: Recognizer): P[Expression[_]] = chained(mathFactor(r), multiply | divide)
 
-  def mathFactor[_: P](r: Recognizer): P[Expression] =
+  def mathFactor[_: P](r: Recognizer): P[Expression[_]] =
     P(functionCallExpr(r) | /* caseExpr | */ constExpr | fieldNameExpr(r) | "(" ~ expr(r) ~ ")")
 
-  def fieldNameExpr[_: P](r: Recognizer): P[Expression] = fieldWithSchema.flatMap(r)
+  def fieldNameExpr[_: P](r: Recognizer): P[Expression[_]] = fieldWithSchema.flatMap(r)
 
   def field[_: P](r: Recognizer): P[QueryField] = P(expr(r) ~~ alias.?).map {
     case (e, a) =>
@@ -186,48 +186,48 @@ class NewParser(schema: Schema) {
     def apply[T](x: A[T], y: B[T], z: C[T]): Z[T]
   }
 
-  def op[_: P]: P[(Expression, Expression) => P[Expression.Condition]] = P(
+  def op[_: P]: P[(Expression[_], Expression[_]) => P[Expression.Condition]] = P(
     P("=").map(_ =>
       binaryExpr(
-        new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
-          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T]): Condition =
+        new Bind2[Expression, Expression, Expression.Condition] {
+          override def apply[T](x: Expression[T], y: Expression[T]): Condition =
             EqExpr(x, y)
         }
       )
     ) |
       P("<>" | "!=").map(_ =>
         binaryExpr(
-          new Bind2[Expression.Aux, Expression.Aux, Expression.Condition] {
-            override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T]): Condition =
+          new Bind2[Expression, Expression, Expression.Condition] {
+            override def apply[T](x: Expression[T], y: Expression[T]): Condition =
               NeqExpr(x, y)
           }
         )
       ) |
       cmpExpr(
         P(">="),
-        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+        new Bind3[Expression, Expression, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression[T], y: Expression[T], z: Ordering[T]): Condition =
             GeExpr(x, y)(z)
         }
       ) |
       cmpExpr(
         P(">"),
-        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+        new Bind3[Expression, Expression, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression[T], y: Expression[T], z: Ordering[T]): Condition =
             GtExpr(x, y)(z)
         }
       ) |
       cmpExpr(
         P("<="),
-        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+        new Bind3[Expression, Expression, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression[T], y: Expression[T], z: Ordering[T]): Condition =
             LeExpr(x, y)(z)
         }
       ) |
       cmpExpr(
         P("<"),
-        new Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition] {
-          override def apply[T](x: Expression.Aux[T], y: Expression.Aux[T], z: Ordering[T]): Condition =
+        new Bind3[Expression, Expression, Ordering, Expression.Condition] {
+          override def apply[T](x: Expression[T], y: Expression[T], z: Ordering[T]): Condition =
             LtExpr(x, y)(z)
         }
       )
@@ -235,10 +235,10 @@ class NewParser(schema: Schema) {
 
   private def numExpr[_: P](
       p: => P[Unit],
-      cTor: Bind3R[Expression.Aux, Expression.Aux, Numeric, Expression.Aux]
-  ): P[(Expression, Expression) => P[Expression]] = {
+      cTor: Bind3R[Expression, Expression, Numeric, Expression]
+  ): P[(Expression[_], Expression[_]) => P[Expression[_]]] = {
     p.map(_ =>
-      (a: Expression, b: Expression) =>
+      (a: Expression[_], b: Expression[_]) =>
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.numeric.isDefined => Pass(cTor(pair.a, pair.b, pair.dataType.numeric.get))
           case Right(pair)                                    => Fail(s"Cannot apply math operations to ${pair.dataType}")
@@ -249,10 +249,10 @@ class NewParser(schema: Schema) {
 
   private def cmpExpr[_: P](
       p: => P[Unit],
-      cTor: Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition]
-  ): P[(Expression, Expression) => P[Expression.Condition]] = {
+      cTor: Bind3[Expression, Expression, Ordering, Expression.Condition]
+  ): P[(Expression[_], Expression[_]) => P[Expression.Condition]] = {
     p.map(_ =>
-      (a: Expression, b: Expression) =>
+      (a: Expression[_], b: Expression[_]) =>
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.ordering.isDefined => Pass(cTor(pair.a, pair.b, pair.dataType.ordering.get))
           case Right(_)                                        => Fail(s"Cannot compare types ${a.dataType} and ${b.dataType}")
@@ -262,15 +262,15 @@ class NewParser(schema: Schema) {
   }
 
   private def binaryExpr[O, _: P](
-      cTor: Bind2[Expression.Aux, Expression.Aux, Expression.Aux[O]]
-  ): (Expression, Expression) => P[Expression.Aux[O]] = { (a: Expression, b: Expression) =>
+      cTor: Bind2[Expression, Expression, Expression[O]]
+  ): (Expression[_], Expression[_]) => P[Expression[O]] = { (a: Expression[_], b: Expression[_]) =>
     ExprPair.alignTypes(a, b) match {
       case Right(pair) if pair.dataType.ordering.isDefined => Pass(cTor(pair.a, pair.b))
       case Left(msg)                                       => Fail(msg)
     }
   }
 
-  def functionCallExpr[_: P](r: Recognizer): P[Expression] =
+  def functionCallExpr[_: P](r: Recognizer): P[Expression[_]] =
     unary(r, "trunkYear", DataType[Time], TrunkYearExpr.apply) |
       unary(r, "trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
       unary(r, "trunkDay", DataType[Time], TrunkDayExpr.apply) |
@@ -278,7 +278,7 @@ class NewParser(schema: Schema) {
       unary(r, "trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
       unary(r, "trunkSecond", DataType[Time], TrunkSecondExpr.apply)
 
-  def callOrField[_: P](r: Recognizer): P[Expression] = functionCallExpr(r) | fieldNameExpr(r)
+  def callOrField[_: P](r: Recognizer): P[Expression[_]] = functionCallExpr(r) | fieldNameExpr(r)
 
   def comparison[_: P](r: Recognizer): P[Expression.Condition] = P(expr(r) ~ op ~/ expr(r)).flatMap {
     case (a, o, b) => o(a, b)
@@ -331,9 +331,9 @@ class NewParser(schema: Schema) {
 
   def where[_: P](r: Recognizer): P[Expression.Condition] = P(whereWord ~/ condition(r))
 
-  def grouping[_: P](r: Recognizer): P[Expression] = callOrField(r)
+  def grouping[_: P](r: Recognizer): P[Expression[_]] = callOrField(r)
 
-  def groupings[_: P](r: Recognizer): P[Seq[Expression]] = P(groupWord ~/ byWord ~ grouping(r).rep(1, ","))
+  def groupings[_: P](r: Recognizer): P[Seq[Expression[_]]] = P(groupWord ~/ byWord ~ grouping(r).rep(1, ","))
 
   def having[_: P](r: Recognizer): P[Expression.Condition] = P(havingWord ~/ condition(r))
 
@@ -410,7 +410,7 @@ class NewParser(schema: Schema) {
   /* UPSERT */
   def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
 
-  def values[_: P](count: Int): P[Seq[Seq[Expression]]] =
+  def values[_: P](count: Int): P[Seq[Seq[Expression[_]]]] =
     ("(" ~/ expr(noField).rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
   def upsert[_: P]: P[Upsert] =
@@ -429,11 +429,11 @@ class NewParser(schema: Schema) {
       r: Recognizer,
       fn: String,
       tpe: DataType.Aux[T],
-      create: Expression.Aux[T] => Expression
-  ): P[Expression] = {
+      create: Expression[T] => Expression[_]
+  ): P[Expression[_]] = {
     P(fn ~ "(" ~ expr(r) ~ ")").flatMap { e =>
       if (e.dataType == tpe)
-        Pass(create(e.asInstanceOf[Expression.Aux[T]]))
+        Pass(create(e.asInstanceOf[Expression[T]]))
       else Fail(s"Function $fn can not be applied to ${e.dataType}")
     }
   }
@@ -442,20 +442,20 @@ class NewParser(schema: Schema) {
     optionToP(schema.getTable(tableName), s"Unknown table '$tableName'")
   }
 
-  private def noField[_: P](name: String): P[Expression] = Fail("Table not defined, so no fields allowed")
+  private def noField[_: P](name: String): P[Expression[_]] = Fail("Table not defined, so no fields allowed")
 
-  private def fieldByName[_: P](table: Table)(name: String): P[Expression] = {
+  private def fieldByName[_: P](table: Table)(name: String): P[Expression[_]] = {
     optionToP(getFieldByName(table)(name), s"Unknown field $name")
   }
 
-  private def fieldOrAlias[_: P](table: Table, fields: Seq[QueryField])(name: String): P[Expression] = {
+  private def fieldOrAlias[_: P](table: Table, fields: Seq[QueryField])(name: String): P[Expression[_]] = {
     optionToP(
       fields.find(_.name == name).map(_.expr) orElse getFieldByName(table)(name),
       s"Unknown field $name"
     )
   }
 
-  private def getFieldByName(table: Table)(name: String): Option[Expression] = {
+  private def getFieldByName(table: Table)(name: String): Option[Expression[_]] = {
     val lowerName = name.toLowerCase
     if (lowerName == Table.TIME_FIELD_NAME) {
       Some(TimeExpr)
@@ -488,7 +488,7 @@ class NewParser(schema: Schema) {
     }
   }
 
-  private def convertConstants(constants: Seq[ConstantExpr], dataType: DataType): Either[String, Seq[dataType.T]] = {
+  private def convertConstants(constants: Seq[ConstantExpr[_]], dataType: DataType): Either[String, Seq[dataType.T]] = {
     CollectionUtils.collectErrors(constants.map(c => ExprPair.constCast(c, dataType)))
   }
 

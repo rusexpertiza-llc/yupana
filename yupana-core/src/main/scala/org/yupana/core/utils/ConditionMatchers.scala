@@ -22,36 +22,36 @@ object ConditionMatchers {
 
   // This is an ugly hack to allow pattern match on GADT
   object EqString {
-    def unapply(condition: Expression): Option[(Expression.Aux[String], Expression.Aux[String])] = {
+    def unapply(condition: Expression[_]): Option[(Expression[String], Expression[String])] = {
       condition match {
-        case EqExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Expression.Aux[String]]))
+        case EqExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Expression[String]]))
         case _            => None
       }
     }
   }
 
   object NeqString {
-    def unapply(condition: Expression): Option[(Expression.Aux[String], Expression.Aux[String])] = {
+    def unapply(condition: Expression[_]): Option[(Expression[String], Expression[String])] = {
       condition match {
-        case NeqExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Expression.Aux[String]]))
+        case NeqExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Expression[String]]))
         case _             => None
       }
     }
   }
 
   object InString {
-    def unapply(condition: Expression): Option[(Expression.Aux[String], Set[String])] = {
+    def unapply(condition: Expression[_]): Option[(Expression[String], Set[String])] = {
       condition match {
-        case InExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Set[String]]))
+        case InExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Set[String]]))
         case _            => None
       }
     }
   }
 
   object NotInString {
-    def unapply(condition: Expression): Option[(Expression.Aux[String], Set[String])] = {
+    def unapply(condition: Expression[_]): Option[(Expression[String], Set[String])] = {
       condition match {
-        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[String]], b.asInstanceOf[Set[String]]))
+        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Set[String]]))
         case _               => None
       }
     }

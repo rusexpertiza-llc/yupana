@@ -20,14 +20,14 @@ import org.yupana.api.query.{ DimensionExpr, Expression, LinkExpr, MetricExpr }
 import org.yupana.api.schema.{ Dimension, Metric }
 
 object QueryUtils {
-  def requiredMetrics(e: Expression): Set[Metric] = {
+  def requiredMetrics(e: Expression[_]): Set[Metric] = {
     e.fold(Set.empty[Metric]) {
       case (s, MetricExpr(m)) => s + m
       case (s, _)             => s
     }
   }
 
-  def requiredDimensions(e: Expression): Set[Dimension] = {
+  def requiredDimensions(e: Expression[_]): Set[Dimension] = {
     e.fold(Set.empty[Dimension]) {
       case (s, DimensionExpr(d)) => s + d
       case (s, LinkExpr(l, _))   => s + l.dimension
@@ -35,7 +35,7 @@ object QueryUtils {
     }
   }
 
-  def requiredLinks(e: Expression): Set[LinkExpr[_]] = {
+  def requiredLinks(e: Expression[_]): Set[LinkExpr[_]] = {
     e.fold(Set.empty[LinkExpr[_]]) {
       case (s, l: LinkExpr[_]) => s + l
       case (s, _)              => s

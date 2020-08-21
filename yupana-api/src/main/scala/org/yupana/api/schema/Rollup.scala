@@ -33,16 +33,16 @@ import org.yupana.api.query._
 case class Rollup(
     name: String,
     filter: Option[Condition],
-    groupBy: Seq[Expression],
+    groupBy: Seq[Expression[_]],
     fields: Seq[QueryFieldProjection],
-    timeExpr: Expression.Aux[Time],
+    timeExpr: Expression[Time],
     fromTable: Table,
     toTable: Table
 ) extends Serializable {
 
   lazy val timeField: QueryField = timeExpr as Table.TIME_FIELD_NAME
   lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields
-  lazy val allGroupBy: Seq[Expression] = if (timeExpr != TimeExpr) timeExpr +: groupBy else groupBy
+  lazy val allGroupBy: Seq[Expression[_]] = if (timeExpr != TimeExpr) timeExpr +: groupBy else groupBy
 
   lazy val tagResultNameMap: Map[String, String] = allFields.collect {
     case QueryFieldToDimension(queryField, dimension) =>

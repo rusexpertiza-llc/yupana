@@ -22,32 +22,32 @@ import org.yupana.core.operations.Operations
 
 object ExpressionCalculator {
 
-  def evaluateConstant(expr: Expression): expr.Out = {
+  def evaluateConstant[T](expr: Expression[T]): T = {
     assert(expr.kind == Const)
     eval(expr, null, null)
   }
 
-  def preEvaluated(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
+  def preEvaluated[T](expr: Expression[T], queryContext: QueryContext, internalRow: InternalRow): T = {
     expr match {
-      case ConstantExpr(v) => v.asInstanceOf[expr.Out]
-      case _               => internalRow.get[expr.Out](queryContext, expr)
+      case ConstantExpr(v) => v
+      case _               => internalRow.get[T](queryContext, expr)
     }
   }
 
-  def evaluateExpression(
-      expr: Expression,
+  def evaluateExpression[T](
+      expr: Expression[T],
       queryContext: QueryContext,
       internalRow: InternalRow
-  ): expr.Out = {
+  ): T = {
     val res = if (queryContext != null) {
       val idx = queryContext.exprsIndex.getOrElse(expr, -1)
       if (idx >= 0) {
-        internalRow.get[expr.Out](idx)
+        internalRow.get[T](idx)
       } else {
-        null.asInstanceOf[expr.Out]
+        null.asInstanceOf[T]
       }
     } else {
-      null.asInstanceOf[expr.Out]
+      null.asInstanceOf[T]
     }
 
     if (res == null) {
@@ -57,7 +57,7 @@ object ExpressionCalculator {
     }
   }
 
-  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
+  private def eval[T](expr: Expression[T], queryContext: QueryContext, internalRow: InternalRow): T = {
 
     val res = expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
@@ -148,10 +148,10 @@ object ExpressionCalculator {
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
-    res.asInstanceOf[expr.Out]
+    res.asInstanceOf[T]
   }
 
-  private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow)(e: Expression.Aux[A], f: A => O): O = {
+  private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow)(e: Expression[A], f: A => O): O = {
     val ev = evaluateExpression(e, qc, internalRow)
     if (ev != null) f(ev) else null.asInstanceOf[O]
   }
@@ -159,7 +159,7 @@ object ExpressionCalculator {
   private def evaluateBinary[A, B, O](
       qc: QueryContext,
       internalRow: InternalRow
-  )(a: Expression.Aux[A], b: Expression.Aux[B], f: (A, B) => O): O = {
+  )(a: Expression[A], b: Expression[B], f: (A, B) => O): O = {
     val left = evaluateExpression(a, qc, internalRow)
     val right = evaluateExpression(b, qc, internalRow)
     if (left != null && right != null) {

@@ -83,8 +83,8 @@ object TimeBoundedCondition {
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
 
-    def updateFrom(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
+    def updateFrom(c: Condition, e: Expression[_], offset: Long): Unit = {
+      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
       if (const != null) {
         from = from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
       } else {
@@ -92,8 +92,8 @@ object TimeBoundedCondition {
       }
     }
 
-    def updateTo(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
+    def updateTo(c: Condition, e: Expression[_], offset: Long): Unit = {
+      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
       if (const != null) {
         to = to.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis)
       } else {
@@ -102,8 +102,8 @@ object TimeBoundedCondition {
     }
 
     and.conditions.foreach {
-      case c @ GtExpr(_: TimeExpr.type, e) => updateFrom(c, e, 1L)
-      case c @ LtExpr(e, _: TimeExpr.type) => updateFrom(c, e, 1L)
+      case c @ GtExpr(TimeExpr, e) => updateFrom(c, e, 1L)
+      case c @ LtExpr(e, TimeExpr) => updateFrom(c, e, 1L)
 
       case c @ GeExpr(_: TimeExpr.type, e) => updateFrom(c, e, 0L)
       case c @ LeExpr(e, _: TimeExpr.type) => updateFrom(c, e, 0L)

@@ -24,13 +24,13 @@ import scala.collection.mutable
 
 case class QueryContext(
     query: Query,
-    exprsIndex: mutable.HashMap[Expression, Int],
+    exprsIndex: mutable.HashMap[Expression[_], Int],
     aggregateExprs: Array[AggregateExpr],
-    topRowExprs: Array[Expression],
-    exprsOnAggregatesAndWindows: Array[Expression],
-    bottomExprs: Array[Expression],
+    topRowExprs: Array[Expression[_]],
+    exprsOnAggregatesAndWindows: Array[Expression[_]],
+    bottomExprs: Array[Expression[_]],
     linkExprs: Seq[LinkExpr[_]],
-    groupByExprs: Array[Expression]
+    groupByExprs: Array[Expression[_]]
 )
 
 object QueryContext extends StrictLogging {
@@ -58,10 +58,10 @@ object QueryContext extends StrictLogging {
         requiredDimExprs ++
         query.postFilter.toSet ++
         postCondition.toSet +
-        TimeExpr).filterNot(_.isInstanceOf[ConstantExpr])
+        TimeExpr).filterNot(_.isInstanceOf[ConstantExpr[_]])
 
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
-      !expr.isInstanceOf[ConstantExpr] && (
+      !expr.isInstanceOf[ConstantExpr[_]] && (
         (!containsAggregates(expr) && !containsWindows(expr)) ||
         expr.isInstanceOf[AggregateExpr] ||
         expr.isInstanceOf[WindowFunctionExpr]
@@ -94,7 +94,7 @@ object QueryContext extends StrictLogging {
     exprs.collect {
       case a @ AggregateExpr(_, e)        => Set(a, e)
       case ConditionExpr(condition, _, _) => Set(condition)
-      case c: ConstantExpr                => Set(c)
+      case c: ConstantExpr[_]             => Set(c)
       case d: DimensionExpr[_]            => Set(d)
       case i: DimensionIdExpr             => Set(i)
       case c: LinkExpr[_]                 => Set(c)

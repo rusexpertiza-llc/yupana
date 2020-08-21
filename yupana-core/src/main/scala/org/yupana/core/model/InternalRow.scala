@@ -27,16 +27,16 @@ class InternalRow(val data: Array[Any]) extends Serializable {
     data(idx) == null
   }
 
-  def isEmpty(queryContext: QueryContext, expr: Expression): Boolean = {
+  def isEmpty(queryContext: QueryContext, expr: Expression[_]): Boolean = {
     isEmpty(queryContext.exprsIndex(expr))
   }
 
-  def set(queryContext: QueryContext, expr: Expression, v: Any): InternalRow = {
+  def set(queryContext: QueryContext, expr: Expression[_], v: Any): InternalRow = {
     data(queryContext.exprsIndex(expr)) = v
     this
   }
 
-  def set(exprIndex: scala.collection.Map[Expression, Int], expr: Expression, v: Any): InternalRow = {
+  def set(exprIndex: scala.collection.Map[Expression[_], Int], expr: Expression[_], v: Any): InternalRow = {
     data(exprIndex(expr)) = v
     this
   }
@@ -46,11 +46,11 @@ class InternalRow(val data: Array[Any]) extends Serializable {
     this
   }
 
-  def get[T](queryContext: QueryContext, expr: Expression): T = {
+  def get[T](queryContext: QueryContext, expr: Expression[T]): T = {
     data(queryContext.exprsIndex(expr)).asInstanceOf[T]
   }
 
-  def get[T](exprIndex: scala.collection.Map[Expression, Int], expr: Expression): T = {
+  def get[T](exprIndex: scala.collection.Map[Expression[_], Int], expr: Expression[T]): T = {
     data(exprIndex(expr)).asInstanceOf[T]
   }
 
@@ -65,7 +65,7 @@ class InternalRow(val data: Array[Any]) extends Serializable {
   }
 }
 
-class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], table: Option[Table])
+class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression[_], Int], table: Option[Table])
     extends Serializable {
   private val data = Array.fill[Any](exprIndex.size)(null)
 
@@ -136,7 +136,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression, Int], t
     if (timeIndex != -1) data(timeIndex) = time
   }
 
-  def set(expr: Expression, v: Any): InternalRowBuilder = {
+  def set(expr: Expression[_], v: Any): InternalRowBuilder = {
     data(exprIndex(expr)) = v
     this
   }

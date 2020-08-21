@@ -38,7 +38,7 @@ case class Query(
     table: Option[Table],
     fields: Seq[QueryField],
     filter: Option[Condition],
-    groupBy: Seq[Expression] = Seq.empty,
+    groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None
 ) extends Statement {
@@ -88,11 +88,11 @@ case class Query(
 object Query {
   def apply(
       table: Table,
-      from: Expression.Aux[Time],
-      to: Expression.Aux[Time],
+      from: Expression[Time],
+      to: Expression[Time],
       fields: Seq[QueryField],
       filter: Option[Condition],
-      groupBy: Seq[Expression],
+      groupBy: Seq[Expression[_]],
       limit: Option[Int],
       postFilter: Option[Condition]
   ): Query = {
@@ -107,24 +107,24 @@ object Query {
     new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter)
   }
 
-  def apply(table: Table, from: Expression.Aux[Time], to: Expression.Aux[Time], fields: Seq[QueryField]): Query =
+  def apply(table: Table, from: Expression[Time], to: Expression[Time], fields: Seq[QueryField]): Query =
     apply(table, from, to, fields, None, Seq.empty, None, None)
 
   def apply(
       table: Table,
-      from: Expression.Aux[Time],
-      to: Expression.Aux[Time],
+      from: Expression[Time],
+      to: Expression[Time],
       fields: Seq[QueryField],
       filter: Condition
   ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None)
 
   def apply(
       table: Table,
-      from: Expression.Aux[Time],
-      to: Expression.Aux[Time],
+      from: Expression[Time],
+      to: Expression[Time],
       fields: Seq[QueryField],
       filter: Option[Condition],
-      groupBy: Seq[Expression]
+      groupBy: Seq[Expression[_]]
   ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
 
 }
@@ -132,7 +132,7 @@ object Query {
 case class Upsert(
     table: Table,
     fieldNames: Seq[String],
-    values: Seq[Seq[Expression]]
+    values: Seq[Seq[Expression[_]]]
 ) extends Statement
 
 case object ShowTables extends Statement
