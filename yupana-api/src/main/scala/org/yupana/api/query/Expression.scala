@@ -153,11 +153,10 @@ object ConstantExpr {
   def unapply(c: ConstantExpr): Option[c.Out] = Some(c.v)
 }
 
-case object NullExpr extends Expression {
-  override type Out = Null
-  override val dataType: DataType.Aux[Null] = DataType[Null]
+case class NullExpr[T](override val dataType: DataType.Aux[T]) extends Expression {
+  override type Out = T
   override def kind: ExprKind = Const
-  override def encode: String = "null"
+  override def encode: String = s"null:${dataType.classTag.runtimeClass.getSimpleName}"
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
 }
 
@@ -634,13 +633,9 @@ case class ConditionExpr[T](
   override def encode: String = s"if(${condition.encode},${positive.encode},${negative.encode}"
 }
 
-trait InExpr extends Expression {
+case class InExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Expression {
   override type Out = Boolean
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
-
-  type T
-  val expr: Expression.Aux[T]
-  val values: Set[T]
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
@@ -648,23 +643,13 @@ trait InExpr extends Expression {
     if (pf.isDefinedAt(this)) {
       pf(this).asInstanceOf[Condition]
     } else {
-      InExpr(expr.transform(pf), values)
+      NotInExpr(expr.transform(pf), values)
     }
   }
 
   override def encode: String = values.toSeq.map(_.toString).sorted.mkString(s"in(${expr.encode}, (", ",", "))")
   override def toString: String =
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
-}
-
-object InExpr {
-  def apply[T0](e: Expression.Aux[T0], vs: Set[T0]): Condition = new InExpr {
-    override type T = T0
-    override val expr: Expression.Aux[T] = e
-    override val values: Set[T] = vs
-  }
-
-  def unapply(i: InExpr): Option[(Expression.Aux[i.T], Set[i.T])] = Some((i.expr, i.values))
 }
 
 case class NotInExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Expression {

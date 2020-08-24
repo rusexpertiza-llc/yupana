@@ -450,7 +450,7 @@ class NewParser(schema: Schema) {
 
   private def noField[_: P](name: String): Either[String, Expression] = Left("Table not defined, so no fields allowed")
 
-  private def nullField(name: String): Either[String, Expression] = Right(NullExpr)
+  private def nullField(name: String): Either[String, Expression] = Right(NullExpr(DataType[Null]))
 
   private def fieldByName(table: Table)(name: String): Either[String, Expression] = {
     getFieldByName(table)(name).toRight(s"Unknown field $name")
