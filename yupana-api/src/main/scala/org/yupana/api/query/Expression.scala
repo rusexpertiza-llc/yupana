@@ -342,46 +342,46 @@ case class ExtractSecondExpr(expr: Expression.Aux[Time]) extends UnaryOperationE
   override def create(newExpr: Expression.Aux[Time]): ExtractSecondExpr = ExtractSecondExpr(newExpr)
 }
 
-case class TrunkYearExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkYear") {
+case class TruncYearExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncYear") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkYearExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkYearExpr = TrunkYearExpr(newExpr)
+  override type Self = TruncYearExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncYearExpr = TruncYearExpr(newExpr)
 }
 
-case class TrunkMonthExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkMonth") {
+case class TruncMonthExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncMonth") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkMonthExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkMonthExpr = TrunkMonthExpr(newExpr)
+  override type Self = TruncMonthExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncMonthExpr = TruncMonthExpr(newExpr)
 }
 
-case class TrunkWeekExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkWeek") {
+case class TruncWeekExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncWeek") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkWeekExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkWeekExpr = TrunkWeekExpr(newExpr)
+  override type Self = TruncWeekExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncWeekExpr = TruncWeekExpr(newExpr)
 }
 
-case class TrunkDayExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkDay") {
+case class TruncDayExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncDay") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkDayExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkDayExpr = TrunkDayExpr(newExpr)
+  override type Self = TruncDayExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncDayExpr = TruncDayExpr(newExpr)
 }
 
-case class TrunkHourExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkHour") {
+case class TruncHourExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncHour") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkHourExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkHourExpr = TrunkHourExpr(newExpr)
+  override type Self = TruncHourExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncHourExpr = TruncHourExpr(newExpr)
 }
 
-case class TrunkMinuteExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkMinute") {
+case class TruncMinuteExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncMinute") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkMinuteExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkMinuteExpr = TrunkMinuteExpr(newExpr)
+  override type Self = TruncMinuteExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncMinuteExpr = TruncMinuteExpr(newExpr)
 }
 
-case class TrunkSecondExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "trunkSecond") {
+case class TruncSecondExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncSecond") {
   override def dataType: DataType.Aux[Time] = DataType[Time]
-  override type Self = TrunkSecondExpr
-  override def create(newExpr: Expression.Aux[Time]): TrunkSecondExpr = TrunkSecondExpr(newExpr)
+  override type Self = TruncSecondExpr
+  override def create(newExpr: Expression.Aux[Time]): TruncSecondExpr = TruncSecondExpr(newExpr)
 }
 
 case class IsNullExpr[T](expr: Expression.Aux[T]) extends UnaryOperationExpr[T, Boolean](expr, "isNull") {

@@ -21,13 +21,13 @@ import org.yupana.api.query._
 import org.yupana.api.types.DataType
 
 trait UnaryOperationSyntax {
-  def truncYear(e: Expression.Aux[Time]) = TrunkYearExpr(e)
-  def truncMonth(e: Expression.Aux[Time]) = TrunkMonthExpr(e)
-  def truncDay(e: Expression.Aux[Time]) = TrunkDayExpr(e)
-  def truncHour(e: Expression.Aux[Time]) = TrunkHourExpr(e)
-  def truncMinute(e: Expression.Aux[Time]) = TrunkMinuteExpr(e)
-  def truncSecond(e: Expression.Aux[Time]) = TrunkSecondExpr(e)
-  def truncWeek(e: Expression.Aux[Time]) = TrunkWeekExpr(e)
+  def truncYear(e: Expression.Aux[Time]) = TruncYearExpr(e)
+  def truncMonth(e: Expression.Aux[Time]) = TruncMonthExpr(e)
+  def truncDay(e: Expression.Aux[Time]) = TruncDayExpr(e)
+  def truncHour(e: Expression.Aux[Time]) = TruncHourExpr(e)
+  def truncMinute(e: Expression.Aux[Time]) = TruncMinuteExpr(e)
+  def truncSecond(e: Expression.Aux[Time]) = TruncSecondExpr(e)
+  def truncWeek(e: Expression.Aux[Time]) = TruncWeekExpr(e)
 
   def extractYear(e: Expression.Aux[Time]) = ExtractYearExpr(e)
   def extractMonth(e: Expression.Aux[Time]) = ExtractMonthExpr(e)

@@ -76,25 +76,25 @@ object ExpressionCalculator {
           evaluateExpression(negative, queryContext, internalRow)
         }
 
-      case TrunkYearExpr(e) =>
+      case TruncYearExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncYear)
 
-      case TrunkMonthExpr(e) =>
+      case TruncMonthExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncMonth)
 
-      case TrunkDayExpr(e) =>
+      case TruncDayExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncDay)
 
-      case TrunkWeekExpr(e) =>
+      case TruncWeekExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncWeek)
 
-      case TrunkHourExpr(e) =>
+      case TruncHourExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncHour)
 
-      case TrunkMinuteExpr(e) =>
+      case TruncMinuteExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncMinute)
 
-      case TrunkSecondExpr(e) =>
+      case TruncSecondExpr(e) =>
         evaluateUnary(queryContext, internalRow)(e, Operations.truncSecond)
 
       case p @ PlusExpr(a, b) =>

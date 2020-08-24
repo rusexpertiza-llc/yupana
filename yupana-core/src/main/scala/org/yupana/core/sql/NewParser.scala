@@ -271,12 +271,12 @@ class NewParser(schema: Schema) {
   }
 
   def functionCallExpr[_: P](r: Recognizer): P[Expression] =
-    unary(r, "trunkYear", DataType[Time], TrunkYearExpr.apply) |
-      unary(r, "trunkMonth", DataType[Time], TrunkMonthExpr.apply) |
-      unary(r, "trunkDay", DataType[Time], TrunkDayExpr.apply) |
-      unary(r, "trunkHour", DataType[Time], TrunkHourExpr.apply) |
-      unary(r, "trunkMinute", DataType[Time], TrunkMinuteExpr.apply) |
-      unary(r, "trunkSecond", DataType[Time], TrunkSecondExpr.apply)
+    unary(r, "trunkYear", DataType[Time], TruncYearExpr.apply) |
+      unary(r, "trunkMonth", DataType[Time], TruncMonthExpr.apply) |
+      unary(r, "trunkDay", DataType[Time], TruncDayExpr.apply) |
+      unary(r, "trunkHour", DataType[Time], TruncHourExpr.apply) |
+      unary(r, "trunkMinute", DataType[Time], TruncMinuteExpr.apply) |
+      unary(r, "trunkSecond", DataType[Time], TruncSecondExpr.apply)
 
   def callOrField[_: P](r: Recognizer): P[Expression] = functionCallExpr(r) | fieldNameExpr(r)
 

@@ -29,7 +29,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ shiftRollupFields ++ additionalRollupFieldsFromDetails,
     fromTable = Tables.receiptTable,
     toTable = Tables.receiptByDayTable,
-    timeExpr = TrunkDayExpr(TimeExpr)
+    timeExpr = TruncDayExpr(TimeExpr)
   )
 
   val receiptDayAllKkmsRollup = Rollup(
@@ -41,7 +41,7 @@ object ReceiptRollups {
     ) ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByDayAllKkmsTable,
-    timeExpr = TrunkDayExpr(TimeExpr)
+    timeExpr = TruncDayExpr(TimeExpr)
   )
 
   val receiptWeekRollup = Rollup(
@@ -51,7 +51,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByWeekTable,
-    timeExpr = TrunkWeekExpr(TimeExpr)
+    timeExpr = TruncWeekExpr(TimeExpr)
   )
 
   val receiptMonthRollup = Rollup(
@@ -61,7 +61,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,
-    timeExpr = TrunkMonthExpr(TimeExpr)
+    timeExpr = TruncMonthExpr(TimeExpr)
   )
 
 }

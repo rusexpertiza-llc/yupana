@@ -4,7 +4,6 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
 class ConditionUtilsTest extends FlatSpec with Matchers {
   import org.yupana.api.query.syntax.All._
@@ -37,8 +36,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     )
 
     ConditionUtils.flatMap(c) {
-      case x @ BinaryOperationExpr(f, DimensionExpr(_), _) if f.name == "==" || f.name == "!=" => x
-      case _                                                                                   => ConstantExpr(true)
+      case x @ EqExpr(DimensionExpr(_), _) => x
+      case _                               => ConstantExpr(true)
     } shouldEqual or(
       equ(dimension(RawDimension[Int]("x")), const(66)),
       neq(dimension(DictionaryDimension("y")), const("b"))
@@ -98,13 +97,13 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     val c = equ(dimension(RawDimension[Int]("foo")), const(44))
 
     ConditionUtils.split(c) {
-      case Equ(DimensionExpr(RawDimension("foo")), ConstantExpr(_)) => true
-      case _                                                        => false
+      case EqExpr(DimensionExpr(RawDimension("foo")), ConstantExpr(_)) => true
+      case _                                                           => false
     } shouldBe ((c, ConstantExpr(true)))
 
     ConditionUtils.split(c) {
-      case Equ(DimensionExpr(RawDimension("bar")), ConstantExpr(_)) => true
-      case _                                                        => false
+      case EqExpr(DimensionExpr(RawDimension("bar")), ConstantExpr(_)) => true
+      case _                                                           => false
     } shouldBe ((ConstantExpr(true), c))
   }
 
@@ -116,8 +115,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     )
 
     val (l, r) = ConditionUtils.split(c) {
-      case Neq(DimensionExpr(DictionaryDimension("y", None)), ConstantExpr(_)) => true
-      case _                                                                   => false
+      case NeqExpr(DimensionExpr(DictionaryDimension("y", None)), ConstantExpr(_)) => true
+      case _                                                                       => false
     }
 
     l shouldEqual neq(dimension(DictionaryDimension("y")), const("z"))
@@ -141,8 +140,8 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     )
 
     val (l, r) = ConditionUtils.split(c) {
-      case Equ(DimensionExpr(DictionaryDimension("x", None)), ConstantExpr(_)) => true
-      case _                                                                   => false
+      case EqExpr(DimensionExpr(DictionaryDimension("x", None)), ConstantExpr(_)) => true
+      case _                                                                      => false
     }
 
     l shouldEqual or(
