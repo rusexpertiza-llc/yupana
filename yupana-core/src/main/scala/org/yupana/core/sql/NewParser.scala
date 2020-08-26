@@ -4,7 +4,7 @@ import fastparse._
 import fastparse.MultiLineWhitespace._
 import fastparse.internal.Util
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Time, query }
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Schema, Table }
@@ -151,6 +151,8 @@ class NewParser(schema: Schema) {
   def expr[_: P](r: Recognizer): P[Expression] =
     chained1(minusMathTerm(r) | mathTerm(r), mathTerm(r), plus | minus)
 
+  def fullExpr[_: P](r: Recognizer): P[Expression] = P(expr(r) ~ End)
+
   def minusMathTerm[_: P](r: Recognizer): P[Expression] = P("-" ~ mathTerm(r)).flatMap { x =>
     x.dataType.numeric match {
       case Some(n) => Pass(UnaryMinusExpr(x.aux)(n, x.dataType))
@@ -270,13 +272,32 @@ class NewParser(schema: Schema) {
     }
   }
 
-  def functionCallExpr[_: P](r: Recognizer): P[Expression] =
+  def functionCallExpr[_: P](r: Recognizer): P[Expression] = P(
     unary(r, "trunkYear", DataType[Time], TruncYearExpr.apply) |
       unary(r, "trunkMonth", DataType[Time], TruncMonthExpr.apply) |
       unary(r, "trunkDay", DataType[Time], TruncDayExpr.apply) |
       unary(r, "trunkHour", DataType[Time], TruncHourExpr.apply) |
       unary(r, "trunkMinute", DataType[Time], TruncMinuteExpr.apply) |
-      unary(r, "trunkSecond", DataType[Time], TruncSecondExpr.apply)
+      unary(r, "trunkSecond", DataType[Time], TruncSecondExpr.apply) |
+      unary(r, "year", DataType[Time], TruncYearExpr.apply) |
+      unary(r, "month", DataType[Time], TruncMonthExpr.apply) |
+      unary(r, "day", DataType[Time], TruncDayExpr.apply) |
+      unary(r, "hour", DataType[Time], TruncHourExpr.apply) |
+      unary(r, "minute", DataType[Time], TruncMinuteExpr.apply) |
+      unary(r, "second", DataType[Time], TruncSecondExpr.apply) |
+      aggregateOrd(r, "min", new Bind2[Expression.Aux, Ordering, Expression] {
+        override def apply[T](x: Expression.Aux[T], o: Ordering[T]): Expression = MinExpr(x)(o)
+      }) |
+      aggregateOrd(r, "max", new Bind2[Expression.Aux, Ordering, Expression] {
+        override def apply[T](x: Expression.Aux[T], o: Ordering[T]): Expression = MaxExpr(x)(o)
+      }) |
+      aggregateNum(r, "sum", new Bind2[Expression.Aux, Numeric, Expression] {
+        override def apply[T](x: Expression.Aux[T], o: Numeric[T]): Expression = MaxExpr(x)(o)
+      }) |
+      aggregate(r, "count", e => CountExpr(e.aux)) |
+      aggregate(r, "distinct_count", e => DistinctCountExpr(e.aux)) |
+      aggregate(r, "distinct_random", e => DistinctRandomExpr(e.aux))
+  )
 
   def callOrField[_: P](r: Recognizer): P[Expression] = functionCallExpr(r) | fieldNameExpr(r)
 
@@ -431,16 +452,58 @@ class NewParser(schema: Schema) {
 
   def statement[_: P](r: Recognizer): P[Statement] = P((select(r) | upsert | show | kill | delete) ~ ";".? ~ End)
 
+  private def unary[_: P](r: Recognizer, name: String): P[Expression] = P(IgnoreCase(name) ~ "(" ~ expr(r) ~ ")")
+
   private def unary[T, _: P](
       r: Recognizer,
       fn: String,
       tpe: DataType.Aux[T],
       create: Expression.Aux[T] => Expression
   ): P[Expression] = {
-    P(fn ~ "(" ~ expr(r) ~ ")").flatMap { e =>
-      if (e.dataType == tpe)
-        Pass(create(e.asInstanceOf[Expression.Aux[T]]))
-      else Fail(s"Function $fn can not be applied to ${e.dataType}")
+    unary(r, fn).flatMap {
+      case NullExpr(t) => Pass(NullExpr(t))
+      case e =>
+        if (e.dataType == tpe)
+          Pass(create(e.asInstanceOf[Expression.Aux[T]]))
+        else Fail(s"Function $fn can not be applied to ${e.dataType}")
+    }
+  }
+
+  private def aggregate[_: P](
+      r: Recognizer,
+      fn: String,
+      create: Expression => Expression
+  ): P[Expression] = {
+    unary(r, fn).map { e =>
+      create(e)
+    }
+  }
+
+  private def aggregateOrd[_: P](
+      r: Recognizer,
+      fn: String,
+      create: Bind2[Expression.Aux, Ordering, Expression]
+  ): P[Expression] = {
+    unary(r, fn).flatMap {
+      case NullExpr(t) => Pass(NullExpr(t))
+      case e =>
+        e.dataType.ordering match {
+          case Some(o) => Pass(create(e.aux, o))
+          case None    => Fail(s"Cannot apply $fn to ${e.dataType}")
+        }
+    }
+  }
+
+  private def aggregateNum[_: P](
+      r: Recognizer,
+      fn: String,
+      create: Bind2[Expression.Aux, Numeric, Expression]
+  ): P[Expression] = {
+    unary(r, fn).flatMap { e =>
+      e.dataType.numeric match {
+        case Some(n) => Pass(create(e.aux, n))
+        case None    => Fail(s"Cannot apply $fn to ${e.dataType}")
+      }
     }
   }
 
@@ -450,9 +513,9 @@ class NewParser(schema: Schema) {
 
   private def noField[_: P](name: String): Either[String, Expression] = Left("Table not defined, so no fields allowed")
 
-  private def nullField(name: String): Either[String, Expression] = Right(NullExpr(DataType[Null]))
+  def nullField(name: String): Either[String, Expression] = Right(NullExpr(DataType[Null]))
 
-  private def fieldByName(table: Table)(name: String): Either[String, Expression] = {
+  def fieldByName(table: Table)(name: String): Either[String, Expression] = {
     getFieldByName(table)(name).toRight(s"Unknown field $name")
   }
 

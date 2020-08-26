@@ -21,7 +21,6 @@ import org.yupana.api.query._
 import org.yupana.core.operations.Operations
 
 object ExpressionCalculator {
-
   def evaluateConstant(expr: Expression): expr.Out = {
     assert(expr.kind == Const)
     eval(expr, null, null)
@@ -55,6 +54,72 @@ object ExpressionCalculator {
     } else {
       res
     }
+  }
+
+  def evaluateMap[I, M](expr: AggregateExpr.Aux[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
+    val res = expr match {
+      case MinExpr(e)   => row.get[M](queryContext, e)
+      case MaxExpr(e)   => row.get[M](queryContext, e)
+      case SumExpr(e)   => row.get[M](queryContext, e)
+      case CountExpr(_) => 1L
+      case DistinctCountExpr(e) =>
+        val v = row.get[I](queryContext, e)
+        if (v != null) Set(v) else Set.empty[I]
+      case DistinctRandomExpr(e) =>
+        val v = row.get[I](queryContext, e)
+        if (v != null) Set(v) else Set.empty[I]
+    }
+
+    res.asInstanceOf[M]
+  }
+
+  def evaluateReduce[M](
+      expr: AggregateExpr.Aux[_, M, _],
+      queryContext: QueryContext,
+      a: InternalRow,
+      b: InternalRow
+  ): M = {
+    def reduce(x: M, y: M): M = {
+      val res = expr match {
+        case m @ MinExpr(_)        => m.ord.min(x, y)
+        case m @ MaxExpr(_)        => m.ord.max(x, y)
+        case s @ SumExpr(_)        => s.numeric.plus(x, y)
+        case CountExpr(_)          => x.asInstanceOf[Long] + y.asInstanceOf[Long]
+        case DistinctCountExpr(_)  => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
+        case DistinctRandomExpr(_) => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
+      }
+
+      res.asInstanceOf[M]
+    }
+
+    val aValue = a.get[M](queryContext, expr)
+    val bValue = b.get[M](queryContext, expr)
+
+    if (aValue != null) {
+      if (bValue != null) {
+        reduce(aValue, bValue)
+      } else aValue
+    } else bValue
+  }
+
+  def evaluatePostMap[M, O](expr: AggregateExpr.Aux[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
+    val oldValue = row.get[M](queryContext, expr)
+
+    val res = if (oldValue != null) {
+      expr match {
+        case MinExpr(_)           => oldValue
+        case MaxExpr(_)           => oldValue
+        case SumExpr(_)           => oldValue
+        case CountExpr(_)         => oldValue
+        case DistinctCountExpr(_) => oldValue.asInstanceOf[Set[_]].size
+        case DistinctRandomExpr(_) =>
+          val s = oldValue.asInstanceOf[Set[_]]
+          val n = util.Random.nextInt(s.size)
+          s.iterator.drop(n).next
+      }
+    } else null
+
+    res.asInstanceOf[O]
   }
 
   private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
@@ -103,11 +168,11 @@ object ExpressionCalculator {
       case TypeConvertExpr(tc, e) =>
         tc.convert(evaluateExpression(e, queryContext, internalRow))
 
-      case AggregateExpr(_, e) =>
-        evaluateExpression(e, queryContext, internalRow)
+//      case AggregateExpr(_, e) =>
+//        evaluateExpression(e, queryContext, internalRow)
 
-      case WindowFunctionExpr(_, e) =>
-        evaluateExpression(e, queryContext, internalRow)
+//      case WindowFunctionExpr(_, e) =>
+//        evaluateExpression(e, queryContext, internalRow)
 
       case InExpr(e, vs) =>
         vs contains evaluateExpression(e, queryContext, internalRow)

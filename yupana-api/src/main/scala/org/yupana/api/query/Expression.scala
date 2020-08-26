@@ -93,36 +93,72 @@ object WindowFunctionExpr {
   }
 }
 
-abstract class AggregateExpr extends Expression {
+sealed abstract class AggregateExpr(val name: String) extends Expression {
   type In
-  val aggregation: Aggregation[In]
+  type Interim
+//  val aggregation: Aggregation[In]
   val expr: Expression.Aux[In]
 
+  override def aux: AggregateExpr.Aux[In, Interim, Out] = this.asInstanceOf[AggregateExpr.Aux[In, Interim, Out]]
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
 
-  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
-    AggregateExpr(aggregation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
-  }
+//  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+//    AggregateExpr(aggregation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
+//  }
 
-  override def encode: String = s"agg(${aggregation.name},${expr.encode})"
-  override def toString: String = s"${aggregation.name}($expr)"
+  override def encode: String = s"agg($name,${expr.encode})"
+  override def toString: String = s"$name($expr)"
 }
 
 object AggregateExpr {
-  def apply[T](a: Aggregation[T], e: Expression.Aux[T]): Expression.Aux[a.Out] = new AggregateExpr {
-    override type In = T
-    override type Out = a.Out
-    override def dataType: DataType.Aux[Out] = a.dataType
+  type Aux[I, M, O] = AggregateExpr { type In = I; type Interim = M; type Out = O }
+}
 
-    override val aggregation: Aggregation[T] = a
-    override val expr: Expression.Aux[T] = e
-  }
+case class MinExpr[I](override val expr: Expression.Aux[I])(implicit val ord: Ordering[I])
+    extends AggregateExpr("min") {
+  override type In = I
+  override type Interim = I
+  override type Out = I
+  override def dataType: DataType.Aux[I] = expr.dataType
+}
 
-  def unapply(arg: AggregateExpr): Option[(Aggregation[arg.In], Expression.Aux[arg.In])] = {
-    Some((arg.aggregation, arg.expr))
-  }
+case class MaxExpr[I](override val expr: Expression.Aux[I])(implicit val ord: Ordering[I])
+    extends AggregateExpr("max") {
+  override type In = I
+  override type Interim = I
+  override type Out = I
+  override def dataType: DataType.Aux[I] = expr.dataType
+}
+
+case class SumExpr[I](override val expr: Expression.Aux[I])(implicit val numeric: Numeric[I])
+    extends AggregateExpr("sum") {
+  override type In = I
+  override type Interim = I
+  override type Out = I
+  override def dataType: DataType.Aux[I] = expr.dataType
+}
+
+case class CountExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr("count") {
+  override type In = I
+  override type Interim = Long
+  override type Out = Long
+  override def dataType: DataType.Aux[Long] = DataType[Long]
+}
+
+case class DistinctCountExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr("distinct_count") {
+  override type In = I
+  override type Interim = Set[I]
+  override type Out = Int
+  override def dataType: DataType.Aux[Int] = DataType[Int]
+}
+
+case class DistinctRandomExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr("distinct_count") {
+  override type In = I
+  override type Interim = Set[I]
+  override type Out = I
+  override def dataType: DataType.Aux[I] = expr.dataType
 }
 
 abstract class ConstantExpr extends Expression {

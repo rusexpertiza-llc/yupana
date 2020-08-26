@@ -16,17 +16,14 @@
 
 package org.yupana.api.query.syntax
 
-import org.yupana.api.query.{ AggregateExpr, Expression }
-import org.yupana.api.types.{ Aggregation, DataType }
+import org.yupana.api.query._
 
 trait AggregationSyntax {
-  def sum[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = AggregateExpr(Aggregation.sum[T], e)
-  def min[T](e: Expression.Aux[T])(implicit ord: Ordering[T], dt: DataType.Aux[T]) =
-    AggregateExpr(Aggregation.min[T], e)
-  def max[T](e: Expression.Aux[T])(implicit ord: Ordering[T], dt: DataType.Aux[T]) =
-    AggregateExpr(Aggregation.max[T], e)
-  def count[T](e: Expression.Aux[T]) = AggregateExpr(Aggregation.count[T], e)
-  def distinctCount[T](e: Expression.Aux[T]) = AggregateExpr(Aggregation.distinctCount[T], e)
+  def sum[T](e: Expression.Aux[T])(implicit n: Numeric[T]) = SumExpr(e)
+  def min[T](e: Expression.Aux[T])(implicit ord: Ordering[T]) = MinExpr(e)
+  def max[T](e: Expression.Aux[T])(implicit ord: Ordering[T]) = MaxExpr(e)
+  def count[T](e: Expression.Aux[T]) = CountExpr(e)
+  def distinctCount[T](e: Expression.Aux[T]) = DistinctCountExpr(e)
 }
 
 object AggregationSyntax extends AggregationSyntax

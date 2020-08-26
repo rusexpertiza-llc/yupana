@@ -92,7 +92,7 @@ object QueryContext extends StrictLogging {
 
   private def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = {
     exprs.collect {
-      case a @ AggregateExpr(_, e)        => Set(a, e)
+      case a: AggregateExpr               => Set(a, a.expr)
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
       case d: DimensionExpr[_]            => Set(d)
