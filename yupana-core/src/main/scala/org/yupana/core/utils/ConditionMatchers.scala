@@ -16,7 +16,7 @@
 
 package org.yupana.core.utils
 
-import org.yupana.api.query.{ EqExpr, Expression, InExpr, NeqExpr, NotInExpr }
+import org.yupana.api.query._
 
 object ConditionMatchers {
 
@@ -35,6 +35,42 @@ object ConditionMatchers {
       condition match {
         case NeqExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[T]], b.asInstanceOf[Expression.Aux[T]]))
         case _             => None
+      }
+    }
+  }
+
+  trait GtMatcher[T] {
+    def unapply(condition: Expression): Option[(Expression.Aux[T], Expression.Aux[T])] = {
+      condition match {
+        case GtExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[T]], b.asInstanceOf[Expression.Aux[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait LtMatcher[T] {
+    def unapply(condition: Expression): Option[(Expression.Aux[T], Expression.Aux[T])] = {
+      condition match {
+        case LtExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[T]], b.asInstanceOf[Expression.Aux[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait GeMatcher[T] {
+    def unapply(condition: Expression): Option[(Expression.Aux[T], Expression.Aux[T])] = {
+      condition match {
+        case GeExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[T]], b.asInstanceOf[Expression.Aux[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait LeMatcher[T] {
+    def unapply(condition: Expression): Option[(Expression.Aux[T], Expression.Aux[T])] = {
+      condition match {
+        case LeExpr(a, b) => Some((a.asInstanceOf[Expression.Aux[T]], b.asInstanceOf[Expression.Aux[T]]))
+        case _            => None
       }
     }
   }

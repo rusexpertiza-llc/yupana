@@ -16,6 +16,7 @@
 
 package org.yupana.api.query
 
+import org.joda.time.Period
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
@@ -64,33 +65,31 @@ object Expression {
   type Condition = Expression.Aux[Boolean]
 }
 
-abstract class WindowFunctionExpr extends Expression {
+abstract class WindowFunctionExpr(val name: String) extends Expression {
   type In
-  val operation: WindowOperation[In]
   val expr: Expression.Aux[In]
 
-  override type Out = operation.Out
-  override def dataType: DataType.Aux[Out] = operation.dataType
+  override def aux: WindowFunctionExpr.Aux[In, Out] = this.asInstanceOf[WindowFunctionExpr.Aux[In, Out]]
+
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
-  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
-    WindowFunctionExpr(operation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
-  }
+//  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
+//    WindowFunctionExpr(operation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
+//  }
 
-  override def encode: String = s"winFunc(${operation.name},${expr.encode})"
-  override def toString: String = s"${operation.name}($expr)"
+  override def encode: String = s"winFunc($name,${expr.encode})"
+  override def toString: String = s"$name($expr)"
 }
 
 object WindowFunctionExpr {
-  def apply[T](op: WindowOperation[T], e: Expression.Aux[T]): WindowFunctionExpr = new WindowFunctionExpr {
-    override type In = T
-    override val operation: WindowOperation[T] = op
-    override val expr: Expression.Aux[T] = e
-  }
-  def unapply(arg: WindowFunctionExpr): Option[(WindowOperation[arg.In], Expression.Aux[arg.In])] = {
-    Some((arg.operation, arg.expr))
-  }
+  type Aux[I, O] = WindowFunctionExpr { type In = I; type Out = O }
+}
+
+case class LagExpr[I](override val expr: Expression.Aux[I]) extends WindowFunctionExpr("lag") {
+  override type In = I
+  override type Out = I
+  override def dataType: DataType.Aux[I] = expr.dataType
 }
 
 sealed abstract class AggregateExpr(val name: String) extends Expression {
@@ -264,9 +263,7 @@ case class LinkExpr[T](link: ExternalLink, linkField: LinkField.Aux[T]) extends 
 }
 
 object LinkExpr {
-//  def apply[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = new LinkExpr(link, field)
   def apply(link: ExternalLink, field: String): LinkExpr[String] = new LinkExpr(link, LinkField[String](field))
-//  def unapply(expr: LinkExpr[_]): Option[(ExternalLink, String)] = Some((expr.link, expr.linkField.name))
 }
 
 abstract class UnaryOperationExpr[T, U](
@@ -294,15 +291,17 @@ abstract class UnaryOperationExpr[T, U](
   override def encode: String = s"$functionName($expr)"
 }
 
-case class UnaryMinusExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[N], val dataType: DataType.Aux[N])
+case class UnaryMinusExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[N])
     extends UnaryOperationExpr[N, N](expr, "-") {
   override type Self = UnaryMinusExpr[N]
+  override def dataType: DataType.Aux[N] = expr.dataType
   override def create(newExpr: Expression.Aux[N]): UnaryMinusExpr[N] = UnaryMinusExpr(newExpr)
 }
 
-case class AbsExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[N], val dataType: DataType.Aux[N])
+case class AbsExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[N])
     extends UnaryOperationExpr[N, N](expr, "abs") {
   override type Self = AbsExpr[N]
+  override def dataType: DataType.Aux[N] = expr.dataType
   override def create(newExpr: Expression.Aux[N]): AbsExpr[N] = AbsExpr(newExpr)
 }
 
@@ -336,10 +335,24 @@ case class TokensExpr(expr: Expression.Aux[String]) extends UnaryOperationExpr[S
   override def create(newExpr: Expression.Aux[String]): TokensExpr = TokensExpr(newExpr)
 }
 
+case class ArrayTokensExpr(expr: Expression.Aux[Array[String]])
+    extends UnaryOperationExpr[Array[String], Array[String]](expr, "tokens") {
+  override def dataType: DataType.Aux[Array[String]] = DataType[Array[String]]
+  override type Self = ArrayTokensExpr
+  override def create(newExpr: Expression.Aux[Array[String]]): ArrayTokensExpr = ArrayTokensExpr(newExpr)
+}
+
 case class SplitExpr(expr: Expression.Aux[String]) extends UnaryOperationExpr[String, Array[String]](expr, "split") {
   override def dataType: DataType.Aux[Array[String]] = DataType[Array[String]]
   override type Self = SplitExpr
   override def create(newExpr: Expression.Aux[String]): SplitExpr = SplitExpr(newExpr)
+}
+
+case class ArrayToStringExpr[T](expr: Expression.Aux[Array[T]])
+    extends UnaryOperationExpr[Array[T], String](expr, "array_to_string") {
+  override def dataType: DataType.Aux[String] = DataType[String]
+  override type Self = ArrayToStringExpr[T]
+  override def create(newExpr: Expression.Aux[Array[T]]): ArrayToStringExpr[T] = ArrayToStringExpr(newExpr)
 }
 
 case class ExtractYearExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractYear") {
@@ -561,6 +574,29 @@ case class DivFracExpr[N: Fractional](a: Expression.Aux[N], b: Expression.Aux[N]
   override type Self = DivFracExpr[N]
   override def dataType: DataType.Aux[N] = a.dataType
   override def create(a: Expression.Aux[N], b: Expression.Aux[N]): DivFracExpr[N] = DivFracExpr(a, b)
+}
+
+case class TimeMinusExpr(a: Expression.Aux[Time], b: Expression.Aux[Time])
+    extends BinaryOperationExpr[Time, Time, Long](a, b, "-", true) {
+  override type Self = TimeMinusExpr
+  override val dataType: DataType.Aux[Long] = DataType[Long]
+  override def create(a: Expression.Aux[Time], b: Expression.Aux[Time]): TimeMinusExpr = TimeMinusExpr(a, b)
+}
+
+case class TimeMinusPeriodExpr(a: Expression.Aux[Time], b: Expression.Aux[Period])
+    extends BinaryOperationExpr[Time, Period, Time](a, b, "-", true) {
+  override type Self = TimeMinusPeriodExpr
+  override val dataType: DataType.Aux[Time] = DataType[Time]
+  override def create(a: Expression.Aux[Time], b: Expression.Aux[Period]): TimeMinusPeriodExpr =
+    TimeMinusPeriodExpr(a, b)
+}
+
+case class TimePlusPeriodExpr(a: Expression.Aux[Time], b: Expression.Aux[Period])
+    extends BinaryOperationExpr[Time, Period, Time](a, b, "+", true) {
+  override type Self = TimePlusPeriodExpr
+  override val dataType: DataType.Aux[Time] = DataType[Time]
+  override def create(a: Expression.Aux[Time], b: Expression.Aux[Period]): TimePlusPeriodExpr =
+    TimePlusPeriodExpr(a, b)
 }
 
 case class ContainsExpr[T](a: Expression.Aux[Array[T]], b: Expression.Aux[T])

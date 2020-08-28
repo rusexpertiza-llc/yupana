@@ -216,6 +216,12 @@ object ExpressionCalculator {
     res.asInstanceOf[expr.Out]
   }
 
+  def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr.Aux[I, O], values: Array[I], index: Int): O = {
+    winFuncExpr match {
+      case LagExpr(_) => if (index > 0) values(index - 1).asInstanceOf[O] else null.asInstanceOf[O]
+    }
+  }
+
   private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow)(e: Expression.Aux[A], f: A => O): O = {
     val ev = evaluateExpression(e, qc, internalRow)
     if (ev != null) f(ev) else null.asInstanceOf[O]

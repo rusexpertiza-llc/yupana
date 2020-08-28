@@ -2497,7 +2497,7 @@ class TsdbTest
       Some(TestSchema.testTable),
       Seq(
         time as "time_time",
-        windowFunction(WindowOperation.lag[Time], time) as "lag_time_time",
+        lag(time) as "lag_time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"

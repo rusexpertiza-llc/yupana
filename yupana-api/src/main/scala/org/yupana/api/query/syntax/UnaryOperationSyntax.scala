@@ -18,7 +18,6 @@ package org.yupana.api.query.syntax
 
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
 
 trait UnaryOperationSyntax {
   def truncYear(e: Expression.Aux[Time]) = TruncYearExpr(e)
@@ -40,15 +39,19 @@ trait UnaryOperationSyntax {
   def lower(e: Expression.Aux[String]) = LowerExpr(e)
   def upper(e: Expression.Aux[String]) = UpperExpr(e)
   def tokens(e: Expression.Aux[String]) = TokensExpr(e)
+  def tokenizeArray(e: Expression.Aux[Array[String]]) = ArrayTokensExpr(e)
   def split(e: Expression.Aux[String]) = SplitExpr(e)
+  def arrayToString[T](e: Expression.Aux[Array[T]]) = ArrayToStringExpr(e)
 
   def not(e: Expression.Aux[Boolean]) = NotExpr(e)
 
-  def abs[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = AbsExpr(e)
-  def minus[T](e: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = UnaryMinusExpr(e)
+  def abs[T](e: Expression.Aux[T])(implicit n: Numeric[T]) = AbsExpr(e)
+  def minus[T](e: Expression.Aux[T])(implicit n: Numeric[T]) = UnaryMinusExpr(e)
 
   def isNull[T](e: Expression.Aux[T]) = IsNullExpr(e)
   def isNotNull[T](e: Expression.Aux[T]) = IsNotNullExpr(e)
+
+  def lag[T](e: Expression.Aux[T]) = LagExpr(e)
 }
 
 object UnaryOperationSyntax extends UnaryOperationSyntax

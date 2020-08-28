@@ -16,10 +16,12 @@
 
 package org.yupana.api.query.syntax
 
+import org.yupana.api.Time
 import org.yupana.api.query._
 
 trait BinaryOperationSyntax {
   def minus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T]) = MinusExpr(a, b)
+  def minus(a: Expression.Aux[Time], b: Expression.Aux[Time]) = TimeMinusExpr(a, b)
   def plus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T]) = PlusExpr(a, b)
   def times[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T]) = TimesExpr(a, b)
   def divInt[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Integral[T]) = DivIntExpr(a, b)
