@@ -65,7 +65,7 @@ object Expression {
   type Condition = Expression.Aux[Boolean]
 }
 
-abstract class WindowFunctionExpr(val name: String) extends Expression {
+sealed abstract class WindowFunctionExpr(val name: String) extends Expression {
   type In
   val expr: Expression.Aux[In]
 
@@ -298,7 +298,7 @@ case class UnaryMinusExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[
   override def create(newExpr: Expression.Aux[N]): UnaryMinusExpr[N] = UnaryMinusExpr(newExpr)
 }
 
-case class AbsExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[N])
+case class AbsExpr[N](expr: Expression.Aux[N])(implicit val numeric: Numeric[N])
     extends UnaryOperationExpr[N, N](expr, "abs") {
   override type Self = AbsExpr[N]
   override def dataType: DataType.Aux[N] = expr.dataType
@@ -509,7 +509,7 @@ case class NeqExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class LtExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
+case class LtExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit val ordering: Ordering[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, "<", true) {
   override type Self = LtExpr[T]
 
@@ -517,7 +517,7 @@ case class LtExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class GtExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
+case class GtExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit val ordering: Ordering[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, ">", true) {
   override type Self = GtExpr[T]
 
@@ -525,7 +525,7 @@ case class GtExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class LeExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
+case class LeExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit val ordering: Ordering[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, "<=", true) {
   override type Self = LeExpr[T]
 
@@ -533,7 +533,7 @@ case class LeExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class GeExpr[T: Ordering](a: Expression.Aux[T], b: Expression.Aux[T])
+case class GeExpr[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit val ordering: Ordering[T])
     extends BinaryOperationExpr[T, T, Boolean](a, b, ">=", true) {
   override type Self = GeExpr[T]
 
@@ -548,28 +548,28 @@ case class PlusExpr[N](a: Expression.Aux[N], b: Expression.Aux[N])(implicit val 
   override def create(a: Expression.Aux[N], b: Expression.Aux[N]): PlusExpr[N] = PlusExpr(a, b)
 }
 
-case class MinusExpr[N: Numeric](a: Expression.Aux[N], b: Expression.Aux[N])
+case class MinusExpr[N](a: Expression.Aux[N], b: Expression.Aux[N])(implicit val numeric: Numeric[N])
     extends BinaryOperationExpr[N, N, N](a, b, "-", true) {
   override type Self = MinusExpr[N]
   override def dataType: DataType.Aux[N] = a.dataType
   override def create(a: Expression.Aux[N], b: Expression.Aux[N]): MinusExpr[N] = MinusExpr(a, b)
 }
 
-case class TimesExpr[N: Numeric](a: Expression.Aux[N], b: Expression.Aux[N])
+case class TimesExpr[N](a: Expression.Aux[N], b: Expression.Aux[N])(implicit val numeric: Numeric[N])
     extends BinaryOperationExpr[N, N, N](a, b, "*", true) {
   override type Self = TimesExpr[N]
   override def dataType: DataType.Aux[N] = a.dataType
   override def create(a: Expression.Aux[N], b: Expression.Aux[N]): TimesExpr[N] = TimesExpr(a, b)
 }
 
-case class DivIntExpr[N: Integral](a: Expression.Aux[N], b: Expression.Aux[N])
+case class DivIntExpr[N](a: Expression.Aux[N], b: Expression.Aux[N])(implicit val integral: Integral[N])
     extends BinaryOperationExpr[N, N, N](a, b, "/", true) {
   override type Self = DivIntExpr[N]
   override def dataType: DataType.Aux[N] = a.dataType
   override def create(a: Expression.Aux[N], b: Expression.Aux[N]): DivIntExpr[N] = DivIntExpr(a, b)
 }
 
-case class DivFracExpr[N: Fractional](a: Expression.Aux[N], b: Expression.Aux[N])
+case class DivFracExpr[N](a: Expression.Aux[N], b: Expression.Aux[N])(implicit val fractional: Fractional[N])
     extends BinaryOperationExpr[N, N, N](a, b, "/", true) {
   override type Self = DivFracExpr[N]
   override def dataType: DataType.Aux[N] = a.dataType
@@ -715,7 +715,7 @@ case class InExpr[T](expr: Expression.Aux[T], values: Set[T]) extends Expression
     if (pf.isDefinedAt(this)) {
       pf(this).asInstanceOf[Condition]
     } else {
-      NotInExpr(expr.transform(pf), values)
+      InExpr(expr.transform(pf), values)
     }
   }
 

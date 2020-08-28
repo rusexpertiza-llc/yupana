@@ -9,7 +9,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
-import org.yupana.api.types._
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TSDao, TsdbQueryMetricsDao }

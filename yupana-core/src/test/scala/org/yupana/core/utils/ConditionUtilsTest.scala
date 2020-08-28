@@ -36,8 +36,9 @@ class ConditionUtilsTest extends FlatSpec with Matchers {
     )
 
     ConditionUtils.flatMap(c) {
-      case x @ EqExpr(DimensionExpr(_), _) => x
-      case _                               => ConstantExpr(true)
+      case x @ EqExpr(DimensionExpr(_), _)  => x
+      case x @ NeqExpr(DimensionExpr(_), _) => x
+      case _                                => ConstantExpr(true)
     } shouldEqual or(
       equ(dimension(RawDimension[Int]("x")), const(66)),
       neq(dimension(DictionaryDimension("y")), const("b"))

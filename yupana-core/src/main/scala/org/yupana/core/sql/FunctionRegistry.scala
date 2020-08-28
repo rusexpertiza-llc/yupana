@@ -127,7 +127,7 @@ object FunctionRegistry {
       }
     ),
     biSame(
-      "!=",
+      "<>",
       new Bind2[Expression.Aux, Expression.Aux, Expression] {
         override def apply[T](a: Expression.Aux[T], b: Expression.Aux[T]): Condition = NeqExpr(a, b)
       }

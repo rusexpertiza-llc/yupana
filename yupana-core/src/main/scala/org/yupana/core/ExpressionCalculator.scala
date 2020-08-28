@@ -122,75 +122,90 @@ object ExpressionCalculator {
     res.asInstanceOf[O]
   }
 
-  private def eval(expr: Expression, queryContext: QueryContext, internalRow: InternalRow): expr.Out = {
+  private def eval(expr: Expression, qc: QueryContext, row: InternalRow): expr.Out = {
 
     val res = expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr           => null
-      case DimensionExpr(_)   => null
-      case DimensionIdExpr(_) => null
-      case MetricExpr(_)      => null
-      case LinkExpr(_, _)     => null
+      case TimeExpr               => null
+      case DimensionExpr(_)       => null
+      case DimensionIdExpr(_)     => null
+      case MetricExpr(_)          => null
+      case LinkExpr(_, _)         => null
+      case ae: AggregateExpr      => evaluateExpression(ae.expr, qc, row)
+      case we: WindowFunctionExpr => evaluateExpression(we.expr, qc, row)
 
       case ConditionExpr(condition, positive, negative) =>
-        val x = evaluateExpression(condition, queryContext, internalRow)
+        val x = evaluateExpression(condition, qc, row)
         if (x) {
-          evaluateExpression(positive, queryContext, internalRow)
+          evaluateExpression(positive, qc, row)
         } else {
-          evaluateExpression(negative, queryContext, internalRow)
+          evaluateExpression(negative, qc, row)
         }
 
       case TruncYearExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncYear)
+        evaluateUnary(qc, row)(e, Operations.truncYear)
 
       case TruncMonthExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncMonth)
+        evaluateUnary(qc, row)(e, Operations.truncMonth)
 
       case TruncDayExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncDay)
+        evaluateUnary(qc, row)(e, Operations.truncDay)
 
       case TruncWeekExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncWeek)
+        evaluateUnary(qc, row)(e, Operations.truncWeek)
 
       case TruncHourExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncHour)
+        evaluateUnary(qc, row)(e, Operations.truncHour)
 
       case TruncMinuteExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncMinute)
+        evaluateUnary(qc, row)(e, Operations.truncMinute)
 
       case TruncSecondExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncSecond)
+        evaluateUnary(qc, row)(e, Operations.truncSecond)
 
-      case p @ PlusExpr(a, b) =>
-        evaluateBinary(queryContext, internalRow)(a, b, p.numeric.plus)
+      case p @ PlusExpr(a, b)    => evaluateBinary(qc, row)(a, b, p.numeric.plus)
+      case m @ MinusExpr(a, b)   => evaluateBinary(qc, row)(a, b, m.numeric.minus)
+      case t @ TimesExpr(a, b)   => evaluateBinary(qc, row)(a, b, t.numeric.times)
+      case d @ DivIntExpr(a, b)  => evaluateBinary(qc, row)(a, b, d.integral.quot)
+      case d @ DivFracExpr(a, b) => evaluateBinary(qc, row)(a, b, d.fractional.div)
+
+      case EqExpr(a, b)     => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x == y)
+      case NeqExpr(a, b)    => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x != y)
+      case e @ GtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gt)
+      case e @ LtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lt)
+      case e @ GeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gteq)
+      case e @ LeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lteq)
+
+      case IsNullExpr(e)    => evaluateUnary(qc, row)(e, (x: e.Out) => x == null)
+      case IsNotNullExpr(e) => evaluateUnary(qc, row)(e, (x: e.Out) => x != null)
 
       case TypeConvertExpr(tc, e) =>
-        tc.convert(evaluateExpression(e, queryContext, internalRow))
-
-//      case AggregateExpr(_, e) =>
-//        evaluateExpression(e, queryContext, internalRow)
-
-//      case WindowFunctionExpr(_, e) =>
-//        evaluateExpression(e, queryContext, internalRow)
+        tc.convert(evaluateExpression(e, qc, row))
 
       case InExpr(e, vs) =>
-        vs contains evaluateExpression(e, queryContext, internalRow)
+        vs contains evaluateExpression(e, qc, row)
 
       case NotInExpr(e, vs) =>
-        val eValue = evaluateExpression(e, queryContext, internalRow)
+        val eValue = evaluateExpression(e, qc, row)
         eValue != null && !vs.contains(eValue)
 
       case AndExpr(cs) =>
-        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        val executed = cs.map(c => evaluateExpression(c, qc, row))
         executed.reduce((a, b) => a && b)
 
       case OrExpr(cs) =>
-        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        val executed = cs.map(c => evaluateExpression(c, qc, row))
         executed.reduce((a, b) => a || b)
 
       case TupleExpr(e1, e2) =>
-        (evaluateExpression(e1, queryContext, internalRow), evaluateExpression(e2, queryContext, internalRow))
+        (evaluateExpression(e1, qc, row), evaluateExpression(e2, qc, row))
+
+      case LowerExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toLowerCase)
+      case UpperExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toUpperCase)
+      case LengthExpr(e) => evaluateUnary(qc, row)(e, (x: String) => x.length)
+
+      case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.numeric.abs)
 
       case ae @ ArrayExpr(es) =>
         val values: Array[ae.elementDataType.T] =
@@ -199,7 +214,7 @@ object ExpressionCalculator {
         var i = 0
 
         while (i < es.length && success) {
-          val v = evaluateExpression(es(i), queryContext, internalRow)
+          val v = evaluateExpression(es(i), qc, row)
           values(i) = v
           if (v == null) {
             success = false
