@@ -65,99 +65,79 @@ object Expression {
   type Condition = Expression.Aux[Boolean]
 }
 
-sealed abstract class WindowFunctionExpr(val name: String) extends Expression {
-  type In
-  val expr: Expression.Aux[In]
-
-  override def aux: WindowFunctionExpr.Aux[In, Out] = this.asInstanceOf[WindowFunctionExpr.Aux[In, Out]]
-
+sealed abstract class WindowFunctionExpr[T, U](val expr: Expression.Aux[T], name: String)
+    extends UnaryOperationExpr[T, U](expr, name) {
+  type In = T
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
-
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
-//  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
-//    WindowFunctionExpr(operation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
-//  }
-
   override def encode: String = s"winFunc($name,${expr.encode})"
-  override def toString: String = s"$name($expr)"
 }
 
-object WindowFunctionExpr {
-  type Aux[I, O] = WindowFunctionExpr { type In = I; type Out = O }
-}
-
-case class LagExpr[I](override val expr: Expression.Aux[I]) extends WindowFunctionExpr("lag") {
-  override type In = I
-  override type Out = I
+case class LagExpr[I](override val expr: Expression.Aux[I]) extends WindowFunctionExpr[I, I](expr, "lag") {
   override def dataType: DataType.Aux[I] = expr.dataType
+  override type Self = LagExpr[I]
+
+  override def create(newExpr: Expression.Aux[I]): LagExpr[I] = LagExpr(newExpr)
 }
 
-sealed abstract class AggregateExpr(val name: String) extends Expression {
-  type In
+sealed abstract class AggregateExpr[T, U](val expr: Expression.Aux[T], name: String)
+    extends UnaryOperationExpr[T, U](expr, name) {
+  type In = T
   type Interim
-//  val aggregation: Aggregation[In]
-  val expr: Expression.Aux[In]
-
   override def aux: AggregateExpr.Aux[In, Interim, Out] = this.asInstanceOf[AggregateExpr.Aux[In, Interim, Out]]
+
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
-
-  override def fold[O](z: O)(f: (O, Expression) => O): O = expr.fold(f(z, this))(f)
-
-//  override def transform(pf: PartialFunction[Expression, Expression]): Expression.Aux[Out] = {
-//    AggregateExpr(aggregation, expr.transform(pf)).asInstanceOf[Expression.Aux[Out]]
-//  }
-
   override def encode: String = s"agg($name,${expr.encode})"
-  override def toString: String = s"$name($expr)"
 }
 
 object AggregateExpr {
-  type Aux[I, M, O] = AggregateExpr { type In = I; type Interim = M; type Out = O }
+  type Aux[I, M, O] = AggregateExpr[I, O] { type Interim = M }
 }
 
 case class MinExpr[I](override val expr: Expression.Aux[I])(implicit val ord: Ordering[I])
-    extends AggregateExpr("min") {
-  override type In = I
+    extends AggregateExpr[I, I](expr, "min") {
   override type Interim = I
-  override type Out = I
   override def dataType: DataType.Aux[I] = expr.dataType
+  override type Self = MinExpr[I]
+  override def create(newExpr: Expression.Aux[I]): MinExpr[I] = MinExpr(newExpr)
 }
 
 case class MaxExpr[I](override val expr: Expression.Aux[I])(implicit val ord: Ordering[I])
-    extends AggregateExpr("max") {
-  override type In = I
+    extends AggregateExpr[I, I](expr, "max") {
   override type Interim = I
-  override type Out = I
   override def dataType: DataType.Aux[I] = expr.dataType
+  override type Self = MaxExpr[I]
+  override def create(newExpr: Expression.Aux[I]): MaxExpr[I] = MaxExpr(newExpr)
 }
 
 case class SumExpr[I](override val expr: Expression.Aux[I])(implicit val numeric: Numeric[I])
-    extends AggregateExpr("sum") {
-  override type In = I
+    extends AggregateExpr[I, I](expr, "sum") {
   override type Interim = I
-  override type Out = I
   override def dataType: DataType.Aux[I] = expr.dataType
+  override type Self = SumExpr[I]
+  override def create(newExpr: Expression.Aux[I]): SumExpr[I] = SumExpr(newExpr)
 }
 
-case class CountExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr("count") {
-  override type In = I
+case class CountExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr[I, Long](expr, "count") {
   override type Interim = Long
-  override type Out = Long
   override def dataType: DataType.Aux[Long] = DataType[Long]
+  override type Self = CountExpr[I]
+  override def create(newExpr: Expression.Aux[I]): CountExpr[I] = CountExpr(newExpr)
 }
 
-case class DistinctCountExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr("distinct_count") {
-  override type In = I
+case class DistinctCountExpr[I](override val expr: Expression.Aux[I])
+    extends AggregateExpr[I, Int](expr, "distinct_count") {
   override type Interim = Set[I]
-  override type Out = Int
   override def dataType: DataType.Aux[Int] = DataType[Int]
+  override type Self = DistinctCountExpr[I]
+  override def create(newExpr: Expression.Aux[I]): DistinctCountExpr[I] = DistinctCountExpr(newExpr)
 }
 
-case class DistinctRandomExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr("distinct_count") {
-  override type In = I
+case class DistinctRandomExpr[I](override val expr: Expression.Aux[I])
+    extends AggregateExpr[I, I](expr, "distinct_count") {
   override type Interim = Set[I]
-  override type Out = I
   override def dataType: DataType.Aux[I] = expr.dataType
+  override type Self = DistinctRandomExpr[I]
+  override def create(newExpr: Expression.Aux[I]): DistinctRandomExpr[I] = DistinctRandomExpr(newExpr)
 }
 
 abstract class ConstantExpr extends Expression {
@@ -289,6 +269,7 @@ abstract class UnaryOperationExpr[T, U](
   }
 
   override def encode: String = s"$functionName($expr)"
+  override def toString: String = s"$functionName($expr)"
 }
 
 case class UnaryMinusExpr[N](expr: Expression.Aux[N])(implicit val num: Numeric[N])
@@ -599,8 +580,25 @@ case class TimePlusPeriodExpr(a: Expression.Aux[Time], b: Expression.Aux[Period]
     TimePlusPeriodExpr(a, b)
 }
 
+case class PeriodPlusPeriodExpr(a: Expression.Aux[Period], b: Expression.Aux[Period])
+    extends BinaryOperationExpr[Period, Period, Period](a, b, "+", true) {
+  override type Self = PeriodPlusPeriodExpr
+  override val dataType: DataType.Aux[Period] = DataType[Period]
+  override def create(a: Expression.Aux[Period], b: Expression.Aux[Period]): PeriodPlusPeriodExpr =
+    PeriodPlusPeriodExpr(a, b)
+}
+
+case class ConcatExpr(a: Expression.Aux[String], b: Expression.Aux[String])
+    extends BinaryOperationExpr[String, String, String](a, b, "+", true) {
+  override type Self = ConcatExpr
+  override val dataType: DataType.Aux[String] = DataType[String]
+  override def create(a: Expression.Aux[String], b: Expression.Aux[String]): ConcatExpr = ConcatExpr(a, b)
+}
+
 case class ContainsExpr[T](a: Expression.Aux[Array[T]], b: Expression.Aux[T])
     extends BinaryOperationExpr[Array[T], T, Boolean](a, b, "contains", false) {
+  type In = Array[T]
+  type Item = T
   override type Self = ContainsExpr[T]
 
   override def create(a: Expression.Aux[Array[T]], b: Expression.Aux[T]): ContainsExpr[T] = ContainsExpr(a, b)

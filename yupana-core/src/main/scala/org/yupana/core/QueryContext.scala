@@ -25,7 +25,7 @@ import scala.collection.mutable
 case class QueryContext(
     query: Query,
     exprsIndex: mutable.HashMap[Expression, Int],
-    aggregateExprs: Array[AggregateExpr],
+    aggregateExprs: Array[AggregateExpr[_, _]],
     topRowExprs: Array[Expression],
     exprsOnAggregatesAndWindows: Array[Expression],
     bottomExprs: Array[Expression],
@@ -63,8 +63,8 @@ object QueryContext extends StrictLogging {
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr] && (
         (!containsAggregates(expr) && !containsWindows(expr)) ||
-        expr.isInstanceOf[AggregateExpr] ||
-        expr.isInstanceOf[WindowFunctionExpr]
+        expr.isInstanceOf[AggregateExpr[_, _]] ||
+        expr.isInstanceOf[WindowFunctionExpr[_, _]]
       )
     }
 
@@ -74,7 +74,7 @@ object QueryContext extends StrictLogging {
 
     val bottomExprs: Set[Expression] = collectBottomExprs(allExprs)
 
-    val aggregateExprs = allExprs.collect { case ae: AggregateExpr => ae }
+    val aggregateExprs = allExprs.collect { case ae: AggregateExpr[_, _] => ae }
 
     val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
 
@@ -92,7 +92,7 @@ object QueryContext extends StrictLogging {
 
   private def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = {
     exprs.collect {
-      case a: AggregateExpr               => Set(a, a.expr)
+      case a: AggregateExpr[_, _]         => Set(a, a.expr)
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr                => Set(c)
       case d: DimensionExpr[_]            => Set(d)
@@ -105,12 +105,12 @@ object QueryContext extends StrictLogging {
   }
 
   private def containsAggregates(e: Expression): Boolean = e.flatten.exists {
-    case _: AggregateExpr => true
-    case _                => false
+    case _: AggregateExpr[_, _] => true
+    case _                      => false
   }
 
   private def containsWindows(e: Expression): Boolean = e.flatten.exists {
-    case _: WindowFunctionExpr => true
-    case _                     => false
+    case _: WindowFunctionExpr[_, _] => true
+    case _                           => false
   }
 }

@@ -164,14 +164,19 @@ object FunctionRegistry {
           case Left(msg)   => Left(msg)
         }
     ),
+    biTyped("+", ConcatExpr),
     biTyped("-", TimeMinusExpr),
     biTyped("-", TimeMinusPeriodExpr),
     biTyped("+", TimePlusPeriodExpr),
+    biTyped("+", PeriodPlusPeriodExpr),
     biArray("contains_any", new Bind2[ArrayExpr, ArrayExpr, Expression] {
       override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression = ContainsAnyExpr(a, b)
     }),
     biArray("contains_all", new Bind2[ArrayExpr, ArrayExpr, Expression] {
       override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression = ContainsAnyExpr(a, b)
+    }),
+    biArray("contains_same", new Bind2[ArrayExpr, ArrayExpr, Expression] {
+      override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression = ContainsSameExpr(a, b)
     })
   )
 

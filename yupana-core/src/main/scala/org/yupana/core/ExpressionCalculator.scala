@@ -16,6 +16,8 @@
 
 package org.yupana.core
 
+import org.joda.time.Period
+import org.yupana.api.Time
 import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
 import org.yupana.core.operations.Operations
@@ -58,10 +60,12 @@ object ExpressionCalculator {
 
   def evaluateMap[I, M](expr: AggregateExpr.Aux[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
     val res = expr match {
-      case MinExpr(e)   => row.get[M](queryContext, e)
-      case MaxExpr(e)   => row.get[M](queryContext, e)
-      case SumExpr(e)   => row.get[M](queryContext, e)
-      case CountExpr(_) => 1L
+      case MinExpr(e) => row.get[M](queryContext, e)
+      case MaxExpr(e) => row.get[M](queryContext, e)
+      case SumExpr(e) => row.get[M](queryContext, e)
+      case CountExpr(e) =>
+        val v = row.get[I](queryContext, e)
+        if (v != null) 1L else 0L
       case DistinctCountExpr(e) =>
         val v = row.get[I](queryContext, e)
         if (v != null) Set(v) else Set.empty[I]
@@ -105,19 +109,17 @@ object ExpressionCalculator {
   def evaluatePostMap[M, O](expr: AggregateExpr.Aux[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
     val oldValue = row.get[M](queryContext, expr)
 
-    val res = if (oldValue != null) {
-      expr match {
-        case MinExpr(_)           => oldValue
-        case MaxExpr(_)           => oldValue
-        case SumExpr(_)           => oldValue
-        case CountExpr(_)         => oldValue
-        case DistinctCountExpr(_) => oldValue.asInstanceOf[Set[_]].size
-        case DistinctRandomExpr(_) =>
-          val s = oldValue.asInstanceOf[Set[_]]
-          val n = util.Random.nextInt(s.size)
-          s.iterator.drop(n).next
-      }
-    } else null
+    val res = expr match {
+      case MinExpr(_)           => oldValue
+      case MaxExpr(_)           => oldValue
+      case s @ SumExpr(_)       => if (oldValue != null) oldValue else s.numeric.zero
+      case CountExpr(_)         => oldValue
+      case DistinctCountExpr(_) => oldValue.asInstanceOf[Set[_]].size
+      case DistinctRandomExpr(_) =>
+        val s = oldValue.asInstanceOf[Set[_]]
+        val n = util.Random.nextInt(s.size)
+        s.iterator.drop(n).next
+    }
 
     res.asInstanceOf[O]
   }
@@ -127,13 +129,13 @@ object ExpressionCalculator {
     val res = expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr               => null
-      case DimensionExpr(_)       => null
-      case DimensionIdExpr(_)     => null
-      case MetricExpr(_)          => null
-      case LinkExpr(_, _)         => null
-      case ae: AggregateExpr      => evaluateExpression(ae.expr, qc, row)
-      case we: WindowFunctionExpr => evaluateExpression(we.expr, qc, row)
+      case TimeExpr                     => null
+      case DimensionExpr(_)             => null
+      case DimensionIdExpr(_)           => null
+      case MetricExpr(_)                => null
+      case LinkExpr(_, _)               => null
+      case ae: AggregateExpr[_, _]      => evaluateExpression(ae.expr, qc, row)
+      case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row)
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, qc, row)
@@ -170,6 +172,8 @@ object ExpressionCalculator {
       case d @ DivIntExpr(a, b)  => evaluateBinary(qc, row)(a, b, d.integral.quot)
       case d @ DivFracExpr(a, b) => evaluateBinary(qc, row)(a, b, d.fractional.div)
 
+      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
+
       case EqExpr(a, b)     => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x == y)
       case NeqExpr(a, b)    => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x != y)
       case e @ GtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gt)
@@ -177,8 +181,8 @@ object ExpressionCalculator {
       case e @ GeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gteq)
       case e @ LeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lteq)
 
-      case IsNullExpr(e)    => evaluateUnary(qc, row)(e, (x: e.Out) => x == null)
-      case IsNotNullExpr(e) => evaluateUnary(qc, row)(e, (x: e.Out) => x != null)
+      case IsNullExpr(e)    => evaluateExpression(e, qc, row) == null
+      case IsNotNullExpr(e) => evaluateExpression(e, qc, row) != null
 
       case TypeConvertExpr(tc, e) =>
         tc.convert(evaluateExpression(e, qc, row))
@@ -207,6 +211,20 @@ object ExpressionCalculator {
 
       case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.numeric.abs)
 
+      case NotExpr(e) => evaluateUnary(qc, row)(e, (x: Boolean) => !x)
+
+      case TimeMinusExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Time, y: Time) => math.abs(x.millis - y.millis))
+      case TimeMinusPeriodExpr(a, b) =>
+        evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
+      case TimePlusPeriodExpr(a, b) =>
+        evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
+      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Period, y: Period) => x plus y)
+
+      case ce @ ContainsExpr(a, v) => evaluateBinary(qc, row)(a, v, (ar: ce.In, x: ce.Item) => ar.contains(x))
+//      case ContainsAllExpr(a, vs) =>
+//      case ContainsAnyExpr(a, vs) =>
+//      case ContainsSameExpr(a, vs) =>
+
       case ae @ ArrayExpr(es) =>
         val values: Array[ae.elementDataType.T] =
           Array.ofDim[ae.elementDataType.T](es.length)(ae.elementDataType.classTag)
@@ -231,7 +249,7 @@ object ExpressionCalculator {
     res.asInstanceOf[expr.Out]
   }
 
-  def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr.Aux[I, O], values: Array[I], index: Int): O = {
+  def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O = {
     winFuncExpr match {
       case LagExpr(_) => if (index > 0) values(index - 1).asInstanceOf[O] else null.asInstanceOf[O]
     }
@@ -254,4 +272,9 @@ object ExpressionCalculator {
       null.asInstanceOf[O]
     }
   }
+
+  private def contains[T](a: Array[T], t: T): Boolean = a contains t
+  private def containsAll[T](a: Array[T], b: Array[T]): Boolean = b.forall(a.contains)
+  private def containsAny[T](a: Array[T], b: Array[T]): Boolean = b.exists(a.contains)
+  private def containsSame[T](a: Array[T], b: Array[T]): Boolean = a sameElements b
 }
