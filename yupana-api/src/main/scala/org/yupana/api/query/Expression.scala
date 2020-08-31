@@ -478,7 +478,7 @@ case class GeExpr[T](a: Expression[T], b: Expression[T])(implicit val ordering: 
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case class PlusExpr[N: Numeric](a: Expression[N], b: Expression[N])
+case class PlusExpr[N](a: Expression[N], b: Expression[N])(implicit val numeric: Numeric[N])
     extends BinaryOperationExpr[N, N, N](a, b, "+", true) {
   override type Self = PlusExpr[N]
   override def dataType: DataType.Aux[N] = a.dataType

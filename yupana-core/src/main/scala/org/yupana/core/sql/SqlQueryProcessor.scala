@@ -354,18 +354,18 @@ object SqlQueryProcessor extends QueryValidator {
       case parser.IsNull(e) =>
         for {
           ne <- createExpr(state, nameResolver, e, ExprType.Math).right
-        } yield IsNullExpr(ne.aux)
+        } yield IsNullExpr(ne)
 
       case parser.IsNotNull(e) =>
         for {
           nne <- createExpr(state, nameResolver, e, ExprType.Math).right
-        } yield IsNotNullExpr(nne.aux)
+        } yield IsNotNullExpr(nne)
 
       case parser.In(e, vs) =>
         for {
           ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
           cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield InExpr(ce.aux, cvs.toSet).aux
+        } yield InExpr(ce, cvs.toSet)
 
       case parser.NotIn(e, vs) =>
         for {

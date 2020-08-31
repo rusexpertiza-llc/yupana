@@ -53,14 +53,14 @@ object QueryContext extends StrictLogging {
     val linkExprs =
       (groupByExternalLinks ++ fieldsExternalLinks ++ dataFiltersExternalLinks ++ havingExternalLinks).distinct
 
-    val topExprs: Set[Expression] = query.fields.map(_.expr).toSet ++
+    val topExprs: Set[Expression[_]] = query.fields.map(_.expr).toSet ++
       (query.groupBy.toSet ++
         requiredDimExprs ++
         query.postFilter.toSet ++
         postCondition.toSet +
         TimeExpr).filterNot(_.isInstanceOf[ConstantExpr[_]])
 
-    val topRowExprs: Set[Expression] = topExprs.filter { expr =>
+    val topRowExprs: Set[Expression[_]] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr[_]] && (
         (!containsAggregates(expr) && !containsWindows(expr)) ||
         expr.isInstanceOf[AggregateExpr[_, _]] ||
@@ -70,9 +70,9 @@ object QueryContext extends StrictLogging {
 
     val exprsOnAggregatesAndWindows = topExprs diff topRowExprs
 
-    val allExprs: Set[Expression] = topExprs.flatMap(_.flatten)
+    val allExprs: Set[Expression[_]] = topExprs.flatMap(_.flatten)
 
-    val bottomExprs: Set[Expression] = collectBottomExprs(allExprs)
+    val bottomExprs: Set[Expression[_]] = collectBottomExprs(allExprs)
 
     val aggregateExprs = allExprs.collect { case ae: AggregateExpr[_, _] => ae }
 
@@ -90,7 +90,7 @@ object QueryContext extends StrictLogging {
     )
   }
 
-  private def collectBottomExprs(exprs: Set[Expression]): Set[Expression] = {
+  private def collectBottomExprs(exprs: Set[Expression[_]]): Set[Expression[_]] = {
     exprs.collect {
       case a: AggregateExpr[_, _]         => Set(a, a.expr)
       case ConditionExpr(condition, _, _) => Set(condition)
@@ -104,12 +104,12 @@ object QueryContext extends StrictLogging {
     }.flatten
   }
 
-  private def containsAggregates(e: Expression): Boolean = e.flatten.exists {
+  private def containsAggregates(e: Expression[_]): Boolean = e.flatten.exists {
     case _: AggregateExpr[_, _] => true
     case _                      => false
   }
 
-  private def containsWindows(e: Expression): Boolean = e.flatten.exists {
+  private def containsWindows(e: Expression[_]): Boolean = e.flatten.exists {
     case _: WindowFunctionExpr[_, _] => true
     case _                           => false
   }
