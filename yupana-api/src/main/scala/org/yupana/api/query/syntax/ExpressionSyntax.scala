@@ -37,14 +37,6 @@ trait ExpressionSyntax {
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
   def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression[T] = ConstantExpr[T](c)
 
-//  def aggregate[T](a: Aggregation[T], f: Metric.Aux[T]): Expression[a.Out] = aggregate(a, metric(f))
-//  def aggregate[T](a: Aggregation[T], e: Expression[T]): Expression[a.Out] = AggregateExpr(a, e)
-
-//  def bi[T, U, O](op: BinaryOperation.Aux[T, U, O], a: Expression[T], b: Expression[U]) =
-//    BinaryOperationExpr(op, a, b)
-
-//  def windowFunction[T](wf: WindowOperation[T], e: Expression[T]) = WindowFunctionExpr(wf, e)
-
   def condition[T](condition: Condition, positive: Expression[T], negative: Expression[T]) =
     ConditionExpr(condition, positive, negative)
 

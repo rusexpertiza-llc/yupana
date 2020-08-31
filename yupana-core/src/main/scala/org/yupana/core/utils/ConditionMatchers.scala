@@ -16,44 +16,85 @@
 
 package org.yupana.core.utils
 
-import org.yupana.api.query.{ EqExpr, Expression, InExpr, NeqExpr, NotInExpr }
+import org.yupana.api.query._
 
 object ConditionMatchers {
 
   // This is an ugly hack to allow pattern match on GADT
-  object EqString {
-    def unapply(condition: Expression[_]): Option[(Expression[String], Expression[String])] = {
+  trait EqMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
       condition match {
-        case EqExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Expression[String]]))
+        case EqExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _            => None
       }
     }
   }
 
-  object NeqString {
-    def unapply(condition: Expression[_]): Option[(Expression[String], Expression[String])] = {
+  trait NeqMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
       condition match {
-        case NeqExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Expression[String]]))
+        case NeqExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _             => None
       }
     }
   }
 
-  object InString {
-    def unapply(condition: Expression[_]): Option[(Expression[String], Set[String])] = {
+  trait GtMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
       condition match {
-        case InExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Set[String]]))
+        case GtExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _            => None
       }
     }
   }
 
-  object NotInString {
-    def unapply(condition: Expression[_]): Option[(Expression[String], Set[String])] = {
+  trait LtMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
       condition match {
-        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression[String]], b.asInstanceOf[Set[String]]))
+        case LtExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait GeMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
+      condition match {
+        case GeExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait LeMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
+      condition match {
+        case LeExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait InMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Set[T])] = {
+      condition match {
+        case InExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[T]]))
+        case _            => None
+      }
+    }
+  }
+
+  trait NotInMatcher[T] {
+    def unapply(condition: Expression[_]): Option[(Expression[T], Set[T])] = {
+      condition match {
+        case NotInExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[T]]))
         case _               => None
       }
     }
   }
+
+  object EqString extends EqMatcher[String]
+  object NeqString extends NeqMatcher[String]
+  object InString extends InMatcher[String]
+  object NotInString extends NotInMatcher[String]
 }

@@ -25,6 +25,7 @@ import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
+import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 class SqlQueryProcessor(schema: Schema) {
 
@@ -98,18 +99,6 @@ object SqlQueryProcessor extends QueryValidator {
     "now" -> ((s: BuilderState) => ConstantExpr(Time(s.queryStartTime)))
   )
 
-  val function1Registry: Map[String, Expression[_] => Either[String, Expression[_]]] = Map(
-    "id" -> createDimIdExpr //,
-//    "trunkDay" -> unary(TrunkDayExpr.apply)
-  )
-
-//  def unary[T](
-//      c: SimpleUnaryCompanion[T]
-//  )(f: Expression.Aux[T] => Expression): Expression => Either[String, Expression] = { e =>
-//    if (e.dataType == c.argType) Right(f(e.asInstanceOf[Expression.Aux[T]]))
-//    else Left(s"Incompatible types ${e.dataType} and ${c.argType}")
-//  }
-
   object ExprType extends Enumeration {
     type ExprType = Value
     val Cmp, Math = Value
@@ -146,15 +135,15 @@ object SqlQueryProcessor extends QueryValidator {
       select: parser.Select,
       state: BuilderState
   ): Either[String, Seq[QueryField]] = {
-    ???
-//    select.fields match {
-//      case SqlFieldList(fs) =>
-//        val fields = fs.map(f => getField(table, f, state))
-//        CollectionUtils.collectErrors(fields)
-//
-//      case SqlFieldsAll =>
-//        Left("All fields matching is not supported")
-//    }
+
+    select.fields match {
+      case SqlFieldList(fs) =>
+        val fields = fs.map(f => getField(table, f, state))
+        CollectionUtils.collectErrors(fields)
+
+      case SqlFieldsAll =>
+        Left("All fields matching is not supported")
+    }
   }
 
   private def getField(
@@ -216,16 +205,16 @@ object SqlQueryProcessor extends QueryValidator {
         createUMinus(state, nameResolver, a, ExprType.Math)
 
       case parser.Plus(l, r) =>
-        createBinary(state, nameResolver, l, r, BinaryOperation.PLUS, ExprType.Math)
+        createBinary(state, nameResolver, l, r, "+", ExprType.Math)
 
       case parser.Minus(l, r) =>
-        createBinary(state, nameResolver, l, r, BinaryOperation.MINUS, ExprType.Math)
+        createBinary(state, nameResolver, l, r, "-", ExprType.Math)
 
       case parser.Multiply(l, r) =>
-        createBinary(state, nameResolver, l, r, BinaryOperation.MULTIPLY, ExprType.Math)
+        createBinary(state, nameResolver, l, r, "*", ExprType.Math)
 
       case parser.Divide(l, r) =>
-        createBinary(state, nameResolver, l, r, BinaryOperation.DIVIDE, ExprType.Math)
+        createBinary(state, nameResolver, l, r, "/", ExprType.Math)
 
       case parser.FunctionCall(f, Nil) =>
         function0Registry.get(f).map(_(state)).toRight(s"Unknown nullary function $f")
@@ -233,7 +222,7 @@ object SqlQueryProcessor extends QueryValidator {
       case parser.FunctionCall(f, e :: Nil) =>
         for {
           ex <- createExpr(state, nameResolver, e, exprType).right
-          fexpr <- createFunctionExpr(f, ex).right
+          fexpr <- FunctionRegistry.unary(f, ex).right
         } yield fexpr
 
       case parser.FunctionCall(f, e1 :: e2 :: Nil) =>
@@ -270,24 +259,24 @@ object SqlQueryProcessor extends QueryValidator {
       case _ =>
         for {
           e <- createExpr(state, resolver, expr, exprType).right
-          u <- createUnaryFunctionExpr("-", e).right
+          u <- FunctionRegistry.unary("-", e).right
         } yield u
     }
   }
 
-  private def createFunctionExpr(fun: String, expr: Expression[_]): Either[String, Expression[_]] = {
-    for {
-      _ <- createWindowFunctionExpr(fun, expr).left
-      _ <- createAggregateExpr(fun, expr).left
-      _ <- createUnaryFunctionExpr(fun, expr).left
-      m <- createSyntheticUnaryExpr(fun, expr).left
-      _ <- createArrayUnaryFunctionExpr(fun, Seq(expr)).left
-    } yield m
-  }
+//  private def createFunctionExpr(fun: String, expr: Expression[_]): Either[String, Expression[_]] = {
+//    for {
+//      _ <- createWindowFunctionExpr(fun, expr).left
+//      _ <- createAggregateExpr(fun, expr).left
+//      _ <- createUnaryFunctionExpr(fun, expr).left
+//      m <- createSyntheticUnaryExpr(fun, expr).left
+//      _ <- createArrayUnaryFunctionExpr(fun, Seq(expr)).left
+//    } yield m
+//  }
 
   private def createFunction2Expr(fun: String, e1: Expression[_], e2: Expression[_]): Either[String, Expression[_]] = {
     for {
-      m <- createBiFunction(fun, e1, e2).left
+      m <- FunctionRegistry.bi(fun, e1, e2).left
       _ <- createArrayUnaryFunctionExpr(fun, Seq(e1, e2)).left
     } yield m
   }
@@ -296,7 +285,7 @@ object SqlQueryProcessor extends QueryValidator {
       functionName: String,
       expressions: Seq[Expression[_]]
   ): Either[String, Expression[_]] = {
-    createArrayExpr(expressions).right.flatMap(e => createUnaryFunctionExpr(functionName, e))
+    createArrayExpr(expressions).right.flatMap(e => FunctionRegistry.unary(functionName, e))
   }
 
   private def createArrayExpr(expressions: Seq[Expression[_]]): Either[String, Expression[_]] = {
@@ -319,32 +308,6 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def createAggregateExpr(fun: String, expr: Expression[_]): Either[String, Expression[_]] = {
-//    val agg = expr.dataType.operations.aggregation(fun).toRight(s"Unknown aggregate function $fun")
-//    agg.right.map(a => AggregateExpr(a, expr.aux))
-    ???
-  }
-
-  private def createWindowFunctionExpr(fun: String, expr: Expression[_]): Either[String, Expression[_]] = {
-    val func = TypeWindowOperations.getFunction(fun, expr.dataType).toRight(s"Unknown window operation $fun")
-    func.right.map(f => WindowFunctionExpr(f, expr.aux))
-  }
-
-  private def createUnaryFunctionExpr(fun: String, expr: Expression[_]): Either[String, Expression[_]] = {
-    ???
-//    val uf = expr.dataType.operations
-//      .unaryOperation(fun)
-//      .toRight(s"Function $fun is not defined on type ${expr.dataType}")
-//      .right
-//    uf.map(f => ???
-////      UnaryOperationExpr(f.asInstanceOf[UnaryOperation.Aux[expr.Out, f.Out]], expr.aux).asInstanceOf[Expression]
-//    )
-  }
-
-  private def createSyntheticUnaryExpr(fun: String, expr: Expression[_]) = {
-    function1Registry.get(fun).toRight(s"Unknown synthetic function $fun").right.flatMap(_(expr))
-  }
-
   private def createBinary(
       state: BuilderState,
       nameResolver: NameResolver,
@@ -356,33 +319,11 @@ object SqlQueryProcessor extends QueryValidator {
     for {
       le <- createExpr(state, nameResolver, l, exprType).right
       re <- createExpr(state, nameResolver, r, exprType).right
-      biFunction <- createBiFunction(fun, le, re).right
+      biFunction <- FunctionRegistry.bi(fun, le, re).right
     } yield biFunction
 
-  def createBiFunction(fun: String, l: Expression[_], r: Expression[_]): Either[String, Expression[_]] = {
-    ???
-//    val expr = l.dataType.operations
-//      .biOperation(fun, r.dataType)
-//      .map(op => ???) // BinaryOperationExpr[l.Out, r.Out, op.Out](op, l, r))
-//
-//    expr match {
-//      case Some(e) => Right(e)
-//      case None =>
-//        for {
-//          pair <- ExprPair.alignTypes(l, r).right
-//          biOperation <- pair.dataType.operations
-//            .biOperation(fun, pair.dataType)
-//            .toRight(s"Unsupported operation $fun on ${l.dataType} and ${r.dataType}")
-//            .right
-//        } yield {
-//          ???
-////          BinaryOperationExpr[pair.T, pair.T, biOperation.Out](biOperation, pair.a, pair.b).asInstanceOf[Expression]
-//        }
-//    }
-  }
-
   def createBooleanExpr(l: Expression[_], r: Expression[_], fun: String): Either[String, Expression[Boolean]] = {
-    createBiFunction(fun, l, r).right.flatMap { e =>
+    FunctionRegistry.bi(fun, l, r).right.flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
       else Left(s"$fun result type is ${e.dataType.meta.sqlType} but BOOLEAN required")
     }
@@ -403,12 +344,12 @@ object SqlQueryProcessor extends QueryValidator {
     }
 
     c match {
-      case parser.Eq(e, v) => construct(BinaryOperation.EQ, e, v)
-      case parser.Ne(e, v) => construct(BinaryOperation.NE, e, v)
-      case parser.Lt(e, v) => construct(BinaryOperation.LT, e, v)
-      case parser.Gt(e, v) => construct(BinaryOperation.GT, e, v)
-      case parser.Le(e, v) => construct(BinaryOperation.LE, e, v)
-      case parser.Ge(e, v) => construct(BinaryOperation.GE, e, v)
+      case parser.Eq(e, v) => construct("=", e, v)
+      case parser.Ne(e, v) => construct("<>", e, v)
+      case parser.Lt(e, v) => construct("<", e, v)
+      case parser.Gt(e, v) => construct(">", e, v)
+      case parser.Le(e, v) => construct("<=", e, v)
+      case parser.Ge(e, v) => construct(">=", e, v)
 
       case parser.IsNull(e) =>
         for {
@@ -513,11 +454,11 @@ object SqlQueryProcessor extends QueryValidator {
 
   private def substituteGroupings(select: parser.Select): Seq[parser.SqlExpr] = {
     select.groupings.map {
-//      case g @ parser.FieldName(n) =>
-//        select.fields match {
-//          case SqlFieldList(fields) => fields.find(_.alias.contains(n)).map(_.expr).getOrElse(g)
-//          case SqlFieldsAll         => g
-//        }
+      case g @ parser.FieldName(n) =>
+        select.fields match {
+          case SqlFieldList(fields) => fields.find(_.alias.contains(n)).map(_.expr).getOrElse(g)
+          case SqlFieldsAll         => g
+        }
       case x => x
     }
   }
@@ -637,13 +578,5 @@ object SqlQueryProcessor extends QueryValidator {
     }
 
     CollectionUtils.collectErrors(vs.toSeq)
-  }
-
-  private def createDimIdExpr(expr: Expression[_]): Either[String, Expression[_]] = {
-    expr match {
-      case DimensionExpr(dim)            => Right(DimensionIdExpr(dim))
-      case LowerExpr(DimensionExpr(dim)) => Right(DimensionIdExpr(dim))
-      case _                             => Left("Function id is applicable only to dimensions")
-    }
   }
 }

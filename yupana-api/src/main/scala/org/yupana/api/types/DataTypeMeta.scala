@@ -68,6 +68,8 @@ object DataTypeMeta {
   implicit val periodMeta: DataTypeMeta[Period] =
     DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
 
+  implicit val nullMeta: DataTypeMeta[Null] = DataTypeMeta(Types.NULL, 4, "NULL", null, 0, 0)
+
   implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
     DataTypeMeta(
       Types.ARRAY,
@@ -84,7 +86,7 @@ object DataTypeMeta {
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =
-    DataTypeMeta(t, ds, tn, jt.getCanonicalName, p, SIGNED_TYPES.contains(t), s)
+    DataTypeMeta(t, ds, tn, if (jt != null) jt.getCanonicalName else "Null", p, SIGNED_TYPES.contains(t), s)
 
   def tuple[T, U](implicit tMeta: DataTypeMeta[T], uMeta: DataTypeMeta[U]): DataTypeMeta[(T, U)] = DataTypeMeta(
     Types.OTHER,

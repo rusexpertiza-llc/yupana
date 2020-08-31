@@ -899,6 +899,10 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     SqlParser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
 
+  it should "parse SHOW FUNCTIONS statements" in {
+    SqlParser.parse("SHOW FUNCTIONS FOR TIMESTAMP") shouldBe Right(ShowFunctions("TIMESTAMP"))
+  }
+
   it should "parse SHOW QUERIES statements" in {
     SqlParser.parse("SHOW QUERIES") shouldBe Right(ShowQueryMetrics(None, None))
   }
@@ -1094,9 +1098,9 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "produce error on unknown show" in {
-    errorMessage("SHOW functions") {
+    errorMessage("SHOW cartoons") {
       case msg =>
-        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES"), but got "functions""")
+        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS"), but got "cartoons""")
     }
   }
 

@@ -5,9 +5,9 @@ import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
-import org.yupana.api.types._
-import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core._
+import org.yupana.core.sql.parser.SqlParser
+import org.yupana.core.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 
 class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with OptionValues {
 
@@ -309,15 +309,14 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(DIM_A) as "a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(DIM_A))) as "array_to_string(tokens(a))"
+        arrayToString(tokens(dimension(DIM_A))) as "array_to_string(tokens(a))"
       )
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
-        bi(
-          BinaryOperation.containsAny[String],
-          function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-          function(UnaryOperation.tokens, const("вода"))
+        containsAny(
+          tokens(lower(dimension(DIM_A))),
+          tokens(const("вода"))
         )
       )
     }
@@ -340,25 +339,21 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.table.value.name shouldEqual "test_table"
 
       val colorExpr = condition(
-        bi(
-          BinaryOperation.containsAny[String],
-          function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-          function(UnaryOperation.tokens, const("крыжовник"))
+        containsAny(
+          tokens(lower(dimension(DIM_A))),
+          tokens(const("крыжовник"))
         ),
         const("зеленые"),
         condition(
-          bi(
-            BinaryOperation.containsAny[String],
-            function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-            function(UnaryOperation.tokenizeArray, array(const("клубника"), const("малина")))
+          containsAny(
+            tokens(lower(dimension(DIM_A))),
+            tokenizeArray(array(const("клубника"), const("малина")))
           ),
           const("КРАСНЫЕ"),
           condition(
-            bi(
-              BinaryOperation.containsAny[String],
-              function(UnaryOperation.tokens, lower(dimension(DIM_A))),
-              function(
-                UnaryOperation.tokenizeArray,
+            containsAny(
+              tokens(lower(dimension(DIM_A))),
+              tokenizeArray(
                 array(const("черника"), const("ежевика"), const("ирга"))
               )
             ),
@@ -397,7 +392,11 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     inside(
       createQuery(
         statement,
-        Map(1 -> parser.TimestampValue(from), 2 -> parser.TimestampValue(to), 3 -> parser.StringValue("123456789"))
+        Map(
+          1 -> parser.TimestampValue(from),
+          2 -> parser.TimestampValue(to),
+          3 -> parser.StringValue("123456789")
+        )
       )
     ) {
       case Right(q) =>
@@ -480,7 +479,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     inside(
       createQuery(
         statement,
-        Map(1 -> parser.StringValue("Test me"), 2 -> parser.TimestampValue(new LocalDateTime(2018, 1, 23, 16, 44, 20)))
+        Map(
+          1 -> parser.StringValue("Test me"),
+          2 -> parser.TimestampValue(new LocalDateTime(2018, 1, 23, 16, 44, 20))
+        )
       )
     ) {
       case Right(q) =>
@@ -530,11 +532,10 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.table.value.name shouldEqual "test_table"
       q.fields should contain theSameElementsInOrderAs List(
         dimension(DIM_A) as "a",
-        function(UnaryOperation.arrayToString[String], function(UnaryOperation.tokens, dimension(DIM_A))) as "array_to_string(tokens(a))",
-        bi(
-          BinaryOperation.containsAny[String],
-          function(UnaryOperation.tokens, dimension(DIM_A)),
-          function(UnaryOperation.tokens, const("вода"))
+        arrayToString(tokens(dimension(DIM_A))) as "array_to_string(tokens(a))",
+        containsAny(
+          tokens(dimension(DIM_A)),
+          tokens(const("вода"))
         ) as "is_water"
       )
       q.filter.value shouldBe and(
@@ -559,8 +560,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.groupBy should contain theSameElementsAs Set(dimension(DIM_A))
       q.fields should contain theSameElementsInOrderAs List(
         dimension(DIM_A) as "a",
-        windowFunction(WindowOperation.lag[Time], time) as "lag(time)",
-        windowFunction(WindowOperation.lag[Double], metric(TestTableFields.TEST_FIELD)) as "lag_totalSum"
+        lag(time) as "lag(time)",
+        lag(metric(TestTableFields.TEST_FIELD)) as "lag_totalSum"
       )
     }
   }
@@ -692,7 +693,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_A))
 
-      val lagTime = windowFunction(WindowOperation.lag[Time], time).asInstanceOf[Expression.Aux[Time]]
+      val lagTime = lag(time).asInstanceOf[Expression.Aux[Time]]
 
       q.fields should contain theSameElementsInOrderAs List(
         dimension(DIM_A) as "a",
@@ -703,8 +704,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       val expectedPostFilter = or(
         and(
           gt(
-            bi(
-              BinaryOperation.timeMinusTime,
+            minus(
               lagTime,
               time
             ),
@@ -715,8 +715,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         ),
         and(
           gt(
-            bi(
-              BinaryOperation.timeMinusTime,
+            minus(
               lagTime,
               time
             ),
@@ -752,7 +751,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       q.groupBy should contain theSameElementsAs List(dimension(DIM_A))
 
       val t = time as "t"
-      val lagTime = windowFunction(WindowOperation.lag[Time], time) as "lagTime"
+      val lagTime = lag(time) as "lagTime"
 
       q.fields should contain theSameElementsInOrderAs List(
         dimension(DIM_A) as "a",
@@ -760,15 +759,17 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         lagTime
       )
       q.postFilter.value shouldEqual ge(
-        bi(
-          BinaryOperation.timeMinusTime,
-          lagTime.expr.asInstanceOf[Expression.Aux[Time]],
-          t.expr.asInstanceOf[Expression.Aux[Time]]
+        minus(
+          lag(time),
+          time
         ),
         const(5 * 24 * 3600 * 1000L)
       )
     }
   }
+
+  object GeTime extends GeMatcher[Time]
+  object LtTime extends LtMatcher[Time]
 
   it should "handle period arithmetic" in {
     val now = new DateTime(DateTimeZone.UTC).getMillis
@@ -781,23 +782,17 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       inside(q.filter.value) {
         case AndExpr(Seq(from, to)) =>
           inside(from) {
-            case BinaryOperationExpr(
-                cmp,
+            case GeTime(
                 te,
-                UnaryOperationExpr(uo, BinaryOperationExpr(op, ConstantExpr(t), ConstantExpr(p)))
+                TruncDayExpr(TimeMinusPeriodExpr(ConstantExpr(t), ConstantExpr(p)))
                 ) =>
-              cmp.name shouldEqual BinaryOperation.ge[Time].name
               te shouldEqual TimeExpr
-              uo shouldEqual UnaryOperation.truncDay
-              op.name shouldEqual "-"
               t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
               p shouldEqual Period.months(3)
           }
           inside(to) {
-            case BinaryOperationExpr(cmp, te, UnaryOperationExpr(uo, ConstantExpr(t))) =>
-              cmp.name shouldEqual BinaryOperation.lt[Time].name
+            case LtTime(te, TruncDayExpr(ConstantExpr(t))) =>
               te shouldEqual TimeExpr
-              uo shouldEqual UnaryOperation.truncDay
               t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
           }
       }
@@ -942,18 +937,16 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |GROUP BY
         |    d
       """.stripMargin) { q =>
-      val mult = bi(
-        BinaryOperation.multiply[Double](DataType.fracDt),
+      val mult = times(
         const(2d),
         metric(TestTable2Fields.TEST_FIELD2)
       )
-      val minus = bi(
-        BinaryOperation.minus[BigDecimal](DataType[BigDecimal]),
+      val sub = minus(
         metric(TestTable2Fields.TEST_FIELD),
         double2bigDecimal(mult)
       )
       q.fields should contain theSameElementsAs Seq(
-        max(minus) as "strange_result",
+        max(sub) as "strange_result",
         truncMonth(time) as "d"
       )
 
@@ -978,7 +971,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       """.stripMargin) { q =>
       val l = sum(metric(TestTable2Fields.TEST_FIELD3))
       val r = sum(metric(TestTable2Fields.TEST_FIELD))
-      val rr = bi(BinaryOperation.multiply[BigDecimal](r.dataType), const(BigDecimal(2)), r)
+      val rr = times(const(BigDecimal(2)), r)
       q.fields should contain theSameElementsAs Seq(
         minus(l, rr) as "strange_result",
         truncMonth(time) as "d"
@@ -1291,8 +1284,9 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
 
   private def testQuery(query: String)(check: Query => Any) = {
     inside(createQuery(query)) {
-      case Right(q)  => check(q)
-      case Left(msg) => fail(msg)
+      case Right(q: Query) => check(q)
+      case Right(s)        => fail(s"Query expected but got $s")
+      case Left(msg)       => fail(msg)
     }
   }
 }

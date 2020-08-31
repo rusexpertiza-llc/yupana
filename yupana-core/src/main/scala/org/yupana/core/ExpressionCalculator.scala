@@ -16,9 +16,13 @@
 
 package org.yupana.core
 
+import org.joda.time.{ DateTimeFieldType, Period }
+import org.yupana.api.Time
 import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
-import org.yupana.core.operations.Operations
+import org.yupana.utils.Tokenizer
+
+import scala.collection.AbstractIterator
 
 object ExpressionCalculator {
 
@@ -57,75 +61,182 @@ object ExpressionCalculator {
     }
   }
 
-  private def eval[T](expr: Expression[T], queryContext: QueryContext, internalRow: InternalRow): T = {
+  def evaluateMap[I, M](expr: AggregateExpr.Aux[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
+    val res = expr match {
+      case MinExpr(e) => row.get[M](queryContext, e)
+      case MaxExpr(e) => row.get[M](queryContext, e)
+      case SumExpr(e) => row.get[M](queryContext, e)
+      case CountExpr(e) =>
+        val v = row.get[I](queryContext, e)
+        if (v != null) 1L else 0L
+      case DistinctCountExpr(e) =>
+        val v = row.get[I](queryContext, e)
+        if (v != null) Set(v) else Set.empty[I]
+      case DistinctRandomExpr(e) =>
+        val v = row.get[I](queryContext, e)
+        if (v != null) Set(v) else Set.empty[I]
+    }
+
+    res.asInstanceOf[M]
+  }
+
+  def evaluateReduce[M](
+      expr: AggregateExpr.Aux[_, M, _],
+      queryContext: QueryContext,
+      a: InternalRow,
+      b: InternalRow
+  ): M = {
+    def reduce(x: M, y: M): M = {
+      val res = expr match {
+        case m @ MinExpr(_)        => m.ord.min(x, y)
+        case m @ MaxExpr(_)        => m.ord.max(x, y)
+        case s @ SumExpr(_)        => s.numeric.plus(x, y)
+        case CountExpr(_)          => x.asInstanceOf[Long] + y.asInstanceOf[Long]
+        case DistinctCountExpr(_)  => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
+        case DistinctRandomExpr(_) => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
+      }
+
+      res.asInstanceOf[M]
+    }
+
+    val aValue = a.get[M](queryContext, expr)
+    val bValue = b.get[M](queryContext, expr)
+
+    if (aValue != null) {
+      if (bValue != null) {
+        reduce(aValue, bValue)
+      } else aValue
+    } else bValue
+  }
+
+  def evaluatePostMap[M, O](expr: AggregateExpr.Aux[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
+    val oldValue = row.get[M](queryContext, expr)
+
+    val res = expr match {
+      case MinExpr(_)           => oldValue
+      case MaxExpr(_)           => oldValue
+      case s @ SumExpr(_)       => if (oldValue != null) oldValue else s.numeric.zero
+      case CountExpr(_)         => oldValue
+      case DistinctCountExpr(_) => oldValue.asInstanceOf[Set[_]].size
+      case DistinctRandomExpr(_) =>
+        val s = oldValue.asInstanceOf[Set[_]]
+        val n = util.Random.nextInt(s.size)
+        s.iterator.drop(n).next
+    }
+
+    res.asInstanceOf[O]
+  }
+
+  private def eval[T](expr: Expression[T], qc: QueryContext, row: InternalRow): T = {
 
     val res = expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr           => null
-      case DimensionExpr(_)   => null
-      case DimensionIdExpr(_) => null
-      case MetricExpr(_)      => null
-      case LinkExpr(_, _)     => null
+      case TimeExpr                     => null
+      case DimensionExpr(_)             => null
+      case DimensionIdExpr(_)           => null
+      case MetricExpr(_)                => null
+      case LinkExpr(_, _)               => null
+      case ae: AggregateExpr[_, _]      => evaluateExpression(ae.expr, qc, row)
+      case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row)
 
       case ConditionExpr(condition, positive, negative) =>
-        val x = evaluateExpression(condition, queryContext, internalRow)
+        val x = evaluateExpression(condition, qc, row)
         if (x) {
-          evaluateExpression(positive, queryContext, internalRow)
+          evaluateExpression(positive, qc, row)
         } else {
-          evaluateExpression(negative, queryContext, internalRow)
+          evaluateExpression(negative, qc, row)
         }
 
-      case TrunkYearExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncYear)
+      case TruncYearExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.year()))
+      case TruncMonthExpr(e)  => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.monthOfYear()))
+      case TruncDayExpr(e)    => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.dayOfMonth()))
+      case TruncWeekExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.weekOfWeekyear()))
+      case TruncHourExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.hourOfDay()))
+      case TruncMinuteExpr(e) => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.minuteOfHour()))
+      case TruncSecondExpr(e) => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.secondOfMinute()))
 
-      case TrunkMonthExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncMonth)
+      case ExtractYearExpr(e)   => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getYear)
+      case ExtractMonthExpr(e)  => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMonthOfYear)
+      case ExtractDayExpr(e)    => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getDayOfMonth)
+      case ExtractHourExpr(e)   => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getHourOfDay)
+      case ExtractMinuteExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMinuteOfHour)
+      case ExtractSecondExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getSecondOfMinute)
 
-      case TrunkDayExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncDay)
+      case p @ PlusExpr(a, b)    => evaluateBinary(qc, row)(a, b, p.numeric.plus)
+      case m @ MinusExpr(a, b)   => evaluateBinary(qc, row)(a, b, m.numeric.minus)
+      case t @ TimesExpr(a, b)   => evaluateBinary(qc, row)(a, b, t.numeric.times)
+      case d @ DivIntExpr(a, b)  => evaluateBinary(qc, row)(a, b, d.integral.quot)
+      case d @ DivFracExpr(a, b) => evaluateBinary(qc, row)(a, b, d.fractional.div)
 
-      case TrunkWeekExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncWeek)
+      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
 
-      case TrunkHourExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncHour)
+      case EqExpr(a, b)     => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x == y)
+      case NeqExpr(a, b)    => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x != y)
+      case e @ GtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gt)
+      case e @ LtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lt)
+      case e @ GeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gteq)
+      case e @ LeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lteq)
 
-      case TrunkMinuteExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncMinute)
-
-      case TrunkSecondExpr(e) =>
-        evaluateUnary(queryContext, internalRow)(e, Operations.truncSecond)
-
-      case p @ PlusExpr(a, b) =>
-        evaluateBinary(queryContext, internalRow)(a, b, p.numeric.plus)
+      case IsNullExpr(e)    => evaluateExpression(e, qc, row) == null
+      case IsNotNullExpr(e) => evaluateExpression(e, qc, row) != null
 
       case TypeConvertExpr(tc, e) =>
-        tc.convert(evaluateExpression(e, queryContext, internalRow))
-
-      case AggregateExpr(_, e) =>
-        evaluateExpression(e, queryContext, internalRow)
-
-      case WindowFunctionExpr(_, e) =>
-        evaluateExpression(e, queryContext, internalRow)
+        tc.convert(evaluateExpression(e, qc, row))
 
       case InExpr(e, vs) =>
-        vs contains evaluateExpression(e, queryContext, internalRow)
+        vs contains evaluateExpression(e, qc, row)
 
       case NotInExpr(e, vs) =>
-        val eValue = evaluateExpression(e, queryContext, internalRow)
+        val eValue = evaluateExpression(e, qc, row)
         eValue != null && !vs.contains(eValue)
 
       case AndExpr(cs) =>
-        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        val executed = cs.map(c => evaluateExpression(c, qc, row))
         executed.reduce((a, b) => a && b)
 
       case OrExpr(cs) =>
-        val executed = cs.map(c => evaluateExpression(c, queryContext, internalRow))
+        val executed = cs.map(c => evaluateExpression(c, qc, row))
         executed.reduce((a, b) => a || b)
 
       case TupleExpr(e1, e2) =>
-        (evaluateExpression(e1, queryContext, internalRow), evaluateExpression(e2, queryContext, internalRow))
+        (evaluateExpression(e1, qc, row), evaluateExpression(e2, qc, row))
+
+      case LowerExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toLowerCase)
+      case UpperExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toUpperCase)
+      case LengthExpr(e) => evaluateUnary(qc, row)(e, (x: String) => x.length)
+      case SplitExpr(e)  => evaluateUnary(qc, row)(e, (s: String) => splitBy(s, !_.isLetterOrDigit).toArray)
+      case TokensExpr(e) => evaluateUnary(qc, row)(e, (s: String) => Tokenizer.transliteratedTokens(s).toArray)
+
+      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
+
+      case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.numeric.abs)
+
+      case NotExpr(e) => evaluateUnary(qc, row)(e, (x: Boolean) => !x)
+
+      case TimeMinusExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Time, y: Time) => math.abs(x.millis - y.millis))
+      case TimeMinusPeriodExpr(a, b) =>
+        evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
+      case TimePlusPeriodExpr(a, b) =>
+        evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
+      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Period, y: Period) => x plus y)
+
+//      case ArrayTokensExpr(e) =>
+//      case ArrayLengthExpr(e) =>
+//      case ArrayToStringExpr(e) =>
+
+      case ContainsExpr(a, v) =>
+        val left = evaluateExpression(a, qc, row)
+        val right = evaluateExpression(v, qc, row)
+        if (left != null && right != null) {
+          left.contains(right)
+        } else {
+          null.asInstanceOf[Boolean]
+        }
+
+//      case ContainsAllExpr(a, vs) =>
+//      case ContainsAnyExpr(a, vs) =>
+//      case ContainsSameExpr(a, vs) =>
 
       case ae @ ArrayExpr(es) =>
         val values: Array[ae.elementDataType.T] =
@@ -134,7 +245,7 @@ object ExpressionCalculator {
         var i = 0
 
         while (i < es.length && success) {
-          val v = evaluateExpression(es(i), queryContext, internalRow)
+          val v = evaluateExpression(es(i), qc, row)
           values(i) = v
           if (v == null) {
             success = false
@@ -149,6 +260,12 @@ object ExpressionCalculator {
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
     res.asInstanceOf[T]
+  }
+
+  def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O = {
+    winFuncExpr match {
+      case LagExpr(_) => if (index > 0) values(index - 1).asInstanceOf[O] else null.asInstanceOf[O]
+    }
   }
 
   private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow)(e: Expression[A], f: A => O): O = {
@@ -166,6 +283,31 @@ object ExpressionCalculator {
       f(left, right)
     } else {
       null.asInstanceOf[O]
+    }
+  }
+
+//  private def contains[T](a: Array[T], t: T): Boolean = a contains t
+//  private def containsAll[T](a: Array[T], b: Array[T]): Boolean = b.forall(a.contains)
+//  private def containsAny[T](a: Array[T], b: Array[T]): Boolean = b.exists(a.contains)
+//  private def containsSame[T](a: Array[T], b: Array[T]): Boolean = a sameElements b
+
+  private def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
+    Time(time.toDateTime.property(fieldType).roundFloorCopy().getMillis)
+  }
+
+  private def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
+    private val len = s.length
+    private var pos = 0
+
+    override def hasNext: Boolean = pos < len
+
+    override def next(): String = {
+      if (pos >= len) throw new NoSuchElementException("next on empty iterator")
+      val start = pos
+      while (pos < len && !p(s(pos))) pos += 1
+      val res = s.substring(start, pos min len)
+      while (pos < len && p(s(pos))) pos += 1
+      res
     }
   }
 }

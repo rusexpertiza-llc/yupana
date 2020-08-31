@@ -22,8 +22,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
 
-sealed trait Statement
-
 /**
   * Query to TSDB
   *
@@ -41,7 +39,7 @@ case class Query(
     groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None
-) extends Statement {
+) {
 
   val id: String = System.nanoTime() + UUID.randomUUID().toString
   val uuidLog: String = s"query_id: $id"
@@ -128,21 +126,3 @@ object Query {
   ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
 
 }
-
-case class Upsert(
-    table: Table,
-    fieldNames: Seq[String],
-    values: Seq[Seq[Expression[_]]]
-) extends Statement
-
-case object ShowTables extends Statement
-
-case class ShowColumns(table: Table) extends Statement
-
-case class MetricsFilter(queryId: Option[String] = None, state: Option[String] = None)
-
-case class ShowQueryMetrics(filter: Option[MetricsFilter], limit: Option[Int]) extends Statement
-
-case class KillQuery(filter: MetricsFilter) extends Statement
-
-case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement

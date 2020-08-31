@@ -18,16 +18,15 @@ package org.yupana.api.query.syntax
 
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
 
 trait UnaryOperationSyntax {
-  def truncYear(e: Expression[Time]) = TrunkYearExpr(e)
-  def truncMonth(e: Expression[Time]) = TrunkMonthExpr(e)
-  def truncDay(e: Expression[Time]) = TrunkDayExpr(e)
-  def truncHour(e: Expression[Time]) = TrunkHourExpr(e)
-  def truncMinute(e: Expression[Time]) = TrunkMinuteExpr(e)
-  def truncSecond(e: Expression[Time]) = TrunkSecondExpr(e)
-  def truncWeek(e: Expression[Time]) = TrunkWeekExpr(e)
+  def truncYear(e: Expression[Time]) = TruncYearExpr(e)
+  def truncMonth(e: Expression[Time]) = TruncMonthExpr(e)
+  def truncDay(e: Expression[Time]) = TruncDayExpr(e)
+  def truncHour(e: Expression[Time]) = TruncHourExpr(e)
+  def truncMinute(e: Expression[Time]) = TruncMinuteExpr(e)
+  def truncSecond(e: Expression[Time]) = TruncSecondExpr(e)
+  def truncWeek(e: Expression[Time]) = TruncWeekExpr(e)
 
   def extractYear(e: Expression[Time]) = ExtractYearExpr(e)
   def extractMonth(e: Expression[Time]) = ExtractMonthExpr(e)
@@ -40,15 +39,19 @@ trait UnaryOperationSyntax {
   def lower(e: Expression[String]) = LowerExpr(e)
   def upper(e: Expression[String]) = UpperExpr(e)
   def tokens(e: Expression[String]) = TokensExpr(e)
+  def tokenizeArray(e: Expression[Array[String]]) = ArrayTokensExpr(e)
   def split(e: Expression[String]) = SplitExpr(e)
+  def arrayToString[T](e: Expression[Array[T]]) = ArrayToStringExpr(e)
 
   def not(e: Expression[Boolean]) = NotExpr(e)
 
-  def abs[T](e: Expression[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = AbsExpr(e)
-  def minus[T](e: Expression[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) = UnaryMinusExpr(e)
+  def abs[T](e: Expression[T])(implicit n: Numeric[T]) = AbsExpr(e)
+  def minus[T](e: Expression[T])(implicit n: Numeric[T]) = UnaryMinusExpr(e)
 
   def isNull[T](e: Expression[T]) = IsNullExpr(e)
   def isNotNull[T](e: Expression[T]) = IsNotNullExpr(e)
+
+  def lag[T](e: Expression[T]) = LagExpr(e)
 }
 
 object UnaryOperationSyntax extends UnaryOperationSyntax
