@@ -336,6 +336,13 @@ case class ArrayToStringExpr[T](expr: Expression.Aux[Array[T]])
   override def create(newExpr: Expression.Aux[Array[T]]): ArrayToStringExpr[T] = ArrayToStringExpr(newExpr)
 }
 
+case class ArrayLengthExpr[T](expr: Expression.Aux[Array[T]])
+    extends UnaryOperationExpr[Array[T], Int](expr, "length") {
+  override def dataType: DataType.Aux[Int] = DataType[Int]
+  override type Self = ArrayLengthExpr[T]
+  override def create(newExpr: Expression.Aux[Array[T]]): ArrayLengthExpr[T] = ArrayLengthExpr(newExpr)
+}
+
 case class ExtractYearExpr(expr: Expression.Aux[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractYear") {
   override def dataType: DataType.Aux[Int] = DataType[Int]
   override type Self = ExtractYearExpr

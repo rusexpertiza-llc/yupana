@@ -52,6 +52,8 @@ object SqlParser {
   private def upsertWord[_: P] = P(IgnoreCase("UPSERT"))
   private def intoWord[_: P] = P(IgnoreCase("INTO"))
   private def valuesWord[_: P] = P(IgnoreCase("VALUES"))
+  private def functionsWord[_: P] = P(IgnoreCase("FUNCTIONS"))
+  private def forWord[_: P] = P(IgnoreCase("FOR"))
   private val keywords = Set(
     "select",
     "from",
@@ -75,7 +77,7 @@ object SqlParser {
   )
   private def asterisk[_: P] = P("*")
 
-  private def plus[_: P]: P[(SqlExpr, SqlExpr) => Plus] = P("+").map(_ => Plus)
+  private def plus[_: P] = P("+").map(_ => Plus)
   private def minus[_: P] = P("-").map(_ => Minus)
   private def multiply[_: P] = P("*").map(_ => Multiply)
   private def divide[_: P] = P("/").map(_ => Divide)
@@ -242,7 +244,9 @@ object SqlParser {
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
-  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries))
+  def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
+
+  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries | functions))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 

@@ -19,6 +19,7 @@ package org.yupana.akka
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.{ DataType, DataTypeMeta }
+import org.yupana.core.sql.FunctionRegistry
 
 class JdbcMetadataProvider(schema: Schema) {
 
@@ -74,6 +75,13 @@ class JdbcMetadataProvider(schema: Schema) {
         data
       )
     } toRight s"Unknown schema '$tableName'"
+
+  def listFunctions(typeName: String): Either[String, Result] = {
+    DataType.bySqlName(typeName).map { t =>
+      val fs = FunctionRegistry.functionsForType(t)
+      SimpleResult("FUNCTIONS", Seq("NAME"), Seq(DataType[String]), fs.map(f => Array[Any](f)).iterator)
+    } toRight s"Unknown type $typeName"
+  }
 
   private def columnsArray[T](tableName: String, name: String, typeMeta: DataTypeMeta[T]): Array[Any] = {
     columnsArray(tableName, name, typeMeta.sqlType, typeMeta.sqlTypeName)

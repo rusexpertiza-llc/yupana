@@ -25,8 +25,13 @@ object FunctionRegistry {
 
   type ArrayExpr[T] = Expression.Aux[Array[T]]
 
-  case class FunctionDesc(names: Set[String], f: Expression => Either[String, Expression])
-  case class Function2Desc(names: Set[String], f: (Expression, Expression) => Either[String, Expression])
+  sealed trait ParamType
+  case object NumberParam extends ParamType
+  case class DataTypeParam(t: DataType) extends ParamType
+  case object OtherParam extends ParamType
+
+  case class FunctionDesc(name: String, t: ParamType, f: Expression => Either[String, Expression])
+  case class Function2Desc(name: String, f: (Expression, Expression) => Either[String, Expression])
 
   trait Bind[A[_], Z] {
     def apply[T](a: A[T]): Z
@@ -63,13 +68,20 @@ object FunctionRegistry {
     uNum("abs", new Bind2[Expression.Aux, Numeric, Expression] {
       override def apply[T](e: Expression.Aux[T], n: Numeric[T]): Expression = AbsExpr(e)(n)
     }),
-    uTyped(Set("year", "trunc_year"), TruncYearExpr),
-    uTyped(Set("month", "trunc_month"), TruncMonthExpr),
-    uTyped(Set("week", "trunc_week"), TruncWeekExpr),
-    uTyped(Set("day", "trunc_day"), TruncDayExpr),
-    uTyped(Set("hour", "trunc_hour"), TruncHourExpr),
-    uTyped(Set("minute", "trunc_minute"), TruncMinuteExpr),
-    uTyped(Set("second", "trunc_second"), TruncSecondExpr),
+    uTyped("year", TruncYearExpr),
+    uTyped("trunc_year", TruncYearExpr),
+    uTyped("month", TruncMonthExpr),
+    uTyped("trunc_month", TruncMonthExpr),
+    uTyped("week", TruncWeekExpr),
+    uTyped("trunc_week", TruncWeekExpr),
+    uTyped("day", TruncDayExpr),
+    uTyped("trunc_day", TruncDayExpr),
+    uTyped("hour", TruncHourExpr),
+    uTyped("trunc_hour", TruncHourExpr),
+    uTyped("minute", TruncMinuteExpr),
+    uTyped("trunc_minute", TruncMinuteExpr),
+    uTyped("second", TruncSecondExpr),
+    uTyped("trunc_second", TruncSecondExpr),
     uTyped("extract_year", ExtractYearExpr),
     uTyped("extract_month", ExtractMonthExpr),
     uTyped("extract_day", ExtractDayExpr),
@@ -90,9 +102,12 @@ object FunctionRegistry {
         override def apply[T](a: Expression.Aux[Array[T]]): Expression = ArrayToStringExpr(a)
       }
     ),
+    uArray("length", new Bind[ArrayExpr, Expression] {
+      override def apply[T](a: Expression.Aux[Array[T]]): Expression = ArrayLengthExpr(a)
+    }),
     uTyped("tokens", ArrayTokensExpr),
     // SPECIAL
-    FunctionDesc(Set("id"), createDimIdExpr)
+    FunctionDesc("id", OtherParam, createDimIdExpr)
   )
 
   private val binaryFunctions: List[Function2Desc] = List(
@@ -153,7 +168,7 @@ object FunctionRegistry {
       }
     ),
     Function2Desc(
-      Set("/"),
+      "/",
       (a: Expression, b: Expression) =>
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.integral.isDefined =>
@@ -181,7 +196,7 @@ object FunctionRegistry {
   )
 
   def unary(name: String, e: Expression): Either[String, Expression] = {
-    unaryFunctions.filter(_.names.contains(name.toLowerCase)) match {
+    unaryFunctions.filter(_.name == name.toLowerCase) match {
       case Nil => Left(s"Undefined function $name")
       case xs =>
         val (r, l) = xs.map(_.f(e)).partition(_.isRight)
@@ -196,7 +211,7 @@ object FunctionRegistry {
   }
 
   def bi(name: String, a: Expression, b: Expression): Either[String, Expression] = {
-    binaryFunctions.filter(_.names.contains(name.toLowerCase)) match {
+    binaryFunctions.filter(_.name == name.toLowerCase) match {
       case Nil => Left(s"Undefined function $name")
       case xs =>
         val (r, l) = xs.map(_.f(a, b)).partition(_.isRight)
@@ -210,12 +225,23 @@ object FunctionRegistry {
     }
   }
 
+  def functionsForType(t: DataType): Seq[String] = {
+    val fs = if (t.numeric.isDefined) {
+      unaryFunctions.filter(_.t == NumberParam)
+    } else {
+      unaryFunctions.filter(_.t == DataTypeParam(t))
+    }
+
+    fs.map(_.name)
+  }
+
   private def uNum(
       fn: String,
       create: Bind2[Expression.Aux, Numeric, Expression]
   ): FunctionDesc = {
     FunctionDesc(
-      Set(fn),
+      fn,
+      NumberParam,
       e =>
         e.dataType.numeric match {
           case Some(num) => Right(create(e.aux, num))
@@ -229,7 +255,8 @@ object FunctionRegistry {
       create: Bind2[Expression.Aux, Ordering, Expression]
   ): FunctionDesc = {
     FunctionDesc(
-      Set(fn),
+      fn,
+      OtherParam,
       e =>
         e.dataType.ordering match {
           case Some(ord) => Right(create(e.aux, ord))
@@ -239,26 +266,24 @@ object FunctionRegistry {
   }
 
   private def uAny(fn: String, create: Expression => Expression): FunctionDesc =
-    FunctionDesc(Set(fn), e => Right(create(e)))
+    FunctionDesc(fn, OtherParam, e => Right(create(e)))
 
   private def uTyped[T](fn: String, create: Expression.Aux[T] => Expression)(
       implicit dt: DataType.Aux[T]
-  ): FunctionDesc = uTyped(Set(fn), create)
-
-  private def uTyped[T](fns: Set[String], create: Expression.Aux[T] => Expression)(
-      implicit dt: DataType.Aux[T]
   ): FunctionDesc = {
     FunctionDesc(
-      fns,
+      fn,
+      DataTypeParam(dt),
       e =>
         if (e.dataType == dt) Right(create(e.asInstanceOf[Expression.Aux[T]]))
-        else Left(s"Function ${fns.head} cannot be applied to $e of type ${e.dataType}")
+        else Left(s"Function $fn cannot be applied to $e of type ${e.dataType}")
     )
   }
 
   private def uArray[T](fn: String, create: Bind[ArrayExpr, Expression]): FunctionDesc = {
     FunctionDesc(
-      Set(fn),
+      fn,
+      OtherParam,
       e =>
         if (e.dataType.isArray) Right(create(e.asInstanceOf[Expression.Aux[Array[T]]]))
         else Left(s"Function $fn requires array, but got $e")
@@ -270,7 +295,7 @@ object FunctionRegistry {
       create: Bind3[Expression.Aux, Expression.Aux, Ordering, Expression.Condition]
   ): Function2Desc = {
     Function2Desc(
-      Set(fn),
+      fn,
       (a, b) =>
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.ordering.isDefined =>
@@ -287,7 +312,7 @@ object FunctionRegistry {
       create: Bind3[Expression.Aux, Expression.Aux, Numeric, Expression]
   ): Function2Desc = {
     Function2Desc(
-      Set(fn),
+      fn,
       (a, b) =>
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.numeric.isDefined =>
@@ -301,7 +326,7 @@ object FunctionRegistry {
 
   private def biSame(fn: String, create: Bind2[Expression.Aux, Expression.Aux, Expression]): Function2Desc = {
     Function2Desc(
-      Set(fn),
+      fn,
       (a, b) => ExprPair.alignTypes(a, b).right.map(pair => create(pair.a, pair.b))
     )
   }
@@ -310,7 +335,7 @@ object FunctionRegistry {
       implicit dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): Function2Desc = Function2Desc(
-    Set(fn),
+    fn,
     (a, b) =>
       if (a.dataType == dtt && b.dataType == dtu)
         Right(create(a.asInstanceOf[Expression.Aux[T]], b.asInstanceOf[Expression.Aux[U]]))
@@ -319,7 +344,7 @@ object FunctionRegistry {
 
   private def biArray[T](fn: String, create: Bind2[ArrayExpr, ArrayExpr, Expression]): Function2Desc = {
     Function2Desc(
-      Set(fn),
+      fn,
       (a, b) =>
         if (a.dataType.isArray && b.dataType.isArray)
           Right(create(a.asInstanceOf[Expression.Aux[Array[T]]], b.asInstanceOf[Expression.Aux[Array[T]]]))
