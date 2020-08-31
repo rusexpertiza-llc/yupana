@@ -28,6 +28,7 @@ trait TsdbMocks extends MockFactory {
       .onCall((condition: Condition) =>
         condition match {
           case EqExpr(LinkExpr(c, _), ConstantExpr(_))                        => true
+          case NeqExpr(LinkExpr(c, _), ConstantExpr(_))                       => true
           case InExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
           case NotInExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
           case _                                                              => false

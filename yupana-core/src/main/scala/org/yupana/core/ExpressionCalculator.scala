@@ -16,11 +16,13 @@
 
 package org.yupana.core
 
-import org.joda.time.Period
+import org.joda.time.{ DateTimeFieldType, Period }
 import org.yupana.api.Time
 import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
-import org.yupana.core.operations.Operations
+import org.yupana.utils.Tokenizer
+
+import scala.collection.AbstractIterator
 
 object ExpressionCalculator {
   def evaluateConstant(expr: Expression): expr.Out = {
@@ -145,26 +147,20 @@ object ExpressionCalculator {
           evaluateExpression(negative, qc, row)
         }
 
-      case TruncYearExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncYear)
+      case TruncYearExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.year()))
+      case TruncMonthExpr(e)  => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.monthOfYear()))
+      case TruncDayExpr(e)    => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.dayOfMonth()))
+      case TruncWeekExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.weekOfWeekyear()))
+      case TruncHourExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.hourOfDay()))
+      case TruncMinuteExpr(e) => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.minuteOfHour()))
+      case TruncSecondExpr(e) => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.secondOfMinute()))
 
-      case TruncMonthExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncMonth)
-
-      case TruncDayExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncDay)
-
-      case TruncWeekExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncWeek)
-
-      case TruncHourExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncHour)
-
-      case TruncMinuteExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncMinute)
-
-      case TruncSecondExpr(e) =>
-        evaluateUnary(qc, row)(e, Operations.truncSecond)
+      case ExtractYearExpr(e)   => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getYear)
+      case ExtractMonthExpr(e)  => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMonthOfYear)
+      case ExtractDayExpr(e)    => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getDayOfMonth)
+      case ExtractHourExpr(e)   => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getHourOfDay)
+      case ExtractMinuteExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMinuteOfHour)
+      case ExtractSecondExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getSecondOfMinute)
 
       case p @ PlusExpr(a, b)    => evaluateBinary(qc, row)(a, b, p.numeric.plus)
       case m @ MinusExpr(a, b)   => evaluateBinary(qc, row)(a, b, m.numeric.minus)
@@ -208,6 +204,10 @@ object ExpressionCalculator {
       case LowerExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toLowerCase)
       case UpperExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toUpperCase)
       case LengthExpr(e) => evaluateUnary(qc, row)(e, (x: String) => x.length)
+      case SplitExpr(e)  => evaluateUnary(qc, row)(e, (s: String) => splitBy(s, !_.isLetterOrDigit).toArray)
+      case TokensExpr(e) => evaluateUnary(qc, row)(e, (s: String) => Tokenizer.transliteratedTokens(s).toArray)
+
+      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
 
       case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.numeric.abs)
 
@@ -220,7 +220,19 @@ object ExpressionCalculator {
         evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
       case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Period, y: Period) => x plus y)
 
-      case ce @ ContainsExpr(a, v) => evaluateBinary(qc, row)(a, v, (ar: ce.In, x: ce.Item) => ar.contains(x))
+//      case ArrayTokensExpr(e) =>
+//      case ArrayLengthExpr(e) =>
+//      case ArrayToStringExpr(e) =>
+
+      case ContainsExpr(a, v) =>
+        val left = evaluateExpression(a, qc, row)
+        val right = evaluateExpression(v, qc, row)
+        if (left != null && right != null) {
+          left.contains(right)
+        } else {
+          null.asInstanceOf[Boolean]
+        }
+
 //      case ContainsAllExpr(a, vs) =>
 //      case ContainsAnyExpr(a, vs) =>
 //      case ContainsSameExpr(a, vs) =>
@@ -273,8 +285,28 @@ object ExpressionCalculator {
     }
   }
 
-  private def contains[T](a: Array[T], t: T): Boolean = a contains t
-  private def containsAll[T](a: Array[T], b: Array[T]): Boolean = b.forall(a.contains)
-  private def containsAny[T](a: Array[T], b: Array[T]): Boolean = b.exists(a.contains)
-  private def containsSame[T](a: Array[T], b: Array[T]): Boolean = a sameElements b
+//  private def contains[T](a: Array[T], t: T): Boolean = a contains t
+//  private def containsAll[T](a: Array[T], b: Array[T]): Boolean = b.forall(a.contains)
+//  private def containsAny[T](a: Array[T], b: Array[T]): Boolean = b.exists(a.contains)
+//  private def containsSame[T](a: Array[T], b: Array[T]): Boolean = a sameElements b
+
+  private def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
+    Time(time.toDateTime.property(fieldType).roundFloorCopy().getMillis)
+  }
+
+  private def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
+    private val len = s.length
+    private var pos = 0
+
+    override def hasNext: Boolean = pos < len
+
+    override def next(): String = {
+      if (pos >= len) throw new NoSuchElementException("next on empty iterator")
+      val start = pos
+      while (pos < len && !p(s(pos))) pos += 1
+      val res = s.substring(start, pos min len)
+      while (pos < len && p(s(pos))) pos += 1
+      res
+    }
+  }
 }

@@ -12,7 +12,6 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.Aggregation
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
@@ -226,8 +225,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
         truncDay(time) as "time",
         dimension(TestDims.DIM_A) as "tag_a",
         dimension(TestDims.DIM_B) as "tag_b",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.sum[BigDecimal], TestTableFields.TEST_BIGDECIMAL_FIELD) as "sum_testField"
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        sum(metric(TestTableFields.TEST_BIGDECIMAL_FIELD)) as "sum_testField"
       ),
       None,
       Seq(truncDay(time))
