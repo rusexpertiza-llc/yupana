@@ -24,7 +24,6 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
-import org.yupana.core.operations.Operations
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 
@@ -72,8 +71,6 @@ trait TsdbBase extends StrictLogging {
       rows: Collection[Array[Any]],
       metricCollector: MetricQueryCollector
   ): Result
-
-  implicit protected val operations: Operations = Operations
 
   /**
     * Query pipeline. Perform following stages:

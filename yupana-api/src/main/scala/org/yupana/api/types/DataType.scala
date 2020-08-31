@@ -36,7 +36,6 @@ trait DataType extends Serializable {
   val integral: Option[Integral[T]]
   val fractional: Option[Fractional[T]]
   def numeric: Option[Numeric[T]] = integral orElse fractional
-//  def operations: TypeOperations[T]
 
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
 
