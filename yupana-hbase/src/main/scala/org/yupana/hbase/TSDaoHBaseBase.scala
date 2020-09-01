@@ -266,11 +266,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case EqExpr(ConstantExpr(c: Time), _: TimeExpr.type) =>
           builder.includeTime(c)
 
-        case EqExpr(t: TupleExpr[_, _], ConstantExpr(v: (_, _))) =>
-          val filters1 = createFilters(InExpr(t.e1.aux, Set(v._1.asInstanceOf[t.e1.Out])), builder)
-          createFilters(InExpr(t.e2.aux, Set(v._2.asInstanceOf[t.e2.Out])), filters1)
+        case EqUntyped(TupleExpr(e1, e2), ConstantExpr(v: (_, _))) =>
+          val filters1 = createFilters(InExpr(e1.aux, Set(v._1.asInstanceOf[e1.Out])), builder)
+          createFilters(InExpr(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
 
-        case EqExpr(ConstantExpr(v: (_, _)), t: TupleExpr[_, _]) =>
+        case EqUntyped(ConstantExpr(v: (_, _)), t: TupleExpr[_, _]) =>
           val filters1 = createFilters(InExpr(t.e1.aux, Set(v._1.asInstanceOf[t.e1.Out])), builder)
           createFilters(InExpr(t.e2.aux, Set(v._2.asInstanceOf[t.e2.Out])), filters1)
 
@@ -356,7 +356,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case AndExpr(conditions) =>
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
 
-        case InExpr(t: TupleExpr[_, _], vs) =>
+        case InUntyped(t: TupleExpr[_, _], vs) =>
           val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._1)), builder)
           createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._2)), filters1)
 
