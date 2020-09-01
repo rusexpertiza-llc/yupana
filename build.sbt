@@ -69,7 +69,7 @@ lazy val utils = (project in file("yupana-utils"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.apache.lucene"           %  "lucene-analyzers-common"       % versions.lucene,
-      "org.scalatest"               %% "scalatest"                     % versions.scalaTest
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   )
 
