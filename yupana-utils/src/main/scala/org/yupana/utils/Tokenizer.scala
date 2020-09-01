@@ -51,11 +51,19 @@ object Tokenizer extends Serializable {
   }
 
   def stemmedTokens(item: String): Seq[String] = {
-    tokenize(item, stemmer.stem)
+    try {
+      tokenize(item, stemmer.stem)
+    } catch {
+      case e: ArrayIndexOutOfBoundsException => throw new IllegalArgumentException(s"Unable to handle $item", e)
+    }
   }
 
   def rawTokens(item: String): Seq[String] = {
-    tokenize(item, (_, x) => x)
+    try {
+      tokenize(item, (_, x) => x)
+    } catch {
+      case e: ArrayIndexOutOfBoundsException => throw new IllegalArgumentException(s"Unable to handle $item", e)
+    }
   }
 
   private def tokenize(item: String, tokenLength: (Array[Char], Int) => Int): Seq[String] = {
