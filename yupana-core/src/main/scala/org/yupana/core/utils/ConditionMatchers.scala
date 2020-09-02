@@ -95,7 +95,7 @@ object ConditionMatchers {
 
   // This is a hack used to avoid smashing the stack with tuples (can't explain why)
   object EqUntyped {
-    def unapply(e: Expression): Option[(Expression, Expression)] = {
+    def unapply(e: Expression[_]): Option[(Expression[_], Expression[_])] = {
       e match {
         case EqExpr(a, b) => Some((a, b))
         case _            => None
@@ -104,10 +104,10 @@ object ConditionMatchers {
   }
 
   object InUntyped {
-    def unapply(e: Expression): Option[(Expression, Set[_])] = {
+    def unapply(e: Expression[_]): Option[(Expression[_], Set[_])] = {
       e match {
-        case InExpr(t: Expression, v) => Some((t, v))
-        case _                        => None
+        case InExpr(t: Expression[_], v) => Some((t, v))
+        case _                           => None
       }
     }
   }

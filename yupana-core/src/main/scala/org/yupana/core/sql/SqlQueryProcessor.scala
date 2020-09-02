@@ -390,7 +390,7 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
+  private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
     convertValue(state, v, ExprType.Cmp).right.flatMap(const => ExprPair.constCast(const, dataType))
   }
 
@@ -489,15 +489,15 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def getMetricExpr(table: Table, fieldName: String): Option[MetricExpr[_]] = {
+  private def getMetricExpr(table: Table, fieldName: String): Option[Expression[_]] = {
     table.metrics.find(_.name.toLowerCase == fieldName).map(f => MetricExpr(f.aux))
   }
 
-  private def getDimExpr(table: Table, fieldName: String): Option[DimensionExpr[_]] = {
+  private def getDimExpr(table: Table, fieldName: String): Option[Expression[_]] = {
     table.dimensionSeq.find(_.name.toLowerCase == fieldName).map(d => DimensionExpr(d.aux))
   }
 
-  private def getLinkExpr(table: Table, fieldName: String): Option[LinkExpr[_]] = {
+  private def getLinkExpr(table: Table, fieldName: String): Option[Expression[_]] = {
 
     val pos = fieldName.indexOf('_')
 
@@ -514,7 +514,7 @@ object SqlQueryProcessor extends QueryValidator {
   }
 
   private def getFieldMap(table: Table, fieldNames: Seq[String]): Either[String, Map[Expression[_], Int]] = {
-    val exprs = CollectionUtils.collectErrors(
+    val exprs = CollectionUtils.collectErrors[Expression[_]](
       fieldNames.map { name =>
         fieldByName(table)(name) match {
           case Some(LinkExpr(_, _)) => Left(s"External link field $name cannot be upserted")
@@ -536,7 +536,7 @@ object SqlQueryProcessor extends QueryValidator {
         case Right(e) if e.kind == Const =>
           val eval = ExpressionCalculator.evaluateConstant(e)
           if (eval != null) {
-            Right(ConstantExpr(eval)(e.dataType).asInstanceOf[ConstantExpr])
+            Right(ConstantExpr(eval)(e.dataType).asInstanceOf[ConstantExpr[_]])
           } else {
             Left(s"Cannon evaluate $e")
           }
@@ -546,7 +546,7 @@ object SqlQueryProcessor extends QueryValidator {
       }
     }
 
-    CollectionUtils.collectErrors(vs).right.map(_.toArray)
+    CollectionUtils.collectErrors[ConstantExpr[_]](vs).right.map(_.toArray)
   }
 
   private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {

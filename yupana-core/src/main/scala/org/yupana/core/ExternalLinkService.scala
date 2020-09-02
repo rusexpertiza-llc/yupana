@@ -76,19 +76,19 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case EqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                 => true
-      case EqExpr(LowerExpr(l: LinkExpr[_]), ConstantExpr(_)) if l.link.linkName == externalLink.linkName => true
-      case EqExpr(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                 => true
-      case EqExpr(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName      => true
-      case NeqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                => true
-      case NeqExpr(LowerExpr(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName     => true
-      case NeqExpr(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                => true
-      case NeqExpr(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName     => true
-      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                               => true
-      case InExpr(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                    => true
-      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                            => true
-      case NotInExpr(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                 => true
-      case _                                                                                              => false
+      case EqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                   => true
+      case EqString(LowerExpr(l: LinkExpr[_]), ConstantExpr(_)) if l.link.linkName == externalLink.linkName => true
+      case EqString(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                 => true
+      case EqString(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName      => true
+      case NeqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                  => true
+      case NeqString(LowerExpr(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName     => true
+      case NeqExpr(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                  => true
+      case NeqString(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName     => true
+      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                                 => true
+      case InString(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                    => true
+      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                              => true
+      case NotInString(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                 => true
+      case _                                                                                                => false
     }
   }
 
