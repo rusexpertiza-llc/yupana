@@ -56,11 +56,11 @@ object FunctionRegistry {
     uOrd("max", new Bind2[Expression, Ordering, Expression[_]] {
       override def apply[T](e: Expression[T], o: Ordering[T]): Expression[_] = MaxExpr(e)(o)
     }),
-    uAny("count", e => CountExpr(e.aux)),
-    uAny("distinct_count", e => DistinctCountExpr(e.aux)),
-    uAny("distinct_random", e => DistinctRandomExpr(e.aux)),
+    uAny("count", e => CountExpr(e)),
+    uAny("distinct_count", e => DistinctCountExpr(e)),
+    uAny("distinct_random", e => DistinctRandomExpr(e)),
     // WINDOW
-    uAny("lag", e => LagExpr(e.aux)),
+    uAny("lag", e => LagExpr(e)),
     // REAL UNARY
     uNum("-", new Bind2[Expression, Numeric, Expression[_]] {
       override def apply[T](e: Expression[T], n: Numeric[T]): Expression[_] = UnaryMinusExpr(e)(n)
@@ -89,8 +89,8 @@ object FunctionRegistry {
     uTyped("extract_minute", ExtractMinuteExpr),
     uTyped("extract_second", ExtractSecondExpr),
     uTyped("length", LengthExpr),
-    uAny("is_null", e => IsNullExpr(e.aux)),
-    uAny("is_not_null", e => IsNotNullExpr(e.aux)),
+    uAny("is_null", e => IsNullExpr(e)),
+    uAny("is_not_null", e => IsNotNullExpr(e)),
     uTyped("not", NotExpr),
     uTyped("tokens", TokensExpr),
     uTyped("split", SplitExpr),
@@ -244,7 +244,7 @@ object FunctionRegistry {
       NumberParam,
       e =>
         e.dataType.numeric match {
-          case Some(num) => Right(create(e.aux, num))
+          case Some(num) => Right(create(e, num))
           case None      => Left(s"$fn requires a number, but got ${e.dataType}")
         }
     )
@@ -259,7 +259,7 @@ object FunctionRegistry {
       OtherParam,
       e =>
         e.dataType.ordering match {
-          case Some(ord) => Right(create(e.aux, ord))
+          case Some(ord) => Right(create(e, ord))
           case None      => Left(s"$fn cannot be applied to ${e.dataType}")
         }
     )

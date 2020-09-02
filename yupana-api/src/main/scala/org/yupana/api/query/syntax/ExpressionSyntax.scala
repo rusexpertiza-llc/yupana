@@ -40,11 +40,11 @@ trait ExpressionSyntax {
   def condition[T](condition: Condition, positive: Expression[T], negative: Expression[T]) =
     ConditionExpr(condition, positive, negative)
 
-  def in[T](e: Expression[T], consts: Set[T]): Condition = InExpr(e, consts).aux
-  def notIn[T](e: Expression[T], consts: Set[T]): Condition = NotInExpr(e, consts).aux
+  def in[T](e: Expression[T], consts: Set[T]): Condition = InExpr(e, consts)
+  def notIn[T](e: Expression[T], consts: Set[T]): Condition = NotInExpr(e, consts)
 
-  def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*)).aux
-  def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*)).aux
+  def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*))
+  def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*))
 
   def gt[T: Ordering](left: Expression[T], right: Expression[T]) =
     GtExpr(left, right)

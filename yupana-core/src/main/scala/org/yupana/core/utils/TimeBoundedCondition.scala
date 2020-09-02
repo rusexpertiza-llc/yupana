@@ -31,8 +31,8 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
     QueryOptimizer.simplifyCondition(
       AndExpr(
         Seq(
-          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true).aux),
-          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true).aux)
+          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true)),
+          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true))
         ) ++ conditions
       )
     )

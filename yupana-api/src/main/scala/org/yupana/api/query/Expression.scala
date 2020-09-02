@@ -44,7 +44,7 @@ sealed trait Expression[Out] extends Serializable {
     t.applyIfPossible(this)
   }
 
-  def aux: Expression[Out] = this.asInstanceOf[Expression[Out]]
+//  def aux: Expression[Out] = this.asInstanceOf[Expression[Out]]
 
   lazy val flatten: Set[Expression[_]] = fold(Set.empty[Expression[_]])(_ + _)
 
@@ -85,7 +85,7 @@ sealed abstract class AggregateExpr[T, U](val expr: Expression[T], name: String)
     extends UnaryOperationExpr[T, U](expr, name) {
   type In = T
   type Interim
-  override def aux: AggregateExpr.Aux[In, Interim, U] = this.asInstanceOf[AggregateExpr.Aux[In, Interim, U]]
+  def aux: AggregateExpr.Aux[In, Interim, U] = this.asInstanceOf[AggregateExpr.Aux[In, Interim, U]]
 
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
   override def encode: String = s"agg($name,${expr.encode})"

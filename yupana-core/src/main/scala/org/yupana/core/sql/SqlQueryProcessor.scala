@@ -371,7 +371,7 @@ object SqlQueryProcessor extends QueryValidator {
         for {
           ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
           cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield NotInExpr(ce.aux, cvs.toSet).aux
+        } yield NotInExpr(ce, cvs.toSet)
 
       case parser.And(cs) =>
         CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).right.map(AndExpr)

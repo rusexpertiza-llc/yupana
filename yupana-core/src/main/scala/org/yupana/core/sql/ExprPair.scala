@@ -34,7 +34,7 @@ object ExprPair {
     override val b: Expression[T0] = y
   }
 
-  def constCast(const: ConstantExpr[_], dataType: DataType): Either[String, dataType.T] = {
+  def constCast[T](const: ConstantExpr[_], dataType: DataType.Aux[T]): Either[String, T] = {
     if (const.dataType == dataType) {
       Right(const.v.asInstanceOf[dataType.T])
     } else {
@@ -53,19 +53,19 @@ object ExprPair {
 
   def alignTypes[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
-      Right(ExprPair[T](ca.aux, cb.asInstanceOf[Expression[T]]))
+      Right(ExprPair[T](ca, cb.asInstanceOf[Expression[T]]))
     } else {
       (ca, cb) match {
         case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
 
-        case (NullExpr(_), _) => Right(ExprPair(NullExpr(cb.dataType), cb.aux))
-        case (_, NullExpr(_)) => Right(ExprPair(ca.aux, NullExpr(ca.dataType)))
+        case (NullExpr(_), _) => Right(ExprPair(NullExpr(cb.dataType), cb))
+        case (_, NullExpr(_)) => Right(ExprPair(ca, NullExpr(ca.dataType)))
 
         case (c: ConstantExpr[_], _) =>
-          constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb.aux))
+          constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb))
 
         case (_, c: ConstantExpr[_]) =>
-          constCast(c, ca.dataType).right.map(cc => ExprPair(ca.aux, ConstantExpr(cc)(ca.dataType)))
+          constCast(c, ca.dataType).right.map(cc => ExprPair(ca, ConstantExpr(cc)(ca.dataType)))
 
         case (_, _) => convertRegular(ca, cb)
       }
@@ -74,10 +74,10 @@ object ExprPair {
 
   private def convertRegular[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
     TypeConverter(ca.dataType, cb.dataType)
-      .map(aToB => ExprPair[U](TypeConvertExpr(aToB, ca.aux), cb.aux))
+      .map(aToB => ExprPair[U](TypeConvertExpr(aToB, ca), cb))
       .orElse(
         TypeConverter(cb.dataType, ca.dataType)
-          .map(bToA => ExprPair[T](ca.aux, TypeConvertExpr(bToA, cb.aux)))
+          .map(bToA => ExprPair[T](ca, TypeConvertExpr(bToA, cb)))
       )
       .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
   }
