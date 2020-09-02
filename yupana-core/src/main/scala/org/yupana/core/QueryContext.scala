@@ -58,10 +58,10 @@ object QueryContext extends StrictLogging {
         requiredDimExprs ++
         query.postFilter.toSet ++
         postCondition.toSet +
-        TimeExpr).filterNot(_.isInstanceOf[ConstantExpr])
+        TimeExpr).filterNot(_.isInstanceOf[ConstantExpr[_]])
 
     val topRowExprs: Set[Expression] = topExprs.filter { expr =>
-      !expr.isInstanceOf[ConstantExpr] && (
+      !expr.isInstanceOf[ConstantExpr[_]] && (
         (!containsAggregates(expr) && !containsWindows(expr)) ||
         expr.isInstanceOf[AggregateExpr[_, _]] ||
         expr.isInstanceOf[WindowFunctionExpr[_, _]]
@@ -94,7 +94,7 @@ object QueryContext extends StrictLogging {
     exprs.collect {
       case a: AggregateExpr[_, _]         => Set(a, a.expr)
       case ConditionExpr(condition, _, _) => Set(condition)
-      case c: ConstantExpr                => Set(c)
+      case c: ConstantExpr[_]             => Set(c)
       case d: DimensionExpr[_]            => Set(d)
       case i: DimensionIdExpr             => Set(i)
       case c: LinkExpr[_]                 => Set(c)

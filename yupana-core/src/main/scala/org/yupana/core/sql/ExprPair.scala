@@ -34,9 +34,9 @@ object ExprPair {
     override val b: Expression.Aux[T0] = y
   }
 
-  def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
+  def constCast[U, T](const: ConstantExpr[U], dataType: DataType.Aux[T]): Either[String, T] = {
     if (const.dataType == dataType) {
-      Right(const.v.asInstanceOf[dataType.T])
+      Right(const.v.asInstanceOf[T])
     } else {
       TypeConverter(const.dataType, dataType.aux)
         .map(conv => conv.convert(const.v))
@@ -56,15 +56,15 @@ object ExprPair {
       Right(ExprPair[ca.Out](ca.aux, cb.asInstanceOf[Expression.Aux[ca.Out]]))
     } else {
       (ca, cb) match {
-        case (_: ConstantExpr, _: ConstantExpr) => convertRegular(ca, cb)
+        case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
 
         case (NullExpr(_), _) => Right(ExprPair(NullExpr(cb.dataType), cb.aux))
         case (_, NullExpr(_)) => Right(ExprPair(ca.aux, NullExpr(ca.dataType)))
 
-        case (c: ConstantExpr, _) =>
+        case (c: ConstantExpr[_], _) =>
           constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb.aux))
 
-        case (_, c: ConstantExpr) =>
+        case (_, c: ConstantExpr[_]) =>
           constCast(c, ca.dataType).right.map(cc => ExprPair(ca.aux, ConstantExpr(cc)(ca.dataType)))
 
         case (_, _) => convertRegular(ca, cb)

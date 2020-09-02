@@ -386,11 +386,15 @@ object SqlQueryProcessor extends QueryValidator {
     }
   }
 
-  private def convertValue(state: BuilderState, v: parser.Value, dataType: DataType): Either[String, dataType.T] = {
+  private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
     convertValue(state, v, ExprType.Cmp).right.flatMap(const => ExprPair.constCast(const, dataType))
   }
 
-  private def convertValue(state: BuilderState, v: parser.Value, exprType: ExprType): Either[String, ConstantExpr] = {
+  private def convertValue(
+      state: BuilderState,
+      v: parser.Value,
+      exprType: ExprType
+  ): Either[String, ConstantExpr[_]] = {
     v match {
       case parser.StringValue(s) =>
         val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
@@ -522,13 +526,13 @@ object SqlQueryProcessor extends QueryValidator {
       state: BuilderState,
       table: Table,
       values: Seq[parser.SqlExpr]
-  ): Either[String, Array[ConstantExpr]] = {
+  ): Either[String, Array[ConstantExpr[_]]] = {
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
         case Right(e) if e.kind == Const =>
           val eval = ExpressionCalculator.evaluateConstant(e)
           if (eval != null) {
-            Right(ConstantExpr(eval)(e.dataType).asInstanceOf[ConstantExpr])
+            Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
           } else {
             Left(s"Cannon evaluate $e")
           }
@@ -538,10 +542,10 @@ object SqlQueryProcessor extends QueryValidator {
       }
     }
 
-    CollectionUtils.collectErrors(vs).right.map(_.toArray)
+    CollectionUtils.collectErrors[ConstantExpr[_]](vs).right.map(_.toArray)
   }
 
-  private def getTimeValue(fieldMap: Map[Expression, Int], values: Array[ConstantExpr]): Either[String, Long] = {
+  private def getTimeValue(fieldMap: Map[Expression, Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
     idx.right.map(values).right.flatMap(c => ExprPair.constCast(c, DataType[Time])).right.map(_.millis)
   }
@@ -549,7 +553,7 @@ object SqlQueryProcessor extends QueryValidator {
   private def getDimensionValues(
       table: Table,
       fieldMap: Map[Expression, Int],
-      values: Seq[ConstantExpr]
+      values: Seq[ConstantExpr[_]]
   ): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
@@ -562,7 +566,7 @@ object SqlQueryProcessor extends QueryValidator {
   private def getMetricValues(
       table: Table,
       fieldMap: Map[Expression, Int],
-      values: Seq[ConstantExpr]
+      values: Seq[ConstantExpr[_]]
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
