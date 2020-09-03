@@ -29,7 +29,8 @@ object Tokenizer extends Serializable {
     ('a' to 'z') ++
     ('A' to 'Z') ++
     ('а' to 'я') ++
-    ('А' to 'Я')
+    ('А' to 'Я') +
+    'ё' + 'Ё'
 
   private val includedChars = Array.fill[Boolean](charSet.max + 1)(false)
   charSet.foreach { s =>
