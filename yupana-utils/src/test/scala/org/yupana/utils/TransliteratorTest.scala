@@ -29,13 +29,13 @@ class TransliteratorTest extends FlatSpec with Matchers with TableDrivenProperty
       ("сигареты пётр i эталон", "sigaret petr i etalon"),
       ("котелок солдатский алю", "kotelok soldatsk alyu"),
       ("Ёлка Зелёная", "elk zelen"),
-      ("ЁЁ0Ё", "ee 0 e ee0e")
+      ("ЁЁ0Ё", "ee 0 e ee0e"),
+      ("ѐe0ѐ", "e 0 e0")
     )
 
     forAll(data) { (item, expected) =>
       val tokenized = Tokenizer.stemmedTokens(item) mkString " "
       Transliterator.transliterate(tokenized) shouldEqual expected
     }
-
   }
 }

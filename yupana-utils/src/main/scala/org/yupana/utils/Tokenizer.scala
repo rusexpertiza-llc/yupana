@@ -73,7 +73,7 @@ object Tokenizer extends Serializable {
     def sliceStemAppend(from: Int, to: Int, offset: Int, updated: Array[Char]): Unit = {
       if (from < to) {
         val off = math.max(offset, 0)
-        val updatedFrom = if (from != 0) from - off else from
+        val updatedFrom = if (from != 0) math.max(from - off, 0) else from
         val length = to - (if (from != 0) from else off)
         val word = new Array[Char](length)
         Array.copy(updated, updatedFrom, word, 0, length)
@@ -155,11 +155,14 @@ object Tokenizer extends Serializable {
       }
     }
 
-    if (from < item.length) {
+    val lastCharIncluded = isCharIncluded(item.last)
+
+    if (from < item.length && lastCharIncluded) {
       sliceStemAppend(from, item.length, offset, updated)
     }
     if (originFrom < item.length && originFrom != from) {
-      sliceStemAppend(originFrom, item.length, offset, updated)
+      val length = if (lastCharIncluded) item.length else item.length - 1
+      sliceStemAppend(originFrom, length, offset, updated)
     }
     wordsList
   }

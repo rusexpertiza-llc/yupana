@@ -65,7 +65,7 @@ class ItemsInvertedIndexImplTest
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
     })
 
-    index.putItemNames(Set("сигареты легкие", "папиросы", "молоко"))
+    index.putItemNames(Set("сигареты легкие", "ПаПиросы", "молоко"))
   }
 
   it should "ignore handle prefixes" in withMocks { (index, dao, _) =>
