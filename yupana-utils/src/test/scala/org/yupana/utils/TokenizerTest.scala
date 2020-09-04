@@ -1,8 +1,9 @@
 package org.yupana.utils
 
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{ FlatSpec, Matchers }
 
-class TokenizerTest extends FlatSpec with Matchers {
+class TokenizerTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
   "Stemmer" should "split numbers and words" in {
     Tokenizer.stemmedTokens("95пульсар") should contain theSameElementsAs List("95пульсар", "95", "пульсар")
 
@@ -197,5 +198,43 @@ class TokenizerTest extends FlatSpec with Matchers {
       "na",
       "trub"
     )
+  }
+
+  it should "provide transliterated tokens" in {
+    val data = Table(
+      ("Item", "Transliterated"),
+      ("хот-дог датский чикен", "hot dog datsk chiken"),
+      ("зёрна кофейные marengo", "zern kofejn marengo"),
+      ("мор-ое щербет смор. 80", "mor oe shcherbet smor 80"),
+      ("аи-95-к5 евро-6 евро-6", "ai 95 k 5 k5 evr 6 evr 6"),
+      ("сигареты пётр i эталон", "sigaret petr i etalon"),
+      ("котелок солдатский алю", "kotelok soldatsk alyu"),
+      ("Ёлка Зелёная", "elk zelen"),
+      ("ЁЁ0Ё", "ee 0 e ee0e"),
+      ("ѐe0ѐ", "e 0 e0")
+    )
+
+    forAll(data) { (item, expected) =>
+      Tokenizer.transliteratedTokens(item) mkString " " shouldEqual expected
+    }
+  }
+
+  it should "provide raw tokens" in {
+    val data = Table(
+      ("Item", "Transliterated"),
+      ("хот-дог датский чикен", "хот дог датский чикен"),
+      ("зёрна кофейные marengo", "зёрна кофейные marengo"),
+      ("мор-ое щербет смор. 80", "мор ое щербет смор 80"),
+      ("аи-95-к5 евро-6 евро-6", "аи 95 к 5 к5 евро 6 евро 6"),
+      ("сигареты пётр i эталон", "сигареты пётр i эталон"),
+      ("котелок солдатский алю", "котелок солдатский алю"),
+      ("Ёлка Зелёная", "ёлка зелёная"),
+      ("ЁЁ0Ё", "ёё 0 ё ёё0ё"),
+      ("ѐe0ѐ", "e 0 e0")
+    )
+
+    forAll(data) { (item, expected) =>
+      Tokenizer.rawTokens(item) mkString " " shouldEqual expected
+    }
   }
 }
