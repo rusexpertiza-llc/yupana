@@ -22,6 +22,8 @@ import java.util.UUID
 import org.yupana.api.schema.HashDimension
 import org.yupana.utils.Tokenizer
 
+import scala.collection.mutable.ListBuffer
+
 object ItemDimension {
 
   type KeyType = (Int, Long)
@@ -53,6 +55,28 @@ object ItemDimension {
       }
       (h << 8) | code
     }
+  }
+
+  def split(s: String): Seq[String] = {
+    val res = ListBuffer.empty[String]
+    var start = 0
+    var end = 0
+    while (end < s.length) {
+      val ch = s(end)
+      if (ch.isLetterOrDigit) {
+        end += 1
+      } else {
+        if (end != start) {
+          res += s.substring(start, end)
+        }
+        end += 1
+        start = end
+      }
+    }
+    if (end != start) {
+      res += s.substring(start, end)
+    }
+    res.toList
   }
 
   private def encode(chars: Array[Char], charIdx: Map[Char, Int], nBits: Int) = {
