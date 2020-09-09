@@ -16,6 +16,6 @@
 
 package org.yupana.api.utils
 
-trait Transliterator {
+trait Transliterator extends Serializable {
   def transliterate(s: String): String
 }
