@@ -10,11 +10,12 @@ import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
-import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
+import org.yupana.core.{ ExpressionCalculator, QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.proto._
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
+import org.yupana.utils.RussianTokenizer
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -22,7 +23,7 @@ import scala.concurrent.duration._
 
 class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
-  val requestHandler = new RequestHandler(SchemaRegistry.defaultSchema)
+  val requestHandler = new RequestHandler(SchemaRegistry.defaultSchema, new ExpressionCalculator(RussianTokenizer))
 
   "RequestHandler" should "send version on ping" in {
     val tsdb = mock[TSDB]
@@ -201,7 +202,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
 
-  class MockedTsdb(metricsDao: TsdbQueryMetricsDao) extends TSDB(null, metricsDao, null, identity, SimpleTsdbConfig())
+  class MockedTsdb(metricsDao: TsdbQueryMetricsDao)
+      extends TSDB(null, metricsDao, null, identity, RussianTokenizer, SimpleTsdbConfig())
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]

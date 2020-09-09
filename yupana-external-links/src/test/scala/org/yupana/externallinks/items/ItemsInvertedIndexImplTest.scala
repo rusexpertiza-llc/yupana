@@ -6,11 +6,12 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.TSDB
+import org.yupana.core.{ ExpressionCalculator, TSDB }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
 
 class ItemsInvertedIndexImplTest
     extends FlatSpec
@@ -19,6 +20,8 @@ class ItemsInvertedIndexImplTest
     with BeforeAndAfterAll
     with BeforeAndAfterEach
     with Inside {
+
+  val calculator = new ExpressionCalculator(RussianTokenizer)
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -41,6 +44,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("kopchen").returning(si("колбаса хол копчения", "рыба копченая"))
 
     val actual = index.condition(
+      calculator,
       and(
         in(
           lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
@@ -76,6 +80,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
     val res = index.condition(
+      calculator,
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
     )
 
@@ -92,6 +97,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
     val res = index.condition(
+      calculator,
       notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
     )
 
@@ -102,12 +108,8 @@ class ItemsInvertedIndexImplTest
     }
   }
 
-  def hashItem(item: String) = {
-    Dimensions.ITEM.hashFunction(item)
-  }
-
-  def si(ls: String*) = {
-    val s = ls.map(hashItem).sortWith(Dimensions.ITEM.rOrdering.lt)
+  private def si(ls: String*): SortedSetIterator[ItemDimension.KeyType] = {
+    val s = ls.map(Dimensions.ITEM.hashFunction).sortWith(Dimensions.ITEM.rOrdering.lt)
     SortedSetIterator(s.toIterator)
   }
 
@@ -115,7 +117,7 @@ class ItemsInvertedIndexImplTest
 
     val dao = mock[InvertedIndexDao[String, ItemDimension.KeyType]]
     val tsdb = mock[TSDB]
-    val index = new ItemsInvertedIndexImpl(dao, false, ItemsInvertedIndex)
+    val index = new ItemsInvertedIndexImpl(dao, false, ItemsInvertedIndex, RussianTokenizer, RussianTransliterator)
 
     body(index, dao, tsdb)
   }

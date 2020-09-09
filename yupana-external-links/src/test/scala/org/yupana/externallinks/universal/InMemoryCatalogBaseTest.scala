@@ -5,11 +5,15 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, LinkField, RawDimension }
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.utils.RussianTokenizer
 
 class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
+
+  val calculator = new ExpressionCalculator(RussianTokenizer)
 
   class TestExternalLink(data: Array[Array[String]], override val externalLink: TestLink)
       extends InMemoryExternalLinkBase[TestLink](
@@ -109,12 +113,13 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
   }
 
   it should "support positive conditions" in {
-    testCatalog.condition(equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))) shouldEqual in(
-      lower(dimension(DictionaryDimension("TAG_X"))),
-      Set("aaa")
-    )
+    testCatalog.condition(
+      calculator,
+      equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
+    ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
 
     testCatalog.condition(
+      calculator,
       and(
         equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
         equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("bar"))
@@ -122,6 +127,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
     ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set("bar"))
 
     testCatalog.condition(
+      calculator,
       and(
         equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
         in(lower(link(testExternalLink, TestExternalLink.testField3)), Set("abc"))
@@ -131,15 +137,18 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
 
   it should "support negativeCondition operation" in {
     testCatalog.condition(
+      calculator,
       neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
     testCatalog.condition(
+      calculator,
       and(
         neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar")),
         notIn(lower(link(testExternalLink, TestExternalLink.testField3)), Set("look"))
       )
     ) shouldEqual notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
     testCatalog.condition(
+      calculator,
       and(
         neq(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa")),
         neq(lower(link(testExternalLink, TestExternalLink.testField3)), const("baz"))

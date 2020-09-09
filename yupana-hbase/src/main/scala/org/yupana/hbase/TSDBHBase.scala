@@ -22,7 +22,8 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
-import org.yupana.core.{ TSDB, TsdbConfig }
+import org.yupana.api.utils.Tokenizer
+import org.yupana.core.{ ExpressionCalculator, TSDB, TsdbConfig }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
 
@@ -33,6 +34,8 @@ object TSDBHBase {
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties,
+      tokenizer: Tokenizer,
+      expressionCalculator: ExpressionCalculator,
       tsdbConfig: TsdbConfig
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
@@ -42,9 +45,9 @@ object TSDBHBase {
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
-    val dao = new TSDaoHBase(connection, namespace, dictProvider, tsdbConfig.putBatchSize)
+    val dao = new TSDaoHBase(connection, namespace, dictProvider, expressionCalculator, tsdbConfig.putBatchSize)
 
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
-    new TSDB(dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
+    new TSDB(dao, metricsDao, dictProvider, prepareQuery, tokenizer, tsdbConfig)
   }
 }

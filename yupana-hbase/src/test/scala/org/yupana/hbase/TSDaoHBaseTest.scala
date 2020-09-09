@@ -17,7 +17,8 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ ExpressionCalculator, MapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.utils.RussianTokenizer
 
 import scala.collection.JavaConverters._
 
@@ -1206,6 +1207,8 @@ class TSDaoHBaseTest
       }
       queryRunner(scans.toSeq)
     }
+
+    override protected val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(RussianTokenizer)
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {

@@ -22,7 +22,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.{ Dimension, ExternalLink }
 import org.yupana.api.types.{ BoxingTag, DataType }
-import org.yupana.core.ExternalLinkService
+import org.yupana.core.{ ExpressionCalculator, ExternalLinkService }
 import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ SparseTable, Table }
@@ -66,8 +66,14 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  override def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, includeCondition, excludeCondition)
+  override def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
+    ExternalLinkUtils.transformConditionT[String](
+      expressionCalculator,
+      externalLink.linkName,
+      condition,
+      includeCondition,
+      excludeCondition
+    )
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {

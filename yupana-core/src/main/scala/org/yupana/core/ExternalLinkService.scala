@@ -67,7 +67,7 @@ trait ExternalLinkService[T <: ExternalLink] {
     * @param condition condition to be transformed
     * @return transformed condition. It should preserve time bounds even if there no conditions supported by this catalog.
     */
-  def condition(condition: Condition): Condition
+  def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition
 
   /**
     * Checks what passed simple condition can be handled by this catalog

@@ -3,7 +3,7 @@ package org.yupana.utils
 import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class TransliteratorTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class RussianTransliteratorTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
 
   "Transliterator" should "transliterate strings correctly" in {
     val data = Table(
@@ -15,7 +15,7 @@ class TransliteratorTest extends FlatSpec with Matchers with TableDrivenProperty
     )
 
     forAll(data) { (string, expected) =>
-      Transliterator.transliterate(string) shouldEqual expected
+      RussianTransliterator.transliterate(string) shouldEqual expected
     }
   }
 }

@@ -10,6 +10,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 import org.yupana.core.utils.Table
+import org.yupana.utils.RussianTokenizer
 
 trait TsdbMocks extends MockFactory {
 
@@ -68,7 +69,7 @@ trait TsdbMocks extends MockFactory {
       .anyNumberOfTimes()
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
+    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, RussianTokenizer, SimpleTsdbConfig())
     body(tsdb, tsdbDaoMock)
   }
 
@@ -87,7 +88,9 @@ trait TsdbMocks extends MockFactory {
     }
   }
 
-  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
+  private val calculator = new ExpressionCalculator(RussianTokenizer)
+
+  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, calculator)
 
   def createQuery(sql: String): Query = {
     SqlParser
@@ -98,7 +101,7 @@ trait TsdbMocks extends MockFactory {
         case x         => Left(s"SELECT statement expected, but got $x")
       }
       .right
-      .map(QueryOptimizer.optimize)
+      .map(QueryOptimizer.optimize(calculator))
       .fold(fail(_), identity)
   }
 }

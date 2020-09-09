@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-package org.yupana.core.operations
+package org.yupana.api.utils
 
-import org.yupana.api.utils.Tokenizer
-
-class Operations(override val tokenizer: Tokenizer)
-    extends UnaryOperationsImpl
-    with BinaryOperationsImpl
-    with WindowOperationsImpl
-    with AggregationsImpl
-    with Serializable
+trait Transliterator {
+  def transliterate(s: String): String
+}

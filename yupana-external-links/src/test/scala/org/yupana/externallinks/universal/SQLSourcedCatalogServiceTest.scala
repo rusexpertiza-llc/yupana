@@ -7,14 +7,18 @@ import org.scalatest.exceptions.TestFailedException
 import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.yupana.utils.RussianTokenizer
 
 class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
   val dbUrl = "jdbc:h2:mem:yupana;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
   val dbUser = "test"
   val dbPass = "secret"
+
+  val calculator = new ExpressionCalculator(RussianTokenizer)
 
   private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService[Int] = {
     val ds = new DriverManagerDataSource(
@@ -72,6 +76,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     values.get(12345657, "f2").value shouldEqual "fgh"
 
     val inCondition = externalLinkService.condition(
+      calculator,
       and(
         in(lower(link(externalLink, "f1")), Set("qwe", "ert")),
         in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
@@ -81,6 +86,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345654))
 
     val notInCondition = externalLinkService.condition(
+      calculator,
       and(
         notIn(lower(link(externalLink, "f1")), Set("qwe", "ert")),
         notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
@@ -135,6 +141,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     values.get(12345657, "f2").value shouldEqual "ggg3"
 
     val inCondition = externalLinkService.condition(
+      calculator,
       and(
         in(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
         in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
@@ -144,6 +151,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
     inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345657))
 
     val notInCondition = externalLinkService.condition(
+      calculator,
       and(
         notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
         notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))

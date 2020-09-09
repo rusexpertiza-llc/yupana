@@ -20,7 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.core.ExternalLinkService
+import org.yupana.core.{ ExpressionCalculator, ExternalLinkService }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.externallinks.ExternalLinkUtils
 
@@ -91,8 +91,9 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     }
   }
 
-  override def condition(condition: Condition): Condition = {
+  override def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
     val keyCondition = ExternalLinkUtils.transformConditionT[String](
+      expressionCalculator,
       externalLink.linkName,
       condition,
       includeCondition,

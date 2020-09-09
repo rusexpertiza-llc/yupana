@@ -19,7 +19,7 @@ package org.yupana.examples.externallinks
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField }
-import org.yupana.core.ExternalLinkService
+import org.yupana.core.{ ExpressionCalculator, ExternalLinkService }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
@@ -72,8 +72,14 @@ class AddressCatalogImpl(override val externalLink: AddressCatalog) extends Exte
     )
   }
 
-  override def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformCondition(externalLink.linkName, condition, createInclude, createExclude)
+  override def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
+    ExternalLinkUtils.transformCondition(
+      expressionCalculator,
+      externalLink.linkName,
+      condition,
+      createInclude,
+      createExclude
+    )
   }
 
   private def idsForValues(values: Seq[(String, Set[Any])]): Seq[Set[Int]] = {

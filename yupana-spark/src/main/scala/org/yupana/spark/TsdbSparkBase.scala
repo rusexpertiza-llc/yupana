@@ -85,7 +85,8 @@ abstract class TsdbSparkBase(
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
-  override val dao: TSReadingDao[RDD, Long] = new TsDaoHBaseSpark(sparkContext, conf, dictionaryProvider)
+  override val dao: TSReadingDao[RDD, Long] =
+    new TsDaoHBaseSpark(sparkContext, expressionCalculator, conf, dictionaryProvider)
 
   private def getMetricsDao(): TsdbQueryMetricsDao = TsdbSparkBase.metricsDao match {
     case None =>

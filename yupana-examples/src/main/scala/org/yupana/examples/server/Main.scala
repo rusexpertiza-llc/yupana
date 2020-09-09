@@ -22,11 +22,12 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.HBaseAdmin
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
-import org.yupana.core.SimpleTsdbConfig
+import org.yupana.core.{ ExpressionCalculator, SimpleTsdbConfig }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase.{ HdfsFileUtils, TSDBHBase }
+import org.yupana.utils.RussianTokenizer
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -62,14 +63,25 @@ object Main extends StrictLogging {
 
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
 
+    val calculator = new ExpressionCalculator(RussianTokenizer)
+
     val tsdb =
-      TSDBHBase(hbaseConfiguration, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)
+      TSDBHBase(
+        hbaseConfiguration,
+        config.hbaseNamespace,
+        schemaWithJson,
+        identity,
+        config.properties,
+        RussianTokenizer,
+        calculator,
+        tsdbConfig
+      )
     logger.info("Registering catalogs")
     val elRegistrator = new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val requestHandler = new RequestHandler(schemaWithJson)
+    val requestHandler = new RequestHandler(schemaWithJson, calculator)
     new TsdbTcp(tsdb, requestHandler, config.host, config.port, 1, 0, "1.0")
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
 

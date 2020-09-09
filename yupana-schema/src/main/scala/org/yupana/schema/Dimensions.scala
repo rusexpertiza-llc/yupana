@@ -17,10 +17,11 @@
 package org.yupana.schema
 
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
+import org.yupana.utils.RussianTransliterator
 
 object Dimensions {
   val KKM_ID = RawDimension[Int]("kkmId")
-  val ITEM = ItemDimension("item")
+  val ITEM = ItemDimension(RussianTransliterator, "item")
   val CUSTOMER = DictionaryDimension("customer")
   val SHIFT = RawDimension[Int]("shift")
   val OPERATION_TYPE = RawDimension[Byte]("operation_type")

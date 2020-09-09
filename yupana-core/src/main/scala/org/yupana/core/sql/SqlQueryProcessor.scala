@@ -28,7 +28,7 @@ import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 import org.yupana.core.utils.ConditionMatchers.Lower
 
-class SqlQueryProcessor(schema: Schema) {
+class SqlQueryProcessor(schema: Schema, expressionCalculator: ExpressionCalculator) extends QueryValidator {
 
   import SqlQueryProcessor._
 
@@ -89,12 +89,6 @@ class SqlQueryProcessor(schema: Schema) {
         Right(None)
     }
   }
-}
-
-object SqlQueryProcessor extends QueryValidator {
-
-  type NameResolver = String => Option[Expression]
-  val TIME_FIELD: String = Table.TIME_FIELD_NAME
 
   val function0Registry: Map[String, BuilderState => Expression] = Map(
     "now" -> ((s: BuilderState) => ConstantExpr(Time(s.queryStartTime)))
@@ -103,37 +97,6 @@ object SqlQueryProcessor extends QueryValidator {
   val function1Registry: Map[String, Expression => Either[String, Expression]] = Map(
     "id" -> createDimIdExpr
   )
-
-  object ExprType extends Enumeration {
-    type ExprType = Value
-    val Cmp, Math = Value
-  }
-
-  class BuilderState(parameters: Map[Int, parser.Value]) {
-    private var fieldNames = Map.empty[String, Int]
-    private var nextPlaceholder = 1
-
-    val queryStartTime: LocalDateTime = new LocalDateTime(DateTimeZone.UTC)
-
-    def fieldName(field: parser.SqlField): String = {
-      val name = field.alias orElse field.expr.proposedName getOrElse "field"
-      fieldNames.get(name) match {
-        case Some(i) =>
-          fieldNames += name -> (i + 1)
-          s"${name}_$i"
-
-        case None =>
-          fieldNames += name -> 2
-          name
-      }
-    }
-
-    def nextPlaceholderValue(): Either[String, parser.Value] = {
-      val result = parameters.get(nextPlaceholder).toRight(s"Value for placeholder #$nextPlaceholder is not defined")
-      nextPlaceholder += 1
-      result
-    }
-  }
 
   private def getFields(
       table: Option[Table],
@@ -574,7 +537,7 @@ object SqlQueryProcessor extends QueryValidator {
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
         case Right(e) if e.kind == Const =>
-          val eval = ExpressionCalculator.evaluateConstant(e)
+          val eval = expressionCalculator.evaluateConstant(e)
           if (eval != null) {
             Right(ConstantExpr(eval)(e.dataType).asInstanceOf[ConstantExpr])
           } else {
@@ -625,6 +588,42 @@ object SqlQueryProcessor extends QueryValidator {
       case DimensionExpr(dim)        => Right(DimensionIdExpr(dim))
       case Lower(DimensionExpr(dim)) => Right(DimensionIdExpr(dim))
       case _                         => Left("Function id is applicable only to dimensions")
+    }
+  }
+}
+
+object SqlQueryProcessor {
+  type NameResolver = String => Option[Expression]
+  val TIME_FIELD: String = Table.TIME_FIELD_NAME
+
+  object ExprType extends Enumeration {
+    type ExprType = Value
+    val Cmp, Math = Value
+  }
+
+  class BuilderState(parameters: Map[Int, parser.Value]) {
+    private var fieldNames = Map.empty[String, Int]
+    private var nextPlaceholder = 1
+
+    val queryStartTime: LocalDateTime = new LocalDateTime(DateTimeZone.UTC)
+
+    def fieldName(field: parser.SqlField): String = {
+      val name = field.alias orElse field.expr.proposedName getOrElse "field"
+      fieldNames.get(name) match {
+        case Some(i) =>
+          fieldNames += name -> (i + 1)
+          s"${name}_$i"
+
+        case None =>
+          fieldNames += name -> 2
+          name
+      }
+    }
+
+    def nextPlaceholderValue(): Either[String, parser.Value] = {
+      val result = parameters.get(nextPlaceholder).toRight(s"Value for placeholder #$nextPlaceholder is not defined")
+      nextPlaceholder += 1
+      result
     }
   }
 }

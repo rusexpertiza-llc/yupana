@@ -72,6 +72,7 @@ lazy val utils = (project in file("yupana-utils"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   )
+  .dependsOn(api)
 
 lazy val core = (project in file("yupana-core"))
   .settings(
@@ -85,7 +86,7 @@ lazy val core = (project in file("yupana-core"))
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
-  .dependsOn(api, utils)
+  .dependsOn(api, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val hbase = (project in file("yupana-hbase"))
@@ -312,7 +313,7 @@ val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),
-  Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
+  Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   testOptions in Test += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   parallelExecution in Test := false,
   coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*",

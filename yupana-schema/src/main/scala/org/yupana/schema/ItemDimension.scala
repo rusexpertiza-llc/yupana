@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 import org.yupana.api.schema.HashDimension
-import org.yupana.utils.Tokenizer
+import org.yupana.api.utils.Transliterator
 
 import scala.collection.mutable.ListBuffer
 
@@ -28,10 +28,10 @@ object ItemDimension {
 
   type KeyType = (Int, Long)
 
-  def apply(name: String): HashDimension[String, KeyType] = {
+  def apply(transliterator: Transliterator, name: String): HashDimension[String, KeyType] = {
     HashDimension(name, (s: String) => {
       val sl = s.toLowerCase
-      (hash(sl), UUID.nameUUIDFromBytes(sl.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
+      (hash(transliterator, sl), UUID.nameUUIDFromBytes(sl.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
     })
   }
 
@@ -41,9 +41,9 @@ object ItemDimension {
   private val bs: List[String] = List("skdgnl", "pmfzrc", "tboi", "vaei", "jq", "uw", "x", "y")
   private val charIdx8: Map[Char, Int] = bs.zipWithIndex.flatMap { case (b, i) => b.map(c => (c, i)) }.toMap
 
-  def hash(item: String): Int = {
+  def hash(transliterator: Transliterator, item: String): Int = {
 
-    val tokens = Tokenizer.transliteratedTokens(item).toArray
+    val tokens = split(item).map(transliterator.transliterate).toArray
 
     val filteredTokens = tokens.filterNot(stopWords.contains).filter(i => i.length > 1 && i.forall(_.isLetter))
 

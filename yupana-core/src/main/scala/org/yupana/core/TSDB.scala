@@ -20,8 +20,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Table }
+import org.yupana.api.utils.Tokenizer
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.operations.Operations
 import org.yupana.core.utils.OnFinishIterator
 import org.yupana.core.utils.metric._
 
@@ -30,6 +32,7 @@ class TSDB(
     val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
+    tokenizer: Tokenizer,
     config: TsdbConfig
 ) extends TsdbBase
     with StrictLogging {
@@ -38,6 +41,10 @@ class TSDB(
   override type Result = TsdbServerResult
 
   override lazy val extractBatchSize: Int = config.extractBatchSize
+
+  implicit override protected def operations: Operations = new Operations(tokenizer)
+
+  override protected def expressionCalculator: ExpressionCalculator = new ExpressionCalculator(tokenizer)
 
   private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 

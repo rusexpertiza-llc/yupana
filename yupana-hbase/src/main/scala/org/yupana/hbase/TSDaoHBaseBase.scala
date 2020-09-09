@@ -23,7 +23,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.api.Time
-import org.yupana.core.MapReducible
+import org.yupana.core.{ ExpressionCalculator, MapReducible }
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -38,6 +38,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   type IdType = Long
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean
+
+  protected def expressionCalculator: ExpressionCalculator
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
@@ -64,7 +66,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
-    val tbc = TimeBoundedCondition(query.condition)
+    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
 
     if (tbc.size != 1) throw new IllegalArgumentException("Only one condition is supported")
 

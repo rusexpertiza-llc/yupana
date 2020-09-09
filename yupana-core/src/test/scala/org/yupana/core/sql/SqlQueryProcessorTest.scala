@@ -8,12 +8,14 @@ import org.yupana.api.schema.MetricValue
 import org.yupana.api.types._
 import org.yupana.core.sql.parser.SqlParser
 import org.yupana.core._
+import org.yupana.utils.RussianTokenizer
 
 class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
-  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
+  private val calculator = new ExpressionCalculator(RussianTokenizer)
+  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, calculator)
 
   import TestDims._
 

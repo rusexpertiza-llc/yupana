@@ -7,16 +7,21 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, LinkField, RawDimension }
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.utils.RussianTokenizer
 
 class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
+  val calculator = new ExpressionCalculator(RussianTokenizer)
+
   private def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformConditionT[String](TestLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils
+      .transformConditionT[String](calculator, TestLink.linkName, condition, includeCondition, excludeCondition)
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {

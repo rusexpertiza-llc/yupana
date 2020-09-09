@@ -16,8 +16,9 @@
 
 package org.yupana.utils
 
-object Transliterator {
-  private val chars: Array[String] = (Char.MinValue to Char.MaxValue).map(_.toString).toArray
+import org.yupana.api.utils.Transliterator
+
+object RussianTransliterator extends Transliterator {
 
   private val russianTable = Map(
     'а' -> "a",
@@ -88,13 +89,7 @@ object Transliterator {
     'Я' -> "YA"
   )
 
-  russianTable.foreach { case (c, s) => chars(c) = s }
+  private val transliterator = new TableTransliterator(russianTable)
 
-  def transliterate(s: String): String = {
-    val builder = new java.lang.StringBuilder(s.length * 2)
-    s.foreach { c =>
-      builder.append(chars(c))
-    }
-    builder.toString
-  }
+  override def transliterate(s: String): String = transliterator.transliterate(s)
 }
