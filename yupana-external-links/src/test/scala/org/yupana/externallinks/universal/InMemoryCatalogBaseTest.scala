@@ -33,7 +33,7 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
       }
     }
 
-    override def conditionForKeyValues(condition: Condition): Condition = {
+    override def conditionForKeyValues(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
       condition
     }
 

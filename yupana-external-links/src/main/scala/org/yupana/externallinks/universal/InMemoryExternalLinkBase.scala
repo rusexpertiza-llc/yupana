@@ -33,7 +33,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def fillKeyValues(indexMap: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit
 
-  def conditionForKeyValues(condition: Condition): Condition
+  def conditionForKeyValues(expressionCalculator: ExpressionCalculator, condition: Condition): Condition
 
   def keyExpr: Expression.Aux[String]
 
@@ -100,7 +100,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
       excludeCondition
     )
 
-    conditionForKeyValues(keyCondition)
+    conditionForKeyValues(expressionCalculator, keyCondition)
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
