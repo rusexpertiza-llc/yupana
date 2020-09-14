@@ -25,7 +25,7 @@ import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 class EtlContext(val cfg: EtlConfig, schema: Schema, tokenizer: Tokenizer) extends Serializable {
   def hBaseConfiguration: Configuration = {
@@ -59,6 +59,7 @@ class EtlContext(val cfg: EtlConfig, schema: Schema, tokenizer: Tokenizer) exten
       invertedIndexDao,
       cfg.putIntoInvertedIndex,
       ItemsInvertedIndex,
+      OfdItemFixer,
       RussianTokenizer,
       RussianTransliterator
     )

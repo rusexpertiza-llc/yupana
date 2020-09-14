@@ -5,7 +5,7 @@ import java.util.Properties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
-import org.yupana.api.utils.SortedSetIterator
+import org.yupana.api.utils.{ ItemFixer, SortedSetIterator }
 import org.yupana.core.{ ExpressionCalculator, TSDB }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
@@ -117,7 +117,14 @@ class ItemsInvertedIndexImplTest
 
     val dao = mock[InvertedIndexDao[String, ItemDimension.KeyType]]
     val tsdb = mock[TSDB]
-    val index = new ItemsInvertedIndexImpl(dao, false, ItemsInvertedIndex, RussianTokenizer, RussianTransliterator)
+    val index = new ItemsInvertedIndexImpl(
+      dao,
+      false,
+      ItemsInvertedIndex,
+      ItemFixer.empty,
+      RussianTokenizer,
+      RussianTransliterator
+    )
 
     body(index, dao, tsdb)
   }

@@ -19,7 +19,7 @@ package org.yupana.externallinks.items
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.utils.{ SortedSetIterator, Tokenizer, Transliterator }
+import org.yupana.api.utils.{ ItemFixer, SortedSetIterator, Tokenizer, Transliterator }
 import org.yupana.core.{ ExpressionCalculator, ExternalLinkService }
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
@@ -32,12 +32,13 @@ object ItemsInvertedIndexImpl {
   val TABLE_NAME: String = "ts_items_reverse_index"
 
   def indexItems(
+      itemFixer: ItemFixer,
       tokenizer: Tokenizer
   )(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
     items
       .flatMap {
         case (id, n) =>
-          val words = tokenizer.transliteratedTokens(n)
+          val words = tokenizer.transliteratedTokens(itemFixer.fix(n))
           words.map(_ -> id)
       }
       .groupBy {
@@ -54,6 +55,7 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao: InvertedIndexDao[String, ItemDimension.KeyType],
     override val putEnabled: Boolean,
     override val externalLink: ItemsInvertedIndex,
+    fixer: ItemFixer,
     tokenizer: Tokenizer,
     transliterator: Transliterator
 ) extends ExternalLinkService[ItemsInvertedIndex]
@@ -74,7 +76,7 @@ class ItemsInvertedIndexImpl(
 
   def putItemNames(names: Set[String]): Unit = {
     val items = names.map(n => Dimensions.ITEM.hashFunction(n) -> n).toSeq
-    val wordIdMap = indexItems(tokenizer)(items)
+    val wordIdMap = indexItems(fixer, tokenizer)(items)
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 

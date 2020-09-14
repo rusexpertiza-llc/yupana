@@ -14,16 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.schema
+package org.yupana.api.utils
 
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.utils.{ OfdItemFixer, RussianTransliterator }
+trait ItemFixer extends Serializable {
+  def fix(s: String): String
+}
 
-object Dimensions {
-  val KKM_ID = RawDimension[Int]("kkmId")
-  val ITEM = ItemDimension(OfdItemFixer, RussianTransliterator, "item")
-  val CUSTOMER = DictionaryDimension("customer")
-  val SHIFT = RawDimension[Int]("shift")
-  val OPERATION_TYPE = RawDimension[Byte]("operation_type")
-  val POSITION = RawDimension[Short]("position")
+object ItemFixer {
+  val empty: ItemFixer = new ItemFixer {
+    override def fix(s: String): String = s
+  }
 }

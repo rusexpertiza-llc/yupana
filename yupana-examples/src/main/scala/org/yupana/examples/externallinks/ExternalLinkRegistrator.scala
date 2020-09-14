@@ -29,7 +29,7 @@ import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
-import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 class ExternalLinkRegistrator(
     tsdb: TsdbBase,
@@ -50,7 +50,14 @@ class ExternalLinkRegistrator(
   )
 
   lazy val invertedIndex =
-    new ItemsInvertedIndexImpl(invertedDao, false, ItemsInvertedIndex, RussianTokenizer, RussianTransliterator)
+    new ItemsInvertedIndexImpl(
+      invertedDao,
+      false,
+      ItemsInvertedIndex,
+      OfdItemFixer,
+      RussianTokenizer,
+      RussianTransliterator
+    )
 
   def registerExternalLink(link: ExternalLink): Unit = {
     val service = link match {

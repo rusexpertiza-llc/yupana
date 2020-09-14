@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 import org.yupana.api.schema.HashDimension
-import org.yupana.api.utils.Transliterator
+import org.yupana.api.utils.{ ItemFixer, Transliterator }
 
 import scala.collection.mutable.ListBuffer
 
@@ -28,24 +28,34 @@ object ItemDimension {
 
   type KeyType = (Int, Long)
 
-  def apply(transliterator: Transliterator, name: String): HashDimension[String, KeyType] = {
-    HashDimension(name, (s: String) => {
-      val sl = s.toLowerCase
-      (hash(transliterator, sl), UUID.nameUUIDFromBytes(sl.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
-    })
+  def apply(
+      fixer: ItemFixer,
+      transliterator: Transliterator,
+      name: String
+  ): HashDimension[String, KeyType] = {
+    HashDimension(
+      name,
+      (s: String) => {
+        val sl = s.toLowerCase
+        (
+          hash(fixer, transliterator, sl),
+          UUID.nameUUIDFromBytes(sl.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits
+        )
+      }
+    )
   }
 
-  val stopWords: Set[String] = Set("kg", "ml", "lit", "litr", "gr", "sht")
+  val stopWords: Set[String] = Set("kg", "ml", "litrov", "litra", "litr", "gr", "sht")
   val numOfChars: Int = 4
 
   private val bs: List[String] = List("skdgnl", "pmfzrc", "tboi", "vaei", "jq", "uw", "x", "y")
   private val charIdx8: Map[Char, Int] = bs.zipWithIndex.flatMap { case (b, i) => b.map(c => (c, i)) }.toMap
 
-  def hash(transliterator: Transliterator, item: String): Int = {
+  def hash(fixer: ItemFixer, transliterator: Transliterator, item: String): Int = {
 
-    val tokens = split(item).map(transliterator.transliterate).toArray
+    val tokens = split(fixer.fix(item)).map(transliterator.transliterate).toArray
 
-    val filteredTokens = tokens.filterNot(stopWords.contains).filter(i => i.length > 1 && i.forall(_.isLetter))
+    val filteredTokens = tokens.filterNot(stopWords.contains).filter(i => i.length > 1)
 
     (0 until numOfChars).foldLeft(0) { (h, pos) =>
       val code = if (pos == 0) {
@@ -63,7 +73,7 @@ object ItemDimension {
     var end = 0
     while (end < s.length) {
       val ch = s(end)
-      if (ch.isLetterOrDigit) {
+      if (ch.isLetter) {
         end += 1
       } else {
         if (end != start) {

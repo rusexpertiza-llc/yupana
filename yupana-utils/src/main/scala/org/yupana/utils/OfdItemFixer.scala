@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.schema
+package org.yupana.utils
 
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.utils.{ OfdItemFixer, RussianTransliterator }
+import org.yupana.api.utils.ItemFixer
 
-object Dimensions {
-  val KKM_ID = RawDimension[Int]("kkmId")
-  val ITEM = ItemDimension(OfdItemFixer, RussianTransliterator, "item")
-  val CUSTOMER = DictionaryDimension("customer")
-  val SHIFT = RawDimension[Int]("shift")
-  val OPERATION_TYPE = RawDimension[Byte]("operation_type")
-  val POSITION = RawDimension[Short]("position")
+object OfdItemFixer extends ItemFixer {
+  private val replacements: Seq[(String, String)] = Seq(
+    "┬л" -> "\"",
+    "┬╗" -> "\"",
+    "╕" -> "ё",
+    "╣" -> "№"
+  )
+
+  override def fix(s: String): String = replacements.foldLeft(s)((a, r) => a.replace(r._1, r._2))
 }
