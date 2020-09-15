@@ -208,6 +208,9 @@ class RussianTokenizerTest extends FlatSpec with Matchers with TableDrivenProper
   it should "provide transliterated tokens" in {
     val data = Table(
       ("Item", "Transliterated"),
+      ("00", "00"),
+      ("00λλ", "00"),
+      ("Ψe0ξ00αβγ", "e 0 e0 00"),
       ("хот-дог датский чикен", "hot dog datsk chiken"),
       ("зёрна кофейные marengo", "zern kofejn marengo"),
       ("мор-ое щербет смор. 80", "mor oe shcherbet smor 80"),

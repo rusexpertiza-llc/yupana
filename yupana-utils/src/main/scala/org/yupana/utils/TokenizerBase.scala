@@ -57,7 +57,7 @@ trait TokenizerBase extends Tokenizer {
     def sliceStemAppend(from: Int, to: Int, offset: Int, updated: Array[Char]): Unit = {
       if (from < to) {
         val off = math.max(offset, 0)
-        val updatedFrom = if (from != 0) math.max(from - off, 0) else from
+        val updatedFrom = if (from != 0) from - off else from
         val length = to - (if (from != 0) from else off)
         val word = new Array[Char](length)
         Array.copy(updated, updatedFrom, word, 0, length)
@@ -102,7 +102,7 @@ trait TokenizerBase extends Tokenizer {
         val prevIsLetter = prev.isLetter
         val nextIsDigit = next.isDigit
 
-        if ((prevIsDigit && isLetter) || (prevIsLetter && isDigit)) {
+        if ((prevIsDigit && isLetter && charIncluded) || (prevIsLetter && isDigit)) {
           // Разделители с сохранением оригинала и разделителя
           sliceStemAppend(from, i, offset, updated)
           from = i
@@ -139,14 +139,11 @@ trait TokenizerBase extends Tokenizer {
       }
     }
 
-    val lastCharIncluded = isCharIncluded(item.last)
-
-    if (from < item.length && lastCharIncluded) {
+    if (from < item.length) {
       sliceStemAppend(from, item.length, offset, updated)
     }
     if (originFrom < item.length && originFrom != from) {
-      val length = if (lastCharIncluded) item.length else item.length - 1
-      sliceStemAppend(originFrom, length, offset, updated)
+      sliceStemAppend(originFrom, item.length, offset, updated)
     }
     wordsList
   }
