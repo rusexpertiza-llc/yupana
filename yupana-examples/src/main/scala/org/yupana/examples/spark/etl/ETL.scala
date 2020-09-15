@@ -23,7 +23,7 @@ import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
 import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
-import org.yupana.utils.RussianTokenizer
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 object ETL {
 
@@ -34,7 +34,7 @@ object ETL {
     val sc = SparkContext.getOrCreate(conf)
 
     val cfg = new EtlConfig(conf)
-    val ctx = new EtlContext(cfg, ExampleSchema.schema, RussianTokenizer)
+    val ctx = new EtlContext(cfg, ExampleSchema.schema, OfdItemFixer, RussianTokenizer, RussianTransliterator)
 
     import org.yupana.spark.ETLFunctions._
 

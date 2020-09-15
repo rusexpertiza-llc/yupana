@@ -19,15 +19,20 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.yupana.api.schema.Schema
-import org.yupana.api.utils.Tokenizer
+import org.yupana.api.utils.{ ItemFixer, Tokenizer, Transliterator }
 import org.yupana.core.{ ExpressionCalculator, TSDB }
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
-class EtlContext(val cfg: EtlConfig, schema: Schema, tokenizer: Tokenizer) extends Serializable {
+class EtlContext(
+    val cfg: EtlConfig,
+    schema: Schema,
+    fixer: ItemFixer,
+    tokenizer: Tokenizer,
+    transliterator: Transliterator
+) extends Serializable {
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
@@ -59,9 +64,9 @@ class EtlContext(val cfg: EtlConfig, schema: Schema, tokenizer: Tokenizer) exten
       invertedIndexDao,
       cfg.putIntoInvertedIndex,
       ItemsInvertedIndex,
-      OfdItemFixer,
-      RussianTokenizer,
-      RussianTransliterator
+      fixer,
+      tokenizer,
+      transliterator
     )
     tsdbInstance.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
   }
