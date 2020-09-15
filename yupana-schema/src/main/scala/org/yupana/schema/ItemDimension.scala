@@ -71,19 +71,24 @@ object ItemDimension {
     val res = ListBuffer.empty[String]
     var start = 0
     var end = 0
+    var skip = false
     while (end < s.length) {
       val ch = s(end)
       if (ch.isLetter) {
         end += 1
+      } else if (ch.isDigit) {
+        end += 1
+        skip = true
       } else {
-        if (end != start) {
+        if (end != start && !skip) {
           res += s.substring(start, end)
         }
         end += 1
         start = end
+        skip = false
       }
     }
-    if (end != start) {
+    if (end != start && !skip) {
       res += s.substring(start, end)
     }
     res.toList

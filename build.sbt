@@ -162,8 +162,10 @@ lazy val spark = (project in file("yupana-spark"))
 lazy val schema = (project in file("yupana-schema"))
   .settings(
     name := "yupana-schema",
-    commonSettings,
-    publishSettings
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test
+    )
   )
   .dependsOn(api, utils)
   .disablePlugins(AssemblyPlugin)
@@ -258,7 +260,7 @@ lazy val examples = (project in file("yupana-examples"))
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
-  val joda = "2.10.5"
+  val joda = "2.10.6"
 
   val protobufJava = "2.6.1"
 
@@ -272,7 +274,7 @@ lazy val versions = new {
   val akka = "2.5.31"
 
   val lucene = "6.6.0"
-  val ignite = "2.8.0"
+  val ignite = "2.8.1"
   val ehcache = "3.3.2"
   val caffeine = "2.8.0"
 
