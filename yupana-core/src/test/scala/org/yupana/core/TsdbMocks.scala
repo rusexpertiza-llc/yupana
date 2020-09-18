@@ -69,7 +69,8 @@ trait TsdbMocks extends MockFactory {
       .anyNumberOfTimes()
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, RussianTokenizer, SimpleTsdbConfig())
+    val tsdb =
+      new TSDB(TestSchema.schema, tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
     body(tsdb, tsdbDaoMock)
   }
 
@@ -90,7 +91,7 @@ trait TsdbMocks extends MockFactory {
 
   private val calculator = new ExpressionCalculator(RussianTokenizer)
 
-  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, calculator)
+  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   def createQuery(sql: String): Query = {
     SqlParser

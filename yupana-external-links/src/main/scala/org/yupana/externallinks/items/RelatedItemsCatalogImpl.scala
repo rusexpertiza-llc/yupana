@@ -19,16 +19,19 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.schema.Schema
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
-import org.yupana.core.{ ExpressionCalculator, ExternalLinkService, TsdbBase }
+import org.yupana.core.{ ExternalLinkService, TsdbBase }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.{ Dimensions, Tables }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 
 class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: RelatedItemsCatalog)
     extends ExternalLinkService[RelatedItemsCatalog] {
+
+  override val schema: Schema = tsdb.schema
 
   import org.yupana.api.query.syntax.All._
 
@@ -44,7 +47,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
   }
 
-  override def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
+  override def condition(condition: Condition): Condition = {
     val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
     val r = tbcs.map { tbc =>

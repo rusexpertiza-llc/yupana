@@ -18,8 +18,8 @@ package org.yupana.examples.externallinks
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField }
-import org.yupana.core.{ ExpressionCalculator, ExternalLinkService }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
@@ -47,7 +47,8 @@ case class AddressData(city: String, lat: Double, lon: Double) {
   )
 }
 
-class AddressCatalogImpl(override val externalLink: AddressCatalog) extends ExternalLinkService[AddressCatalog] {
+class AddressCatalogImpl(override val schema: Schema, override val externalLink: AddressCatalog)
+    extends ExternalLinkService[AddressCatalog] {
   import syntax.All._
 
   val kkmAddressData: Seq[(Int, AddressData)] =
@@ -72,7 +73,7 @@ class AddressCatalogImpl(override val externalLink: AddressCatalog) extends Exte
     )
   }
 
-  override def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
+  override def condition(condition: Condition): Condition = {
     ExternalLinkUtils.transformCondition(
       expressionCalculator,
       externalLink.linkName,

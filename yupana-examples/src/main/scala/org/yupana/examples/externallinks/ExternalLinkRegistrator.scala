@@ -29,9 +29,9 @@ import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
-import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 class ExternalLinkRegistrator(
+    schema: Schema,
     tsdb: TsdbBase,
     hbaseConfiguration: Configuration,
     hbaseNamespace: String,
@@ -51,12 +51,10 @@ class ExternalLinkRegistrator(
 
   lazy val invertedIndex =
     new ItemsInvertedIndexImpl(
+      schema,
       invertedDao,
       false,
-      ItemsInvertedIndex,
-      OfdItemFixer,
-      RussianTokenizer,
-      RussianTransliterator
+      ItemsInvertedIndex
     )
 
   def registerExternalLink(link: ExternalLink): Unit = {
@@ -64,10 +62,10 @@ class ExternalLinkRegistrator(
       case c: SQLExternalLink[_] => createSqlService(c)
       case ItemsInvertedIndex    => invertedIndex
       case RelatedItemsCatalog   => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
-      case AddressCatalog        => new AddressCatalogImpl(AddressCatalog)
+      case AddressCatalog        => new AddressCatalogImpl(schema, AddressCatalog)
       case OrganisationCatalog =>
         val jdbcTemplate = createConnection(OrganisationCatalogImpl.connection(properties))
-        new OrganisationCatalogImpl(jdbcTemplate)
+        new OrganisationCatalogImpl(schema, jdbcTemplate)
     }
 
     tsdb.registerExternalLink(link, service)
@@ -90,6 +88,6 @@ class ExternalLinkRegistrator(
 
   def createSqlService(link: SQLExternalLink[_]): SQLSourcedExternalLinkService[link.DimType] = {
     val jdbc = createConnection(link.config.connection)
-    new SQLSourcedExternalLinkService[link.DimType](link, link.config.description, jdbc)
+    new SQLSourcedExternalLinkService[link.DimType](schema, link, link.config.description, jdbc)
   }
 }

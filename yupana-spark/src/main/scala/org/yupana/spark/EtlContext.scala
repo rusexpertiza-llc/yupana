@@ -19,19 +19,15 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.yupana.api.schema.Schema
-import org.yupana.api.utils.{ ItemFixer, Tokenizer, Transliterator }
-import org.yupana.core.{ ExpressionCalculator, TSDB }
+import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
-import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.schema.{ Dimensions, ItemDimension }
 
 class EtlContext(
     val cfg: EtlConfig,
-    schema: Schema,
-    fixer: ItemFixer,
-    tokenizer: Tokenizer,
-    transliterator: Transliterator
+    schema: Schema
 ) extends Serializable {
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
@@ -42,9 +38,15 @@ class EtlContext(
   }
 
   private def init: TSDB = {
-    val calculator = new ExpressionCalculator(tokenizer)
     val tsdb =
-      TSDBHBase(hBaseConfiguration, cfg.hbaseNamespace, schema, identity, cfg.properties, tokenizer, calculator, cfg)
+      TSDBHBase(
+        hBaseConfiguration,
+        cfg.hbaseNamespace,
+        schema,
+        identity,
+        cfg.properties,
+        cfg
+      )
     setup(tsdb)
     EtlContext.tsdb = Some(tsdb)
     tsdb
@@ -61,12 +63,10 @@ class EtlContext(
       Dimensions.ITEM.rStorable.read
     )
     val itemsInvertedIndex = new ItemsInvertedIndexImpl(
+      schema,
       invertedIndexDao,
       cfg.putIntoInvertedIndex,
-      ItemsInvertedIndex,
-      fixer,
-      tokenizer,
-      transliterator
+      ItemsInvertedIndex
     )
     tsdbInstance.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
   }

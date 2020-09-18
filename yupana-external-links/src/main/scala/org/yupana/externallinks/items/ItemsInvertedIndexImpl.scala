@@ -19,8 +19,9 @@ package org.yupana.externallinks.items
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.utils.{ ItemFixer, SortedSetIterator, Tokenizer, Transliterator }
-import org.yupana.core.{ ExpressionCalculator, ExternalLinkService }
+import org.yupana.api.schema.Schema
+import org.yupana.api.utils.SortedSetIterator
+import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
 import org.yupana.externallinks.ExternalLinkUtils
@@ -31,14 +32,11 @@ object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
 
-  def indexItems(
-      itemFixer: ItemFixer,
-      tokenizer: Tokenizer
-  )(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
+  def indexItems(schema: Schema)(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
     items
       .flatMap {
         case (id, n) =>
-          val words = tokenizer.transliteratedTokens(itemFixer.fix(n))
+          val words = schema.tokenizer.transliteratedTokens(schema.itemFixer.fix(n))
           words.map(_ -> id)
       }
       .groupBy {
@@ -52,12 +50,10 @@ object ItemsInvertedIndexImpl {
 }
 
 class ItemsInvertedIndexImpl(
+    override val schema: Schema,
     invertedIndexDao: InvertedIndexDao[String, ItemDimension.KeyType],
     override val putEnabled: Boolean,
-    override val externalLink: ItemsInvertedIndex,
-    fixer: ItemFixer,
-    tokenizer: Tokenizer,
-    transliterator: Transliterator
+    override val externalLink: ItemsInvertedIndex
 ) extends ExternalLinkService[ItemsInvertedIndex]
     with StrictLogging {
 
@@ -76,7 +72,7 @@ class ItemsInvertedIndexImpl(
 
   def putItemNames(names: Set[String]): Unit = {
     val items = names.map(n => Dimensions.ITEM.hashFunction(n) -> n).toSeq
-    val wordIdMap = indexItems(fixer, tokenizer)(items)
+    val wordIdMap = indexItems(schema)(items)
     invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
   }
 
@@ -107,7 +103,7 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition = {
+  override def condition(condition: Condition): Condition = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
@@ -127,14 +123,14 @@ class ItemsInvertedIndexImpl(
   def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
-    val stemmedWords = words.flatMap(tokenizer.transliteratedTokens)
+    val stemmedWords = words.flatMap(schema.tokenizer.transliteratedTokens)
 
     val idsPerWord = stemmedWords.map(dimIdsForStemmedWord)
 
     val transPrefixes = prefixes
       .map(s => s.substring(0, s.length - 1).trim.toLowerCase)
       .filter(_.nonEmpty)
-      .map(transliterator.transliterate)
+      .map(schema.transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
     SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
   }

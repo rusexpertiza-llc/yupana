@@ -11,7 +11,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.types.{ Aggregation, UnaryOperation }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
@@ -19,7 +19,6 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
-import org.yupana.utils.RussianTokenizer
 
 import scala.util.Random
 
@@ -217,7 +216,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = ???
 
-      override protected val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(RussianTokenizer)
+      override val schema: Schema = TestSchema.schema
     }
 
     val query = Query(
@@ -238,7 +237,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val mc = new ConsoleMetricQueryCollector(query, "test")
 //    val mc = NoMetricCollector
     class BenchTSDB
-        extends TSDB(dao, metricDao, dictProvider, identity, RussianTokenizer, SimpleTsdbConfig(putEnabled = true)) {
+        extends TSDB(TestSchema.schema, dao, metricDao, dictProvider, identity, SimpleTsdbConfig(putEnabled = true)) {
       override def createMetricCollector(query: Query): MetricQueryCollector = {
         mc
       }

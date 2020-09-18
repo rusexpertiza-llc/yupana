@@ -4,18 +4,18 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.core.{ ExpressionCalculator, MapReducible, QueryContext, TSDB, TsdbServerResult }
-import org.yupana.schema.{ Dimensions, Tables }
+import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
+import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
-import org.yupana.utils.RussianTokenizer
+import org.yupana.schema.{ Dimensions, Tables }
 
 class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
 
-  val calculator = new ExpressionCalculator(RussianTokenizer)
+  class MockedTsdb extends TSDB(TestSchema.schema, null, null, null, identity, SimpleTsdbConfig())
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {
-    val tsdb = mock[TSDB]
+    val tsdb = mock[MockedTsdb]
     val catalog = new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
 
     val expQuery1 = Query(
@@ -66,7 +66,6 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       )
 
     val condition = catalog.condition(
-      calculator,
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
@@ -90,7 +89,7 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
   }
 
   it should "handle item field in conditions" in {
-    val tsdb = mock[TSDB]
+    val tsdb = mock[MockedTsdb]
     val catalog = new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
 
     val expQuery = Query(
@@ -118,7 +117,6 @@ class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactor
       )
 
     val condition = catalog.condition(
-      calculator,
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),

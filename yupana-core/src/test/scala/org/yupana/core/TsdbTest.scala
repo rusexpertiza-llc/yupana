@@ -18,7 +18,6 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.utils.RussianTokenizer
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -50,11 +49,11 @@ class TsdbTest
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb = new TSDB(
+      TestSchema.schema,
       tsdbDaoMock,
       metricsDaoMock,
       dictionaryProvider,
       identity,
-      RussianTokenizer,
       SimpleTsdbConfig(putEnabled = true)
     )
 
@@ -75,7 +74,8 @@ class TsdbTest
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, RussianTokenizer, SimpleTsdbConfig())
+    val tsdb =
+      new TSDB(TestSchema.schema, tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
 
     val dp = DataPoint(
       TestSchema.testTable,
@@ -783,7 +783,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -892,7 +891,6 @@ class TsdbTest
 
       (testCatalogServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -958,7 +956,6 @@ class TsdbTest
 
       (testCatalogServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1029,7 +1026,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -1128,7 +1124,6 @@ class TsdbTest
 
       (testCatalogServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1235,7 +1230,6 @@ class TsdbTest
 
       (testCatalogServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1254,7 +1248,6 @@ class TsdbTest
 
       (testCatalog2ServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1358,7 +1351,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -1450,7 +1442,6 @@ class TsdbTest
 
       (testCatalogServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1468,7 +1459,6 @@ class TsdbTest
         )
       (testCatalog2ServiceMock.condition _)
         .expects(
-          *,
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1558,7 +1548,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -1576,7 +1565,6 @@ class TsdbTest
       )
     (testCatalog4ServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -1660,7 +1648,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -1755,7 +1742,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -2344,7 +2330,6 @@ class TsdbTest
 
     (testCatalogServiceMock.condition _)
       .expects(
-        *,
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
@@ -2907,7 +2892,7 @@ class TsdbTest
   }
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, new ExpressionCalculator(RussianTokenizer))
+    val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
     val format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
     val from: DateTime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
     val to: DateTime = from.plusDays(1)

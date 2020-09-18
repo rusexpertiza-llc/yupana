@@ -18,13 +18,11 @@ package org.yupana.examples.spark.queryrunner
 
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.yupana.core.ExpressionCalculator
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
 import org.yupana.spark.{ DataRowRDD, SparkConfUtils }
-import org.yupana.utils.RussianTokenizer
 
 object QueryRunner {
 
@@ -34,7 +32,7 @@ object QueryRunner {
 
     val config = new QueryRunnerConfig(sparkConf)
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
-    val tsdbSpark = new TsdbSpark(spark.sparkContext, identity, RussianTokenizer, config, ExampleSchema.schema)
+    val tsdbSpark = new TsdbSpark(spark.sparkContext, identity, config, ExampleSchema.schema)
 
     executeQuery(config.query, tsdbSpark) match {
       case Right(rdd) =>
@@ -49,8 +47,7 @@ object QueryRunner {
   def executeQuery(sql: String, tsdbSpark: TsdbSpark): Either[String, DataRowRDD] = {
     SqlParser.parse(sql).right flatMap {
       case s: Select =>
-        val calculator = new ExpressionCalculator(RussianTokenizer)
-        new SqlQueryProcessor(ExampleSchema.schema, calculator).createQuery(s).right.map { q =>
+        new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).right.map { q =>
           tsdbSpark.query(q)
         }
       case _ => Left(s"Unsupported query: $sql")

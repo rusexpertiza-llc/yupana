@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Schema, Table }
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.api.Time
 import org.yupana.core.{ ExpressionCalculator, MapReducible }
@@ -39,7 +39,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean
 
-  protected def expressionCalculator: ExpressionCalculator
+  val schema: Schema
+
+  protected lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 

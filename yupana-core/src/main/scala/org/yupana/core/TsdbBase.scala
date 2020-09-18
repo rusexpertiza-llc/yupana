@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.operations.Operations
@@ -49,8 +49,10 @@ trait TsdbBase extends StrictLogging {
 
   def dictionaryProvider: DictionaryProvider
 
-  implicit protected def operations: Operations
-  protected def expressionCalculator: ExpressionCalculator
+  def schema: Schema
+
+  implicit lazy val operations: Operations = new Operations(schema.tokenizer)
+  lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
@@ -344,7 +346,7 @@ trait TsdbBase extends StrictLogging {
 
     val substituted = linkServices.map(service =>
       metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.condition(expressionCalculator, condition)
+        service.condition(condition)
       }
     )
 

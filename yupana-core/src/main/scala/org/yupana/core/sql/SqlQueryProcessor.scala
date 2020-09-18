@@ -28,9 +28,11 @@ import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 import org.yupana.core.utils.ConditionMatchers.Lower
 
-class SqlQueryProcessor(schema: Schema, expressionCalculator: ExpressionCalculator) extends QueryValidator {
+class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 
   import SqlQueryProcessor._
+
+  val expressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)

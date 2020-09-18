@@ -18,13 +18,17 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.ExternalLink
+import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 
 trait ExternalLinkService[T <: ExternalLink] {
 
   def externalLink: T
+
+  def schema: Schema
+
+  lazy val expressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   val putEnabled: Boolean = false
 
@@ -67,7 +71,7 @@ trait ExternalLinkService[T <: ExternalLink] {
     * @param condition condition to be transformed
     * @return transformed condition. It should preserve time bounds even if there no conditions supported by this catalog.
     */
-  def condition(expressionCalculator: ExpressionCalculator, condition: Condition): Condition
+  def condition(condition: Condition): Condition
 
   /**
     * Checks what passed simple condition can be handled by this catalog

@@ -11,14 +11,13 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ ExpressionCalculator, MapReducible, TestDims, TestSchema, TestTableFields }
-import org.yupana.utils.RussianTokenizer
+import org.yupana.core.{ MapReducible, TestDims, TestSchema, TestTableFields }
 
 import scala.collection.JavaConverters._
 
@@ -1208,7 +1207,7 @@ class TSDaoHBaseTest
       queryRunner(scans.toSeq)
     }
 
-    override protected val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(RussianTokenizer)
+    override val schema: Schema = TestSchema.schema
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {
