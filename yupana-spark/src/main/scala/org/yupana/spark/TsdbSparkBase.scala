@@ -63,7 +63,7 @@ abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
     conf: Config,
-    schema: Schema
+    override val schema: Schema
 ) extends TsdbBase
     with StrictLogging
     with Serializable {

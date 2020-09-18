@@ -32,7 +32,7 @@ class TsdbSpark(
     sparkContext: SparkContext,
     prepareQuery: Query => Query,
     conf: Config,
-    override val schema: Schema
+    schema: Schema
 ) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
