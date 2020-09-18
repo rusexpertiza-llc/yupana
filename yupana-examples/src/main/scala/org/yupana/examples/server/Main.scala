@@ -73,7 +73,7 @@ object Main extends StrictLogging {
       )
     logger.info("Registering catalogs")
     val elRegistrator =
-      new ExternalLinkRegistrator(schemaWithJson, tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
+      new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 

@@ -36,7 +36,6 @@ class TsdbSpark(
 ) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
-      schema,
       this,
       TsDaoHBaseSpark.hbaseConfiguration(conf),
       conf.hbaseNamespace,
