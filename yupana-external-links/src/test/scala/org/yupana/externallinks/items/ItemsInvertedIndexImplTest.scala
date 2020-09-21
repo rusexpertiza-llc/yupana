@@ -6,9 +6,10 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.TSDB
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
+import org.yupana.core.TSDB
+import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 
@@ -65,7 +66,7 @@ class ItemsInvertedIndexImplTest
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
     })
 
-    index.putItemNames(Set("сигареты легкие", "папиросы", "молоко"))
+    index.putItemNames(Set("сигареты легкие", "ПаПиросы", "молоко"))
   }
 
   it should "ignore handle prefixes" in withMocks { (index, dao, _) =>
@@ -102,12 +103,8 @@ class ItemsInvertedIndexImplTest
     }
   }
 
-  def hashItem(item: String) = {
-    Dimensions.ITEM.hashFunction(item)
-  }
-
-  def si(ls: String*) = {
-    val s = ls.map(hashItem).sortWith(Dimensions.ITEM.rOrdering.lt)
+  private def si(ls: String*): SortedSetIterator[ItemDimension.KeyType] = {
+    val s = ls.map(Dimensions.ITEM.hashFunction).sortWith(Dimensions.ITEM.rOrdering.lt)
     SortedSetIterator(s.toIterator)
   }
 
@@ -115,7 +112,12 @@ class ItemsInvertedIndexImplTest
 
     val dao = mock[InvertedIndexDao[String, ItemDimension.KeyType]]
     val tsdb = mock[TSDB]
-    val index = new ItemsInvertedIndexImpl(dao, false, ItemsInvertedIndex)
+    val index = new ItemsInvertedIndexImpl(
+      TestSchema.schema,
+      dao,
+      false,
+      ItemsInvertedIndex
+    )
 
     body(index, dao, tsdb)
   }

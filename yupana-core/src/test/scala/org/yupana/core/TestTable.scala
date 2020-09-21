@@ -5,6 +5,7 @@ import java.util.UUID
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema._
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 object TestDims {
   val DIM_A = HashDimension(
@@ -122,5 +123,5 @@ object TestSchema {
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
-  val schema = Schema(Seq(testTable, testTable2), Seq.empty)
+  val schema = Schema(Seq(testTable, testTable2), Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
 }

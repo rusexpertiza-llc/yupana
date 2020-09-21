@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package org.yupana.core.operations
+package org.yupana.utils
 
-import org.yupana.api.utils.Tokenizer
+import org.yupana.api.utils.Transliterator
 
-class Operations(override val tokenizer: Tokenizer)
-    extends UnaryOperationsImpl
-    with BinaryOperationsImpl
-    with WindowOperationsImpl
-    with AggregationsImpl
-    with Serializable
+class TableTransliterator(table: Map[Char, String]) extends Transliterator {
+  private val chars: Array[String] = (Char.MinValue to Char.MaxValue).map(_.toString).toArray
+  table.foreach { case (c, s) => chars(c) = s }
+
+  def transliterate(s: String): String = {
+    val builder = new java.lang.StringBuilder(s.length * 2)
+    s.foreach { c =>
+      builder.append(chars(c))
+    }
+    builder.toString
+  }
+}

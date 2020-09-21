@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.core.operations
+package org.yupana.utils
 
-import org.yupana.api.utils.Tokenizer
+import org.yupana.api.utils.ItemFixer
 
-class Operations(override val tokenizer: Tokenizer)
-    extends UnaryOperationsImpl
-    with BinaryOperationsImpl
-    with WindowOperationsImpl
-    with AggregationsImpl
-    with Serializable
+object OfdItemFixer extends ItemFixer {
+  private val replacements: Seq[(String, String)] = Seq(
+    "┬л" -> "\"",
+    "┬╗" -> "\"",
+    "╕" -> "ё",
+    "╣" -> "№"
+  )
+
+  override def fix(s: String): String = replacements.foldLeft(s)((a, r) => a.replace(r._1, r._2))
+}

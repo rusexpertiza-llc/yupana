@@ -17,6 +17,7 @@
 package org.yupana.schema
 
 import org.yupana.api.schema.{ Rollup, Schema, Table }
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 object SchemaRegistry {
   val defaultTables: Map[String, Table] = Seq(
@@ -36,5 +37,6 @@ object SchemaRegistry {
     ReceiptRollups.receiptDayAllKkmsRollup
   )
 
-  def defaultSchema: Schema = new Schema(defaultTables, defaultRollups)
+  def defaultSchema: Schema =
+    new Schema(defaultTables, defaultRollups, OfdItemFixer, RussianTokenizer, RussianTransliterator)
 }

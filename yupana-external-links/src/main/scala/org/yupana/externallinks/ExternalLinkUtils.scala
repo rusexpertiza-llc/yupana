@@ -20,6 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ ConstantExpr, DimensionExpr, Expression, InExpr, LinkExpr, NotInExpr, TimeExpr }
 import org.yupana.api.schema.ExternalLink
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
@@ -94,12 +95,14 @@ object ExternalLinkUtils {
   }
 
   def transformConditionT[T](
+      expressionCalculator: ExpressionCalculator,
       linkName: String,
       condition: Condition,
       includeCondition: Seq[(String, Set[T])] => Condition,
       excludeCondition: Seq[(String, Set[T])] => Condition
   ): Condition = {
     transformCondition(
+      expressionCalculator,
       linkName,
       condition, { metricsWithValues: Seq[(String, Set[Any])] =>
         includeCondition(metricsWithValues.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) })
@@ -110,12 +113,13 @@ object ExternalLinkUtils {
   }
 
   def transformCondition(
+      expressionCalculator: ExpressionCalculator,
       linkName: String,
       condition: Condition,
       includeCondition: Seq[(String, Set[Any])] => Condition,
       excludeCondition: Seq[(String, Set[Any])] => Condition
   ): Condition = {
-    val tbcs = TimeBoundedCondition(condition)
+    val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
     val r = tbcs.map { tbc =>
       val (includeValues, excludeValues, other) = extractCatalogFields(tbc, linkName)

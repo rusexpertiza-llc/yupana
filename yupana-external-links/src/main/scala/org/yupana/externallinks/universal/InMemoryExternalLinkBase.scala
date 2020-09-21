@@ -93,6 +93,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   override def condition(condition: Condition): Condition = {
     val keyCondition = ExternalLinkUtils.transformConditionT[String](
+      expressionCalculator,
       externalLink.linkName,
       condition,
       includeCondition,

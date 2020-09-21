@@ -8,6 +8,7 @@ import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.yupana.core.cache.CacheFactory
+import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
 
@@ -26,7 +27,7 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val externalLink = SQLExternalLink[Int](config, Dimensions.KKM_ID)
 
-    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
+    new SQLSourcedExternalLinkService(TestSchema.schema, externalLink, config.description, jdbc)
   }
 
   import org.yupana.api.query.syntax.All._
