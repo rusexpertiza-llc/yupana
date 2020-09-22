@@ -21,19 +21,7 @@ import org.apache.lucene.analysis.ru.RussianLightStemmer
 import scala.collection.mutable
 
 object RussianTokenizer extends TokenizerBase {
-  @transient private var stemmer: RussianLightStemmer = _
-
-  private def getStemmer: RussianLightStemmer = {
-    if (stemmer == null) {
-      synchronized {
-        if (stemmer == null) {
-          stemmer = new RussianLightStemmer()
-        }
-      }
-    }
-
-    stemmer
-  }
+  @transient private lazy val stemmer: RussianLightStemmer = new RussianLightStemmer()
 
   private val includedChars = {
     val charSet = mutable.Set(
@@ -58,7 +46,7 @@ object RussianTokenizer extends TokenizerBase {
     ch >= includedChars.length || includedChars(ch)
   }
 
-  override def stemArray(array: Array[Char], length: Int): Int = getStemmer.stem(array, length)
+  override def stemArray(array: Array[Char], length: Int): Int = stemmer.stem(array, length)
 
   override protected def transliterate(s: String): String = RussianTransliterator.transliterate(s)
 }
