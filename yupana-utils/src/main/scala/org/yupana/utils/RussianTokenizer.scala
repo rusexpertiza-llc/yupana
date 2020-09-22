@@ -21,20 +21,25 @@ import org.apache.lucene.analysis.ru.RussianLightStemmer
 import scala.collection.mutable
 
 object RussianTokenizer extends TokenizerBase {
-  private val stemmer = new RussianLightStemmer()
-  private val charSet = mutable.Set(
-    '/', '.', ',', '\\', '%', '*'
-  ) ++
-    ('0' to '9') ++
-    ('a' to 'z') ++
-    ('A' to 'Z') ++
-    ('а' to 'я') ++
-    ('А' to 'Я') +
-    'ё' + 'Ё'
+  @transient private lazy val stemmer: RussianLightStemmer = new RussianLightStemmer()
 
-  private val includedChars = Array.fill[Boolean](charSet.max + 1)(false)
-  charSet.foreach { s =>
-    includedChars(s) = true
+  private val includedChars = {
+    val charSet = mutable.Set(
+      '/', '.', ',', '\\', '%', '*'
+    ) ++
+      ('0' to '9') ++
+      ('a' to 'z') ++
+      ('A' to 'Z') ++
+      ('а' to 'я') ++
+      ('А' to 'Я') +
+      'ё' + 'Ё'
+
+    val chars = Array.fill[Boolean](charSet.max + 1)(false)
+
+    charSet.foreach { s =>
+      chars(s) = true
+    }
+    chars
   }
 
   override def isCharIncluded(ch: Char): Boolean = {
