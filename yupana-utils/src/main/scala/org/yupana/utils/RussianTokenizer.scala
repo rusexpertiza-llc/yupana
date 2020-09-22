@@ -21,27 +21,44 @@ import org.apache.lucene.analysis.ru.RussianLightStemmer
 import scala.collection.mutable
 
 object RussianTokenizer extends TokenizerBase {
-  private val stemmer = new RussianLightStemmer()
-  private val charSet = mutable.Set(
-    '/', '.', ',', '\\', '%', '*'
-  ) ++
-    ('0' to '9') ++
-    ('a' to 'z') ++
-    ('A' to 'Z') ++
-    ('а' to 'я') ++
-    ('А' to 'Я') +
-    'ё' + 'Ё'
+  @transient private var stemmer: RussianLightStemmer = _
 
-  private val includedChars = Array.fill[Boolean](charSet.max + 1)(false)
-  charSet.foreach { s =>
-    includedChars(s) = true
+  private def getStemmer: RussianLightStemmer = {
+    if (stemmer == null) {
+      synchronized {
+        if (stemmer == null) {
+          stemmer = new RussianLightStemmer()
+        }
+      }
+    }
+
+    stemmer
+  }
+
+  private val includedChars = {
+    val charSet = mutable.Set(
+      '/', '.', ',', '\\', '%', '*'
+    ) ++
+      ('0' to '9') ++
+      ('a' to 'z') ++
+      ('A' to 'Z') ++
+      ('а' to 'я') ++
+      ('А' to 'Я') +
+      'ё' + 'Ё'
+
+    val chars = Array.fill[Boolean](charSet.max + 1)(false)
+
+    charSet.foreach { s =>
+      chars(s) = true
+    }
+    chars
   }
 
   override def isCharIncluded(ch: Char): Boolean = {
     ch >= includedChars.length || includedChars(ch)
   }
 
-  override def stemArray(array: Array[Char], length: Int): Int = stemmer.stem(array, length)
+  override def stemArray(array: Array[Char], length: Int): Int = getStemmer.stem(array, length)
 
   override protected def transliterate(s: String): String = RussianTransliterator.transliterate(s)
 }
