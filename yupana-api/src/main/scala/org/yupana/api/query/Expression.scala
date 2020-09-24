@@ -130,7 +130,7 @@ sealed trait ConstantExpr extends Expression {
   override def encode: String = {
     if (dataType.isArray) {
       val adt = dataType.asInstanceOf[ArrayDataType[Out]]
-      val vStr = v.asInstanceOf[adt.T].map(_.toString.replaceAll(",", "\\,")).mkString(",")
+      val vStr = v.asInstanceOf[adt.T].map(_.toString.replaceAll(",", "\\\\,")).mkString(",")
       s"const([$vStr]:${v.getClass.getSimpleName})"
     } else {
       s"const($v:${v.getClass.getSimpleName})"
