@@ -19,11 +19,13 @@ package org.yupana.core.operations
 import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.types.UnaryOperations
-import org.yupana.utils.Tokenizer
+import org.yupana.api.utils.Tokenizer
 
 import scala.collection.AbstractIterator
 
 trait UnaryOperationsImpl extends UnaryOperations {
+  def tokenizer: Tokenizer
+
   override def unaryMinus[N](n: N)(implicit numeric: Numeric[N]): N = orNull[N, N](n)(numeric.negate)
   override def abs[N](n: N)(implicit numeric: Numeric[N]): N = orNull[N, N](n)(numeric.abs)
 
@@ -70,7 +72,7 @@ trait UnaryOperationsImpl extends UnaryOperations {
     if (v != null) f(v) else null.asInstanceOf[O]
   }
 
-  private def tokenize(s: String): Array[String] = Tokenizer.transliteratedTokens(s).toArray
+  private def tokenize(s: String): Array[String] = tokenizer.transliteratedTokens(s).toArray
 
   private def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
     private val len = s.length

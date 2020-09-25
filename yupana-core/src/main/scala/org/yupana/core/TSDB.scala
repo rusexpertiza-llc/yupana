@@ -19,13 +19,14 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Table }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.OnFinishIterator
 import org.yupana.core.utils.metric._
 
 class TSDB(
+    override val schema: Schema,
     override val dao: TSDao[Iterator, Long],
     val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,

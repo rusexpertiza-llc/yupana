@@ -48,7 +48,14 @@ class TsdbTest
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig(putEnabled = true))
+    val tsdb = new TSDB(
+      TestSchema.schema,
+      tsdbDaoMock,
+      metricsDaoMock,
+      dictionaryProvider,
+      identity,
+      SimpleTsdbConfig(putEnabled = true)
+    )
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
     val dims = Map[Dimension, Any](TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
@@ -67,7 +74,8 @@ class TsdbTest
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
+    val tsdb =
+      new TSDB(TestSchema.schema, tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
 
     val dp = DataPoint(
       TestSchema.testTable,

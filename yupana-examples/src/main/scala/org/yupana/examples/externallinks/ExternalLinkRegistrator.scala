@@ -48,17 +48,23 @@ class ExternalLinkRegistrator(
     Dimensions.ITEM.rStorable.read
   )
 
-  lazy val invertedIndex = new ItemsInvertedIndexImpl(invertedDao, false, ItemsInvertedIndex)
+  lazy val invertedIndex =
+    new ItemsInvertedIndexImpl(
+      tsdb.schema,
+      invertedDao,
+      false,
+      ItemsInvertedIndex
+    )
 
   def registerExternalLink(link: ExternalLink): Unit = {
     val service = link match {
       case c: SQLExternalLink[_] => createSqlService(c)
       case ItemsInvertedIndex    => invertedIndex
       case RelatedItemsCatalog   => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
-      case AddressCatalog        => new AddressCatalogImpl(AddressCatalog)
+      case AddressCatalog        => new AddressCatalogImpl(tsdb.schema, AddressCatalog)
       case OrganisationCatalog =>
         val jdbcTemplate = createConnection(OrganisationCatalogImpl.connection(properties))
-        new OrganisationCatalogImpl(jdbcTemplate)
+        new OrganisationCatalogImpl(tsdb.schema, jdbcTemplate)
     }
 
     tsdb.registerExternalLink(link, service)
@@ -81,6 +87,6 @@ class ExternalLinkRegistrator(
 
   def createSqlService(link: SQLExternalLink[_]): SQLSourcedExternalLinkService[link.DimType] = {
     val jdbc = createConnection(link.config.connection)
-    new SQLSourcedExternalLinkService[link.DimType](link, link.config.description, jdbc)
+    new SQLSourcedExternalLinkService[link.DimType](tsdb.schema, link, link.config.description, jdbc)
   }
 }

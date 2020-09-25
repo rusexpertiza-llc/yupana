@@ -18,6 +18,7 @@ package org.yupana.examples
 
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.schema.SchemaRegistry
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 object ExampleSchema {
   val tables: Map[String, Table] = Seq(
@@ -30,5 +31,6 @@ object ExampleSchema {
     ExampleTables.receiptByDayAllKkmsTable
   ).map(table => table.name -> table).toMap
 
-  def schema: Schema = new Schema(tables, SchemaRegistry.defaultRollups)
+  def schema: Schema =
+    new Schema(tables, SchemaRegistry.defaultRollups, OfdItemFixer, RussianTokenizer, RussianTransliterator)
 }

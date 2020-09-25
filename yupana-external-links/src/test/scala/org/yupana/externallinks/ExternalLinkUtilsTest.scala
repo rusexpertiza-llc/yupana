@@ -1,22 +1,26 @@
 package org.yupana.externallinks
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, LinkField, RawDimension }
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.utils.RussianTokenizer
 
 class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
 
   import org.yupana.api.query.syntax.All._
+  import TestSchema._
+
+  val calculator = new ExpressionCalculator(RussianTokenizer)
 
   private def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformConditionT[String](TestLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils
+      .transformConditionT[String](calculator, TestLink.linkName, condition, includeCondition, excludeCondition)
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
@@ -30,31 +34,6 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
       case (field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
     }: _*)
   }
-
-  private val xDim = DictionaryDimension("X")
-  private val yDim = RawDimension[Int]("Y")
-
-  object TestLink extends ExternalLink {
-
-    val field1 = "field1"
-    val field2 = "field2"
-    val field3 = "field3"
-
-    override type DimType = String
-    override val linkName: String = "Test"
-    override val dimension: DictionaryDimension = xDim
-    override val fields: Set[LinkField] = Set(field1, field2, field3).map(LinkField[String])
-
-  }
-
-  private val table = new org.yupana.api.schema.Table(
-    "test",
-    1000,
-    Seq(xDim, yDim),
-    Seq.empty,
-    Seq(TestLink),
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
-  )
 
   "ExternalLinkUtils" should "support == condition" in {
     condition(

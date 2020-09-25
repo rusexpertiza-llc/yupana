@@ -63,7 +63,7 @@ abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
     conf: Config,
-    schema: Schema
+    override val schema: Schema
 ) extends TsdbBase
     with StrictLogging
     with Serializable {
@@ -85,7 +85,8 @@ abstract class TsdbSparkBase(
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
-  override val dao: TSReadingDao[RDD, Long] = new TsDaoHBaseSpark(sparkContext, conf, dictionaryProvider)
+  override val dao: TSReadingDao[RDD, Long] =
+    new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
   private def getMetricsDao(): TsdbQueryMetricsDao = TsdbSparkBase.metricsDao match {
     case None =>

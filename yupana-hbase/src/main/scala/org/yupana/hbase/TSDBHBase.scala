@@ -22,9 +22,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
-import org.yupana.core.{ TSDB, TsdbConfig }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
+import org.yupana.core.{ TSDB, TsdbConfig }
 
 object TSDBHBase {
   def apply(
@@ -42,9 +42,9 @@ object TSDBHBase {
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
-    val dao = new TSDaoHBase(connection, namespace, dictProvider, tsdbConfig.putBatchSize)
+    val dao = new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize)
 
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
-    new TSDB(dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
+    new TSDB(schema, dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
   }
 }
