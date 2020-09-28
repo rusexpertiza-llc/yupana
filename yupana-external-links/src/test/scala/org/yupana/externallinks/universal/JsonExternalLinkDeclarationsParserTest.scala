@@ -8,10 +8,17 @@ import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLinkDescription
 }
 import org.yupana.schema.Tables
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 class JsonExternalLinkDeclarationsParserTest extends FlatSpec with Matchers with Inside {
 
-  val testSchema = Schema(Seq(Tables.itemsKkmTable, Tables.kkmItemsTable, Tables.receiptTable), Seq.empty)
+  val testSchema = Schema(
+    Seq(Tables.itemsKkmTable, Tables.kkmItemsTable, Tables.receiptTable),
+    Seq.empty,
+    OfdItemFixer,
+    RussianTokenizer,
+    RussianTransliterator
+  )
 
   "JsonCatalogDeclarationsParser" should "parse good declarations" in {
     val json = s"""{

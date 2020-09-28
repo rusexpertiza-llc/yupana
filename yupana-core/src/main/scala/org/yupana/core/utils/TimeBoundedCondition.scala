@@ -40,9 +40,9 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
 object TimeBoundedCondition {
 
-  def apply(condition: Condition): Seq[TimeBoundedCondition] = {
+  def apply(expressionCalculator: ExpressionCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
-      case a: AndExpr => andToTimeBounded(a)
+      case a: AndExpr => andToTimeBounded(expressionCalculator)(a)
       case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
     }
   }
@@ -78,13 +78,13 @@ object TimeBoundedCondition {
     TimeBoundedCondition(from, to, cs)
   }
 
-  private def andToTimeBounded(and: AndExpr): Seq[TimeBoundedCondition] = {
+  private def andToTimeBounded(expressionCalculator: ExpressionCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
 
     def updateFrom(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
+      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
       if (const != null) {
         from = from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
       } else {
@@ -93,7 +93,7 @@ object TimeBoundedCondition {
     }
 
     def updateTo(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
+      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
       if (const != null) {
         to = to.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis)
       } else {

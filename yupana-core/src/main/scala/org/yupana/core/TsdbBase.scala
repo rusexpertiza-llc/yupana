@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -47,6 +47,11 @@ trait TsdbBase extends StrictLogging {
   def dao: TSReadingDao[Collection, Long]
 
   def dictionaryProvider: DictionaryProvider
+
+  def schema: Schema
+
+  implicit lazy val operations: Operations = new Operations(schema.tokenizer)
+  lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
@@ -93,7 +98,7 @@ trait TsdbBase extends StrictLogging {
     val preparedQuery = prepareQuery(query)
     logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(expressionCalculator)(preparedQuery)
 
     logger.debug(s"Optimized query: $optimizedQuery")
 
@@ -151,7 +156,7 @@ trait TsdbBase extends StrictLogging {
         val filtered = condition match {
           case Some(cond) =>
             val withValuesForFilter = it.map(row => evaluateFilterExprs(queryContext, cond, row))
-            withValuesForFilter.filter(row => ExpressionCalculator.preEvaluated(cond, queryContext, row))
+            withValuesForFilter.filter(row => expressionCalculator.preEvaluated(cond, queryContext, row))
           case None => it
         }
 
@@ -211,7 +216,7 @@ trait TsdbBase extends StrictLogging {
           metricCollector.postFilter.measure(batch.size) {
             val it = batch.iterator
             it.filter { row =>
-              ExpressionCalculator.preEvaluated(cond, queryContext, row)
+              expressionCalculator.preEvaluated(cond, queryContext, row)
             }
           }
         }
@@ -253,7 +258,7 @@ trait TsdbBase extends StrictLogging {
     if (postCondition.kind != Const) {
       row.set(
         queryContext.exprsIndex(postCondition),
-        ExpressionCalculator.evaluateExpression(postCondition, queryContext, row)
+        expressionCalculator.evaluateExpression(postCondition, queryContext, row)
       )
     }
     row
@@ -266,14 +271,14 @@ trait TsdbBase extends StrictLogging {
     queryContext.bottomExprs.foreach { expr =>
       row.set(
         queryContext.exprsIndex(expr),
-        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        expressionCalculator.evaluateExpression(expr, queryContext, row)
       )
     }
 
     queryContext.topRowExprs.foreach { expr =>
       row.set(
         queryContext.exprsIndex(expr),
-        ExpressionCalculator.evaluateExpression(expr, queryContext, row)
+        expressionCalculator.evaluateExpression(expr, queryContext, row)
       )
     }
 
@@ -320,7 +325,7 @@ trait TsdbBase extends StrictLogging {
       }
       val evaluationResult =
         if (nullWindowExpressionsExists) null
-        else ExpressionCalculator.evaluateExpression(e, queryContext, data)
+        else expressionCalculator.evaluateExpression(e, queryContext, data)
       data.set(queryContext, e, evaluationResult)
     }
     data

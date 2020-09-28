@@ -20,11 +20,10 @@ import org.joda.time.{ DateTimeFieldType, Period }
 import org.yupana.api.Time
 import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
-import org.yupana.utils.Tokenizer
+import org.yupana.api.utils.Tokenizer
 
-import scala.collection.AbstractIterator
+class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
-object ExpressionCalculator {
   def evaluateConstant(expr: Expression): expr.Out = {
     assert(expr.kind == Const)
     eval(expr, null, null)

@@ -19,6 +19,7 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.schema.Schema
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
@@ -29,6 +30,8 @@ import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog
 
 class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: RelatedItemsCatalog)
     extends ExternalLinkService[RelatedItemsCatalog] {
+
+  override val schema: Schema = tsdb.schema
 
   import org.yupana.api.query.syntax.All._
 
@@ -45,7 +48,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   }
 
   override def condition(condition: Condition): Condition = {
-    val tbcs = TimeBoundedCondition(condition)
+    val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
     val r = tbcs.map { tbc =>
       val from = tbc.from.getOrElse(
