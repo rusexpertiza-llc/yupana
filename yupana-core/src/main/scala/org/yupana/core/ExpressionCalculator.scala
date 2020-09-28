@@ -22,6 +22,8 @@ import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 
+import scala.collection.AbstractIterator
+
 class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
   def evaluateConstant(expr: Expression): expr.Out = {
@@ -204,7 +206,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case UpperExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toUpperCase)
       case LengthExpr(e) => evaluateUnary(qc, row)(e, (x: String) => x.length)
       case SplitExpr(e)  => evaluateUnary(qc, row)(e, (s: String) => splitBy(s, !_.isLetterOrDigit).toArray)
-      case TokensExpr(e) => evaluateUnary(qc, row)(e, (s: String) => Tokenizer.transliteratedTokens(s).toArray)
+      case TokensExpr(e) => evaluateUnary(qc, row)(e, (s: String) => tokenizer.transliteratedTokens(s).toArray)
 
       case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
 

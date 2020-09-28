@@ -95,37 +95,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     "now" -> ((s: BuilderState) => ConstantExpr(Time(s.queryStartTime)))
   )
 
-  object ExprType extends Enumeration {
-    type ExprType = Value
-    val Cmp, Math = Value
-  }
-
-  class BuilderState(parameters: Map[Int, parser.Value]) {
-    private var fieldNames = Map.empty[String, Int]
-    private var nextPlaceholder = 1
-
-    val queryStartTime: LocalDateTime = new LocalDateTime(DateTimeZone.UTC)
-
-    def fieldName(field: parser.SqlField): String = {
-      val name = field.alias orElse field.expr.proposedName getOrElse "field"
-      fieldNames.get(name) match {
-        case Some(i) =>
-          fieldNames += name -> (i + 1)
-          s"${name}_$i"
-
-        case None =>
-          fieldNames += name -> 2
-          name
-      }
-    }
-
-    def nextPlaceholderValue(): Either[String, parser.Value] = {
-      val result = parameters.get(nextPlaceholder).toRight(s"Value for placeholder #$nextPlaceholder is not defined")
-      nextPlaceholder += 1
-      result
-    }
-  }
-
   private def getFields(
       table: Option[Table],
       select: parser.Select,

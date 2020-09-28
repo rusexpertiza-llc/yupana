@@ -120,7 +120,7 @@ class TSDB(
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
               val value =
-                ExpressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[winFuncExpr.In]], index)
+                expressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[winFuncExpr.In]], index)
 //              val value = winFuncExpr.operation(group.asInstanceOf[Array[winFuncExpr.expr.Out]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }
