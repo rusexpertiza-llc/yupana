@@ -61,7 +61,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
     }
   }
 
-  def evaluateMap[I, M](expr: AggregateExpr.Aux[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
+  def evaluateMap[I, M](expr: AggregateExpr[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
     val res = expr match {
       case MinExpr(e) => row.get[M](queryContext, e)
       case MaxExpr(e) => row.get[M](queryContext, e)
@@ -81,16 +81,16 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
   }
 
   def evaluateReduce[M](
-      expr: AggregateExpr.Aux[_, M, _],
+      expr: AggregateExpr[_, M, _],
       queryContext: QueryContext,
       a: InternalRow,
       b: InternalRow
   ): M = {
     def reduce(x: M, y: M): M = {
       val res = expr match {
-        case m @ MinExpr(_)        => m.ord.min(x, y)
-        case m @ MaxExpr(_)        => m.ord.max(x, y)
-        case s @ SumExpr(_)        => s.numeric.plus(x, y)
+        case m: MinExpr[_]         => m.ord.min(x, y)
+        case m: MaxExpr[_]         => m.ord.max(x, y)
+        case s: SumExpr[_]         => s.numeric.plus(x, y)
         case CountExpr(_)          => x.asInstanceOf[Long] + y.asInstanceOf[Long]
         case DistinctCountExpr(_)  => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
         case DistinctRandomExpr(_) => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
@@ -109,7 +109,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
     } else bValue
   }
 
-  def evaluatePostMap[M, O](expr: AggregateExpr.Aux[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
+  def evaluatePostMap[M, O](expr: AggregateExpr[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
     val oldValue = row.get[M](queryContext, expr)
 
     val res = expr match {
@@ -137,7 +137,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case DimensionIdExpr(_)           => null
       case MetricExpr(_)                => null
       case LinkExpr(_, _)               => null
-      case ae: AggregateExpr[_, _]      => evaluateExpression(ae.expr, qc, row)
+      case ae: AggregateExpr[_, _, _]   => evaluateExpression(ae.expr, qc, row)
       case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row)
 
       case ConditionExpr(condition, positive, negative) =>
@@ -208,7 +208,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case SplitExpr(e)  => evaluateUnary(qc, row)(e, (s: String) => splitBy(s, !_.isLetterOrDigit).toArray)
       case TokensExpr(e) => evaluateUnary(qc, row)(e, (s: String) => tokenizer.transliteratedTokens(s).toArray)
 
-      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
+//      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
 
       case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.numeric.abs)
 

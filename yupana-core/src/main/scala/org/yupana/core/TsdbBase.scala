@@ -288,7 +288,7 @@ trait TsdbBase extends StrictLogging {
     queryContext.aggregateExprs.foreach { ae =>
       row.set(
         queryContext.exprsIndex(ae),
-        expressionCalculator.evaluateMap(ae.aux, queryContext, row)
+        expressionCalculator.evaluateMap(ae, queryContext, row)
       )
     }
     row
@@ -297,7 +297,7 @@ trait TsdbBase extends StrictLogging {
   def applyReduceOperation(queryContext: QueryContext, a: InternalRow, b: InternalRow): InternalRow = {
     val reduced = a.copy
     queryContext.aggregateExprs.foreach { aggExpr =>
-      val newValue = expressionCalculator.evaluateReduce(aggExpr.aux, queryContext, a, b)
+      val newValue = expressionCalculator.evaluateReduce(aggExpr, queryContext, a, b)
       reduced.set(queryContext, aggExpr, newValue)
     }
 
@@ -311,7 +311,7 @@ trait TsdbBase extends StrictLogging {
 //      val oldValue = row.get[agg.Interim](queryContext, aggExpr)
 //      val newValue =
 //        if (oldValue != null) agg.postMap(oldValue) else agg.emptyValue.getOrElse(null.asInstanceOf[agg.Out])
-      row.set(queryContext, aggExpr, expressionCalculator.evaluatePostMap(aggExpr.aux, queryContext, row))
+      row.set(queryContext, aggExpr, expressionCalculator.evaluatePostMap(aggExpr, queryContext, row))
     }
     row
   }

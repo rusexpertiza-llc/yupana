@@ -79,62 +79,51 @@ final case class LagExpr[I](override val expr: Expression.Aux[I]) extends Window
   override def create(newExpr: Expression.Aux[I]): LagExpr[I] = LagExpr(newExpr)
 }
 
-sealed abstract class AggregateExpr[T, U](val expr: Expression.Aux[T], name: String)
+sealed abstract class AggregateExpr[T, I, U](val expr: Expression.Aux[T], name: String)
     extends UnaryOperationExpr[T, U](expr, name) {
   type In = T
-  type Interim
-  override def aux: AggregateExpr.Aux[In, Interim, Out] = this.asInstanceOf[AggregateExpr.Aux[In, Interim, Out]]
 
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
   override def encode: String = s"agg($name,${expr.encode})"
 }
 
-object AggregateExpr {
-  type Aux[I, M, O] = AggregateExpr[I, O] { type Interim = M }
-}
-
 final case class MinExpr[I](override val expr: Expression.Aux[I])(implicit val ord: Ordering[I])
-    extends AggregateExpr[I, I](expr, "min") {
-  override type Interim = I
+    extends AggregateExpr[I, I, I](expr, "min") {
   override def dataType: DataType.Aux[I] = expr.dataType
   override type Self = MinExpr[I]
   override def create(newExpr: Expression.Aux[I]): MinExpr[I] = MinExpr(newExpr)
 }
 
 final case class MaxExpr[I](override val expr: Expression.Aux[I])(implicit val ord: Ordering[I])
-    extends AggregateExpr[I, I](expr, "max") {
-  override type Interim = I
+    extends AggregateExpr[I, I, I](expr, "max") {
   override def dataType: DataType.Aux[I] = expr.dataType
   override type Self = MaxExpr[I]
   override def create(newExpr: Expression.Aux[I]): MaxExpr[I] = MaxExpr(newExpr)
 }
 
 final case class SumExpr[I](override val expr: Expression.Aux[I])(implicit val numeric: Numeric[I])
-    extends AggregateExpr[I, I](expr, "sum") {
-  override type Interim = I
+    extends AggregateExpr[I, I, I](expr, "sum") {
   override def dataType: DataType.Aux[I] = expr.dataType
   override type Self = SumExpr[I]
   override def create(newExpr: Expression.Aux[I]): SumExpr[I] = SumExpr(newExpr)
 }
 
-final case class CountExpr[I](override val expr: Expression.Aux[I]) extends AggregateExpr[I, Long](expr, "count") {
-  override type Interim = Long
+final case class CountExpr[I](override val expr: Expression.Aux[I])
+    extends AggregateExpr[I, Long, Long](expr, "count") {
   override def dataType: DataType.Aux[Long] = DataType[Long]
   override type Self = CountExpr[I]
   override def create(newExpr: Expression.Aux[I]): CountExpr[I] = CountExpr(newExpr)
 }
 
 final case class DistinctCountExpr[I](override val expr: Expression.Aux[I])
-    extends AggregateExpr[I, Int](expr, "distinct_count") {
-  override type Interim = Set[I]
+    extends AggregateExpr[I, Set[I], Int](expr, "distinct_count") {
   override def dataType: DataType.Aux[Int] = DataType[Int]
   override type Self = DistinctCountExpr[I]
   override def create(newExpr: Expression.Aux[I]): DistinctCountExpr[I] = DistinctCountExpr(newExpr)
 }
 
 final case class DistinctRandomExpr[I](override val expr: Expression.Aux[I])
-    extends AggregateExpr[I, I](expr, "distinct_count") {
-  override type Interim = Set[I]
+    extends AggregateExpr[I, Set[I], I](expr, "distinct_count") {
   override def dataType: DataType.Aux[I] = expr.dataType
   override type Self = DistinctRandomExpr[I]
   override def create(newExpr: Expression.Aux[I]): DistinctRandomExpr[I] = DistinctRandomExpr(newExpr)
