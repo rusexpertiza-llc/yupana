@@ -3,6 +3,7 @@ package org.yupana.hbase
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.{ FlatSpec, Inside, Matchers }
 import org.yupana.api.schema._
+import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
@@ -45,7 +46,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
   val tables = Seq(table1, table2)
 
-  val expectedSchema = Schema(tables, Seq.empty)
+  val expectedSchema = Schema(tables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
   val expectedSchemaBytes = ProtobufSchemaChecker.toBytes(expectedSchema)
 
   "ProtobufSchemaChecker" should "successfully validate schema against itself" in {
@@ -54,7 +55,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
 
   it should "return tables size diff warning" in {
     val mutatedTables = Seq(table1)
-    val actualSchema = Schema(mutatedTables, Seq.empty)
+    val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
     ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes) shouldBe Warning(
       "2 tables expected, but 1 actually present in registry"
     )
@@ -71,7 +72,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     )
 
     val mutatedTables = Seq(significantlyDifferentTable1, table2)
-    val actualSchema = Schema(mutatedTables, Seq.empty)
+    val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldEqual "Expected rowTimeSpan for table table_1: 2592000000, actual: 2678400000\n" +
@@ -94,7 +95,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     )
 
     val mutatedTables = Seq(table1WithChangedGroups, table2)
-    val actualSchema = Schema(mutatedTables, Seq.empty)
+    val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
@@ -116,7 +117,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     )
 
     val mutatedTables = Seq(table1WithChangedTag, table2)
-    val actualSchema = Schema(mutatedTables, Seq.empty)
+    val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
@@ -136,7 +137,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     )
 
     val mutatedTables = Seq(slightlyDifferentTable1, table2)
-    val actualSchema = Schema(mutatedTables, Seq.empty)
+    val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Warning(msg) =>
         msg shouldBe
@@ -157,7 +158,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     )
 
     val mutatedTables = Seq(table1WithNewMetric, table2)
-    val actualSchema = Schema(mutatedTables, Seq.empty)
+    val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe

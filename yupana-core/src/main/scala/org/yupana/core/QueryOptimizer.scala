@@ -21,11 +21,11 @@ import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, 
 
 object QueryOptimizer {
 
-  def optimize(query: Query): Query = {
+  def optimize(expressionCalculator: ExpressionCalculator)(query: Query): Query = {
     query.copy(
-      fields = query.fields.map(optimizeField),
-      filter = query.filter.map(optimizeCondition),
-      postFilter = query.postFilter.map(optimizeCondition)
+      fields = query.fields.map(optimizeField(expressionCalculator)),
+      filter = query.filter.map(optimizeCondition(expressionCalculator)),
+      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator))
     )
   }
 
@@ -35,15 +35,15 @@ object QueryOptimizer {
     }
   }
 
-  def optimizeCondition(c: Condition): Condition = {
-    simplifyCondition(optimizeExpr(c))
+  def optimizeCondition(expressionCalculator: ExpressionCalculator)(c: Condition): Condition = {
+    simplifyCondition(optimizeExpr(expressionCalculator)(c))
   }
 
-  def optimizeField(field: QueryField): QueryField = {
-    field.copy(expr = optimizeExpr(field.expr))
+  def optimizeField(expressionCalculator: ExpressionCalculator)(field: QueryField): QueryField = {
+    field.copy(expr = optimizeExpr(expressionCalculator)(field.expr))
   }
 
-  def optimizeExpr[T](expr: Expression[T]): Expression[T] = {
+  def optimizeExpr[T](expressionCalculator: ExpressionCalculator)(expr: Expression[T]): Expression[T] = {
     expr.transform(transformer)
   }
 
@@ -91,9 +91,11 @@ object QueryOptimizer {
     }
   }
 
-  private def evaluateConstant[T](e: Expression[T]): Expression[T] = {
+  private def evaluateConstant[T](
+      expressionCalculator: ExpressionCalculator
+  )(e: Expression[T]): Expression[T] = {
     assert(e.kind == Const)
-    val eval = ExpressionCalculator.evaluateConstant(e)
+    val eval = expressionCalculator.evaluateConstant(e)
     if (eval != null) {
       ConstantExpr(eval)(
         e.dataType

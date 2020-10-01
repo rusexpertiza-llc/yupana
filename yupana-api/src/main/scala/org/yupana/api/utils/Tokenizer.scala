@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.schema
+package org.yupana.api.utils
 
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.utils.{ OfdItemFixer, RussianTransliterator }
-
-object Dimensions {
-  val KKM_ID = RawDimension[Int]("kkmId")
-  val ITEM = ItemDimension(OfdItemFixer, RussianTransliterator, "item")
-  val CUSTOMER = DictionaryDimension("customer")
-  val SHIFT = RawDimension[Int]("shift")
-  val OPERATION_TYPE = RawDimension[Byte]("operation_type")
-  val POSITION = RawDimension[Short]("position")
+trait Tokenizer extends Serializable {
+  def rawTokens(item: String): Seq[String]
+  def stemmedTokens(item: String): Seq[String]
+  def transliteratedTokens(item: String): Seq[String]
 }

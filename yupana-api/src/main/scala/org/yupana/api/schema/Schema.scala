@@ -16,12 +16,21 @@
 
 package org.yupana.api.schema
 
+import org.yupana.api.utils.{ ItemFixer, Tokenizer, Transliterator }
+
 /**
   * Database schema
+  *
   * @param tables all tables defined in this schema and their names
   * @param rollups list of rollups available for this schema
   */
-class Schema(val tables: Map[String, Table], val rollups: Seq[Rollup]) extends Serializable {
+class Schema(
+    val tables: Map[String, Table],
+    val rollups: Seq[Rollup],
+    val itemFixer: ItemFixer,
+    val tokenizer: Tokenizer,
+    val transliterator: Transliterator
+) extends Serializable {
 
   /** Get table by name */
   def getTable(name: String): Option[Table] = tables.get(name)
@@ -35,12 +44,12 @@ class Schema(val tables: Map[String, Table], val rollups: Seq[Rollup]) extends S
   def withTableUpdated(name: String)(f: Table => Table): Schema = {
     if (tables.contains(name)) {
       val newTables = tables.updated(name, f(tables(name)))
-      new Schema(newTables, rollups)
+      new Schema(newTables, rollups, itemFixer, tokenizer, transliterator)
     } else this
   }
 
   def withRollup(r: Rollup): Schema = {
-    new Schema(tables, rollups :+ r)
+    new Schema(tables, rollups :+ r, itemFixer, tokenizer, transliterator)
   }
 }
 
@@ -51,5 +60,13 @@ object Schema {
     * @param tables tables in this schema
     * @return schema instance
     */
-  def apply(tables: Seq[Table], rollups: Seq[Rollup]): Schema = new Schema(tables.map(t => t.name -> t).toMap, rollups)
+  def apply(
+      tables: Seq[Table],
+      rollups: Seq[Rollup],
+      itemFixer: ItemFixer,
+      tokenizer: Tokenizer,
+      transliterator: Transliterator
+  ): Schema = {
+    new Schema(tables.map(t => t.name -> t).toMap, rollups, itemFixer, tokenizer, transliterator)
+  }
 }

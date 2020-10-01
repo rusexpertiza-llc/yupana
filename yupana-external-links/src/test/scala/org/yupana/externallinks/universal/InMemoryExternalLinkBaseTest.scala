@@ -4,10 +4,11 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, LinkField, RawDimension }
+import org.yupana.api.schema._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.externallinks.TestSchema
 
-class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
+class InMemoryExternalLinkBaseTest extends FlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 
@@ -16,6 +17,8 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
         Seq(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3),
         data
       ) {
+    override val schema: Schema = TestSchema.schema
+
     val valueToKeys: Map[Int, Seq[String]] =
       Map(1 -> Seq("foo", "aaa"), 2 -> Seq("foo"), 3 -> Seq("bar"), 4 -> Seq("aaa"))
 
@@ -109,10 +112,9 @@ class InMemoryCatalogBaseTest extends FlatSpec with Matchers {
   }
 
   it should "support positive conditions" in {
-    testCatalog.condition(equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))) shouldEqual in(
-      lower(dimension(DictionaryDimension("TAG_X"))),
-      Set("aaa")
-    )
+    testCatalog.condition(
+      equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
+    ) shouldEqual in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
 
     testCatalog.condition(
       and(

@@ -34,9 +34,9 @@ object ExprPair {
     override val b: Expression[T0] = y
   }
 
-  def constCast[T](const: ConstantExpr[_], dataType: DataType.Aux[T]): Either[String, T] = {
+  def constCast[U, T](const: ConstantExpr[U], dataType: DataType.Aux[T]): Either[String, T] = {
     if (const.dataType == dataType) {
-      Right(const.v.asInstanceOf[dataType.T])
+      Right(const.v.asInstanceOf[T])
     } else {
       TypeConverter(const.dataType, dataType.aux)
         .map(conv => conv.convert(const.v))

@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr }
-import org.yupana.api.schema.{ Dimension, ExternalLink }
+import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
 import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.{ Cache, CacheFactory }
@@ -33,6 +33,7 @@ import org.yupana.schema.externallinks.ExternalLinks._
 import scala.collection.JavaConverters._
 
 class SQLSourcedExternalLinkService[DimensionValue](
+    override val schema: Schema,
     override val externalLink: ExternalLink.Aux[DimensionValue],
     config: SQLExternalLinkDescription,
     jdbc: JdbcTemplate
@@ -41,7 +42,6 @@ class SQLSourcedExternalLinkService[DimensionValue](
 
   import SQLSourcedExternalLinkService._
   import config._
-
   import org.yupana.api.query.syntax.All._
 
   private val mapping = config.fieldsMapping
@@ -67,7 +67,13 @@ class SQLSourcedExternalLinkService[DimensionValue](
   }
 
   override def condition(condition: Condition): Condition = {
-    ExternalLinkUtils.transformConditionT[String](externalLink.linkName, condition, includeCondition, excludeCondition)
+    ExternalLinkUtils.transformConditionT[String](
+      expressionCalculator,
+      externalLink.linkName,
+      condition,
+      includeCondition,
+      excludeCondition
+    )
   }
 
   private def includeCondition(values: Seq[(String, Set[String])]): Condition = {

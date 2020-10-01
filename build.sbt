@@ -69,9 +69,10 @@ lazy val utils = (project in file("yupana-utils"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.apache.lucene"           %  "lucene-analyzers-common"       % versions.lucene,
-      "org.scalatest"               %% "scalatest"                     % versions.scalaTest
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   )
+  .dependsOn(api)
 
 lazy val core = (project in file("yupana-core"))
   .settings(
@@ -85,7 +86,7 @@ lazy val core = (project in file("yupana-core"))
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
-  .dependsOn(api, utils)
+  .dependsOn(api, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val hbase = (project in file("yupana-hbase"))
@@ -161,8 +162,10 @@ lazy val spark = (project in file("yupana-spark"))
 lazy val schema = (project in file("yupana-schema"))
   .settings(
     name := "yupana-schema",
-    commonSettings,
-    publishSettings
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test
+    )
   )
   .dependsOn(api, utils)
   .disablePlugins(AssemblyPlugin)
@@ -257,7 +260,7 @@ lazy val examples = (project in file("yupana-examples"))
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
-  val joda = "2.10.5"
+  val joda = "2.10.6"
 
   val protobufJava = "2.6.1"
 
@@ -271,7 +274,7 @@ lazy val versions = new {
   val akka = "2.5.31"
 
   val lucene = "6.6.0"
-  val ignite = "2.8.0"
+  val ignite = "2.8.1"
   val ehcache = "3.3.2"
   val caffeine = "2.8.0"
 
@@ -312,7 +315,7 @@ val commonSettings = Seq(
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),
-  Compile / console / scalacOptions ~= (_.filterNot(_ == "-Ywarn-unused-import")),
+  Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   testOptions in Test += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   parallelExecution in Test := false,
   coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*",

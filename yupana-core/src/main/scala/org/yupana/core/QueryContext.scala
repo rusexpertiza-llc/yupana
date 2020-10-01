@@ -25,7 +25,7 @@ import scala.collection.mutable
 case class QueryContext(
     query: Query,
     exprsIndex: mutable.HashMap[Expression[_], Int],
-    aggregateExprs: Array[AggregateExpr[_, _]],
+    aggregateExprs: Array[AggregateExpr[_, _, _]],
     topRowExprs: Array[Expression[_]],
     exprsOnAggregatesAndWindows: Array[Expression[_]],
     bottomExprs: Array[Expression[_]],
@@ -63,7 +63,7 @@ object QueryContext extends StrictLogging {
     val topRowExprs: Set[Expression[_]] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr[_]] && (
         (!containsAggregates(expr) && !containsWindows(expr)) ||
-        expr.isInstanceOf[AggregateExpr[_, _]] ||
+        expr.isInstanceOf[AggregateExpr[_, _, _]] ||
         expr.isInstanceOf[WindowFunctionExpr[_, _]]
       )
     }
@@ -74,7 +74,7 @@ object QueryContext extends StrictLogging {
 
     val bottomExprs: Set[Expression[_]] = collectBottomExprs(allExprs)
 
-    val aggregateExprs = allExprs.collect { case ae: AggregateExpr[_, _] => ae }
+    val aggregateExprs = allExprs.collect { case ae: AggregateExpr[_, _, _] => ae }
 
     val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
 
@@ -92,7 +92,7 @@ object QueryContext extends StrictLogging {
 
   private def collectBottomExprs(exprs: Set[Expression[_]]): Set[Expression[_]] = {
     exprs.collect {
-      case a: AggregateExpr[_, _]         => Set(a, a.expr)
+      case a: AggregateExpr[_, _, _]      => Set(a, a.expr)
       case ConditionExpr(condition, _, _) => Set(condition)
       case c: ConstantExpr[_]             => Set(c)
       case d: DimensionExpr[_]            => Set(d)
@@ -105,8 +105,8 @@ object QueryContext extends StrictLogging {
   }
 
   private def containsAggregates(e: Expression[_]): Boolean = e.flatten.exists {
-    case _: AggregateExpr[_, _] => true
-    case _                      => false
+    case _: AggregateExpr[_, _, _] => true
+    case _                         => false
   }
 
   private def containsWindows(e: Expression[_]): Boolean = e.flatten.exists {
