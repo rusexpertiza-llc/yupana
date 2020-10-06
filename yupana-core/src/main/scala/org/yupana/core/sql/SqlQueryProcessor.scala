@@ -194,14 +194,15 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         for {
           a <- createExpr(state, nameResolver, e1, exprType).right
           b <- createExpr(state, nameResolver, e2, exprType).right
-          fexpr <- createFunction2Expr(f, a, b).right
+          fexpr <- FunctionRegistry.bi(f, a, b).right
         } yield fexpr
 
-      case parser.FunctionCall(f, es) =>
-        for {
-          vs <- CollectionUtils.collectErrors(es.map(e => createExpr(state, nameResolver, e, exprType))).right
-          fexpr <- createArrayUnaryFunctionExpr(f, vs).right
-        } yield fexpr
+      case parser.FunctionCall(f, _) =>
+        Left(s"Undefined function $f")
+//        for {
+//          vs <- CollectionUtils.collectErrors(es.map(e => createExpr(state, nameResolver, e, exprType))).right
+//          fexpr <- createArrayUnaryFunctionExpr(f, vs).right
+//        } yield fexpr
     }
 
     e.right.map {
@@ -239,39 +240,39 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 //    } yield m
 //  }
 
-  private def createFunction2Expr(fun: String, e1: Expression[_], e2: Expression[_]): Either[String, Expression[_]] = {
-    for {
-      m <- FunctionRegistry.bi(fun, e1, e2).left
-      _ <- createArrayUnaryFunctionExpr(fun, Seq(e1, e2)).left
-    } yield m
-  }
+//  private def createFunction2Expr(fun: String, e1: Expression[_], e2: Expression[_]): Either[String, Expression[_]] = {
+//    for {
+//      m <- FunctionRegistry.bi(fun, e1, e2).left
+////      _ <- createArrayUnaryFunctionExpr(fun, Seq(e1, e2)).left
+//    } yield m
+//  }
 
-  private def createArrayUnaryFunctionExpr(
-      functionName: String,
-      expressions: Seq[Expression[_]]
-  ): Either[String, Expression[_]] = {
-    createArrayExpr(expressions).right.flatMap(e => FunctionRegistry.unary(functionName, e))
-  }
+//  private def createArrayUnaryFunctionExpr(
+//      functionName: String,
+//      expressions: Seq[Expression[_]]
+//  ): Either[String, Expression[_]] = {
+//    createArrayExpr(expressions).right.flatMap(e => FunctionRegistry.unary(functionName, e))
+//  }
 
-  private def createArrayExpr(expressions: Seq[Expression[_]]): Either[String, Expression[_]] = {
-    // we assume all expressions have exact same type, but it might require to align type in future
-    val first = expressions.head
-
-    val incorrectType = expressions.collect {
-      case x if x.dataType != first.dataType => x
-    }
-
-    if (incorrectType.isEmpty) {
-      Right(
-        ArrayExpr[first.dataType.T](expressions.toArray.asInstanceOf[Array[Expression[first.dataType.T]]])(
-          first.dataType
-        )
-      )
-    } else {
-      val err = incorrectType.map(e => s"$e has type ${e.dataType}").mkString(", ")
-      Left(s"All expressions must have same type but: $err}")
-    }
-  }
+//  private def createArrayExpr(expressions: Seq[Expression[_]]): Either[String, Expression[_]] = {
+//    // we assume all expressions have exact same type, but it might require to align type in future
+//    val first = expressions.head
+//
+//    val incorrectType = expressions.collect {
+//      case x if x.dataType != first.dataType => x
+//    }
+//
+//    if (incorrectType.isEmpty) {
+//      Right(
+//        ArrayExpr[first.dataType.T](expressions.toArray.asInstanceOf[Array[Expression[first.dataType.T]]])(
+//          first.dataType
+//        )
+//      )
+//    } else {
+//      val err = incorrectType.map(e => s"$e has type ${e.dataType}").mkString(", ")
+//      Left(s"All expressions must have same type but: $err}")
+//    }
+//  }
 
   private def createBinary(
       state: BuilderState,
@@ -308,6 +309,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
       } yield op
     }
 
+    def exprAndValues[T](e: parser.SqlExpr, vs: Seq[parser.Value]): Either[String, (Expression[T], Set[T])] = {
+      createExpr(state, nameResolver, e, ExprType.Cmp).right
+        .flatMap(ce =>
+          CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right.map(ce -> _)
+        )
+    }
+
     c match {
       case parser.Eq(e, v) => construct("=", e, v)
       case parser.Ne(e, v) => construct("<>", e, v)
@@ -327,16 +335,18 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         } yield IsNotNullExpr(nne)
 
       case parser.In(e, vs) =>
-        for {
-          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
-          cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield InExpr(ce, cvs.toSet)
+        exprAndValues(e, vs).right.map((InExpr.apply _).tupled)
+//        for {
+//          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
+//          cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
+//        } yield InExpr(ce, cvs.toSet)
 
       case parser.NotIn(e, vs) =>
-        for {
-          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
-          cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-        } yield NotInExpr(ce, cvs.toSet)
+        exprAndValues(e, vs).right.map((NotInExpr.apply _).tupled)
+//        for {
+//          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
+//          cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
+//        } yield NotInExpr(ce, cvs.toSet)
 
       case parser.And(cs) =>
         CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).right.map(AndExpr)

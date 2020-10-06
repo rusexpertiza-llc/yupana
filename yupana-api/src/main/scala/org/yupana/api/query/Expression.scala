@@ -83,7 +83,7 @@ final case class LagExpr[I](override val expr: Expression[I]) extends WindowFunc
 
 sealed abstract class AggregateExpr[T, I, U](val expr: Expression[T], name: String)
     extends UnaryOperationExpr[T, U](expr, name) {
-  type In = T
+//  type In = T
 
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
   override def encode: String = s"agg($name,${expr.encode})"
@@ -549,8 +549,8 @@ final case class ConcatExpr(a: Expression[String], b: Expression[String])
 
 final case class ContainsExpr[T](a: Expression[Array[T]], b: Expression[T])
     extends BinaryOperationExpr[Array[T], T, Boolean](a, b, "contains", false) {
-  type In = Array[T]
-  type Item = T
+//  type In = Array[T]
+//  type Item = T
   override type Self = ContainsExpr[T]
 
   override def create(a: Expression[Array[T]], b: Expression[T]): ContainsExpr[T] = ContainsExpr(a, b)

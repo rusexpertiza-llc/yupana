@@ -29,12 +29,6 @@ object QueryOptimizer {
     )
   }
 
-  private val transformer = new Transformer {
-    override def apply[T](e: Expression[T]): Option[Expression[T]] = {
-      if (e.kind == Const) Some(evaluateConstant(e)) else None
-    }
-  }
-
   def optimizeCondition(expressionCalculator: ExpressionCalculator)(c: Condition): Condition = {
     simplifyCondition(optimizeExpr(expressionCalculator)(c))
   }
@@ -44,6 +38,11 @@ object QueryOptimizer {
   }
 
   def optimizeExpr[T](expressionCalculator: ExpressionCalculator)(expr: Expression[T]): Expression[T] = {
+    val transformer = new Transformer {
+      override def apply[U](e: Expression[U]): Option[Expression[U]] = {
+        if (e.kind == Const) Some(evaluateConstant(expressionCalculator)(e)) else None
+      }
+    }
     expr.transform(transformer)
   }
 

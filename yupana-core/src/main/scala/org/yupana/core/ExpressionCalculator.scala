@@ -16,11 +16,11 @@
 
 package org.yupana.core
 
-import org.joda.time.{ DateTimeFieldType, Period }
+import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
-import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
+import org.yupana.core.model.InternalRow
 
 import scala.collection.AbstractIterator
 
@@ -63,17 +63,17 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
   def evaluateMap[I, M](expr: AggregateExpr[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
     val res = expr match {
-      case MinExpr(e) => row.get[M](queryContext, e)
-      case MaxExpr(e) => row.get[M](queryContext, e)
-      case SumExpr(e) => row.get[M](queryContext, e)
+      case MinExpr(e) => row.get(queryContext, e)
+      case MaxExpr(e) => row.get(queryContext, e)
+      case SumExpr(e) => row.get(queryContext, e)
       case CountExpr(e) =>
-        val v = row.get[I](queryContext, e)
+        val v = row.get(queryContext, e)
         if (v != null) 1L else 0L
       case DistinctCountExpr(e) =>
-        val v = row.get[I](queryContext, e)
+        val v = row.get(queryContext, e)
         if (v != null) Set(v) else Set.empty[I]
       case DistinctRandomExpr(e) =>
-        val v = row.get[I](queryContext, e)
+        val v = row.get(queryContext, e)
         if (v != null) Set(v) else Set.empty[I]
     }
 
@@ -99,8 +99,8 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       res.asInstanceOf[M]
     }
 
-    val aValue = a.get[M](queryContext, expr)
-    val bValue = b.get[M](queryContext, expr)
+    val aValue = a.get(queryContext, expr).asInstanceOf[M]
+    val bValue = b.get(queryContext, expr).asInstanceOf[M]
 
     if (aValue != null) {
       if (bValue != null) {
@@ -110,7 +110,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
   }
 
   def evaluatePostMap[M, O](expr: AggregateExpr[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
-    val oldValue = row.get[M](queryContext, expr)
+    val oldValue = row.get(queryContext, expr)
 
     val res = expr match {
       case MinExpr(_)           => oldValue
@@ -163,20 +163,20 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case ExtractMinuteExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMinuteOfHour)
       case ExtractSecondExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getSecondOfMinute)
 
-      case p @ PlusExpr(a, b)    => evaluateBinary(qc, row)(a, b, p.numeric.plus)
-      case m @ MinusExpr(a, b)   => evaluateBinary(qc, row)(a, b, m.numeric.minus)
-      case t @ TimesExpr(a, b)   => evaluateBinary(qc, row)(a, b, t.numeric.times)
-      case d @ DivIntExpr(a, b)  => evaluateBinary(qc, row)(a, b, d.integral.quot)
-      case d @ DivFracExpr(a, b) => evaluateBinary(qc, row)(a, b, d.fractional.div)
+      case p @ PlusExpr(a, b)    => evaluateBinary(qc, row, a, b)(p.numeric.plus)
+      case m @ MinusExpr(a, b)   => evaluateBinary(qc, row, a, b)(m.numeric.minus)
+      case t @ TimesExpr(a, b)   => evaluateBinary(qc, row, a, b)(t.numeric.times)
+      case d @ DivIntExpr(a, b)  => evaluateBinary(qc, row, a, b)(d.integral.quot)
+      case d @ DivFracExpr(a, b) => evaluateBinary(qc, row, a, b)(d.fractional.div)
 
-      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
+      case ConcatExpr(a, b) => evaluateBinary(qc, row, a, b)(_ ++ _)
 
-      case EqExpr(a, b)     => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x == y)
-      case NeqExpr(a, b)    => evaluateBinary(qc, row)(a, b, (x: a.Out, y: b.Out) => x != y)
-      case e @ GtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gt)
-      case e @ LtExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lt)
-      case e @ GeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.gteq)
-      case e @ LeExpr(a, b) => evaluateBinary(qc, row)(a, b, e.ordering.lteq)
+      case EqExpr(a, b)     => evaluateBinary(qc, row, a, b)(_ == _)
+      case NeqExpr(a, b)    => evaluateBinary(qc, row, a, b)(_ != _)
+      case e @ GtExpr(a, b) => evaluateBinary(qc, row, a, b)(e.ordering.gt)
+      case e @ LtExpr(a, b) => evaluateBinary(qc, row, a, b)(e.ordering.lt)
+      case e @ GeExpr(a, b) => evaluateBinary(qc, row, a, b)(e.ordering.gteq)
+      case e @ LeExpr(a, b) => evaluateBinary(qc, row, a, b)(e.ordering.lteq)
 
       case IsNullExpr(e)    => evaluateExpression(e, qc, row) == null
       case IsNotNullExpr(e) => evaluateExpression(e, qc, row) != null
@@ -210,16 +210,14 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
 //      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
 
-      case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.numeric.abs)
+      case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.num.abs)
 
       case NotExpr(e) => evaluateUnary(qc, row)(e, (x: Boolean) => !x)
 
-      case TimeMinusExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Time, y: Time) => math.abs(x.millis - y.millis))
-      case TimeMinusPeriodExpr(a, b) =>
-        evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
-      case TimePlusPeriodExpr(a, b) =>
-        evaluateBinary(qc, row)(a, b, (t: Time, p: Period) => Time(t.toDateTime.minus(p).getMillis))
-      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: Period, y: Period) => x plus y)
+      case TimeMinusExpr(a, b)        => evaluateBinary(qc, row, a, b)((x, y) => math.abs(x.millis - y.millis))
+      case TimeMinusPeriodExpr(a, b)  => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
+      case TimePlusPeriodExpr(a, b)   => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
+      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row, a, b)((x, y) => x plus y)
 
 //      case ArrayTokensExpr(e) =>
 //      case ArrayLengthExpr(e) =>
@@ -273,10 +271,9 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
     if (ev != null) f(ev) else null.asInstanceOf[O]
   }
 
-  private def evaluateBinary[A, B, O](
-      qc: QueryContext,
-      internalRow: InternalRow
-  )(a: Expression[A], b: Expression[B], f: (A, B) => O): O = {
+  private def evaluateBinary[A, B, O](qc: QueryContext, internalRow: InternalRow, a: Expression[A], b: Expression[B])(
+      f: (A, B) => O
+  ): O = {
     val left = evaluateExpression(a, qc, internalRow)
     val right = evaluateExpression(b, qc, internalRow)
     if (left != null && right != null) {

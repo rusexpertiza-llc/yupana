@@ -242,11 +242,7 @@ object FunctionRegistry {
     FunctionDesc(
       fn,
       NumberParam,
-      e =>
-        e.dataType.numeric match {
-          case Some(num) => Right(create(e, num))
-          case None      => Left(s"$fn requires a number, but got ${e.dataType}")
-        }
+      e => e.dataType.numeric.fold(Left(s"$fn requires a number, but got ${e.dataType}"))(num => Right(create(e, num)))
     )
   }
 

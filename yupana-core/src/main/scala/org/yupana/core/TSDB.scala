@@ -104,9 +104,9 @@ class TSDB(
       case winFuncExpr: WindowFunctionExpr[_, _] =>
         val values = grouped.mapValues {
           case (vs, rowNumIndex) =>
-            val funcValues: Array[winFuncExpr.In] = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
+            val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
             vs.indices.foreach { i =>
-              funcValues(i) = vs(i).get[winFuncExpr.In](queryContext, winFuncExpr.expr)
+              funcValues(i) = vs(i).get(queryContext, winFuncExpr.expr)
             }
             (funcValues, rowNumIndex)
         }
