@@ -41,20 +41,24 @@ object FunctionRegistry {
     def apply[T](a: A[T], b: B[T]): Z
   }
 
+  trait Bind2R[A[_], B[_], Z[_]] {
+    def apply[T](a: A[T], b: B[T]): Z[T]
+  }
+
   trait Bind3[A[_], B[_], C[_], Z] {
     def apply[T](a: A[T], b: B[T], c: C[T]): Z
   }
 
   private val unaryFunctions: List[FunctionDesc] = List(
     // AGGREGATES
-    uNum("sum", new Bind2[Expression, Numeric, Expression[_]] {
-      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[_] = SumExpr(e)(n)
+    uNum("sum", new Bind2R[Expression, Numeric, Expression] {
+      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = SumExpr(e)(n)
     }),
-    uOrd("min", new Bind2[Expression, Ordering, Expression[_]] {
-      override def apply[T](e: Expression[T], o: Ordering[T]): Expression[_] = MinExpr(e)(o)
+    uOrd("min", new Bind2R[Expression, Ordering, Expression] {
+      override def apply[T](e: Expression[T], o: Ordering[T]): Expression[T] = MinExpr(e)(o)
     }),
-    uOrd("max", new Bind2[Expression, Ordering, Expression[_]] {
-      override def apply[T](e: Expression[T], o: Ordering[T]): Expression[_] = MaxExpr(e)(o)
+    uOrd("max", new Bind2R[Expression, Ordering, Expression] {
+      override def apply[T](e: Expression[T], o: Ordering[T]): Expression[T] = MaxExpr(e)(o)
     }),
     uAny("count", e => CountExpr(e)),
     uAny("distinct_count", e => DistinctCountExpr(e)),
@@ -62,11 +66,11 @@ object FunctionRegistry {
     // WINDOW
     uAny("lag", e => LagExpr(e)),
     // REAL UNARY
-    uNum("-", new Bind2[Expression, Numeric, Expression[_]] {
-      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[_] = UnaryMinusExpr(e)(n)
+    uNum("-", new Bind2R[Expression, Numeric, Expression] {
+      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = UnaryMinusExpr(e)(n)
     }),
-    uNum("abs", new Bind2[Expression, Numeric, Expression[_]] {
-      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[_] = AbsExpr(e)(n)
+    uNum("abs", new Bind2R[Expression, Numeric, Expression] {
+      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
     }),
     uTyped("year", TruncYearExpr),
     uTyped("trunc_year", TruncYearExpr),
@@ -237,29 +241,31 @@ object FunctionRegistry {
 
   private def uNum(
       fn: String,
-      create: Bind2[Expression, Numeric, Expression[_]]
+      create: Bind2R[Expression, Numeric, Expression]
   ): FunctionDesc = {
     FunctionDesc(
       fn,
-      NumberParam,
-      e =>
-        e.dataType.numeric.fold[Either[String, Expression[_]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
-          num => Right(create(e, num))
-        )
+      NumberParam, {
+        case e: Expression[t] =>
+          e.dataType.numeric.fold[Either[String, Expression[t]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
+            num => Right(create(e, num))
+          )
+      }
     )
   }
 
   private def uOrd(
       fn: String,
-      create: Bind2[Expression, Ordering, Expression[_]]
+      create: Bind2R[Expression, Ordering, Expression]
   ): FunctionDesc = {
     FunctionDesc(
       fn,
-      OtherParam,
-      e =>
-        e.dataType.ordering.fold[Either[String, Expression[_]]](Left(s"$fn cannot be applied to ${e.dataType}"))(ord =>
-          Right(create(e, ord))
-        )
+      OtherParam, {
+        case e: Expression[t] =>
+          e.dataType.ordering.fold[Either[String, Expression[t]]](Left(s"$fn cannot be applied to ${e.dataType}"))(
+            ord => Right(create(e, ord))
+          )
+      }
     )
   }
 

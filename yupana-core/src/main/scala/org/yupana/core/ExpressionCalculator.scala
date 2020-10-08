@@ -253,7 +253,8 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
         if (success) values else null
 
-//      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
+      // FIXME: Remove this line, this case shall be exhaustive
+      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
