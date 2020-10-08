@@ -242,7 +242,10 @@ object FunctionRegistry {
     FunctionDesc(
       fn,
       NumberParam,
-      e => e.dataType.numeric.fold(Left(s"$fn requires a number, but got ${e.dataType}"))(num => Right(create(e, num)))
+      e =>
+        e.dataType.numeric.fold[Either[String, Expression[_]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
+          num => Right(create(e, num))
+        )
     )
   }
 
@@ -254,10 +257,9 @@ object FunctionRegistry {
       fn,
       OtherParam,
       e =>
-        e.dataType.ordering match {
-          case Some(ord) => Right(create(e, ord))
-          case None      => Left(s"$fn cannot be applied to ${e.dataType}")
-        }
+        e.dataType.ordering.fold[Either[String, Expression[_]]](Left(s"$fn cannot be applied to ${e.dataType}"))(ord =>
+          Right(create(e, ord))
+        )
     )
   }
 

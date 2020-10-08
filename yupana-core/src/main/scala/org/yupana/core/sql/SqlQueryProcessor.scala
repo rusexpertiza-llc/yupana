@@ -309,13 +309,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
       } yield op
     }
 
-    def exprAndValues[T](e: parser.SqlExpr, vs: Seq[parser.Value]): Either[String, (Expression[T], Set[T])] = {
-      createExpr(state, nameResolver, e, ExprType.Cmp).right
-        .flatMap(ce =>
-          CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right.map(ce -> _)
-        )
-    }
-
     c match {
       case parser.Eq(e, v) => construct("=", e, v)
       case parser.Ne(e, v) => construct("<>", e, v)
@@ -335,19 +328,22 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         } yield IsNotNullExpr(nne)
 
       case parser.In(e, vs) =>
-        exprAndValues(e, vs).right.map((InExpr.apply _).tupled)
-//        for {
-//          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
-//          cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-//        } yield InExpr(ce, cvs.toSet)
+        createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap {
+          case ce: Expression[t] =>
+            CollectionUtils
+              .collectErrors(vs.map(v => convertValue[t](state, v, ce.dataType)))
+              .right
+              .map(cvs => InExpr(ce, cvs.toSet))
+        }
 
       case parser.NotIn(e, vs) =>
-        exprAndValues(e, vs).right.map((NotInExpr.apply _).tupled)
-//        for {
-//          ce <- createExpr(state, nameResolver, e, ExprType.Cmp).right
-//          cvs <- CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, ce.dataType))).right
-//        } yield NotInExpr(ce, cvs.toSet)
-
+        createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap {
+          case ce: Expression[t] =>
+            CollectionUtils
+              .collectErrors(vs.map(v => convertValue[t](state, v, ce.dataType)))
+              .right
+              .map(cvs => NotInExpr(ce, cvs.toSet))
+        }
       case parser.And(cs) =>
         CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).right.map(AndExpr)
 
@@ -508,8 +504,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
   ): Either[String, Array[ConstantExpr[_]]] = {
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
-        case Right(e) if e.kind == Const =>
-          val eval = expressionCalculator.evaluateConstant(e)
+        case Right(e: Expression[t]) if e.kind == Const =>
+          val eval = expressionCalculator.evaluateConstant[t](e)
           if (eval != null) {
             Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
           } else {
