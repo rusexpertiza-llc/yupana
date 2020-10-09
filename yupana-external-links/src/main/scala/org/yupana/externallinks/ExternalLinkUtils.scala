@@ -144,7 +144,7 @@ object ExternalLinkUtils {
 
   def setLinkedValues[R](
       externalLink: ExternalLink.Aux[R],
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, Any]
@@ -163,7 +163,7 @@ object ExternalLinkUtils {
 
   def setLinkedValuesTimeSensitive[R](
       externalLink: ExternalLink.Aux[R],
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValuesAndTimes: (Set[String], Set[(R, Time)]) => Table[(R, Time), String, Any]

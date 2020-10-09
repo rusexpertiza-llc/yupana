@@ -31,11 +31,11 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def keyIndex: Int
 
-  def fillKeyValues(indexMap: scala.collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit
+  def fillKeyValues(indexMap: scala.collection.Map[Expression[_], Int], valueData: Seq[InternalRow]): Unit
 
   def conditionForKeyValues(condition: Condition): Condition
 
-  def keyExpr: Expression.Aux[String]
+  def keyExpr: Expression[String]
 
   def validate(): Unit = {
     if (orderedFields.size != externalLink.fields.size)
@@ -65,17 +65,17 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       valueData: Seq[InternalRow],
       exprs: Set[LinkExpr[_]]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
-    val indexMap = Seq[Expression](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
+    val indexMap = Seq[Expression[_]](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
     val valueDataBuilder = new InternalRowBuilder(indexMap, None)
 
     val keyValueData = valueData.map { vd =>
       valueDataBuilder
-        .set(dimExpr, vd.get[dimExpr.Out](exprIndex, dimExpr))
+        .set(dimExpr, vd.get(exprIndex, dimExpr))
         .set(TimeExpr, vd.get[Time](exprIndex, TimeExpr))
         .buildAndReset()
     }

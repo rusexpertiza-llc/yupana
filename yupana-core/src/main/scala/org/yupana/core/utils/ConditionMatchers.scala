@@ -16,6 +16,7 @@
 
 package org.yupana.core.utils
 
+import org.yupana.api.Time
 import org.yupana.api.query._
 
 object ConditionMatchers {
@@ -116,4 +117,13 @@ object ConditionMatchers {
   object NeqString extends NeqMatcher[String]
   object InString extends InMatcher[String]
   object NotInString extends NotInMatcher[String]
+
+  object EqTime extends EqMatcher[Time]
+  object NeqTime extends NeqMatcher[Time]
+  object GtTime extends GtMatcher[Time]
+  object LtTime extends LtMatcher[Time]
+  object GeTime extends GeMatcher[Time]
+  object LeTime extends LeMatcher[Time]
+  object InTime extends InMatcher[Time]
+  object NotInTime extends NotInMatcher[Time]
 }
