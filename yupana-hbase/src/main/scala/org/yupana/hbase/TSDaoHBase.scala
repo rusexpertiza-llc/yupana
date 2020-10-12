@@ -45,7 +45,7 @@ class TSDaoHBase(
       queryContext: InternalQueryContext,
       from: IdType,
       to: IdType,
-      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+      rangeScanDims: Iterator[Map[Dimension[_], Seq[_]]]
   ): Iterator[HResult] = {
 
     if (rangeScanDims.nonEmpty) {

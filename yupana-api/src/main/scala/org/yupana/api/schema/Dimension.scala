@@ -21,8 +21,7 @@ import org.yupana.api.utils.DimOrdering
 
 import scala.reflect.ClassTag
 
-sealed trait Dimension {
-  type T
+sealed trait Dimension[T] {
   type R
 
   def rStorable: FixedStorable[R]
@@ -34,18 +33,16 @@ sealed trait Dimension {
   def name: String
   def dataType: DataType.Aux[T]
 
-  def aux: Dimension.Aux2[T, R] = this
+  def aux: Dimension.Aux[T, R] = this
 }
 
 object Dimension {
-  type Aux[TT] = Dimension { type T = TT }
-  type Aux2[TT, RR] = Dimension { type T = TT; type R = RR }
+  type Aux[TT, RR] = Dimension[TT] { type R = RR }
 }
 
 case class DictionaryDimension(override val name: String, hashFunction: Option[String => Int] = None)
-    extends Dimension {
+    extends Dimension[String] {
 
-  override type T = String
   override type R = Long
   override val rCt: ClassTag[Long] = implicitly[ClassTag[Long]]
 
@@ -53,7 +50,7 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
   override def tOrdering: DimOrdering[String] = implicitly[DimOrdering[String]]
   override def rOrdering: DimOrdering[Long] = implicitly[DimOrdering[Long]]
 
-  override val dataType: DataType.Aux[T] = DataType[String]
+  override val dataType: DataType.Aux[String] = DataType[String]
 
   def hash(v: String): Int = _hash(v)
 
@@ -71,16 +68,15 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
   }
 }
 
-case class RawDimension[TT](override val name: String)(
-    implicit val rStorable: FixedStorable[TT],
-    val rOrdering: DimOrdering[TT],
-    val rCt: ClassTag[TT],
-    dt: DataType.Aux[TT]
-) extends Dimension {
-  override type T = TT
-  override type R = TT
+case class RawDimension[T](override val name: String)(
+    implicit val rStorable: FixedStorable[T],
+    val rOrdering: DimOrdering[T],
+    val rCt: ClassTag[T],
+    dt: DataType.Aux[T]
+) extends Dimension[T] {
+  override type R = T
 
-  override def tOrdering: DimOrdering[TT] = rOrdering
+  override def tOrdering: DimOrdering[T] = rOrdering
 
   override val dataType: DataType.Aux[T] = dt
 
@@ -101,9 +97,7 @@ case class HashDimension[TT, RR](override val name: String, hashFunction: TT => 
     val tOrdering: DimOrdering[TT],
     val rCt: ClassTag[RR],
     dt: DataType.Aux[TT]
-) extends Dimension {
-
-  override type T = TT
+) extends Dimension[TT] {
   override type R = RR
 
   override def dataType: DataType.Aux[TT] = dt

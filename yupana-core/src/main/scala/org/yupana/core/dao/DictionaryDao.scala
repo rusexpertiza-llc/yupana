@@ -19,8 +19,8 @@ package org.yupana.core.dao
 import org.yupana.api.schema.Dimension
 
 trait DictionaryDao {
-  def createSeqId(dimension: Dimension): Int
-  def getIdByValue(dimension: Dimension, value: String): Option[Long]
-  def getIdsByValues(dimension: Dimension, value: Set[String]): Map[String, Long]
-  def checkAndPut(dimension: Dimension, id: Long, value: String): Boolean
+  def createSeqId(dimension: Dimension[_]): Int
+  def getIdByValue(dimension: Dimension[_], value: String): Option[Long]
+  def getIdsByValues(dimension: Dimension[_], value: Set[String]): Map[String, Long]
+  def checkAndPut(dimension: Dimension[_], id: Long, value: String): Boolean
 }

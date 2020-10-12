@@ -27,8 +27,8 @@ object QueryUtils {
     }
   }
 
-  def requiredDimensions(e: Expression[_]): Set[Dimension] = {
-    e.fold(Set.empty[Dimension]) {
+  def requiredDimensions(e: Expression[_]): Set[Dimension[_]] = {
+    e.fold(Set.empty[Dimension[_]]) {
       case (s, DimensionExpr(d)) => s + d
       case (s, LinkExpr(l, _))   => s + l.dimension
       case (s, _)                => s

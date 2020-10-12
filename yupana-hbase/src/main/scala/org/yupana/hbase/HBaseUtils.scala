@@ -186,7 +186,7 @@ object HBaseUtils extends StrictLogging {
       table: Table,
       from: Long,
       to: Long,
-      dimIds: Map[Dimension, Seq[_]]
+      dimIds: Map[Dimension[_], Seq[_]]
   ): Option[MultiRowRangeFilter] = {
 
     val baseTimeLs = baseTimeList(from, to, table)
@@ -401,13 +401,13 @@ object HBaseUtils extends StrictLogging {
             .getOrElse(NULL_VALUE)
           Bytes.toBytes(id)
 
-        case rd: RawDimension[_] =>
-          val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
+        case rd: RawDimension[t] =>
+          val v = dataPoint.dimensions(dim).asInstanceOf[t]
           rd.rStorable.write(v)
 
-        case hd: HashDimension[_, _] =>
-          val v = dataPoint.dimensions(dim).asInstanceOf[hd.T]
-          val hash = hd.hashFunction(v).asInstanceOf[hd.R]
+        case hd: HashDimension[t, r] =>
+          val v = dataPoint.dimensions(dim).asInstanceOf[t]
+          val hash = hd.hashFunction(v).asInstanceOf[r]
           hd.rStorable.write(hash)
       }
 
@@ -444,7 +444,7 @@ object HBaseUtils extends StrictLogging {
 
   private def fieldsToBytes(
       table: Table,
-      dimensions: Map[Dimension, Any],
+      dimensions: Map[Dimension[_], Any],
       metricValues: Seq[MetricValue]
   ): Array[Byte] = {
     val metricFieldBytes = metricValues.map { f =>
@@ -454,11 +454,11 @@ object HBaseUtils extends StrictLogging {
     val dimensionFieldBytes = dimensions.collect {
       case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
+        val bytes = d.dataType.storable.write(value.asInstanceOf[String])
         (tag, bytes)
-      case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
+      case (d: HashDimension[t, _], value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        val bytes = d.tStorable.write(value.asInstanceOf[d.T])
+        val bytes = d.tStorable.write(value.asInstanceOf[t])
         (tag, bytes)
     }
 

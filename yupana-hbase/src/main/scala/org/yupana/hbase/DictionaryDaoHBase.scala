@@ -59,7 +59,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
   HBaseUtils.checkNamespaceExistsElseCreate(connection, namespace)
 
-  override def getIdByValue(dimension: Dimension, value: String): Option[Long] = {
+  override def getIdByValue(dimension: Dimension[_], value: String): Option[Long] = {
     checkTablesExistsElseCreate(dimension)
     if (value != null) {
       val trimmed = value.trim
@@ -80,7 +80,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def getIdsByValues(dimension: Dimension, values: Set[String]): Map[String, Long] = {
+  override def getIdsByValues(dimension: Dimension[_], values: Set[String]): Map[String, Long] = {
     if (values.isEmpty) {
       Map.empty
     } else {
@@ -118,7 +118,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     }
   }
 
-  override def checkAndPut(dimension: Dimension, id: Long, value: String): Boolean = {
+  override def checkAndPut(dimension: Dimension[_], id: Long, value: String): Boolean = {
     checkTablesExistsElseCreate(dimension)
     val idBytes = Bytes.toBytes(id)
     val valueBytes = Bytes.toBytes(value)
@@ -128,7 +128,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     table.checkAndPut(valueBytes, dataFamily, column, null, rput)
   }
 
-  override def createSeqId(dimension: Dimension): Int = {
+  override def createSeqId(dimension: Dimension[_]): Int = {
     checkTablesExistsElseCreate(dimension)
     getTable(dimension.name).incrementColumnValue(seqIdRowKey, seqFamily, column, 1).toInt
   }
@@ -137,7 +137,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     connection.getTable(getTableName(namespace, name))
   }
 
-  def checkTablesExistsElseCreate(dimension: Dimension): Unit = {
+  def checkTablesExistsElseCreate(dimension: Dimension[_]): Unit = {
     if (!existsTables.contains(dimension.name)) {
       try {
         val tableName = getTableName(namespace, dimension.name)

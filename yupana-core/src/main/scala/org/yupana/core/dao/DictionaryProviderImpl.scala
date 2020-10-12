@@ -16,12 +16,12 @@
 
 package org.yupana.core.dao
 
-import org.yupana.api.schema.{ DictionaryDimension, Dimension }
+import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.Dictionary
 
 class DictionaryProviderImpl(dictionaryDao: DictionaryDao) extends DictionaryProvider {
 
-  private var dictionaries = Map.empty[Dimension, Dictionary]
+  private var dictionaries = Map.empty[DictionaryDimension, Dictionary]
 
   override def dictionary(dim: DictionaryDimension): Dictionary = {
     dictionaries.get(dim) match {

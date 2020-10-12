@@ -42,7 +42,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
       val TestLink = new ExternalLink {
         override type DimType = String
         override val linkName: String = "test_link"
-        override val dimension: Dimension.Aux[String] = DictionaryDimension("testDim")
+        override val dimension: Dimension[String] = DictionaryDimension("testDim")
         override val fields: Set[LinkField] = Set("foo", "bar").map(LinkField[String])
       }
 

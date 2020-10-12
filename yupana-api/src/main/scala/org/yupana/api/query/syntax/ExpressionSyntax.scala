@@ -30,7 +30,7 @@ trait ExpressionSyntax {
   def tuple[T, U](e1: Expression[T], e2: Expression[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) =
     TupleExpr(e1, e2)
   def array[T](es: Expression[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Array(es: _*))
-  def dimension[T](dim: Dimension.Aux[T]) = DimensionExpr(dim)
+  def dimension[T](dim: Dimension[T]) = DimensionExpr(dim)
   def link(link: ExternalLink, fieldName: String): LinkExpr[String] =
     LinkExpr[String](link, LinkField[String](fieldName))
   def link[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = LinkExpr[T](link, field)

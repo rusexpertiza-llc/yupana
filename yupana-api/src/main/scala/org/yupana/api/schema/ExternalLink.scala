@@ -29,7 +29,7 @@ trait ExternalLink extends Serializable {
   type DimType
 
   /** Attached dimension */
-  val dimension: Dimension.Aux[DimType]
+  val dimension: Dimension[DimType]
 
   /** Set of field names for this link */
   val fields: Set[LinkField]

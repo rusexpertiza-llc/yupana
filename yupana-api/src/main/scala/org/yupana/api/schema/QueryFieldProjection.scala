@@ -37,7 +37,8 @@ case class QueryFieldToTime(override val queryField: QueryField) extends QueryFi
   * @param queryField query field to be projected
   * @param dimension dimension to store value
   */
-case class QueryFieldToDimension(override val queryField: QueryField, dimension: Dimension) extends QueryFieldProjection
+case class QueryFieldToDimension(override val queryField: QueryField, dimension: Dimension[_])
+    extends QueryFieldProjection
 
 /**
   * Projects query field to metric in output table

@@ -154,8 +154,8 @@ case object TimeExpr extends Expression[Time] {
   def toField: QueryField = QueryField("time", this)
 }
 
-case class DimensionExpr[T](dimension: Dimension.Aux[T]) extends Expression[T] {
-  override val dataType: DataType.Aux[dimension.T] = dimension.dataType
+case class DimensionExpr[T](dimension: Dimension[T]) extends Expression[T] {
+  override val dataType: DataType.Aux[T] = dimension.dataType
   override def kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
@@ -164,7 +164,7 @@ case class DimensionExpr[T](dimension: Dimension.Aux[T]) extends Expression[T] {
   def toField: QueryField = QueryField(dimension.name, this)
 }
 
-case class DimensionIdExpr(dimension: Dimension) extends Expression[String] {
+case class DimensionIdExpr(dimension: Dimension[_]) extends Expression[String] {
   override val dataType: DataType.Aux[String] = DataType[String]
   override def kind: ExprKind = Simple
 
@@ -670,8 +670,7 @@ final case class NotInExpr[T](expr: Expression[T], values: Set[T]) extends Expre
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean] {
+final case class DimIdInExpr[T, R](dim: Dimension.Aux[T, R], values: SortedSetIterator[R]) extends Expression[Boolean] {
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
   override def kind: ExprKind = Simple
 
@@ -681,7 +680,7 @@ final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetI
   override def toString: String = s"$dim ID IN (Iterator)"
 }
 
-final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
+final case class DimIdNotInExpr[T, R](dim: Dimension.Aux[T, R], values: SortedSetIterator[R])
     extends Expression[Boolean] {
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
   override def kind: ExprKind = Simple

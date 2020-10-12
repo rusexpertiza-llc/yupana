@@ -18,7 +18,7 @@ package org.yupana.core.model
 
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.Table
 import org.yupana.core.QueryContext
 
 class InternalRow(val data: Array[Any]) extends Serializable {
@@ -81,7 +81,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression[_], Int]
             case MetricExpr(metric) =>
               Some(metric.tag)
 
-            case DimensionExpr(dimension: Dimension) =>
+            case DimensionExpr(dimension) =>
               Some(t.dimensionTag(dimension))
 
             case _ =>
@@ -101,7 +101,7 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression[_], Int]
       val tagIndex = Array.fill[Int](Table.MAX_TAGS)(-1)
 
       exprIndex.toSeq.foreach {
-        case (DimensionIdExpr(dimension: Dimension), index) =>
+        case (DimensionIdExpr(dimension), index) =>
           val t = table.dimensionTag(dimension)
           tagIndex(t & 0xFF) = index
 

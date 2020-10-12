@@ -36,7 +36,7 @@ object TestLinks {
 
     override type DimType = String
     override val linkName: String = "TestLink"
-    override val dimension: Dimension.Aux[String] = TestDims.DIM_A
+    override val dimension: Dimension[String] = TestDims.DIM_A
     override val fields: Set[LinkField] = Set("testField").map(LinkField[String])
   }
 
@@ -45,7 +45,7 @@ object TestLinks {
   class TestLink2 extends ExternalLink {
     override type DimType = String
     override val linkName: String = "TestLink2"
-    override val dimension: Dimension.Aux[String] = TestDims.DIM_A
+    override val dimension: Dimension[String] = TestDims.DIM_A
     override val fields: Set[LinkField] = Set("testField2").map(LinkField[String])
   }
 
@@ -54,7 +54,7 @@ object TestLinks {
   class TestLink3 extends ExternalLink {
     override type DimType = String
     override val linkName: String = "TestLink3"
-    override val dimension: Dimension.Aux[String] = TestDims.DIM_A
+    override val dimension: Dimension[String] = TestDims.DIM_A
     override val fields: Set[LinkField] =
       Set("testField3_1", "testField3_2", "testField3_3").map(LinkField[String])
   }
@@ -64,7 +64,7 @@ object TestLinks {
   class TestLink4 extends ExternalLink {
     override type DimType = Short
     override val linkName: String = "TestLink4"
-    override val dimension: Dimension.Aux[Short] = TestDims.DIM_B
+    override val dimension: Dimension[Short] = TestDims.DIM_B
     override val fields: Set[LinkField] = Set("testField4").map(LinkField[String])
   }
 
@@ -73,7 +73,7 @@ object TestLinks {
   class TestLink5 extends ExternalLink {
     override type DimType = Short
     override val linkName: String = "TestLink5"
-    override val dimension: Dimension.Aux[Short] = TestDims.DIM_B
+    override val dimension: Dimension[Short] = TestDims.DIM_B
     override val fields: Set[LinkField] = Set(LinkField[Double]("testField5D"), LinkField[String]("testField5S"))
   }
 

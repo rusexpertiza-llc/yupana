@@ -31,19 +31,19 @@ import scala.collection.mutable
 class Table(
     val name: String,
     val rowTimeSpan: Long,
-    val dimensionSeq: Seq[Dimension],
+    val dimensionSeq: Seq[Dimension[_]],
     val metrics: Seq[Metric],
     val externalLinks: Seq[ExternalLink],
     val epochTime: Long
 ) extends Serializable {
 
-  private lazy val dimensionTagsMap = {
+  private lazy val dimensionTagsMap: mutable.Map[Dimension[_], Byte] = {
     val dimTags = dimensionSeq.zipWithIndex.map { case (dim, idx) => (dim, (Table.DIM_TAG_OFFSET + idx).toByte) }
     mutable.Map(dimTags: _*)
   }
 
-  private lazy val tagFields: Array[Option[Either[Metric, Dimension]]] = {
-    val tagFields = Array.fill[Option[Either[Metric, Dimension]]](255)(None)
+  private lazy val tagFields: Array[Option[Either[Metric, Dimension[_]]]] = {
+    val tagFields = Array.fill[Option[Either[Metric, Dimension[_]]]](255)(None)
 
     metrics.foreach { m =>
       tagFields(m.tag & 0xFF) = Some(Left(m))
@@ -57,15 +57,15 @@ class Table(
   }
 
   @inline
-  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
+  final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension[_]]] = tagFields(tag & 0xFF)
 
   @inline
-  def dimensionTag(dimension: Dimension): Byte = {
+  def dimensionTag(dimension: Dimension[_]): Byte = {
     dimensionTagsMap(dimension)
   }
 
   @inline
-  def dimensionTagExists(dimension: Dimension): Boolean = {
+  def dimensionTagExists(dimension: Dimension[_]): Boolean = {
     dimensionTagsMap.contains(dimension)
   }
 

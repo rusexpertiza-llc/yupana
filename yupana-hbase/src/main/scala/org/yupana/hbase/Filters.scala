@@ -21,21 +21,21 @@ import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, Ra
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 
 class Filters(
-    includes: Map[Dimension, SortedSetIterator[_]],
-    excludes: Map[Dimension, SortedSetIterator[_]],
+    includes: Map[Dimension[_], SortedSetIterator[_]],
+    excludes: Map[Dimension[_], SortedSetIterator[_]],
     val includeTime: Option[SortedSetIterator[Time]],
     val excludeTime: Option[SortedSetIterator[Time]]
 ) {
-  def getIncludes[R](dim: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] =
+  def getIncludes[R](dim: Dimension.Aux[_, R]): Option[SortedSetIterator[R]] =
     includes.get(dim).asInstanceOf[Option[SortedSetIterator[R]]]
 
-  def getExcludes[R](dim: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] =
+  def getExcludes[R](dim: Dimension.Aux[_, R]): Option[SortedSetIterator[R]] =
     excludes.get(dim).asInstanceOf[Option[SortedSetIterator[R]]]
 
-  def allIncludes: Map[Dimension, SortedSetIterator[_]] = {
+  def allIncludes: Map[Dimension[_], SortedSetIterator[_]] = {
     includes.map {
-      case (d, i) =>
-        val s = getExcludes(d.asInstanceOf[Dimension.Aux2[d.T, d.R]]) match {
+      case (d: Dimension[t], i) =>
+        val s = getExcludes(d.asInstanceOf[Dimension.Aux[t, d.R]]) match {
           case Some(e) => i.asInstanceOf[SortedSetIterator[d.R]] exclude e
           case None    => i
         }
@@ -43,7 +43,7 @@ class Filters(
     }.toMap
   }
 
-  def allExcludes: Map[Dimension, SortedSetIterator[_]] = excludes
+  def allExcludes: Map[Dimension[_], SortedSetIterator[_]] = excludes
 }
 
 object Filters {
@@ -53,45 +53,45 @@ object Filters {
   def empty = new Filters(Map.empty, Map.empty, None, None)
 
   class Builder(
-      incValues: Map[Dimension, SortedSetIterator[_]],
-      excValues: Map[Dimension, SortedSetIterator[_]],
-      incIds: Map[Dimension, SortedSetIterator[_]],
-      excIds: Map[Dimension, SortedSetIterator[_]],
+      incValues: Map[Dimension[_], SortedSetIterator[_]],
+      excValues: Map[Dimension[_], SortedSetIterator[_]],
+      incIds: Map[Dimension[_], SortedSetIterator[_]],
+      excIds: Map[Dimension[_], SortedSetIterator[_]],
       incTime: Option[SortedSetIterator[Time]],
       excTime: Option[SortedSetIterator[Time]]
   ) {
-    def getIncValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
-      incValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
+    def getIncValues[T](dimension: Dimension.Aux[T, _]): Option[SortedSetIterator[T]] = {
+      incValues.get(dimension).asInstanceOf[Option[SortedSetIterator[T]]]
     }
 
-    def getIncIds[R](dimension: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] = {
+    def getIncIds[R](dimension: Dimension.Aux[_, R]): Option[SortedSetIterator[R]] = {
       incIds.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.R]]]
     }
 
-    def getExcValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
-      excValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
+    def getExcValues[T](dimension: Dimension.Aux[T, _]): Option[SortedSetIterator[T]] = {
+      excValues.get(dimension).asInstanceOf[Option[SortedSetIterator[T]]]
     }
 
-    def getExcIds[R](dimension: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] = {
+    def getExcIds[R](dimension: Dimension.Aux[_, R]): Option[SortedSetIterator[R]] = {
       excIds.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.R]]]
     }
 
-    def includeValues[T](dim: Dimension.Aux2[T, _], vs: SortedSetIterator[T]): Builder = {
+    def includeValues[T](dim: Dimension.Aux[T, _], vs: SortedSetIterator[T]): Builder = {
       val newValues = intersect(getIncValues(dim), vs)
       new Builder(incValues + (dim -> newValues), excValues, incIds, excIds, incTime, excTime)
     }
 
-    def excludeValues[T](dim: Dimension.Aux2[T, _], vs: SortedSetIterator[T]): Builder = {
+    def excludeValues[T](dim: Dimension.Aux[T, _], vs: SortedSetIterator[T]): Builder = {
       val newValues = union(getExcValues(dim), vs)
       new Builder(incValues, excValues + (dim -> newValues), incIds, excIds, incTime, excTime)
     }
 
-    def includeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
+    def includeIds[R](dim: Dimension.Aux[_, R], is: SortedSetIterator[R]): Builder = {
       val newIds = intersect(getIncIds(dim), is)
       new Builder(incValues, excValues, incIds + (dim -> newIds), excIds, incTime, excTime)
     }
 
-    def excludeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
+    def excludeIds[R](dim: Dimension.Aux[_, R], is: SortedSetIterator[R]): Builder = {
       val newIds = union(getExcIds(dim), is)
 
       new Builder(incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
@@ -107,19 +107,19 @@ object Filters {
       new Builder(incValues, excValues, incIds, excIds, incTime, Some(newTime))
     }
 
-    def includeValue[T](dim: Dimension.Aux2[T, _], v: T): Builder = {
+    def includeValue[T](dim: Dimension.Aux[T, _], v: T): Builder = {
       includeValues(dim, SortedSetIterator(v)(dim.tOrdering))
     }
 
-    def includeValues[T](dim: Dimension.Aux2[T, _], vs: Set[T]): Builder = {
+    def includeValues[T](dim: Dimension.Aux[T, _], vs: Set[T]): Builder = {
       includeValues(dim, SortedSetIterator(vs.toList.sortWith(dim.tOrdering.lt).iterator)(dim.tOrdering))
     }
 
-    def excludeValue[T](dim: Dimension.Aux2[T, _], v: T): Builder = {
+    def excludeValue[T](dim: Dimension.Aux[T, _], v: T): Builder = {
       excludeValues(dim, SortedSetIterator(v)(dim.tOrdering))
     }
 
-    def excludeValues[T](dim: Dimension.Aux2[T, _], vs: Set[T]): Builder = {
+    def excludeValues[T](dim: Dimension.Aux[T, _], vs: Set[T]): Builder = {
       excludeValues(dim, SortedSetIterator(vs.toList.sortWith(dim.tOrdering.lt).iterator)(dim.tOrdering))
     }
 
@@ -139,11 +139,11 @@ object Filters {
       excludeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
     }
 
-    def includeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
+    def includeIds[R](dim: Dimension.Aux[_, R], ids: Seq[R]): Builder = {
       includeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
     }
 
-    def excludeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
+    def excludeIds[R](dim: Dimension.Aux[_, R], ids: Seq[R]): Builder = {
       excludeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
     }
 
@@ -166,22 +166,22 @@ object Filters {
 
     def includeFilter(
         valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
-    ): Map[Dimension, SortedSetIterator[_]] = {
+    ): Map[Dimension[_], SortedSetIterator[_]] = {
       val dims = incValues.keySet ++ incIds.keySet
 
       dims.flatMap {
         case d: DictionaryDimension =>
           val valueIds = getIncValues(d).map(vs => valuesToIds(d, vs))
           val ids = getIncIds(d)
-          intersectIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          intersectIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension[_], SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
           intersectIds(getIncIds(r), getIncValues(r)).map(vs => r -> vs)
 
-        case h: HashDimension[_, _] =>
-          val valueIds = getIncValues[h.T](h).map(vs => hashValues[h.T, h.R](h, vs))
+        case h: HashDimension[t, r] =>
+          val valueIds = getIncValues[t](h).map(vs => hashValues[t, r](h, vs))
           val ids = getIncIds[h.R](h)
-          intersectIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          intersectIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension[_], SortedSetIterator[_])]]
       }.toMap
     }
 
@@ -200,13 +200,13 @@ object Filters {
 
     def excludeFilter(
         valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
-    ): Map[Dimension, SortedSetIterator[_]] = {
+    ): Map[Dimension[_], SortedSetIterator[_]] = {
       val dims = excValues.keySet ++ excIds.keySet
       dims.flatMap {
         case d: DictionaryDimension =>
           val valueIds = getExcValues(d).map(vs => valuesToIds(d, vs))
           val ids = getExcIds(d)
-          unionIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          unionIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension[_], SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
           unionIds(getExcIds(r), getExcValues(r)).map(vs => r -> vs)
@@ -214,7 +214,7 @@ object Filters {
         case h: HashDimension[_, _] =>
           val valueIds = getExcValues(h).map(vs => hashValues(h, vs))
           val ids = getExcIds(h)
-          unionIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          unionIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension[_], SortedSetIterator[_])]]
       }.toMap
     }
 

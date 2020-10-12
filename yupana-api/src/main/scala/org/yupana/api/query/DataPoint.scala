@@ -21,10 +21,10 @@ import org.yupana.api.schema.{ Dimension, MetricValue, Table }
 case class DataPoint(
     table: Table,
     time: Long,
-    dimensions: Map[Dimension, Any],
+    dimensions: Map[Dimension[_], Any],
     metrics: Seq[MetricValue]
 ) {
-  def dimensionValue(dimension: Dimension): Option[dimension.T] = {
-    dimensions.get(dimension).map(_.asInstanceOf[dimension.T])
+  def dimensionValue[T](dimension: Dimension[T]): Option[T] = {
+    dimensions.get(dimension).map(_.asInstanceOf[T])
   }
 }

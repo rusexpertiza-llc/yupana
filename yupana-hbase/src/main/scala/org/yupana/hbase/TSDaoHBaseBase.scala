@@ -57,7 +57,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       queryContext: InternalQueryContext,
       from: Long,
       to: Long,
-      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+      rangeScanDims: Iterator[Map[Dimension[_], Seq[_]]]
   ): Collection[HResult]
 
   override def query(
@@ -83,7 +83,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     val dimFilter = filters.allIncludes
     val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
 
-    val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
+    val prefetchedDimIterators: Map[Dimension[_], PrefetchedSortedSetIterator[_]] = dimFilter.map {
       case (d, it) =>
         val rit = it.asInstanceOf[SortedSetIterator[d.R]]
         d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
@@ -95,7 +95,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       Iterator.empty
     } else {
       val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
-        (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
+        (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension[_], PrefetchedSortedSetIterator[_])]
       }.toMap
       rangeScanFilters(rangeScanDimIterators)
     }
@@ -137,7 +137,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   private def rangeScanDimensions(
       query: InternalQuery,
-      prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]]
+      prefetchedDimIterators: Map[Dimension[_], PrefetchedSortedSetIterator[_]]
   ) = {
 
     val continuousDims = query.table.dimensionSeq.takeWhile(prefetchedDimIterators.contains)
@@ -155,8 +155,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   private def rangeScanFilters(
-      dimensionIds: Map[Dimension, PrefetchedSortedSetIterator[_]]
-  ): Iterator[Map[Dimension, Seq[_]]] = {
+      dimensionIds: Map[Dimension[_], PrefetchedSortedSetIterator[_]]
+  ): Iterator[Map[Dimension[_], Seq[_]]] = {
 
     val (completelyFetchedDimIts, partiallyFetchedDimIts) = dimensionIds.partition(_._2.isAllFetched)
 
@@ -207,8 +207,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   private def createRowFilter(
       table: Table,
-      include: Map[Dimension, SortedSetIterator[_]],
-      exclude: Map[Dimension, SortedSetIterator[_]]
+      include: Map[Dimension[_], SortedSetIterator[_]],
+      exclude: Map[Dimension[_], SortedSetIterator[_]]
   ): RowFilter = {
 
     val includeMap = include.map { case (k, v) => k -> v.toSet }
@@ -232,14 +232,14 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
-  private def rowFilter(table: Table, f: (Dimension, Any) => Boolean): RowFilter = { rowKey =>
+  private def rowFilter(table: Table, f: (Dimension[_], Any) => Boolean): RowFilter = { rowKey =>
     rowKey.dimReprs.zip(table.dimensionSeq).forall {
       case (Some(x), dim) => f(dim, x)
       case _              => true
     }
   }
 
-  private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: String): Option[R] = {
+  private def dimIdValueFromString[R](dim: Dimension.Aux[_, R], value: String): Option[R] = {
     Try(Hex.decodeHex(value.toCharArray)).toOption.map(dim.rStorable.read)
   }
 
@@ -247,16 +247,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case EqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(ConstantExpr(c), LowerExpr(DimensionExpr(dim))) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(DimensionIdExpr(dim), ConstantExpr(c)) =>
           builder.includeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
@@ -285,16 +285,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     def handleNeq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NeqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(ConstantExpr(c), LowerExpr(DimensionExpr(dim))) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(DimensionIdExpr(dim), ConstantExpr(c)) =>
           builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
@@ -324,7 +324,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case InString(LowerExpr(DimensionExpr(dim)), consts) =>
           builder.includeValues(
             dim,
-            consts.asInstanceOf[Set[dim.T]]
+            consts
           )
 
         case InTime(TimeExpr, consts) =>
@@ -340,10 +340,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
           )
 
         case NotInExpr(DimensionExpr(dim), consts) =>
-          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+          builder.excludeValues(dim, consts)
 
         case NotInString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+          builder.excludeValues(dim, consts.asInstanceOf[Set[String]])
 
         case NotInString(DimensionIdExpr(dim), dimIds) =>
           builder.excludeIds(
