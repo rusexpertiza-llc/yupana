@@ -27,7 +27,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         lt[Time](time, const(Time(new DateTime(2017, 6, 30, 0, 0, DateTimeZone.UTC)))),
         equ(lower(dimension(DIM_A)), const("abracadabra"))
       )
-      x.groupBy should contain theSameElementsAs Seq[Expression](truncDay(time))
+      x.groupBy should contain theSameElementsAs Seq(truncDay(time))
       x.fields should contain theSameElementsInOrderAs List(
         max(metric(TestTableFields.TEST_FIELD)) as "max(testField)"
       )
@@ -99,7 +99,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
         equ(dimension(DIM_B), const(27.toShort))
       )
-      x.groupBy should contain theSameElementsAs Seq[Expression](truncDay(time))
+      x.groupBy should contain theSameElementsAs Seq(truncDay(time))
       x.fields should contain theSameElementsInOrderAs List(
         count(metric(TestTableFields.TEST_FIELD)) as "count(testField)",
         truncDay(time) as "d"
@@ -693,7 +693,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_A))
 
-      val lagTime = lag(time).asInstanceOf[Expression.Aux[Time]]
+      val lagTime = lag(time)
 
       q.fields should contain theSameElementsInOrderAs List(
         dimension(DIM_A) as "a",

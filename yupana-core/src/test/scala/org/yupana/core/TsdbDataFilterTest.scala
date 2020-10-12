@@ -52,7 +52,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -103,7 +103,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -154,7 +154,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -204,7 +204,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_FIELD),
@@ -257,7 +257,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -316,7 +316,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -397,7 +397,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_STRING_FIELD),
             metric(TestTableFields.TEST_FIELD),
@@ -479,7 +479,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -547,7 +547,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -635,7 +635,7 @@ class TsdbDataFilterTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set[Expression](
+            Set(
               time,
               metric(TestTableFields.TEST_FIELD),
               dimension(TestDims.DIM_A),
@@ -720,7 +720,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -761,7 +761,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable2,
-          Set[Expression](time, metric(TestTable2Fields.TEST_FIELD2), metric(TestTable2Fields.TEST_FIELD3)),
+          Set(time, metric(TestTable2Fields.TEST_FIELD2), metric(TestTable2Fields.TEST_FIELD3)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -808,7 +808,7 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((idx, rs, _) =>
         rs.foreach { r =>
-          val b = r.get[Int](idx, dimension(TestDims.DIM_B))
+          val b = r.get(idx, dimension(TestDims.DIM_B))
           r.set(idx, doubleLinkExpr, if (b == 12) 10.0 else 30.0)
         }
       )

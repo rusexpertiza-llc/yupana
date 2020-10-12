@@ -110,7 +110,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),

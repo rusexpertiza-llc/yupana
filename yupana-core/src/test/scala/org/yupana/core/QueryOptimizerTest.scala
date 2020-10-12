@@ -25,7 +25,7 @@ class QueryOptimizerTest extends FlatSpec with Matchers {
             gt[String](dimension(DictionaryDimension("b")), const("c"))
           )
         ),
-        AndExpr(Seq()).aux,
+        AndExpr(Seq()),
         gt(dimension(RawDimension[Int]("c")), const(42)),
         AndExpr(Seq(AndExpr(Seq(gt(dimension(RawDimension[Long]("d")), const(5L))))))
       )
@@ -47,7 +47,7 @@ class QueryOptimizerTest extends FlatSpec with Matchers {
             gt[String](dimension(DictionaryDimension("b")), const("c"))
           )
         ),
-        OrExpr(Seq()).aux,
+        OrExpr(Seq()),
         gt[String](dimension(DictionaryDimension("c")), const("c")),
         OrExpr(Seq(OrExpr(Seq(gt[String](dimension(DictionaryDimension("d")), const("e"))))))
       )
@@ -171,7 +171,7 @@ class QueryOptimizerTest extends FlatSpec with Matchers {
           metric(TestTableFields.TEST_FIELD),
           minus(minus(const(2d), const(1d)), const(1d))
         )
-      ).aux
+      )
     ) shouldEqual lag(
       condition(
         equ(lower(dimension(TestDims.DIM_A)), const("aaaaaaaa")),
