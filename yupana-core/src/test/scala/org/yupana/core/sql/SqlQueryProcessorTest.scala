@@ -328,8 +328,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         |  b,
         |  case
         |    when contains_any(tokens(a), tokens('крЫжовник')) then 'зеленые'
-        |    when contains_any(tokens(a), tokens('клубника', 'малина')) then 'КРАСНЫЕ'
-        |    when contains_any(tokens(a), tokens('черника', 'ежевика', 'ИРГА')) then 'черные'
+        |    when contains_any(tokens(a), tokens({'клубника', 'малина'})) then 'КРАСНЫЕ'
+        |    when contains_any(tokens(a), tokens({'черника', 'ежевика', 'ИРГА'})) then 'черные'
         |    else 'прочие' as color,
         |  sum(testField)
         |FROM test_table

@@ -891,6 +891,27 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "support array literals" in {
+    val sql =
+      """
+        | SELECT a, b
+        |   FROM table
+        |   WHERE containsAll(x, {1,2,3})
+        | """.stripMargin
+
+    parsed(sql) {
+      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        schema shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
+        condition shouldEqual ExprCondition(
+          FunctionCall(
+            "containsall",
+            List(FieldName("x"), SqlArray(Seq(NumericValue(1), NumericValue(2), NumericValue(3))))
+          )
+        )
+    }
+  }
+
   it should "parse SHOW TABLES statements" in {
     SqlParser.parse("SHOW TABLES") shouldBe Right(ShowTables)
   }

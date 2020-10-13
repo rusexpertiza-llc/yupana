@@ -99,6 +99,8 @@ object SqlParser {
 
   def constExpr[_: P]: P[Constant] = P(ValueParser.value).map(Constant)
 
+  def arrayExpr[_: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
+
   def caseExpr[_: P]: P[Case] =
     P(
       caseWord ~/
@@ -121,7 +123,8 @@ object SqlParser {
 
   def mathTerm[_: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
 
-  def mathFactor[_: P]: P[SqlExpr] = P(functionCallExpr | caseExpr | constExpr | fieldNameExpr | "(" ~ expr ~ ")")
+  def mathFactor[_: P]: P[SqlExpr] =
+    P(functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | "(" ~ expr ~ ")")
 
   def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
 

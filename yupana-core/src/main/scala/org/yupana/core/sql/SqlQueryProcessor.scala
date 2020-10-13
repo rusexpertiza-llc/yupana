@@ -166,6 +166,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 
       case parser.Constant(v) => convertValue(state, v, exprType)
 
+      case parser.SqlArray(vs) =>
+        val consts = CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, exprType)))
+        consts.right.flatMap(createArrayExpr)
+
       case parser.UMinus(a) =>
         createUMinus(state, nameResolver, a, ExprType.Math)
 
@@ -199,10 +203,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 
       case parser.FunctionCall(f, _) =>
         Left(s"Undefined function $f")
-//        for {
-//          vs <- CollectionUtils.collectErrors(es.map(e => createExpr(state, nameResolver, e, exprType))).right
-//          fexpr <- createArrayUnaryFunctionExpr(f, vs).right
-//        } yield fexpr
     }
 
     e.right.map {
@@ -230,49 +230,25 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     }
   }
 
-//  private def createFunctionExpr(fun: String, expr: Expression[_]): Either[String, Expression[_]] = {
-//    for {
-//      _ <- createWindowFunctionExpr(fun, expr).left
-//      _ <- createAggregateExpr(fun, expr).left
-//      _ <- createUnaryFunctionExpr(fun, expr).left
-//      m <- createSyntheticUnaryExpr(fun, expr).left
-//      _ <- createArrayUnaryFunctionExpr(fun, Seq(expr)).left
-//    } yield m
-//  }
+  private def createArrayExpr(expressions: Seq[ConstantExpr[_]]): Either[String, Expression[_]] = {
+    // we assume all expressions have exact same type, but it might require to align type in future
+    val first = expressions.head
 
-//  private def createFunction2Expr(fun: String, e1: Expression[_], e2: Expression[_]): Either[String, Expression[_]] = {
-//    for {
-//      m <- FunctionRegistry.bi(fun, e1, e2).left
-////      _ <- createArrayUnaryFunctionExpr(fun, Seq(e1, e2)).left
-//    } yield m
-//  }
+    val incorrectType = expressions.collect {
+      case x if x.dataType != first.dataType => x
+    }
 
-//  private def createArrayUnaryFunctionExpr(
-//      functionName: String,
-//      expressions: Seq[Expression[_]]
-//  ): Either[String, Expression[_]] = {
-//    createArrayExpr(expressions).right.flatMap(e => FunctionRegistry.unary(functionName, e))
-//  }
-
-//  private def createArrayExpr(expressions: Seq[Expression[_]]): Either[String, Expression[_]] = {
-//    // we assume all expressions have exact same type, but it might require to align type in future
-//    val first = expressions.head
-//
-//    val incorrectType = expressions.collect {
-//      case x if x.dataType != first.dataType => x
-//    }
-//
-//    if (incorrectType.isEmpty) {
-//      Right(
-//        ArrayExpr[first.dataType.T](expressions.toArray.asInstanceOf[Array[Expression[first.dataType.T]]])(
-//          first.dataType
-//        )
-//      )
-//    } else {
-//      val err = incorrectType.map(e => s"$e has type ${e.dataType}").mkString(", ")
-//      Left(s"All expressions must have same type but: $err}")
-//    }
-//  }
+    if (incorrectType.isEmpty) {
+      Right(
+        ArrayExpr[first.dataType.T](expressions.toArray.asInstanceOf[Array[Expression[first.dataType.T]]])(
+          first.dataType
+        )
+      )
+    } else {
+      val err = incorrectType.map(e => s"$e has type ${e.dataType}").mkString(", ")
+      Left(s"All expressions must have same type but: $err}")
+    }
+  }
 
   private def createBinary(
       state: BuilderState,
