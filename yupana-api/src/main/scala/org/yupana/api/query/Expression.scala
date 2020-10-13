@@ -138,12 +138,6 @@ final case class ConstantExpr[T](v: T)(implicit dt: DataType.Aux[T]) extends Exp
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
-final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends Expression[T] {
-  override def kind: ExprKind = Const
-  override def encode: String = s"null:${dataType.classTag.runtimeClass.getSimpleName}"
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
-}
-
 case object TimeExpr extends Expression[Time] {
   override val dataType: DataType.Aux[Time] = DataType[Time]
   override def kind: ExprKind = Simple
@@ -204,7 +198,7 @@ object LinkExpr {
   def apply(link: ExternalLink, field: String): LinkExpr[String] = new LinkExpr(link, LinkField[String](field))
 }
 
-abstract class UnaryOperationExpr[T, U](
+sealed abstract class UnaryOperationExpr[T, U](
     expr: Expression[T],
     functionName: String
 ) extends Expression[U] {
@@ -401,7 +395,7 @@ final case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression
   override def encode: String = s"${tc.functionName}($expr)"
 }
 
-abstract class BinaryOperationExpr[T, U, O](
+sealed abstract class BinaryOperationExpr[T, U, O](
     a: Expression[T],
     b: Expression[U],
     functionName: String,
@@ -549,11 +543,10 @@ final case class ConcatExpr(a: Expression[String], b: Expression[String])
 
 final case class ContainsExpr[T](a: Expression[Array[T]], b: Expression[T])
     extends BinaryOperationExpr[Array[T], T, Boolean](a, b, "contains", false) {
-//  type In = Array[T]
-//  type Item = T
-  override type Self = ContainsExpr[T]
 
+  override type Self = ContainsExpr[T]
   override def create(a: Expression[Array[T]], b: Expression[T]): ContainsExpr[T] = ContainsExpr(a, b)
+
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 

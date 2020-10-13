@@ -132,11 +132,14 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
     val res = expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr                     => null
-      case DimensionExpr(_)             => null
-      case DimensionIdExpr(_)           => null
-      case MetricExpr(_)                => null
-      case LinkExpr(_, _)               => null
+      case TimeExpr             => null
+      case DimensionExpr(_)     => null
+      case DimensionIdExpr(_)   => null
+      case MetricExpr(_)        => null
+      case LinkExpr(_, _)       => null
+      case DimIdInExpr(_, _)    => null
+      case DimIdNotInExpr(_, _) => null
+
       case ae: AggregateExpr[_, _, _]   => evaluateExpression(ae.expr, qc, row)
       case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row)
 
@@ -148,20 +151,20 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
           evaluateExpression(negative, qc, row)
         }
 
-      case TruncYearExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.year()))
-      case TruncMonthExpr(e)  => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.monthOfYear()))
-      case TruncDayExpr(e)    => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.dayOfMonth()))
-      case TruncWeekExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.weekOfWeekyear()))
-      case TruncHourExpr(e)   => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.hourOfDay()))
-      case TruncMinuteExpr(e) => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.minuteOfHour()))
-      case TruncSecondExpr(e) => evaluateUnary(qc, row)(e, truncateTime(DateTimeFieldType.secondOfMinute()))
+      case TruncYearExpr(e)   => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.year()))
+      case TruncMonthExpr(e)  => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.monthOfYear()))
+      case TruncDayExpr(e)    => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.dayOfMonth()))
+      case TruncWeekExpr(e)   => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.weekOfWeekyear()))
+      case TruncHourExpr(e)   => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.hourOfDay()))
+      case TruncMinuteExpr(e) => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.minuteOfHour()))
+      case TruncSecondExpr(e) => evaluateUnary(qc, row, e)(truncateTime(DateTimeFieldType.secondOfMinute()))
 
-      case ExtractYearExpr(e)   => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getYear)
-      case ExtractMonthExpr(e)  => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMonthOfYear)
-      case ExtractDayExpr(e)    => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getDayOfMonth)
-      case ExtractHourExpr(e)   => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getHourOfDay)
-      case ExtractMinuteExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getMinuteOfHour)
-      case ExtractSecondExpr(e) => evaluateUnary(qc, row)(e, (t: Time) => t.toLocalDateTime.getSecondOfMinute)
+      case ExtractYearExpr(e)   => evaluateUnary(qc, row, e)(_.toLocalDateTime.getYear)
+      case ExtractMonthExpr(e)  => evaluateUnary(qc, row, e)(_.toLocalDateTime.getMonthOfYear)
+      case ExtractDayExpr(e)    => evaluateUnary(qc, row, e)(_.toLocalDateTime.getDayOfMonth)
+      case ExtractHourExpr(e)   => evaluateUnary(qc, row, e)(_.toLocalDateTime.getHourOfDay)
+      case ExtractMinuteExpr(e) => evaluateUnary(qc, row, e)(_.toLocalDateTime.getMinuteOfHour)
+      case ExtractSecondExpr(e) => evaluateUnary(qc, row, e)(_.toLocalDateTime.getSecondOfMinute)
 
       case p @ PlusExpr(a, b)    => evaluateBinary(qc, row, a, b)(p.numeric.plus)
       case m @ MinusExpr(a, b)   => evaluateBinary(qc, row, a, b)(m.numeric.minus)
@@ -202,39 +205,30 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case TupleExpr(e1, e2) =>
         (evaluateExpression(e1, qc, row), evaluateExpression(e2, qc, row))
 
-      case LowerExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toLowerCase)
-      case UpperExpr(e)  => evaluateUnary(qc, row)(e, (x: String) => x.toUpperCase)
-      case LengthExpr(e) => evaluateUnary(qc, row)(e, (x: String) => x.length)
-      case SplitExpr(e)  => evaluateUnary(qc, row)(e, (s: String) => splitBy(s, !_.isLetterOrDigit).toArray)
-      case TokensExpr(e) => evaluateUnary(qc, row)(e, (s: String) => tokenizer.transliteratedTokens(s).toArray)
+      case LowerExpr(e)  => evaluateUnary(qc, row, e)(_.toLowerCase)
+      case UpperExpr(e)  => evaluateUnary(qc, row, e)(_.toUpperCase)
+      case LengthExpr(e) => evaluateUnary(qc, row, e)(_.length)
+      case SplitExpr(e)  => evaluateUnary(qc, row, e)(s => splitBy(s, !_.isLetterOrDigit).toArray)
+      case TokensExpr(e) => evaluateUnary(qc, row, e)(s => tokenizer.transliteratedTokens(s).toArray)
 
-//      case ConcatExpr(a, b) => evaluateBinary(qc, row)(a, b, (x: String, y: String) => x + y)
+      case a @ AbsExpr(e)        => evaluateUnary(qc, row, e)(a.num.abs)
+      case u @ UnaryMinusExpr(e) => evaluateUnary(qc, row, e)(u.num.negate)
 
-      case a @ AbsExpr(e) => evaluateUnary(qc, row)(e, a.num.abs)
-
-      case NotExpr(e) => evaluateUnary(qc, row)(e, (x: Boolean) => !x)
+      case NotExpr(e) => evaluateUnary(qc, row, e)(x => !x)
 
       case TimeMinusExpr(a, b)        => evaluateBinary(qc, row, a, b)((x, y) => math.abs(x.millis - y.millis))
       case TimeMinusPeriodExpr(a, b)  => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
       case TimePlusPeriodExpr(a, b)   => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
       case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row, a, b)((x, y) => x plus y)
 
-//      case ArrayTokensExpr(e) =>
-//      case ArrayLengthExpr(e) =>
-//      case ArrayToStringExpr(e) =>
+      case ArrayTokensExpr(e)   => evaluateUnary(qc, row, e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))
+      case ArrayLengthExpr(e)   => evaluateUnary(qc, row, e)(_.length)
+      case ArrayToStringExpr(e) => evaluateUnary(qc, row, e)(_.mkString(" "))
 
-      case ContainsExpr(a, v) =>
-        val left = evaluateExpression(a, qc, row)
-        val right = evaluateExpression(v, qc, row)
-        if (left != null && right != null) {
-          left.contains(right)
-        } else {
-          null.asInstanceOf[Boolean]
-        }
-
-//      case ContainsAllExpr(a, vs) =>
-//      case ContainsAnyExpr(a, vs) =>
-//      case ContainsSameExpr(a, vs) =>
+      case ContainsExpr(a, b)     => evaluateBinary(qc, row, a, b)(_ contains _)
+      case ContainsAllExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.forall(x.contains))
+      case ContainsAnyExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.exists(x.contains))
+      case ContainsSameExpr(a, b) => evaluateBinary(qc, row, a, b)(_ sameElements _)
 
       case ae @ ArrayExpr(es) =>
         val values: Array[ae.elementDataType.T] =
@@ -252,9 +246,6 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
         }
 
         if (success) values else null
-
-      // FIXME: Remove this line, this case shall be exhaustive
-      case x => throw new IllegalArgumentException(s"Unsupported expression $x")
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
@@ -267,7 +258,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
     }
   }
 
-  private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow)(e: Expression[A], f: A => O): O = {
+  private def evaluateUnary[A, O](qc: QueryContext, internalRow: InternalRow, e: Expression[A])(f: A => O): O = {
     val ev = evaluateExpression(e, qc, internalRow)
     if (ev != null) f(ev) else null.asInstanceOf[O]
   }
@@ -283,11 +274,6 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       null.asInstanceOf[O]
     }
   }
-
-//  private def contains[T](a: Array[T], t: T): Boolean = a contains t
-//  private def containsAll[T](a: Array[T], b: Array[T]): Boolean = b.forall(a.contains)
-//  private def containsAny[T](a: Array[T], b: Array[T]): Boolean = b.exists(a.contains)
-//  private def containsSame[T](a: Array[T], b: Array[T]): Boolean = a sameElements b
 
   private def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
     Time(time.toDateTime.property(fieldType).roundFloorCopy().getMillis)

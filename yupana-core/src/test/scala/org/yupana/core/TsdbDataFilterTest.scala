@@ -799,8 +799,8 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15).buildAndReset()
+          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
+          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
         )
       )
 

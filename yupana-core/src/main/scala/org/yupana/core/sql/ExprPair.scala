@@ -16,7 +16,7 @@
 
 package org.yupana.core.sql
 
-import org.yupana.api.query.{ ConstantExpr, Expression, NullExpr, TypeConvertExpr }
+import org.yupana.api.query.{ ConstantExpr, Expression, TypeConvertExpr }
 import org.yupana.api.types.{ DataType, TypeConverter }
 
 trait ExprPair {
@@ -57,9 +57,6 @@ object ExprPair {
     } else {
       (ca, cb) match {
         case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
-
-        case (NullExpr(_), _) => Right(ExprPair(NullExpr(cb.dataType), cb))
-        case (_, NullExpr(_)) => Right(ExprPair(ca, NullExpr(ca.dataType)))
 
         case (c: ConstantExpr[_], _) =>
           constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb))
