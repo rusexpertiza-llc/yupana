@@ -24,9 +24,9 @@ class InMemoryExternalLinkBaseTest extends FlatSpec with Matchers {
 
     override def keyIndex: Int = 0
 
-    override def fillKeyValues(indexMap: collection.Map[Expression, Int], valueData: Seq[InternalRow]): Unit = {
+    override def fillKeyValues(indexMap: collection.Map[Expression[_], Int], valueData: Seq[InternalRow]): Unit = {
       valueData.foreach { vd =>
-        val tagValue = vd.get[Int](indexMap, DimensionExpr(externalLink.dimension))
+        val tagValue = vd.get(indexMap, DimensionExpr(externalLink.dimension))
         val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption).orNull
         vd.set(indexMap, keyExpr, keyValue)
       }
@@ -36,7 +36,7 @@ class InMemoryExternalLinkBaseTest extends FlatSpec with Matchers {
       condition
     }
 
-    override def keyExpr: Expression.Aux[String] = dimension(DictionaryDimension("TAG_X"))
+    override def keyExpr: Expression[String] = dimension(DictionaryDimension("TAG_X"))
   }
 
   class TestLink extends ExternalLink {
@@ -68,7 +68,7 @@ class InMemoryExternalLinkBaseTest extends FlatSpec with Matchers {
   val testCatalog = new TestExternalLink(testData, testExternalLink)
 
   "InMemoryCatalogBase" should "fill value data" in {
-    val exprIndex = Seq[Expression](
+    val exprIndex = Seq[Expression[_]](
       time,
       dimension(RawDimension[Int]("TAG_Y")),
       link(testExternalLink, TestExternalLink.testField1),

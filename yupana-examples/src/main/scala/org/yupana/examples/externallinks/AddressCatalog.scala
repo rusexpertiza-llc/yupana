@@ -60,7 +60,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     }
 
   override def setLinkedValues(
-      exprIndex: collection.Map[Expression, Int],
+      exprIndex: collection.Map[Expression[_], Int],
       rows: Seq[InternalRow],
       exprs: Set[LinkExpr[_]]
   ): Unit = {

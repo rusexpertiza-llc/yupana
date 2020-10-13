@@ -270,13 +270,13 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case EqTime(ConstantExpr(c), TimeExpr) =>
           builder.includeTime(c)
 
-        case EqUntyped(TupleExpr(e1, e2), ConstantExpr(v: (_, _))) =>
-          val filters1 = createFilters(InExpr(e1, Set(v._1)), builder)
-          createFilters(InExpr(e2, Set(v._2)), filters1)
+        case EqUntyped(t: TupleExpr[a, b], ConstantExpr(v: (_, _))) =>
+          val filters1 = createFilters(InExpr(t.e1, Set(v._1).asInstanceOf[Set[a]]), builder)
+          createFilters(InExpr(t.e2, Set(v._2).asInstanceOf[Set[b]]), filters1)
 
-        case EqUntyped(ConstantExpr(v: (_, _)), TupleExpr(e1, e2)) =>
-          val filters1 = createFilters(InExpr(e1, Set(v._1)), builder)
-          createFilters(InExpr(e2, Set(v._2)), filters1)
+        case EqUntyped(ConstantExpr(v: (_, _)), t: TupleExpr[a, b]) =>
+          val filters1 = createFilters(InExpr(t.e1, Set(v._1).asInstanceOf[Set[a]]), builder)
+          createFilters(InExpr(t.e2, Set(v._2).asInstanceOf[Set[b]]), filters1)
 
         case _ => builder
       }
