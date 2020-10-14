@@ -42,12 +42,6 @@ object BoxingTag {
   implicit val doubleBoxing: BoxingTag[Double] = primitive[Double, jl.Double]
   implicit val booleanBoxing: BoxingTag[Boolean] = primitive[Boolean, jl.Boolean]
 
-  def arrayBoxing[T](implicit tag: ClassTag[T]): BoxingTag[Array[T]] = new BoxingTag[Array[T]] {
-    override type R = Array[T]
-    override def clazz: Class[R] = tag.wrap.runtimeClass.asInstanceOf[Class[Array[T]]]
-    override def cast(t: Array[T]): Array[T] = t
-  }
-
   private def primitive[T <: AnyVal, B <: AnyRef](implicit ev: T => B, bTag: ClassTag[B]): BoxingTag[T] =
     new BoxingTag[T] {
       override type R = B

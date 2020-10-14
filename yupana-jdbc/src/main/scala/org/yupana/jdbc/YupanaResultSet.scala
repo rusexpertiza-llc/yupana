@@ -461,7 +461,7 @@ class YupanaResultSet protected[jdbc] (
     val dt = dataTypes(i - 1)
     if (dt.isArray) {
       val dtt = dt.asInstanceOf[ArrayDataType[_]]
-      new YupanaArray(name, v.asInstanceOf[Array[dtt.valueType.T]], dtt.valueType)
+      new YupanaArray(name, v.asInstanceOf[Seq[dtt.valueType.T]].toArray, dtt.valueType)
     } else {
       throw new SQLException(s"$dt is not an array")
     }

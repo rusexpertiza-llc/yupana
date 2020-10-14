@@ -467,8 +467,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     val result = SimpleResult(
       "test",
       Seq("int", "array_string", "array_int"),
-      Seq(DataType[Int], DataType[Array[String]], DataType[Array[Int]]),
-      Iterator(Array[Any](42, Array("Foo", "bar"), Array(1, 2, 4, 8)))
+      Seq(DataType[Int], DataType[Seq[String]], DataType[Seq[Int]]),
+      Iterator(Array[Any](42, Seq("Foo", "bar"), Seq(1, 2, 4, 8)))
     )
 
     val rs = new YupanaResultSet(statement, result)

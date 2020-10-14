@@ -116,11 +116,11 @@ class TSDB(
     seq.map {
       case ((keyData, valueData), rowNumber) =>
         winFieldsAndGroupValues.foreach {
-          case (winFuncExpr, groups) =>
+          case (winFuncExpr: WindowFunctionExpr[t, _], groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
               val value =
-                expressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[winFuncExpr.In]], index)
+                expressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[t]], index)
 //              val value = winFuncExpr.operation(group.asInstanceOf[Array[winFuncExpr.expr.Out]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }

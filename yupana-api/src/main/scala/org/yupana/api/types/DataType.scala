@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 import scala.reflect.ClassTag
 
@@ -53,17 +53,17 @@ trait DataType extends Serializable {
 }
 
 class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
-  override type T = Array[TT]
+  override type T = Seq[TT]
 
   override val isArray: Boolean = true
-  override val meta: DataTypeMeta[T] = DataTypeMeta.arrayMeta(valueType.meta)
-  override val storable: Storable[T] = Storable.arrayStorable(valueType.storable, valueType.classTag)
-  override val classTag: ClassTag[T] = valueType.classTag.wrap
-  override val boxingTag: BoxingTag[Array[TT]] = BoxingTag.arrayBoxing(valueType.classTag)
+  override val meta: DataTypeMeta[T] = DataTypeMeta.seqMeta(valueType.meta)
+  override val storable: Storable[T] = Storable.seqStorable(valueType.storable, valueType.classTag)
+  override val classTag: ClassTag[T] = implicitly[ClassTag[Seq[TT]]]
+  override val boxingTag: BoxingTag[Seq[TT]] = BoxingTag[Seq[TT]]
 
-  override val ordering: Option[Ordering[Array[TT]]] = None
-  override val integral: Option[Integral[Array[TT]]] = None
-  override val fractional: Option[Fractional[Array[TT]]] = None
+  override val ordering: Option[Ordering[Seq[TT]]] = None
+  override val integral: Option[Integral[Seq[TT]]] = None
+  override val fractional: Option[Fractional[Seq[TT]]] = None
 }
 
 object DataType {
@@ -101,6 +101,8 @@ object DataType {
 
   implicit val timeDt: DataType.Aux[Time] = create[Time](Some(Ordering[Time]), None, None)
 
+  implicit val blobDt: DataType.Aux[Blob] = create[Blob](None, None, None)
+
   implicit val periodDt: DataType.Aux[Period] = create[Period](None, None, None)
 
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
@@ -122,7 +124,7 @@ object DataType {
     }
   }
 
-  implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Array[TT]] = {
+  implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Seq[TT]] = {
     new ArrayDataType(dtt).aux
   }
 

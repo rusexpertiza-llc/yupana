@@ -27,9 +27,9 @@ trait BinaryOperationSyntax {
   def divInt[T](a: Expression[T], b: Expression[T])(implicit n: Integral[T]) = DivIntExpr(a, b)
   def divFrac[T](a: Expression[T], b: Expression[T])(implicit n: Fractional[T]) = DivFracExpr(a, b)
 
-  def contains[T](a: Expression[Array[T]], b: Expression[T]) = ContainsExpr(a, b)
-  def containsAll[T](a: Expression[Array[T]], b: Expression[Array[T]]) = ContainsAllExpr(a, b)
-  def containsAny[T](a: Expression[Array[T]], b: Expression[Array[T]]) = ContainsAnyExpr(a, b)
+  def contains[T](a: Expression[Seq[T]], b: Expression[T]) = ContainsExpr(a, b)
+  def containsAll[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAllExpr(a, b)
+  def containsAny[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAnyExpr(a, b)
 }
 
 object BinaryOperationSyntax extends BinaryOperationSyntax

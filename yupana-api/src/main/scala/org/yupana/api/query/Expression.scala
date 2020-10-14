@@ -44,8 +44,6 @@ sealed trait Expression[Out] extends Serializable {
     t.applyIfPossible(this)
   }
 
-//  def aux: Expression[Out] = this.asInstanceOf[Expression[Out]]
-
   lazy val flatten: Set[Expression[_]] = fold(Set.empty[Expression[_]])(_ + _)
 
   private lazy val encoded = encode
@@ -69,7 +67,6 @@ object Expression {
 
 sealed abstract class WindowFunctionExpr[T, U](val expr: Expression[T], name: String)
     extends UnaryOperationExpr[T, U](expr, name) {
-  type In = T
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
   override def encode: String = s"winFunc($name,${expr.encode})"
 }
@@ -83,7 +80,6 @@ final case class LagExpr[I](override val expr: Expression[I]) extends WindowFunc
 
 sealed abstract class AggregateExpr[T, I, U](val expr: Expression[T], name: String)
     extends UnaryOperationExpr[T, U](expr, name) {
-//  type In = T
 
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
   override def encode: String = s"agg($name,${expr.encode})"
@@ -257,38 +253,36 @@ final case class UpperExpr(expr: Expression[String]) extends UnaryOperationExpr[
   override def create(newExpr: Expression[String]): UpperExpr = UpperExpr(newExpr)
 }
 
-final case class TokensExpr(expr: Expression[String])
-    extends UnaryOperationExpr[String, Array[String]](expr, "tokens") {
-  override def dataType: DataType.Aux[Array[String]] = DataType[Array[String]]
+final case class TokensExpr(expr: Expression[String]) extends UnaryOperationExpr[String, Seq[String]](expr, "tokens") {
+  override def dataType: DataType.Aux[Seq[String]] = DataType[Seq[String]]
   override type Self = TokensExpr
   override def create(newExpr: Expression[String]): TokensExpr = TokensExpr(newExpr)
 }
 
-final case class ArrayTokensExpr(expr: Expression[Array[String]])
-    extends UnaryOperationExpr[Array[String], Array[String]](expr, "tokens") {
-  override def dataType: DataType.Aux[Array[String]] = DataType[Array[String]]
+final case class ArrayTokensExpr(expr: Expression[Seq[String]])
+    extends UnaryOperationExpr[Seq[String], Seq[String]](expr, "tokens") {
+  override def dataType: DataType.Aux[Seq[String]] = DataType[Seq[String]]
   override type Self = ArrayTokensExpr
-  override def create(newExpr: Expression[Array[String]]): ArrayTokensExpr = ArrayTokensExpr(newExpr)
+  override def create(newExpr: Expression[Seq[String]]): ArrayTokensExpr = ArrayTokensExpr(newExpr)
 }
 
-final case class SplitExpr(expr: Expression[String]) extends UnaryOperationExpr[String, Array[String]](expr, "split") {
-  override def dataType: DataType.Aux[Array[String]] = DataType[Array[String]]
+final case class SplitExpr(expr: Expression[String]) extends UnaryOperationExpr[String, Seq[String]](expr, "split") {
+  override def dataType: DataType.Aux[Seq[String]] = DataType[Seq[String]]
   override type Self = SplitExpr
   override def create(newExpr: Expression[String]): SplitExpr = SplitExpr(newExpr)
 }
 
-final case class ArrayToStringExpr[T](expr: Expression[Array[T]])
-    extends UnaryOperationExpr[Array[T], String](expr, "array_to_string") {
+final case class ArrayToStringExpr[T](expr: Expression[Seq[T]])
+    extends UnaryOperationExpr[Seq[T], String](expr, "array_to_string") {
   override def dataType: DataType.Aux[String] = DataType[String]
   override type Self = ArrayToStringExpr[T]
-  override def create(newExpr: Expression[Array[T]]): ArrayToStringExpr[T] = ArrayToStringExpr(newExpr)
+  override def create(newExpr: Expression[Seq[T]]): ArrayToStringExpr[T] = ArrayToStringExpr(newExpr)
 }
 
-final case class ArrayLengthExpr[T](expr: Expression[Array[T]])
-    extends UnaryOperationExpr[Array[T], Int](expr, "length") {
+final case class ArrayLengthExpr[T](expr: Expression[Seq[T]]) extends UnaryOperationExpr[Seq[T], Int](expr, "length") {
   override def dataType: DataType.Aux[Int] = DataType[Int]
   override type Self = ArrayLengthExpr[T]
-  override def create(newExpr: Expression[Array[T]]): ArrayLengthExpr[T] = ArrayLengthExpr(newExpr)
+  override def create(newExpr: Expression[Seq[T]]): ArrayLengthExpr[T] = ArrayLengthExpr(newExpr)
 }
 
 final case class ExtractYearExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractYear") {
@@ -541,38 +535,38 @@ final case class ConcatExpr(a: Expression[String], b: Expression[String])
   override def create(a: Expression[String], b: Expression[String]): ConcatExpr = ConcatExpr(a, b)
 }
 
-final case class ContainsExpr[T](a: Expression[Array[T]], b: Expression[T])
-    extends BinaryOperationExpr[Array[T], T, Boolean](a, b, "contains", false) {
+final case class ContainsExpr[T](a: Expression[Seq[T]], b: Expression[T])
+    extends BinaryOperationExpr[Seq[T], T, Boolean](a, b, "contains", false) {
 
   override type Self = ContainsExpr[T]
-  override def create(a: Expression[Array[T]], b: Expression[T]): ContainsExpr[T] = ContainsExpr(a, b)
+  override def create(a: Expression[Seq[T]], b: Expression[T]): ContainsExpr[T] = ContainsExpr(a, b)
 
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class ContainsAllExpr[T](a: Expression[Array[T]], b: Expression[Array[T]])
-    extends BinaryOperationExpr[Array[T], Array[T], Boolean](a, b, "containsAll", false) {
+final case class ContainsAllExpr[T](a: Expression[Seq[T]], b: Expression[Seq[T]])
+    extends BinaryOperationExpr[Seq[T], Seq[T], Boolean](a, b, "containsAll", false) {
   override type Self = ContainsAllExpr[T]
 
-  override def create(a: Expression[Array[T]], b: Expression[Array[T]]): ContainsAllExpr[T] =
+  override def create(a: Expression[Seq[T]], b: Expression[Seq[T]]): ContainsAllExpr[T] =
     ContainsAllExpr(a, b)
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class ContainsAnyExpr[T](a: Expression[Array[T]], b: Expression[Array[T]])
-    extends BinaryOperationExpr[Array[T], Array[T], Boolean](a, b, "containsAny", false) {
+final case class ContainsAnyExpr[T](a: Expression[Seq[T]], b: Expression[Seq[T]])
+    extends BinaryOperationExpr[Seq[T], Seq[T], Boolean](a, b, "containsAny", false) {
   override type Self = ContainsAnyExpr[T]
 
-  override def create(a: Expression[Array[T]], b: Expression[Array[T]]): ContainsAnyExpr[T] =
+  override def create(a: Expression[Seq[T]], b: Expression[Seq[T]]): ContainsAnyExpr[T] =
     ContainsAnyExpr(a, b)
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class ContainsSameExpr[T](a: Expression[Array[T]], b: Expression[Array[T]])
-    extends BinaryOperationExpr[Array[T], Array[T], Boolean](a, b, "containsSame", false) {
+final case class ContainsSameExpr[T](a: Expression[Seq[T]], b: Expression[Seq[T]])
+    extends BinaryOperationExpr[Seq[T], Seq[T], Boolean](a, b, "containsSame", false) {
   override type Self = ContainsSameExpr[T]
 
-  override def create(a: Expression[Array[T]], b: Expression[Array[T]]): ContainsSameExpr[T] =
+  override def create(a: Expression[Seq[T]], b: Expression[Seq[T]]): ContainsSameExpr[T] =
     ContainsSameExpr(a, b)
   override def dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
@@ -596,14 +590,14 @@ final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(
   override def encode: String = s"($e1, $e2)"
 }
 
-final case class ArrayExpr[T](exprs: Array[Expression[T]])(implicit val elementDataType: DataType.Aux[T])
-    extends Expression[Array[T]] {
-  override val dataType: DataType.Aux[Array[T]] = DataType[Array[T]]
+final case class ArrayExpr[T](exprs: Seq[Expression[T]])(implicit val elementDataType: DataType.Aux[T])
+    extends Expression[Seq[T]] {
+  override val dataType: DataType.Aux[Seq[T]] = DataType[Seq[T]]
   override def kind: ExprKind = exprs.foldLeft(Const: ExprKind)((a, e) => ExprKind.combine(a, e.kind))
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = exprs.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
 
-  override def transform(t: Transformer): Expression[Array[T]] = {
+  override def transform(t: Transformer): Expression[Seq[T]] = {
     t(this) getOrElse ArrayExpr(exprs.map(_.transform(t)))
   }
 

@@ -19,7 +19,7 @@ package org.yupana.api.types
 import java.sql.Types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 /**
   * Contains different meta information for type `T`
@@ -70,7 +70,7 @@ object DataTypeMeta {
 
   implicit val nullMeta: DataTypeMeta[Null] = DataTypeMeta(Types.NULL, 4, "NULL", null, 0, 0)
 
-  implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
+  implicit def seqMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Seq[T]] = {
     DataTypeMeta(
       Types.ARRAY,
       Integer.MAX_VALUE,
@@ -80,6 +80,9 @@ object DataTypeMeta {
       0
     )
   }
+
+  implicit val blobMeta: DataTypeMeta[Blob] =
+    DataTypeMeta(Types.BLOB, Int.MaxValue, "BLOB", classOf[java.sql.Blob], Int.MaxValue, 0)
 
   def scaledDecimalMeta(scale: Int): DataTypeMeta[BigDecimal] = {
     DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, scale)

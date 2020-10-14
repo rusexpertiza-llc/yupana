@@ -23,7 +23,7 @@ import org.yupana.api.types.DataType
 object FunctionRegistry {
   import scala.language.higherKinds
 
-  type ArrayExpr[T] = Expression[Array[T]]
+  type ArrayExpr[T] = Expression[Seq[T]]
 
   sealed trait ParamType
   case object NumberParam extends ParamType
@@ -103,11 +103,11 @@ object FunctionRegistry {
     uArray(
       "array_to_string",
       new Bind[ArrayExpr, Expression[_]] {
-        override def apply[T](a: Expression[Array[T]]): Expression[_] = ArrayToStringExpr(a)
+        override def apply[T](a: ArrayExpr[T]): Expression[_] = ArrayToStringExpr(a)
       }
     ),
     uArray("length", new Bind[ArrayExpr, Expression[_]] {
-      override def apply[T](a: Expression[Array[T]]): Expression[_] = ArrayLengthExpr(a)
+      override def apply[T](a: ArrayExpr[T]): Expression[_] = ArrayLengthExpr(a)
     }),
     uTyped("tokens", ArrayTokensExpr),
     // SPECIAL
@@ -289,7 +289,7 @@ object FunctionRegistry {
       fn,
       OtherParam,
       e =>
-        if (e.dataType.isArray) Right(create(e.asInstanceOf[Expression[Array[T]]]))
+        if (e.dataType.isArray) Right(create(e.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires array, but got $e")
     )
   }
@@ -351,7 +351,7 @@ object FunctionRegistry {
       fn,
       (a, b) =>
         if (a.dataType.isArray && b.dataType.isArray)
-          Right(create(a.asInstanceOf[Expression[Array[T]]], b.asInstanceOf[Expression[Array[T]]]))
+          Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires array, but got $a, $b")
     )
   }

@@ -39,9 +39,10 @@ trait UnaryOperationSyntax {
   def lower(e: Expression[String]) = LowerExpr(e)
   def upper(e: Expression[String]) = UpperExpr(e)
   def tokens(e: Expression[String]) = TokensExpr(e)
-  def tokenizeArray(e: Expression[Array[String]]) = ArrayTokensExpr(e)
+  def tokenizeArray(e: Expression[Seq[String]]) = ArrayTokensExpr(e)
   def split(e: Expression[String]) = SplitExpr(e)
-  def arrayToString[T](e: Expression[Array[T]]) = ArrayToStringExpr(e)
+  def arrayToString[T](e: Expression[Seq[T]]) = ArrayToStringExpr(e)
+  def arrayLength[T](e: Expression[Seq[T]]) = ArrayLengthExpr(e)
 
   def not(e: Expression[Boolean]) = NotExpr(e)
 
