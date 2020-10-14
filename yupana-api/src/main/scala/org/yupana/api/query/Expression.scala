@@ -127,7 +127,15 @@ object AggregateExpr {
 
 sealed trait ConstantExpr extends Expression {
   def v: Out
-  override def encode: String = s"const($v:${v.getClass.getSimpleName})"
+  override def encode: String = {
+    if (dataType.isArray) {
+      val adt = dataType.asInstanceOf[ArrayDataType[Out]]
+      val vStr = v.asInstanceOf[adt.T].map(_.toString.replaceAll(",", "\\\\,")).mkString(",")
+      s"const([$vStr]:${v.getClass.getSimpleName})"
+    } else {
+      s"const($v:${v.getClass.getSimpleName})"
+    }
+  }
   override def kind: ExprKind = Const
 
   override def fold[O](z: O)(f: (O, Expression) => O): O = f(z, this)
