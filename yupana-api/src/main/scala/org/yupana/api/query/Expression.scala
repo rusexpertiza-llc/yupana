@@ -128,7 +128,15 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
 
 final case class ConstantExpr[T](v: T)(implicit dt: DataType.Aux[T]) extends Expression[T] {
   override val dataType: DataType.Aux[T] = dt
-  override def encode: String = s"const($v:${v.getClass.getSimpleName})"
+  override def encode: String = {
+    if (dataType.isArray) {
+      val adt = dataType.asInstanceOf[ArrayDataType[T]]
+      val vStr = v.asInstanceOf[adt.T].map(_.toString.replaceAll(",", "\\\\,")).mkString(",")
+      s"const([$vStr]:${v.getClass.getSimpleName})"
+    } else {
+      s"const($v:${v.getClass.getSimpleName})"
+    }
+  }
   override def kind: ExprKind = Const
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
