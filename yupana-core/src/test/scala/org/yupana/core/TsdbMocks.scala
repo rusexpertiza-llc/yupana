@@ -8,7 +8,7 @@ import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMet
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
-import org.yupana.core.utils.ConditionMatchers._
+import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.utils.Table
 import org.yupana.utils.RussianTokenizer
 

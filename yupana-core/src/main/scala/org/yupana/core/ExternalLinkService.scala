@@ -20,7 +20,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers._
+import org.yupana.api.utils.ConditionMatchers._
 
 trait ExternalLinkService[T <: ExternalLink] {
 

@@ -29,7 +29,7 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.TimeBoundedCondition
 import org.apache.hadoop.hbase.client.{ Result => HResult }
-import org.yupana.core.utils.ConditionMatchers._
+import org.yupana.api.utils.ConditionMatchers._
 
 import scala.language.higherKinds
 import scala.util.Try

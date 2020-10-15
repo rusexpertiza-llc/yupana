@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExpressionCalculator
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers._
+import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
 
 object ExternalLinkUtils {

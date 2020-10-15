@@ -24,6 +24,7 @@ trait AggregationSyntax {
   def max[T](e: Expression[T])(implicit ord: Ordering[T]) = MaxExpr(e)
   def count[T](e: Expression[T]) = CountExpr(e)
   def distinctCount[T](e: Expression[T]) = DistinctCountExpr(e)
+  def distinctRandom[T](e: Expression[T]) = DistinctRandomExpr(e)
 }
 
 object AggregationSyntax extends AggregationSyntax

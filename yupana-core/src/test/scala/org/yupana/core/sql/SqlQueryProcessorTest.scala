@@ -7,7 +7,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
 import org.yupana.core._
 import org.yupana.core.sql.parser.SqlParser
-import org.yupana.core.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
+import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 
 class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with OptionValues {
 

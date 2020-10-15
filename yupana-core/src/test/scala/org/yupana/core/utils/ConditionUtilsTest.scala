@@ -4,7 +4,7 @@ import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.core.utils.ConditionMatchers.{ EqString, InString, NeqString }
+import org.yupana.api.utils.ConditionMatchers.{ EqString, InString, NeqString }
 
 class ConditionUtilsTest extends FlatSpec with Matchers {
   import org.yupana.api.query.syntax.All._

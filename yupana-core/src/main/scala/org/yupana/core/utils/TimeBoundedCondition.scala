@@ -19,7 +19,7 @@ package org.yupana.core.utils
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.core.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
+import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
 import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
 
 import scala.collection.mutable.ListBuffer

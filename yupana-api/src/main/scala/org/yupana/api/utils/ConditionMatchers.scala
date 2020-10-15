@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils
+package org.yupana.api.utils
 
 import org.yupana.api.Time
 import org.yupana.api.query._
