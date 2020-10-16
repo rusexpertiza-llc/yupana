@@ -1,11 +1,9 @@
 package org.yupana.utils
 
-import org.apache.lucene.analysis.ru.RussianLightStemmer
-
 import scala.collection.mutable
 
 object KazakhTokenizer extends TokenizerBase {
-  @transient private lazy val stemmer: KazakhStemmerTokenFilter = new RussianLightStemmer()
+  @transient private lazy val stemmer: KazakhLightStemmer = new KazakhLightStemmer()
 
   private val includedChars = {
     val charSet = mutable.Set(
