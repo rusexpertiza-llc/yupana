@@ -434,9 +434,6 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     val rs = createResultSet
     rs.next
 
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob(1)
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob("string")
-
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getClob(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getClob("string")
 
@@ -506,6 +503,40 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy stringArray.getResultSet(1, 2, mapping)
     an[SQLFeatureNotSupportedException] should be thrownBy intArray.getResultSet(mapping)
 
+  }
+
+  it should "support BLOBs" in {
+    import org.yupana.api.{ Blob => ApiBlob }
+
+    val statement = mock[Statement]
+
+    val result = SimpleResult(
+      "test",
+      Seq("int", "bytes"),
+      Seq(DataType[Int], DataType[ApiBlob]),
+      Iterator(Array[Any](42, ApiBlob(Array[Byte](2, 12, 85, 0, 6))))
+    )
+
+    val rs = new YupanaResultSet(statement, result)
+    rs.next
+
+    val blob = rs.getBlob(2)
+    blob.length() shouldEqual 5
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.setBytes(2, Array(3, 4))
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.setBytes(1, Array(3, 4, 5, 6, 7), 3, 2)
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.setBinaryStream(3)
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.truncate(3)
+
+    val blob2 = rs.getBlob("bytes")
+    blob2.getBytes(2, 2) should contain theSameElementsInOrderAs Seq[Byte](12, 85)
+
+    val bytes = new Array[Byte](5)
+    blob2.getBinaryStream.read(bytes)
+    bytes should contain theSameElementsInOrderAs Seq[Byte](2, 12, 85, 0, 6)
+
+    val bytes2 = new Array[Byte](3)
+    blob2.getBinaryStream(2, 3).read(bytes2)
+    bytes2 should contain theSameElementsInOrderAs Seq[Byte](12, 85, 0)
   }
 
   it should "throw exception on update operation" in {
