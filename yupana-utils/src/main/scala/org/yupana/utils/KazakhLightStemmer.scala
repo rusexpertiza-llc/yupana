@@ -18,36 +18,37 @@ package org.yupana.utils
 
 import java.util.regex.Pattern
 
-class KazakhLightStemmer {
+import scala.annotation.tailrec
+
+object KazakhLightStemmer {
 
   private val PROCESSING_MINIMAL_WORD_LENGTH = 2
   private val _vowelChars = Pattern.compile("[аәоөұүыіеиуёэюя]")
 
   def stem(s: Array[Char], len: Int): Int = {
-    stem(s.toString)
+    stem(new String(s, 0, len)).length
   }
 
-  def stem(word: String): Int = { // don't change short words
-    if (word.length <= PROCESSING_MINIMAL_WORD_LENGTH || !continueStemming(word)) return word.length
-    // try simple trim
-    for (i <- 0 until suffixes.length) {
-      val suffix = suffixes(i)
-      if (word.endsWith(suffix)) {
-        val trimmed = word.substring(0, word.length - suffix.length)
-        return stem(trimmed)
+  @tailrec
+  def stem(word: String): String = {
+    // don't change short words
+    if (word.length <= PROCESSING_MINIMAL_WORD_LENGTH || !continueStemming(word)) {
+      word
+    } else {
+      suffixes.find(s => word endsWith s) match {
+        case Some(s) => stem(word.substring(0, word.length - s.length))
+        case None    => word
       }
     }
-    word.length
   }
 
-  def continueStemming(word: String): Boolean = {
+  private def continueStemming(word: String): Boolean = {
     val matcher = _vowelChars.matcher(word)
-    // метод find вызывается на каждое совпадение, и посему если он вызывается хотя бы два раза, то значит в слове две гласных.
+    // check if there are at least two vowel characters in the word
     matcher.find && matcher.find
   }
 
-  // окончания расставлены в массиве так, чтобы сначала отсекались наиболее длинное сочетание букв
-  // была проблема с кодировкой этих текстов, но проставление метки в gradle.build с явной кодировкой UTF-8 помогает
+  // NOTE: Suffixes order is important. Long suffixes going first, to be cut before short ones.
   private val suffixes = Array( //"сыңдар", "сіңдер","ңыздар", "ңіздер","сыздар", "сіздер",
     "шалық",
     "шелік",

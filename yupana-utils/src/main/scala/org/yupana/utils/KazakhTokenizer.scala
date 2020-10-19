@@ -19,7 +19,6 @@ package org.yupana.utils
 import scala.collection.mutable
 
 object KazakhTokenizer extends TokenizerBase {
-  @transient private lazy val stemmer: KazakhLightStemmer = new KazakhLightStemmer()
 
   private val includedChars = {
     val charSet = mutable.Set(
@@ -44,7 +43,7 @@ object KazakhTokenizer extends TokenizerBase {
     ch >= includedChars.length || includedChars(ch)
   }
 
-  override def stemArray(array: Array[Char], length: Int): Int = stemmer.stem(array, length)
+  override def stemArray(array: Array[Char], length: Int): Int = KazakhLightStemmer.stem(array, length)
 
   override protected def transliterate(s: String): String = KazakhTransliterator.transliterate(s)
 }
