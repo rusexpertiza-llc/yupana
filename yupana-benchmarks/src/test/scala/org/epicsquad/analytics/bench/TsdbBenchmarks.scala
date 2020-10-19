@@ -2,23 +2,23 @@ package org.epicsquad.analytics.bench
 
 import java.util.Properties
 
-import org.apache.hadoop.hbase.client.{ConnectionFactory, HBaseAdmin, Scan, Result => HResult, Table => HTable}
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult, Table => HTable }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
+import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.yupana.core.TestSchema.testTable
-import org.joda.time.{DateTimeZone, LocalDateTime}
-import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
+import org.joda.time.{ DateTimeZone, LocalDateTime }
+import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.syntax.All._
-import org.yupana.api.query.{DataPoint, Query}
-import org.yupana.api.schema.{Dimension, Table}
-import org.yupana.api.types.{Aggregation, UnaryOperation}
+import org.yupana.api.query.{ DataPoint, Query }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
+import org.yupana.api.types.{ Aggregation, UnaryOperation }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
-import org.yupana.core.model.{MetricData, QueryStates, TsdbQueryMetrics}
-import org.yupana.core.utils.metric.{ConsoleMetricQueryCollector, MetricQueryCollector}
+import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
+import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 import org.yupana.core._
-import org.yupana.hbase.{HBaseTestUtils, InternalQueryContext, TSDaoHBaseBase}
+import org.yupana.hbase.{ HBaseTestUtils, InternalQueryContext, TSDaoHBaseBase }
 
 class TsdbBenchmarks {
 
@@ -78,16 +78,16 @@ class TsdbBenchmarksState {
     val metricDao = new TsdbQueryMetricsDao {
       override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit =
         ???
-      override def queriesByFilter(filter: Option[QueryMetricsFilter],
-                                   limit: Option[Int]): Iterable[TsdbQueryMetrics] =
+      override def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] =
         ???
-      override def updateQueryMetrics(queryId: String,
-                                      queryState: QueryStates.QueryState,
-                                      totalDuration: Double,
-                                      metricValues: Map[String, MetricData],
-                                      sparkQuery: Boolean): Unit = ???
-      override def setQueryState(filter: QueryMetricsFilter,
-                                 queryState: QueryStates.QueryState): Unit = ???
+      override def updateQueryMetrics(
+          queryId: String,
+          queryState: QueryStates.QueryState,
+          totalDuration: Double,
+          metricValues: Map[String, MetricData],
+          sparkQuery: Boolean
+      ): Unit = ???
+      override def setQueryState(filter: QueryMetricsFilter, queryState: QueryStates.QueryState): Unit = ???
       override def setRunningPartitions(queryId: String, partitions: Int): Unit =
         ???
       override def decrementRunningPartitions(queryId: String): Int = ???
@@ -140,11 +140,11 @@ class TsdbBenchmarksState {
       }
 
       override def executeScans(
-                                 queryContext: InternalQueryContext,
-                                 from: Long,
-                                 to: Long,
-                                 rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
-                               ): Iterator[HResult] = {
+          queryContext: InternalQueryContext,
+          from: Long,
+          to: Long,
+          rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+      ): Iterator[HResult] = {
         rows.iterator
       }
 
@@ -191,27 +191,27 @@ class TsdbBenchmarksState {
       override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = ???
 
       override def checkAndPutRollupStatus(
-                                            time: Long,
-                                            oldStatus: Option[String],
-                                            newStatus: String,
-                                            table: Table
-                                          ): Boolean = ???
+          time: Long,
+          oldStatus: Option[String],
+          newStatus: String,
+          table: Table
+      ): Boolean = ???
 
       override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = ???
 
       override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = ???
 
+      override val schema: Schema = TestSchema.schema
     }
 
     val mc = new ConsoleMetricQueryCollector(query, "test")
 
-    new TSDB(dao, metricDao, dictProvider, identity, SimpleTsdbConfig(putEnabled = true)) {
+    new TSDB(TestSchema.schema, dao, metricDao, dictProvider, identity, SimpleTsdbConfig(putEnabled = true)) {
       override def createMetricCollector(query: Query): MetricQueryCollector = {
         mc
       }
     }
   }
-
 
   val N = 1000000
   val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
