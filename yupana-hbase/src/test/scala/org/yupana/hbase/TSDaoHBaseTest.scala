@@ -11,7 +11,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
@@ -1206,6 +1206,8 @@ class TSDaoHBaseTest
       }
       queryRunner(scans.toSeq)
     }
+
+    override val schema: Schema = TestSchema.schema
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {

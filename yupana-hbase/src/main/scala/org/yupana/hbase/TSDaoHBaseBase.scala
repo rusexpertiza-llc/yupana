@@ -20,10 +20,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Schema, Table }
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.api.Time
-import org.yupana.core.MapReducible
+import org.yupana.core.{ ExpressionCalculator, MapReducible }
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -38,6 +38,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   type IdType = Long
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean
+
+  val schema: Schema
+
+  protected lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
 
@@ -64,7 +68,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
-    val tbc = TimeBoundedCondition(query.condition)
+    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
 
     if (tbc.size != 1) throw new IllegalArgumentException("Only one condition is supported")
 
@@ -104,7 +108,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val includeRowFilter = prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
 
-    val rowFilter = createRowFilter(query.table, includeRowFilter, filters.allExcludes)
+    val excludeRowFilter = filters.allExcludes.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+
+    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
       from,
       to,

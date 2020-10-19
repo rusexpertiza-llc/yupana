@@ -20,7 +20,7 @@ import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client.{ Connection, Get, Put, Scan }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -30,6 +30,7 @@ import org.apache.hadoop.hbase.client.{ Result => HResult }
 import scala.collection.JavaConverters._
 
 class TSDaoHBase(
+    override val schema: Schema,
     connection: Connection,
     namespace: String,
     override val dictionaryProvider: DictionaryProvider,

@@ -813,9 +813,7 @@ class TsdbDataFilterTest
         }
       )
 
-    (link5.condition _)
-      .expects(*)
-      .onCall((c: Condition) => c)
+    (link5.condition _).expects(*).onCall((c: Condition) => c)
 
     val rows = tsdb.query(query).iterator.toList
 

@@ -18,11 +18,12 @@ package org.yupana.core
 
 import org.yupana.core.model.InternalRow
 import org.yupana.api.query._
+import org.yupana.api.utils.Tokenizer
 import org.yupana.core.operations.Operations
 
-object ExpressionCalculator {
+class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
-  implicit private val operations: Operations = Operations
+  implicit private val operations: Operations = new Operations(tokenizer)
 
   def evaluateConstant(expr: Expression): expr.Out = {
     assert(expr.kind == Const)

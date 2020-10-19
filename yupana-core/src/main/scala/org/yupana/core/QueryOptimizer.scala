@@ -21,24 +21,24 @@ import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, 
 
 object QueryOptimizer {
 
-  def optimize(query: Query): Query = {
+  def optimize(expressionCalculator: ExpressionCalculator)(query: Query): Query = {
     query.copy(
-      fields = query.fields.map(optimizeField),
-      filter = query.filter.map(optimizeCondition),
-      postFilter = query.postFilter.map(optimizeCondition)
+      fields = query.fields.map(optimizeField(expressionCalculator)),
+      filter = query.filter.map(optimizeCondition(expressionCalculator)),
+      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator))
     )
   }
 
-  def optimizeCondition(c: Condition): Condition = {
-    simplifyCondition(optimizeExpr(c))
+  def optimizeCondition(expressionCalculator: ExpressionCalculator)(c: Condition): Condition = {
+    simplifyCondition(optimizeExpr(expressionCalculator)(c))
   }
 
-  def optimizeField(field: QueryField): QueryField = {
-    field.copy(expr = optimizeExpr(field.expr.aux))
+  def optimizeField(expressionCalculator: ExpressionCalculator)(field: QueryField): QueryField = {
+    field.copy(expr = optimizeExpr(expressionCalculator)(field.expr.aux))
   }
 
-  def optimizeExpr[T](expr: Expression.Aux[T]): Expression.Aux[T] = {
-    expr.transform { case e if e.kind == Const => evaluateConstant(e.aux).aux }
+  def optimizeExpr[T](expressionCalculator: ExpressionCalculator)(expr: Expression.Aux[T]): Expression.Aux[T] = {
+    expr.transform { case e if e.kind == Const => evaluateConstant(expressionCalculator)(e.aux).aux }
   }
 
   def simplifyCondition(condition: Condition): Condition = {
@@ -85,9 +85,11 @@ object QueryOptimizer {
     }
   }
 
-  private def evaluateConstant[T](e: Expression.Aux[T]): Expression.Aux[T] = {
+  private def evaluateConstant[T](
+      expressionCalculator: ExpressionCalculator
+  )(e: Expression.Aux[T]): Expression.Aux[T] = {
     assert(e.kind == Const)
-    val eval = ExpressionCalculator.evaluateConstant(e)
+    val eval = expressionCalculator.evaluateConstant(e)
     if (eval != null) {
       ConstantExpr(eval)(
         e.dataType

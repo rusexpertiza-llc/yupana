@@ -16,46 +16,39 @@
 
 package org.yupana.utils
 
-import org.apache.lucene.analysis.ru.RussianLightStemmer
+import org.yupana.api.utils.Tokenizer
 
 import scala.collection.mutable
 
-object Tokenizer extends Serializable {
-  private val stemmer = new RussianLightStemmer()
-  private val charSet = mutable.Set(
-    '/', '.', ',', '\\', '%', '*'
-  ) ++
-    ('0' to '9') ++
-    ('a' to 'z') ++
-    ('A' to 'Z') ++
-    ('а' to 'я') ++
-    ('А' to 'Я')
-
-  private val includedChars = Array.fill[Boolean](charSet.max + 1)(false)
-  charSet.foreach { s =>
-    includedChars(s) = true
-  }
-
-  private def isCharIncluded(ch: Char): Boolean = {
-    ch >= includedChars.length || includedChars(ch)
-  }
+trait TokenizerBase extends Tokenizer {
+  protected def isCharIncluded(ch: Char): Boolean
+  protected def stemArray(array: Array[Char], length: Int): Int
+  protected def transliterate(s: String): String
 
   def stem(word: String): String = {
     val w = word.toLowerCase.toCharArray
-    val len = stemmer.stem(w, w.length)
+    val len = stemArray(w, w.length)
     new String(w, 0, len)
   }
 
   def transliteratedTokens(item: String): Seq[String] = {
-    stemmedTokens(item).map(Transliterator.transliterate).filterNot(_.isEmpty)
+    stemmedTokens(item).map(transliterate).filterNot(_.isEmpty)
   }
 
   def stemmedTokens(item: String): Seq[String] = {
-    tokenize(item, stemmer.stem)
+    try {
+      tokenize(item, stemArray)
+    } catch {
+      case e: ArrayIndexOutOfBoundsException => throw new IllegalArgumentException(s"Unable to handle $item", e)
+    }
   }
 
   def rawTokens(item: String): Seq[String] = {
-    tokenize(item, (_, x) => x)
+    try {
+      tokenize(item, (_, x) => x)
+    } catch {
+      case e: ArrayIndexOutOfBoundsException => throw new IllegalArgumentException(s"Unable to handle $item", e)
+    }
   }
 
   private def tokenize(item: String, tokenLength: (Array[Char], Int) => Int): Seq[String] = {
@@ -109,7 +102,7 @@ object Tokenizer extends Serializable {
         val prevIsLetter = prev.isLetter
         val nextIsDigit = next.isDigit
 
-        if ((prevIsDigit && isLetter) || (prevIsLetter && isDigit)) {
+        if ((prevIsDigit && isLetter && charIncluded) || (prevIsLetter && isDigit)) {
           // Разделители с сохранением оригинала и разделителя
           sliceStemAppend(from, i, offset, updated)
           from = i

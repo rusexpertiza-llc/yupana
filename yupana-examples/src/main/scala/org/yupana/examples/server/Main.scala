@@ -63,9 +63,17 @@ object Main extends StrictLogging {
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
 
     val tsdb =
-      TSDBHBase(hbaseConfiguration, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)
+      TSDBHBase(
+        hbaseConfiguration,
+        config.hbaseNamespace,
+        schemaWithJson,
+        identity,
+        config.properties,
+        tsdbConfig
+      )
     logger.info("Registering catalogs")
-    val elRegistrator = new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
+    val elRegistrator =
+      new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 

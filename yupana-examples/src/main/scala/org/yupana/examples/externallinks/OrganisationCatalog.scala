@@ -19,7 +19,7 @@ package org.yupana.examples.externallinks
 import java.util.Properties
 
 import org.springframework.jdbc.core.JdbcTemplate
-import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLinkConnection, SQLExternalLinkDescription }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
@@ -62,5 +62,10 @@ object OrganisationCatalogImpl {
   }
 }
 
-class OrganisationCatalogImpl(jdbcTemplate: JdbcTemplate)
-    extends SQLSourcedExternalLinkService(OrganisationCatalog, OrganisationCatalogImpl.description, jdbcTemplate)
+class OrganisationCatalogImpl(schema: Schema, jdbcTemplate: JdbcTemplate)
+    extends SQLSourcedExternalLinkService(
+      schema,
+      OrganisationCatalog,
+      OrganisationCatalogImpl.description,
+      jdbcTemplate
+    )

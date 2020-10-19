@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.core.operations
+package org.yupana.api.utils
 
-import org.yupana.api.utils.Tokenizer
+trait ItemFixer extends Serializable {
+  def fix(s: String): String
+}
 
-class Operations(override val tokenizer: Tokenizer)
-    extends UnaryOperationsImpl
-    with BinaryOperationsImpl
-    with WindowOperationsImpl
-    with AggregationsImpl
-    with Serializable
+object ItemFixer {
+  val empty: ItemFixer = new ItemFixer {
+    override def fix(s: String): String = s
+  }
+}

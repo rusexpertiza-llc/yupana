@@ -4,6 +4,8 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.{ FlatSpec, Matchers, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.ItemFixer
+import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
 
 class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues {
 
@@ -74,5 +76,5 @@ object TS {
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )
 
-  val schema = Schema(Seq(S1), Seq.empty)
+  val schema = Schema(Seq(S1), Seq.empty, ItemFixer.empty, RussianTokenizer, RussianTransliterator)
 }
