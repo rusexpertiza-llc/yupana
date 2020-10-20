@@ -32,13 +32,13 @@ jobs:
         sbt headerCheck scalafmtCheckAll
     - stage: test
       script:
-        - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport
+        - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport benchmarks/test:compile
         - codecov
     - stage: test
       scala:
         - 2.11.12
       script:
-        sbt ++$TRAVIS_SCALA_VERSION clean test
+        sbt ++$TRAVIS_SCALA_VERSION clean test benchmarks/test:compile
     - stage: release
       script:
         sbt +clean +publishSigned sonatypeBundleRelease
