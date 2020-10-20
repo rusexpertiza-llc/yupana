@@ -273,7 +273,13 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
     run in Jmh := (run in Jmh).dependsOn(Keys.compile in Jmh).evaluated,
 
     libraryDependencies ++= Seq (
-      "org.openjdk.jmh" % "jmh-generator-annprocess" % (version in Jmh).value
+      "org.openjdk.jmh" % "jmh-generator-annprocess" % (version in Jmh).value,
+      "org.slf4j"       % "log4j-over-slf4j"         % "1.7.30"                  % Runtime,
+      "ch.qos.logback"  %  "logback-classic"         % versions.logback          % Runtime
+    ),
+
+    excludeDependencies ++= Seq(
+      "org.slf4j" % "slf4j-log4j12"
     ),
 
     commonSettings,
