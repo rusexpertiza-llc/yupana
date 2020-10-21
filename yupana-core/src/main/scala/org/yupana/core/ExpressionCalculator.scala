@@ -208,8 +208,8 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case LowerExpr(e)  => evaluateUnary(qc, row, e)(_.toLowerCase)
       case UpperExpr(e)  => evaluateUnary(qc, row, e)(_.toUpperCase)
       case LengthExpr(e) => evaluateUnary(qc, row, e)(_.length)
-      case SplitExpr(e)  => evaluateUnary(qc, row, e)(s => splitBy(s, !_.isLetterOrDigit).toArray)
-      case TokensExpr(e) => evaluateUnary(qc, row, e)(s => tokenizer.transliteratedTokens(s).toArray)
+      case SplitExpr(e)  => evaluateUnary(qc, row, e)(s => splitBy(s, !_.isLetterOrDigit).toSeq)
+      case TokensExpr(e) => evaluateUnary(qc, row, e)(s => tokenizer.transliteratedTokens(s))
 
       case a @ AbsExpr(e)        => evaluateUnary(qc, row, e)(a.num.abs)
       case u @ UnaryMinusExpr(e) => evaluateUnary(qc, row, e)(u.num.negate)

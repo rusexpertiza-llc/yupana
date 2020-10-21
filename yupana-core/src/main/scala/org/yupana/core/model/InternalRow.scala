@@ -132,8 +132,9 @@ class InternalRowBuilder(val exprIndex: scala.collection.Map[Expression[_], Int]
 
   def needId(tag: Byte): Boolean = dimIdIndex(tag & 0xFF) != -1
 
-  def set(time: Time): Unit = {
+  def set(time: Time): InternalRowBuilder = {
     if (timeIndex != -1) data(timeIndex) = time
+    this
   }
 
   def set(expr: Expression[_], v: Any): InternalRowBuilder = {
