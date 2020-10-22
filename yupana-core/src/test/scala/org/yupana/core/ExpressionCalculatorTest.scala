@@ -3,8 +3,8 @@ package org.yupana.core
 import org.joda.time.LocalDateTime
 import org.scalatest.{ Matchers, OptionValues, WordSpecLike }
 import org.yupana.api.Time
-import org.yupana.api.query.{ ConstantExpr, DimensionExpr, Expression, LinkExpr, MetricExpr, Query, TimeExpr }
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, ExternalLink, LinkField, Metric, RawDimension }
+import org.yupana.api.query._
+import org.yupana.api.schema._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.utils.RussianTokenizer
 
@@ -100,6 +100,87 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         "vodichk",
         "№7"
       )
+    }
+
+    "Evaluate array functions" in {
+      calculator.evaluateConstant(arrayLength(const(Seq(1, 2, 3)))) shouldEqual 3
+      calculator.evaluateConstant(arrayToString(const(Seq(1, 2, 3, 4)))) shouldEqual "1 2 3 4"
+      calculator.evaluateConstant(ArrayTokensExpr(const(Seq("красная вода", "соленые яблоки")))) should contain theSameElementsAs Seq(
+        "krasn",
+        "vod",
+        "solen",
+        "yablok"
+      )
+
+      calculator.evaluateConstant(arrayToString(array(const(1), plus(const(2), const(3)), const(4)))) shouldEqual "1 5 4"
+    }
+
+    "Evaluate aggregations" in {
+      val qc =
+        createContext(
+          Seq(
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            sum(metric(TestTableFields.TEST_FIELD)),
+            min(metric(TestTableFields.TEST_FIELD)),
+            max(metric(TestTableFields.TEST_FIELD)),
+            count(metric(TestTableFields.TEST_FIELD)),
+            distinctCount(metric(TestTableFields.TEST_FIELD)),
+            distinctRandom(metric(TestTableFields.TEST_FIELD))
+          )
+        )
+      val builder = new InternalRowBuilder(qc)
+      val rows = Seq(
+        builder
+          .set(Time(new LocalDateTime(2020, 10, 21, 11, 36, 42)))
+          .set(MetricExpr(TestTableFields.TEST_FIELD), 73d)
+          .buildAndReset(),
+        builder
+          .set(Time(new LocalDateTime(2020, 10, 22, 15, 36, 42)))
+          .set(MetricExpr(TestTableFields.TEST_FIELD), 154d)
+          .buildAndReset(),
+        builder
+          .set(Time(new LocalDateTime(2020, 10, 22, 15, 59, 24)))
+          .set(MetricExpr(TestTableFields.TEST_FIELD), 73d)
+          .buildAndReset()
+      )
+
+      val aggregations = Seq[AggregateExpr[_, _, _]](
+        sum(metric(TestTableFields.TEST_FIELD)),
+        min(metric(TestTableFields.TEST_FIELD)),
+        max(metric(TestTableFields.TEST_FIELD)),
+        count(metric(TestTableFields.TEST_FIELD)),
+        distinctCount(metric(TestTableFields.TEST_FIELD)),
+        distinctRandom(metric(TestTableFields.TEST_FIELD))
+      )
+
+      for {
+        row <- rows
+        agg <- aggregations
+      } yield {
+        val v = calculator.evaluateMap(agg, qc, row)
+        row.set(qc, agg, v)
+      }
+
+      val resultRow = rows.reduce { (r1, r2) =>
+        aggregations.foreach { agg =>
+          val v = calculator.evaluateReduce(agg, qc, r1, r2)
+          r1.set(qc, agg, v)
+        }
+        r1
+      }
+
+      aggregations.foreach { agg =>
+        val v = calculator.evaluatePostMap(agg, qc, resultRow)
+        resultRow.set(qc, agg, v)
+      }
+
+      resultRow.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 300d
+      resultRow.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 73d
+      resultRow.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 154d
+      resultRow.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
+      resultRow.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
+      resultRow.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should equal(154).or(equal(73d))
     }
   }
 

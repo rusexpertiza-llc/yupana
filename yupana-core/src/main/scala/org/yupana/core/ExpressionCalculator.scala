@@ -228,24 +228,9 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case ContainsExpr(a, b)     => evaluateBinary(qc, row, a, b)(_ contains _)
       case ContainsAllExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.forall(x.contains))
       case ContainsAnyExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.exists(x.contains))
-      case ContainsSameExpr(a, b) => evaluateBinary(qc, row, a, b)(_ sameElements _)
+      case ContainsSameExpr(a, b) => evaluateBinary(qc, row, a, b)(_ == _)
 
-      case ae @ ArrayExpr(es) =>
-        val values: Array[ae.elementDataType.T] =
-          Array.ofDim[ae.elementDataType.T](es.length)(ae.elementDataType.classTag)
-        var success = true
-        var i = 0
-
-        while (i < es.length && success) {
-          val v = evaluateExpression(es(i), qc, row)
-          values(i) = v
-          if (v == null) {
-            success = false
-          }
-          i += 1
-        }
-
-        if (success) values else null
+      case ae @ ArrayExpr(es) => es.map(e => evaluateExpression(e, qc, row))
     }
 
     // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out

@@ -24,12 +24,11 @@ import org.yupana.api.types._
 trait ExpressionSyntax {
   val time: TimeExpr.type = TimeExpr
 
-//  def function[T, U](f: UnaryOperation.Aux[T, U], e: Expression[T]) = UnaryOperationExpr(f, e)
   def convert[T, U](tc: TypeConverter[T, U], e: Expression[T]) = TypeConvertExpr(tc, e)
 
   def tuple[T, U](e1: Expression[T], e2: Expression[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) =
     TupleExpr(e1, e2)
-  def array[T](es: Expression[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Array(es: _*))
+  def array[T](es: Expression[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Seq(es: _*))
   def dimension[T](dim: Dimension.Aux[T]) = DimensionExpr(dim)
   def link(link: ExternalLink, fieldName: String): LinkExpr[String] =
     LinkExpr[String](link, LinkField[String](fieldName))

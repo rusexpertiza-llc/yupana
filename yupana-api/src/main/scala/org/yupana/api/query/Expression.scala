@@ -120,7 +120,7 @@ final case class DistinctCountExpr[I](override val expr: Expression[I])
 }
 
 final case class DistinctRandomExpr[I](override val expr: Expression[I])
-    extends AggregateExpr[I, Set[I], I](expr, "distinct_count") {
+    extends AggregateExpr[I, Set[I], I](expr, "distinct_random") {
   override def dataType: DataType.Aux[I] = expr.dataType
   override type Self = DistinctRandomExpr[I]
   override def create(newExpr: Expression[I]): DistinctRandomExpr[I] = DistinctRandomExpr(newExpr)
