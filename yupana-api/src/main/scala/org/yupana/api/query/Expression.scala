@@ -65,8 +65,8 @@ object Expression {
   type Condition = Expression[Boolean]
 }
 
-sealed abstract class WindowFunctionExpr[T, U](val expr: Expression[T], name: String)
-    extends UnaryOperationExpr[T, U](expr, name) {
+sealed abstract class WindowFunctionExpr[In, Out](val expr: Expression[In], name: String)
+    extends UnaryOperationExpr[In, Out](expr, name) {
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Window else Invalid
   override def encode: String = s"winFunc($name,${expr.encode})"
 }
@@ -78,8 +78,8 @@ final case class LagExpr[I](override val expr: Expression[I]) extends WindowFunc
   override def create(newExpr: Expression[I]): LagExpr[I] = LagExpr(newExpr)
 }
 
-sealed abstract class AggregateExpr[T, I, U](val expr: Expression[T], name: String)
-    extends UnaryOperationExpr[T, U](expr, name) {
+sealed abstract class AggregateExpr[In, M, Out](val expr: Expression[In], name: String)
+    extends UnaryOperationExpr[In, Out](expr, name) {
 
   override def kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
   override def encode: String = s"agg($name,${expr.encode})"
@@ -172,11 +172,6 @@ case class DimensionIdExpr(dimension: Dimension) extends Expression[String] {
   def toField: QueryField = QueryField(dimension.name, this)
 }
 
-//object DimensionIdExpr {
-//  def apply(dimension: Dimension): DimensionIdExpr = new DimensionIdExpr(dimension)
-//  def unapply(expr: DimensionIdExpr): Option[Dimension] = Some(expr.dimension)
-//}
-
 final case class MetricExpr[T](metric: Metric.Aux[T]) extends Expression[T] {
   override def dataType: DataType.Aux[metric.T] = metric.dataType
   override def kind: ExprKind = Simple
@@ -202,20 +197,17 @@ object LinkExpr {
   def apply(link: ExternalLink, field: String): LinkExpr[String] = new LinkExpr(link, LinkField[String](field))
 }
 
-sealed abstract class UnaryOperationExpr[T, U](
-    expr: Expression[T],
-    functionName: String
-) extends Expression[U] {
-  override def dataType: DataType.Aux[U]
+sealed abstract class UnaryOperationExpr[In, Out](expr: Expression[In], functionName: String) extends Expression[Out] {
+  override def dataType: DataType.Aux[Out]
 
-  type Self <: UnaryOperationExpr[T, U]
-  def create(newExpr: Expression[T]): Self
+  type Self <: UnaryOperationExpr[In, Out]
+  def create(newExpr: Expression[In]): Self
 
   override def kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
 
-  override def transform(t: Transformer): Expression[U] = {
+  override def transform(t: Transformer): Expression[Out] = {
     t(this) getOrElse create(expr.transform(t))
   }
 
@@ -397,14 +389,14 @@ final case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression
   override def encode: String = s"${tc.functionName}($expr)"
 }
 
-sealed abstract class BinaryOperationExpr[T, U, O](
+sealed abstract class BinaryOperationExpr[T, U, Out](
     val a: Expression[T],
     val b: Expression[U],
     val functionName: String,
     isInfix: Boolean
-) extends Expression[O] {
+) extends Expression[Out] {
 
-  type Self <: BinaryOperationExpr[T, U, O]
+  type Self <: BinaryOperationExpr[T, U, Out]
   def create(a: Expression[T], b: Expression[U]): Self
 
   override def fold[B](z: B)(f: (B, Expression[_]) => B): B = {
@@ -412,7 +404,7 @@ sealed abstract class BinaryOperationExpr[T, U, O](
     b.fold(z1)(f)
   }
 
-  override def transform(t: Transformer): Expression[O] = {
+  override def transform(t: Transformer): Expression[Out] = {
     t(this) getOrElse create(a.transform(t), b.transform(t))
   }
 
