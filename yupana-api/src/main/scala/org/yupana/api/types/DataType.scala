@@ -40,14 +40,13 @@ trait DataType extends Serializable {
   def aux: DataType.Aux[T] = this.asInstanceOf[DataType.Aux[T]]
 
   override def equals(obj: scala.Any): Boolean = {
-    if (obj == null) false
-    else
-      obj match {
-        case that: DataType =>
-          this.classTag == that.classTag
-        case _ => false
-      }
+    obj match {
+      case that: DataType => this.classTag == that.classTag
+      case _              => false
+    }
   }
+
+  override def hashCode(): Int = this.classTag.hashCode()
 
   override def toString: String = s"${meta.sqlTypeName}"
 }
@@ -64,6 +63,15 @@ class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override val ordering: Option[Ordering[Seq[TT]]] = None
   override val integral: Option[Integral[Seq[TT]]] = None
   override val fractional: Option[Fractional[Seq[TT]]] = None
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: ArrayDataType[_] => this.valueType == that.valueType
+      case _                      => false
+    }
+  }
+
+  override def hashCode(): Int = (37 * 17 + classTag.hashCode()) * 17 + valueType.classTag.hashCode()
 }
 
 object DataType {

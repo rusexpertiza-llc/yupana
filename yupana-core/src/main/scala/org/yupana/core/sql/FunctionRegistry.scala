@@ -27,6 +27,9 @@ object FunctionRegistry {
 
   sealed trait ParamType
   case object NumberParam extends ParamType
+  case object OrdParam extends ParamType
+  case object AnyParam extends ParamType
+  case object ArrayParam extends ParamType
   case class DataTypeParam(t: DataType) extends ParamType
   case object OtherParam extends ParamType
 
@@ -230,13 +233,13 @@ object FunctionRegistry {
   }
 
   def functionsForType(t: DataType): Seq[String] = {
-    val fs = if (t.numeric.isDefined) {
-      unaryFunctions.filter(_.t == NumberParam)
-    } else {
-      unaryFunctions.filter(_.t == DataTypeParam(t))
-    }
+    val num = if (t.numeric.isDefined) unaryFunctions.filter(_.t == NumberParam) else Seq.empty
+    val ord = if (t.ordering.isDefined) unaryFunctions.filter(_.t == OrdParam) else Seq.empty
+    val tpe = unaryFunctions.filter(_.t == DataTypeParam(t))
+    val array = if (t.isArray) unaryFunctions.filter(_.t == ArrayParam) else Seq.empty
+    val any = unaryFunctions.filter(_.t == AnyParam)
 
-    fs.map(_.name)
+    (num ++ ord ++ tpe ++ array ++ any).map(_.name).distinct.sorted
   }
 
   private def uNum(
@@ -260,7 +263,7 @@ object FunctionRegistry {
   ): FunctionDesc = {
     FunctionDesc(
       fn,
-      OtherParam, {
+      OrdParam, {
         case e: Expression[t] =>
           e.dataType.ordering.fold[Either[String, Expression[t]]](Left(s"$fn cannot be applied to ${e.dataType}"))(
             ord => Right(create(e, ord))
@@ -270,7 +273,7 @@ object FunctionRegistry {
   }
 
   private def uAny(fn: String, create: Expression[_] => Expression[_]): FunctionDesc =
-    FunctionDesc(fn, OtherParam, e => Right(create(e)))
+    FunctionDesc(fn, AnyParam, e => Right(create(e)))
 
   private def uTyped[T](fn: String, create: Expression[T] => Expression[_])(
       implicit dt: DataType.Aux[T]
@@ -287,7 +290,7 @@ object FunctionRegistry {
   private def uArray[T](fn: String, create: Bind[ArrayExpr, Expression[_]]): FunctionDesc = {
     FunctionDesc(
       fn,
-      OtherParam,
+      ArrayParam,
       e =>
         if (e.dataType.isArray) Right(create(e.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires array, but got $e")
