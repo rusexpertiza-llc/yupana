@@ -28,7 +28,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsMinimumSQLGrammar(): Boolean = false
 
-  override def getResultSetHoldability: Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
+  override def getResultSetHoldability: Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
 
   override def getMaxColumnsInGroupBy: Int = 0
 
@@ -52,7 +52,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def allProceduresAreCallable() = false
 
-  override def supportsResultSetConcurrency(`type`: Int, concurrency: Int) = false
+  override def supportsResultSetConcurrency(`type`: Int, concurrency: Int): Boolean =
+    `type` == ResultSet.TYPE_FORWARD_ONLY && concurrency == ResultSet.CONCUR_READ_ONLY
 
   override def getMaxTablesInSelect = 1
 
@@ -64,7 +65,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def ownDeletesAreVisible(`type`: Int) = false
 
-  override def supportsResultSetHoldability(holdability: Int) = false
+  override def supportsResultSetHoldability(holdability: Int): Boolean =
+    holdability == ResultSet.CLOSE_CURSORS_AT_COMMIT
 
   override def getMaxStatements = 0
 
@@ -260,7 +262,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getUserName = ""
 
-  override def supportsTransactionIsolationLevel(level: Int) = false
+  override def supportsTransactionIsolationLevel(level: Int): Boolean = level == Connection.TRANSACTION_NONE
 
   override def deletesAreDetected(`type`: Int) = false
 
@@ -401,7 +403,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsMixedCaseQuotedIdentifiers() = false
 
-  override def supportsGroupByBeyondSelect() = false
+  override def supportsGroupByBeyondSelect() = true
 
   override def supportsCatalogsInIndexDefinitions() = false
 

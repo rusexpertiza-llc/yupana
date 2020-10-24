@@ -1,5 +1,6 @@
 package org.yupana.jdbc
 
+import java.io.{ ByteArrayInputStream, CharArrayReader }
 import java.net.URL
 import java.sql.{ SQLException, SQLFeatureNotSupportedException, Time, Timestamp, Types }
 import java.util.Calendar
@@ -177,6 +178,95 @@ class YupanaPreparedStatementTest extends FlatSpec with Matchers with MixedMockF
 
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setNull(1, Types.BIGINT)
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setNull(1, Types.BIGINT, "INTEGER")
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setAsciiStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setAsciiStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      100
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setAsciiStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      5L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBinaryStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBinaryStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      100
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBinaryStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      5L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setUnicodeStream(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      10
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBlob(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBlob(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      100
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setCharacterStream(
+      2,
+      new CharArrayReader("Test me".toCharArray),
+      10L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNCharacterStream(
+      2,
+      new CharArrayReader("Test me".toCharArray),
+      10L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNClob(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNClob(
+      2,
+      new CharArrayReader("Test me".toCharArray),
+      10L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBoolean(1, x = true)
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBytes(1, "Test me".getBytes())
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNString(2, "Test me")
   }
 
 }
