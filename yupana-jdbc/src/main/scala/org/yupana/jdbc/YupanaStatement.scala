@@ -20,7 +20,6 @@ import java.sql.{ Array => _, _ }
 
 class YupanaStatement(val connection: YupanaConnection) extends Statement {
   private var maxRows = 0
-  private var fetchDirection = 0
   private var fetchSize = 0
   protected var lastResultSet: YupanaResultSet = _
 
@@ -96,10 +95,13 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
   override def getMoreResults: Boolean = false
 
   @throws[SQLException]
-  override def setFetchDirection(fetchDirection: Int): Unit = this.fetchDirection = fetchDirection
+  override def setFetchDirection(fetchDirection: Int): Unit = {
+    if (fetchDirection != ResultSet.FETCH_FORWARD)
+      throw new SQLException(s"Unsupported fetch direction $fetchDirection")
+  }
 
   @throws[SQLException]
-  override def getFetchDirection: Int = fetchDirection
+  override def getFetchDirection: Int = ResultSet.FETCH_FORWARD
 
   @throws[SQLException]
   override def setFetchSize(fetchSize: Int): Unit = this.fetchSize = fetchSize
@@ -167,7 +169,7 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
   override def isClosed: Boolean = connection.isClosed
 
   @throws[SQLException]
-  override def setPoolable(b: Boolean): Unit = {}
+  override def setPoolable(b: Boolean): Unit = throw new SQLFeatureNotSupportedException("Pooling is not supported")
 
   @throws[SQLException]
   override def isPoolable: Boolean = false

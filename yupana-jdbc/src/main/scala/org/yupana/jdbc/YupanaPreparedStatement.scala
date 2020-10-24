@@ -149,11 +149,6 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
   }
 
   @throws[SQLException]
-  override def setByte(parameterIndex: Int, x: Byte): Unit = {
-    throw new SQLFeatureNotSupportedException("Bytes are not supported")
-  }
-
-  @throws[SQLException]
   override def setBytes(parameterIndex: Int, x: Array[Byte]): Unit = {
     throw new SQLFeatureNotSupportedException("Bytes are not supported")
   }
@@ -210,6 +205,11 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setInt(parameterIndex: Int, x: Int): Unit = {
+    setParameter(parameterIndex, NumericValue(x))
+  }
+
+  @throws[SQLException]
+  override def setByte(parameterIndex: Int, x: Byte): Unit = {
     setParameter(parameterIndex, NumericValue(x))
   }
 

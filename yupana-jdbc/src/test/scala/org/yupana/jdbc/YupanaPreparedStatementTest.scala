@@ -1,6 +1,8 @@
 package org.yupana.jdbc
 
-import java.sql.{ SQLException, Timestamp }
+import java.net.URL
+import java.sql.{ SQLException, SQLFeatureNotSupportedException, Time, Timestamp, Types }
+import java.util.Calendar
 
 import org.scalamock.scalatest.MixedMockFactory
 import org.scalatest.{ FlatSpec, Matchers }
@@ -31,6 +33,9 @@ class YupanaPreparedStatementTest extends FlatSpec with Matchers with MixedMockF
       .returning(SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty))
 
     statement.execute()
+
+    (conn.close _).expects()
+    statement.close()
   }
 
   it should "clear parameters" in {
@@ -97,18 +102,20 @@ class YupanaPreparedStatementTest extends FlatSpec with Matchers with MixedMockF
 
   it should "support clear batch" in {
     val conn = mock[YupanaConnection]
-    val q = "UPSERT INTO (item, kkmId, time) FROM kkm_items VALUES (?, ?, ?)"
+    val q = "UPSERT INTO (item, kkmId, time, sum, quantity) FROM kkm_items VALUES (?, ?, ?, ?, ?)"
 
     val statement = new YupanaPreparedStatement(conn, q)
 
     statement.setString(1, "молоко 1 пакет")
-    statement.setString(2, "12345")
+    statement.setInt(2, 12345)
     statement.setTimestamp(3, new Timestamp(1578584211000L))
     statement.addBatch()
 
     statement.setString(1, "колбаса докторская")
-    statement.setString(2, "54321")
+    statement.setByte(2, 22)
     statement.setTimestamp(3, new Timestamp(1578584212000L))
+    statement.setDouble(5, 1.5d)
+    statement.setBigDecimal(4, new java.math.BigDecimal("1.40"))
 
     statement.clearBatch()
     statement.addBatch()
@@ -119,8 +126,10 @@ class YupanaPreparedStatementTest extends FlatSpec with Matchers with MixedMockF
         Seq(
           Map(
             1 -> StringValue("колбаса докторская"),
-            2 -> StringValue("54321"),
-            3 -> TimestampValue(1578584212000L)
+            2 -> NumericValue(22),
+            3 -> TimestampValue(1578584212000L),
+            4 -> NumericValue(1.40),
+            5 -> NumericValue(1.5)
           )
         )
       )
@@ -135,6 +144,39 @@ class YupanaPreparedStatementTest extends FlatSpec with Matchers with MixedMockF
 
     val statement = new YupanaPreparedStatement(conn, q)
     an[SQLException] should be thrownBy statement.executeBatch()
+  }
+
+  it should "fail set unsupported types" in {
+    val conn = mock[YupanaConnection]
+    val q = "UPSERT INTO (item, kkmId, time) FROM kkm_items VALUES (?, ?, ?)"
+
+    val statement = new YupanaPreparedStatement(conn, q)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setURL(1, new URL("http", "localhost", "file"))
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setTimestamp(
+      1,
+      new Timestamp(12345L),
+      Calendar.getInstance()
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setTime(1, new Time(123456L))
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setTime(
+      1,
+      new Time(123456L),
+      Calendar.getInstance()
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setObject(1, "test")
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setObject(1, "test", Types.VARCHAR)
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setObject(
+      1,
+      new java.math.BigDecimal(1234),
+      Types.VARCHAR,
+      2
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNull(1, Types.BIGINT)
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setNull(1, Types.BIGINT, "INTEGER")
   }
 
 }
