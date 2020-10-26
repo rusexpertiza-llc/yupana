@@ -23,6 +23,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.getMaxColumnsInSelect shouldEqual 0
     m.getMaxColumnsInGroupBy shouldEqual 0
     m.getMaxColumnsInOrderBy shouldEqual 0
+    m.getMaxUserNameLength shouldEqual 0
 
     m.getMaxColumnsInTable shouldEqual 0
     m.getMaxColumnNameLength shouldEqual 0
@@ -36,6 +37,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.getMaxBinaryLiteralLength shouldEqual 0
     m.getMaxIndexLength shouldEqual 0
     m.getMaxRowSize shouldEqual 0
+    m.doesMaxRowSizeIncludeBlobs shouldBe false
 
     m.getMaxStatements shouldEqual 0
     m.supportsMultipleOpenResults shouldBe true
@@ -65,6 +67,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsDifferentTableCorrelationNames shouldBe false
     m.supportsNonNullableColumns shouldBe false
 
+    m.supportsGroupBy shouldBe true
     m.supportsGroupByUnrelated() shouldBe true
     m.supportsGroupByBeyondSelect() shouldBe true
 
@@ -130,6 +133,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsTransactions shouldBe false
     m.supportsMultipleTransactions shouldBe false
     m.dataDefinitionCausesTransactionCommit shouldBe false
+    m.autoCommitFailureClosesAllResultSets shouldBe false
     m.dataDefinitionIgnoredInTransactions shouldBe false
     m.supportsDataDefinitionAndDataManipulationTransactions shouldBe false
     m.supportsDataManipulationTransactionsOnly shouldBe false
@@ -158,6 +162,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
 
     m.supportsOpenCursorsAcrossCommit shouldBe false
     m.supportsOpenCursorsAcrossRollback shouldBe false
+    m.supportsOpenCursorsAcrossRollback shouldBe false
     m.supportsRefCursors shouldBe false
 
     m.supportsResultSetHoldability(ResultSet.HOLD_CURSORS_OVER_COMMIT) shouldBe false
@@ -178,7 +183,8 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsConvert(Types.INTEGER, Types.DECIMAL) shouldBe false
 
     m.locatorsUpdateCopy shouldBe false
-    m.usesLocalFiles() shouldBe false
+    m.usesLocalFiles shouldBe false
+    m.usesLocalFilePerTable shouldBe false
     m.supportsTransactionIsolationLevel(Connection.TRANSACTION_NONE) shouldBe true
     m.supportsTransactionIsolationLevel(Connection.TRANSACTION_READ_COMMITTED) shouldBe false
 

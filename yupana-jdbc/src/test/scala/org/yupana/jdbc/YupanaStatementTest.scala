@@ -45,6 +45,8 @@ class YupanaStatementTest extends FlatSpec with Matchers with MockFactory {
     statement.clearWarnings()
     statement.getWarnings shouldBe null
 
+    statement.getConnection shouldEqual conn
+
     an[SQLFeatureNotSupportedException] should be thrownBy statement.closeOnCompletion()
     statement.isCloseOnCompletion shouldBe false
 
@@ -53,6 +55,9 @@ class YupanaStatementTest extends FlatSpec with Matchers with MockFactory {
     statement.getResultSetHoldability shouldEqual ResultSet.CLOSE_CURSORS_AT_COMMIT
     statement.getFetchDirection shouldEqual ResultSet.FETCH_FORWARD
     an[SQLException] should be thrownBy statement.setFetchDirection(ResultSet.FETCH_REVERSE)
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.getMoreResults(1)
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.getGeneratedKeys
 
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setMaxFieldSize(1234)
     an[SQLFeatureNotSupportedException] should be thrownBy statement.getMaxFieldSize
