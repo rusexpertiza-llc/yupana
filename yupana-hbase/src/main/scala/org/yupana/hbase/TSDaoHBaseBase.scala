@@ -312,12 +312,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       }
     }
 
-    def createFilters(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+    def handleIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
-        case EqExpr(_, _) => handleEq(condition, builder)
-
-        case NeqExpr(_, _) => handleNeq(condition, builder)
-
         case InExpr(DimensionExpr(dim), consts) =>
           builder.includeValues(dim, consts)
 
@@ -330,15 +326,22 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case InTime(TimeExpr, consts) =>
           builder.includeTime(consts.asInstanceOf[Set[Time]])
 
-        case DimIdInExpr(dim, dimIds) =>
-          builder.includeIds(dim, dimIds)
-
         case InString(DimensionIdExpr(dim), dimIds) =>
           builder.includeIds(
             dim.aux,
             dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, v))
           )
 
+        case InUntyped(t: TupleExpr[a, b], vs) =>
+          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(a, b)]].map(_._1)), builder)
+          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(a, b)]].map(_._2)), filters1)
+
+        case _ => builder
+      }
+    }
+
+    def handleNotIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+      condition match {
         case NotInExpr(DimensionExpr(dim), consts) =>
           builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
 
@@ -354,15 +357,28 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
         case NotInTime(TimeExpr, consts) =>
           builder.excludeTime(consts)
 
+        case _ => builder
+      }
+    }
+
+    def createFilters(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+      condition match {
+        case EqExpr(_, _) => handleEq(condition, builder)
+
+        case NeqExpr(_, _) => handleNeq(condition, builder)
+
+        case InExpr(_, _) => handleIn(condition, builder)
+
+        case NotInExpr(_, _) => handleNotIn(condition, builder)
+
+        case DimIdInExpr(dim, dimIds) =>
+          builder.includeIds(dim, dimIds)
+
         case DimIdNotInExpr(dim, dimIds) =>
           builder.excludeIds(dim, dimIds)
 
         case AndExpr(conditions) =>
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
-
-        case InUntyped(t: TupleExpr[a, b], vs) =>
-          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(a, b)]].map(_._1)), builder)
-          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(a, b)]].map(_._2)), filters1)
 
         case _ => builder
       }
