@@ -1,6 +1,6 @@
 package org.yupana.jdbc
 
-import java.sql.{ Connection, DatabaseMetaData, ResultSet }
+import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, Types }
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
@@ -18,9 +18,12 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.isReadOnly shouldBe true
     m.getMaxTablesInSelect shouldEqual 1
 
+    m.getMaxConnections shouldEqual 0
+    m.getMaxColumnsInIndex shouldEqual 0
     m.getMaxColumnsInSelect shouldEqual 0
     m.getMaxColumnsInGroupBy shouldEqual 0
     m.getMaxColumnsInOrderBy shouldEqual 0
+    m.getMaxUserNameLength shouldEqual 0
 
     m.getMaxColumnsInTable shouldEqual 0
     m.getMaxColumnNameLength shouldEqual 0
@@ -34,6 +37,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.getMaxBinaryLiteralLength shouldEqual 0
     m.getMaxIndexLength shouldEqual 0
     m.getMaxRowSize shouldEqual 0
+    m.doesMaxRowSizeIncludeBlobs shouldBe false
 
     m.getMaxStatements shouldEqual 0
     m.supportsMultipleOpenResults shouldBe true
@@ -62,6 +66,10 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsTableCorrelationNames shouldBe false
     m.supportsDifferentTableCorrelationNames shouldBe false
     m.supportsNonNullableColumns shouldBe false
+
+    m.supportsGroupBy shouldBe true
+    m.supportsGroupByUnrelated() shouldBe true
+    m.supportsGroupByBeyondSelect() shouldBe true
 
     m.supportsOuterJoins shouldBe false
     m.supportsLimitedOuterJoins shouldBe false
@@ -125,6 +133,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsTransactions shouldBe false
     m.supportsMultipleTransactions shouldBe false
     m.dataDefinitionCausesTransactionCommit shouldBe false
+    m.autoCommitFailureClosesAllResultSets shouldBe false
     m.dataDefinitionIgnoredInTransactions shouldBe false
     m.supportsDataDefinitionAndDataManipulationTransactions shouldBe false
     m.supportsDataManipulationTransactionsOnly shouldBe false
@@ -133,6 +142,7 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     m.supportsSavepoints shouldBe false
 
     m.supportsStoredProcedures shouldBe false
+    m.supportsStoredFunctionsUsingCallSyntax() shouldBe false
     m.getProcedureTerm shouldEqual "procedure"
     m.allProceduresAreCallable shouldBe false
     m.getMaxProcedureNameLength shouldBe 0
@@ -152,7 +162,36 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
 
     m.supportsOpenCursorsAcrossCommit shouldBe false
     m.supportsOpenCursorsAcrossRollback shouldBe false
+    m.supportsOpenCursorsAcrossRollback shouldBe false
     m.supportsRefCursors shouldBe false
+
+    m.supportsResultSetHoldability(ResultSet.HOLD_CURSORS_OVER_COMMIT) shouldBe false
+    m.supportsResultSetHoldability(ResultSet.CLOSE_CURSORS_AT_COMMIT) shouldBe true
+    m.getResultSetHoldability shouldEqual ResultSet.CLOSE_CURSORS_AT_COMMIT
+    m.supportsResultSetConcurrency(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY) shouldBe true
+    m.supportsResultSetConcurrency(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY) shouldBe false
+    m.supportsResultSetType(ResultSet.TYPE_FORWARD_ONLY) shouldBe true
+    m.supportsResultSetType(ResultSet.TYPE_SCROLL_SENSITIVE) shouldBe false
+
+    m.getImportedKeys("", "", "kkmItems").next() shouldBe false
+
+    m.supportsOpenCursorsAcrossRollback() shouldBe false
+    m.supportsIntegrityEnhancementFacility() shouldBe false
+    m.supportsStatementPooling() shouldBe false
+
+    m.supportsConvert() shouldBe false
+    m.supportsConvert(Types.INTEGER, Types.DECIMAL) shouldBe false
+
+    m.locatorsUpdateCopy shouldBe false
+    m.usesLocalFiles shouldBe false
+    m.usesLocalFilePerTable shouldBe false
+    m.supportsTransactionIsolationLevel(Connection.TRANSACTION_NONE) shouldBe true
+    m.supportsTransactionIsolationLevel(Connection.TRANSACTION_READ_COMMITTED) shouldBe false
+
+    m.getRowIdLifetime shouldEqual RowIdLifetime.ROWID_UNSUPPORTED
+
+    m.getSearchStringEscape shouldEqual "\\"
+    m.getIdentifierQuoteString shouldEqual "\""
 
     val tts = m.getTableTypes
     val tt = Iterator.continually(tts).takeWhile(_.next()).map(r => r.getString("TABLE_TYPE")).toSeq

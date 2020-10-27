@@ -152,6 +152,92 @@ class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with 
     rows(1).get[String]("item") shouldEqual null
   }
 
+  it should "handle batch query" in {
+    val server = new ServerMock
+    val client = new YupanaTcpClient("127.0.0.1", server.port)
+
+    val header = Response(
+      Response.Resp.ResultHeader(
+        ResultHeader(
+          Seq(
+            ResultField("time", "TIMESTAMP"),
+            ResultField("item", "VARCHAR")
+          ),
+          Some("items_kkm")
+        )
+      )
+    )
+
+    val hb = Response(
+      Response.Resp.Heartbeat("1")
+    )
+
+    val ts = implicitly[Storable[Time]]
+    val ss = implicitly[Storable[String]]
+
+    val data1 = Response(
+      Response.Resp.Result(
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
+      )
+    )
+
+    val data2 = Response(
+      Response.Resp.Result(
+        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.EMPTY))
+      )
+    )
+
+    val footer = Response(
+      Response.Resp.ResultStatistics(
+        ResultStatistics(1, 2)
+      )
+    )
+
+    val responses = Seq(header, hb, data1, data2, footer).map(_.toByteArray)
+
+    val reqF = server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
+
+    val sql = """
+                |SELECT time, item FROM items_kkm
+                |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
+                |  """.stripMargin
+
+    val result = client.batchQuery(
+      sql,
+      Seq(
+        Map(
+          1 -> TimestampValue(12345L),
+          2 -> TimestampValue(23456L),
+          3 -> NumericValue(1000),
+          4 -> StringValue("икра баклажанная")
+        ),
+        Map(
+          1 -> TimestampValue(12345L),
+          2 -> TimestampValue(23456L),
+          3 -> NumericValue(100),
+          4 -> StringValue("икра кабачковая")
+        )
+      )
+    )
+
+    val req = Await.result(reqF, 100.millis)
+    inside(req) {
+      case Request(Request.Req.BatchSqlQuery(BatchSqlQuery(q, fs))) =>
+        q shouldEqual sql
+        fs should have size 2
+    }
+
+    result.name shouldEqual "items_kkm"
+
+    val rows = result.toIterator.toList
+
+    rows(0).get[Time]("time") shouldEqual Time(13333L)
+    rows(0).get[String]("item") shouldEqual "икра баклажанная"
+
+    rows(1).get[Time]("time") shouldEqual Time(21112L)
+    rows(1).get[String]("item") shouldEqual null
+  }
+
   it should "handle error response on query" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)

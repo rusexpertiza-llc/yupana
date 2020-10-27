@@ -516,6 +516,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.moveToCurrentRow()
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.deleteRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.refreshRow()
     an[SQLFeatureNotSupportedException] should be thrownBy rs.cancelRowUpdates()
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.rowInserted()
@@ -626,6 +628,25 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       4L
     )
 
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes()),
+      4L
+    )
+
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
       1,
       new CharArrayReader("Test me".toCharArray)
@@ -650,6 +671,63 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       3L
     )
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
       "string",
       new CharArrayReader("Test me".toCharArray),
       4L
