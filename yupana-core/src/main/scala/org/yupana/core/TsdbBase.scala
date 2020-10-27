@@ -307,10 +307,6 @@ trait TsdbBase extends StrictLogging {
   def applyPostMapOperation(queryContext: QueryContext, row: InternalRow): InternalRow = {
 
     queryContext.aggregateExprs.foreach { aggExpr =>
-//      val agg = aggExpr.aggregation
-//      val oldValue = row.get[agg.Interim](queryContext, aggExpr)
-//      val newValue =
-//        if (oldValue != null) agg.postMap(oldValue) else agg.emptyValue.getOrElse(null.asInstanceOf[agg.Out])
       row.set(queryContext, aggExpr, expressionCalculator.evaluatePostMap(aggExpr, queryContext, row))
     }
     row
