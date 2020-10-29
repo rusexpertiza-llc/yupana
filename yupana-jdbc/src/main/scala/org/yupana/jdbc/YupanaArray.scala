@@ -65,7 +65,7 @@ class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T])
   override def free(): Unit = {}
 
   private def createResultSet(array: Array[T], startIndex: Int): ResultSet = {
-    val it = array.zip(Stream.from(startIndex)).map { case (v, i) => Array[Any](i, v) }.toIterator
-    new YupanaResultSet(null, new SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
+    val it = array.zipWithIndex.map { case (v, i) => Array[Any](i + startIndex, v) }.iterator
+    new YupanaResultSet(null, SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
   }
 }

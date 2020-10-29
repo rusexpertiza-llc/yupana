@@ -26,7 +26,7 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
-import org.yupana.proto._
+import org.yupana.proto.{ ParameterValue => ProtoParameterValue, _ }
 import org.yupana.proto.util.ProtocolVersion
 
 class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
@@ -298,7 +298,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     Request(
       Request.Req.SqlQuery(
         SqlQuery(query, params.map {
-          case (i, v) => ParameterValue(i, createProtoValue(v))
+          case (i, v) => ProtoParameterValue(i, createProtoValue(v))
         }.toSeq)
       )
     )
@@ -311,7 +311,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
           query,
           params.map(vs =>
             ParameterValues(vs.map {
-              case (i, v) => ParameterValue(i, createProtoValue(v))
+              case (i, v) => ProtoParameterValue(i, createProtoValue(v))
             }.toSeq)
           )
         )

@@ -34,7 +34,7 @@ class YupanaResultSet protected[jdbc] (
 ) extends ResultSet
     with ResultSetMetaData {
 
-  private val columnNameIndex = result.fieldNames.zip(Stream.from(1)).toMap
+  private val columnNameIndex = result.fieldNames.zipWithIndex.map { case (k, v) => k -> (v + 1) }.toMap
   private val columns = result.fieldNames.toArray
   private val dataTypes = result.dataTypes.toArray
 

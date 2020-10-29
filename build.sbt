@@ -16,6 +16,7 @@ lazy val api = (project in file("yupana-api"))
   .settings(
     name := "yupana-api",
     allSettings,
+    crossBuildSettings,
     libraryDependencies ++= Seq(
       "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
@@ -28,6 +29,7 @@ lazy val proto = (project in file("yupana-proto"))
   .settings(
     name := "yupana-proto",
     allSettings,
+    crossBuildSettings,
     pbSettings,
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
@@ -40,6 +42,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   .settings(
     name := "yupana-jdbc",
     allSettings,
+    crossBuildSettings,
     libraryDependencies ++= Seq(
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
@@ -304,7 +307,6 @@ lazy val versions = new {
 val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := "2.12.12",
-  crossScalaVersions := Seq("2.11.12", "2.12.12"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-deprecation",
@@ -312,9 +314,11 @@ val commonSettings = Seq(
     "-feature",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Ywarn-unused-import"
-  ),
+    "-Ywarn-dead-code"
+  ) ++ (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((2, 13)) => Seq("-Wunused:imports")
+    case _ => Seq("-Ywarn-unused-import")
+  }),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   testOptions in Test += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   parallelExecution in Test := false,
@@ -374,6 +378,10 @@ val releaseSettings = Seq(
 //    commitNextVersion,
     pushChanges
   )
+)
+
+val crossBuildSettings = Seq(
+  crossScalaVersions := Seq("2.11.12", "2.12.12", "2.13.3"),
 )
 
 val allSettings = commonSettings ++ publishSettings ++ releaseSettings
