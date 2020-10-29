@@ -394,42 +394,56 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   override def isSupportedCondition(condition: Condition): Boolean = {
+    def handleEq(condition: EqExpr[_]): Boolean = {
+      condition match {
+        case EqTime(TimeExpr, ConstantExpr(_))                         => true
+        case EqTime(ConstantExpr(_), TimeExpr)                         => true
+        case EqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
+        case EqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
+        case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
+        case EqString(ConstantExpr(_), LowerExpr(_: DimensionExpr[_])) => true
+        case EqString(_: DimensionIdExpr, ConstantExpr(_))             => true
+        case EqString(ConstantExpr(_), _: DimensionIdExpr)             => true
+        case _                                                         => false
+      }
+    }
+
+    def handleNeq(condition: NeqExpr[_]): Boolean = {
+      condition match {
+        case NeqTime(TimeExpr, ConstantExpr(_))                         => true
+        case NeqTime(ConstantExpr(_), TimeExpr)                         => true
+        case NeqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
+        case NeqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
+        case NeqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
+        case NeqString(LowerExpr(ConstantExpr(_)), _: DimensionExpr[_]) => true
+        case NeqString(_: DimensionIdExpr, ConstantExpr(_))             => true
+        case NeqString(ConstantExpr(_), _: DimensionIdExpr)             => true
+        case _                                                          => false
+      }
+    }
+
     condition match {
-      case EqTime(TimeExpr, ConstantExpr(_))                          => true
-      case EqTime(ConstantExpr(_), TimeExpr)                          => true
-      case NeqTime(TimeExpr, ConstantExpr(_))                         => true
-      case NeqTime(ConstantExpr(_), TimeExpr)                         => true
-      case GtTime(TimeExpr, ConstantExpr(_))                          => true
-      case GtTime(ConstantExpr(_), TimeExpr)                          => true
-      case LtTime(TimeExpr, ConstantExpr(_))                          => true
-      case LtTime(ConstantExpr(_), TimeExpr)                          => true
-      case GeTime(TimeExpr, ConstantExpr(_))                          => true
-      case GeTime(ConstantExpr(_), TimeExpr)                          => true
-      case LeTime(TimeExpr, ConstantExpr(_))                          => true
-      case LeTime(ConstantExpr(_), TimeExpr)                          => true
-      case InTime(TimeExpr, _)                                        => true
-      case NotInTime(TimeExpr, _)                                     => true
-      case _: DimIdInExpr[_, _]                                       => true
-      case _: DimIdNotInExpr[_, _]                                    => true
-      case EqExpr(_: DimensionExpr[_], ConstantExpr(_))               => true
-      case EqExpr(ConstantExpr(_), _: DimensionExpr[_])               => true
-      case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_))  => true
-      case EqString(ConstantExpr(_), LowerExpr(_: DimensionExpr[_]))  => true
-      case NeqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
-      case NeqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
-      case NeqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
-      case NeqString(LowerExpr(ConstantExpr(_)), _: DimensionExpr[_]) => true
-      case EqString(_: DimensionIdExpr, ConstantExpr(_))              => true
-      case EqString(ConstantExpr(_), _: DimensionIdExpr)              => true
-      case NeqString(_: DimensionIdExpr, ConstantExpr(_))             => true
-      case NeqString(ConstantExpr(_), _: DimensionIdExpr)             => true
-      case InExpr(_: DimensionExpr[_], _)                             => true
-      case NotInExpr(_: DimensionExpr[_], _)                          => true
-      case InString(LowerExpr(_: DimensionExpr[_]), _)                => true
-      case NotInString(LowerExpr(_: DimensionExpr[_]), _)             => true
-      case InString(_: DimensionIdExpr, _)                            => true
-      case NotInString(_: DimensionIdExpr, _)                         => true
-      case _                                                          => false
+      case e: EqExpr[_]                                   => handleEq(e)
+      case e: NeqExpr[_]                                  => handleNeq(e)
+      case GtTime(TimeExpr, ConstantExpr(_))              => true
+      case GtTime(ConstantExpr(_), TimeExpr)              => true
+      case LtTime(TimeExpr, ConstantExpr(_))              => true
+      case LtTime(ConstantExpr(_), TimeExpr)              => true
+      case GeTime(TimeExpr, ConstantExpr(_))              => true
+      case GeTime(ConstantExpr(_), TimeExpr)              => true
+      case LeTime(TimeExpr, ConstantExpr(_))              => true
+      case LeTime(ConstantExpr(_), TimeExpr)              => true
+      case InTime(TimeExpr, _)                            => true
+      case NotInTime(TimeExpr, _)                         => true
+      case _: DimIdInExpr[_, _]                           => true
+      case _: DimIdNotInExpr[_, _]                        => true
+      case InExpr(_: DimensionExpr[_], _)                 => true
+      case NotInExpr(_: DimensionExpr[_], _)              => true
+      case InString(LowerExpr(_: DimensionExpr[_]), _)    => true
+      case NotInString(LowerExpr(_: DimensionExpr[_]), _) => true
+      case InString(_: DimensionIdExpr, _)                => true
+      case NotInString(_: DimensionIdExpr, _)             => true
+      case _                                              => false
     }
   }
 }
