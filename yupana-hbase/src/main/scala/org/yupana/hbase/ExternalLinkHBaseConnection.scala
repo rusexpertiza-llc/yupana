@@ -22,6 +22,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table }
 import org.apache.hadoop.hbase.{ HBaseConfiguration, HTableDescriptor, TableExistsException, TableName }
+import org.yupana.api.utils.ResourceUtils.using
 
 class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) extends StrictLogging {
   protected lazy val connection: Connection = createConnectionAndNamespace
@@ -43,22 +44,26 @@ class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) 
   def clearTable(tableNameString: String): Unit = {
     val tableName = getTableName(tableNameString)
     try {
-      if (connection.getAdmin.isTableEnabled(tableName)) {
-        connection.getAdmin.disableTable(tableName)
+      using(connection.getAdmin) { admin =>
+        if (admin.isTableEnabled(tableName)) {
+          admin.disableTable(tableName)
+        }
+        admin.truncateTable(tableName, false)
       }
-      connection.getAdmin.truncateTable(tableName, false)
     } catch {
-      case e: IOException =>
+      case _: IOException =>
     }
   }
 
   def checkTablesExistsElseCreate(tableDescriptor: HTableDescriptor): Unit = {
     try {
-      if (!connection.getAdmin.tableExists(tableDescriptor.getTableName)) {
-        connection.getAdmin.createTable(tableDescriptor)
+      using(connection.getAdmin) { admin =>
+        if (!admin.tableExists(tableDescriptor.getTableName)) {
+          admin.createTable(tableDescriptor)
+        }
       }
     } catch {
-      case e: TableExistsException =>
+      case _: TableExistsException =>
     }
   }
 }

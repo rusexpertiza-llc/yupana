@@ -26,6 +26,7 @@ import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
 import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.yupana.api.utils.ResourceUtils._
 
 import scala.collection.JavaConverters._
 
@@ -67,38 +68,41 @@ class TSDaoHBase(
 
     createPuts(dataPoints, dictionaryProvider).foreach {
       case (table, puts) =>
-        val hbaseTable = connection.getTable(tableName(namespace, table))
-        puts
-          .sliding(putsBatchSize, putsBatchSize)
-          .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-        logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
+        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+          puts
+            .sliding(putsBatchSize, putsBatchSize)
+            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
+          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
+        }
     }
   }
 
   override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    val hbaseTable = connection.getTable(tableName(namespace, table))
-    val scan = new Scan()
-      .addColumn(rollupStatusFamily, rollupStatusField)
-      .setStartRow(Bytes.toBytes(fromTime))
-      .setStopRow(Bytes.toBytes(toTime))
-    val scanner = hbaseTable.getScanner(scan)
-    val statuses = scanner.asScala.toIterator.flatMap { result =>
-      val time = Bytes.toLong(result.getRow)
-      val value = Option(result.getValue(rollupStatusFamily, rollupStatusField)).map(Bytes.toString)
-      value.map(v => time -> v)
-    }.toSeq
-    statuses
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val scan = new Scan()
+        .addColumn(rollupStatusFamily, rollupStatusField)
+        .setStartRow(Bytes.toBytes(fromTime))
+        .setStopRow(Bytes.toBytes(toTime))
+      using(hbaseTable.getScanner(scan)) { scanner =>
+        scanner.asScala.toIterator.flatMap { result =>
+          val time = Bytes.toLong(result.getRow)
+          val value = Option(result.getValue(rollupStatusFamily, rollupStatusField)).map(Bytes.toString)
+          value.map(v => time -> v)
+        }.toSeq
+      }
+    }
   }
 
   override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    val hbaseTable = connection.getTable(tableName(namespace, table))
-    val puts = statuses.map(status =>
-      new Put(Bytes.toBytes(status._1))
-        .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
-    )
-    hbaseTable.put(puts.asJava)
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val puts = statuses.map(status =>
+        new Put(Bytes.toBytes(status._1))
+          .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
+      )
+      hbaseTable.put(puts.asJava)
+    }
   }
 
   override def checkAndPutRollupStatus(
@@ -108,30 +112,33 @@ class TSDaoHBase(
       table: Table
   ): Boolean = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    val hbaseTable = connection.getTable(tableName(namespace, table))
-    hbaseTable.checkAndPut(
-      Bytes.toBytes(time),
-      rollupStatusFamily,
-      rollupStatusField,
-      oldStatus.map(_.getBytes).orNull,
-      new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
-    )
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      hbaseTable.checkAndPut(
+        Bytes.toBytes(time),
+        rollupStatusFamily,
+        rollupStatusField,
+        oldStatus.map(_.getBytes).orNull,
+        new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
+      )
+    }
   }
 
   override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    val hbaseTable = connection.getTable(tableName(namespace, table))
-    val get = new Get(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes)
-    val res = hbaseTable.get(get)
-    val cell = Option(res.getColumnLatestCell(rollupStatusFamily, fieldName.getBytes))
-    cell.map(c => Bytes.toLong(CellUtil.cloneValue(c)))
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val get = new Get(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes)
+      val res = hbaseTable.get(get)
+      val cell = Option(res.getColumnLatestCell(rollupStatusFamily, fieldName.getBytes))
+      cell.map(c => Bytes.toLong(CellUtil.cloneValue(c)))
+    }
   }
 
   override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    val hbaseTable = connection.getTable(tableName(namespace, table))
-    val put: Put = new Put(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes, Bytes.toBytes(value))
-    hbaseTable.put(put)
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val put: Put = new Put(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes, Bytes.toBytes(value))
+      hbaseTable.put(put)
+    }
   }
 
 }
