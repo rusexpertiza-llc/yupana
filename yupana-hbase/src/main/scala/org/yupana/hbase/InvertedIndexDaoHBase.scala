@@ -21,6 +21,7 @@ import org.apache.hadoop.hbase.client.{ Get, Put, ResultScanner, Scan }
 import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
+import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
 
@@ -31,7 +32,7 @@ object InvertedIndexDaoHBase {
   val VALUE: Array[Byte] = Array.emptyByteArray
   val BATCH_SIZE = 500000
 
-  def checkTableExistsElseCreate(hBaseConnection: ExternalLinkHBaseConnection, tableName: String) {
+  def checkTableExistsElseCreate(hBaseConnection: ExternalLinkHBaseConnection, tableName: String): Unit = {
     val desc = new HTableDescriptor(hBaseConnection.getTableName(tableName))
       .addFamily(new HColumnDescriptor(InvertedIndexDaoHBase.FAMILY))
     hBaseConnection.checkTablesExistsElseCreate(desc)
@@ -70,19 +71,21 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
   override def put(key: K, values: Set[V]): Unit = {
     if (values.nonEmpty) {
-      val table = connection.getTable(tableName)
-      val put = createPutOperation(key, values, keySerializer, valueSerializer)
-      put.foreach(table.put)
+      using(connection.getTable(tableName)) { table =>
+        val put = createPutOperation(key, values, keySerializer, valueSerializer)
+        put.foreach(table.put)
+      }
     }
   }
 
   override def batchPut(batch: Map[K, Set[V]]): Unit = {
-    val table = connection.getTable(tableName)
-    val puts = batch.flatMap {
-      case (key, values) =>
-        createPutOperation(key, values, keySerializer, valueSerializer)
+    using(connection.getTable(tableName)) { table =>
+      val puts = batch.flatMap {
+        case (key, values) =>
+          createPutOperation(key, values, keySerializer, valueSerializer)
+      }
+      table.put(puts.toSeq.asJava)
     }
-    table.put(puts.toSeq.asJava)
   }
 
   override def values(key: K): SortedSetIterator[V] = {
@@ -95,22 +98,25 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     val filters = new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter())
 
     val scan = new Scan().setRowPrefixFilter(skey).setFilter(filters)
-    val table = connection.getTable(tableName)
-    val scanner = table.getScanner(scan)
+    using(connection.getTable(tableName)) { table =>
+      using(table.getScanner(scan)) { scanner =>
 
-    val keys = scanner
-      .iterator()
-      .asScala
-      .map { result =>
-        keyDeserializer(result.getRow)
+        val keys = scanner
+          .iterator()
+          .asScala
+          .map { result =>
+            keyDeserializer(result.getRow)
+          }
+          .toSet
+
+        logger.trace(s"Got ${keys.size} keys for prefix $prefix search")
+
+        allValues(keys)
       }
-      .toSet
-
-    logger.trace(s"Got ${keys.size} keys for prefix $prefix search")
-
-    allValues(keys)
+    }
   }
 
+  // FIXME: close table and scanner after reading
   def allValues(keys: Set[K]): SortedSetIterator[V] = {
     val table = connection.getTable(tableName)
 
@@ -153,6 +159,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     SortedSetIterator(it)
   }
 
+  // FIXME: close table and scanner after reading
   private def scanValues(key: K): SortedSetIterator[V] = {
     logger.trace(s"scan values for key $key")
     val skey = keySerializer(key)
