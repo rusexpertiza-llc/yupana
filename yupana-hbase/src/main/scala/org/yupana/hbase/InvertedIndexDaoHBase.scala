@@ -17,7 +17,7 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.client.{ Get, Put, ResultScanner, Scan }
+import org.apache.hadoop.hbase.client.{ Get, Put, Scan }
 import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
@@ -118,8 +118,6 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
   // FIXME: close table and scanner after reading
   def allValues(keys: Set[K]): SortedSetIterator[V] = {
-    val table = connection.getTable(tableName)
-
     val keySeq = keys.toSeq
 
     val gets = keySeq.map { key =>
@@ -127,11 +125,13 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
       new Get(skey).setMaxResultsPerColumnFamily(BATCH_SIZE)
     }
 
-    val results = gets
-      .grouped(BATCH_SIZE)
-      .flatMap(batch => table.get(batch.asJava))
-      .toArray
-      .zip(keySeq)
+    val results = using(connection.getTable(tableName)) { table =>
+      gets
+        .grouped(BATCH_SIZE)
+        .flatMap(batch => table.get(batch.asJava))
+        .toArray
+        .zip(keySeq)
+    }
 
     val (completed, partial) = results.partition { case (res, _) => res.rawCells().length < BATCH_SIZE }
 
@@ -150,22 +150,23 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     SortedSetIterator.unionAll(fetchedIterator +: iterators)
   }
 
-  private def toIterator(result: ResultScanner): SortedSetIterator[V] = {
-    val it = result.iterator().asScala.flatMap { result =>
-      result.rawCells().map { cell =>
-        valueDeserializer(CellUtil.cloneQualifier(cell))
-      }
-    }
-    SortedSetIterator(it)
-  }
-
-  // FIXME: close table and scanner after reading
   private def scanValues(key: K): SortedSetIterator[V] = {
     logger.trace(s"scan values for key $key")
     val skey = keySerializer(key)
     val table = connection.getTable(tableName)
     val scan = new Scan(skey, Bytes.padTail(skey, 1)).addFamily(FAMILY).setBatch(BATCH_SIZE)
     val scanner = table.getScanner(scan)
-    toIterator(scanner)
+
+    def close(): Unit = {
+      scanner.close()
+      table.close()
+    }
+
+    val it = scanner.iterator().asScala.flatMap { result =>
+      result.rawCells().map { cell =>
+        valueDeserializer(CellUtil.cloneQualifier(cell))
+      }
+    }
+    SortedSetIterator(CloseableIterator(it, close()))
   }
 }
