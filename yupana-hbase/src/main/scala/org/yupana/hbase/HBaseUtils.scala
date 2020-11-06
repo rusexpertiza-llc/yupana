@@ -147,7 +147,6 @@ object HBaseUtils extends StrictLogging {
     scan
   }
 
-  // FIXME: table and scanner must be closed after reading
   def executeScan(
       connection: Connection,
       namespace: String,
@@ -159,6 +158,11 @@ object HBaseUtils extends StrictLogging {
     val htable = connection.getTable(tableName(namespace, context.table))
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
     val scanner = htable.getScanner(scan)
+
+    def close(): Unit = {
+      scanner.close()
+      htable.close()
+    }
 
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
@@ -181,7 +185,7 @@ object HBaseUtils extends StrictLogging {
       }
     }
 
-    resultIterator.flatten
+    CloseableIterator(resultIterator.flatten, close())
   }
 
   def multiRowRangeFilter(
