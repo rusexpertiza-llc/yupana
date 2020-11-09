@@ -30,6 +30,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
+import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
@@ -158,6 +159,11 @@ object HBaseUtils extends StrictLogging {
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
     val scanner = htable.getScanner(scan)
 
+    def close(): Unit = {
+      scanner.close()
+      htable.close()
+    }
+
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
@@ -179,7 +185,7 @@ object HBaseUtils extends StrictLogging {
       }
     }
 
-    resultIterator.flatten
+    CloseableIterator(resultIterator.flatten, close())
   }
 
   def multiRowRangeFilter(
@@ -289,18 +295,20 @@ object HBaseUtils extends StrictLogging {
             .setDataBlockEncoding(DataBlockEncoding.PREFIX)
         )
       connection.getAdmin.createTable(tableDesc)
-      val table = connection.getTable(metaTableName)
-      val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, tsdbSchemaBytes)
-      table.put(put)
+      using(connection.getTable(metaTableName)) { table =>
+        val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, tsdbSchemaBytes)
+        table.put(put)
 
-      Success
+        Success
+      }
     }
   }
 
   private def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
-    val table = connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))
-    val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
-    table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
+    using(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
+      val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
+      table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
+    }
   }
 
   def initStorage(connection: Connection, namespace: String, schema: Schema): Unit = {
@@ -359,13 +367,16 @@ object HBaseUtils extends StrictLogging {
 
   def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
     val name = tableName(namespace, table)
-    val hbaseTable = connection.getTable(name)
-    val tableDesc = hbaseTable.getTableDescriptor
-    if (!tableDesc.hasFamily(rollupStatusFamily)) {
-      connection.getAdmin.addColumn(
-        name,
-        new HColumnDescriptor(rollupStatusFamily).setDataBlockEncoding(DataBlockEncoding.PREFIX)
-      )
+    using(connection.getTable(name)) { hbaseTable =>
+      val tableDesc = hbaseTable.getTableDescriptor
+      if (!tableDesc.hasFamily(rollupStatusFamily)) {
+        using(connection.getAdmin) {
+          _.addColumn(
+            name,
+            new HColumnDescriptor(rollupStatusFamily).setDataBlockEncoding(DataBlockEncoding.PREFIX)
+          )
+        }
+      }
     }
   }
 
