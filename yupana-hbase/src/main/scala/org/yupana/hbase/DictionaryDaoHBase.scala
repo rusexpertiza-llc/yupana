@@ -22,6 +22,7 @@ import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
+import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.DictionaryDao
 
 import scala.collection.JavaConverters._
@@ -64,13 +65,14 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     if (value != null) {
       val trimmed = value.trim
       if (trimmed.nonEmpty) {
-        val table = getTable(dimension.name)
-        val get = new Get(Bytes.toBytes(trimmed)).addFamily(dataFamily)
-        val result = table.get(get)
-        if (!result.isEmpty) {
-          Some(Bytes.toLong(result.getValue(dataFamily, column)))
-        } else {
-          None
+        using(getTable(dimension.name)) { table =>
+          val get = new Get(Bytes.toBytes(trimmed)).addFamily(dataFamily)
+          val result = table.get(get)
+          if (!result.isEmpty) {
+            Some(Bytes.toLong(result.getValue(dataFamily, column)))
+          } else {
+            None
+          }
         }
       } else {
         None
@@ -87,31 +89,32 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       val nonEmptyValues = values.filter(_ != null).map(_.trim).filter(_.nonEmpty).toSeq
       logger.trace(s"Get dictionary ids by values for ${dimension.name}. Size of values: ${nonEmptyValues.size}")
       checkTablesExistsElseCreate(dimension)
-      val table = getTable(dimension.name)
+      val r = using(getTable(dimension.name)) { table =>
+        nonEmptyValues
+          .grouped(BATCH_SIZE)
+          .flatMap { vs =>
+            val ranges = vs.map { value =>
+              new MultiRowRangeFilter.RowRange(Bytes.toBytes(value), true, Bytes.toBytes(value), true)
+            }
 
-      val r = nonEmptyValues
-        .grouped(BATCH_SIZE)
-        .flatMap { vs =>
-          val ranges = vs.map { value =>
-            new MultiRowRangeFilter.RowRange(Bytes.toBytes(value), true, Bytes.toBytes(value), true)
+            val rangeFilter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+            val start = rangeFilter.getRowRanges.asScala.head.getStartRow
+            val end = Bytes.padTail(rangeFilter.getRowRanges.asScala.last.getStopRow, 1)
+            val scan = new Scan(start, end)
+              .addFamily(dataFamily)
+              .setFilter(rangeFilter)
+
+            logger.trace(s"--- Send request to HBase")
+            using(table.getScanner(scan)) {
+              _.iterator().asScala.map { result =>
+                val id = Bytes.toLong(result.getValue(dataFamily, column))
+                val value = Bytes.toString(result.getRow)
+                value -> id
+              }
+            }
           }
-
-          val rangeFilter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
-          val start = rangeFilter.getRowRanges.asScala.head.getStartRow
-          val end = Bytes.padTail(rangeFilter.getRowRanges.asScala.last.getStopRow, 1)
-          val scan = new Scan(start, end)
-            .addFamily(dataFamily)
-            .setFilter(rangeFilter)
-
-          logger.trace(s"--- Send request to HBase")
-          val scanner = table.getScanner(scan)
-          scanner.iterator().asScala.map { result =>
-            val id = Bytes.toLong(result.getValue(dataFamily, column))
-            val value = Bytes.toString(result.getRow)
-            value -> id
-          }
-        }
-        .toMap
+          .toMap
+      }
 
       logger.trace(s"--- Dictionary values extracted")
       r
@@ -123,14 +126,15 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     val idBytes = Bytes.toBytes(id)
     val valueBytes = Bytes.toBytes(value)
 
-    val table = getTable(dimension.name)
-    val rput = new Put(valueBytes).addColumn(dataFamily, column, idBytes)
-    table.checkAndPut(valueBytes, dataFamily, column, null, rput)
+    using(getTable(dimension.name)) { table =>
+      val rput = new Put(valueBytes).addColumn(dataFamily, column, idBytes)
+      table.checkAndPut(valueBytes, dataFamily, column, null, rput)
+    }
   }
 
   override def createSeqId(dimension: Dimension): Int = {
     checkTablesExistsElseCreate(dimension)
-    getTable(dimension.name).incrementColumnValue(seqIdRowKey, seqFamily, column, 1).toInt
+    using(getTable(dimension.name))(_.incrementColumnValue(seqIdRowKey, seqFamily, column, 1).toInt)
   }
 
   private def getTable(name: String) = {
