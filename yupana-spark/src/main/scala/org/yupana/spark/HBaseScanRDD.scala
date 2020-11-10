@@ -96,11 +96,16 @@ class HBaseScanRDD(
       )
     }
 
-    val connection = createConnection()
-    CloseableIterator(
-      HBaseUtils.executeScan(connection, config.hbaseNamespace, scan, partition.queryContext, config.extractBatchSize),
-      connection.close()
-    )
+    scan match {
+      case Some(s) =>
+        val connection = createConnection()
+        CloseableIterator(
+          HBaseUtils.executeScan(connection, config.hbaseNamespace, s, partition.queryContext, config.extractBatchSize),
+          connection.close()
+        )
+
+      case None => Iterator.empty
+    }
   }
 
   private def createConnection(): Connection = {
