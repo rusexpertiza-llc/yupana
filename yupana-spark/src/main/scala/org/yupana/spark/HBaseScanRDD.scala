@@ -76,8 +76,6 @@ class HBaseScanRDD(
 
   override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
-    val connection = createConnection()
-
     val scan = queryContext.metricsCollector.createScans.measure(1) {
       val filter =
         HBaseUtils.multiRowRangeFilter(
@@ -98,10 +96,16 @@ class HBaseScanRDD(
       )
     }
 
-    CloseableIterator(
-      HBaseUtils.executeScan(connection, config.hbaseNamespace, scan, partition.queryContext, config.extractBatchSize),
-      connection.close()
-    )
+    scan match {
+      case Some(s) =>
+        val connection = createConnection()
+        CloseableIterator(
+          HBaseUtils.executeScan(connection, config.hbaseNamespace, s, partition.queryContext, config.extractBatchSize),
+          connection.close()
+        )
+
+      case None => Iterator.empty
+    }
   }
 
   private def createConnection(): Connection = {

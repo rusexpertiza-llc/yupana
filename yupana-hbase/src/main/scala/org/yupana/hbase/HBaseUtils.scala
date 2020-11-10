@@ -108,7 +108,7 @@ object HBaseUtils extends StrictLogging {
       toTime: Long,
       startRowKey: Option[Array[Byte]] = None,
       endRowKey: Option[Array[Byte]] = None
-  ): Scan = {
+  ): Option[Scan] = {
 
     logger.trace(s"Create range scan for ${multiRowRangeFilter.map(_.getRowRanges.size())} ranges")
 
@@ -121,7 +121,7 @@ object HBaseUtils extends StrictLogging {
     val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
       .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
 
-    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey.filter(_.nonEmpty).map(Bytes.padTail(_, 1))).flatten
+    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey.filter(_.nonEmpty)).flatten
       .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
 
     val filter = multiRowRangeFilter match {
@@ -140,11 +140,13 @@ object HBaseUtils extends StrictLogging {
         }
     }
 
-    val scan = new Scan(startKey, stopKey)
-    filter.foreach(scan.setFilter)
+    if (Bytes.BYTES_COMPARATOR.compare(startKey, stopKey) < 0) {
+      val scan = new Scan(startKey, stopKey)
+      filter.foreach(scan.setFilter)
 
-    familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
-    scan
+      familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
+      Some(scan)
+    } else None
   }
 
   def executeScan(
