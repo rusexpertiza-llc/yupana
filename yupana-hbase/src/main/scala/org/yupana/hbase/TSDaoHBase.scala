@@ -51,11 +51,13 @@ class TSDaoHBase(
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
-        val scan = queryContext.metricsCollector.createScans.measure(1) {
+        queryContext.metricsCollector.createScans.measure(1) {
           val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
           createScan(queryContext, filter, Seq.empty, from, to)
+        } match {
+          case Some(scan) => executeScan(connection, namespace, scan, queryContext, EXTRACT_BATCH_SIZE)
+          case None       => Iterator.empty
         }
-        executeScan(connection, namespace, scan, queryContext, EXTRACT_BATCH_SIZE)
       }
     } else {
       Iterator.empty
