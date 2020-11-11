@@ -1200,7 +1200,7 @@ class TSDaoHBaseTest
         to: IdType,
         rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
     ): Iterator[HResult] = {
-      val scans = rangeScanDims.map { dimIds =>
+      val scans = rangeScanDims.flatMap { dimIds =>
         val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
         HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
       }
@@ -1213,8 +1213,8 @@ class TSDaoHBaseTest
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {
     val exec = mockFunction[Seq[Scan], Iterator[HResult]]
     val dictionaryDaoMock = mock[DictionaryDao]
-    val dicionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val dao = new TestDao(dicionaryProvider, exec)
+    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
+    val dao = new TestDao(dictionaryProvider, exec)
     body(dao, dictionaryDaoMock, exec)
   }
 }
