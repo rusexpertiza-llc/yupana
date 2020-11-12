@@ -17,7 +17,9 @@
 package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField, Transformer }
+import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField }
+import org.yupana.core.utils.ExpressionUtils
+import org.yupana.core.utils.ExpressionUtils.Transformer
 
 object QueryOptimizer {
 
@@ -43,7 +45,7 @@ object QueryOptimizer {
         if (e.kind == Const) Some(evaluateConstant(expressionCalculator)(e)) else None
       }
     }
-    expr.transform(transformer)
+    ExpressionUtils.transform(transformer)(expr)
   }
 
   def simplifyCondition(condition: Condition): Condition = {
