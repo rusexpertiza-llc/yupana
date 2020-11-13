@@ -281,35 +281,44 @@ object HBaseUtils extends StrictLogging {
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
 
-    if (connection.getAdmin.tableExists(metaTableName)) {
-      ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+    using(connection.getAdmin) { admin =>
+      if (admin.tableExists(metaTableName)) {
+        ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+      } else {
 
-    } else {
+        val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
+        ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
 
-      val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
-      ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
-
-      logger.info(s"Writing TSDB Schema definition to namespace $namespace")
-
-      val tableDesc = new HTableDescriptor(metaTableName)
-        .addFamily(
-          new HColumnDescriptor(tsdbSchemaFamily)
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-        )
-      connection.getAdmin.createTable(tableDesc)
-      using(connection.getTable(metaTableName)) { table =>
-        val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, tsdbSchemaBytes)
-        table.put(put)
-
+        writeTsdbSchema(connection, namespace, tsdbSchemaBytes)
         Success
       }
     }
   }
 
-  private def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
+  def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
     using(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
       val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
       table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
+    }
+  }
+
+  def writeTsdbSchema(connection: Connection, namespace: String, schemaBytes: Array[Byte]): Unit = {
+    logger.info(s"Writing TSDB Schema definition to namespace $namespace")
+
+    val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
+    using(connection.getAdmin) { admin =>
+      if (!admin.tableExists(metaTableName)) {
+        val tableDesc = new HTableDescriptor(metaTableName)
+          .addFamily(
+            new HColumnDescriptor(tsdbSchemaFamily)
+              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+          )
+        admin.createTable(tableDesc)
+      }
+      using(connection.getTable(metaTableName)) { table =>
+        val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, schemaBytes)
+        table.put(put)
+      }
     }
   }
 
@@ -331,39 +340,43 @@ object HBaseUtils extends StrictLogging {
   }
 
   def checkNamespaceExistsElseCreate(connection: Connection, namespace: String): Unit = {
-    if (!connection.getAdmin.listNamespaceDescriptors.exists(_.getName == namespace)) {
-      val namespaceDescriptor = NamespaceDescriptor.create(namespace).build()
-      connection.getAdmin.createNamespace(namespaceDescriptor)
+    using(connection.getAdmin) { admin =>
+      if (!admin.listNamespaceDescriptors.exists(_.getName == namespace)) {
+        val namespaceDescriptor = NamespaceDescriptor.create(namespace).build()
+        admin.createNamespace(namespaceDescriptor)
+      }
     }
   }
 
   def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
     val hbaseTable = tableName(namespace, table)
-    if (!connection.getAdmin.tableExists(hbaseTable)) {
-      val desc = new HTableDescriptor(hbaseTable)
-      val fieldGroups = table.metrics.map(_.group).toSet
-      fieldGroups foreach (group =>
-        desc.addFamily(
-          new HColumnDescriptor(family(group))
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-            .setCompactionCompressionType(Algorithm.SNAPPY)
+    using(connection.getAdmin) { admin =>
+      if (!admin.tableExists(hbaseTable)) {
+        val desc = new HTableDescriptor(hbaseTable)
+        val fieldGroups = table.metrics.map(_.group).toSet
+        fieldGroups foreach (group =>
+          desc.addFamily(
+            new HColumnDescriptor(family(group))
+              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+              .setCompactionCompressionType(Algorithm.SNAPPY)
+          )
         )
-      )
-      val endTime = new LocalDateTime()
-        .plusYears(1)
-        .withMonthOfYear(1)
-        .withDayOfMonth(1)
-        .withTime(0, 0, 0, 0)
-        .toDateTime(DateTimeZone.UTC)
-        .getMillis
-      val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-      val regions = math.min(r, MAX_INITIAL_REGIONS)
-      connection.getAdmin.createTable(
-        desc,
-        Bytes.toBytes(baseTime(table.epochTime, table)),
-        Bytes.toBytes(baseTime(endTime, table)),
-        regions
-      )
+        val endTime = new LocalDateTime()
+          .plusYears(1)
+          .withMonthOfYear(1)
+          .withDayOfMonth(1)
+          .withTime(0, 0, 0, 0)
+          .toDateTime(DateTimeZone.UTC)
+          .getMillis
+        val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
+        val regions = math.min(r, MAX_INITIAL_REGIONS)
+        admin.createTable(
+          desc,
+          Bytes.toBytes(baseTime(table.epochTime, table)),
+          Bytes.toBytes(baseTime(endTime, table)),
+          regions
+        )
+      }
     }
   }
 
