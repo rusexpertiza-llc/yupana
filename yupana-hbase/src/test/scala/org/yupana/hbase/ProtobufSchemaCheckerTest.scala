@@ -77,8 +77,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       case Error(msg) =>
         msg shouldEqual "Expected rowTimeSpan for table table_1: 2592000000, actual: 2678400000\n" +
           "Expected dimensions for table table_1: dim_b, dim_a, dim_c, dim_d; actual: dim_a, dim_c\n" +
-          "In table table_1 metric metric_c has been removed or updated\n" +
-          "In table table_1 metric metric_d has been removed or updated"
+          "In table table_1 metric metric_c:VARCHAR has been removed or updated\n" +
+          "In table table_1 metric metric_d:DECIMAL has been removed or updated"
     }
   }
 
@@ -99,8 +99,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
-          """In table table_1 metric metric_b has been removed or updated
-          |In table table_1 metric metric_b is unknown (new)""".stripMargin
+          """In table table_1 metric metric_b:BIGINT has been removed or updated
+          |In table table_1 metric metric_b:BIGINT is unknown (new)""".stripMargin
     }
   }
 
@@ -121,8 +121,8 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
-          """In table table_1 metric metric_b has been removed or updated
-            |In table table_1 metric metric_b is unknown (new)""".stripMargin
+          """In table table_1 metric metric_b:BIGINT has been removed or updated
+            |In table table_1 metric metric_b:BIGINT is unknown (new)""".stripMargin
     }
   }
 
@@ -141,7 +141,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
     inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Warning(msg) =>
         msg shouldBe
-          "In table table_1 metric extra_metric is unknown (new)".stripMargin
+          "In table table_1 metric extra_metric:DECIMAL is unknown (new)".stripMargin
     }
   }
 
@@ -163,7 +163,7 @@ class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
       case Error(msg) =>
         msg shouldBe
           "In table table_1 2 metrics (metric_b, new_metric) share the same tag: 2\n" +
-            "In table table_1 metric new_metric is unknown (new)"
+            "In table table_1 metric new_metric:BIGINT is unknown (new)"
     }
   }
 }
