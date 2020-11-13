@@ -16,7 +16,7 @@
 
 package org.yupana.schema
 
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 import org.yupana.api.schema.Metric
 
 trait ItemTableMetrics {
@@ -45,8 +45,7 @@ trait ItemTableMetrics {
 
   val taxationTypeField: Metric.Aux[Int] = Metric[Int](name = "taxationType", tag = 29, rarelyQueried)
   val customerField: Metric.Aux[String] = Metric[String](name = "customer", tag = 30, rarelyQueried)
-  val nomenclatureCodeField: Metric.Aux[Array[Byte]] =
-    Metric[Array[Byte]](name = "nomenclatureCode", tag = 31, rarelyQueried)
+  val nomenclatureCodeField: Metric.Aux[Blob] = Metric[Blob](name = "nomenclatureCode", tag = 31, rarelyQueried)
   val ndsRateField: Metric.Aux[Int] = Metric[Int](name = "ndsRate", tag = 32, rarelyQueried)
   val totalReceiptCashSumField: Metric.Aux[BigDecimal] = Metric[BigDecimal]("totalReceiptCashSum", 33, rarelyQueried)
   val totalReceiptPrepaymentSumField: Metric.Aux[BigDecimal] =

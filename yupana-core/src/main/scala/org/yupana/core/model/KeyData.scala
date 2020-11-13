@@ -32,7 +32,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
 
     if (queryContext != null) {
       val h = queryContext.groupByExprs.foldLeft(MurmurHash3.arraySeed) { (h, e) =>
-        mix(h, row.get[Any](queryContext, e).##)
+        mix(h, row.get(queryContext, e).##)
       }
       finalizeHash(h, queryContext.groupByExprs.length)
     } else {
@@ -52,10 +52,10 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
           }
         } else if (this.queryContext != null) {
           queryContext.groupByExprs.indices
-            .forall(idx => this.row.get[Any](queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
+            .forall(idx => this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
         } else if (that.queryContext != null) {
           that.queryContext.groupByExprs.indices
-            .forall(idx => that.row.get[Any](that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
+            .forall(idx => that.row.get(that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
         } else {
           this.data sameElements that.data
         }
@@ -68,7 +68,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     val keyData = Array.ofDim[Any](queryContext.groupByExprs.length)
 
     keyData.indices foreach { i =>
-      keyData(i) = row.get[Any](queryContext, queryContext.groupByExprs(i))
+      keyData(i) = row.get(queryContext, queryContext.groupByExprs(i))
     }
 
     keyData

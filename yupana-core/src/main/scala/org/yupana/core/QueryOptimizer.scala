@@ -18,6 +18,8 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField }
+import org.yupana.core.utils.ExpressionUtils
+import org.yupana.core.utils.ExpressionUtils.Transformer
 
 object QueryOptimizer {
 
@@ -34,11 +36,16 @@ object QueryOptimizer {
   }
 
   def optimizeField(expressionCalculator: ExpressionCalculator)(field: QueryField): QueryField = {
-    field.copy(expr = optimizeExpr(expressionCalculator)(field.expr.aux))
+    field.copy(expr = optimizeExpr(expressionCalculator)(field.expr))
   }
 
-  def optimizeExpr[T](expressionCalculator: ExpressionCalculator)(expr: Expression.Aux[T]): Expression.Aux[T] = {
-    expr.transform { case e if e.kind == Const => evaluateConstant(expressionCalculator)(e.aux).aux }
+  def optimizeExpr[T](expressionCalculator: ExpressionCalculator)(expr: Expression[T]): Expression[T] = {
+    val transformer = new Transformer {
+      override def apply[U](e: Expression[U]): Option[Expression[U]] = {
+        if (e.kind == Const) Some(evaluateConstant(expressionCalculator)(e)) else None
+      }
+    }
+    ExpressionUtils.transform(transformer)(expr)
   }
 
   def simplifyCondition(condition: Condition): Condition = {
@@ -87,7 +94,7 @@ object QueryOptimizer {
 
   private def evaluateConstant[T](
       expressionCalculator: ExpressionCalculator
-  )(e: Expression.Aux[T]): Expression.Aux[T] = {
+  )(e: Expression[T]): Expression[T] = {
     assert(e.kind == Const)
     val eval = expressionCalculator.evaluateConstant(e)
     if (eval != null) {

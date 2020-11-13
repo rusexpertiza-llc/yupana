@@ -120,7 +120,7 @@ class TSDaoHBaseTest
   "TSDaoHBase" should "execute time bounded queries" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
     val pointTime = 2000
 
@@ -157,7 +157,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs =
-      Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+      Seq[Expression[_]](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
     val pointTime = 2000
 
@@ -207,7 +207,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs =
-      Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+      Seq[Expression[_]](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
     val pointTime = 2000
 
@@ -249,7 +249,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs =
-      Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+      Seq[Expression[_]](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable3))
     val pointTime = 2000
 
@@ -295,7 +295,7 @@ class TSDaoHBaseTest
 //  it should "support not create queries if dimension value is not found" in withMock { (dao, dictionary, queryRunner) =>
 //    val from = 1000
 //    val to = 5000
-//    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+//    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
 //    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 //
 //    queryRunner.expects(Seq.empty).returning(Iterator.empty)
@@ -320,7 +320,7 @@ class TSDaoHBaseTest
   it should "support IN operation for tags" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
@@ -372,7 +372,7 @@ class TSDaoHBaseTest
   it should "do nothing if IN values are empty" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     queryRunner.expects(Seq()).returning(Iterator.empty)
@@ -395,7 +395,7 @@ class TSDaoHBaseTest
   it should "intersect different conditions for same tag" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
@@ -436,7 +436,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs =
-      Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+      Seq[Expression[_]](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
@@ -510,7 +510,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs =
-      Seq[Expression](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+      Seq[Expression[_]](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable3))
 
     val pointTime = 2000
@@ -575,7 +575,7 @@ class TSDaoHBaseTest
 ////  it should "use post filter if there are too many combinations" in withMock { (dao, dictionary, queryRunner) =>
 ////    val from = 1000
 ////    val to = 5000
-////    val exprs = Seq[Expression](time, dimension(TestTable.DIM_A), dimension(TestTable.DIM_B), metric(TestTable.TEST_FIELD))
+////    val exprs = Seq[Expression[_]](time, dimension(TestTable.DIM_A), dimension(TestTable.DIM_B), metric(TestTable.TEST_FIELD))
 ////    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
 ////
 ////    val pointTime1 = 2000
@@ -651,7 +651,7 @@ class TSDaoHBaseTest
   it should "exclude NOT IN from IN" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
@@ -690,7 +690,7 @@ class TSDaoHBaseTest
   it should "filter by exclude conditions" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
@@ -758,7 +758,7 @@ class TSDaoHBaseTest
   it should "do nothing if exclude produce empty set" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     queryRunner.expects(Seq.empty).returning(Iterator.empty)
@@ -786,7 +786,7 @@ class TSDaoHBaseTest
   it should "handle tag ID IN" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
@@ -848,7 +848,7 @@ class TSDaoHBaseTest
   it should "handle tag ID NOT IN condition" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
@@ -892,7 +892,7 @@ class TSDaoHBaseTest
   it should "support dimension id eq" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
@@ -946,7 +946,7 @@ class TSDaoHBaseTest
     val from = 1000
     val to = 5000
     val exprs =
-      Seq[Expression](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_X))
+      Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_X))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable3))
 
     val pointTime1 = 2000
@@ -1008,7 +1008,7 @@ class TSDaoHBaseTest
   it should "support exact time values" in withMock { (dao, dictionaryDao, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime = 2000
@@ -1057,7 +1057,7 @@ class TSDaoHBaseTest
   it should "support EQ filter for tuples" in withMock { (dao, dictionaryDao, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 2000
@@ -1107,7 +1107,7 @@ class TSDaoHBaseTest
   it should "perform pre-filtering by IN for tuples" in withMock { (dao, dictionaryDao, queryRunner) =>
     val from = 1000
     val to = 5000
-    val exprs = Seq[Expression](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 1010

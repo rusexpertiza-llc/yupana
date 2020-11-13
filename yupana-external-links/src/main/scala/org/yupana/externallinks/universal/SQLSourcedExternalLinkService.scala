@@ -53,7 +53,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
 
   override def setLinkedValues(
-      exprIndex: collection.Map[Expression, Int],
+      exprIndex: collection.Map[Expression[_], Int],
       rows: Seq[InternalRow],
       exprs: Set[LinkExpr[_]]
   ): Unit = {

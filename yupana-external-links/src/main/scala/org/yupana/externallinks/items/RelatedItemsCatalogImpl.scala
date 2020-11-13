@@ -116,7 +116,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       valueData: Seq[InternalRow],
       exprs: Set[LinkExpr[_]]
   ): Unit = {

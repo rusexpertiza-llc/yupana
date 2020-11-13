@@ -101,12 +101,12 @@ class TSDB(
       }
 
     val winFieldsAndGroupValues = queryContext.query.fields.map(_.expr).collect {
-      case winFuncExpr: WindowFunctionExpr =>
+      case winFuncExpr: WindowFunctionExpr[_, _] =>
         val values = grouped.mapValues {
           case (vs, rowNumIndex) =>
             val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
             vs.indices.foreach { i =>
-              funcValues(i) = vs(i).get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr)
+              funcValues(i) = vs(i).get(queryContext, winFuncExpr.expr)
             }
             (funcValues, rowNumIndex)
         }
@@ -116,10 +116,10 @@ class TSDB(
     seq.map {
       case ((keyData, valueData), rowNumber) =>
         winFieldsAndGroupValues.foreach {
-          case (winFuncExpr, groups) =>
+          case (winFuncExpr: WindowFunctionExpr[t, _], groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = winFuncExpr.operation(group.asInstanceOf[Array[winFuncExpr.expr.Out]], index)
+              val value = expressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[t]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }

@@ -22,9 +22,10 @@ import java.nio.charset.StandardCharsets
 
 import org.joda.time.Period
 import org.joda.time.format.{ ISOPeriodFormat, PeriodFormatter }
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 import scala.annotation.implicitNotFound
+import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 /**
@@ -71,8 +72,10 @@ object Storable {
   implicit val periodStorable: Storable[Period] =
     wrap(stringStorable, (s: String) => ISOPeriodFormat.standard().parsePeriod(s), p => periodFormat.print(p))
 
-  implicit def arrayStorable[T](implicit rt: Storable[T], ct: ClassTag[T]): Storable[Array[T]] =
-    of(readArray(rt), arrayToBytes(rt))
+  implicit val blobStorable: Storable[Blob] = of(readBlob, blobToBytes)
+
+  implicit def seqStorable[T](implicit rt: Storable[T], ct: ClassTag[T]): Storable[Seq[T]] =
+    of(readSeq(rt), seqToBytes(rt))
 
   def of[T](r: ByteBuffer => T, w: T => Array[Byte]): Storable[T] = new Storable[T] {
     override def read(a: Array[Byte]): T = r(ByteBuffer.wrap(a))
@@ -146,12 +149,12 @@ object Storable {
     }
   }
 
-  private def readArray[T: ClassTag](Storable: Storable[T])(bb: ByteBuffer): Array[T] = {
+  private def readSeq[T: ClassTag](storable: Storable[T])(bb: ByteBuffer): Seq[T] = {
     val size = readVInt(bb)
-    val result = new Array[T](size)
+    val result = ListBuffer.empty[T]
 
-    for (i <- 0 until size) {
-      result(i) = Storable.read(bb)
+    for (_ <- 0 until size) {
+      result += storable.read(bb)
     }
 
     result
@@ -219,7 +222,7 @@ object Storable {
     }
   }
 
-  private def arrayToBytes[T](storable: Storable[T])(array: Array[T]): Array[Byte] = {
+  private def seqToBytes[T](storable: Storable[T])(array: Seq[T]): Array[Byte] = {
     val bytes = array.map(storable.write)
     val arraySize = vLongToBytes(array.length)
     val resultSize = bytes.foldLeft(arraySize.length)((a, i) => a + i.length)
@@ -227,5 +230,17 @@ object Storable {
     bb.put(arraySize)
     bytes.foreach(bb.put)
     bb.array()
+  }
+
+  private def readBlob(bb: ByteBuffer): Blob = {
+    val size = readVInt(bb)
+    val data = new Array[Byte](size)
+    bb.get(data)
+    Blob(data)
+  }
+
+  private def blobToBytes(blob: Blob): Array[Byte] = {
+    val sizeBytes = vLongToBytes(blob.bytes.length)
+    sizeBytes ++ blob.bytes
   }
 }

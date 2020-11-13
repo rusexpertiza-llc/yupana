@@ -99,7 +99,7 @@ class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with
         SparseTable[String, String, String](dimValues.map(dv => dv -> fields.map(f => f -> s"$f:$dv").toMap).toMap)
     }
 
-    val exprIndex = Map[Expression, Int](
+    val exprIndex = Map[Expression[_], Int](
       time -> 0,
       dimension(xDim) -> 1,
       link(TestLink, TestLink.field1) -> 2,

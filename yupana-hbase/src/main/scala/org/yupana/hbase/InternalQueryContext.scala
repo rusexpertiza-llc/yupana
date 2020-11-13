@@ -25,7 +25,7 @@ import scala.collection.mutable
 
 case class InternalQueryContext(
     table: Table,
-    exprsIndexSeq: Seq[(Expression, Int)],
+    exprsIndexSeq: Seq[(Expression[_], Int)],
     dimIndexMap: mutable.Map[Dimension, Int],
     metricsCollector: MetricQueryCollector
 )

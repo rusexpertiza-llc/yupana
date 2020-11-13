@@ -891,12 +891,37 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     }
   }
 
+  it should "support array literals" in {
+    val sql =
+      """
+        | SELECT a, b
+        |   FROM table
+        |   WHERE containsAll(x, {1,2,3})
+        | """.stripMargin
+
+    parsed(sql) {
+      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        schema shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
+        condition shouldEqual ExprCondition(
+          FunctionCall(
+            "containsall",
+            List(FieldName("x"), SqlArray(Seq(NumericValue(1), NumericValue(2), NumericValue(3))))
+          )
+        )
+    }
+  }
+
   it should "parse SHOW TABLES statements" in {
     SqlParser.parse("SHOW TABLES") shouldBe Right(ShowTables)
   }
 
   it should "parse SHOW COLUMNS statements" in {
     SqlParser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
+  }
+
+  it should "parse SHOW FUNCTIONS statements" in {
+    SqlParser.parse("SHOW FUNCTIONS FOR TIMESTAMP") shouldBe Right(ShowFunctions("TIMESTAMP"))
   }
 
   it should "parse SHOW QUERIES statements" in {
@@ -1094,9 +1119,9 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   }
 
   it should "produce error on unknown show" in {
-    errorMessage("SHOW functions") {
+    errorMessage("SHOW cartoons") {
       case msg =>
-        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES"), but got "functions""")
+        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS"), but got "cartoons""")
     }
   }
 

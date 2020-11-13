@@ -24,7 +24,6 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
-import org.yupana.core.operations.Operations
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 
@@ -51,7 +50,6 @@ trait TsdbBase extends StrictLogging {
 
   def schema: Schema
 
-  implicit lazy val operations: Operations = new Operations(schema.tokenizer)
   lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   /** Batch size for reading values from external links */
@@ -286,50 +284,39 @@ trait TsdbBase extends StrictLogging {
     row
   }
 
-  def applyMapOperation(queryContext: QueryContext, values: InternalRow): InternalRow = {
+  def applyMapOperation(queryContext: QueryContext, row: InternalRow): InternalRow = {
     queryContext.aggregateExprs.foreach { ae =>
-      val oldValue = values.get[ae.expr.Out](queryContext, ae.expr)
-      val newValue = if (oldValue != null) ae.aggregation.map(oldValue) else null
-      values.set(queryContext, ae, newValue)
+      row.set(
+        queryContext.exprsIndex(ae),
+        expressionCalculator.evaluateMap(ae, queryContext, row)
+      )
     }
-    values
+    row
   }
 
   def applyReduceOperation(queryContext: QueryContext, a: InternalRow, b: InternalRow): InternalRow = {
     val reduced = a.copy
     queryContext.aggregateExprs.foreach { aggExpr =>
-      val agg = aggExpr.aggregation
-      val aValue = a.get[agg.Interim](queryContext, aggExpr)
-      val bValue = b.get[agg.Interim](queryContext, aggExpr)
-
-      val newValue = if (aValue != null) {
-        if (bValue != null) {
-          agg.reduce(aValue, bValue)
-        } else aValue
-      } else bValue
+      val newValue = expressionCalculator.evaluateReduce(aggExpr, queryContext, a, b)
       reduced.set(queryContext, aggExpr, newValue)
     }
 
     reduced
   }
 
-  def applyPostMapOperation(queryContext: QueryContext, data: InternalRow): InternalRow = {
+  def applyPostMapOperation(queryContext: QueryContext, row: InternalRow): InternalRow = {
 
     queryContext.aggregateExprs.foreach { aggExpr =>
-      val agg = aggExpr.aggregation
-      val oldValue = data.get[agg.Interim](queryContext, aggExpr)
-      val newValue =
-        if (oldValue != null) agg.postMap(oldValue) else agg.emptyValue.getOrElse(null.asInstanceOf[agg.Out])
-      data.set(queryContext, aggExpr, newValue)
+      row.set(queryContext, aggExpr, expressionCalculator.evaluatePostMap(aggExpr, queryContext, row))
     }
-    data
+    row
   }
 
   def evalExprsOnAggregatesAndWindows(queryContext: QueryContext, data: InternalRow): InternalRow = {
     queryContext.exprsOnAggregatesAndWindows.foreach { e =>
       val nullWindowExpressionsExists = e.flatten.exists {
-        case w: WindowFunctionExpr => data.isEmpty(queryContext, w)
-        case _                     => false
+        case w: WindowFunctionExpr[_, _] => data.isEmpty(queryContext, w)
+        case _                           => false
       }
       val evaluationResult =
         if (nullWindowExpressionsExists) null

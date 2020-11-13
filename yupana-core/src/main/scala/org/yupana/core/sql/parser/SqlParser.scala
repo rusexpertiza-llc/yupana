@@ -52,6 +52,8 @@ object SqlParser {
   private def upsertWord[_: P] = P(IgnoreCase("UPSERT"))
   private def intoWord[_: P] = P(IgnoreCase("INTO"))
   private def valuesWord[_: P] = P(IgnoreCase("VALUES"))
+  private def functionsWord[_: P] = P(IgnoreCase("FUNCTIONS"))
+  private def forWord[_: P] = P(IgnoreCase("FOR"))
   private val keywords = Set(
     "select",
     "from",
@@ -97,6 +99,8 @@ object SqlParser {
 
   def constExpr[_: P]: P[Constant] = P(ValueParser.value).map(Constant)
 
+  def arrayExpr[_: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
+
   def caseExpr[_: P]: P[Case] =
     P(
       caseWord ~/
@@ -119,7 +123,8 @@ object SqlParser {
 
   def mathTerm[_: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
 
-  def mathFactor[_: P]: P[SqlExpr] = P(functionCallExpr | caseExpr | constExpr | fieldNameExpr | "(" ~ expr ~ ")")
+  def mathFactor[_: P]: P[SqlExpr] =
+    P(functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | "(" ~ expr ~ ")")
 
   def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
 
@@ -242,7 +247,9 @@ object SqlParser {
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
-  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries))
+  def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
+
+  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries | functions))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 

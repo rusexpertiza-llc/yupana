@@ -4,11 +4,13 @@ import org.scalacheck.Arbitrary
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 class StorableTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks with TableDrivenPropertyChecks {
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
+
+  implicit private val genBlob: Arbitrary[Blob] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(Blob.apply))
 
   "Serialization" should "preserve doubles on write read cycle" in readWriteTest[Double]
 
@@ -24,9 +26,11 @@ class StorableTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyC
 
   it should "preserve Booleans on readwrite cycle" in readWriteTest[Boolean]
 
-  it should "preserve Arrays of Int on read write cycle" in readWriteTest[Array[Int]]
+  it should "preserve sequences of Int on read write cycle" in readWriteTest[Seq[Int]]
 
-  it should "preserve Arrays of String on read write cycle" in readWriteTest[Array[String]]
+  it should "preserve sequences of String on read write cycle" in readWriteTest[Seq[String]]
+
+  it should "preserve BLOBs on read write cycle" in readWriteTest[Blob]
 
   it should "compact numbers" in {
     val storable = implicitly[Storable[Long]]

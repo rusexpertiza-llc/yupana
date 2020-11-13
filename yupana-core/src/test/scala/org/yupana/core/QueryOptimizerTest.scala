@@ -3,7 +3,6 @@ package org.yupana.core
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.query.{ AndExpr, OrExpr }
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.api.types.WindowOperation
 import org.yupana.utils.RussianTokenizer
 
 class QueryOptimizerTest extends FlatSpec with Matchers {
@@ -26,7 +25,7 @@ class QueryOptimizerTest extends FlatSpec with Matchers {
             gt[String](dimension(DictionaryDimension("b")), const("c"))
           )
         ),
-        AndExpr(Seq()).aux,
+        AndExpr(Seq()),
         gt(dimension(RawDimension[Int]("c")), const(42)),
         AndExpr(Seq(AndExpr(Seq(gt(dimension(RawDimension[Long]("d")), const(5L))))))
       )
@@ -48,7 +47,7 @@ class QueryOptimizerTest extends FlatSpec with Matchers {
             gt[String](dimension(DictionaryDimension("b")), const("c"))
           )
         ),
-        OrExpr(Seq()).aux,
+        OrExpr(Seq()),
         gt[String](dimension(DictionaryDimension("c")), const("c")),
         OrExpr(Seq(OrExpr(Seq(gt[String](dimension(DictionaryDimension("d")), const("e"))))))
       )
@@ -166,16 +165,14 @@ class QueryOptimizerTest extends FlatSpec with Matchers {
 
   it should "optimize inside window functions" in {
     QueryOptimizer.optimizeExpr(calculator)(
-      windowFunction(
-        WindowOperation.lag[Double],
+      lag(
         condition(
           equ(lower(dimension(TestDims.DIM_A)), lower(const("AAAAAAAA"))),
           metric(TestTableFields.TEST_FIELD),
           minus(minus(const(2d), const(1d)), const(1d))
         )
-      ).aux
-    ) shouldEqual windowFunction(
-      WindowOperation.lag[Double],
+      )
+    ) shouldEqual lag(
       condition(
         equ(lower(dimension(TestDims.DIM_A)), const("aaaaaaaa")),
         metric(TestTableFields.TEST_FIELD),

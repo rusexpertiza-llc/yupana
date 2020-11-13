@@ -20,7 +20,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.ConditionMatchers.{ Equ, Lower, Neq }
+import org.yupana.api.utils.ConditionMatchers._
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -40,7 +40,7 @@ trait ExternalLinkService[T <: ExternalLink] {
     * @param exprs expressions to be set
     */
   def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       rows: Seq[InternalRow],
       exprs: Set[LinkExpr[_]]
   ): Unit
@@ -80,19 +80,19 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def isSupportedCondition(condition: Condition): Boolean = {
     condition match {
-      case Equ(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName        => true
-      case Equ(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
-      case Equ(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName        => true
-      case Equ(ConstantExpr(_), Lower(LinkExpr(c, _))) if c.linkName == externalLink.linkName => true
-      case Neq(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName        => true
-      case Neq(Lower(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName => true
-      case Neq(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName        => true
-      case Neq(ConstantExpr(_), Lower(LinkExpr(c, _))) if c.linkName == externalLink.linkName => true
-      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                   => true
-      case InExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName            => true
-      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                => true
-      case NotInExpr(Lower(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName         => true
-      case _                                                                                  => false
+      case EqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                   => true
+      case EqString(LowerExpr(l: LinkExpr[_]), ConstantExpr(_)) if l.link.linkName == externalLink.linkName => true
+      case EqString(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                 => true
+      case EqString(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName      => true
+      case NeqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                  => true
+      case NeqString(LowerExpr(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName     => true
+      case NeqExpr(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                  => true
+      case NeqString(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName     => true
+      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                                 => true
+      case InString(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                    => true
+      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                              => true
+      case NotInString(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                 => true
+      case _                                                                                                => false
     }
   }
 

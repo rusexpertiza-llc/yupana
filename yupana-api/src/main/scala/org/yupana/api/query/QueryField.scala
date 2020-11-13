@@ -21,6 +21,6 @@ package org.yupana.api.query
   * @param name this field name
   * @param expr expression
   */
-case class QueryField(name: String, expr: Expression) {
+case class QueryField(name: String, expr: Expression[_]) {
   override def toString: String = s"$expr as $name"
 }

@@ -19,7 +19,7 @@ package org.yupana.api.types
 import java.sql.Types
 
 import org.joda.time.Period
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 /**
   * Contains different meta information for type `T`
@@ -68,7 +68,9 @@ object DataTypeMeta {
   implicit val periodMeta: DataTypeMeta[Period] =
     DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
 
-  implicit def arrayMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Array[T]] = {
+  implicit val nullMeta: DataTypeMeta[Null] = DataTypeMeta(Types.NULL, 4, "NULL", null, 0, 0)
+
+  implicit def seqMeta[T](implicit meta: DataTypeMeta[T]): DataTypeMeta[Seq[T]] = {
     DataTypeMeta(
       Types.ARRAY,
       Integer.MAX_VALUE,
@@ -79,12 +81,15 @@ object DataTypeMeta {
     )
   }
 
+  implicit val blobMeta: DataTypeMeta[Blob] =
+    DataTypeMeta(Types.BLOB, Int.MaxValue, "BLOB", classOf[java.sql.Blob], Int.MaxValue, 0)
+
   def scaledDecimalMeta(scale: Int): DataTypeMeta[BigDecimal] = {
     DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, scale)
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =
-    DataTypeMeta(t, ds, tn, jt.getCanonicalName, p, SIGNED_TYPES.contains(t), s)
+    DataTypeMeta(t, ds, tn, if (jt != null) jt.getCanonicalName else "Null", p, SIGNED_TYPES.contains(t), s)
 
   def tuple[T, U](implicit tMeta: DataTypeMeta[T], uMeta: DataTypeMeta[U]): DataTypeMeta[(T, U)] = DataTypeMeta(
     Types.OTHER,

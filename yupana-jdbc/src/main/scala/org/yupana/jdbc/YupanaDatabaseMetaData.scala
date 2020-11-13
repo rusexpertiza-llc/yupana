@@ -19,7 +19,7 @@ package org.yupana.jdbc
 import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, SQLException }
 
 import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.types.{ DataType, UnaryOperation }
+import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
@@ -323,8 +323,6 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxColumnsInIndex = 0
 
-  override def getTimeDateFunctions = "day,month,week,hour,microsecond"
-
   override def getTableTypes: ResultSet = {
     val names = List("TABLE_TYPE")
     val dataTypes = List(DataType[String])
@@ -353,7 +351,11 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def nullsAreSortedAtEnd() = false
 
-  override def getNumericFunctions: String = UnaryOperation.numericOperations(DataType[Long]).keys.mkString(",")
+  override def getTimeDateFunctions: String = getFunctionsForType("TIMESTAMP")
+
+  override def getNumericFunctions: String = getFunctionsForType("DECIMAL")
+
+  override def getStringFunctions: String = getFunctionsForType("STRING")
 
   override def generatedKeyAlwaysReturned = false
 
@@ -407,8 +409,6 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsCatalogsInIndexDefinitions() = false
 
-  override def getStringFunctions: String = UnaryOperation.stringOperations.keys.mkString(",")
-
   override def supportsOrderByUnrelated() = false
 
   override def getMaxIndexLength = 0
@@ -459,4 +459,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
   }
 
   override def isWrapperFor(iface: Class[_]): Boolean = iface.isAssignableFrom(getClass)
+
+  private def getFunctionsForType(t: String): String = {
+    val sql = s"SHOW FUNCTIONS FOR $t"
+    val stmt = connection.createStatement()
+    val rs = stmt.executeQuery(sql)
+    val fs = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("NAME")).toSeq
+    fs mkString ","
+  }
 }

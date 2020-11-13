@@ -9,7 +9,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
-import org.yupana.api.types._
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TSDao, TsdbQueryMetricsDao }
@@ -102,7 +101,7 @@ class TsdbTest
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
-      BinaryOperationExpr(BinaryOperation.equ[String], dimension(TestDims.DIM_A), const("test1"))
+      EqExpr(dimension(TestDims.DIM_A), const("test1"))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -111,7 +110,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set[Expression](
+          Set(
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -393,7 +392,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         time as "time_time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
@@ -447,7 +446,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         time as "time_time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       )
@@ -496,13 +495,13 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        TruncDayExpr(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+      Seq(TruncDayExpr(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -554,8 +553,8 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A"
       ),
       None,
@@ -632,8 +631,8 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         metric(TestTableFields.TEST_FIELD) as "testField",
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "A"
+        truncDay(time) as "time",
+        count(dimension(TestDims.DIM_A)) as "A"
       ),
       None,
       Seq(metric(TestTableFields.TEST_FIELD))
@@ -713,9 +712,9 @@ class TsdbTest
           )
         )
       ),
-      groupBy = Seq(function(UnaryOperation.truncDay, time)),
+      groupBy = Seq(truncDay(time)),
       fields = Seq(
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField"
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField"
       ),
       limit = None,
       table = Some(TestSchema.testTable)
@@ -766,15 +765,15 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
       Seq(
-        function(UnaryOperation.truncDay, time),
+        truncDay(time),
         dimension(TestDims.DIM_A),
         dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
@@ -881,7 +880,7 @@ class TsdbTest
         const(Time(qtime.plusDays(1))),
         Seq(
           truncDay(time) as "time",
-          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
           dimension(TestDims.DIM_A) as "A",
           dimension(TestDims.DIM_B) as "B"
         ),
@@ -939,19 +938,18 @@ class TsdbTest
         const(Time(qtime)),
         const(Time(qtime.plusDays(1))),
         Seq(
-          function(UnaryOperation.truncDay, time) as "time",
-          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          truncDay(time) as "time",
+          sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
           dimension(TestDims.DIM_A) as "A",
           dimension(TestDims.DIM_B) as "B"
         ),
         Some(
-          BinaryOperationExpr(
-            BinaryOperation.equ[String],
+          EqExpr(
             link(TestLinks.TEST_LINK, "testField"),
             const("testFieldValue")
           )
         ),
-        Seq(function(UnaryOperation.truncDay, time))
+        Seq(truncDay(time))
       )
 
       (testCatalogServiceMock.condition _)
@@ -1003,21 +1001,20 @@ class TsdbTest
       const(Time(from)),
       const(Time(to)),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       Some(
-        BinaryOperationExpr(
-          BinaryOperation.neq[String],
+        NeqExpr(
           link(TestLinks.TEST_LINK, "testField"),
           const("testFieldValue")
         )
       ),
       Seq(
-        function(UnaryOperation.truncDay, time),
+        truncDay(time),
         dimension(TestDims.DIM_A),
         dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
@@ -1107,15 +1104,15 @@ class TsdbTest
         const(Time(from)),
         const(Time(to)),
         Seq(
-          function(UnaryOperation.truncDay, time) as "time",
-          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          truncDay(time) as "time",
+          sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
           dimension(TestDims.DIM_A) as "A",
           dimension(TestDims.DIM_B) as "B",
           link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
         ),
         Some(neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
         Seq(
-          function(UnaryOperation.truncDay, time),
+          truncDay(time),
           dimension(TestDims.DIM_A),
           dimension(TestDims.DIM_B),
           link(TestLinks.TEST_LINK, "testField")
@@ -1206,7 +1203,7 @@ class TsdbTest
         const(Time(from)),
         const(Time(to)),
         Seq(
-          function(UnaryOperation.truncDay, time) as "time",
+          truncDay(time) as "time",
           sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
           dimension(TestDims.DIM_A).toField,
           dimension(TestDims.DIM_B).toField,
@@ -1221,7 +1218,7 @@ class TsdbTest
           )
         ),
         Seq(
-          function(UnaryOperation.truncDay, time),
+          truncDay(time),
           dimension(TestDims.DIM_A),
           dimension(TestDims.DIM_B),
           link(TestLinks.TEST_LINK, "testField")
@@ -1332,7 +1329,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         time as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
@@ -1424,8 +1421,8 @@ class TsdbTest
         const(Time(qtime)),
         const(Time(qtime.plusDays(1))),
         Seq(
-          function(UnaryOperation.truncDay, time) as "time",
-          aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+          truncDay(time) as "time",
+          sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
           dimension(TestDims.DIM_A) as "A",
           dimension(TestDims.DIM_B) as "B"
         ),
@@ -1437,7 +1434,7 @@ class TsdbTest
             )
           )
         ),
-        Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+        Seq(truncDay(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
       )
 
       (testCatalogServiceMock.condition _)
@@ -1530,8 +1527,8 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
@@ -1543,7 +1540,7 @@ class TsdbTest
           )
         )
       ),
-      Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), function(UnaryOperation.truncDay, time))
+      Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), truncDay(time))
     )
 
     (testCatalogServiceMock.condition _)
@@ -1636,7 +1633,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         time as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
@@ -1725,7 +1722,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         time as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
@@ -1847,13 +1844,13 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), link(TestLinks.TEST_LINK, "testField"))
+      Seq(truncDay(time), link(TestLinks.TEST_LINK, "testField"))
     )
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -1941,12 +1938,12 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.min[String], TestTableFields.TEST_STRING_FIELD) as "min_testStringField"
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        min(metric(TestTableFields.TEST_STRING_FIELD)) as "min_testStringField"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
+      Seq(truncDay(time), dimension(TestDims.DIM_A))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2001,9 +1998,9 @@ class TsdbTest
 
     val query2 = query1.copy(
       fields = Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.max[String], TestTableFields.TEST_STRING_FIELD) as "max_testStringField"
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        max(metric(TestTableFields.TEST_STRING_FIELD)) as "max_testStringField"
       )
     )
 
@@ -2014,9 +2011,9 @@ class TsdbTest
 
     val query3 = query1.copy(
       fields = Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.count[String], TestTableFields.TEST_STRING_FIELD) as "count_testStringField"
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        count(metric(TestTableFields.TEST_STRING_FIELD)) as "count_testStringField"
       )
     )
 
@@ -2039,15 +2036,15 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         link(TestLinks.TEST_LINK3, "testField3-1") as "TestCatalog3_testField3-1",
         link(TestLinks.TEST_LINK3, "testField3-2") as "TestCatalog3_testField3-2",
         link(TestLinks.TEST_LINK3, "testField3-3") as "TestCatalog3_testField3-3"
       ),
       None,
       Seq(
-        function(UnaryOperation.truncDay, time),
+        truncDay(time),
         link(TestLinks.TEST_LINK3, "testField3-1"),
         link(TestLinks.TEST_LINK3, "testField3-2"),
         link(TestLinks.TEST_LINK3, "testField3-3")
@@ -2141,15 +2138,15 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.min[Time], time) as "min_time",
-        aggregate(Aggregation.max[Time], time) as "max_time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        min(time) as "min_time",
+        max(time) as "max_time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+      Seq(truncDay(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2206,13 +2203,13 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         const(BigDecimal(1)) as "dummy",
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+      Seq(truncDay(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2262,13 +2259,13 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_A",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        count(dimension(TestDims.DIM_A)) as "count_A",
         dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_B))
+      Seq(truncDay(time), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2319,13 +2316,13 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
-        aggregate(Aggregation.count[String], link(TestLinks.TEST_LINK, "testField")) as "count_TestCatalog_testField"
+        count(link(TestLinks.TEST_LINK, "testField")) as "count_TestCatalog_testField"
       ),
       Some(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
+      Seq(truncDay(time), dimension(TestDims.DIM_A))
     )
 
     (testCatalogServiceMock.condition _)
@@ -2421,14 +2418,14 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.distinctCount[String], dimension(TestDims.DIM_A)) as "distinct_count_A",
-        aggregate(Aggregation.count[String], dimension(TestDims.DIM_A)) as "count_A",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        distinctCount(dimension(TestDims.DIM_A)) as "distinct_count_A",
+        count(dimension(TestDims.DIM_A)) as "count_A",
         dimension(TestDims.DIM_B) as "B"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_B))
+      Seq(truncDay(time), dimension(TestDims.DIM_B))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2507,7 +2504,7 @@ class TsdbTest
       Some(TestSchema.testTable),
       Seq(
         time as "time_time",
-        windowFunction(WindowOperation.lag[Time], time) as "lag_time_time",
+        lag(time) as "lag_time_time",
         metric(TestTableFields.TEST_FIELD) as "testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
@@ -2515,8 +2512,8 @@ class TsdbTest
       Some(
         AndExpr(
           Seq(
-            BinaryOperationExpr(BinaryOperation.ge[Time], time, const(Time(qtime))),
-            BinaryOperationExpr(BinaryOperation.lt[Time], time, const(Time(qtime.plusDays(1))))
+            GeExpr(time, const(Time(qtime))),
+            LtExpr(time, const(Time(qtime.plusDays(1))))
           )
         )
       ),
@@ -2607,7 +2604,7 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
+        truncDay(time) as "time",
         sum(
           condition(
             and(
@@ -2621,7 +2618,7 @@ class TsdbTest
         dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
+      Seq(truncDay(time), dimension(TestDims.DIM_A))
     )
 
     val pointTime1 = qtime.getMillis + 10
@@ -2687,9 +2684,8 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(
-          Aggregation.sum[BigDecimal],
+        truncDay(time) as "time",
+        sum(
           condition(
             equ(link(TestLinks.TEST_LINK, "testField"), const("sdfsafsdagf")),
             const[BigDecimal](1),
@@ -2699,7 +2695,7 @@ class TsdbTest
         dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A))
+      Seq(truncDay(time), dimension(TestDims.DIM_A))
     )
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -2750,12 +2746,12 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time), dimension(TestDims.DIM_A)),
+      Seq(truncDay(time), dimension(TestDims.DIM_A)),
       None,
       Some(ge(sum(metric(TestTableFields.TEST_FIELD)), const[Double](3d)))
     )
@@ -2984,14 +2980,14 @@ class TsdbTest
       const(Time(qtime)),
       const(Time(qtime.plusDays(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.count[Double], TestTableFields.TEST_FIELD) as "count_testField",
-        aggregate(Aggregation.distinctCount[Double], TestTableFields.TEST_FIELD) as "distinct_count_testField",
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        count(metric(TestTableFields.TEST_FIELD)) as "count_testField",
+        distinctCount(metric(TestTableFields.TEST_FIELD)) as "distinct_count_testField",
         count(const(1)) as "record_count"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time))
+      Seq(truncDay(time))
     )
 
     val pointTime1 = qtime.getMillis + 10

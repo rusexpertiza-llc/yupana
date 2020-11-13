@@ -44,3 +44,5 @@ case class ShowQueryMetrics(filter: Option[MetricsFilter], limit: Option[Int]) e
 case class KillQuery(filter: MetricsFilter) extends Statement
 
 case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
+
+case class ShowFunctions(dataType: String) extends Statement

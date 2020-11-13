@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-package org.yupana.core.operations
+package org.yupana.api
 
-import org.yupana.api.utils.Tokenizer
+import scala.util.hashing.MurmurHash3
 
-class Operations(override val tokenizer: Tokenizer)
-    extends UnaryOperationsImpl
-    with BinaryOperationsImpl
-    with WindowOperationsImpl
-    with AggregationsImpl
-    with Serializable
+case class Blob(bytes: Array[Byte]) {
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case Blob(b) => b sameElements this.bytes
+      case _       => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    MurmurHash3.arrayHash(bytes)
+  }
+
+  override def toString: String = s"Blob(size=${bytes.length})"
+}

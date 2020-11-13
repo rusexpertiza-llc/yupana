@@ -21,7 +21,6 @@ import java.util.UUID
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
-import org.yupana.api.types.BinaryOperation
 
 /**
   * Query to TSDB
@@ -37,7 +36,7 @@ case class Query(
     table: Option[Table],
     fields: Seq[QueryField],
     filter: Option[Condition],
-    groupBy: Seq[Expression] = Seq.empty,
+    groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None
 ) {
@@ -87,43 +86,43 @@ case class Query(
 object Query {
   def apply(
       table: Table,
-      from: Expression.Aux[Time],
-      to: Expression.Aux[Time],
+      from: Expression[Time],
+      to: Expression[Time],
       fields: Seq[QueryField],
       filter: Option[Condition],
-      groupBy: Seq[Expression],
+      groupBy: Seq[Expression[_]],
       limit: Option[Int],
       postFilter: Option[Condition]
   ): Query = {
 
     val newCondition = AndExpr(
       Seq(
-        BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, from),
-        BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, to)
+        GeExpr(TimeExpr, from),
+        LtExpr(TimeExpr, to)
       ) ++ filter
     )
 
     new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter)
   }
 
-  def apply(table: Table, from: Expression.Aux[Time], to: Expression.Aux[Time], fields: Seq[QueryField]): Query =
+  def apply(table: Table, from: Expression[Time], to: Expression[Time], fields: Seq[QueryField]): Query =
     apply(table, from, to, fields, None, Seq.empty, None, None)
 
   def apply(
       table: Table,
-      from: Expression.Aux[Time],
-      to: Expression.Aux[Time],
+      from: Expression[Time],
+      to: Expression[Time],
       fields: Seq[QueryField],
       filter: Condition
   ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None)
 
   def apply(
       table: Table,
-      from: Expression.Aux[Time],
-      to: Expression.Aux[Time],
+      from: Expression[Time],
+      to: Expression[Time],
       fields: Seq[QueryField],
       filter: Option[Condition],
-      groupBy: Seq[Expression]
+      groupBy: Seq[Expression[_]]
   ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
 
 }

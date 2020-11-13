@@ -19,8 +19,8 @@ package org.yupana.core.utils
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
 import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
-import org.yupana.core.utils.ConditionMatchers._
 
 import scala.collection.mutable.ListBuffer
 
@@ -31,8 +31,8 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
     QueryOptimizer.simplifyCondition(
       AndExpr(
         Seq(
-          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true).aux),
-          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true).aux)
+          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true)),
+          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true))
         ) ++ conditions
       )
     )
@@ -79,13 +79,18 @@ object TimeBoundedCondition {
     TimeBoundedCondition(from, to, cs)
   }
 
+  private object GtTime extends GtMatcher[Time]
+  private object LtTime extends LtMatcher[Time]
+  private object GeTime extends GeMatcher[Time]
+  private object LeTime extends LeMatcher[Time]
+
   private def andToTimeBounded(expressionCalculator: ExpressionCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
 
-    def updateFrom(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
+    def updateFrom(c: Condition, e: Expression[_], offset: Long): Unit = {
+      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
       if (const != null) {
         from = from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
       } else {
@@ -93,8 +98,8 @@ object TimeBoundedCondition {
       }
     }
 
-    def updateTo(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
+    def updateTo(c: Condition, e: Expression[_], offset: Long): Unit = {
+      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
       if (const != null) {
         to = to.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis)
       } else {
@@ -103,17 +108,17 @@ object TimeBoundedCondition {
     }
 
     and.conditions.foreach {
-      case c @ Gt(TimeExpr, e) => updateFrom(c, e, 1L)
-      case c @ Lt(e, TimeExpr) => updateFrom(c, e, 1L)
+      case c @ GtTime(TimeExpr, e) => updateFrom(c, e, 1L)
+      case c @ LtTime(e, TimeExpr) => updateFrom(c, e, 1L)
 
-      case c @ Ge(TimeExpr, e) => updateFrom(c, e, 0L)
-      case c @ Le(e, TimeExpr) => updateFrom(c, e, 0L)
+      case c @ GeTime(TimeExpr, e) => updateFrom(c, e, 0L)
+      case c @ LeTime(e, TimeExpr) => updateFrom(c, e, 0L)
 
-      case c @ Lt(TimeExpr, e) => updateTo(c, e, 0L)
-      case c @ Gt(e, TimeExpr) => updateTo(c, e, 0L)
+      case c @ LtTime(TimeExpr, e) => updateTo(c, e, 0L)
+      case c @ GtTime(e, TimeExpr) => updateTo(c, e, 0L)
 
-      case c @ Le(TimeExpr, e) => updateTo(c, e, 1L)
-      case c @ Ge(e, TimeExpr) => updateTo(c, e, 1L)
+      case c @ LeTime(TimeExpr, e) => updateTo(c, e, 1L)
+      case c @ GeTime(e, TimeExpr) => updateTo(c, e, 1L)
 
       case c @ (AndExpr(_) | OrExpr(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
 

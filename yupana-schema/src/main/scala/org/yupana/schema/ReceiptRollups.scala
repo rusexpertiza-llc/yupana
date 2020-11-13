@@ -16,8 +16,7 @@
 
 package org.yupana.schema
 
-import org.joda.time.DateTimeFieldType
-import org.yupana.api.query.{ DimensionExpr, Expression }
+import org.yupana.api.query._
 import org.yupana.api.schema.Rollup
 
 object ReceiptRollups {
@@ -30,7 +29,7 @@ object ReceiptRollups {
     fields = baseRollupFields ++ shiftRollupFields ++ additionalRollupFieldsFromDetails,
     fromTable = Tables.receiptTable,
     toTable = Tables.receiptByDayTable,
-    downsamplingInterval = Some(DateTimeFieldType.dayOfYear())
+    timeExpr = TruncDayExpr(TimeExpr)
   )
 
   val receiptDayAllKkmsRollup = Rollup(
@@ -42,27 +41,27 @@ object ReceiptRollups {
     ) ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByDayAllKkmsTable,
-    downsamplingInterval = Some(DateTimeFieldType.dayOfYear())
+    timeExpr = TruncDayExpr(TimeExpr)
   )
 
   val receiptWeekRollup = Rollup(
     name = "receiptByWeek",
     filter = None,
-    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
+    groupBy = Seq[Expression[_]](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByWeekTable,
-    downsamplingInterval = Some(DateTimeFieldType.weekOfWeekyear())
+    timeExpr = TruncWeekExpr(TimeExpr)
   )
 
   val receiptMonthRollup = Rollup(
     name = "receiptByMonth",
     filter = None,
-    groupBy = Seq[Expression](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
+    groupBy = Seq[Expression[_]](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,
-    downsamplingInterval = Some(DateTimeFieldType.monthOfYear())
+    timeExpr = TruncMonthExpr(TimeExpr)
   )
 
 }

@@ -307,6 +307,7 @@ val commonSettings = Seq(
   crossScalaVersions := Seq("2.11.12", "2.12.12"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
+    "-Xsource:2.12",
     "-deprecation",
     "-unchecked",
     "-feature",

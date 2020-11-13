@@ -1,13 +1,13 @@
 package org.yupana.akka
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.scalatest.{ FlatSpec, Matchers, OptionValues }
+import org.scalatest.{ EitherValues, FlatSpec, Matchers, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.ItemFixer
 import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
 
-class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues {
+class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues with EitherValues {
 
   val metadataProvider = new JdbcMetadataProvider(TS.schema)
 
@@ -31,7 +31,7 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
   }
 
   it should "describe table by name" in {
-    val res = metadataProvider.describeTable("s1").right.toOption.value
+    val res = metadataProvider.describeTable("s1").right.value
     res.fieldNames should contain theSameElementsAs metadataProvider.columnFieldNames
     val r = res.iterator.toList
     r should have size 6
@@ -54,6 +54,66 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
     longColDescription.get[String]("TABLE_NAME") shouldBe "s1"
     longColDescription.get[Int]("DATA_TYPE") shouldBe -5
     longColDescription.get[String]("TYPE_NAME") shouldBe "BIGINT"
+  }
+
+  it should "provide functions for type" in {
+    metadataProvider
+      .listFunctions("VARCHAR")
+      .right
+      .value
+      .toList
+      .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
+      "count",
+      "distinct_count",
+      "distinct_random",
+      "is_not_null",
+      "is_null",
+      "lag",
+      "max",
+      "min",
+      "length",
+      "tokens",
+      "split",
+      "lower",
+      "upper"
+    )
+
+    metadataProvider
+      .listFunctions("DOUBLE")
+      .right
+      .value
+      .toList
+      .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
+      "count",
+      "distinct_count",
+      "distinct_random",
+      "is_not_null",
+      "is_null",
+      "lag",
+      "max",
+      "min",
+      "sum",
+      "abs",
+      "-"
+    )
+
+    metadataProvider
+      .listFunctions("ARRAY[INTEGER]")
+      .right
+      .value
+      .toList
+      .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
+      "array_to_string",
+      "count",
+      "distinct_count",
+      "distinct_random",
+      "is_not_null",
+      "is_null",
+      "lag",
+      "length"
+    )
+
+    metadataProvider.listFunctions("BUBBLE").left.value shouldEqual "Unknown type BUBBLE"
   }
 
 }

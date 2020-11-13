@@ -21,22 +21,22 @@ import org.yupana.api.types.{ DataType, TypeConverter }
 
 trait ExprPair {
   type T
-  val a: Expression.Aux[T]
-  val b: Expression.Aux[T]
+  val a: Expression[T]
+  val b: Expression[T]
 
   def dataType: DataType.Aux[T] = a.dataType
 }
 
 object ExprPair {
-  def apply[T0](x: Expression.Aux[T0], y: Expression.Aux[T0]): ExprPair = new ExprPair {
+  def apply[T0](x: Expression[T0], y: Expression[T0]): ExprPair = new ExprPair {
     override type T = T0
-    override val a: Expression.Aux[T0] = x
-    override val b: Expression.Aux[T0] = y
+    override val a: Expression[T0] = x
+    override val b: Expression[T0] = y
   }
 
-  def constCast(const: ConstantExpr, dataType: DataType): Either[String, dataType.T] = {
+  def constCast[U, T](const: ConstantExpr[U], dataType: DataType.Aux[T]): Either[String, T] = {
     if (const.dataType == dataType) {
-      Right(const.v.asInstanceOf[dataType.T])
+      Right(const.v.asInstanceOf[T])
     } else {
       TypeConverter(const.dataType, dataType.aux)
         .map(conv => conv.convert(const.v))
@@ -51,30 +51,30 @@ object ExprPair {
     }
   }
 
-  def alignTypes(ca: Expression, cb: Expression): Either[String, ExprPair] = {
+  def alignTypes[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
-      Right(ExprPair[ca.Out](ca.aux, cb.asInstanceOf[Expression.Aux[ca.Out]]))
+      Right(ExprPair[T](ca, cb.asInstanceOf[Expression[T]]))
     } else {
       (ca, cb) match {
-        case (_: ConstantExpr, _: ConstantExpr) => convertRegular(ca, cb)
+        case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
 
-        case (c: ConstantExpr, _) =>
-          constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb.aux))
+        case (c: ConstantExpr[_], _) =>
+          constCast(c, cb.dataType).right.map(cc => ExprPair(ConstantExpr(cc)(cb.dataType), cb))
 
-        case (_, c: ConstantExpr) =>
-          constCast(c, ca.dataType).right.map(cc => ExprPair(ca.aux, ConstantExpr(cc)(ca.dataType)))
+        case (_, c: ConstantExpr[_]) =>
+          constCast(c, ca.dataType).right.map(cc => ExprPair(ca, ConstantExpr(cc)(ca.dataType)))
 
         case (_, _) => convertRegular(ca, cb)
       }
     }
   }
 
-  private def convertRegular(ca: Expression, cb: Expression): Either[String, ExprPair] = {
+  private def convertRegular[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
     TypeConverter(ca.dataType, cb.dataType)
-      .map(aToB => ExprPair[cb.Out](TypeConvertExpr(aToB, ca.aux), cb.aux))
+      .map(aToB => ExprPair[U](TypeConvertExpr(aToB, ca), cb))
       .orElse(
         TypeConverter(cb.dataType, ca.dataType)
-          .map(bToA => ExprPair[ca.Out](ca.aux, TypeConvertExpr(bToA, cb.aux)))
+          .map(bToA => ExprPair[T](ca, TypeConvertExpr(bToA, cb)))
       )
       .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
   }
