@@ -16,10 +16,18 @@
 
 package org.yupana.hbase
 
+import org.yupana.api.Blob
 import org.yupana.api.schema._
+import org.yupana.api.types.DataType
 import org.yupana.hbase.proto.{ Metric => ProtoMetric, SchemaRegistry => ProtoRegistry, Table => ProtoTable }
 
 object ProtobufSchemaChecker extends SchemaChecker {
+
+  private def typeMap: Map[String, String] =
+    Map(
+      DataType[Blob] -> DataType[Seq[Byte]]
+    ).map { case (f, t) => f.meta.sqlTypeName -> t.meta.sqlTypeName }
+
   override def toBytes(schema: Schema): Array[Byte] =
     new ProtoRegistry(schema.tables.values.map(asProto).toSeq).toByteArray
 
@@ -72,10 +80,14 @@ object ProtobufSchemaChecker extends SchemaChecker {
     )
 
     val removedFields = e.metrics.filter(ef => !a.metrics.contains(ef))
-    checks ++= removedFields.map(rf => Error(s"In table ${a.name} metric ${rf.name} has been removed or updated"))
+    checks ++= removedFields.map(rf =>
+      Error(s"In table ${a.name} metric ${rf.name}:${rf.sqlTypeName} has been removed or updated")
+    )
 
     val unknownFields = a.metrics.filter(af => !e.metrics.contains(af))
-    checks ++= unknownFields.map(uf => Warning(s"In table ${a.name} metric ${uf.name} is unknown (new)"))
+    checks ++= unknownFields.map(uf =>
+      Warning(s"In table ${a.name} metric ${uf.name}:${uf.sqlTypeName} is unknown (new)")
+    )
 
     checks.fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
   }
@@ -85,7 +97,11 @@ object ProtobufSchemaChecker extends SchemaChecker {
       table.name,
       table.rowTimeSpan,
       table.dimensionSeq.map(_.name),
-      table.metrics.map(f => ProtoMetric(f.name, f.tag, f.dataType.meta.sqlTypeName, f.group))
+      table.metrics.map(f => ProtoMetric(f.name, f.tag, storageType(f.dataType.meta.sqlTypeName), f.group))
     )
+  }
+
+  private def storageType(sqlType: String): String = {
+    typeMap.getOrElse(sqlType, sqlType)
   }
 }
