@@ -101,7 +101,7 @@ object TimeBoundedCondition {
     def updateTo(c: Condition, e: Expression[_], offset: Long): Unit = {
       val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
       if (const != null) {
-        to = to.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis)
+        to = to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis)
       } else {
         other += c
       }
