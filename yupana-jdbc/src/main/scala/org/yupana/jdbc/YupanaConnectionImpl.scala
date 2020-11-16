@@ -22,7 +22,7 @@ import java.util.Properties
 import java.util.concurrent.Executor
 
 import org.yupana.api.query.Result
-import org.yupana.proto.Version
+import org.yupana.Proto.Version
 
 class YupanaConnectionImpl(override val url: String, properties: Properties) extends YupanaConnection {
   private var autoCommit = false

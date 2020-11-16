@@ -36,6 +36,20 @@ lazy val proto = (project in file("yupana-proto"))
   )
   .disablePlugins(AssemblyPlugin)
 
+lazy val protoJava = (project in file("yupana-proto-java"))
+  .settings(
+    name := "yupana-java-proto",
+    publishSettings,
+    crossPaths := false,
+    autoScalaLibrary := false,
+    PB.protoSources in Compile := (proto / Compile / PB.protoSources).value,
+    PB.protocVersion := "-v261",
+    PB.targets in Compile := Seq(
+      PB.gens.java("2.6.1") -> (sourceManaged in Compile).value
+    ),
+    libraryDependencies += "com.google.protobuf" % "protobuf-java" % versions.protobufJava % "protobuf" force()
+  )
+
 lazy val jdbc = (project in file("yupana-jdbc"))
   .settings(
     name := "yupana-jdbc",
@@ -61,7 +75,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
-  .dependsOn(api, proto)
+  .dependsOn(api, protoJava)
 
 lazy val utils = (project in file("yupana-utils"))
   .settings(

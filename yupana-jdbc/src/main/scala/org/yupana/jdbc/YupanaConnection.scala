@@ -18,8 +18,8 @@ package org.yupana.jdbc
 
 import java.sql.Connection
 
+import org.yupana.Proto.Version
 import org.yupana.api.query.Result
-import org.yupana.proto.Version
 
 trait YupanaConnection extends Connection {
   def runQuery(query: String, params: Map[Int, ParameterValue]): Result

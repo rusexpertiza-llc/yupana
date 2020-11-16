@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.jdbc;
 
-import java.sql.SQLFeatureNotSupportedException
-import java.util
+import java.sql.SQLFeatureNotSupportedException;
+import java.util.Map;
 
-object JdbcUtils {
-  def checkTypeMapping(map: util.Map[String, Class[_]]): Unit = {
-    if (map != null && !map.isEmpty)
-      throw new SQLFeatureNotSupportedException("Custom type mappings are not supported")
-  }
+class JdbcUtils {
+    public static void checkTypeMapping(Map<String, Class<?>> map) throws SQLFeatureNotSupportedException {
+        if (map != null && !map.isEmpty())
+            throw new SQLFeatureNotSupportedException("Custom type mappings are not supported");
+    }
 }

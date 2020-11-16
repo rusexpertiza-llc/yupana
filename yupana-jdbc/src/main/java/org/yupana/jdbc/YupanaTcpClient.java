@@ -14,45 +14,52 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.jdbc;
 
-import java.io.IOException
-import java.net.InetSocketAddress
-import java.nio.channels.SocketChannel
-import java.nio.{ ByteBuffer, ByteOrder }
-import java.util.logging.Logger
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.SocketChannel;
+import java.util.Collection;
+import java.util.Map;
+import java.util.logging.Logger;
 
-import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.types.DataType
-import org.yupana.api.utils.CollectionUtils
-import org.yupana.jdbc.build.BuildInfo
-import org.yupana.proto._
-import org.yupana.proto.util.ProtocolVersion
+import org.yupana.Proto.*;
+import org.yupana.api.query.Result;
+import org.yupana.api.types.DataType;
+import org.yupana.api.utils.CollectionUtils;
+import org.yupana.jdbc.build.BuildInfo;
 
-class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
+class YupanaTcpClient implements AutoCloseable {
 
-  private val logger = Logger.getLogger(classOf[YupanaTcpClient].getName)
+  private final String host;
+  private final int port;
 
-  private val CHUNK_SIZE = 1024 * 100
+  public YupanaTcpClient(String host, int port) {
+    this.host = host;
+    this.port = port;
+  }
 
-  private var channel: SocketChannel = _
+  private Logger logger = Logger.getLogger(YupanaTcpClient.class.getName());
 
-  private def ensureConnected(): Unit = {
-    if (channel == null || !channel.isConnected) {
-      channel = SocketChannel.open()
-      channel.configureBlocking(true)
-      channel.connect(new InetSocketAddress(host, port))
+  private static final int CHUNK_SIZE = 1024 * 100
+  private SocketChannel channel;
+
+  private void ensureConnected() throws IOException {
+    if (channel == null || !channel.isConnected()) {
+      channel = SocketChannel.open();
+      channel.configureBlocking(true);
+      channel.connect(new InetSocketAddress(host, port));
     }
   }
 
-  def query(query: String, params: Map[Int, ParameterValue]): Result = {
-    val request = createProtoQuery(query, params)
-    execRequestQuery(request)
+  public Result query(String query, Map<Integer, ParameterValue> params) {
+    Request request = createProtoQuery(query, params);
+    return execRequestQuery(request);
   }
 
-  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
-    val request = creteProtoBatchQuery(query, params)
-    execRequestQuery(request)
+  public Result  batchQuery(String query, Collection<Map<Integer, ParameterValue>> params) {
+    Request request = creteProtoBatchQuery(query, params);
+    return execRequestQuery(request);
   }
 
   def ping(reqTime: Long): Option[Version] = {
@@ -294,14 +301,12 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)
   }
 
-  private def createProtoQuery(query: String, params: Map[Int, ParameterValue]): Request = {
-    Request(
-      Request.Req.SqlQuery(
-        SqlQuery(query, params.map {
-          case (i, v) => ParameterValue(i, createProtoValue(v))
-        }.toSeq)
-      )
-    )
+  private Request createProtoQuery(String query, Map<Integer, ParameterValue> params) {
+    SqlQueryOrBuilder sbq = SqlQuery.newBuilder().setSql(query);
+    params.forEach((idx, pv) -> sbq.setParameters(idx, createProtoValue(pv)));
+
+
+    return Request.newBuilder().setSqlQuery(sbq).build();
   }
 
   private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Request = {
