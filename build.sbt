@@ -5,7 +5,7 @@ import sbt.Keys.excludeDependencies
 ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
+  .aggregate(api, proto, protoJava, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
   .settings(
     allSettings,
     noPublishSettings,
@@ -42,7 +42,8 @@ lazy val protoJava = (project in file("yupana-proto-java"))
     publishSettings,
     crossPaths := false,
     autoScalaLibrary := false,
-    PB.protoSources in Compile := (proto / Compile / PB.protoSources).value,
+    Compile / unmanagedSourceDirectories := (proto / Compile / unmanagedSourceDirectories).value,
+    Compile / PB.protoSources := (proto / Compile / PB.protoSources).value,
     PB.protocVersion := "-v261",
     PB.targets in Compile := Seq(
       PB.gens.java("2.6.1") -> (sourceManaged in Compile).value

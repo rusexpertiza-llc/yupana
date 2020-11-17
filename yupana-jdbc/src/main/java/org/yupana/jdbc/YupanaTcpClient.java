@@ -21,13 +21,11 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.logging.Logger;
 
 import org.yupana.Proto.*;
+import org.yupana.proto.util.ProtocolVersion;
 import org.yupana.api.query.Result;
 import org.yupana.api.types.DataType;
 import org.yupana.api.utils.CollectionUtils;
@@ -67,7 +65,7 @@ public class YupanaTcpClient implements AutoCloseable {
   }
 
   Optional<Version> ping(Long reqTime) {
-    val request = createProtoPing(reqTime)
+    Request request = createProtoPing(reqTime)
     execPing(request) match {
       case Right(response) =>
         if (response.reqTime != reqTime) {
@@ -193,17 +191,16 @@ public class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  private def error(e: String): String = {
-    logger.warning(s"Got error message: $e")
-    e
+  private String error(String e) {
+    logger.warning(String.format("Got error message: %s", e));
+    return e;
   }
 
-  private def heartbeat(time: String): Unit = {
-    val msg = s"Heartbeat($time)"
-    logger.info(msg)
+  private void heartbeat(String time) {
+    logger.info(String.format("Heartbeat(%s)", time));
   }
 
-  private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
+  private Iterator<ResultChunk> resultIterator(Iterator<Response> responses) {
     new Iterator[ResultChunk] {
 
       var statistics: ResultStatistics = null
@@ -263,19 +260,22 @@ public class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  override def close(): Unit = {
-    channel.close()
+  @Override
+  public void close() throws IOException {
+    channel.close();
   }
 
-  private def createProtoPing(reqTime: Long): Request = {
-    Request(
-      Request.Req.Ping(
-        Ping(
-          reqTime,
-          Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
-        )
-      )
-    )
+  private Request createProtoPing(Long reqTime) {
+    return Request.newBuilder()
+            .setPing(Ping.newBuilder()
+                    .setReqTime(reqTime)
+                    .setVersion(Version.newBuilder()
+                            .setProtocol(ProtocolVersion.value)
+                            .setMajor(BuildInfo.majorVersion())
+                            .setMinor(BuildInfo.minorVersion())
+                            .setVersion(BuildInfo.version())
+                    )
+            ).build();
   }
 
   private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.proto.util
+package org.yupana.proto.util;
 
-object ProtocolVersion {
+public class ProtocolVersion {
 
   /** This constant defines current protocol version, and have to be increased if the new protocol is incompatible with previous one. */
-  val value = 0x02
+  public static int value = 0x02;
 }
