@@ -144,7 +144,10 @@ trait ReceiptTableMetrics {
     )
 
     val kkmDistinctCountRollupField =
-      QueryFieldToMetric(count(dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name, kkmDistinctCountField)
+      QueryFieldToMetric(
+        distinctCount(dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name,
+        kkmDistinctCountField
+      )
   }
 }
 

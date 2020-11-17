@@ -355,7 +355,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getNumericFunctions: String = getFunctionsForType("DECIMAL")
 
-  override def getStringFunctions: String = getFunctionsForType("STRING")
+  override def getStringFunctions: String = getFunctionsForType("VARCHAR")
 
   override def generatedKeyAlwaysReturned = false
 

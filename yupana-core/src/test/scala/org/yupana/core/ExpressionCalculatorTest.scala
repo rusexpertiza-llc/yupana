@@ -104,7 +104,8 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
 
     "Evaluate array functions" in {
       calculator.evaluateConstant(arrayLength(const(Seq(1, 2, 3)))) shouldEqual 3
-      calculator.evaluateConstant(arrayToString(const(Seq(1, 2, 3, 4)))) shouldEqual "1 2 3 4"
+      calculator.evaluateConstant(arrayToString(const(Seq(1, 2, 3, 4)))) shouldEqual "1, 2, 3, 4"
+      calculator.evaluateConstant(arrayToString(const(Seq("1", "2", "4")))) shouldEqual "1, 2, 4"
       calculator.evaluateConstant(ArrayTokensExpr(const(Seq("красная вода", "соленые яблоки")))) should contain theSameElementsAs Seq(
         "krasn",
         "vod",
@@ -112,7 +113,7 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
         "yablok"
       )
 
-      calculator.evaluateConstant(arrayToString(array(const(1), plus(const(2), const(3)), const(4)))) shouldEqual "1 5 4"
+      calculator.evaluateConstant(arrayToString(array(const(1), plus(const(2), const(3)), const(4)))) shouldEqual "1, 5, 4"
     }
 
     "Evaluate aggregations" in {
