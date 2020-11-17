@@ -19,7 +19,7 @@ package org.yupana.jdbc;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Map;
 
-class JdbcUtils {
+public class JdbcUtils {
     public static void checkTypeMapping(Map<String, Class<?>> map) throws SQLFeatureNotSupportedException {
         if (map != null && !map.isEmpty())
             throw new SQLFeatureNotSupportedException("Custom type mappings are not supported");

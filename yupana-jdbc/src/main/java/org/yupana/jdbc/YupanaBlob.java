@@ -25,7 +25,7 @@ import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.util.Arrays;
 
-class YupanaBlob implements Blob {
+public class YupanaBlob implements Blob {
 
     private final byte[] data;
 

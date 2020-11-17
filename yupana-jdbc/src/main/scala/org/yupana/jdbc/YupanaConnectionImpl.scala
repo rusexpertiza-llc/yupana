@@ -34,7 +34,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
 
   override val serverVersion: Option[Version] = tcpClient.ping(System.currentTimeMillis())
 
-  override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
+  override def runQuery(query: String, params: Map[Int, ParamValue]): Result = {
     try {
       tcpClient.query(query, params)
     } catch {
@@ -43,7 +43,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
     }
   }
 
-  override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
+  override def runBatchQuery(query: String, params: Seq[Map[Int, ParamValue]]): Result = {
     try {
       tcpClient.batchQuery(query, params)
     } catch {

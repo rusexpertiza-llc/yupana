@@ -22,7 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Iterator;
 
-class FramingChannelIterator implements Iterator<byte[]> {
+public class FramingChannelIterator implements Iterator<byte[]> {
 
     public FramingChannelIterator(ReadableByteChannel channel, int frameSize) {
         this.frameSize = frameSize;

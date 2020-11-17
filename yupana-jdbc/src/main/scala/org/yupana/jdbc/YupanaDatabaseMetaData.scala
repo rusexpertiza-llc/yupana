@@ -143,11 +143,11 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsMixedCaseIdentifiers() = false
 
-  override def getDatabaseProductVersion: String = connection.serverVersion.map(_.version).getOrElse("Unknown")
+  override def getDatabaseProductVersion: String = connection.serverVersion.map(_.getVersion()).getOrElse("Unknown")
 
-  override def getDatabaseMajorVersion: Int = connection.serverVersion.map(_.major).getOrElse(0)
+  override def getDatabaseMajorVersion: Int = connection.serverVersion.map(_.getMajor()).getOrElse(0)
 
-  override def getDatabaseMinorVersion: Int = connection.serverVersion.map(_.minor).getOrElse(0)
+  override def getDatabaseMinorVersion: Int = connection.serverVersion.map(_.getMinor()).getOrElse(0)
 
   override def getSQLKeywords = ""
 

@@ -25,7 +25,7 @@ import java.util.Map;
 import org.yupana.api.types.DataTypeMeta;
 import scala.NotImplementedError;
 
-class YupanaArray<T> implements Array {
+public class YupanaArray<T> implements Array {
 
     private final String name;
     private final T[] values;

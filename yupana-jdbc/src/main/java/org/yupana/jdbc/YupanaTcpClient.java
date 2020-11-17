@@ -18,9 +18,13 @@ package org.yupana.jdbc;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import org.yupana.Proto.*;
@@ -29,7 +33,7 @@ import org.yupana.api.types.DataType;
 import org.yupana.api.utils.CollectionUtils;
 import org.yupana.jdbc.build.BuildInfo;
 
-class YupanaTcpClient implements AutoCloseable {
+public class YupanaTcpClient implements AutoCloseable {
 
   private final String host;
   private final int port;
@@ -52,17 +56,17 @@ class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  public Result query(String query, Map<Integer, ParameterValue> params) {
+  public Result query(String query, Map<Integer, ParamValue> params) {
     Request request = createProtoQuery(query, params);
     return execRequestQuery(request);
   }
 
-  public Result  batchQuery(String query, Collection<Map<Integer, ParameterValue>> params) {
+  public Result batchQuery(String query, Collection<Map<Integer, ParameterValue>> params) {
     Request request = creteProtoBatchQuery(query, params);
     return execRequestQuery(request);
   }
 
-  def ping(reqTime: Long): Option[Version] = {
+  Optional<Version> ping(Long reqTime) {
     val request = createProtoPing(reqTime)
     execPing(request) match {
       case Right(response) =>
@@ -76,8 +80,8 @@ class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  private def execPing(request: Request): Either[String, Pong] = {
-    ensureConnected()
+  private  execPing(request: Request): Either[String, Pong] = {
+    ensureConnected();
     sendRequest(request)
     val pong = fetchResponse()
 
@@ -102,9 +106,9 @@ class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  private def execRequestQuery(request: Request): Result = {
-    ensureConnected()
-    sendRequest(request)
+  private Result execRequestQuery( Request request) {
+    ensureConnected();
+    sendRequest(request);
     val it = new FramingChannelIterator(channel, CHUNK_SIZE + 4)
       .map(bytes => Response.parseFrom(bytes).resp)
 
@@ -120,24 +124,23 @@ class YupanaTcpClient implements AutoCloseable {
         throw new IllegalArgumentException(e)
 
       case None =>
-        channel.close()
-        throw new IllegalArgumentException(error("Result not received"))
+        channel.close();
+        throw new IllegalArgumentException(error("Result not received"));
     }
   }
 
-  private def sendRequest(request: Request): Unit = {
+  private void sendRequest( Request request) throws IOException, InterruptedException {
     try {
-      channel.write(createChunks(request.toByteArray))
-    } catch {
-      case io: IOException =>
-        logger.warning(s"Caught $io while trying to write to channel, let's retry")
-        Thread.sleep(1000)
-        ensureConnected()
-        channel.write(createChunks(request.toByteArray))
+      channel.write(createChunks(request.toByteArray()));
+    } catch (IOException io) {
+        logger.warning(String.format("Caught %s while trying to write to channel, let's retry", io.getMessage()));
+        Thread.sleep(1000);
+        ensureConnected();
+        channel.write(createChunks(request.toByteArray()));
     }
   }
 
-  private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
+  private ByteBuffer[] createChunks(byte [] data) {
     data
       .sliding(CHUNK_SIZE, CHUNK_SIZE)
       .map { ch =>
@@ -150,7 +153,7 @@ class YupanaTcpClient implements AutoCloseable {
       .toArray
   }
 
-  private def fetchResponse(): Response = {
+  private Response fetchResponse() {
     val bb = ByteBuffer.allocate(CHUNK_SIZE + 4).order(ByteOrder.BIG_ENDIAN)
     val bytesRead = channel.read(bb)
     if (bytesRead < 0) throw new IOException("Broken pipe")
@@ -301,34 +304,36 @@ class YupanaTcpClient implements AutoCloseable {
     SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)
   }
 
-  private Request createProtoQuery(String query, Map<Integer, ParameterValue> params) {
-    SqlQueryOrBuilder sbq = SqlQuery.newBuilder().setSql(query);
-    params.forEach((idx, pv) -> sbq.setParameters(idx, createProtoValue(pv)));
+  private Request createProtoQuery(String query, Map<Integer, ParamValue> params) {
+    SqlQuery.Builder sq = SqlQuery.newBuilder().setSql(query);
+    params.forEach((idx, pv) -> sq.setParameters(idx, createProtoValue(pv)));
 
 
-    return Request.newBuilder().setSqlQuery(sbq).build();
+    return Request.newBuilder().setSqlQuery(sq).build();
   }
 
-  private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Request = {
-    Request(
-      Request.Req.BatchSqlQuery(
-        BatchSqlQuery(
-          query,
-          params.map(vs =>
-            ParameterValues(vs.map {
-              case (i, v) => ParameterValue(i, createProtoValue(v))
-            }.toSeq)
-          )
-        )
-      )
-    )
+  private Request creteProtoBatchQuery(String query, List<Map<Integer, ParamValue>> params) {
+
+    BatchSqlQuery.Builder sbq = BatchSqlQuery.newBuilder().setSql(query);
+
+    params.forEach(batch -> {
+      ParameterValues.Builder values = ParameterValues.newBuilder();
+      batch.forEach((idx, pv) -> values.setParameters(idx, createProtoValue(pv)));
+      sbq.addBatch(values);
+    });
+    return Request.newBuilder().setBatchSqlQuery(sbq).build();
   }
 
-  private def createProtoValue(value: ParameterValue): Value = {
-    value match {
-      case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
-      case StringValue(s)    => Value(Value.Value.TextValue(s))
-      case TimestampValue(m) => Value(Value.Value.TimeValue(m))
+  private ParameterValue createProtoValue(ParamValue value) {
+    switch (value.getType()) {
+      case NUMERIC:
+        return ParameterValue.newBuilder().setValue(Value.newBuilder().setDecimalValue(value.getNumericValue().toString())).build();
+      case STRING:
+        return ParameterValue.newBuilder().setValue(Value.newBuilder().setTextValue(value.getStringValue())).build();
+      case TIMESTAMP:
+         return ParameterValue.newBuilder().setValue(Value.newBuilder().setTimeValue(value.getTimestampValue().getTime())).build();
+      default:
+        throw new IllegalArgumentException(String.format("Unsupported value type %d", value.getType().ordinal()));
     }
   }
 }

@@ -14,16 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.jdbc;
 
-import java.sql.Connection
-
-import org.yupana.Proto.Version
-import org.yupana.api.query.Result
-
-trait YupanaConnection extends Connection {
-  def runQuery(query: String, params: Map[Int, ParameterValue]): Result
-  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result
-  def serverVersion: Option[Version]
-  def url: String
+public enum ParamValueType {
+    NUMERIC,
+    STRING,
+    TIMESTAMP
 }

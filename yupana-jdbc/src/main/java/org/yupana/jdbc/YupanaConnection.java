@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.jdbc;
 
-sealed trait ParameterValue
+import java.sql.Connection;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 
-case class NumericValue(value: BigDecimal) extends ParameterValue
+import org.yupana.Proto.Version;
+import org.yupana.api.query.Result;
 
-case class StringValue(value: String) extends ParameterValue
-
-case class TimestampValue(millis: Long) extends ParameterValue
+interface YupanaConnection extends Connection {
+  Result runQuery(String query, Map<Integer, ParamValue> params);
+  Result runBatchQuery(String query, Collection<Map<Integer, ParamValue>> params);
+  Optional<Version> serverVersion();
+  String url();
+}
