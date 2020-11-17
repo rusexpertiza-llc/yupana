@@ -24,7 +24,7 @@ import org.yupana.jdbc.build.BuildInfo
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 
-  private val emptyResultSet = new YupanaResultSet(null, Result.empty)
+  private def emptyResultSet = new YupanaResultSet(null, Result.empty)
 
   override def supportsMinimumSQLGrammar(): Boolean = false
 
