@@ -17,6 +17,7 @@
 package org.yupana.jdbc;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -25,8 +26,11 @@ import org.yupana.Proto.Version;
 import org.yupana.api.query.Result;
 
 interface YupanaConnection extends Connection {
-  Result runQuery(String query, Map<Integer, ParamValue> params);
-  Result runBatchQuery(String query, Collection<Map<Integer, ParamValue>> params);
-  Optional<Version> serverVersion();
-  String url();
+    Result runQuery(String query, Map<Integer, ParamValue> params) throws SQLException;
+
+    Result runBatchQuery(String query, Collection<Map<Integer, ParamValue>> params) throws SQLException;
+
+    Optional<Version> getServerVersion();
+
+    String getUrl();
 }

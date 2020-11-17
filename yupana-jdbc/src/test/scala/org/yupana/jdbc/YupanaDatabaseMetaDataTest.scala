@@ -217,10 +217,10 @@ class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
-    (conn.url _).expects().returning("jdbc:yupana://example.com:10101")
+    (conn.getUrl _).expects().returning("jdbc:yupana://example.com:10101")
     m.getURL shouldEqual "jdbc:yupana://example.com:10101"
 
-    (conn.serverVersion _).expects().returning(Some(Version(9, 1, 2, "1.2.3"))).anyNumberOfTimes()
+    (conn.getServerVersion _).expects().returning(Some(Version(9, 1, 2, "1.2.3"))).anyNumberOfTimes()
     m.getDatabaseMajorVersion shouldEqual 1
     m.getDatabaseMinorVersion shouldEqual 2
     m.getDatabaseProductVersion shouldEqual "1.2.3"

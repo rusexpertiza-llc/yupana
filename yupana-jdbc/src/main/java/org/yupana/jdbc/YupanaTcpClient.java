@@ -61,7 +61,7 @@ public class YupanaTcpClient implements AutoCloseable {
     return execRequestQuery(request);
   }
 
-  public Result batchQuery(String query, Collection<Map<Integer, ParameterValue>> params) {
+  public Result batchQuery(String query, Collection<Map<Integer, ParamValue>> params) {
     Request request = creteProtoBatchQuery(query, params);
     return execRequestQuery(request);
   }
