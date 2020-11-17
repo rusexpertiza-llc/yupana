@@ -224,7 +224,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
       case ArrayTokensExpr(e)   => evaluateUnary(qc, row, e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))
       case ArrayLengthExpr(e)   => evaluateUnary(qc, row, e)(_.length)
-      case ArrayToStringExpr(e) => evaluateUnary(qc, row, e)(_.mkString(" "))
+      case ArrayToStringExpr(e) => evaluateUnary(qc, row, e)(_.mkString(", "))
 
       case ContainsExpr(a, b)     => evaluateBinary(qc, row, a, b)(_ contains _)
       case ContainsAllExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.forall(x.contains))
