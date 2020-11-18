@@ -279,7 +279,7 @@ lazy val versions = new {
   val caffeine = "2.8.0"
 
   val json4s = "3.5.3"
-  val spring = "5.2.2.RELEASE"
+  val spring = "5.2.7.RELEASE"
 
   val flyway = "6.2.3"
   val hikariCP = "3.4.2"
