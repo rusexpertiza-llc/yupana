@@ -260,7 +260,7 @@ lazy val examples = (project in file("yupana-examples"))
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
-  val joda = "2.10.6"
+  val joda = "2.10.8"
 
   val protobufJava = "2.6.1"
 
@@ -271,7 +271,7 @@ lazy val versions = new {
   val hbase = "1.3.6"
   val hadoop = "2.8.5"
   val spark = "2.4.5"
-  val akka = "2.5.31"
+  val akka = "2.5.32"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
