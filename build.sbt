@@ -176,7 +176,6 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
-      "org.springframework"         %  "spring-jdbc"                % versions.spring,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -279,7 +278,6 @@ lazy val versions = new {
   val caffeine = "2.8.0"
 
   val json4s = "3.5.3"
-  val spring = "5.2.7.RELEASE"
 
   val flyway = "6.2.3"
   val hikariCP = "3.4.2"
