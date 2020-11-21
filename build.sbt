@@ -275,15 +275,15 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.8.1"
   val ehcache = "3.3.2"
-  val caffeine = "2.8.0"
+  val caffeine = "2.8.6"
 
   val json4s = "3.5.3"
 
   val flyway = "6.2.3"
-  val hikariCP = "3.4.2"
+  val hikariCP = "3.4.5"
   val logback = "1.2.3"
   val h2Jdbc = "1.4.199"
-  val postgresqlJdbc = "42.2.6"
+  val postgresqlJdbc = "42.2.18"
 
   val scalaTest = "3.0.8"
   val scalaCheck = "1.14.3"
