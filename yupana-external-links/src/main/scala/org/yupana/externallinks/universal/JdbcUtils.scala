@@ -48,24 +48,24 @@ object JdbcUtils {
 
   def getResultSetValue(rs: ResultSet, name: String): Any = {
     val index = rs.findColumn(name)
-    var obj = rs.getObject(index)
+    val obj = rs.getObject(index)
     val className = if (obj != null) obj.getClass.getName else null
     obj match {
       case blob: Blob =>
-        obj = blob.getBytes(1, blob.length.toInt)
+        blob.getBytes(1, blob.length.toInt)
       case clob: Clob =>
-        obj = clob.getSubString(1, clob.length.toInt)
+        clob.getSubString(1, clob.length.toInt)
       case _ =>
-        if ("oracle.sql.TIMESTAMP" == className || "oracle.sql.TIMESTAMPTZ" == className)
-          obj = rs.getTimestamp(index)
-        else if (className != null && className.startsWith("oracle.sql.DATE")) {
+        if ("oracle.sql.TIMESTAMP" == className || "oracle.sql.TIMESTAMPTZ" == className) {
+          rs.getTimestamp(index)
+        } else if (className != null && className.startsWith("oracle.sql.DATE")) {
           val metaDataClassName = rs.getMetaData.getColumnClassName(index)
           if ("java.sql.Timestamp" == metaDataClassName || "oracle.sql.TIMESTAMP" == metaDataClassName)
-            obj = rs.getTimestamp(index)
-          else obj = rs.getDate(name)
-        } else if (obj.isInstanceOf[Date])
-          if ("java.sql.Timestamp" == rs.getMetaData.getColumnClassName(index)) obj = rs.getTimestamp(name)
+            rs.getTimestamp(index)
+          else rs.getDate(index)
+        } else if (obj.isInstanceOf[Date] && "java.sql.Timestamp" == rs.getMetaData.getColumnClassName(index))
+          rs.getTimestamp(index)
+        else obj
     }
-    obj
   }
 }
