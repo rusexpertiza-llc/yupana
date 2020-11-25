@@ -3,10 +3,9 @@ package org.yupana.externallinks.universal
 import java.util.Properties
 
 import org.flywaydb.core.Flyway
+import org.h2.jdbcx.JdbcDataSource
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.datasource.DriverManagerDataSource
 import org.yupana.core.cache.CacheFactory
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
@@ -18,16 +17,14 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
   val dbPass = "secret"
 
   private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService[Int] = {
-    val ds = new DriverManagerDataSource(
-      config.connection.url,
-      config.connection.username.orNull,
-      config.connection.password.orNull
-    )
-    val jdbc = new JdbcTemplate(ds)
+    val ds = new JdbcDataSource()
+    ds.setURL(config.connection.url)
+    ds.setUser(config.connection.username.orNull)
+    ds.setPassword(config.connection.password.orNull)
 
     val externalLink = SQLExternalLink[Int](config, Dimensions.KKM_ID)
 
-    new SQLSourcedExternalLinkService(TestSchema.schema, externalLink, config.description, jdbc)
+    new SQLSourcedExternalLinkService(TestSchema.schema, externalLink, config.description, ds)
   }
 
   import org.yupana.api.query.syntax.All._
