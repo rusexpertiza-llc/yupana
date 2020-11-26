@@ -141,7 +141,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
   }
 
   private def tagsByFieldsQuery(fieldValues: Seq[(FieldName, Set[FieldValue])], joiningOperator: String): String = {
-    s"""SELECT ${catalogFieldToSqlField(dimensionName)}
+    s"""SELECT ${catalogFieldToSqlFieldWithAlias(dimensionName)}
        |FROM $relation
        |WHERE ${fieldValuesInClauses(fieldValues).mkString(s" $joiningOperator ")}""".stripMargin
   }
@@ -165,7 +165,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
     val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object])
     logger.debug(s"Query for dimensions for catalog $linkName: $q with params: $params")
     JdbcUtils
-      .runQuery(dataSource, q, Set(catalogFieldToSqlField(dimensionName)), params)
+      .runQuery(dataSource, q, Set(camelToSnake(dimensionName)), params)
       .flatMap(_.values.map(_.asInstanceOf[DimensionValue]))
       .toSet
   }
