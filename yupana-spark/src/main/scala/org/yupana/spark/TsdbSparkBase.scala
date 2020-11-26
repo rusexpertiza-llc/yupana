@@ -42,7 +42,7 @@ import org.yupana.core.utils.metric.{
   PersistentMetricQueryCollector,
   QueryCollectorContext
 }
-import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
+import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
 object TsdbSparkBase {
@@ -78,10 +78,6 @@ abstract class TsdbSparkBase(
     conf.hbaseNamespace,
     schema
   )
-
-  override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[RDD] = {
-    new RddMapReducible(sparkContext, metricCollector)
-  }
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 

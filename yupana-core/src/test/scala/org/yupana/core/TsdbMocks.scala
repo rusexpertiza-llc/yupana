@@ -78,6 +78,7 @@ trait TsdbMocks extends MockFactory {
         }
       )
       .anyNumberOfTimes()
+    (tsdbDaoMock.mapReduceEngine _).expects(*).onCall(_ => MapReducible.iteratorMR).anyNumberOfTimes()
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =

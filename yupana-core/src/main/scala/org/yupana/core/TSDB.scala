@@ -42,8 +42,6 @@ class TSDB(
 
   private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
-  override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Iterator] = MapReducible.iteratorMR
-
   def registerExternalLink(
       externalLink: ExternalLink,
       externalLinkService: ExternalLinkService[_ <: ExternalLink]
