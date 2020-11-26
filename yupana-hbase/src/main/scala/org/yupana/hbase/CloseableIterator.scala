@@ -16,7 +16,9 @@
 
 package org.yupana.hbase
 
-abstract class CloseableIterator[+T](sub: Iterator[T]) extends Iterator[T] with AutoCloseable {
+import scala.collection.AbstractIterator
+
+abstract class CloseableIterator[+T](sub: Iterator[T]) extends AbstractIterator[T] with AutoCloseable {
 
   private var closed = false
   private[this] var iter = sub
@@ -30,6 +32,10 @@ abstract class CloseableIterator[+T](sub: Iterator[T]) extends Iterator[T] with 
       close()
     }
     r
+  }
+
+  override protected def sliceIterator(from: Int, until: Int): Iterator[T] = {
+    CloseableIterator(super.sliceIterator(from, until), close())
   }
 
   override def next(): T = iter.next()
