@@ -23,7 +23,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
 import org.yupana.api.utils.ResourceUtils.using
-import org.yupana.hbase.{ CloseableIterator, HBaseUtils, InternalQueryContext }
+import org.yupana.core.utils.CloseableIterator
+import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
 case class HBaseScanPartition(
     override val index: Int,
