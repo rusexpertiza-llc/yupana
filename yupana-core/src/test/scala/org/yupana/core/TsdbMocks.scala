@@ -10,6 +10,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.utils.Table
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.utils.RussianTokenizer
 
 trait TsdbMocks extends MockFactory {
@@ -78,7 +79,12 @@ trait TsdbMocks extends MockFactory {
         }
       )
       .anyNumberOfTimes()
-    (tsdbDaoMock.mapReduceEngine _).expects(*).onCall(_ => MapReducible.iteratorMR).anyNumberOfTimes()
+
+    (tsdbDaoMock.mapReduceEngine _)
+      .expects(*)
+      .onCall((_: MetricQueryCollector) => MapReducible.iteratorMR)
+      .anyNumberOfTimes()
+
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
