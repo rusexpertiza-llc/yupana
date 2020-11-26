@@ -35,7 +35,7 @@ import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.OnFinishIterator
+import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{
   MetricQueryCollector,
   NoMetricCollector,
@@ -119,7 +119,7 @@ abstract class TsdbSparkBase(
   ): DataRowRDD = {
     metricCollector.setRunningPartitions(data.getNumPartitions)
     val rdd = data.mapPartitions { it =>
-      new OnFinishIterator(it, metricCollector.finishPartition)
+      CloseableIterator(it, metricCollector.finishPartition())
     }
     new DataRowRDD(rdd, queryContext)
   }

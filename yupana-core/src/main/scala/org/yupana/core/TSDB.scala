@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.OnFinishIterator
+import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
 
 class TSDB(
@@ -76,7 +76,7 @@ class TSDB(
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
-    val it = new OnFinishIterator(data, metricCollector.finish)
+    val it = CloseableIterator(data, metricCollector.finish)
     new TsdbServerResult(queryContext, it)
 
   }

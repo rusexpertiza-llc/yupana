@@ -32,7 +32,7 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.DictionaryProvider
-import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
+import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._

@@ -41,10 +41,10 @@ trait TsdbBase extends StrictLogging {
   type Collection[_]
   type Result <: TsdbResultBase[Collection]
 
-  def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection]
-
   // TODO: it should work with different DAO Id types
   def dao: TSReadingDao[Collection, Long]
+
+  def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection]
 
   def dictionaryProvider: DictionaryProvider
 

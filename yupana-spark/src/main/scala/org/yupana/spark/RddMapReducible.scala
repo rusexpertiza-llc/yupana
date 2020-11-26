@@ -20,8 +20,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.core.MapReducible
 import org.yupana.core.model.QueryStates
+import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.hbase.CloseableIterator
 
 import scala.reflect.ClassTag
 
