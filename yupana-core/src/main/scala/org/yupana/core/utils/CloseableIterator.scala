@@ -18,19 +18,31 @@ package org.yupana.core.utils
 
 import scala.collection.AbstractIterator
 
-class OnFinishIterator[T](it: Iterator[T], finishAction: () => Unit) extends AbstractIterator[T] {
+abstract class CloseableIterator[+T](sub: Iterator[T]) extends AbstractIterator[T] with AutoCloseable {
 
-  var hasEnded = false
+  private var closed = false
+  private[this] var iter = sub
 
   override def hasNext: Boolean = {
-    val n = it.hasNext
-    if (!n && !hasEnded) {
-      hasEnded = true
-      finishAction()
+    val r = iter.hasNext
+    if (!r && !closed) {
+      closed = true
+      // reassign to release resources of highly resource consuming iterators early
+      iter = Iterator.empty
+      close()
     }
-    n
+    r
   }
 
-  override def next(): T = it.next()
+  override def next(): T = iter.next()
 
+  def close(): Unit
+}
+
+object CloseableIterator {
+  def apply[A](inner: Iterator[A], closeFunction: => Unit): CloseableIterator[A] = {
+    new CloseableIterator[A](inner) {
+      def close(): Unit = closeFunction
+    }
+  }
 }

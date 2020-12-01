@@ -110,7 +110,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
                 val id = Bytes.toLong(result.getValue(dataFamily, column))
                 val value = Bytes.toString(result.getRow)
                 value -> id
-              }
+              }.toSeq
             }
           }
           .toMap

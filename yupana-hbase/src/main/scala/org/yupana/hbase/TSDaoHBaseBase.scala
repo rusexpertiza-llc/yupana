@@ -18,18 +18,18 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
+import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Schema, Table }
+import org.yupana.api.schema._
+import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
-import org.yupana.api.Time
-import org.yupana.core.{ ExpressionCalculator, MapReducible }
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.TimeBoundedCondition
-import org.apache.hadoop.hbase.client.{ Result => HResult }
-import org.yupana.api.utils.ConditionMatchers._
+import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.language.higherKinds
 import scala.util.Try
@@ -50,7 +50,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   val FUZZY_FILTERS_LIMIT = 20
   val EXTRACT_BATCH_SIZE = 10000
 
-  def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Collection]
   def dictionaryProvider: DictionaryProvider
 
   def executeScans(
