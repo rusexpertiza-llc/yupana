@@ -267,7 +267,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
   def createBooleanExpr(l: Expression[_], r: Expression[_], fun: String): Either[String, Expression[Boolean]] = {
     FunctionRegistry.bi(fun, l, r).right.flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
-      else Left(s"$fun result type is ${e.dataType.meta.sqlType} but BOOLEAN required")
+      else Left(s"$fun result type is ${e.dataType.sqlTypeName} but BOOLEAN required")
     }
   }
 

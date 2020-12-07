@@ -16,16 +16,16 @@
 
 package org.yupana.spark
 
-import java.sql.{ Timestamp, Types }
+import java.sql.Timestamp
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.{ DataType => SparkDataType, _ }
 import org.apache.spark.{ Partition, TaskContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataRow, QueryField }
-import org.yupana.api.types.ArrayDataType
+import org.yupana.api.types.{ ArrayDataType, DataType }
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
 class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val queryContext: QueryContext)
@@ -68,27 +68,27 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
 }
 
 object DataRowRDD {
-  private[DataRowRDD] val TYPE_MAP: Map[Int, DataType] = Map(
-    Types.BOOLEAN -> BooleanType,
-    Types.VARCHAR -> StringType,
-    Types.TINYINT -> ByteType,
-    Types.SMALLINT -> ShortType,
-    Types.INTEGER -> IntegerType,
-    Types.DOUBLE -> DoubleType,
-    Types.BIGINT -> LongType,
-    Types.TIMESTAMP -> TimestampType
+  private[DataRowRDD] val TYPE_MAP: Map[DataType, SparkDataType] = Map(
+    DataType[Boolean] -> BooleanType,
+    DataType[String] -> StringType,
+    DataType[Byte] -> ByteType,
+    DataType[Short] -> ShortType,
+    DataType[Int] -> IntegerType,
+    DataType[Double] -> DoubleType,
+    DataType[Long] -> LongType,
+    DataType[Time] -> TimestampType
   )
 
-  def yupanaToSparkType(yupanaDataType: org.yupana.api.types.DataType): DataType = {
-    if (yupanaDataType.meta.sqlType == Types.DECIMAL) {
-      DataTypes.createDecimalType(DecimalType.MAX_PRECISION, yupanaDataType.meta.scale)
+  def yupanaToSparkType(yupanaDataType: DataType): SparkDataType = {
+    if (yupanaDataType == DataType[BigDecimal]) {
+      DataTypes.createDecimalType(DecimalType.MAX_PRECISION, yupanaDataType.scale)
     } else if (yupanaDataType.isArray) {
       val adt = yupanaDataType.asInstanceOf[ArrayDataType[_]]
       val innerType = yupanaToSparkType(adt.valueType)
       ArrayType(innerType)
     } else {
       TYPE_MAP.getOrElse(
-        yupanaDataType.meta.sqlType,
+        yupanaDataType,
         throw new IllegalArgumentException(s"Unsupported data type $yupanaDataType")
       )
     }

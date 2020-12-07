@@ -506,17 +506,17 @@ public class YupanaDatabaseMetaData implements DatabaseMetaData {
 
     @Override
     public String getDriverVersion() throws SQLException {
-        return BuildInfo.version();
+        return BuildInfo.version;
     }
 
     @Override
     public int getDriverMajorVersion() {
-        return BuildInfo.majorVersion();
+        return BuildInfo.majorVersion;
     }
 
     @Override
     public int getDriverMinorVersion() {
-        return BuildInfo.minorVersion();
+        return BuildInfo.minorVersion;
     }
 
     @Override

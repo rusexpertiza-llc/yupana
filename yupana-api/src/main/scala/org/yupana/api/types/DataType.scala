@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Time, TypeMeta }
 
 import scala.reflect.ClassTag
 
@@ -27,7 +27,8 @@ import scala.reflect.ClassTag
   */
 trait DataType extends Serializable {
   type T
-  val meta: DataTypeMeta[T]
+  val sqlTypeName: String
+  val scale: Int
   val storable: Storable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
@@ -48,17 +49,18 @@ trait DataType extends Serializable {
 
   override def hashCode(): Int = this.classTag.hashCode()
 
-  override def toString: String = s"${meta.sqlTypeName}"
+  override def toString: String = s"$sqlTypeName"
 }
 
 class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override type T = Seq[TT]
 
   override val isArray: Boolean = true
-  override val meta: DataTypeMeta[T] = DataTypeMeta.seqMeta(valueType.meta)
+  override val sqlTypeName: String = SqlTypeName.seqName(SqlTypeName(valueType.sqlTypeName)).sqlTypeName
   override val storable: Storable[T] = Storable.seqStorable(valueType.storable, valueType.classTag)
   override val classTag: ClassTag[T] = implicitly[ClassTag[Seq[TT]]]
   override val boxingTag: BoxingTag[Seq[TT]] = BoxingTag[Seq[TT]]
+  override val scale: Int = 0
 
   override val ordering: Option[Ordering[Seq[TT]]] = None
   override val integral: Option[Integral[Seq[TT]]] = None
@@ -85,16 +87,13 @@ object DataType {
     DataType[BigDecimal],
     DataType[Time],
     DataType[Boolean]
-  ).map(t => t.meta.sqlTypeName -> t).toMap
-
-  private val ARRAY_PREFIX = "ARRAY["
-  private val ARRAY_SUFFIX = "]"
+  ).map(t => t.sqlTypeName -> t).toMap
 
   def bySqlName(sqlName: String): Option[DataType] = {
-    if (!sqlName.startsWith(ARRAY_PREFIX) || !sqlName.endsWith(ARRAY_SUFFIX)) {
+    if (!sqlName.startsWith(TypeMeta.ARRAY_PREFIX) || !sqlName.endsWith(TypeMeta.ARRAY_SUFFIX)) {
       types.get(sqlName)
     } else {
-      val innerType = sqlName.substring(ARRAY_PREFIX.length, sqlName.length - ARRAY_SUFFIX.length)
+      val innerType = sqlName.substring(TypeMeta.ARRAY_PREFIX.length, sqlName.length - TypeMeta.ARRAY_SUFFIX.length)
       types.get(innerType).map(t => arrayDt(t))
     }
   }
@@ -113,16 +112,18 @@ object DataType {
 
   implicit val periodDt: DataType.Aux[Period] = create[Period](None, None, None)
 
-  implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
+  implicit def intDt[T: Storable: BoxingTag: SqlTypeName: Integral: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
 
-  implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
+  implicit def fracDt[T: Storable: BoxingTag: SqlTypeName: Fractional: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), None, Some(implicitly[Fractional[T]]))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
     new DataType {
       override type T = (TT, UU)
-      override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(dtt.meta, dtu.meta)
+
+      override val sqlTypeName: String = s"${dtt.sqlTypeName}_${dtu.sqlTypeName}"
+      override val scale: Int = 0
       override val storable: Storable[T] = Storable.noop
       override val classTag: ClassTag[T] = implicitly[ClassTag[(TT, UU)]]
       override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(TT, UU)]]
@@ -138,7 +139,8 @@ object DataType {
 
   implicit val nullDt: DataType.Aux[Null] = new DataType {
     override type T = Null
-    override val meta: DataTypeMeta[Null] = implicitly[DataTypeMeta[Null]]
+    override val sqlTypeName: String = implicitly[SqlTypeName[Null]].sqlTypeName
+    override val scale: Int = 0
     override val storable: Storable[Null] = Storable.noop
     override val classTag: ClassTag[Null] = implicitly[ClassTag[Null]]
     override val boxingTag: BoxingTag[Null] = BoxingTag[Null]
@@ -147,15 +149,20 @@ object DataType {
     override val fractional: Option[Fractional[Null]] = None
   }
 
-  private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
+  private def create[TT](
+      o: Option[Ordering[TT]],
+      i: Option[Integral[TT]],
+      f: Option[Fractional[TT]]
+  )(
       implicit
+      name: SqlTypeName[TT],
       s: Storable[TT],
-      m: DataTypeMeta[TT],
       ct: ClassTag[TT],
       bt: BoxingTag[TT]
   ): DataType.Aux[TT] = new DataType {
     override type T = TT
-    override val meta: DataTypeMeta[T] = m
+    override val sqlTypeName: String = name.sqlTypeName
+    override val scale: Int = 0
     override val storable: Storable[T] = s
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
@@ -164,14 +171,16 @@ object DataType {
     override val fractional: Option[Fractional[TT]] = f
   }
 
-  def scaledDecimalDt(scale: Int)(
+  def scaledDecimalDt(customScale: Int)(
       implicit
+      n: SqlTypeName[BigDecimal],
       s: Storable[BigDecimal],
       ct: ClassTag[BigDecimal],
       bt: BoxingTag[BigDecimal]
   ): DataType.Aux[BigDecimal] = new DataType {
     override type T = BigDecimal
-    override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
+    override val sqlTypeName: String = n.sqlTypeName
+    override val scale: Int = customScale
     override val storable: Storable[T] = s
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt

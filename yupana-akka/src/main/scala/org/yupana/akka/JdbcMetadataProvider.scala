@@ -16,10 +16,15 @@
 
 package org.yupana.akka
 
+import org.yupana.api.{ Time, TypeMeta }
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.schema.Schema
-import org.yupana.api.types.{ DataType, DataTypeMeta }
+import org.yupana.api.types.DataType
 import org.yupana.core.sql.FunctionRegistry
+
+import java.sql.Types
+
+import scala.compat.java8.OptionConverters._
 
 class JdbcMetadataProvider(schema: Schema) {
 
@@ -56,14 +61,14 @@ class JdbcMetadataProvider(schema: Schema) {
   def describeTable(tableName: String): Either[String, Result] =
     schema.getTable(tableName) map { table =>
       val metricColumns = table.metrics.map { f =>
-        columnsArray(table.name, f.name, f.dataType.meta)
+        columnsArray(table.name, f.name, f.dataType)
       }
 
-      val dimColumns = table.dimensionSeq.map(d => columnsArray(table.name, d.name, d.dataType.meta))
-      val timeColumn = columnsArray(table.name, "time", DataTypeMeta.timestampMeta)
+      val dimColumns = table.dimensionSeq.map(d => columnsArray(table.name, d.name, d.dataType))
+      val timeColumn = columnsArray(table.name, "time", DataType[Time])
 
       val catalogColumns = table.externalLinks.flatMap(catalog => {
-        catalog.fields.map(field => columnsArray(table.name, catalog.linkName + "_" + field.name, field.dataType.meta))
+        catalog.fields.map(field => columnsArray(table.name, catalog.linkName + "_" + field.name, field.dataType))
       })
 
       ((metricColumns :+ timeColumn) ++ dimColumns ++ catalogColumns).iterator
@@ -83,8 +88,13 @@ class JdbcMetadataProvider(schema: Schema) {
     } toRight s"Unknown type $typeName"
   }
 
-  private def columnsArray[T](tableName: String, name: String, typeMeta: DataTypeMeta[T]): Array[Any] = {
-    columnsArray(tableName, name, typeMeta.sqlType, typeMeta.sqlTypeName)
+  private def columnsArray[T](tableName: String, name: String, dataType: DataType.Aux[T]): Array[Any] = {
+    columnsArray(
+      tableName,
+      name,
+      TypeMeta.byName(name).asScala.map(_.getSqlType).getOrElse(Types.OTHER),
+      dataType.sqlTypeName
+    )
   }
 
   private def columnsArray(tableName: String, name: String, sqlType: Int, typeName: String): Array[Any] = {

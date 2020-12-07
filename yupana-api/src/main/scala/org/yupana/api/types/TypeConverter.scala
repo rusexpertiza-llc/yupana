@@ -58,7 +58,7 @@ object TypeConverter {
     * @return a converter instance if available
     */
   def apply[T, U](implicit a: DataType.Aux[T], b: DataType.Aux[U]): Option[TypeConverter[T, U]] = {
-    converters.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[TypeConverter[T, U]]]
+    converters.get((a.sqlTypeName, b.sqlTypeName)).asInstanceOf[Option[TypeConverter[T, U]]]
   }
 
   /**
@@ -70,7 +70,7 @@ object TypeConverter {
     * @return a converter instance if available
     */
   def partial[T, U](implicit a: DataType.Aux[T], b: DataType.Aux[U]): Option[PartialConverter[T, U]] = {
-    partials.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[PartialConverter[T, U]]]
+    partials.get((a.sqlTypeName, b.sqlTypeName)).asInstanceOf[Option[PartialConverter[T, U]]]
   }
 
   val double2BigDecimal: TypeConverter[Double, BigDecimal] = mkTotal(x => BigDecimal(x))
@@ -96,7 +96,7 @@ object TypeConverter {
   ): TypeConverter[T, U] = {
     new TypeConverter[T, U](
       dtu,
-      dtt.meta.sqlTypeName.toLowerCase + "2" + dtu.meta.sqlTypeName.toLowerCase,
+      dtt.sqlTypeName.toLowerCase + "2" + dtu.sqlTypeName.toLowerCase,
       f
     )
   }
@@ -106,7 +106,7 @@ object TypeConverter {
   )(implicit dtt: DataType.Aux[T], dtu: DataType.Aux[U]): PartialConverter[T, U] = {
     new PartialConverter[T, U](
       dtu,
-      dtt.meta.sqlTypeName.toLowerCase + "2" + dtu.meta.sqlTypeName.toLowerCase,
+      dtt.sqlTypeName.toLowerCase + "2" + dtu.sqlTypeName.toLowerCase,
       f
     )
   }
@@ -116,7 +116,7 @@ object TypeConverter {
       dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): ((String, String), TypeConverter[T, U]) = {
-    ((dtt.meta.sqlTypeName, dtu.meta.sqlTypeName), tc)
+    ((dtt.sqlTypeName, dtu.sqlTypeName), tc)
   }
 
   private def pEntry[T, U](pc: PartialConverter[T, U])(
@@ -124,7 +124,7 @@ object TypeConverter {
       dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): ((String, String), PartialConverter[T, U]) = {
-    ((dtt.meta.sqlTypeName, dtu.meta.sqlTypeName), pc)
+    ((dtt.sqlTypeName, dtu.sqlTypeName), pc)
   }
 
   private val converters: Map[(String, String), TypeConverter[_, _]] = Map(

@@ -5,11 +5,18 @@ import sbt.Keys.excludeDependencies
 ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, protoJava, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
+  .aggregate(api, apiJava, proto, protoJava, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
   .settings(
     allSettings,
     noPublishSettings,
     crossScalaVersions := Nil
+  )
+
+lazy val apiJava = (project in file("yupana-api-java"))
+  .settings(
+    name := "yupana-api-java",
+    crossPaths := false,
+    autoScalaLibrary := false
   )
 
 lazy val api = (project in file("yupana-api"))
@@ -22,6 +29,7 @@ lazy val api = (project in file("yupana-api"))
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
     )
   )
+  .dependsOn(apiJava)
   .disablePlugins(AssemblyPlugin)
 
 lazy val proto = (project in file("yupana-proto"))
@@ -56,6 +64,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
+      "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
     ),
@@ -68,6 +77,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
       )
     },
     buildInfoPackage := "org.yupana.jdbc.build",
+    buildInfoRenderFactory := JavaBuildInfoRenderer.apply,
     Compile / assembly / artifact := {
       val art = (Compile / assembly / artifact).value
       art.withClassifier(Some("driver"))
@@ -76,7 +86,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
-  .dependsOn(api, protoJava)
+  .dependsOn(apiJava, protoJava)
 
 lazy val utils = (project in file("yupana-utils"))
   .settings(

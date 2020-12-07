@@ -45,7 +45,7 @@ public class YupanaConnectionImpl implements YupanaConnection {
 
 
     @Override
-    public Result runQuery(String query, Map<Integer, ParamValue> params) throws SQLException {
+    public Result runQuery(String query, Map<Integer, Proto.ParameterValue> params) throws SQLException {
         try {
             return tcpClient.query(query, params);
         } catch (Throwable e) {
@@ -54,7 +54,7 @@ public class YupanaConnectionImpl implements YupanaConnection {
     }
 
     @Override
-    public Result runBatchQuery(String query, Collection<Map<Integer, ParamValue>> params) throws SQLException {
+    public Result runBatchQuery(String query, Collection<Map<Integer, Proto.ParameterValue>> params) throws SQLException {
         try {
             return tcpClient.batchQuery(query, params);
         } catch (Throwable e) {

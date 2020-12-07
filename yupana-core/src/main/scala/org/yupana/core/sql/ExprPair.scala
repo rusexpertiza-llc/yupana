@@ -46,7 +46,7 @@ object ExprPair {
             .flatMap(conv => conv.convert(const.v))
         )
         .toRight(
-          s"Cannot convert value '${const.v}' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
+          s"Cannot convert value '${const.v}' of type ${const.dataType.sqlTypeName} to ${dataType.sqlTypeName}"
         )
     }
   }
@@ -76,6 +76,6 @@ object ExprPair {
         TypeConverter(cb.dataType, ca.dataType)
           .map(bToA => ExprPair[T](ca, TypeConvertExpr(bToA, cb)))
       )
-      .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
+      .toRight(s"Incompatible types ${ca.dataType.sqlTypeName}($ca) and ${cb.dataType.sqlTypeName}($cb)")
   }
 }

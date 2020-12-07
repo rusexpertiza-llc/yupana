@@ -30,11 +30,8 @@ import java.util.stream.StreamSupport;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.yupana.Proto.*;
-import org.yupana.api.query.SimpleResult;
 import org.yupana.proto.util.ProtocolVersion;
-import org.yupana.api.query.Result;
-import org.yupana.api.types.DataType;
-import org.yupana.api.utils.CollectionUtils;
+
 import org.yupana.jdbc.build.BuildInfo;
 
 public class YupanaTcpClient implements AutoCloseable {
@@ -60,12 +57,12 @@ public class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  public Result query(String query, Map<Integer, ParamValue> params) throws IOException {
+  public Iterator<Object> query(String query, Map<Integer, ParameterValue> params) throws IOException {
     Request request = createProtoQuery(query, params);
     return execRequestQuery(request);
   }
 
-  public Result batchQuery(String query, Collection<Map<Integer, ParamValue>> params) throws IOException {
+  public Iterator<Object> batchQuery(String query, Collection<Map<Integer, ParameterValue>> params) throws IOException {
     Request request = creteProtoBatchQuery(query, params);
     return execRequestQuery(request);
   }
@@ -106,7 +103,7 @@ public class YupanaTcpClient implements AutoCloseable {
     }
   }
 
-  private Result execRequestQuery( Request request) throws IOException {
+  private Iterator<Object> execRequestQuery( Request request) throws IOException {
     ensureConnected();
     sendRequest(request);
     FramingChannelIterator it = new FramingChannelIterator(channel, CHUNK_SIZE + 4);
@@ -183,29 +180,29 @@ public class YupanaTcpClient implements AutoCloseable {
 
   private Optional<ResultHeader> handleResultHeader(Response response) throws IOException {
     switch (response.getRespCase()) {
-      case Response.RespCase.RESULTHEADER:
+      case RESULTHEADER:
         ResultHeader h = response.getResultHeader();
         logger.info("Received result header " + h);
         return Optional.of(h);
 
-      case Response.RespCase.RESULT:
-        Some(Left(error("Data chunk received before header")))
+      case RESULT:
+        throw new IOException(error("Data chunk received before header"));
 
-      case Response.RespCase.PONG:
-        Some(Left(error("Unexpected TspPong response")))
+      case PONG:
+        throw new IOException(error("Unexpected TspPong response"));
 
-      case Response.RespCase.HEARTBEAT:
+      case HEARTBEAT:
         heartbeat(response.getHeartbeat());
         return Optional.empty();
 
-      case Response.RespCase.ERROR:
+      case ERROR:
         channel.close();
-        Some(Left(error(e)));
+        throw new IOException(error(response.getError()));
 
-      case Response.RespCase.RESULTSTATISTICS:
-        Some(Left(error("Unexpected ResultStatistics response")));
+      case RESULTSTATISTICS:
+        throw new IOException(error("Unexpected ResultStatistics response"));
 
-      case Response.RespCase.RESP_NOT_SET:
+      case RESP_NOT_SET:
         return Optional.empty();
     }
   }
@@ -219,64 +216,78 @@ public class YupanaTcpClient implements AutoCloseable {
     logger.info(String.format("Heartbeat(%s)", time));
   }
 
-  private Iterator<ResultChunk> resultIterator(Iterator<Response> responses) {
-    new Iterator[ResultChunk] {
+  private Iterator<ResultChunk> resultIterator(Iterator<Response> responses) throws IOException {
+    return new Iterator<ResultChunk>() {
 
-      var statistics: ResultStatistics = null
-      var current: ResultChunk = null
-      var errorMessage: String = null
-
-      readNext()
-
-      override def hasNext: Boolean = responses.hasNext && statistics == null && errorMessage == null
-
-      override def next(): ResultChunk = {
-        val result = current
-        readNext()
-        result
+      {
+        readNext();
       }
 
-      private def readNext(): Unit = {
-        current = null
+      @Override
+      public boolean hasNext() {
+        return responses.hasNext() && statistics == null && errorMessage == null;
+      }
+
+      @Override
+      public ResultChunk next() {
+        ResultChunk result = current;
+        readNext();
+        return result;
+      }
+
+      private ResultStatistics statistics = null;
+      private ResultChunk current = null;
+      private String errorMessage = null;
+
+
+      private void readNext() throws IOException {
+        current = null;
         do {
-          responses.next() match {
-            case Response.Resp.Result(result) =>
-              current = result
+          Response next = responses.next();
+          switch (next.getRespCase()) {
+            case RESULT:
+              current = next.getResult();
+              break;
 
-            case Response.Resp.ResultHeader(_) =>
-              errorMessage = error("Duplicate header received")
+            case RESULTHEADER:
+              errorMessage = error("Duplicate header received");
+              break;
 
-            case Response.Resp.Pong(_) =>
-              errorMessage = error("Unexpected TspPong response")
+            case PONG:
+              errorMessage = error("Unexpected Pong response");
+              break;
 
-            case Response.Resp.Heartbeat(time) =>
-              heartbeat(time)
+            case HEARTBEAT:
+              heartbeat(next.getHeartbeat());
+              break;
 
-            case Response.Resp.Error(e) =>
-              errorMessage = error(e)
+            case ERROR:
+              errorMessage = error(next.getError());
+              break;
 
-            case Response.Resp.ResultStatistics(stat) =>
-              logger.fine(s"Got statistics $stat")
-              statistics = stat
+            case RESULTSTATISTICS:
+              logger.fine(String.format("Got statistics %s", next.getResultStatistics().toString()));
+              statistics = next.getResultStatistics();
+              break;
 
-            case Response.Resp.Empty =>
+            case RESP_NOT_SET:
+              break;
           }
-        } while (current == null && statistics == null && errorMessage == null && responses.hasNext)
+        } while (current == null && statistics == null && errorMessage == null && responses.hasNext());
 
         if (statistics != null || errorMessage != null) {
-          channel.close()
+          channel.close();
           if (errorMessage != null) {
-            throw new IllegalArgumentException(errorMessage)
+            throw new IllegalArgumentException(errorMessage);
           }
         }
 
-        if (!responses.hasNext && statistics == null) {
-          channel.close()
-          throw new IllegalArgumentException("Unexpected end of response")
+        if (!responses.hasNext() && statistics == null) {
+          channel.close();
+          throw new IllegalArgumentException("Unexpected end of response");
         }
       }
-
-    }
+    };
   }
 
   @Override
@@ -290,20 +301,28 @@ public class YupanaTcpClient implements AutoCloseable {
                     .setReqTime(reqTime)
                     .setVersion(Version.newBuilder()
                             .setProtocol(ProtocolVersion.value)
-                            .setMajor(BuildInfo.majorVersion())
-                            .setMinor(BuildInfo.minorVersion())
-                            .setVersion(BuildInfo.version())
+                            .setMajor(BuildInfo.majorVersion)
+                            .setMinor(BuildInfo.minorVersion)
+                            .setVersion(BuildInfo.version)
                     )
             ).build();
   }
 
-  private Result extractProtoResult(ResultHeader header, Iterator<ResultChunk> res) {
+  private Iterator<Object> extractProtoResult(ResultHeader header, Iterator<ResultChunk> res) {
     List<String> names = header.getFieldsList().stream().map(ResultField::getName).collect(Collectors.toList());
-    val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
-      DataType.bySqlName(resultField.type).toRight(s"Unknown type ${resultField.type}")
-    }) match {
-      case Right(types) => types
-      case Left(err)    => throw new IllegalArgumentException(s"Cannot read data: $err")
+    List<String> errors = new ArrayList<>();
+    List<DataType> dataTypes = new ArrayList<>();
+
+    header.getFieldsList().forEach(x -> {
+      if () {
+        dataTypes.add();
+      } else {
+        errors.add(String.format("Unknown type %s", x.getType()));
+      }
+    });
+
+    if (!errors.isEmpty()) {
+      throw new IllegalArgumentException(String.format("Cannot read data: %s", String.join(", ", errors)));
     }
 
     val values = res.map { row =>
@@ -323,36 +342,23 @@ public class YupanaTcpClient implements AutoCloseable {
     return new SimpleResult(Optional.ofNullable(header.getTableName()).orElse("TABLE"), names, dataTypes, values);
   }
 
-  private Request createProtoQuery(String query, Map<Integer, ParamValue> params) {
+  private Request createProtoQuery(String query, Map<Integer, ParameterValue> params) {
     SqlQuery.Builder sq = SqlQuery.newBuilder().setSql(query);
-    params.forEach((idx, pv) -> sq.setParameters(idx, createProtoValue(pv)));
+    params.forEach(sq::setParameters);
 
 
     return Request.newBuilder().setSqlQuery(sq).build();
   }
 
-  private Request creteProtoBatchQuery(String query, Collection<Map<Integer, ParamValue>> params) {
+  private Request creteProtoBatchQuery(String query, Collection<Map<Integer, ParameterValue>> params) {
 
     BatchSqlQuery.Builder sbq = BatchSqlQuery.newBuilder().setSql(query);
 
     params.forEach(batch -> {
       ParameterValues.Builder values = ParameterValues.newBuilder();
-      batch.forEach((idx, pv) -> values.setParameters(idx, createProtoValue(pv)));
+      batch.forEach(values::setParameters);
       sbq.addBatch(values);
     });
     return Request.newBuilder().setBatchSqlQuery(sbq).build();
-  }
-
-  private ParameterValue createProtoValue(ParamValue value) {
-    switch (value.getType()) {
-      case NUMERIC:
-        return ParameterValue.newBuilder().setValue(Value.newBuilder().setDecimalValue(value.getNumericValue().toString())).build();
-      case STRING:
-        return ParameterValue.newBuilder().setValue(Value.newBuilder().setTextValue(value.getStringValue())).build();
-      case TIMESTAMP:
-         return ParameterValue.newBuilder().setValue(Value.newBuilder().setTimeValue(value.getTimestampValue().getTime())).build();
-      default:
-        throw new IllegalArgumentException(String.format("Unsupported value type %d", value.getType().ordinal()));
-    }
   }
 }

@@ -16,6 +16,7 @@
 
 package org.yupana.jdbc;
 
+import org.yupana.Proto;
 import org.yupana.api.query.Result;
 
 import java.io.InputStream;
@@ -37,11 +38,17 @@ class YupanaPreparedStatement extends YupanaStatement implements PreparedStateme
     private static Logger LOGGER = Logger.getLogger(YupanaPreparedStatement.class.getName());
 
     private String templateQuery;
-    private Map<Integer, ParamValue> parameters = new HashMap<>();
-    private List<Map<Integer, ParamValue>> batch = new ArrayList<>();
+    private Map<Integer, Proto.ParameterValue> parameters = new HashMap<>();
+    private List<Map<Integer, Proto.ParameterValue>> batch = new ArrayList<>();
 
-    private void setParameter(int idx, ParamValue v) {
+    private void setParameter(int idx, Proto.ParameterValue v) {
         parameters.put(idx, v);
+    }
+
+    private void setParameter(int idx, BigDecimal v) {
+        setParameter(idx, Proto.ParameterValue.newBuilder()
+                .setValue(Proto.Value.newBuilder()
+                        .setDecimalValue(v.toString())).build());
     }
 
     @Override
@@ -103,47 +110,47 @@ class YupanaPreparedStatement extends YupanaStatement implements PreparedStateme
 
     @Override
     public void setByte(int parameterIndex, byte x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(BigDecimal.valueOf(x)));
+        setParameter(parameterIndex, BigDecimal.valueOf(x));
     }
 
     @Override
     public void setShort(int parameterIndex, short x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(BigDecimal.valueOf(x)));
+        setParameter(parameterIndex,BigDecimal.valueOf(x));
     }
 
     @Override
     public void setInt(int parameterIndex, int x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(BigDecimal.valueOf(x)));
+        setParameter(parameterIndex, BigDecimal.valueOf(x));
     }
 
     @Override
     public void setLong(int parameterIndex, long x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(BigDecimal.valueOf(x)));
+        setParameter(parameterIndex, BigDecimal.valueOf(x));
     }
 
     @Override
     public void setFloat(int parameterIndex, float x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(BigDecimal.valueOf(x)));
+        setParameter(parameterIndex, BigDecimal.valueOf(x));
     }
 
     @Override
     public void setDouble(int parameterIndex, double x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(BigDecimal.valueOf(x)));
+        setParameter(parameterIndex, BigDecimal.valueOf(x));
     }
 
     @Override
     public void setBigDecimal(int parameterIndex, BigDecimal x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(x));
+        setParameter(parameterIndex, x);
     }
 
     @Override
     public void setString(int parameterIndex, String x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(x));
+        setParameter(parameterIndex, Proto.ParameterValue.newBuilder().setValue(Proto.Value.newBuilder().setTextValue(x)).build());
     }
 
     @Override
     public void setTimestamp(int parameterIndex, Timestamp x) throws SQLException {
-        setParameter(parameterIndex, new ParamValue(x));
+        setParameter(parameterIndex, Proto.ParameterValue.newBuilder().setValue(Proto.Value.newBuilder().setTimeValue(x.getTime())).build());
     }
 
     @Override

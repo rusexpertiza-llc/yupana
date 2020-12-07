@@ -26,7 +26,7 @@ object ProtobufSchemaChecker extends SchemaChecker {
   private def typeMap: Map[String, String] =
     Map(
       DataType[Blob] -> DataType[Seq[Byte]]
-    ).map { case (f, t) => f.meta.sqlTypeName -> t.meta.sqlTypeName }
+    ).map { case (f, t) => f.sqlTypeName -> t.sqlTypeName }
 
   override def toBytes(schema: Schema): Array[Byte] =
     new ProtoRegistry(schema.tables.values.map(asProto).toSeq).toByteArray
@@ -97,7 +97,7 @@ object ProtobufSchemaChecker extends SchemaChecker {
       table.name,
       table.rowTimeSpan,
       table.dimensionSeq.map(_.name),
-      table.metrics.map(f => ProtoMetric(f.name, f.tag, storageType(f.dataType.meta.sqlTypeName), f.group))
+      table.metrics.map(f => ProtoMetric(f.name, f.tag, storageType(f.dataType.sqlTypeName), f.group))
     )
   }
 
