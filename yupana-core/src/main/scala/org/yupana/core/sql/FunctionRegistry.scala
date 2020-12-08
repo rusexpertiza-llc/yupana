@@ -18,7 +18,7 @@ package org.yupana.core.sql
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ ArrayDataType, DataType }
 
 object FunctionRegistry {
   import scala.language.higherKinds
@@ -191,6 +191,9 @@ object FunctionRegistry {
     biTyped("-", TimeMinusPeriodExpr),
     biTyped("+", TimePlusPeriodExpr),
     biTyped("+", PeriodPlusPeriodExpr),
+    biArrayAndElem("contains", new Bind2[ArrayExpr, Expression, Expression[_]] {
+      override def apply[T](a: ArrayExpr[T], b: Expression[T]): Expression[Boolean] = ContainsExpr(a, b)
+    }),
     biArray("contains_any", new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
       override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAnyExpr(a, b)
     }),
@@ -208,7 +211,7 @@ object FunctionRegistry {
       case xs =>
         val (r, l) = xs.map(_.f(e)).partition(_.isRight)
         if (r.isEmpty) {
-          Left(l.collect { case Left(m) => m } mkString ",")
+          l.head
         } else if (r.size > 1) {
           Left(s"Ambiguous function '$name' call on $e")
         } else {
@@ -223,7 +226,7 @@ object FunctionRegistry {
       case xs =>
         val (r, l) = xs.map(_.f(a, b)).partition(_.isRight)
         if (r.isEmpty) {
-          Left(l.collect { case Left(m) => m } mkString ",")
+          l.head
         } else if (r.size > 1) {
           Left(s"Ambiguous function '$name' call on ($a, $b)")
         } else {
@@ -307,9 +310,8 @@ object FunctionRegistry {
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.ordering.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.ordering.get))
-          case Right(_)  => Left(s"Cannot compare types ${a.dataType} and ${b.dataType}")
-          case Left(msg) => Left(msg)
-
+          case Right(_) => Left(s"Cannot compare types ${a.dataType} and ${b.dataType}")
+          case Left(_)  => Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
         }
     )
   }
@@ -324,9 +326,8 @@ object FunctionRegistry {
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.numeric.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.numeric.get))
-          case Right(_)  => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
-          case Left(msg) => Left(msg)
-
+          case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
+          case Left(_)  => Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
         }
     )
   }
@@ -353,9 +354,22 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        if (a.dataType.isArray && b.dataType.isArray)
+        if (a.dataType.isArray && a.dataType == b.dataType)
           Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[ArrayExpr[T]]))
-        else Left(s"Function $fn requires array, but got $a, $b")
+        else Left(s"Function $fn requires two arrays of same type, but got $a, $b")
+    )
+  }
+
+  private def biArrayAndElem[T](fn: String, create: Bind2[ArrayExpr, Expression, Expression[_]]): Function2Desc = {
+    Function2Desc(
+      fn,
+      (a, b) =>
+        if (a.dataType.isArray) {
+          val adt = a.dataType.asInstanceOf[ArrayDataType[T]]
+          if (adt.valueType == b.dataType) {
+            Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[Expression[T]]))
+          } else Left(s"Function $fn second parameter should have type ${adt.valueType}")
+        } else Left(s"Function $fn requires array and its element, but got $a and $b")
     )
   }
 

@@ -17,7 +17,7 @@
 package org.yupana.externallinks.universal
 
 import com.typesafe.scalalogging.StrictLogging
-import org.springframework.jdbc.core.JdbcTemplate
+import javax.sql.DataSource
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
@@ -30,13 +30,11 @@ import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
 
-import scala.collection.JavaConverters._
-
 class SQLSourcedExternalLinkService[DimensionValue](
     override val schema: Schema,
     override val externalLink: ExternalLink.Aux[DimensionValue],
     config: SQLExternalLinkDescription,
-    jdbc: JdbcTemplate
+    dataSource: DataSource
 ) extends ExternalLinkService[ExternalLink]
     with StrictLogging {
 
@@ -123,15 +121,12 @@ class SQLSourcedExternalLinkService[DimensionValue](
     } else {
       val missedKeys = tagValues diff tableRows.keys.toSet
       val q = fieldsByTagsQuery(externalLink.fields.map(_.name), missedKeys.size)
-      val params = missedKeys.map(_.asInstanceOf[Object]).toArray
+      val params = missedKeys.map(_.asInstanceOf[Object]).toSeq
       logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
-      val dataFromDb = jdbc
-        .queryForList(q, params: _*)
-        .asScala
-        .map(vs =>
-          vs.asScala.toMap
-            .map { case (k, v) => snakeToCamel(k) -> v }
-        )
+      val sqlFields = (fields + dimensionName).map(camelToSnake)
+      val dataFromDb = JdbcUtils
+        .runQuery(dataSource, q, sqlFields, params)
+        .map(vs => vs.map { case (k, v) => snakeToCamel(k) -> v })
         .groupBy(m => m(dimensionName))
         .map { case (k, v) => k.asInstanceOf[DimensionValue] -> (v.head - dimensionName).mapValues(_.toString) }
       fieldValuesForDimValuesCache.putAll(dataFromDb)
@@ -146,7 +141,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
   }
 
   private def tagsByFieldsQuery(fieldValues: Seq[(FieldName, Set[FieldValue])], joiningOperator: String): String = {
-    s"""SELECT ${catalogFieldToSqlField(dimensionName)}
+    s"""SELECT ${catalogFieldToSqlFieldWithAlias(dimensionName)}
        |FROM $relation
        |WHERE ${fieldValuesInClauses(fieldValues).mkString(s" $joiningOperator ")}""".stripMargin
   }
@@ -167,15 +162,11 @@ class SQLSourcedExternalLinkService[DimensionValue](
       joiningOperator: String
   ): Set[DimensionValue] = {
     val q = tagsByFieldsQuery(fieldsValues, joiningOperator)
-    val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object]).toArray
-    logger.debug(s"Query for fields for catalog $linkName: $q with params: $params")
-    jdbc
-      .queryForList(
-        q,
-        params,
-        externalLink.dimension.dataType.classTag.runtimeClass.asInstanceOf[Class[DimensionValue]]
-      )
-      .asScala
+    val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object])
+    logger.debug(s"Query for dimensions for catalog $linkName: $q with params: $params")
+    JdbcUtils
+      .runQuery(dataSource, q, Set(camelToSnake(dimensionName)), params)
+      .flatMap(_.values.map(_.asInstanceOf[DimensionValue]))
       .toSet
   }
 

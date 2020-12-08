@@ -129,19 +129,20 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
   private def eval[T](expr: Expression[T], qc: QueryContext, row: InternalRow): T = {
 
-    val res = expr match {
+    expr match {
       case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
 
-      case TimeExpr             => null
-      case DimensionExpr(_)     => null
-      case DimensionIdExpr(_)   => null
-      case MetricExpr(_)        => null
-      case LinkExpr(_, _)       => null
-      case DimIdInExpr(_, _)    => null
-      case DimIdNotInExpr(_, _) => null
+      case TimeExpr             => null.asInstanceOf[T]
+      case DimensionExpr(_)     => null.asInstanceOf[T]
+      case DimensionIdExpr(_)   => null.asInstanceOf[T]
+      case MetricExpr(_)        => null.asInstanceOf[T]
+      case LinkExpr(_, _)       => null.asInstanceOf[T]
+      case DimIdInExpr(_, _)    => null.asInstanceOf[T]
+      case DimIdNotInExpr(_, _) => null.asInstanceOf[T]
 
-      case ae: AggregateExpr[_, _, _]   => evaluateExpression(ae.expr, qc, row)
-      case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row)
+      // GENERALLY ae.dataType != ae.expr.dataType, but we don't care here
+      case ae: AggregateExpr[_, _, _]   => evaluateExpression(ae.expr, qc, row).asInstanceOf[T]
+      case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row).asInstanceOf[T]
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, qc, row)
@@ -218,23 +219,20 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
 
       case TimeMinusExpr(a, b)        => evaluateBinary(qc, row, a, b)((x, y) => math.abs(x.millis - y.millis))
       case TimeMinusPeriodExpr(a, b)  => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
-      case TimePlusPeriodExpr(a, b)   => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
+      case TimePlusPeriodExpr(a, b)   => evaluateBinary(qc, row, a, b)((t, p) => Time(t.toDateTime.plus(p).getMillis))
       case PeriodPlusPeriodExpr(a, b) => evaluateBinary(qc, row, a, b)((x, y) => x plus y)
 
       case ArrayTokensExpr(e)   => evaluateUnary(qc, row, e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))
       case ArrayLengthExpr(e)   => evaluateUnary(qc, row, e)(_.length)
-      case ArrayToStringExpr(e) => evaluateUnary(qc, row, e)(_.mkString(" "))
+      case ArrayToStringExpr(e) => evaluateUnary(qc, row, e)(_.mkString(", "))
 
       case ContainsExpr(a, b)     => evaluateBinary(qc, row, a, b)(_ contains _)
       case ContainsAllExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.forall(x.contains))
       case ContainsAnyExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.exists(x.contains))
       case ContainsSameExpr(a, b) => evaluateBinary(qc, row, a, b)(_ == _)
 
-      case ae @ ArrayExpr(es) => es.map(e => evaluateExpression(e, qc, row))
+      case ArrayExpr(es) => es.map(e => evaluateExpression(e, qc, row))
     }
-
-    // I cannot find a better solution to ensure compiler that concrete expr type Out is the same with expr.Out
-    res.asInstanceOf[T]
   }
 
   def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O = {

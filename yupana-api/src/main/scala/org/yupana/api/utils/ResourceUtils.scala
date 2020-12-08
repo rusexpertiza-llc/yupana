@@ -20,7 +20,8 @@ import scala.util.control.{ ControlThrowable, NonFatal }
 
 object ResourceUtils {
 
-  def using[T <: AutoCloseable, R](r: => T)(body: T => R): R = {
+  def using[T <: AutoCloseable, R](resource: => T)(body: T => R): R = {
+    val r: T = resource
     if (r == null) throw new NullPointerException("Resource is null")
 
     var exception: Throwable = null

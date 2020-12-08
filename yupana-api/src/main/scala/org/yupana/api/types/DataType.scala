@@ -86,6 +86,7 @@ object DataType {
     DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
+    DataType[Blob],
     DataType[Boolean]
   ).map(t => t.sqlTypeName -> t).toMap
 

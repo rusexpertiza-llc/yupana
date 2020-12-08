@@ -192,10 +192,10 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
               if (!filterList.getFilters.isEmpty) {
                 scan.setFilter(filterList)
               }
-              using(table.getScanner(scan))(_.asScala)
+              using(table.getScanner(scan))(_.asScala.toList)
           }
         case None =>
-          using(table.getScanner(scan))(_.asScala)
+          using(table.getScanner(scan))(_.asScala.toList)
       }
     }
     limit match {

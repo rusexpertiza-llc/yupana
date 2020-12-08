@@ -48,10 +48,6 @@ jobs:
       script:
         sbt +clean +publishSigned sonatypeBundleRelease
 
-branches:
-  except:
-    - /^v[0-9]/
-
 env:
   global:
     # PGP_PASSPHRASE

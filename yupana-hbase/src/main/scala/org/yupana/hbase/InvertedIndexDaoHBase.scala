@@ -24,6 +24,7 @@ import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
+import org.yupana.core.utils.CloseableIterator
 
 import scala.collection.JavaConverters._
 
