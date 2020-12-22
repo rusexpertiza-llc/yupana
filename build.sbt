@@ -147,7 +147,19 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
       "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
-      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting   % Test
+      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting   % Test,
+      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase          % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase          % Test classifier "tests",
+      "org.apache.hadoop"           %  "hadoop-hdfs"                    % versions.hadoop         % Test,
+      "org.apache.hadoop"           %  "hadoop-hdfs"                    % versions.hadoop         % Test classifier "tests",
+      "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop         % Test,
+      "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop         % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase          % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test classifier "tests"
     ),
     dependencyOverrides ++= Seq(
       "com.fasterxml.jackson.core"      %  "jackson-core"               % "2.8.7" % Test,
@@ -310,7 +322,7 @@ val commonSettings = Seq(
     "-unchecked",
     "-feature",
     "-Xlint",
-    "-Xfatal-warnings",
+//    "-Xfatal-warnings",
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),
