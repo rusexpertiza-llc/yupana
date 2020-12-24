@@ -198,7 +198,7 @@ object FunctionRegistry {
       override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAnyExpr(a, b)
     }),
     biArray("contains_all", new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
-      override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAnyExpr(a, b)
+      override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAllExpr(a, b)
     }),
     biArray("contains_same", new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
       override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsSameExpr(a, b)
