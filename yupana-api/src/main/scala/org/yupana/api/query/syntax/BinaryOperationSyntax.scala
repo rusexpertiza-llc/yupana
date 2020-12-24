@@ -30,6 +30,7 @@ trait BinaryOperationSyntax {
   def contains[T](a: Expression[Seq[T]], b: Expression[T]) = ContainsExpr(a, b)
   def containsAll[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAllExpr(a, b)
   def containsAny[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAnyExpr(a, b)
+  def containsSame[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsSameExpr(a, b)
 }
 
 object BinaryOperationSyntax extends BinaryOperationSyntax

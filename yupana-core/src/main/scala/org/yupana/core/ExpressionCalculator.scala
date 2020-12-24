@@ -229,7 +229,7 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case ContainsExpr(a, b)     => evaluateBinary(qc, row, a, b)(_ contains _)
       case ContainsAllExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.forall(x.contains))
       case ContainsAnyExpr(a, b)  => evaluateBinary(qc, row, a, b)((x, y) => y.exists(x.contains))
-      case ContainsSameExpr(a, b) => evaluateBinary(qc, row, a, b)(_ == _)
+      case ContainsSameExpr(a, b) => evaluateBinary(qc, row, a, b)((x, y) => x.size == y.size && x.toSet == y.toSet)
 
       case ArrayExpr(es) => es.map(e => evaluateExpression(e, qc, row))
     }
