@@ -114,6 +114,16 @@ class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionVal
       )
 
       calculator.evaluateConstant(arrayToString(array(const(1), plus(const(2), const(3)), const(4)))) shouldEqual "1, 5, 4"
+
+      calculator.evaluateConstant(containsAll(array(const(1), const(2), const(3)), const(Seq(2, 3)))) shouldBe true
+      calculator.evaluateConstant(containsAll(array(const(1), const(2), const(3)), const(Seq(2, 4)))) shouldBe false
+
+      calculator.evaluateConstant(containsAny(array(const(1), const(2), const(3)), const(Seq(2, 3)))) shouldBe true
+      calculator.evaluateConstant(containsAny(const(Seq(1, 2, 3)), const(Seq(2, 4)))) shouldBe true
+
+      calculator.evaluateConstant(containsSame(array(const(1), const(2)), const(Seq(1, 2)))) shouldBe true
+      calculator.evaluateConstant(containsSame(array(const("1"), const("2")), const(Seq("2", "1")))) shouldBe true
+      calculator.evaluateConstant(containsSame(const(Seq(1, 2, 2)), const(Seq(1, 2)))) shouldBe false
     }
 
     "Evaluate aggregations" in {
