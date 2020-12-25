@@ -85,7 +85,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
   private def getTable(schemaName: Option[String]): Either[String, Option[Table]] = {
     schemaName match {
       case Some(name) =>
-        schema.getTable(name).map(Some(_)).toRight(s"Unknown table '$schemaName'")
+        schema.getTable(name).map(Some(_)).toRight(s"Unknown table '$name'")
       case None =>
         Right(None)
     }
