@@ -28,7 +28,6 @@ import org.apache.hadoop.hbase.mapreduce.{
 }
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
-import org.apache.hadoop.security.UserGroupInformation
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ DataPoint, Query }
@@ -144,7 +143,7 @@ abstract class TsdbSparkBase(
     TableMapReduceUtil.initCredentials(job)
 
     val jconf = new JobConf(job.getConfiguration)
-    addCredentials(jconf)
+    SparkConfUtils.addCredentials(jconf)
 
     val filtered = dataPointsRDD.filter(_.table == table)
 
@@ -175,7 +174,7 @@ abstract class TsdbSparkBase(
     )
 
     val jconf = new JobConf(job.getConfiguration)
-    addCredentials(jconf)
+    SparkConfUtils.addCredentials(jconf)
 
     val hbaseRdd = sparkContext.newAPIHadoopRDD(
       job.getConfiguration,
@@ -189,11 +188,6 @@ abstract class TsdbSparkBase(
         DictionaryDaoHBase.getReversePairFromResult(hbaseResult)
     }
     rowsRdd
-  }
-
-  def addCredentials(conf: JobConf): Unit = {
-    val jobCreds = conf.getCredentials
-    jobCreds.mergeAll(UserGroupInformation.getCurrentUser.getCredentials)
   }
 
   def union(rdds: Seq[DataRowRDD]): DataRowRDD = {
