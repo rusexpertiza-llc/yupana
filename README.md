@@ -75,9 +75,27 @@ HBase. Данные сохраняются в виде отдельных вре
 
 1. JDK 8;
 2. GNU/Linux (работа на других окружениях не проверялась);
-3. Apache HBase 1.3.x с поддержкой сжатия Snappy;
+3. Apache HBase 1.3.x с поддержкой сжатия Snappy; 
+   Для этого копируем нативные либо из скаченной hadoop сборки в любое место и прописываем(раскомментируем) в `hbase-env.sh` следующие настройки
+```export JAVA_HOME=/path/to/java/
+   export JAVA_LIBRARY_PATH=$JAVA_LIBRARY_PATH:/path/to/hadoop/native/lib
+   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/hadoop/native/lib
+   export HBASE_MANAGES_ZK=true
+```
+   Минимальные настройки для `hbase-site.xml` для хранения файлов hbase и zookeeper
+```
+  <property>
+    <name>hbase.rootdir</name>
+    <value>file:///hbase</value>
+  </property>
+  <property>
+    <name>hbase.zookeeper.property.dataDir</name>
+    <value>/hbase/zookeeper</value>
+  </property>
+```
 4. Apache Spark 2.4.x для запуска запросов на кластере.  Кроме того, в прилагаемых примерах загрузка данных также производится
-   из Spark-приложения, хотя это и не является обязательным условием;
+   из Spark-приложения, хотя это и не является обязательным условием; Spark может ругаться на отсутствующие классы, тогда стоит 
+   скопировать jars из hadoop зависимостей в папку jars каталога со spark'ом.
 5. Кластер Apache Ignite 2.8.0 при использовании распределенных кэшей в Ignite (опционально);
 6. sbt -- для сборки проекта.
 
