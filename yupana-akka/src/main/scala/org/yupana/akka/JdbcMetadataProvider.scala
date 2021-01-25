@@ -123,8 +123,7 @@ class JdbcMetadataProvider(schema: Schema) {
   }
 
   private def toColumnType(column: String): DataType = column match {
-    case "DATA_TYPE" => DataType[Int]
-    case "SOURCE_DATA_TYPE" => DataType[Int]
-    case _ => DataType[String]
+    case "DATA_TYPE" | "SOURCE_DATA_TYPE" => DataType[Int]
+    case _                                => DataType[String]
   }
 }
