@@ -16,6 +16,8 @@
 
 package org.yupana.spark
 
+import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.security.UserGroupInformation
 import org.apache.spark.SparkConf
 
 object SparkConfUtils {
@@ -24,5 +26,10 @@ object SparkConfUtils {
       case (k, v) =>
         if (k.startsWith("spark.")) k.substring(6) -> v else k -> v
     })
+  }
+
+  def addCredentials(conf: JobConf): Unit = {
+    val jobCreds = conf.getCredentials
+    jobCreds.mergeAll(UserGroupInformation.getCurrentUser.getCredentials)
   }
 }
