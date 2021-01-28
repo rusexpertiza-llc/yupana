@@ -39,7 +39,7 @@ case class TimestampValue(value: LocalDateTime) extends Value {
 }
 
 case class TimestampPeriodValue(from: TimestampValue, to: TimestampValue) extends Value {
-  override def asString: String = s"${from.toString} - ${to.toString}"
+  override def asString: String = s"${from}_$to"
 }
 
 object TimestampValue {

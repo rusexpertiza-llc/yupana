@@ -247,9 +247,7 @@ object SqlParser {
 
   def invalidPeriodsFilter[_: P]: P[TimestampPeriodValue] =
     P(
-      whereWord ~ rollupTimeWord ~ betweenWord ~/ P(ValueParser.timestampValue) ~/ andWord ~/ P(
-        ValueParser.timestampValue
-      )
+      whereWord ~ rollupTimeWord ~ betweenWord ~/ P(ValueParser.timestampValue) ~/ andWord ~/ ValueParser.timestampValue
     ).map(TimestampPeriodValue.tupled)
 
   def queries[_: P]: P[ShowQueryMetrics] =
