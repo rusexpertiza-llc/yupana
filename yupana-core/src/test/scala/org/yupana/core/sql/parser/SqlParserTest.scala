@@ -962,6 +962,14 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
   }
 
+  it should "parse SHOW INVALID_PERIODS statements" in {
+    val t = LocalDateTime.now().withMillisOfDay(0)
+    SqlParser.parse(
+      "SHOW INVALID_PERIODS " +
+        s"WHERE ROLLUP_TIME BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}' AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'"
+    ) shouldBe Right(ShowInvalidPeriods(TimestampPeriodValue(TimestampValue(t), TimestampValue(t))))
+  }
+
   it should "support functions as conditions" in {
     val statement =
       """
