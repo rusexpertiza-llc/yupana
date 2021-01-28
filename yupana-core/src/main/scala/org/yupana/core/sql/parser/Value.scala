@@ -38,6 +38,10 @@ case class TimestampValue(value: LocalDateTime) extends Value {
   override def asString: String = value.toString
 }
 
+case class TimestampPeriodValue(from: TimestampValue, to: TimestampValue) extends Value {
+  override def asString: String = s"${from.toString} - ${to.toString}"
+}
+
 object TimestampValue {
   def apply(millis: Long): TimestampValue = new TimestampValue(new LocalDateTime(millis, DateTimeZone.UTC))
 }

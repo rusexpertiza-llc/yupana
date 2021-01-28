@@ -1121,7 +1121,9 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error on unknown show" in {
     errorMessage("SHOW cartoons") {
       case msg =>
-        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS"), but got "cartoons""")
+        msg should include(
+          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "INVALID_PERIODS"), but got "cartoons"""
+        )
     }
   }
 

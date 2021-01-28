@@ -236,7 +236,15 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val mc = new ConsoleMetricQueryCollector(query, "test")
 //    val mc = NoMetricCollector
     class BenchTSDB
-        extends TSDB(TestSchema.schema, dao, metricDao, dictProvider, identity, SimpleTsdbConfig(putEnabled = true)) {
+        extends TSDB(
+          TestSchema.schema,
+          dao,
+          metricDao,
+          null,
+          dictProvider,
+          identity,
+          SimpleTsdbConfig(putEnabled = true)
+        ) {
       override def createMetricCollector(query: Query): MetricQueryCollector = {
         mc
       }

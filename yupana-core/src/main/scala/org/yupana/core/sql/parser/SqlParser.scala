@@ -27,12 +27,14 @@ object SqlParser {
   private def tablesWord[_: P] = P(IgnoreCase("TABLES"))
   private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[_: P] = P(IgnoreCase("QUERIES"))
+  private def invalidPeriodsWord[_: P] = P(IgnoreCase("INVALID_PERIODS"))
   private def queryWord[_: P] = P(IgnoreCase("QUERY"))
   private def fromWord[_: P] = P(IgnoreCase("FROM"))
   private def whereWord[_: P] = P(IgnoreCase("WHERE"))
   private def andWord[_: P] = P(IgnoreCase("AND"))
   private def orWord[_: P] = P(IgnoreCase("OR"))
   private def asWord[_: P] = P(IgnoreCase("AS"))
+  private def betweenWord[_: P] = P(IgnoreCase("BETWEEN"))
   private def groupWord[_: P] = P(IgnoreCase("GROUP"))
   private def byWord[_: P] = P(IgnoreCase("BY"))
   private def limitWord[_: P] = P(IgnoreCase("LIMIT"))
@@ -46,6 +48,7 @@ object SqlParser {
   private def nullWord[_: P] = P(IgnoreCase("NULL"))
   private def notWord[_: P] = P(IgnoreCase("NOT"))
   private def queryIdWord[_: P] = P(IgnoreCase("QUERY_ID"))
+  private def rollupTimeWord[_: P] = P(IgnoreCase("ROLLUP_TIME"))
   private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
   private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
@@ -242,14 +245,24 @@ object SqlParser {
     whereWord ~ (metricQueryIdFilter | metricStateFilter)
   )
 
+  def invalidPeriodsFilter[_: P]: P[TimestampPeriodValue] =
+    P(
+      whereWord ~ rollupTimeWord ~ betweenWord ~/ P(ValueParser.timestampValue) ~/ andWord ~/ P(
+        ValueParser.timestampValue
+      )
+    ).map(TimestampPeriodValue.tupled)
+
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
+
+  def invalidPeriods[_: P]: P[ShowInvalidPeriods] =
+    P(invalidPeriodsWord ~/ invalidPeriodsFilter).map(ShowInvalidPeriods)
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
   def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
 
-  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries | functions))
+  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries | functions | invalidPeriods))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 

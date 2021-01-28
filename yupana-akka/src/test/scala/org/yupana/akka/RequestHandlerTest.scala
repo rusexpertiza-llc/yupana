@@ -8,9 +8,9 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
-import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ QueryMetricsFilter, InvalidPeriodsDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
-import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
+import org.yupana.core.{ QueryContext, QueryEngine, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -201,12 +201,14 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
 
-  class MockedTsdb(metricsDao: TsdbQueryMetricsDao)
-      extends TSDB(SchemaRegistry.defaultSchema, null, metricsDao, null, identity, SimpleTsdbConfig())
+  class MockedTsdb(metricsDao: TsdbQueryMetricsDao, queryEngine: QueryEngine)
+      extends TSDB(SchemaRegistry.defaultSchema, null, metricsDao, queryEngine, null, identity, SimpleTsdbConfig())
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
-    val tsdb = new MockedTsdb(metricsDao)
+    val invalidPeriodsDao = mock[InvalidPeriodsDao]
+    val queryEngine = new QueryEngine(invalidPeriodsDao)
+    val tsdb = new MockedTsdb(metricsDao, queryEngine)
 
     val metrics = Seq(
       "create_dimensions_filters",
@@ -261,7 +263,9 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
   it should "handle kill query request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
-    val tsdb = new MockedTsdb(metricsDao)
+    val invalidPeriodsDao = mock[InvalidPeriodsDao]
+    val queryEngine = new QueryEngine(invalidPeriodsDao)
+    val tsdb = new MockedTsdb(metricsDao, queryEngine)
 
     (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some("12345"), None), QueryStates.Cancelled)
     val query = SqlQuery("KILL QUERY WHERE query_id = '12345'")
@@ -274,7 +278,9 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
   it should "handle delete query metrics request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
-    val tsdb = new MockedTsdb(metricsDao)
+    val invalidPeriodsDao = mock[InvalidPeriodsDao]
+    val queryEngine = new QueryEngine(invalidPeriodsDao)
+    val tsdb = new MockedTsdb(metricsDao, queryEngine)
 
     (metricsDao.deleteMetrics _).expects(QueryMetricsFilter(None, Some(QueryStates.Cancelled))).returning(8)
     val query = SqlQuery("DELETE QUERIES WHERE state = 'CANCELLED'")

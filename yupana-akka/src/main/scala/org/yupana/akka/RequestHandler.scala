@@ -70,6 +70,13 @@ class RequestHandler(schema: Schema) extends StrictLogging {
 
         case DeleteQueryMetrics(filter) =>
           Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(tsdb, filter)))
+
+        case ShowInvalidPeriods(rollupPeriod) =>
+          Right(
+            resultToProto(
+              InvalidPeriodsProvider.handleGetInvalidPeriods(tsdb, rollupPeriod.from.value, rollupPeriod.to.value)
+            )
+          )
       }
     }
   }
