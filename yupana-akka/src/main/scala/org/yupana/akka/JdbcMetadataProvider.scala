@@ -41,7 +41,13 @@ class JdbcMetadataProvider(schema: Schema) {
     "SQL_DATETIME_SUB",
     "CHAR_OCTET_LENGTH",
     "ORDINAL_POSITION",
-    "IS_NULLABLE"
+    "SCOPE_CATALOG",
+    "SCOPE_SCHEMA",
+    "SCOPE_TABLE",
+    "IS_NULLABLE",
+    "SOURCE_DATA_TYPE",
+    "IS_AUTOINCREMENT",
+    "IS_GENERATEDCOLUMN"
   )
 
   val tableFieldNames = List("TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "TABLE_TYPE", "REMARKS")
@@ -71,7 +77,7 @@ class JdbcMetadataProvider(schema: Schema) {
       SimpleResult(
         "COLUMNS",
         columnFieldNames,
-        columnFieldNames.map(n => if (n == "DATA_TYPE") DataType[Int] else DataType[String]),
+        columnFieldNames.map(toColumnType),
         data
       )
     } toRight s"Unknown schema '$tableName'"
@@ -106,7 +112,18 @@ class JdbcMetadataProvider(schema: Schema) {
       null,
       null,
       null,
-      null
+      null,
+      null,
+      null,
+      null,
+      sqlType,
+      "NO",
+      "NO"
     )
+  }
+
+  private def toColumnType(column: String): DataType = column match {
+    case "DATA_TYPE" | "SOURCE_DATA_TYPE" => DataType[Int]
+    case _                                => DataType[String]
   }
 }

@@ -143,7 +143,7 @@ examples/runMain org.yupana.examples.server.Main
 
 Приложение эмулирует добавление данных Yupana.  Данные генерируются случайным образом.
 
-Для запуска есть скрипт `deploy_etl.sh`. Подразумевается что Apache Spark установлен в `/opt/spark` или задана переменная
+Для запуска есть скрипт `deploy_etl.sh`. Подразумевается что Apache Spark со scala 2.12 установлен в `/opt/spark` или задана переменная
 окружения `SPARK_HOME`. Перед запуском скрипта необходимо собрать толстый JAR (в sbt `examples/assembly`).
 
 #### 3. QueryRunner <a href="#examples-query-runner"></a>
