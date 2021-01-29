@@ -92,7 +92,10 @@ HBase. Данные сохраняются в виде отдельных вре
 ### Подготовка окружения
 1. Установить hbase 1.3.x
 2. Для нативной поддержки snappy небходимо скопировать нативные библиотеки из сборки hadoop 2.7 в выбранную папку и 
-   добавить в hbase-env.sh команду `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/native/lib`
+   добавить в hbase-env.sh строки 
+   ```export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/native/lib
+      export JAVA_LIBRARY_PATH=$JAVA_LIBRARY_PATH:/path/to/native/lib
+   ```
 
 ### Запуск <a href="#examples"></a>
 
