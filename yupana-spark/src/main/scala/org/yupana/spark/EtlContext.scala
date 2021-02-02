@@ -33,7 +33,6 @@ class EtlContext(
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
     hbaseconf.set("zookeeper.session.timeout", 180000.toString)
-    hbaseconf.set("hbase.regions.initial.max", cfg.hbaseRegionInitialMax.toString)
     cfg.hbaseWriteBufferSize.foreach(x => hbaseconf.set("hbase.client.write.buffer", x.toString))
     hbaseconf
   }

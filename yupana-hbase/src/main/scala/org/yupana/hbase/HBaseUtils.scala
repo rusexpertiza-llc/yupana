@@ -17,8 +17,8 @@
 package org.yupana.hbase
 
 import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Table => _, _ }
@@ -322,13 +322,15 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def initStorage(connection: Connection, namespace: String, schema: Schema): Unit = {
+  def initStorage(connection: Connection, namespace: String, schema: Schema, config: Configuration): Unit = {
     checkNamespaceExistsElseCreate(connection, namespace)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
+    val maxRegions = config.getInt("hbase.regions.initial.max", 500)
+
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t)
+      checkTableExistsElseCreate(connection, namespace, t, maxRegions)
       checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
@@ -348,9 +350,13 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
+  def checkTableExistsElseCreate(
+      connection: Connection,
+      namespace: String,
+      table: Table,
+      maxRegions: Int = MAX_INITIAL_REGIONS
+  ): Unit = {
     val hbaseTable = tableName(namespace, table)
-    val maxRegions = connection.getConfiguration.getInt("hbase.regions.initial.max", MAX_INITIAL_REGIONS)
     using(connection.getAdmin) { admin =>
       if (!admin.tableExists(hbaseTable)) {
         val desc = new HTableDescriptor(hbaseTable)

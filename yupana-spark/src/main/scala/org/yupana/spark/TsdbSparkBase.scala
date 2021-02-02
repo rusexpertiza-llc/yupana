@@ -72,10 +72,14 @@ abstract class TsdbSparkBase(
 
   override val extractBatchSize: Int = conf.extractBatchSize
 
+  val hbaseConf = TsDaoHBaseSpark.hbaseConfiguration(conf)
+  conf.sparkConf.getAll.foreach { case (k, v) => hbaseConf.set(k, v) }
+
   HBaseUtils.initStorage(
-    ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
+    ConnectionFactory.createConnection(hbaseConf),
     conf.hbaseNamespace,
-    schema
+    schema,
+    hbaseConf
   )
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
