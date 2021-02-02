@@ -37,12 +37,14 @@ object Main extends StrictLogging {
 
     implicit val actorSystem: ActorSystem = ActorSystem("Yupana")
 
+    val hbaseRegionsMax = "hbase.regions.initial.max"
     val config = Config.create(ConfigFactory.load())
 
     val hbaseConfiguration = HBaseConfiguration.create()
     hbaseConfiguration.set("hbase.zookeeper.quorum", config.hbaseZookeeperUrl)
     hbaseConfiguration.set("zookeeper.session.timeout", "180000")
     hbaseConfiguration.set("hbase.client.scanner.timeout.period", "180000")
+    hbaseConfiguration.set(hbaseRegionsMax, config.properties.getProperty(hbaseRegionsMax))
     HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.properties)
 
     HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
