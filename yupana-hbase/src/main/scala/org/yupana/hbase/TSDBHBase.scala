@@ -36,7 +36,7 @@ object TSDBHBase {
       tsdbConfig: TsdbConfig
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
-    HBaseUtils.initStorage(connection, namespace, schema, config)
+    HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
 
     CacheFactory.init(properties, namespace)
 

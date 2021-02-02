@@ -41,7 +41,7 @@ import org.yupana.core.utils.metric.{
   PersistentMetricQueryCollector,
   QueryCollectorContext
 }
-import org.yupana.core.{ QueryContext, TsdbBase }
+import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
 object TsdbSparkBase {
@@ -73,13 +73,13 @@ abstract class TsdbSparkBase(
   override val extractBatchSize: Int = conf.extractBatchSize
 
   val hbaseConf = TsDaoHBaseSpark.hbaseConfiguration(conf)
-  conf.sparkConf.getAll.foreach { case (k, v) => hbaseConf.set(k, v) }
+  val tsdbConfig = SimpleTsdbConfig(maxRegions = hbaseConf.getInt("hbase.regions.initial.max", 500))
 
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(hbaseConf),
     conf.hbaseNamespace,
     schema,
-    hbaseConf
+    tsdbConfig
   )
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
