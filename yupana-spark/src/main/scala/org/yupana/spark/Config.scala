@@ -26,6 +26,7 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
   val hbaseZookeeper: String = sparkConf.get("hbase.zookeeper")
   val hbaseTimeout: Int = sparkConf.getInt("analytics.tsdb.rollup-job.hbase.timeout", 900000) // 15 minutes
   val hbaseNamespace: String = sparkConf.getOption("tsdb.hbase.namespace").getOrElse("default")
+  val hbaseRegionInitialMax = sparkConf.getInt("hbase.regions.initial.max", 500)
 
   val addHdfsToConfiguration: Boolean =
     sparkConf.getBoolean("analytics.jobs.add-hdfs-to-configuration", defaultValue = false)

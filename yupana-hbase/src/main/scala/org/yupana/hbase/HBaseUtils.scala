@@ -352,7 +352,7 @@ object HBaseUtils extends StrictLogging {
     val hbaseTable = tableName(namespace, table)
     val maxRegions = connection.getConfiguration.getInt("hbase.regions.initial.max", MAX_INITIAL_REGIONS)
     using(connection.getAdmin) { admin =>
-//      if (!admin.tableExists(hbaseTable)) {
+      if (!admin.tableExists(hbaseTable)) {
         val desc = new HTableDescriptor(hbaseTable)
         val fieldGroups = table.metrics.map(_.group).toSet
         fieldGroups foreach (group =>
@@ -370,9 +370,7 @@ object HBaseUtils extends StrictLogging {
           .toDateTime(DateTimeZone.UTC)
           .getMillis
         val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-        logger.warn(s"Regions on table: ${table.name} are $r")
         val regions = math.min(r, maxRegions)
-      if (!admin.tableExists(hbaseTable)) {
         admin.createTable(
           desc,
           Bytes.toBytes(baseTime(table.epochTime, table)),
