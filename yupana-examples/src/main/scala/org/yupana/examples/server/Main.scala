@@ -20,13 +20,13 @@ import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.HBaseAdmin
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
-import org.yupana.core.SimpleTsdbConfig
+import org.yupana.core.{ FlatQueryEngine, QueryEngineContainer, SimpleTsdbConfig, TimeSeriesQueryEngine }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
-import org.yupana.hbase.{ HdfsFileUtils, TSDBHBase }
+import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, InvalidPeriodsDaoHBase, TSDBHBase, TsdbQueryMetricsDaoHBase }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -61,16 +61,27 @@ object Main extends StrictLogging {
       .fold(msg => throw new RuntimeException(s"Cannot register JSON catalogs: $msg"), identity)
 
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
+    val connection = ConnectionFactory.createConnection(hbaseConfiguration)
+
+    val invalidPeriodsDao = new InvalidPeriodsDaoHBase(connection, config.hbaseNamespace)
+    val metricsDao = new TsdbQueryMetricsDaoHBase(connection, config.hbaseNamespace)
+    HBaseUtils.initStorage(connection, config.hbaseNamespace, schema)
 
     val tsdb =
       TSDBHBase(
-        hbaseConfiguration,
+        connection,
         config.hbaseNamespace,
         schemaWithJson,
         identity,
         config.properties,
-        tsdbConfig
+        tsdbConfig,
+        metricsDao
       )
+
+    val queryEngineContainer = new QueryEngineContainer(
+      new TimeSeriesQueryEngine(tsdb),
+      new FlatQueryEngine(metricsDao, invalidPeriodsDao)
+    );
     logger.info("Registering catalogs")
     val elRegistrator =
       new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
@@ -78,7 +89,7 @@ object Main extends StrictLogging {
     logger.info("Registering catalogs done")
 
     val requestHandler = new RequestHandler(schemaWithJson)
-    new TsdbTcp(tsdb, requestHandler, config.host, config.port, 1, 0, "1.0")
+    new TsdbTcp(queryEngineContainer, requestHandler, config.host, config.port, 1, 0, "1.0")
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
 
     Await.ready(actorSystem.whenTerminated, Duration.Inf)

@@ -240,7 +240,6 @@ class TsdbBenchmark extends FlatSpec with Matchers {
           TestSchema.schema,
           dao,
           metricDao,
-          null,
           dictProvider,
           identity,
           SimpleTsdbConfig(putEnabled = true)

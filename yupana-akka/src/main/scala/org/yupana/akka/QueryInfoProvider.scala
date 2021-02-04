@@ -16,7 +16,7 @@
 
 package org.yupana.akka
 
-import org.yupana.core.TSDB
+import org.yupana.core.FlatQueryEngine
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
@@ -33,11 +33,15 @@ object QueryInfoProvider {
     )
   }
 
-  def handleShowQueries(tsdb: TSDB, sqlFilter: Option[MetricsFilter], limit: Option[Int]): Result = {
+  def handleShowQueries(
+      flatQueryEngine: FlatQueryEngine,
+      sqlFilter: Option[MetricsFilter],
+      limit: Option[Int]
+  ): Result = {
     import org.yupana.core.model.TsdbQueryMetrics._
 
     val filter = sqlFilter.map(getFilter)
-    val metrics = tsdb.metricsDao.queriesByFilter(filter, limit)
+    val metrics = flatQueryEngine.queriesByFilter(filter, limit)
     val data: Iterator[Array[Any]] = metrics.map { queryMetrics =>
       Array[Any](
         queryMetrics.queryId,
@@ -79,13 +83,13 @@ object QueryInfoProvider {
     SimpleResult("QUERIES", queryFieldNames, queryFieldTypes, data)
   }
 
-  def handleKillQuery(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
-    tsdb.metricsDao.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
+  def handleKillQuery(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
+    flatQueryEngine.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
     SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
   }
 
-  def handleDeleteQueryMetrics(tsdb: TSDB, sqlFilter: MetricsFilter): Result = {
-    val deleted = tsdb.metricsDao.deleteMetrics(getFilter(sqlFilter))
+  def handleDeleteQueryMetrics(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
+    val deleted = flatQueryEngine.deleteMetrics(getFilter(sqlFilter))
     SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(deleted)))
   }
 }

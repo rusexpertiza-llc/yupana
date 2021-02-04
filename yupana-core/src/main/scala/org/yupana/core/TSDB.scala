@@ -29,7 +29,6 @@ class TSDB(
     override val schema: Schema,
     override val dao: TSDao[Iterator, Long],
     val metricsDao: TsdbQueryMetricsDao,
-    val queryEngine: QueryEngine,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
     config: TsdbConfig

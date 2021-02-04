@@ -12,7 +12,7 @@ import org.yupana.schema.{ Dimensions, Tables }
 class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
 
-  class MockedTsdb extends TSDB(TestSchema.schema, null, null, null, null, identity, SimpleTsdbConfig())
+  class MockedTsdb extends TSDB(TestSchema.schema, null, null, null, identity, SimpleTsdbConfig())
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {
     val tsdb = mock[MockedTsdb]

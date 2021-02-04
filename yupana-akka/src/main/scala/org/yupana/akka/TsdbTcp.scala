@@ -17,13 +17,12 @@
 package org.yupana.akka
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.TSDB
+import org.yupana.core.QueryEngineContainer
 import org.yupana.proto.{ Request, Response }
 
 import scala.concurrent.Future
@@ -31,7 +30,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
 class TsdbTcp(
-    tsdb: TSDB,
+    queryEngineContainer: QueryEngineContainer,
     requestHandler: RequestHandler,
     host: String,
     port: Int,
@@ -89,13 +88,13 @@ class TsdbTcp(
       }
       .mapAsync(1) {
         case Request(Request.Req.Ping(ping)) =>
-          Future.successful(requestHandler.handlePingProto(tsdb, ping, majorVersion, minorVersion, version))
+          Future.successful(requestHandler.handlePingProto(ping, majorVersion, minorVersion, version))
 
         case Request(Request.Req.SqlQuery(sqlQuery)) =>
-          requestHandler.handleQuery(tsdb, sqlQuery)
+          requestHandler.handleQuery(queryEngineContainer, sqlQuery)
 
         case Request(Request.Req.BatchSqlQuery(batchSqlQuery)) =>
-          requestHandler.handleBatchQuery(tsdb, batchSqlQuery)
+          requestHandler.handleBatchQuery(queryEngineContainer.timeSeriesQueryEngine, batchSqlQuery)
 
         case Request(Request.Req.Empty) =>
           val error = "Got empty request"

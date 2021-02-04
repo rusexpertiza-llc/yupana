@@ -21,9 +21,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.DataType
-import org.yupana.core.TSDB
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
+import org.yupana.core.{ QueryEngineContainer, TimeSeriesQueryEngine }
 import org.yupana.proto
 import org.yupana.proto.util.ProtocolVersion
 
@@ -34,7 +34,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
   private val sqlQueryProcessor = new SqlQueryProcessor(schema)
   private val metadataProvider = new JdbcMetadataProvider(schema)
 
-  def handleQuery(tsdb: TSDB, sqlQuery: proto.SqlQuery)(
+  def handleQuery(queryEngineContainer: QueryEngineContainer, sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
 
@@ -48,13 +48,13 @@ class RequestHandler(schema: Schema) extends StrictLogging {
           val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
           val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
           tsdbQuery.right flatMap { query =>
-            val rs = tsdb.query(query)
+            val rs = queryEngineContainer.timeSeriesQueryEngine.query(query)
             Right(resultToProto(rs))
           }
 
         case upsert: Upsert =>
           val params = Seq(sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap)
-          doUpsert(tsdb, upsert, params)
+          doUpsert(queryEngineContainer.timeSeriesQueryEngine, upsert, params)
 
         case ShowTables => Right(resultToProto(metadataProvider.listTables))
 
@@ -63,25 +63,29 @@ class RequestHandler(schema: Schema) extends StrictLogging {
         case ShowFunctions(typeName) => metadataProvider.listFunctions(typeName).right map resultToProto
 
         case ShowQueryMetrics(filter, limit) =>
-          Right(resultToProto(QueryInfoProvider.handleShowQueries(tsdb, filter, limit)))
+          Right(resultToProto(QueryInfoProvider.handleShowQueries(queryEngineContainer.flatQueryEngine, filter, limit)))
 
         case KillQuery(filter) =>
-          Right(resultToProto(QueryInfoProvider.handleKillQuery(tsdb, filter)))
+          Right(resultToProto(QueryInfoProvider.handleKillQuery(queryEngineContainer.flatQueryEngine, filter)))
 
         case DeleteQueryMetrics(filter) =>
-          Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(tsdb, filter)))
+          Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(queryEngineContainer.flatQueryEngine, filter)))
 
         case ShowInvalidPeriods(rollupPeriod) =>
           Right(
             resultToProto(
-              InvalidPeriodsProvider.handleGetInvalidPeriods(tsdb, rollupPeriod.from.value, rollupPeriod.to.value)
+              InvalidPeriodsProvider.handleGetInvalidPeriods(
+                queryEngineContainer.flatQueryEngine,
+                rollupPeriod.from.value,
+                rollupPeriod.to.value
+              )
             )
           )
       }
     }
   }
 
-  def handleBatchQuery(tsdb: TSDB, batchSqlQuery: proto.BatchSqlQuery)(
+  def handleBatchQuery(timeSeriesQueryEngine: TimeSeriesQueryEngine, batchSqlQuery: proto.BatchSqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"Processing batch SQL ${batchSqlQuery.sql} with ${batchSqlQuery.batch.size}")
@@ -90,7 +94,7 @@ class RequestHandler(schema: Schema) extends StrictLogging {
       SqlParser.parse(batchSqlQuery.sql).right.flatMap {
         case upsert: Upsert =>
           val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
-          doUpsert(tsdb, upsert, params)
+          doUpsert(timeSeriesQueryEngine, upsert, params)
 
         case _ => Left(s"Only UPSERT can have batch parameters, but got ${batchSqlQuery.sql}")
       }
@@ -98,7 +102,6 @@ class RequestHandler(schema: Schema) extends StrictLogging {
   }
 
   def handlePingProto(
-      tsdb: TSDB,
       ping: proto.Ping,
       majorVersion: Int,
       minorVersion: Int,
@@ -125,12 +128,12 @@ class RequestHandler(schema: Schema) extends StrictLogging {
   }
 
   private def doUpsert(
-      tsdb: TSDB,
+      timeSeriesQueryEngine: TimeSeriesQueryEngine,
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
   ): Either[String, Iterator[proto.Response]] = {
     sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
-      tsdb.put(dps)
+      timeSeriesQueryEngine.put(dps)
       Right(
         resultToProto(SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK"))))
       )

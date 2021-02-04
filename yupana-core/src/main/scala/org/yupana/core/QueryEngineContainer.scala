@@ -16,10 +16,4 @@
 
 package org.yupana.core
 
-import org.yupana.core.dao.InvalidPeriodsDao
-
-class QueryEngine(val invalidPeriodsDao: InvalidPeriodsDao) {
-  def execute[T](query: QueryEngine => T): T = {
-    query(this)
-  }
-}
+class QueryEngineContainer(val timeSeriesQueryEngine: TimeSeriesQueryEngine, val flatQueryEngine: FlatQueryEngine)

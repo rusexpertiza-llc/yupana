@@ -20,17 +20,18 @@ import org.joda.time.LocalDateTime
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.TSDB
-import org.yupana.core.model.InvalidPeriod
+import org.yupana.core.FlatQueryEngine
 
 object InvalidPeriodsProvider {
 
-  def handleGetInvalidPeriods(tsdb: TSDB, rollupDateFrom: LocalDateTime, rollupDateTo: LocalDateTime): Result = {
+  def handleGetInvalidPeriods(
+      flatQueryEngine: FlatQueryEngine,
+      rollupDateFrom: LocalDateTime,
+      rollupDateTo: LocalDateTime
+  ): Result = {
     import org.yupana.core.model.InvalidPeriod._
 
-    val invalidPeriods = tsdb.queryEngine.execute[Iterable[InvalidPeriod]] { queryEngine =>
-      queryEngine.invalidPeriodsDao.getInvalidPeriods(rollupDateFrom, rollupDateTo)
-    }
+    val invalidPeriods = flatQueryEngine.getInvalidPeriods(rollupDateFrom, rollupDateTo)
     val data: Iterator[Array[Any]] = invalidPeriods.map { period =>
       Array[Any](
         Time(period.rollupTime),

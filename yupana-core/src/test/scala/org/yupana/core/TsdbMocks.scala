@@ -4,11 +4,11 @@ import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, InvalidPeriodsDao, TsdbQueryMetricsDao }
+import org.yupana.api.utils.ConditionMatchers._
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMetricsDao }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
-import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.utils.RussianTokenizer
@@ -43,8 +43,6 @@ trait TsdbMocks extends MockFactory {
   def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
     val tsdbDaoMock = mock[TSTestDao]
     val metricsDaoMock = mock[TsdbQueryMetricsDao]
-    val invalidPeriodsDaoMock = mock[InvalidPeriodsDao]
-    val queryEngine = new QueryEngine(invalidPeriodsDaoMock)
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
       .onCall((c: Condition) =>
@@ -94,7 +92,6 @@ trait TsdbMocks extends MockFactory {
         TestSchema.schema,
         tsdbDaoMock,
         metricsDaoMock,
-        queryEngine,
         dictionaryProvider,
         identity,
         SimpleTsdbConfig()
