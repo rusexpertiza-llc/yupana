@@ -21,12 +21,14 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
-import org.yupana.akka.{ RequestHandler, TsdbTcp }
-import org.yupana.core.{ FlatQueryEngine, QueryEngineContainer, SimpleTsdbConfig, TimeSeriesQueryEngine }
+import org.yupana.akka.TsdbTcp
+import org.yupana.core.providers.JdbcMetadataProvider
+import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
-import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, InvalidPeriodsDaoHBase, TSDBHBase, TsdbQueryMetricsDaoHBase }
+import org.yupana.hbase._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -78,18 +80,19 @@ object Main extends StrictLogging {
         metricsDao
       )
 
-    val queryEngineContainer = new QueryEngineContainer(
+    val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
-      new FlatQueryEngine(metricsDao, invalidPeriodsDao)
-    );
+      new FlatQueryEngine(metricsDao, invalidPeriodsDao),
+      new JdbcMetadataProvider(schemaWithJson),
+      new SqlQueryProcessor(schemaWithJson)
+    )
     logger.info("Registering catalogs")
     val elRegistrator =
       new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val requestHandler = new RequestHandler(schemaWithJson)
-    new TsdbTcp(queryEngineContainer, requestHandler, config.host, config.port, 1, 0, "1.0")
+    new TsdbTcp(queryEngineRouter, config.host, config.port, 1, 0, "1.0")
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
 
     Await.ready(actorSystem.whenTerminated, Duration.Inf)

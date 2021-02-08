@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.akka
+package org.yupana.core.providers
 
 import org.joda.time.LocalDateTime
 import org.yupana.api.Time

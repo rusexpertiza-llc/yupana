@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.akka
+package org.yupana.core.providers
 
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.schema.Schema
