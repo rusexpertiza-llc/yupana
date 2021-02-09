@@ -1,21 +1,21 @@
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{ConnectionFactory, HBaseAdmin, Scan, Result => HResult}
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
-import org.joda.time.{DateTimeZone, LocalDateTime}
+import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
+import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
-import org.yupana.api.schema.{Dimension, Schema, Table}
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.model._
-import org.yupana.core.utils.metric.{ConsoleMetricQueryCollector, MetricQueryCollector}
+import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 
 import java.util.Properties
 import scala.util.Random
