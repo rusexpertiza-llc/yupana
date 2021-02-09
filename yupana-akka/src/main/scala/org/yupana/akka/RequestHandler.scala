@@ -35,7 +35,7 @@ class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging
 
     Future {
       val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
-      queryEngineRouter.query(sqlQuery.sql, params).map(resultToProto(_))
+      queryEngineRouter.query(sqlQuery.sql, params).right.map(resultToProto)
     }
   }
 
@@ -46,7 +46,7 @@ class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging
 
     Future {
       val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
-      queryEngineRouter.batchQuery(batchSqlQuery.sql, params).map(resultToProto(_))
+      queryEngineRouter.batchQuery(batchSqlQuery.sql, params).right.map(resultToProto)
     }
   }
 
