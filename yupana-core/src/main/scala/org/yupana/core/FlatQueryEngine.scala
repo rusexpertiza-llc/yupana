@@ -17,13 +17,14 @@
 package org.yupana.core
 
 import org.joda.time.LocalDateTime
-import org.yupana.core.dao.{ InvalidPeriodsDao, QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.api.schema.Table
+import org.yupana.core.dao.{ RollupMetaDao, QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ InvalidPeriod, TsdbQueryMetrics }
 
-class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, invalidPeriodsDao: InvalidPeriodsDao) {
+class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
   def getInvalidPeriods(rollupDateFrom: LocalDateTime, rollupDateTo: LocalDateTime): Iterable[InvalidPeriod] = {
-    invalidPeriodsDao.getInvalidPeriods(rollupDateFrom, rollupDateTo)
+    rollupMetaDao.getInvalidPeriods(rollupDateFrom, rollupDateTo)
   }
 
   def deleteMetrics(filter: QueryMetricsFilter): Int = {
@@ -36,5 +37,13 @@ class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, invalidPeriodsDao: Invali
 
   def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] = {
     metricsDao.queriesByFilter(filter, limit)
+  }
+
+  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table) = {
+    rollupMetaDao.putRollupStatuses(statuses, table)
+  }
+
+  def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
+    rollupMetaDao.getRollupSpecialField(fieldName, table)
   }
 }

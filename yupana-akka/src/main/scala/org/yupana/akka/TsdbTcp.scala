@@ -21,7 +21,6 @@ import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
 import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.QueryEngineRouter
 import org.yupana.proto.{ Request, Response }
 
 import java.util.concurrent.atomic.AtomicInteger
@@ -30,7 +29,7 @@ import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
 class TsdbTcp(
-    queryEngineRouter: QueryEngineRouter,
+    requestHandler: RequestHandler,
     host: String,
     port: Int,
     majorVersion: Int,
@@ -87,13 +86,13 @@ class TsdbTcp(
       }
       .mapAsync(1) {
         case Request(Request.Req.Ping(ping)) =>
-          Future.successful(RequestHandler.handlePingProto(ping, majorVersion, minorVersion, version))
+          Future.successful(requestHandler.handlePingProto(ping, majorVersion, minorVersion, version))
 
         case Request(Request.Req.SqlQuery(sqlQuery)) =>
-          RequestHandler.handleQuery(queryEngineRouter, sqlQuery)
+          requestHandler.handleQuery(sqlQuery)
 
         case Request(Request.Req.BatchSqlQuery(batchSqlQuery)) =>
-          RequestHandler.handleBatchQuery(queryEngineRouter, batchSqlQuery)
+          requestHandler.handleBatchQuery(batchSqlQuery)
 
         case Request(Request.Req.Empty) =>
           val error = "Got empty request"

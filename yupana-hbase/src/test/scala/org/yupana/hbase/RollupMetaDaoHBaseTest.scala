@@ -4,12 +4,12 @@ import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.joda.time.{ Interval, LocalDateTime }
 import org.scalatest.{ FlatSpecLike, GivenWhenThen, Matchers }
 
-trait InvalidPeriodsDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers with GivenWhenThen {
+trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers with GivenWhenThen {
 
   private lazy val hbaseConnection = ConnectionFactory.createConnection(getConfiguration)
 
-  "InvalidPeriodsDaoHBase" should "handle invalid periods" in {
-    val dao = new InvalidPeriodsDaoHBase(hbaseConnection, "test")
+  "RollupMetaDaoHBase" should "handle invalid periods" in {
+    val dao = new RollupMetaDaoHBase(hbaseConnection, "test")
 
     val invalidPeriods = List(
       Interval.parse("2020-01-01T13:00:00Z/2020-02-01T13:00:00Z"),

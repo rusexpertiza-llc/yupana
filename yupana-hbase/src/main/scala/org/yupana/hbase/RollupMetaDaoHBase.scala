@@ -18,19 +18,28 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
+import org.apache.hadoop.hbase.client.{ Table => HTable }
 import org.apache.hadoop.hbase.filter.{ CompareFilter, Filter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
+import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor, TableExistsException, TableName }
 import org.joda.time.{ DateTime, Interval, LocalDateTime }
+import org.yupana.api.schema.Table
 import org.yupana.api.utils.ResourceUtils.using
-import org.yupana.core.dao.InvalidPeriodsDao
+import org.yupana.core.dao.RollupMetaDao
 import org.yupana.core.model.InvalidPeriod
 import org.yupana.core.model.InvalidPeriod._
-import org.yupana.hbase.InvalidPeriodsDaoHBase._
+import org.yupana.hbase.HBaseUtils.{
+  checkRollupStatusFamilyExistsElseCreate,
+  rollupSpecialKey,
+  rollupStatusFamily,
+  rollupStatusField,
+  tableName
+}
+import org.yupana.hbase.RollupMetaDaoHBase._
 
 import scala.collection.JavaConverters._
 
-object InvalidPeriodsDaoHBase {
+object RollupMetaDaoHBase {
   val TABLE_NAME: String = "ts_invalid_periods"
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
   val ROLLUP_TIME_QUALIFIER: Array[Byte] = Bytes.toBytes(rollupTimeColumn)
@@ -40,7 +49,7 @@ object InvalidPeriodsDaoHBase {
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 }
 
-class InvalidPeriodsDaoHBase(connection: Connection, namespace: String) extends InvalidPeriodsDao with StrictLogging {
+class RollupMetaDaoHBase(connection: Connection, namespace: String) extends RollupMetaDao with StrictLogging {
 
   override def putInvalidPeriods(intervals: Seq[Interval]): Unit = withTables {
     val rollupTime = DateTime.now()
@@ -90,12 +99,78 @@ class InvalidPeriodsDaoHBase(connection: Connection, namespace: String) extends 
     )
   }
 
+  override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = {
+    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val scan = new Scan()
+        .addColumn(rollupStatusFamily, rollupStatusField)
+        .setStartRow(Bytes.toBytes(fromTime))
+        .setStopRow(Bytes.toBytes(toTime))
+      using(hbaseTable.getScanner(scan)) { scanner =>
+        scanner.asScala.toIterator.flatMap { result =>
+          val time = Bytes.toLong(result.getRow)
+          val value = Option(result.getValue(rollupStatusFamily, rollupStatusField)).map(Bytes.toString)
+          value.map(v => time -> v)
+        }.toSeq
+      }
+    }
+  }
+
+  override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
+    if (statuses.nonEmpty) {
+      checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
+      using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+        val puts = statuses.map(status =>
+          new Put(Bytes.toBytes(status._1))
+            .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
+        )
+        hbaseTable.put(puts.asJava)
+      }
+    }
+  }
+
+  override def checkAndPutRollupStatus(
+      time: Long,
+      oldStatus: Option[String],
+      newStatus: String,
+      table: Table
+  ): Boolean = {
+    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      hbaseTable.checkAndPut(
+        Bytes.toBytes(time),
+        rollupStatusFamily,
+        rollupStatusField,
+        oldStatus.map(_.getBytes).orNull,
+        new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
+      )
+    }
+  }
+
+  override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
+    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val get = new Get(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes)
+      val res = hbaseTable.get(get)
+      val cell = Option(res.getColumnLatestCell(rollupStatusFamily, fieldName.getBytes))
+      cell.map(c => Bytes.toLong(CellUtil.cloneValue(c)))
+    }
+  }
+
+  override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = {
+    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
+    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+      val put: Put = new Put(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes, Bytes.toBytes(value))
+      hbaseTable.put(put)
+    }
+  }
+
   def withTables[T](block: => T): T = {
     checkTablesExistsElseCreate()
     block
   }
 
-  private def getTable: Table = connection.getTable(getTableName(namespace))
+  private def getTable: HTable = connection.getTable(getTableName(namespace))
 
   private def checkTablesExistsElseCreate(): Unit = {
     try {

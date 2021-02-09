@@ -8,7 +8,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
-import org.yupana.core.dao.{ InvalidPeriodsDao, QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ RollupMetaDao, QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
@@ -29,7 +29,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
   "RequestHandler" should "send version on ping" in {
     val ping = Ping(1234567L, Some(Version(ProtocolVersion.value, 3, 1, "3.1.3-SNAPSHOT")))
-    val resp = RequestHandler.handlePingProto(ping, 4, 2, "4.2.1").right.value.next()
+    val requestHandler = new RequestHandler(mock[QueryEngineRouter])
+    val resp = requestHandler.handlePingProto(ping, 4, 2, "4.2.1").right.value.next()
 
     inside(resp) {
       case Response(Response.Resp.Pong(Pong(reqTime, _, Some(version)))) =>
@@ -40,7 +41,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
   it should "provide error on incorrect protocol version" in {
     val ping = Ping(1234567L, Some(Version(ProtocolVersion.value - 1, 2, 2, "2.2.2")))
-    val err = RequestHandler.handlePingProto(ping, 4, 2, "4.2.1").left.value
+    val requestHandler = new RequestHandler(mock[QueryEngineRouter])
+    val err = requestHandler.handlePingProto(ping, 4, 2, "4.2.1").left.value
 
     err shouldEqual s"Incompatible protocols: driver protocol ${ProtocolVersion.value - 1}, server protocol ${ProtocolVersion.value}"
   }
@@ -92,7 +94,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         )
       )
 
-    val resp = Await.result(RequestHandler.handleQuery(queryEngineRouter, query), 20.seconds).right.value
+    val requestHandler = new RequestHandler(queryEngineRouter)
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value
 
     resp.next() shouldEqual Response(
       Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("item", "VARCHAR")), Some("items_kkm")))
@@ -122,8 +125,9 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       )
     )
 
+    val requestHandler = new RequestHandler(queryEngineRouter)
     an[IllegalArgumentException] should be thrownBy Await.result(
-      RequestHandler.handleQuery(queryEngineRouter, query),
+      requestHandler.handleQuery(query),
       20.seconds
     )
   }
@@ -191,8 +195,9 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       )
     )
 
+    val requestHandler = new RequestHandler(queryEngineRouter)
     val resp =
-      Await.result(RequestHandler.handleBatchQuery(queryEngineRouter, query), 20.seconds).right.value.toList
+      Await.result(requestHandler.handleBatchQuery(query), 20.seconds).right.value.toList
 
     resp should contain theSameElementsInOrderAs Seq(
       Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
@@ -223,7 +228,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     )
     val query = SqlQuery("SHOW TABLES")
 
-    val resp = Await.result(RequestHandler.handleQuery(queryEngineRouter, query), 20.seconds).right.value.toList
+    val requestHandler = new RequestHandler(queryEngineRouter)
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
 
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
@@ -235,7 +241,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val metricsDao = mock[TsdbQueryMetricsDao]
     val queryEngineRouter = new QueryEngineRouter(
       mock[TimeSeriesQueryEngine],
-      new FlatQueryEngine(metricsDao, mock[InvalidPeriodsDao]),
+      new FlatQueryEngine(metricsDao, mock[RollupMetaDao]),
       jdbcMetadataProvider,
       sqlQueryProcessor
     )
@@ -276,7 +282,8 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
         )
       )
     val query = SqlQuery("SHOW QUERIES LIMIT 3")
-    val resp = Await.result(RequestHandler.handleQuery(queryEngineRouter, query), 20.seconds).right.value.toList
+    val requestHandler = new RequestHandler(queryEngineRouter)
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
 
     resp should have size 3
     val fields = resp(0).getResultHeader.fields.map(_.name)
@@ -295,14 +302,15 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val metricsDao = mock[TsdbQueryMetricsDao]
     val queryEngineRouter = new QueryEngineRouter(
       mock[TimeSeriesQueryEngine],
-      new FlatQueryEngine(metricsDao, mock[InvalidPeriodsDao]),
+      new FlatQueryEngine(metricsDao, mock[RollupMetaDao]),
       jdbcMetadataProvider,
       sqlQueryProcessor
     )
 
     (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some("12345"), None), QueryStates.Cancelled)
     val query = SqlQuery("KILL QUERY WHERE query_id = '12345'")
-    val resp = Await.result(RequestHandler.handleQuery(queryEngineRouter, query), 20.seconds).right.value.toList
+    val requestHandler = new RequestHandler(queryEngineRouter)
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))
@@ -313,14 +321,15 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val metricsDao = mock[TsdbQueryMetricsDao]
     val queryEngineRouter = new QueryEngineRouter(
       mock[TimeSeriesQueryEngine],
-      new FlatQueryEngine(metricsDao, mock[InvalidPeriodsDao]),
+      new FlatQueryEngine(metricsDao, mock[RollupMetaDao]),
       jdbcMetadataProvider,
       sqlQueryProcessor
     )
 
     (metricsDao.deleteMetrics _).expects(QueryMetricsFilter(None, Some(QueryStates.Cancelled))).returning(8)
     val query = SqlQuery("DELETE QUERIES WHERE state = 'CANCELLED'")
-    val resp = Await.result(RequestHandler.handleQuery(queryEngineRouter, query), 20.seconds).right.value.toList
+    val requestHandler = new RequestHandler(queryEngineRouter)
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
 
     resp(1) shouldEqual Response(
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[Int]].write(8)))))

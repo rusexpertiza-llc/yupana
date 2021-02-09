@@ -26,9 +26,9 @@ import org.yupana.proto.util.ProtocolVersion
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-object RequestHandler extends StrictLogging {
+class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging {
 
-  def handleQuery(queryEngineRouter: QueryEngineRouter, sqlQuery: proto.SqlQuery)(
+  def handleQuery(sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}""")
@@ -39,7 +39,7 @@ object RequestHandler extends StrictLogging {
     }
   }
 
-  def handleBatchQuery(queryEngineRouter: QueryEngineRouter, batchSqlQuery: proto.BatchSqlQuery)(
+  def handleBatchQuery(batchSqlQuery: proto.BatchSqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"Processing batch SQL ${batchSqlQuery.sql} with ${batchSqlQuery.batch.size}")

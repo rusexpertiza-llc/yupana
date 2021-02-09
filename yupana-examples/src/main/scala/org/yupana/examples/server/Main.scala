@@ -21,7 +21,7 @@ import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
-import org.yupana.akka.TsdbTcp
+import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
@@ -65,7 +65,7 @@ object Main extends StrictLogging {
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
 
-    val invalidPeriodsDao = new InvalidPeriodsDaoHBase(connection, config.hbaseNamespace)
+    val rollupMetaDao = new RollupMetaDaoHBase(connection, config.hbaseNamespace)
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, config.hbaseNamespace)
     HBaseUtils.initStorage(connection, config.hbaseNamespace, schema)
 
@@ -82,7 +82,7 @@ object Main extends StrictLogging {
 
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
-      new FlatQueryEngine(metricsDao, invalidPeriodsDao),
+      new FlatQueryEngine(metricsDao, rollupMetaDao),
       new JdbcMetadataProvider(schemaWithJson),
       new SqlQueryProcessor(schemaWithJson)
     )
@@ -92,7 +92,8 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    new TsdbTcp(queryEngineRouter, config.host, config.port, 1, 0, "1.0")
+    val requestHandler = new RequestHandler(queryEngineRouter)
+    new TsdbTcp(requestHandler, config.host, config.port, 1, 0, "1.0")
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
 
     Await.ready(actorSystem.whenTerminated, Duration.Inf)
