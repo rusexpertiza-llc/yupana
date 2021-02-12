@@ -22,17 +22,17 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.FlatQueryEngine
 
-object InvalidPeriodsProvider {
+object RecalculatedPeriodsProvider {
+  import org.yupana.core.model.RecalculatedPeriod._
 
-  def handleGetInvalidPeriods(
+  def handleGetRecalculatedPeriods(
       flatQueryEngine: FlatQueryEngine,
       rollupDateFrom: LocalDateTime,
       rollupDateTo: LocalDateTime
   ): Result = {
-    import org.yupana.core.model.InvalidPeriod._
 
-    val invalidPeriods = flatQueryEngine.getInvalidPeriods(rollupDateFrom, rollupDateTo)
-    val data: Iterator[Array[Any]] = invalidPeriods.map { period =>
+    val recalculatedPeriods = flatQueryEngine.getRecalculatedPeriods(rollupDateFrom, rollupDateTo)
+    val data: Iterator[Array[Any]] = recalculatedPeriods.map { period =>
       Array[Any](
         Time(period.rollupTime),
         Time(period.from),
@@ -52,6 +52,25 @@ object InvalidPeriodsProvider {
       DataType[Time]
     )
 
-    SimpleResult("INVALID_INTERVALS", queryFieldNames, queryFieldTypes, data)
+    SimpleResult("RECALCULATED_INTERVALS", queryFieldNames, queryFieldTypes, data)
+  }
+
+  def handleGetInvalidatedBaseTimes(flatQueryEngine: FlatQueryEngine): Result = {
+    val invalidatedBaseTimes = flatQueryEngine.getInvalidatedBaseTimes
+    val data: Iterator[Array[Any]] = invalidatedBaseTimes.map { baseTime =>
+      Array[Any](
+        Time(baseTime)
+      )
+    }.iterator
+
+    val queryFieldNames = List(
+      fromColumn
+    )
+
+    val queryFieldTypes = List(
+      DataType[Time]
+    )
+
+    SimpleResult("INVALIDATED_BASE_TIMES", queryFieldNames, queryFieldTypes, data)
   }
 }

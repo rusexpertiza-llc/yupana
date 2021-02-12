@@ -65,6 +65,7 @@ object ETLFunctions extends StrictLogging {
         .toSeq
 
       rollupMetaDao.putRollupStatuses(rollupStatuses, table)
+      rollupMetaDao.putInvalidatedBaseTimes(rollupStatuses.map(_._1).toSet)
     }
   }
 

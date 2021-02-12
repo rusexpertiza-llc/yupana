@@ -962,12 +962,18 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
   }
 
-  it should "parse SHOW INVALID_PERIODS statements" in {
+  it should "parse SHOW RECALCULATED_PERIODS statements" in {
     val t = LocalDateTime.now().withMillisOfDay(0)
     SqlParser.parse(
-      "SHOW INVALID_PERIODS " +
+      "SHOW RECALCULATED_PERIODS " +
         s"WHERE ROLLUP_TIME BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}' AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'"
-    ) shouldBe Right(ShowInvalidPeriods(TimestampPeriodValue(TimestampValue(t), TimestampValue(t))))
+    ) shouldBe Right(ShowRecalculatedPeriods(TimestampPeriodValue(TimestampValue(t), TimestampValue(t))))
+  }
+
+  it should "parse SHOW INVALIDATED_BASE_TIMES statements" in {
+    SqlParser.parse(
+      "SHOW INVALIDATED_BASE_TIMES"
+    ) shouldBe Right(ShowInvalidatedBaseTimes())
   }
 
   it should "support functions as conditions" in {
@@ -1130,7 +1136,7 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     errorMessage("SHOW cartoons") {
       case msg =>
         msg should include(
-          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "INVALID_PERIODS"), but got "cartoons"""
+          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "RECALCULATED_PERIODS" | "INVALIDATED_BASE_TIMES"), but got "cartoons"""
         )
     }
   }

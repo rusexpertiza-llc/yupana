@@ -16,11 +16,10 @@
 
 package org.yupana.core.model
 
-import org.joda.time.DateTime
+case class RecalculatedPeriod(rollupTime: Long, from: Long, to: Long)
 
-case class InvalidPeriod(rollupTime: DateTime, from: DateTime, to: DateTime)
-
-object InvalidPeriod {
+object RecalculatedPeriod {
+  val invalidatedFlagColumn = "invalidated_flag"
   val rollupTimeColumn = "rollup_time"
   val fromColumn = "from"
   val toColumn = "to"

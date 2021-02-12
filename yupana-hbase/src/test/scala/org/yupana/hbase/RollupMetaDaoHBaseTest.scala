@@ -1,8 +1,9 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.joda.time.{ Interval, LocalDateTime }
+import org.joda.time.{ DateTime, LocalDateTime }
 import org.scalatest.{ FlatSpecLike, GivenWhenThen, Matchers }
+import org.yupana.hbase.HBaseUtilsTest.TestTable
 
 trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers with GivenWhenThen {
 
@@ -11,22 +12,35 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
   "RollupMetaDaoHBase" should "handle invalid periods" in {
     val dao = new RollupMetaDaoHBase(hbaseConnection, "test")
 
-    val invalidPeriods = List(
-      Interval.parse("2020-01-01T13:00:00Z/2020-02-01T13:00:00Z"),
-      Interval.parse("2020-01-11T13:00:00Z/2020-12-01T13:00:00Z")
+    val baseTimes = Set(
+      HBaseUtils.baseTime(DateTime.now().withDayOfMonth(3).getMillis, TestTable),
+      HBaseUtils.baseTime(DateTime.now().withDayOfMonth(4).getMillis, TestTable)
     )
-    When("invalid periods was put")
-    dao.putInvalidPeriods(invalidPeriods)
+    When("invalid baseTimes was put")
+    dao.putInvalidatedBaseTimes(baseTimes)
 
-    Then("returned periods must contains same data")
-    val from = LocalDateTime.now().withHourOfDay(0)
-    val to = LocalDateTime.now().withHourOfDay(0).withDayOfYear(from.getDayOfYear + 1)
-    val result = dao.getInvalidPeriods(from, to)
+    Then("returned periods must be empty")
+    val from = LocalDateTime.now().plusDays(-1)
+    val to = LocalDateTime.now().plusDays(1)
+    dao.getRecalculatedPeriods(from, to) should have size 0
+
+    Then("and invalid periods must be non empty")
+    val invalid = dao.getInvalidatedBaseTimes
+    invalid should contain theSameElementsAs baseTimes
+
+    When("baseTimes marks as valid")
+    dao.markBaseTimesRecalculated(baseTimes, TestTable.rowTimeSpan)
+
+    Then("returned periods must be correct")
+    val result = dao.getRecalculatedPeriods(from, to)
     result should have size 2
-    val in = invalidPeriods.head
     val period = result.head
-    period.from shouldEqual in.getStart
-    period.to shouldEqual in.getEnd
+    val t = baseTimes.head
+    period.from shouldEqual t
+    period.to shouldEqual t + TestTable.rowTimeSpan
+
+    Then("and invalid periods must be empty")
+    dao.getInvalidatedBaseTimes should have size 0
   }
 
 }

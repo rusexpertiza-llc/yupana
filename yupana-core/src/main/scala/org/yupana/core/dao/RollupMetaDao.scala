@@ -16,17 +16,20 @@
 
 package org.yupana.core.dao
 
-import org.joda.time.{ Interval, LocalDateTime }
+import org.joda.time.LocalDateTime
 import org.yupana.api.schema.Table
-import org.yupana.core.model.InvalidPeriod
+import org.yupana.core.model.RecalculatedPeriod
 
 trait RollupMetaDao {
-  def putInvalidPeriods(intervals: Seq[Interval]): Unit
-  def getInvalidPeriods(rollupDateFrom: LocalDateTime, rollupDateTo: LocalDateTime): Iterable[InvalidPeriod]
+  def putInvalidatedBaseTimes(baseTimes: Set[Long]): Unit
+  def markBaseTimesRecalculated(baseTimes: Set[Long], rowTimeSpan: Long): Unit
+  def getInvalidatedBaseTimes: Iterable[Long]
+  def getRecalculatedPeriods(rollupDateFrom: LocalDateTime, rollupDateTo: LocalDateTime): Iterable[RecalculatedPeriod]
+
+  def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
+  def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit
 
   def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)]
   def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit
   def checkAndPutRollupStatus(time: Long, oldStatus: Option[String], newStatus: String, table: Table): Boolean
-  def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
-  def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit
 }

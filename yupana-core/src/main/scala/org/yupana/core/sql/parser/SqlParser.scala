@@ -27,7 +27,8 @@ object SqlParser {
   private def tablesWord[_: P] = P(IgnoreCase("TABLES"))
   private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[_: P] = P(IgnoreCase("QUERIES"))
-  private def invalidPeriodsWord[_: P] = P(IgnoreCase("INVALID_PERIODS"))
+  private def recalculatedPeriodsWord[_: P] = P(IgnoreCase("RECALCULATED_PERIODS"))
+  private def invalidatedBaseTimesWord[_: P] = P(IgnoreCase("INVALIDATED_BASE_TIMES"))
   private def queryWord[_: P] = P(IgnoreCase("QUERY"))
   private def fromWord[_: P] = P(IgnoreCase("FROM"))
   private def whereWord[_: P] = P(IgnoreCase("WHERE"))
@@ -245,21 +246,25 @@ object SqlParser {
     whereWord ~ (metricQueryIdFilter | metricStateFilter)
   )
 
-  def invalidPeriodsFilter[_: P]: P[TimestampPeriodValue] =
+  def recalculatedPeriodsFilter[_: P]: P[TimestampPeriodValue] =
     (whereWord ~ rollupTimeWord ~ betweenWord ~/ P(ValueParser.timestampValue) ~/ andWord ~/ ValueParser.timestampValue)
       .map(TimestampPeriodValue.tupled)
 
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
-  def invalidPeriods[_: P]: P[ShowInvalidPeriods] =
-    P(invalidPeriodsWord ~/ invalidPeriodsFilter).map(ShowInvalidPeriods)
+  def recalculatedPeriods[_: P]: P[ShowRecalculatedPeriods] =
+    P(recalculatedPeriodsWord ~/ recalculatedPeriodsFilter).map(ShowRecalculatedPeriods)
+
+  def invalidatedBaseTimes[_: P]: P[ShowInvalidatedBaseTimes] =
+    P(invalidatedBaseTimesWord).map(_ => ShowInvalidatedBaseTimes())
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
   def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
 
-  def show[_: P]: P[Statement] = P(showWord ~/ (columns | tables | queries | functions | invalidPeriods))
+  def show[_: P]: P[Statement] =
+    P(showWord ~/ (columns | tables | queries | functions | recalculatedPeriods | invalidatedBaseTimes))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 
