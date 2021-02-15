@@ -25,5 +25,4 @@ class EtlConfig(sparkConf: SparkConf) extends Config(sparkConf) {
   val putIntoInvertedIndex: Boolean = sparkConf.getBoolean("tsd.etl.load-inverted-index", defaultValue = false)
 
   override val putEnabled: Boolean = true
-  override val maxRegions: Int = 500
 }
