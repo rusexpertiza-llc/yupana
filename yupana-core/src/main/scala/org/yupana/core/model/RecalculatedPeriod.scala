@@ -16,7 +16,7 @@
 
 package org.yupana.core.model
 
-case class RecalculatedPeriod(rollupTime: Long, from: Long, to: Long)
+case class RecalculatedPeriod(from: Long, to: Long, rollupTime: Option[Long])
 
 object RecalculatedPeriod {
   val invalidatedFlagColumn = "invalidated_flag"

@@ -22,6 +22,7 @@ import org.apache.spark.streaming.dstream.DStream
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.RollupMetaDao
+import org.yupana.core.model.RecalculatedPeriod
 import org.yupana.hbase.HBaseUtils
 
 import scala.language.implicitConversions
@@ -65,7 +66,11 @@ object ETLFunctions extends StrictLogging {
         .toSeq
 
       rollupMetaDao.putRollupStatuses(rollupStatuses, table)
-      rollupMetaDao.putInvalidatedBaseTimes(rollupStatuses.map(_._1).toSet, table.rowTimeSpan)
+      val invalidatedPeriods = rollupStatuses.map {
+        case (baseTime, _) =>
+          RecalculatedPeriod(baseTime, baseTime + table.rowTimeSpan, None)
+      }
+      rollupMetaDao.putRecalculatedPeriods(invalidatedPeriods)
     }
   }
 

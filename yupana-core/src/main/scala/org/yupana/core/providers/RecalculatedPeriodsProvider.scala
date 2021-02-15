@@ -16,7 +16,7 @@
 
 package org.yupana.core.providers
 
-import org.joda.time.LocalDateTime
+import org.joda.time.{ Interval, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
@@ -31,10 +31,11 @@ object RecalculatedPeriodsProvider {
       rollupDateTo: LocalDateTime
   ): Result = {
 
-    val recalculatedPeriods = flatQueryEngine.getRecalculatedPeriods(rollupDateFrom, rollupDateTo)
+    val rollupInterval = Some(new Interval(rollupDateFrom.toDateTime.getMillis, rollupDateTo.toDateTime.getMillis))
+    val recalculatedPeriods = flatQueryEngine.getRecalculatedPeriods(rollupInterval)
     val data: Iterator[Array[Any]] = recalculatedPeriods.map { period =>
       Array[Any](
-        Time(period.rollupTime),
+        Time(period.rollupTime.get),
         Time(period.from),
         Time(period.to)
       )

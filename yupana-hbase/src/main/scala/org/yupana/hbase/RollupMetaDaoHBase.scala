@@ -17,11 +17,11 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.{ CompareFilter, Filter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase._
-import org.joda.time.{ DateTime, LocalDateTime }
+import org.joda.time.Interval
 import org.yupana.api.schema.Table
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.RollupMetaDao
@@ -45,89 +45,74 @@ object RollupMetaDaoHBase {
 
 class RollupMetaDaoHBase(connection: Connection, namespace: String) extends RollupMetaDao with StrictLogging {
 
-  override def putInvalidatedBaseTimes(baseTimes: Set[Long], rowTimeSpan: Long): Unit = withTables {
+  override def putRecalculatedPeriods(periods: Seq[RecalculatedPeriod]): Unit = withTables {
     using(getTable) { table =>
-      val puts = baseTimes.map { baseTime =>
-        val put = new Put(Bytes.toBytes(baseTime))
+      val puts = periods.map { period =>
+        val put = new Put(Bytes.toBytes(period.from))
         put
-          .addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(baseTime))
-          .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(baseTime + rowTimeSpan))
-          .addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(true))
+          .addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
+          .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
+          .addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(period.rollupTime.isEmpty))
+        period.rollupTime.foreach { rollupTime =>
+          put.addColumn(FAMILY, ROLLUP_TIME_QUALIFIER, Bytes.toBytes(rollupTime))
+        }
         put
       }
-      table.put(puts.toSeq.asJava)
+      table.put(puts.asJava)
     }
   }
 
-  override def markBaseTimesRecalculated(baseTimes: Set[Long]): Unit = {
-    val rollupTime = DateTime.now().getMillis
-    using(getTable) { table =>
-      baseTimes.foreach { baseTime =>
-        table.checkAndPut(
-          Bytes.toBytes(baseTime),
-          FAMILY,
-          ROLLUP_TIME_QUALIFIER,
-          null,
-          new Put(Bytes.toBytes(baseTime))
-            .addColumn(FAMILY, ROLLUP_TIME_QUALIFIER, Bytes.toBytes(rollupTime))
-            .addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(false))
-        )
-      }
-    }
-  }
-
-  override def getInvalidatedBaseTimes: Iterable[Long] = {
-    using(getTable) { table =>
-      val scan = new Scan().addFamily(FAMILY)
-      scan.setFilter(
-        new SingleColumnValueFilter(
-          FAMILY,
-          INVALIDATED_FLAG_QUALIFIER,
-          CompareFilter.CompareOp.EQUAL,
-          Bytes.toBytes(true)
-        )
-      )
-      table.getScanner(scan).asScala.map(r => Bytes.toLong(r.getRow))
-    }
-  }
-
-  override def getRecalculatedPeriods(
-      rollupDateFrom: LocalDateTime,
-      rollupDateTo: LocalDateTime
-  ): Iterable[RecalculatedPeriod] =
+  override def getRecalculatedPeriods(rollupIntervalOpt: Option[Interval]): Iterable[RecalculatedPeriod] =
     withTables {
       val recalculatedPeriods = using(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
-        val filterFrom = new SingleColumnValueFilter(
-          FAMILY,
-          ROLLUP_TIME_QUALIFIER,
-          CompareFilter.CompareOp.GREATER_OR_EQUAL,
-          Bytes.toBytes(rollupDateFrom.toDateTime.getMillis)
-        )
-        filterFrom.setFilterIfMissing(true)
+        rollupIntervalOpt match {
+          case Some(rollupInterval) =>
+            val filterFrom = new SingleColumnValueFilter(
+              FAMILY,
+              ROLLUP_TIME_QUALIFIER,
+              CompareFilter.CompareOp.GREATER_OR_EQUAL,
+              Bytes.toBytes(rollupInterval.getStartMillis)
+            )
+            filterFrom.setFilterIfMissing(true)
 
-        val filterTo = new SingleColumnValueFilter(
-          FAMILY,
-          ROLLUP_TIME_QUALIFIER,
-          CompareFilter.CompareOp.LESS_OR_EQUAL,
-          Bytes.toBytes(rollupDateTo.toDateTime.getMillis)
-        )
-        filterTo.setFilterIfMissing(true)
+            val filterTo = new SingleColumnValueFilter(
+              FAMILY,
+              ROLLUP_TIME_QUALIFIER,
+              CompareFilter.CompareOp.LESS_OR_EQUAL,
+              Bytes.toBytes(rollupInterval.getEndMillis)
+            )
+            filterTo.setFilterIfMissing(true)
 
-        val filterList = new FilterList(
-          List[Filter](filterFrom, filterTo).asJava
-        )
-        scan.setFilter(filterList)
+            val filterList = new FilterList(
+              List[Filter](filterFrom, filterTo).asJava
+            )
+            scan.setFilter(filterList)
+          case None =>
+            scan.setFilter(
+              new SingleColumnValueFilter(
+                FAMILY,
+                INVALIDATED_FLAG_QUALIFIER,
+                CompareFilter.CompareOp.EQUAL,
+                Bytes.toBytes(true)
+              )
+            )
+        }
         table.getScanner(scan).asScala.map(toRecalculatedPeriod)
       }
       recalculatedPeriods
     }
 
   private def toRecalculatedPeriod(result: Result): RecalculatedPeriod = {
+    val rollupTimeValue =
+      if (result.containsColumn(FAMILY, ROLLUP_TIME_QUALIFIER))
+        Some(Bytes.toLong(result.getValue(FAMILY, ROLLUP_TIME_QUALIFIER)))
+      else
+        None
     RecalculatedPeriod(
-      rollupTime = Bytes.toLong(result.getValue(FAMILY, ROLLUP_TIME_QUALIFIER)),
       from = Bytes.toLong(result.getRow),
-      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))
+      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER)),
+      rollupTime = rollupTimeValue
     )
   }
 
