@@ -45,19 +45,21 @@ object RollupMetaDaoHBase {
 
 class RollupMetaDaoHBase(connection: Connection, namespace: String) extends RollupMetaDao with StrictLogging {
 
-  override def putInvalidatedBaseTimes(baseTimes: Set[Long]): Unit = withTables {
+  override def putInvalidatedBaseTimes(baseTimes: Set[Long], rowTimeSpan: Long): Unit = withTables {
     using(getTable) { table =>
       val puts = baseTimes.map { baseTime =>
         val put = new Put(Bytes.toBytes(baseTime))
-        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(baseTime))
-        put.addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(true))
+        put
+          .addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(baseTime))
+          .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(baseTime + rowTimeSpan))
+          .addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(true))
         put
       }
       table.put(puts.toSeq.asJava)
     }
   }
 
-  override def markBaseTimesRecalculated(baseTimes: Set[Long], rowTimeSpan: Long): Unit = {
+  override def markBaseTimesRecalculated(baseTimes: Set[Long]): Unit = {
     val rollupTime = DateTime.now().getMillis
     using(getTable) { table =>
       baseTimes.foreach { baseTime =>
@@ -68,7 +70,6 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           null,
           new Put(Bytes.toBytes(baseTime))
             .addColumn(FAMILY, ROLLUP_TIME_QUALIFIER, Bytes.toBytes(rollupTime))
-            .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(baseTime + rowTimeSpan))
             .addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(false))
         )
       }

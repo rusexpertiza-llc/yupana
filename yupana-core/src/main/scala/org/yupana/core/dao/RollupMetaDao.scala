@@ -21,8 +21,8 @@ import org.yupana.api.schema.Table
 import org.yupana.core.model.RecalculatedPeriod
 
 trait RollupMetaDao {
-  def putInvalidatedBaseTimes(baseTimes: Set[Long]): Unit
-  def markBaseTimesRecalculated(baseTimes: Set[Long], rowTimeSpan: Long): Unit
+  def putInvalidatedBaseTimes(baseTimes: Set[Long], rowTimeSpan: Long): Unit
+  def markBaseTimesRecalculated(baseTimes: Set[Long]): Unit
   def getInvalidatedBaseTimes: Iterable[Long]
   def getRecalculatedPeriods(rollupDateFrom: LocalDateTime, rollupDateTo: LocalDateTime): Iterable[RecalculatedPeriod]
 

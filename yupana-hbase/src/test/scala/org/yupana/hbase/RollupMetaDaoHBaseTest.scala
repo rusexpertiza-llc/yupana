@@ -17,7 +17,7 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
       HBaseUtils.baseTime(DateTime.now().withDayOfMonth(4).getMillis, TestTable)
     )
     When("invalid baseTimes was put")
-    dao.putInvalidatedBaseTimes(baseTimes)
+    dao.putInvalidatedBaseTimes(baseTimes, TestTable.rowTimeSpan)
 
     Then("returned periods must be empty")
     val from = LocalDateTime.now().plusDays(-1)
@@ -29,7 +29,7 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
     invalid should contain theSameElementsAs baseTimes
 
     When("baseTimes marks as valid")
-    dao.markBaseTimesRecalculated(baseTimes, TestTable.rowTimeSpan)
+    dao.markBaseTimesRecalculated(baseTimes)
 
     Then("returned periods must be correct")
     val result = dao.getRecalculatedPeriods(from, to)
