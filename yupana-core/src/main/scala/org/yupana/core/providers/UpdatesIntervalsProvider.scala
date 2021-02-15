@@ -16,26 +16,27 @@
 
 package org.yupana.core.providers
 
-import org.joda.time.{ Interval, LocalDateTime }
+import org.joda.time.Interval
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.FlatQueryEngine
+import org.yupana.core.sql.parser.TimestampPeriodValue
 
-object RecalculatedPeriodsProvider {
-  import org.yupana.core.model.RecalculatedPeriod._
+object UpdatesIntervalsProvider {
+  import org.yupana.core.model.UpdateInterval._
 
-  def handleGetRecalculatedPeriods(
+  def handleGetUpdatesIntervals(
       flatQueryEngine: FlatQueryEngine,
-      rollupDateFrom: LocalDateTime,
-      rollupDateTo: LocalDateTime
+      periodOpt: Option[TimestampPeriodValue]
   ): Result = {
 
-    val rollupInterval = Some(new Interval(rollupDateFrom.toDateTime.getMillis, rollupDateTo.toDateTime.getMillis))
-    val recalculatedPeriods = flatQueryEngine.getRecalculatedPeriods(rollupInterval)
-    val data: Iterator[Array[Any]] = recalculatedPeriods.map { period =>
+    val rollupInterval =
+      periodOpt.map(p => new Interval(p.from.value.toDateTime.getMillis, p.to.value.toDateTime.getMillis))
+    val updatesIntervals = flatQueryEngine.getUpdatesIntervals(rollupInterval)
+    val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](
-        Time(period.rollupTime.get),
+        Time(period.rollupTime.getOrElse(null.asInstanceOf[Long])),
         Time(period.from),
         Time(period.to)
       )
@@ -53,25 +54,6 @@ object RecalculatedPeriodsProvider {
       DataType[Time]
     )
 
-    SimpleResult("RECALCULATED_INTERVALS", queryFieldNames, queryFieldTypes, data)
-  }
-
-  def handleGetInvalidatedBaseTimes(flatQueryEngine: FlatQueryEngine): Result = {
-    val invalidatedBaseTimes = flatQueryEngine.getInvalidatedBaseTimes
-    val data: Iterator[Array[Any]] = invalidatedBaseTimes.map { baseTime =>
-      Array[Any](
-        Time(baseTime)
-      )
-    }.iterator
-
-    val queryFieldNames = List(
-      fromColumn
-    )
-
-    val queryFieldTypes = List(
-      DataType[Time]
-    )
-
-    SimpleResult("INVALIDATED_BASE_TIMES", queryFieldNames, queryFieldTypes, data)
+    SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)
   }
 }

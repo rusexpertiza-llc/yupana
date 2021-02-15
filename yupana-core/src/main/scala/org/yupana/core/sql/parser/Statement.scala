@@ -47,6 +47,4 @@ case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 
 case class ShowFunctions(dataType: String) extends Statement
 
-case class ShowRecalculatedPeriods(rollupPeriod: TimestampPeriodValue) extends Statement
-
-case class ShowInvalidatedBaseTimes() extends Statement
+case class ShowUpdatesIntervals(rollupPeriod: Option[TimestampPeriodValue]) extends Statement

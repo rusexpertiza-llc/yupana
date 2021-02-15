@@ -20,15 +20,11 @@ import org.joda.time.Interval
 import org.yupana.api.schema.Table
 import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.core.model.{ RecalculatedPeriod, TsdbQueryMetrics }
+import org.yupana.core.model.{ UpdateInterval, TsdbQueryMetrics }
 
 class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
-  def getRecalculatedPeriods(rollupIntervalOpt: Option[Interval]): Iterable[RecalculatedPeriod] = {
-    rollupMetaDao.getRecalculatedPeriods(rollupIntervalOpt)
-  }
-
-  def getInvalidatedBaseTimes: Iterable[Long] = {
-    rollupMetaDao.getRecalculatedPeriods().map(_.from)
+  def getUpdatesIntervals(rollupIntervalOpt: Option[Interval]): Iterable[UpdateInterval] = {
+    rollupMetaDao.getUpdatesIntervals(rollupIntervalOpt)
   }
 
   def deleteMetrics(filter: QueryMetricsFilter): Int = {

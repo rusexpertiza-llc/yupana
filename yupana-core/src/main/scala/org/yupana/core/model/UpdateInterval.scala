@@ -16,9 +16,9 @@
 
 package org.yupana.core.model
 
-case class RecalculatedPeriod(from: Long, to: Long, rollupTime: Option[Long])
+case class UpdateInterval(from: Long, to: Long, rollupTime: Option[Long])
 
-object RecalculatedPeriod {
+object UpdateInterval {
   val invalidatedFlagColumn = "invalidated_flag"
   val rollupTimeColumn = "rollup_time"
   val fromColumn = "from"

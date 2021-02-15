@@ -18,11 +18,11 @@ package org.yupana.core.dao
 
 import org.joda.time.Interval
 import org.yupana.api.schema.Table
-import org.yupana.core.model.RecalculatedPeriod
+import org.yupana.core.model.UpdateInterval
 
 trait RollupMetaDao {
-  def putRecalculatedPeriods(periods: Seq[RecalculatedPeriod]): Unit
-  def getRecalculatedPeriods(rollupIntervalOpt: Option[Interval] = None): Iterable[RecalculatedPeriod]
+  def putUpdatesIntervals(periods: Seq[UpdateInterval]): Unit
+  def getUpdatesIntervals(rollupIntervalOpt: Option[Interval] = None): Iterable[UpdateInterval]
 
   def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
   def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit

@@ -27,8 +27,7 @@ object SqlParser {
   private def tablesWord[_: P] = P(IgnoreCase("TABLES"))
   private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[_: P] = P(IgnoreCase("QUERIES"))
-  private def recalculatedPeriodsWord[_: P] = P(IgnoreCase("RECALCULATED_PERIODS"))
-  private def invalidatedBaseTimesWord[_: P] = P(IgnoreCase("INVALIDATED_BASE_TIMES"))
+  private def updatesIntervalsWord[_: P] = P(IgnoreCase("UPDATES_INTERVALS"))
   private def queryWord[_: P] = P(IgnoreCase("QUERY"))
   private def fromWord[_: P] = P(IgnoreCase("FROM"))
   private def whereWord[_: P] = P(IgnoreCase("WHERE"))
@@ -253,18 +252,15 @@ object SqlParser {
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
-  def recalculatedPeriods[_: P]: P[ShowRecalculatedPeriods] =
-    P(recalculatedPeriodsWord ~/ recalculatedPeriodsFilter).map(ShowRecalculatedPeriods)
-
-  def invalidatedBaseTimes[_: P]: P[ShowInvalidatedBaseTimes] =
-    P(invalidatedBaseTimesWord).map(_ => ShowInvalidatedBaseTimes())
+  def updatesIntervals[_: P]: P[ShowUpdatesIntervals] =
+    P(updatesIntervalsWord ~/ recalculatedPeriodsFilter.?).map(ShowUpdatesIntervals)
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
   def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
 
   def show[_: P]: P[Statement] =
-    P(showWord ~/ (columns | tables | queries | functions | recalculatedPeriods | invalidatedBaseTimes))
+    P(showWord ~/ (columns | tables | queries | functions | updatesIntervals))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 

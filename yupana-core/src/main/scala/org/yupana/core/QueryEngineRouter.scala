@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.providers.{ RecalculatedPeriodsProvider, JdbcMetadataProvider, QueryInfoProvider }
+import org.yupana.core.providers.{ UpdatesIntervalsProvider, JdbcMetadataProvider, QueryInfoProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
 
@@ -55,17 +55,13 @@ class QueryEngineRouter(
       case DeleteQueryMetrics(filter) =>
         Right(QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
 
-      case ShowRecalculatedPeriods(rollupPeriod) =>
+      case ShowUpdatesIntervals(rollupPeriod) =>
         Right(
-          RecalculatedPeriodsProvider.handleGetRecalculatedPeriods(
+          UpdatesIntervalsProvider.handleGetUpdatesIntervals(
             flatQueryEngine,
-            rollupPeriod.from.value,
-            rollupPeriod.to.value
+            rollupPeriod
           )
         )
-
-      case ShowInvalidatedBaseTimes() =>
-        Right(RecalculatedPeriodsProvider.handleGetInvalidatedBaseTimes(flatQueryEngine))
     }
   }
 
