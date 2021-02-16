@@ -69,7 +69,7 @@ object Main extends StrictLogging {
 
     val rollupMetaDao = new RollupMetaDaoHBase(connection, config.hbaseNamespace)
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, config.hbaseNamespace)
-    HBaseUtils.initStorage(connection, config.hbaseNamespace, schema)
+    HBaseUtils.initStorage(connection, config.hbaseNamespace, schema, tsdbConfig)
 
     val tsdb =
       TSDBHBase(
