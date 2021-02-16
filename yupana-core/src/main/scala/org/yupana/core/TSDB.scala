@@ -19,7 +19,7 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema, Table }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
@@ -123,16 +123,6 @@ class TSDB(
         }
         keyData -> valueData
     }.toIterator
-  }
-
-  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
-    if (statuses.nonEmpty) {
-      dao.putRollupStatuses(statuses, table)
-    }
-  }
-
-  def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
-    dao.getRollupSpecialField(fieldName, table)
   }
 
   private def loadDimIds(dataPoints: Seq[DataPoint]): Unit = {

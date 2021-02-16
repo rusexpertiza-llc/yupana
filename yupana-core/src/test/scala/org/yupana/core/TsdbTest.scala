@@ -1,7 +1,5 @@
 package org.yupana.core
 
-import java.util.Properties
-
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
@@ -17,6 +15,8 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
+
+import java.util.Properties
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -74,7 +74,14 @@ class TsdbTest
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
-      new TSDB(TestSchema.schema, tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
+      new TSDB(
+        TestSchema.schema,
+        tsdbDaoMock,
+        metricsDaoMock,
+        dictionaryProvider,
+        identity,
+        SimpleTsdbConfig()
+      )
 
     val dp = DataPoint(
       TestSchema.testTable,

@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.core.dao
+package org.yupana.core
+import org.yupana.api.query.{ DataPoint, Query, Result }
 
-import org.yupana.api.query.DataPoint
+class TimeSeriesQueryEngine(tsdb: TSDB) {
+  def query(query: Query): Result = {
+    tsdb.query(query)
+  }
 
-import scala.language.higherKinds
-
-trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
-  def put(dataPoints: Seq[DataPoint]): Unit
+  def put(dps: Seq[DataPoint]): Unit = {
+    tsdb.put(dps)
+  }
 }

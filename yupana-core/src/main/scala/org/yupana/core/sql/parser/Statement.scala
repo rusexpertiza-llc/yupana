@@ -46,3 +46,5 @@ case class KillQuery(filter: MetricsFilter) extends Statement
 case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 
 case class ShowFunctions(dataType: String) extends Statement
+
+case class ShowUpdatesIntervals(tableName: String, rollupPeriod: Option[TimestampPeriodValue]) extends Statement
