@@ -36,8 +36,6 @@ object TSDBHBase {
       tsdbConfig: TsdbConfig,
       metricsDao: TsdbQueryMetricsDao
   ): TSDB = {
-    val connection = ConnectionFactory.createConnection(config)
-    HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
 
     CacheFactory.init(properties, namespace)
 
