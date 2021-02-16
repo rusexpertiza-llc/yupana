@@ -23,4 +23,5 @@ object UpdateInterval {
   val rollupTimeColumn = "rollup_time"
   val fromColumn = "from"
   val toColumn = "to"
+  val tableColumn = "table"
 }

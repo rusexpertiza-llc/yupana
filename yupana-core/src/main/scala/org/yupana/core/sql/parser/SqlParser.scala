@@ -245,7 +245,7 @@ object SqlParser {
     whereWord ~ (metricQueryIdFilter | metricStateFilter)
   )
 
-  def recalculatedPeriodsFilter[_: P]: P[TimestampPeriodValue] =
+  def updatesIntervalsFilter[_: P]: P[TimestampPeriodValue] =
     (whereWord ~ rollupTimeWord ~ betweenWord ~/ P(ValueParser.timestampValue) ~/ andWord ~/ ValueParser.timestampValue)
       .map(TimestampPeriodValue.tupled)
 
@@ -253,7 +253,7 @@ object SqlParser {
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
   def updatesIntervals[_: P]: P[ShowUpdatesIntervals] =
-    P(updatesIntervalsWord ~/ recalculatedPeriodsFilter.?).map(ShowUpdatesIntervals)
+    P(updatesIntervalsWord ~/ updatesIntervalsFilter.?).map(ShowUpdatesIntervals)
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 

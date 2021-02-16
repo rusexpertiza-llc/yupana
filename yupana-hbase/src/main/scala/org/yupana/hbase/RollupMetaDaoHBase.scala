@@ -39,13 +39,14 @@ object RollupMetaDaoHBase {
   val ROLLUP_TIME_QUALIFIER: Array[Byte] = Bytes.toBytes(rollupTimeColumn)
   val FROM_QUALIFIER: Array[Byte] = Bytes.toBytes(fromColumn)
   val TO_QUALIFIER: Array[Byte] = Bytes.toBytes(toColumn)
+  val TABLE_QUALIFIER: Array[Byte] = Bytes.toBytes(tableColumn)
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 }
 
 class RollupMetaDaoHBase(connection: Connection, namespace: String) extends RollupMetaDao with StrictLogging {
 
-  override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = withTables {
+  override def putUpdatesIntervals(tableName: String, intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
       val puts = intervals.map { period =>
         val put = new Put(Bytes.toBytes(period.from))
@@ -53,6 +54,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           .addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
           .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
           .addColumn(FAMILY, INVALIDATED_FLAG_QUALIFIER, Bytes.toBytes(period.rollupTime.isEmpty))
+          .addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
         period.rollupTime.foreach { rollupTime =>
           put.addColumn(FAMILY, ROLLUP_TIME_QUALIFIER, Bytes.toBytes(rollupTime))
         }

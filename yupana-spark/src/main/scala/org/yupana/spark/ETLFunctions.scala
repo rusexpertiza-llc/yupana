@@ -70,7 +70,7 @@ object ETLFunctions extends StrictLogging {
         case (baseTime, _) =>
           UpdateInterval(baseTime, baseTime + table.rowTimeSpan, None)
       }
-      rollupMetaDao.putUpdatesIntervals(invalidatedPeriods)
+      rollupMetaDao.putUpdatesIntervals(table.name, invalidatedPeriods)
     }
   }
 
