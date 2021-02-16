@@ -28,6 +28,7 @@ object SqlParser {
   private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[_: P] = P(IgnoreCase("QUERIES"))
   private def updatesIntervalsWord[_: P] = P(IgnoreCase("UPDATES_INTERVALS"))
+  private def tableWord[_: P] = P(IgnoreCase("TABLE"))
   private def queryWord[_: P] = P(IgnoreCase("QUERY"))
   private def fromWord[_: P] = P(IgnoreCase("FROM"))
   private def whereWord[_: P] = P(IgnoreCase("WHERE"))
@@ -245,15 +246,21 @@ object SqlParser {
     whereWord ~ (metricQueryIdFilter | metricStateFilter)
   )
 
-  def updatesIntervalsFilter[_: P]: P[TimestampPeriodValue] =
-    (whereWord ~ rollupTimeWord ~ betweenWord ~/ P(ValueParser.timestampValue) ~/ andWord ~/ ValueParser.timestampValue)
+  def tableFilter[_: P]: P[String] =
+    P(tableWord ~ "=" ~/ ValueParser.string)
+  def rollupPeriodFilter[_: P]: P[TimestampPeriodValue] =
+    P(rollupTimeWord ~ betweenWord ~/ ValueParser.timestampValue ~/ andWord ~/ ValueParser.timestampValue)
       .map(TimestampPeriodValue.tupled)
+
+  def updatesIntervalsFilter[_: P]: P[(String, Option[TimestampPeriodValue])] = {
+    tableFilter ~ (andWord ~ rollupPeriodFilter).?
+  }
 
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
   def updatesIntervals[_: P]: P[ShowUpdatesIntervals] =
-    P(updatesIntervalsWord ~/ updatesIntervalsFilter.?).map(ShowUpdatesIntervals)
+    P(updatesIntervalsWord ~/ whereWord ~ updatesIntervalsFilter).map(ShowUpdatesIntervals.tupled)
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 

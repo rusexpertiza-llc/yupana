@@ -23,8 +23,8 @@ import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ UpdateInterval, TsdbQueryMetrics }
 
 class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
-  def getUpdatesIntervals(rollupIntervalOpt: Option[Interval]): Iterable[UpdateInterval] = {
-    rollupMetaDao.getUpdatesIntervals(rollupIntervalOpt)
+  def getUpdatesIntervals(tableName: String, rollupIntervalOpt: Option[Interval]): Iterable[UpdateInterval] = {
+    rollupMetaDao.getUpdatesIntervals(tableName, rollupIntervalOpt)
   }
 
   def deleteMetrics(filter: QueryMetricsFilter): Int = {

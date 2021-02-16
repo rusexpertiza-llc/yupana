@@ -64,11 +64,17 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     }
   }
 
-  override def getUpdatesIntervals(rollupIntervalOpt: Option[Interval]): Iterable[UpdateInterval] =
+  override def getUpdatesIntervals(tableName: String, rollupIntervalOpt: Option[Interval]): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
-        rollupIntervalOpt match {
+        val tableFilter = new SingleColumnValueFilter(
+          FAMILY,
+          TABLE_QUALIFIER,
+          CompareFilter.CompareOp.EQUAL,
+          Bytes.toBytes(tableName)
+        )
+        val filterList = rollupIntervalOpt match {
           case Some(rollupInterval) =>
             val filterFrom = new SingleColumnValueFilter(
               FAMILY,
@@ -76,7 +82,6 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
               CompareFilter.CompareOp.GREATER_OR_EQUAL,
               Bytes.toBytes(rollupInterval.getStartMillis)
             )
-            filterFrom.setFilterIfMissing(true)
 
             val filterTo = new SingleColumnValueFilter(
               FAMILY,
@@ -84,22 +89,22 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
               CompareFilter.CompareOp.LESS_OR_EQUAL,
               Bytes.toBytes(rollupInterval.getEndMillis)
             )
-            filterTo.setFilterIfMissing(true)
 
-            val filterList = new FilterList(
-              List[Filter](filterFrom, filterTo).asJava
+            new FilterList(
+              List[Filter](tableFilter, filterFrom, filterTo).asJava
             )
-            scan.setFilter(filterList)
           case None =>
-            scan.setFilter(
-              new SingleColumnValueFilter(
-                FAMILY,
-                INVALIDATED_FLAG_QUALIFIER,
-                CompareFilter.CompareOp.EQUAL,
-                Bytes.toBytes(true)
-              )
+            val invalidatedFilter = new SingleColumnValueFilter(
+              FAMILY,
+              INVALIDATED_FLAG_QUALIFIER,
+              CompareFilter.CompareOp.EQUAL,
+              Bytes.toBytes(true)
+            )
+            new FilterList(
+              List[Filter](tableFilter, invalidatedFilter).asJava
             )
         }
+        scan.setFilter(filterList)
         table.getScanner(scan).asScala.map(toUpdateInterval)
       }
       updatesIntervals
