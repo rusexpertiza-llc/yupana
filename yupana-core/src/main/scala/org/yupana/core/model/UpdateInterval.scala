@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.core.dao
+package org.yupana.core.model
 
-import org.yupana.api.query.DataPoint
+case class UpdateInterval(from: Long, to: Long, rollupTime: Option[Long])
 
-import scala.language.higherKinds
-
-trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
-  def put(dataPoints: Seq[DataPoint]): Unit
+object UpdateInterval {
+  val invalidatedFlagColumn = "invalidated_flag"
+  val rollupTimeColumn = "rollup_time"
+  val fromColumn = "from"
+  val toColumn = "to"
+  val tableColumn = "table"
 }

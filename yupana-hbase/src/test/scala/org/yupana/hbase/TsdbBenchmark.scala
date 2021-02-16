@@ -1,7 +1,5 @@
 package org.yupana.hbase
 
-import java.util.Properties
-
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
@@ -19,6 +17,7 @@ import org.yupana.core.dao._
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 
+import java.util.Properties
 import scala.util.Random
 
 class TsdbBenchmark extends FlatSpec with Matchers {
@@ -200,21 +199,6 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       override def put(dataPoints: Seq[DataPoint]): Unit = ???
 
-      override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = ???
-
-      override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = ???
-
-      override def checkAndPutRollupStatus(
-          time: Long,
-          oldStatus: Option[String],
-          newStatus: String,
-          table: Table
-      ): Boolean = ???
-
-      override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = ???
-
-      override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = ???
-
       override val schema: Schema = TestSchema.schema
     }
 
@@ -236,7 +220,14 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     val mc = new ConsoleMetricQueryCollector(query, "test")
 //    val mc = NoMetricCollector
     class BenchTSDB
-        extends TSDB(TestSchema.schema, dao, metricDao, dictProvider, identity, SimpleTsdbConfig(putEnabled = true)) {
+        extends TSDB(
+          TestSchema.schema,
+          dao,
+          metricDao,
+          dictProvider,
+          identity,
+          SimpleTsdbConfig(putEnabled = true)
+        ) {
       override def createMetricCollector(query: Query): MetricQueryCollector = {
         mc
       }

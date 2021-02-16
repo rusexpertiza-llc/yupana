@@ -21,7 +21,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.TSDB
+import org.yupana.core.dao.RollupMetaDao
+import org.yupana.core.model.UpdateInterval
 import org.yupana.hbase.HBaseUtils
 
 import scala.language.implicitConversions
@@ -48,7 +49,7 @@ object ETLFunctions extends StrictLogging {
           byTable.foreach {
             case (t, ps) =>
               if (schema.rollups.exists(_.fromTable.name == t.name)) {
-                invalidateRollups(context.tsdb, ps, t)
+                invalidateRollups(context.rollupMetaDao, ps, t)
               }
           }
         }
@@ -56,15 +57,20 @@ object ETLFunctions extends StrictLogging {
     }
   }
 
-  def invalidateRollups(tsdb: TSDB, dps: Seq[DataPoint], table: Table): Unit = {
-    tsdb.getRollupSpecialField("etl", table).foreach { etlObligatoryRecalc =>
+  def invalidateRollups(rollupMetaDao: RollupMetaDao, dps: Seq[DataPoint], table: Table): Unit = {
+    rollupMetaDao.getRollupSpecialField("etl", table).foreach { etlObligatoryRecalc =>
       val rollupStatuses = dps
         .filter(_.time < etlObligatoryRecalc)
         .groupBy(dp => HBaseUtils.baseTime(dp.time, table))
         .mapValues(dps => invalidationMark(dps.head))
         .toSeq
 
-      tsdb.putRollupStatuses(rollupStatuses, table)
+      rollupMetaDao.putRollupStatuses(rollupStatuses, table)
+      val invalidatedPeriods = rollupStatuses.map {
+        case (baseTime, _) =>
+          UpdateInterval(baseTime, baseTime + table.rowTimeSpan, None)
+      }
+      rollupMetaDao.putUpdatesIntervals(table.name, invalidatedPeriods)
     }
   }
 

@@ -5,6 +5,7 @@ import org.scalatest.{ EitherValues, FlatSpec, Matchers, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.ItemFixer
+import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
 
 class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues with EitherValues {

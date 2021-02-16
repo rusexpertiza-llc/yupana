@@ -16,24 +16,25 @@
 
 package org.yupana.hbase
 
-import java.util.Properties
-
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.ConnectionFactory
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.DictionaryProviderImpl
+import org.yupana.core.dao.{ DictionaryProviderImpl, TsdbQueryMetricsDao }
 import org.yupana.core.{ TSDB, TsdbConfig }
+
+import java.util.Properties
 
 object TSDBHBase {
   def apply(
-      config: Configuration,
+      connection: Connection,
       namespace: String,
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties,
-      tsdbConfig: TsdbConfig
+      tsdbConfig: TsdbConfig,
+      metricsDao: TsdbQueryMetricsDao
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
@@ -43,8 +44,20 @@ object TSDBHBase {
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
     val dao = new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize)
-
-    val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
     new TSDB(schema, dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
+  }
+
+  def apply(
+      config: Configuration,
+      namespace: String,
+      schema: Schema,
+      prepareQuery: Query => Query,
+      properties: Properties,
+      tsdbConfig: TsdbConfig
+  ): TSDB = {
+    val connection = ConnectionFactory.createConnection(config)
+    HBaseUtils.initStorage(connection, namespace, schema)
+    val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
+    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig, metricsDao)
   }
 }
