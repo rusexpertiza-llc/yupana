@@ -41,7 +41,7 @@ import org.yupana.core.utils.metric.{
   PersistentMetricQueryCollector,
   QueryCollectorContext
 }
-import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TsdbBase }
+import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
 object TsdbSparkBase {
