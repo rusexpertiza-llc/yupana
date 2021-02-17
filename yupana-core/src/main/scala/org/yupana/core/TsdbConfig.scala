@@ -31,5 +31,5 @@ case class SimpleTsdbConfig(
     extractBatchSize: Int = 10000,
     putBatchSize: Int = 1000,
     putEnabled: Boolean = false,
-    maxRegions: Int = 500
+    maxRegions: Int = 50
 ) extends TsdbConfig
