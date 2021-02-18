@@ -16,8 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics
@@ -31,9 +29,11 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
+import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
+import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
@@ -54,7 +54,6 @@ object HBaseUtils extends StrictLogging {
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
-  private val MAX_INITIAL_REGIONS = 500
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -322,13 +321,13 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def initStorage(connection: Connection, namespace: String, schema: Schema): Unit = {
+  def initStorage(connection: Connection, namespace: String, schema: Schema, config: TsdbConfig): Unit = {
     checkNamespaceExistsElseCreate(connection, namespace)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t)
+      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
       checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
@@ -348,7 +347,7 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
+  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
     val hbaseTable = tableName(namespace, table)
     using(connection.getAdmin) { admin =>
       if (!admin.tableExists(hbaseTable)) {
@@ -369,7 +368,7 @@ object HBaseUtils extends StrictLogging {
           .toDateTime(DateTimeZone.UTC)
           .getMillis
         val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-        val regions = math.min(r, MAX_INITIAL_REGIONS)
+        val regions = math.min(r, maxRegions)
         admin.createTable(
           desc,
           Bytes.toBytes(baseTime(table.epochTime, table)),
