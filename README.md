@@ -443,6 +443,9 @@ JDBC драйвер для Yupana.
 
 Реализация TSDB работающая поверх HBase внутри Apache Spark.
 
+#### Настройки
+ - spark.hbase.regions.initial.max - настройка ограничивающая максимальное количество регионов для таблиц в hbase
+
 ### yupana-schema <a href="#structure-schema"></a>
 
 Минимальное определение схемы для выполнения аналитики ОФД.
