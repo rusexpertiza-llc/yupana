@@ -80,7 +80,7 @@ lazy val core = (project in file("yupana-core"))
     allSettings,
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
-      "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse.value,
+      "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
@@ -141,22 +141,14 @@ lazy val spark = (project in file("yupana-spark"))
     name := "yupana-spark",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
       "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
       "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test,
-      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting.value   % Test
-    ),
-    dependencyOverrides ++= {
-      if (versions.spark.value.startsWith("2")) Seq(
-        "com.fasterxml.jackson.core"      %  "jackson-core"               % "2.8.7" % Test,
-        "com.fasterxml.jackson.core"      %  "jackson-annotations"        % "2.8.7" % Test,
-        "com.fasterxml.jackson.core"      %  "jackson-databind"           % "2.8.7" % Test,
-        "com.fasterxml.jackson.module"    %% "jackson-module-scala"       % "2.8.7" % Test
-      ) else Seq.empty
-    }
+      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting         % Test
+    )
   )
   .dependsOn(core, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
@@ -231,9 +223,9 @@ lazy val examples = (project in file("yupana-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
       "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
       "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc       % Runtime,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
@@ -261,28 +253,15 @@ lazy val examples = (project in file("yupana-examples"))
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
-  val spark = Def.setting(
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) => "2.4.5"
-      case Some((2, 12)) => "3.0.1"
-      case _             => sys.error("Unsupported Scala version")
-    }
-  )
-  val sparkTesting = Def.setting(
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) => spark.value + "_0.14.0"
-      case Some((2, 12)) => spark.value + "_1.0.0"
-      case _             => sys.error("Unsupported Scala version")
-    }
-  )
+  val spark =  "3.0.1"
+  val sparkTesting = spark + "_1.0.0"
 
-  val joda = "2.10.8"
+  val joda = "2.10.10"
 
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.2"
-  val fastparse212 = "2.1.3"
-  val fastparse211 = "2.1.2"
+  val fastparse = "2.1.3"
 
   val hbase = "1.3.6"
   val hadoop = "2.8.5"
@@ -304,20 +283,11 @@ lazy val versions = new {
   val scalaTest = "3.0.8"
   val scalaCheck = "1.14.3"
   val scalaMock = "4.4.0"
-
-  val fastparse = Def.setting(
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) => fastparse211
-      case Some((2, 12)) => fastparse212
-      case _             => sys.error(s"Unsupported Scala version ${scalaVersion.value}")
-    }
-  )
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := "2.12.12",
-  crossScalaVersions := Seq("2.11.12", "2.12.12"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.12",
