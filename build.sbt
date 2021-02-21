@@ -265,7 +265,7 @@ lazy val versions = new {
 
   val hbase = "1.3.6"
   val hadoop = "2.8.5"
-  val akka = "2.5.32"
+  val akka = "2.6.12"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
