@@ -1,14 +1,15 @@
 package org.yupana.externallinks.universal
 
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression }
 import org.yupana.api.schema._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.externallinks.TestSchema
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class InMemoryExternalLinkBaseTest extends FlatSpec with Matchers {
+class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 

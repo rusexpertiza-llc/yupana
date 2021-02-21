@@ -4,12 +4,13 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Sink, Source }
 import akka.stream.testkit.scaladsl._
 import akka.testkit.TestKit
-import org.scalatest.{ FlatSpecLike, Matchers }
 
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class AsyncIteratorSourceTest extends TestKit(ActorSystem("Test")) with FlatSpecLike with Matchers {
+class AsyncIteratorSourceTest extends TestKit(ActorSystem("Test")) with AnyFlatSpecLike with Matchers {
 
   import system.dispatcher
 

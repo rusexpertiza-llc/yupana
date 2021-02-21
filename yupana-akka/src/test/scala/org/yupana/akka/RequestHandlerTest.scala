@@ -3,7 +3,7 @@ package org.yupana.akka
 import com.google.protobuf.ByteString
 import org.joda.time.DateTime
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ EitherValues, FlatSpec, Inside, Matchers }
+import org.scalatest.{ EitherValues, Inside }
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
@@ -21,8 +21,10 @@ import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with EitherValues with Inside {
+class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
   private val sqlQueryProcessor = new SqlQueryProcessor(SchemaRegistry.defaultSchema)
   private val jdbcMetadataProvider = new JdbcMetadataProvider(SchemaRegistry.defaultSchema)

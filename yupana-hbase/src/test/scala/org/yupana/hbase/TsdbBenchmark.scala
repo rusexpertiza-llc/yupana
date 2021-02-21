@@ -5,7 +5,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
@@ -19,8 +18,10 @@ import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCo
 
 import java.util.Properties
 import scala.util.Random
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TsdbBenchmark extends FlatSpec with Matchers {
+class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
   "HBAse" should "be fast" taggedAs Slow in {
     val hbaseConfiguration = HBaseConfiguration.create()

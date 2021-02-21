@@ -19,7 +19,8 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "joda-time"              %  "joda-time"            % versions.joda,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test
+      "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
+      "org.scalatestplus"      %% "scalacheck-1-15"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -280,9 +281,10 @@ lazy val versions = new {
   val h2Jdbc = "1.4.199"
   val postgresqlJdbc = "42.2.18"
 
-  val scalaTest = "3.0.8"
-  val scalaCheck = "1.14.3"
-  val scalaMock = "4.4.0"
+  val scalaTest = "3.2.2"
+  val scalaCheck = "1.15.1"
+  val scalaTestCheck = "3.2.4.0"
+  val scalaMock = "5.1.0"
 }
 
 val commonSettings = Seq(

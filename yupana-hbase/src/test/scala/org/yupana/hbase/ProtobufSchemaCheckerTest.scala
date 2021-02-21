@@ -1,11 +1,13 @@
 package org.yupana.hbase
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.scalatest.{ FlatSpec, Inside, Matchers }
+import org.scalatest.Inside
 import org.yupana.api.schema._
 import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ProtobufSchemaCheckerTest extends FlatSpec with Matchers with Inside {
+class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
   val DIM_A = DictionaryDimension("dim_a")
   val DIM_B = RawDimension[Int]("dim_b")

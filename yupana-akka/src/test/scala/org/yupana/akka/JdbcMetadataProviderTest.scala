@@ -1,14 +1,16 @@
 package org.yupana.akka
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.scalatest.{ EitherValues, FlatSpec, Matchers, OptionValues }
+import org.scalatest.{ EitherValues, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.ItemFixer
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues with EitherValues {
+class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues with EitherValues {
 
   val metadataProvider = new JdbcMetadataProvider(TS.schema)
 

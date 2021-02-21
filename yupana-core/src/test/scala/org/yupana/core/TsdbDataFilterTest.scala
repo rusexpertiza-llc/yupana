@@ -13,9 +13,11 @@ import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class TsdbDataFilterTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with TsdbMocks
     with OptionValues
