@@ -7,7 +7,11 @@ import org.yupana.api.{ Blob, Time }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class StorableTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks with TableDrivenPropertyChecks {
+class StorableTest
+    extends AnyFlatSpec
+    with Matchers
+    with ScalaCheckDrivenPropertyChecks
+    with TableDrivenPropertyChecks {
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
