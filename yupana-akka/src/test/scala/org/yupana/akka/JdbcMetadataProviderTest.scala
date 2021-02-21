@@ -34,7 +34,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   }
 
   it should "describe table by name" in {
-    val res = metadataProvider.describeTable("s1").right.value
+    val res = metadataProvider.describeTable("s1").value
     res.fieldNames should contain theSameElementsAs metadataProvider.columnFieldNames
     val r = res.iterator.toList
     r should have size 6
@@ -62,7 +62,6 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   it should "provide functions for type" in {
     metadataProvider
       .listFunctions("VARCHAR")
-      .right
       .value
       .toList
       .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
@@ -83,7 +82,6 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
 
     metadataProvider
       .listFunctions("DOUBLE")
-      .right
       .value
       .toList
       .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
@@ -102,7 +100,6 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
 
     metadataProvider
       .listFunctions("ARRAY[INTEGER]")
-      .right
       .value
       .toList
       .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
