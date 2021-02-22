@@ -275,7 +275,7 @@ lazy val versions = new {
 
   val json4s = "3.5.3"
 
-  val flyway = "6.2.3"
+  val flyway = "7.4.0"
   val hikariCP = "3.4.5"
   val logback = "1.2.3"
   val h2Jdbc = "1.4.199"
