@@ -22,7 +22,7 @@ import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Table => _, _ }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
-import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
+import org.apache.hadoop.hbase.io.compress.Compression
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTimeZone, LocalDateTime }
@@ -327,7 +327,7 @@ object HBaseUtils extends StrictLogging {
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
+      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions, config.compression)
       checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
@@ -347,8 +347,15 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
+  def checkTableExistsElseCreate(
+      connection: Connection,
+      namespace: String,
+      table: Table,
+      maxRegions: Int,
+      compressionAlgorithm: String
+  ): Unit = {
     val hbaseTable = tableName(namespace, table)
+    val algorithm = Compression.getCompressionAlgorithmByName(compressionAlgorithm)
     using(connection.getAdmin) { admin =>
       if (!admin.tableExists(hbaseTable)) {
         val desc = new HTableDescriptor(hbaseTable)
@@ -357,7 +364,7 @@ object HBaseUtils extends StrictLogging {
           desc.addFamily(
             new HColumnDescriptor(family(group))
               .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-              .setCompactionCompressionType(Algorithm.SNAPPY)
+              .setCompactionCompressionType(algorithm)
           )
         )
         val endTime = new LocalDateTime()
