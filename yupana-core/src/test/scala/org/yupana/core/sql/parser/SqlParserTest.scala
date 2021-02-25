@@ -964,11 +964,12 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
 
   it should "parse SHOW UPDATES_INTERVALS statements" in {
     val t = LocalDateTime.now().withMillisOfDay(0)
-    val r = SqlParser.parse(
+    SqlParser.parse(
       "SHOW UPDATES_INTERVALS WHERE TABLE = 'receipt' AND INVALIDATED = 'true' AND " +
         s"ROLLUP_TIME BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}' AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'"
+    ) shouldBe Right(
+      ShowUpdatesIntervals("receipt", Some(true), Some(TimestampPeriodValue(TimestampValue(t), TimestampValue(t))))
     )
-    r shouldBe Right(ShowUpdatesIntervals("receipt", Some(true), Some(TimestampPeriodValue(TimestampValue(t), TimestampValue(t)))))
   }
 
   it should "parse SHOW UPDATES_INTERVALS statements without period" in {
