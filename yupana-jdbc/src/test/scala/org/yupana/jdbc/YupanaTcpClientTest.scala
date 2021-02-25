@@ -3,7 +3,7 @@ package org.yupana.jdbc
 import java.io.IOException
 
 import com.google.protobuf.ByteString
-import org.scalatest.{ FlatSpec, Inside, Matchers, OptionValues }
+import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.types.Storable
 import org.yupana.jdbc.build.BuildInfo
@@ -12,8 +12,10 @@ import org.yupana.proto._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class YupanaTcpClientTest extends FlatSpec with Matchers with OptionValues with Inside {
+class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   "TCP client" should "handle ping/pong" in {

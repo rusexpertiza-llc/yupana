@@ -1,9 +1,10 @@
 package org.yupana.schema
 
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ItemDimensionTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class ItemDimensionTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   "ItemDimension" should "split items by words" in {
     val items = Table(
       ("item", "split"),

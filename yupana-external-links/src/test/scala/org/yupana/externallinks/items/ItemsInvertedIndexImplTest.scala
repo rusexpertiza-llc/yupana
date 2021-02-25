@@ -12,9 +12,11 @@ import org.yupana.core.TSDB
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class ItemsInvertedIndexImplTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with BeforeAndAfterAll

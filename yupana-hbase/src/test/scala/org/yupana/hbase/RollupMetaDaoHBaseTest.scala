@@ -2,11 +2,13 @@ package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.joda.time.{ DateTime, Interval }
-import org.scalatest.{ FlatSpecLike, GivenWhenThen, Matchers }
+import org.scalatest.GivenWhenThen
 import org.yupana.core.model.UpdateInterval
 import org.yupana.hbase.HBaseUtilsTest.TestTable
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers with GivenWhenThen {
+trait RollupMetaDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
 
   private lazy val hbaseConnection = ConnectionFactory.createConnection(getConfiguration)
 

@@ -2,7 +2,8 @@ package org.yupana.hbase
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec }
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
 
 trait HBaseTestBase {
   def getConfiguration: Configuration
@@ -10,7 +11,7 @@ trait HBaseTestBase {
 }
 
 class DaoTestSuite
-    extends FlatSpec
+    extends AnyFlatSpec
     with BTreeIndexDaoHBaseTest
     with InvertedIndexDaoHBaseTest
     with DictionaryDaoHBaseTest

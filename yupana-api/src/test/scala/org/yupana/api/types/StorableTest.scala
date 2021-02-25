@@ -2,11 +2,16 @@ package org.yupana.api.types
 
 import org.scalacheck.Arbitrary
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.{ Blob, Time }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class StorableTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks with TableDrivenPropertyChecks {
+class StorableTest
+    extends AnyFlatSpec
+    with Matchers
+    with ScalaCheckDrivenPropertyChecks
+    with TableDrivenPropertyChecks {
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 

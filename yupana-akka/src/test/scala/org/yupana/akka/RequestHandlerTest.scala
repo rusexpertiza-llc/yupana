@@ -3,7 +3,7 @@ package org.yupana.akka
 import com.google.protobuf.ByteString
 import org.joda.time.DateTime
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ EitherValues, FlatSpec, Inside, Matchers }
+import org.scalatest.{ EitherValues, Inside }
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
@@ -21,8 +21,10 @@ import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with EitherValues with Inside {
+class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
   private val sqlQueryProcessor = new SqlQueryProcessor(SchemaRegistry.defaultSchema)
   private val jdbcMetadataProvider = new JdbcMetadataProvider(SchemaRegistry.defaultSchema)
@@ -30,7 +32,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
   "RequestHandler" should "send version on ping" in {
     val ping = Ping(1234567L, Some(Version(ProtocolVersion.value, 3, 1, "3.1.3-SNAPSHOT")))
     val requestHandler = new RequestHandler(mock[QueryEngineRouter])
-    val resp = requestHandler.handlePingProto(ping, 4, 2, "4.2.1").right.value.next()
+    val resp = requestHandler.handlePingProto(ping, 4, 2, "4.2.1").value.next()
 
     inside(resp) {
       case Response(Response.Resp.Pong(Pong(reqTime, _, Some(version)))) =>
@@ -95,7 +97,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       )
 
     val requestHandler = new RequestHandler(queryEngineRouter)
-    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value
 
     resp.next() shouldEqual Response(
       Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("item", "VARCHAR")), Some("items_kkm")))
@@ -197,7 +199,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
 
     val requestHandler = new RequestHandler(queryEngineRouter)
     val resp =
-      Await.result(requestHandler.handleBatchQuery(query), 20.seconds).right.value.toList
+      Await.result(requestHandler.handleBatchQuery(query), 20.seconds).value.toList
 
     resp should contain theSameElementsInOrderAs Seq(
       Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
@@ -229,7 +231,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     val query = SqlQuery("SHOW TABLES")
 
     val requestHandler = new RequestHandler(queryEngineRouter)
-    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList
 
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
@@ -283,7 +285,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
       )
     val query = SqlQuery("SHOW QUERIES LIMIT 3")
     val requestHandler = new RequestHandler(queryEngineRouter)
-    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList
 
     resp should have size 3
     val fields = resp(0).getResultHeader.fields.map(_.name)
@@ -310,7 +312,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some("12345"), None), QueryStates.Cancelled)
     val query = SqlQuery("KILL QUERY WHERE query_id = '12345'")
     val requestHandler = new RequestHandler(queryEngineRouter)
-    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList
 
     resp(1) shouldEqual Response(
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))
@@ -329,7 +331,7 @@ class RequestHandlerTest extends FlatSpec with Matchers with MockFactory with Ei
     (metricsDao.deleteMetrics _).expects(QueryMetricsFilter(None, Some(QueryStates.Cancelled))).returning(8)
     val query = SqlQuery("DELETE QUERIES WHERE state = 'CANCELLED'")
     val requestHandler = new RequestHandler(queryEngineRouter)
-    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).right.value.toList
+    val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList
 
     resp(1) shouldEqual Response(
       Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[Int]].write(8)))))
