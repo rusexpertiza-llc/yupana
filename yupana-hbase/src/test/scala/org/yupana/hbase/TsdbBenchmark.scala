@@ -22,7 +22,7 @@ import scala.util.Random
 
 class TsdbBenchmark extends FlatSpec with Matchers {
 
-  "HBAse" should "be fast" taggedAs Slow in {
+  "HBase" should "be fast" taggedAs Slow in {
     val hbaseConfiguration = HBaseConfiguration.create()
     hbaseConfiguration.set("hbase.zookeeper.quorum", "localhost:2181")
     hbaseConfiguration.set("zookeeper.session.timeout", "9000000")
@@ -30,7 +30,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //    hbaseConfiguration.set("hbase.client.scanner.max.result.size", "50000000")
 //    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, props)
 
-    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+    HBaseAdmin.available(hbaseConfiguration)
     val nameSpace = "schema43"
 
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)

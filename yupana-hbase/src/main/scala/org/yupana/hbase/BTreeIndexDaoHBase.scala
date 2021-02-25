@@ -16,10 +16,9 @@
 
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{ Get, Put, Scan }
+import org.apache.hadoop.hbase.client.{ ColumnFamilyDescriptorBuilder, Get, Put, Scan, TableDescriptorBuilder }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor }
 import org.yupana.api.utils.ResourceUtils.using
 
 import scala.collection.JavaConverters._
@@ -77,7 +76,9 @@ class BTreeIndexDaoHBase[K, V](
         val start = filter.getRowRanges.asScala.head.getStartRow
         val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
 
-        val scan = new Scan(start, end)
+        val scan = new Scan()
+          .withStartRow(start)
+          .withStopRow(end)
           .addFamily(FAMILY)
           .addColumn(FAMILY, QUALIFIER)
           .setFilter(filter)
@@ -99,8 +100,10 @@ class BTreeIndexDaoHBase[K, V](
   }
 
   private def checkTableExistsElseCreate() {
-    val descriptor = new HTableDescriptor(connection.getTableName(tableName))
-      .addFamily(new HColumnDescriptor(FAMILY))
+    val descriptor = TableDescriptorBuilder
+      .newBuilder(connection.getTableName(tableName))
+      .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))
+      .build()
     connection.checkTablesExistsElseCreate(descriptor)
   }
 }

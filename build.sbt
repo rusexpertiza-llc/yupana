@@ -97,7 +97,7 @@ lazy val hbase = (project in file("yupana-hbase"))
     libraryDependencies ++= Seq(
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
+      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop, // excludeAll(ExclusionRule(organization = "org.eclipse.jetty")),
       "org.apache.hadoop"           %  "hadoop-hdfs-client"           % versions.hadoop,
       "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
@@ -112,9 +112,27 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop                   % Test classifier "tests",
       "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test,
       "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-http"                   % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-metrics-api"            % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-metrics"                % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-asyncfs"                % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-logging"                % versions.hbase                    % Test,
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests"
-    )
+      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
+      "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
+      "junit"                       %  "junit"                        % "4.13"                            % Test
+    ),
+    dependencyOverrides ++= {
+      val jettyVersion = "9.3.29.v20201019"
+      Seq(
+        "org.eclipse.jetty"         %  "jetty-server"                 % jettyVersion                      % Test,
+        "org.eclipse.jetty"         %  "jetty-servlet"                % jettyVersion                      % Test,
+        "org.eclipse.jetty"         %  "jetty-util"                   % jettyVersion                      % Test,
+        "org.eclipse.jetty"         %  "jetty-webapp"                 % jettyVersion                      % Test,
+      )
+    }
   )
   .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
@@ -276,7 +294,7 @@ lazy val versions = new {
     }
   )
 
-  val joda = "2.10.8"
+  val joda = "2.10.10"
 
   val protobufJava = "2.6.1"
 
@@ -284,8 +302,8 @@ lazy val versions = new {
   val fastparse212 = "2.1.3"
   val fastparse211 = "2.1.2"
 
-  val hbase = "1.3.6"
-  val hadoop = "2.8.5"
+  val hbase = "2.3.4"
+  val hadoop = "3.3.0"
   val akka = "2.5.32"
 
   val lucene = "6.6.0"
@@ -325,7 +343,7 @@ val commonSettings = Seq(
     "-unchecked",
     "-feature",
     "-Xlint",
-    "-Xfatal-warnings",
+    //"-Xfatal-warnings",
     "-Ywarn-dead-code",
     "-Ywarn-unused-import"
   ),
