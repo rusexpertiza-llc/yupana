@@ -49,7 +49,8 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
   override def putUpdatesIntervals(tableName: String, intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
       val puts = intervals.map { period =>
-        val put = new Put(Bytes.toBytes(period.from))
+        val rowKey = period.id.getOrElse(System.nanoTime())
+        val put = new Put(Bytes.toBytes(rowKey))
         put
           .addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
           .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
@@ -64,7 +65,11 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     }
   }
 
-  override def getUpdatesIntervals(tableName: String, rollupIntervalOpt: Option[Interval]): Iterable[UpdateInterval] =
+  override def getUpdatesIntervals(
+      tableName: String,
+      invalidated: Boolean,
+      rollupIntervalOpt: Option[Interval]
+  ): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
@@ -74,6 +79,12 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           CompareFilter.CompareOp.EQUAL,
           Bytes.toBytes(tableName)
         )
+        val invalidatedFilter = new SingleColumnValueFilter(
+          FAMILY,
+          INVALIDATED_FLAG_QUALIFIER,
+          CompareFilter.CompareOp.EQUAL,
+          Bytes.toBytes(invalidated)
+        )
         val filterList = rollupIntervalOpt match {
           case Some(rollupInterval) =>
             val filterFrom = new SingleColumnValueFilter(
@@ -82,6 +93,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
               CompareFilter.CompareOp.GREATER_OR_EQUAL,
               Bytes.toBytes(rollupInterval.getStartMillis)
             )
+            filterFrom.setFilterIfMissing(true)
 
             val filterTo = new SingleColumnValueFilter(
               FAMILY,
@@ -89,17 +101,12 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
               CompareFilter.CompareOp.LESS_OR_EQUAL,
               Bytes.toBytes(rollupInterval.getEndMillis)
             )
+            filterTo.setFilterIfMissing(true)
 
             new FilterList(
-              List[Filter](tableFilter, filterFrom, filterTo).asJava
+              List[Filter](tableFilter, invalidatedFilter, filterFrom, filterTo).asJava
             )
           case None =>
-            val invalidatedFilter = new SingleColumnValueFilter(
-              FAMILY,
-              INVALIDATED_FLAG_QUALIFIER,
-              CompareFilter.CompareOp.EQUAL,
-              Bytes.toBytes(true)
-            )
             new FilterList(
               List[Filter](tableFilter, invalidatedFilter).asJava
             )
@@ -117,7 +124,8 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
       else
         None
     UpdateInterval(
-      from = Bytes.toLong(result.getRow),
+      id = Some(Bytes.toLong(result.getRow)),
+      from = Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER)),
       to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER)),
       rollupTime = rollupTimeValue
     )

@@ -22,7 +22,11 @@ import org.yupana.core.model.UpdateInterval
 
 trait RollupMetaDao {
   def putUpdatesIntervals(tableName: String, periods: Seq[UpdateInterval]): Unit
-  def getUpdatesIntervals(tableName: String, rollupIntervalOpt: Option[Interval] = None): Iterable[UpdateInterval]
+  def getUpdatesIntervals(
+      tableName: String,
+      invalidated: Boolean,
+      rollupIntervalOpt: Option[Interval] = None
+  ): Iterable[UpdateInterval]
 
   def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
   def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit

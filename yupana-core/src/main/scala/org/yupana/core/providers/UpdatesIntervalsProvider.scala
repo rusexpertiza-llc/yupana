@@ -29,15 +29,16 @@ object UpdatesIntervalsProvider {
   def handleGetUpdatesIntervals(
       flatQueryEngine: FlatQueryEngine,
       tableName: String,
+      invalidated: Option[Boolean],
       periodOpt: Option[TimestampPeriodValue]
   ): Result = {
 
     val rollupInterval =
       periodOpt.map(p => new Interval(p.from.value.toDateTime.getMillis, p.to.value.toDateTime.getMillis))
-    val updatesIntervals = flatQueryEngine.getUpdatesIntervals(tableName, rollupInterval)
+    val updatesIntervals = flatQueryEngine.getUpdatesIntervals(tableName, invalidated.getOrElse(true), rollupInterval)
     val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](
-        Time(period.rollupTime.getOrElse(null.asInstanceOf[Long])),
+        period.rollupTime.map(t => Time(t)).orNull,
         Time(period.from),
         Time(period.to)
       )
