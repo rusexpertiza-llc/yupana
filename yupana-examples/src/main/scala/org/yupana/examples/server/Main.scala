@@ -49,7 +49,7 @@ object Main extends StrictLogging {
     hbaseConfiguration.set(hbaseRegionsMax, config.properties.getProperty(hbaseRegionsMax))
     HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.properties)
 
-    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+    HBaseAdmin.available(hbaseConfiguration)
     logger.info("TSDB HBase Configuration: {} works fine", hbaseConfiguration)
 
     val schema = ExampleSchema.schema
