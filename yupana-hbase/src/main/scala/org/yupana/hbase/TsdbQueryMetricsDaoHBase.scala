@@ -138,11 +138,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
                 }
             }
             val result = using(getTable) {
-              _.checkAndMutate(Bytes.toBytes(queryId), FAMILY)
-                .qualifier(TOTAL_DURATION_QUALIFIER)
-                .ifEquals(Bytes.toBytes(query.totalDuration))
-                .thenPut(put)
-
+              _.checkAndMutate(
+                CheckAndMutate
+                  .newBuilder(Bytes.toBytes(queryId))
+                  .ifEquals(FAMILY, TOTAL_DURATION_QUALIFIER, Bytes.toBytes(query.totalDuration))
+                  .build(put)
+              ).isSuccess
             }
             if (!result) {
               Thread.sleep(util.Random.nextInt(MAX_SLEEP_TIME_BETWEEN_ATTEMPTS))
@@ -214,10 +215,12 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         val put = new Put(Bytes.toBytes(query.queryId))
         put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
         table
-          .checkAndMutate(Bytes.toBytes(query.queryId), FAMILY)
-          .qualifier(STATE_QUALIFIER)
-          .ifEquals(Bytes.toBytes(QueryStates.Running.name))
-          .thenPut(put)
+          .checkAndMutate(
+            CheckAndMutate
+              .newBuilder(Bytes.toBytes(query.queryId))
+              .ifEquals(FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name))
+              .build(put)
+          )
 
       case None =>
         throw new IllegalArgumentException(s"Query not found by filter $filter!")
@@ -248,10 +251,13 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val put = new Put(Bytes.toBytes(queryId))
     put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(decrementedRunningPartitions))
     val successes = table
-      .checkAndMutate(Bytes.toBytes(queryId), FAMILY)
-      .qualifier(RUNNING_PARTITIONS_QUALIFIER)
-      .ifEquals(Bytes.toBytes(runningPartitions))
-      .thenPut(put)
+      .checkAndMutate(
+        CheckAndMutate
+          .newBuilder(Bytes.toBytes(queryId))
+          .ifEquals(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(runningPartitions))
+          .build(put)
+      )
+      .isSuccess
 
     if (successes) {
       decrementedRunningPartitions

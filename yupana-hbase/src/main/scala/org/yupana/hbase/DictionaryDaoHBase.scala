@@ -130,7 +130,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
     using(getTable(dimension.name)) { table =>
       val rput = new Put(valueBytes).addColumn(dataFamily, column, idBytes)
-      table.checkAndMutate(valueBytes, dataFamily).qualifier(column).ifNotExists().thenPut(rput)
+      table.checkAndMutate(CheckAndMutate.newBuilder(valueBytes).ifNotExists(dataFamily, column).build(rput)).isSuccess
     }
   }
 

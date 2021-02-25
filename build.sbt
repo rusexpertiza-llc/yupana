@@ -123,17 +123,14 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test,
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
       "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
-      "junit"                       %  "junit"                        % "4.13"                            % Test
+      "junit"                       %  "junit"                        % "4.13"                            % Test,
+      "jakarta.ws.rs" % "jakarta.ws.rs-api" % "2.1.5" % Test
     ),
-    dependencyOverrides ++= {
-      val jettyVersion = "9.3.29.v20201019"
-      Seq(
-        "org.eclipse.jetty"         %  "jetty-server"                 % jettyVersion                      % Test,
-        "org.eclipse.jetty"         %  "jetty-servlet"                % jettyVersion                      % Test,
-        "org.eclipse.jetty"         %  "jetty-util"                   % jettyVersion                      % Test,
-        "org.eclipse.jetty"         %  "jetty-webapp"                 % jettyVersion                      % Test,
-      )
-    }
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      ExclusionRule("javax.ws.rs", "javax.ws.rs-api")
+    )
   )
   .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
@@ -281,7 +278,7 @@ lazy val versions = new {
   val scalaLogging = "3.9.2"
   val fastparse = "2.1.3"
 
-  val hbase = "2.3.4"
+  val hbase = "2.4.1"
   val hadoop = "3.3.0"
   val akka = "2.6.12"
 

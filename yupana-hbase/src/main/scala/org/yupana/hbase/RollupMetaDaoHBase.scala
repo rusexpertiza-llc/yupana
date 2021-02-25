@@ -162,12 +162,15 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
     using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
       hbaseTable
-        .checkAndMutate(Bytes.toBytes(time), rollupStatusFamily)
-        .qualifier(rollupStatusField)
-        .ifEquals(oldStatus.map(_.getBytes).orNull)
-        .thenPut(
-          new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
+        .checkAndMutate(
+          CheckAndMutate
+            .newBuilder(Bytes.toBytes(time))
+            .ifEquals(rollupStatusFamily, rollupStatusField, oldStatus.map(_.getBytes()).orNull)
+            .build(
+              new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
+            )
         )
+        .isSuccess
     }
   }
 
