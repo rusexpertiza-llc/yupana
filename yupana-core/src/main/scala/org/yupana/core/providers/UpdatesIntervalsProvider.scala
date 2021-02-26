@@ -39,7 +39,7 @@ object UpdatesIntervalsProvider {
       Array[Any](
         period.updatedAt.map(t => Time(t)).orNull,
         Time(period.from),
-        Time(period.to),
+        Time(period.to)
       )
     }.iterator
 
@@ -52,7 +52,7 @@ object UpdatesIntervalsProvider {
     val queryFieldTypes = List(
       DataType[Time],
       DataType[Time],
-      DataType[Time],
+      DataType[Time]
     )
 
     SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)
