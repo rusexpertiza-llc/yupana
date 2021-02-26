@@ -49,7 +49,6 @@ object UpdatesIntervalsProvider {
 
     val queryFieldTypes = List(
       DataType[Time],
-      DataType[Time],
       DataType[Time]
     )
 

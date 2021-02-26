@@ -49,8 +49,8 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     using(getTable) { table =>
       val updatedAt = DateTime.now().getMillis
       val puts = intervals.map { period =>
-        val rowKey = tableName + period.from + period.to
-        val put = new Put(Bytes.toBytes(rowKey))
+        val rowKey = Bytes.toBytes(tableName) ++ Bytes.toBytes(period.from) ++ Bytes.toBytes(period.to)
+        val put = new Put(rowKey)
         put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
         put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
         put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
