@@ -37,19 +37,22 @@ object UpdatesIntervalsProvider {
     val updatesIntervals = flatQueryEngine.getUpdatesIntervals(tableName, updateInterval)
     val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](
+        period.updatedAt.map(t => Time(t)).orNull,
         Time(period.from),
-        Time(period.to)
+        Time(period.to),
       )
     }.iterator
 
     val queryFieldNames = List(
+      updatedAtColumn,
       fromColumn,
       toColumn
     )
 
     val queryFieldTypes = List(
       DataType[Time],
-      DataType[Time]
+      DataType[Time],
+      DataType[Time],
     )
 
     SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)

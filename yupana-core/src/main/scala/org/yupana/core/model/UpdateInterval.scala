@@ -16,10 +16,10 @@
 
 package org.yupana.core.model
 
-case class UpdateInterval(from: Long, to: Long)
+case class UpdateInterval(from: Long, to: Long, updatedAt: Option[Long] = None)
 
 object UpdateInterval {
-  val updatedAtColumn = "changing_date"
+  val updatedAtColumn = "updated_at"
   val fromColumn = "from"
   val toColumn = "to"
   val tableColumn = "table"

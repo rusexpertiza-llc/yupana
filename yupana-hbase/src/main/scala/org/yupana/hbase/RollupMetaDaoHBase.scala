@@ -54,7 +54,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
         put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
         put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
         put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
-        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updatedAt))
+        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(period.updatedAt.getOrElse(updatedAt)))
         put
       }
       table.put(puts.asJava)
@@ -106,7 +106,8 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
   private def toUpdateInterval(result: Result): UpdateInterval = {
     UpdateInterval(
       from = Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER)),
-      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))
+      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER)),
+      updatedAt = Some(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER)))
     )
   }
 
