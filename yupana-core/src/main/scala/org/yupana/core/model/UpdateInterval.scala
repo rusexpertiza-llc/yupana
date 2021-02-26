@@ -19,7 +19,6 @@ package org.yupana.core.model
 case class UpdateInterval(id: Option[Long] = None, from: Long, to: Long, rollupTime: Option[Long])
 
 object UpdateInterval {
-  val invalidatedFlagColumn = "invalidated_flag"
   val rollupTimeColumn = "rollup_time"
   val fromColumn = "from"
   val toColumn = "to"

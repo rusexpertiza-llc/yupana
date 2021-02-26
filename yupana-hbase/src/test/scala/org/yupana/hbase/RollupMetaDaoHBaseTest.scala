@@ -30,7 +30,7 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
     dao.getUpdatesIntervals("rollup_by_day", invalidated = false, interval) should have size 0
     dao.getUpdatesIntervals("rollup_by_day", invalidated = true, interval) should have size 0
 
-    Then("and invalid periods must be non empty")
+    And("invalid periods must be non empty")
     val invalidatedPeriods = dao.getUpdatesIntervals("receipt", invalidated = true).toSeq
     invalidatedPeriods should have size 2
     dao.getUpdatesIntervals("receipt", invalidated = false) should have size 0
@@ -49,10 +49,10 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
     period.from shouldEqual t
     period.to shouldEqual t + TestTable.rowTimeSpan
 
-    Then("and 2 periods are recalculated now")
+    And("2 periods are recalculated now")
     dao.getUpdatesIntervals("receipt", invalidated = false) should have size 2
 
-    Then("and 0 periods to recalculate")
+    And("0 periods to recalculate")
     dao.getUpdatesIntervals("receipt", invalidated = true) should have size 0
   }
 
