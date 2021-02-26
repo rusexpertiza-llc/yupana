@@ -2,7 +2,7 @@ import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
 
-ThisBuild / useCoursier := false
+// ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
   .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
@@ -124,12 +124,15 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
       "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
       "junit"                       %  "junit"                        % "4.13"                            % Test,
-      "jakarta.ws.rs" % "jakarta.ws.rs-api" % "2.1.5" % Test
+      "jakarta.ws.rs"               % "jakarta.ws.rs-api"             % "2.1.5"                           % Test,
+      "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
+      "org.slf4j"                   % "log4j-over-slf4j"              % "1.7.30"                          % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
       // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
-      ExclusionRule("javax.ws.rs", "javax.ws.rs-api")
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
     )
   )
   .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
@@ -279,7 +282,7 @@ lazy val versions = new {
   val fastparse = "2.1.3"
 
   val hbase = "2.4.1"
-  val hadoop = "3.3.0"
+  val hadoop = "3.0.3"
   val akka = "2.6.12"
 
   val lucene = "6.6.0"
