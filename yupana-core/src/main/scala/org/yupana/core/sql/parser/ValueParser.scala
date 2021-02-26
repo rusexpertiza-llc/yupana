@@ -46,6 +46,7 @@ object ValueParser {
   private def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\").!)
 
   def string[_: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
+  def boolean[_: P]: P[Boolean] = string.map(_.toBoolean)
 
   private def year[_: P] = P(digit.rep(exactly = 4).!.map(_.toInt))
   private def twoDigitInt[_: P] = P(digit.rep(min = 1, max = 2).map(_.mkString.toInt))
