@@ -68,7 +68,7 @@ object ETLFunctions extends StrictLogging {
       rollupMetaDao.putRollupStatuses(rollupStatuses, table)
       val invalidatedPeriods = rollupStatuses.map {
         case (baseTime, _) =>
-          UpdateInterval(id = None, from = baseTime, to = baseTime + table.rowTimeSpan, rollupTime = None)
+          UpdateInterval(from = baseTime, to = baseTime + table.rowTimeSpan)
       }
       rollupMetaDao.putUpdatesIntervals(table.name, invalidatedPeriods)
     }

@@ -49,6 +49,5 @@ case class ShowFunctions(dataType: String) extends Statement
 
 case class ShowUpdatesIntervals(
     tableName: String,
-    invalidated: Option[Boolean],
-    rollupPeriod: Option[TimestampPeriodValue]
+    updatedAtPeriod: TimestampPeriodValue
 ) extends Statement

@@ -18,42 +18,43 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
       HBaseUtils.baseTime(DateTime.now().withDayOfMonth(4).getMillis, TestTable)
     )
 
-    When("invalid baseTimes was put")
-    dao.putUpdatesIntervals("receipt", baseTimes.map { baseTime =>
-      UpdateInterval(from = baseTime, to = baseTime + TestTable.rowTimeSpan, rollupTime = None)
-    }.toSeq)
+    val invalidatedIntervals = baseTimes.map { baseTime =>
+      UpdateInterval(from = baseTime, to = baseTime + TestTable.rowTimeSpan)
+    }.toSeq
 
-    Then("returned periods must be empty")
     val from = DateTime.now().plusDays(-1).getMillis
     val to = DateTime.now().plusDays(1).getMillis
-    val interval = Some(new Interval(from, to))
-    dao.getUpdatesIntervals("rollup_by_day", invalidated = false, interval) should have size 0
-    dao.getUpdatesIntervals("rollup_by_day", invalidated = true, interval) should have size 0
+    val interval = new Interval(from, to)
+
+    When("invalid baseTimes was put")
+    dao.putUpdatesIntervals("receipt", invalidatedIntervals)
+
+    Then("returned periods must be empty")
+    dao.getUpdatesIntervals("rollup_by_day", interval) should have size 0
 
     And("invalid periods must be non empty")
-    val invalidatedPeriods = dao.getUpdatesIntervals("receipt", invalidated = true).toSeq
-    invalidatedPeriods should have size 2
-    dao.getUpdatesIntervals("receipt", invalidated = false) should have size 0
+    dao.getUpdatesIntervals("receipt", interval) should have size 2
+    dao.getUpdatesIntervals("rollup_by_day", interval) should have size 0
 
-    When("baseTimes marks as valid")
-    val valid = invalidatedPeriods.map(_.copy(rollupTime = Some(DateTime.now().getMillis)))
-    dao.putUpdatesIntervals("receipt", valid)
-    val recalculated = invalidatedPeriods.map(_.copy(id = None, rollupTime = Some(DateTime.now().getMillis)))
-    dao.putUpdatesIntervals("rollup_by_day", recalculated)
+    When("periods marks as recalculated")
+    dao.putUpdatesIntervals("rollup_by_day", invalidatedIntervals)
 
-    Then("returned periods must be correct")
-    val result = dao.getUpdatesIntervals("rollup_by_day", invalidated = false, interval)
+    Then("rollup_by_day periods now exists")
+    val result = dao.getUpdatesIntervals("rollup_by_day", interval)
     result should have size 2
     val period = result.head
     val t = baseTimes.head
     period.from shouldEqual t
     period.to shouldEqual t + TestTable.rowTimeSpan
 
-    And("2 periods are recalculated now")
-    dao.getUpdatesIntervals("receipt", invalidated = false) should have size 2
+    And("invalid periods still here")
+    dao.getUpdatesIntervals("receipt", interval) should have size 2
 
-    And("0 periods to recalculate")
-    dao.getUpdatesIntervals("receipt", invalidated = true) should have size 0
+    And("no new invalid periods")
+    dao.getUpdatesIntervals("receipt", new Interval(to, DateTime.now().plusDays(2).getMillis)) should have size 0
+
+    And("no new recalculated periods")
+    dao.getUpdatesIntervals("rollup_by_day", new Interval(to, DateTime.now().plusDays(2).getMillis)) should have size 0
   }
 
 }

@@ -30,7 +30,6 @@ object SqlParser {
   private def updatesIntervalsWord[_: P] = P(IgnoreCase("UPDATES_INTERVALS"))
   private def tableWord[_: P] = P(IgnoreCase("TABLE"))
   private def queryWord[_: P] = P(IgnoreCase("QUERY"))
-  private def invalidatedWord[_: P] = P(IgnoreCase("INVALIDATED"))
   private def fromWord[_: P] = P(IgnoreCase("FROM"))
   private def whereWord[_: P] = P(IgnoreCase("WHERE"))
   private def andWord[_: P] = P(IgnoreCase("AND"))
@@ -50,7 +49,7 @@ object SqlParser {
   private def nullWord[_: P] = P(IgnoreCase("NULL"))
   private def notWord[_: P] = P(IgnoreCase("NOT"))
   private def queryIdWord[_: P] = P(IgnoreCase("QUERY_ID"))
-  private def rollupTimeWord[_: P] = P(IgnoreCase("ROLLUP_TIME"))
+  private def updatedAtWord[_: P] = P(IgnoreCase("UPDATED_AT"))
   private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
   private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
@@ -249,13 +248,12 @@ object SqlParser {
 
   def tableFilter[_: P]: P[String] =
     P(tableWord ~ "=" ~/ ValueParser.string)
-  def rollupPeriodFilter[_: P]: P[TimestampPeriodValue] =
-    P(rollupTimeWord ~ betweenWord ~/ ValueParser.timestampValue ~/ andWord ~/ ValueParser.timestampValue)
+  def updatedAtFilter[_: P]: P[TimestampPeriodValue] =
+    P(updatedAtWord ~ betweenWord ~/ ValueParser.timestampValue ~/ andWord ~/ ValueParser.timestampValue)
       .map(TimestampPeriodValue.tupled)
-  def invalidatedFilter[_: P]: P[Boolean] = P(invalidatedWord ~ "=" ~/ ValueParser.boolean)
 
-  def updatesIntervalsFilter[_: P]: P[(String, Option[Boolean], Option[TimestampPeriodValue])] = {
-    tableFilter ~ (andWord ~ invalidatedFilter).? ~ (andWord ~ rollupPeriodFilter).?
+  def updatesIntervalsFilter[_: P]: P[(String, TimestampPeriodValue)] = {
+    tableFilter ~ (andWord ~ updatedAtFilter)
   }
 
   def queries[_: P]: P[ShowQueryMetrics] =

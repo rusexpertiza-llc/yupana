@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.Interval
+import org.joda.time.{ DateTime, Interval }
 import org.yupana.api.schema.Table
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.RollupMetaDao
@@ -35,7 +35,7 @@ import scala.collection.JavaConverters._
 object RollupMetaDaoHBase {
   val TABLE_NAME: String = "ts_updates_intervals"
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
-  val ROLLUP_TIME_QUALIFIER: Array[Byte] = Bytes.toBytes(rollupTimeColumn)
+  val UPDATED_AT_QUALIFIER: Array[Byte] = Bytes.toBytes(updatedAtColumn)
   val FROM_QUALIFIER: Array[Byte] = Bytes.toBytes(fromColumn)
   val TO_QUALIFIER: Array[Byte] = Bytes.toBytes(toColumn)
   val TABLE_QUALIFIER: Array[Byte] = Bytes.toBytes(tableColumn)
@@ -47,14 +47,14 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   override def putUpdatesIntervals(tableName: String, intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
+      val updatedAt = DateTime.now().getMillis
       val puts = intervals.map { period =>
-        val rowKey = period.id.getOrElse(System.nanoTime())
+        val rowKey = tableName + period.from + period.to
         val put = new Put(Bytes.toBytes(rowKey))
-        put
-          .addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
-          .addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
-          .addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
-          .addColumn(FAMILY, ROLLUP_TIME_QUALIFIER, Bytes.toBytes(period.rollupTime.getOrElse(0L)))
+        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
+        put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
+        put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
+        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updatedAt))
         put
       }
       table.put(puts.asJava)
@@ -63,8 +63,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   override def getUpdatesIntervals(
       tableName: String,
-      invalidated: Boolean,
-      rollupIntervalOpt: Option[Interval]
+      updatedAtInterval: Interval
   ): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
@@ -80,44 +79,23 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           )
         )
 
-        if (invalidated) {
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              ROLLUP_TIME_QUALIFIER,
-              CompareFilter.CompareOp.EQUAL,
-              Bytes.toBytes(0L)
-            )
-          )
-        } else {
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              ROLLUP_TIME_QUALIFIER,
-              CompareFilter.CompareOp.NOT_EQUAL,
-              Bytes.toBytes(0L)
-            )
-          )
-        }
-
-        rollupIntervalOpt.foreach { rollupInterval =>
-          val filterFrom = new SingleColumnValueFilter(
+        filterList.addFilter(
+          new SingleColumnValueFilter(
             FAMILY,
-            ROLLUP_TIME_QUALIFIER,
+            UPDATED_AT_QUALIFIER,
             CompareFilter.CompareOp.GREATER_OR_EQUAL,
-            Bytes.toBytes(rollupInterval.getStartMillis)
+            Bytes.toBytes(updatedAtInterval.getStartMillis)
           )
+        )
 
-          val filterTo = new SingleColumnValueFilter(
+        filterList.addFilter(
+          new SingleColumnValueFilter(
             FAMILY,
-            ROLLUP_TIME_QUALIFIER,
+            UPDATED_AT_QUALIFIER,
             CompareFilter.CompareOp.LESS_OR_EQUAL,
-            Bytes.toBytes(rollupInterval.getEndMillis)
+            Bytes.toBytes(updatedAtInterval.getEndMillis)
           )
-
-          filterList.addFilter(filterFrom)
-          filterList.addFilter(filterTo)
-        }
+        )
 
         scan.setFilter(filterList)
         table.getScanner(scan).asScala.map(toUpdateInterval)
@@ -126,12 +104,9 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     }
 
   private def toUpdateInterval(result: Result): UpdateInterval = {
-    val rollupTimeValue = Bytes.toLong(result.getValue(FAMILY, ROLLUP_TIME_QUALIFIER))
     UpdateInterval(
-      id = Some(Bytes.toLong(result.getRow)),
       from = Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER)),
-      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER)),
-      rollupTime = if (rollupTimeValue != 0) Some(rollupTimeValue) else None
+      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))
     )
   }
 

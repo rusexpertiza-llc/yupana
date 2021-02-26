@@ -55,13 +55,12 @@ class QueryEngineRouter(
       case DeleteQueryMetrics(filter) =>
         Right(QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
 
-      case ShowUpdatesIntervals(tableName, invalidated, rollupPeriod) =>
+      case ShowUpdatesIntervals(tableName, updatedAtPeriod) =>
         Right(
           UpdatesIntervalsProvider.handleGetUpdatesIntervals(
             flatQueryEngine,
             tableName,
-            invalidated,
-            rollupPeriod
+            updatedAtPeriod
           )
         )
     }
