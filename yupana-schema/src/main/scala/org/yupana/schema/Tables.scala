@@ -102,4 +102,31 @@ object Tables {
     externalLinks = receiptExternalLinks,
     epochTime
   )
+
+  val itemByDayTable = new Table(
+    name = "item_by_day",
+    rowTimeSpan = 86400000L * 30,
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val itemByWeekTable = new Table(
+    name = "item_by_week",
+    rowTimeSpan = 86400000L * 30,
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val itemByMonthTable = new Table(
+    name = "item_by_month",
+    rowTimeSpan = 86400000L * 30 * 12,
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
 }

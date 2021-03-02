@@ -31,3 +31,7 @@ trait RollupMetaDao {
   def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit
   def checkAndPutRollupStatus(time: Long, oldStatus: Option[String], newStatus: String, table: Table): Boolean
 }
+
+object RollupMetaDao {
+  val LAST_KNOWN_ROLLUP_TS_FIELD = "etl"
+}
