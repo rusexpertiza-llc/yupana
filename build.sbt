@@ -2,7 +2,7 @@ import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
 
-// ThisBuild / useCoursier := false
+ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
   .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
@@ -124,9 +124,10 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
       "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
       "junit"                       %  "junit"                        % "4.13"                            % Test,
-      "jakarta.ws.rs"               % "jakarta.ws.rs-api"             % "2.1.5"                           % Test,
+      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test,
       "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
-      "org.slf4j"                   % "log4j-over-slf4j"              % "1.7.30"                          % Test
+      "org.slf4j"                   %  "log4j-over-slf4j"             % "1.7.30"                          % Test,
+      "javax.activation"            % "javax.activation-api"          % "1.2.0"                           % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -256,7 +257,11 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
       case PathList("javax", "servlet", _*)         => MergeStrategy.last
       case PathList("javax", "el", _*)              => MergeStrategy.last
+      case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
+      case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
+      case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
+      case "module-info.class"                      => MergeStrategy.first
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
