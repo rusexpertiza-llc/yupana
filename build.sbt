@@ -141,13 +141,13 @@ lazy val spark = (project in file("yupana-spark"))
     name := "yupana-spark",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
       "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
       "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
-      "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
-      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting   % Test,
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test,
+      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting.value   % Test,
       "org.apache.hbase"            %  "hbase-server"                   % versions.hbase          % Test,
       "org.apache.hbase"            %  "hbase-server"                   % versions.hbase          % Test classifier "tests",
       "org.apache.hbase"            %  "hbase-common"                   % versions.hbase          % Test,
@@ -161,12 +161,14 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test,
       "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test classifier "tests"
     ),
-    dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core"      %  "jackson-core"               % "2.8.7" % Test,
-      "com.fasterxml.jackson.core"      %  "jackson-annotations"        % "2.8.7" % Test,
-      "com.fasterxml.jackson.core"      %  "jackson-databind"           % "2.8.7" % Test,
-      "com.fasterxml.jackson.module"    %% "jackson-module-scala"       % "2.8.7" % Test
-    )
+    dependencyOverrides ++= {
+      if (versions.spark.value.startsWith("2")) Seq(
+        "com.fasterxml.jackson.core"      %  "jackson-core"               % "2.8.7" % Test,
+        "com.fasterxml.jackson.core"      %  "jackson-annotations"        % "2.8.7" % Test,
+        "com.fasterxml.jackson.core"      %  "jackson-databind"           % "2.8.7" % Test,
+        "com.fasterxml.jackson.module"    %% "jackson-module-scala"       % "2.8.7" % Test
+      ) else Seq.empty
+    }
   )
   .dependsOn(core, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
@@ -241,12 +243,12 @@ lazy val examples = (project in file("yupana-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
       "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
-      "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc % Runtime,
-      "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Runtime
+      "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc       % Runtime,
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
     ),
     excludeDependencies ++= Seq(
       "asm" % "asm"
@@ -271,6 +273,21 @@ lazy val examples = (project in file("yupana-examples"))
   .enablePlugins(FlywayPlugin)
 
 lazy val versions = new {
+  val spark = Def.setting(
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => "2.4.5"
+      case Some((2, 12)) => "3.0.1"
+      case _             => sys.error("Unsupported Scala version")
+    }
+  )
+  val sparkTesting = Def.setting(
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 11)) => spark.value + "_0.14.0"
+      case Some((2, 12)) => spark.value + "_1.0.0"
+      case _             => sys.error("Unsupported Scala version")
+    }
+  )
+
   val joda = "2.10.8"
 
   val protobufJava = "2.6.1"
@@ -281,7 +298,6 @@ lazy val versions = new {
 
   val hbase = "1.3.6"
   val hadoop = "2.8.5"
-  val spark = "2.4.5"
   val akka = "2.5.32"
 
   val lucene = "6.6.0"
@@ -300,7 +316,6 @@ lazy val versions = new {
   val scalaTest = "3.0.8"
   val scalaCheck = "1.14.3"
   val scalaMock = "4.4.0"
-  val sparkTesting = s"${spark}_0.14.0"
 
   val fastparse = Def.setting(
     CrossVersion.partialVersion(scalaVersion.value) match {

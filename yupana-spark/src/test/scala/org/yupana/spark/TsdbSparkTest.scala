@@ -39,29 +39,29 @@ class TsdbSparkTest extends FlatSpec with Matchers with DataFrameSuiteBase {
 
     println(config)
 
-//    val tsdbSpark = new TsdbSparkBase(sc, identity, config, SchemaRegistry.defaultSchema) {
-//      override def registerExternalLink(
-//          catalog: ExternalLink,
-//          catalogService: ExternalLinkService[_ <: ExternalLink]
-//      ): Unit = {}
-//      override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = ???
-//    }
-//
-//    val query = Query(
-//      Tables.itemsKkmTable,
-//      const(Time(1234567)),
-//      const(Time(2345678)),
-//      Seq(
-//        truncDay(time) as "day",
-//        min(divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField)))) as "min_price",
-//        dimension(Dimensions.ITEM).toField
-//      ),
-//      None,
-//      Seq(truncDay(time), dimension(Dimensions.ITEM))
-//    )
-//
-//    val result = tsdbSpark.query(query).collect()
-//
-//    result(0).get[Int]("day") shouldEqual 2000000
+    val tsdbSpark = new TsdbSparkBase(sc, identity, config, SchemaRegistry.defaultSchema) {
+      override def registerExternalLink(
+          catalog: ExternalLink,
+          catalogService: ExternalLinkService[_ <: ExternalLink]
+      ): Unit = {}
+      override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = ???
+    }
+
+    val query = Query(
+      Tables.itemsKkmTable,
+      const(Time(1234567)),
+      const(Time(2345678)),
+      Seq(
+        truncDay(time) as "day",
+        min(divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField)))) as "min_price",
+        dimension(Dimensions.ITEM).toField
+      ),
+      None,
+      Seq(truncDay(time), dimension(Dimensions.ITEM))
+    )
+
+    val result = tsdbSpark.query(query).collect()
+
+    result(0).get[Int]("day") shouldEqual 2000000
   }
 }
