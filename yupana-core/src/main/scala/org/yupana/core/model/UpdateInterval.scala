@@ -16,7 +16,9 @@
 
 package org.yupana.core.model
 
-case class UpdateInterval(from: Long, to: Long, updatedAt: Option[Long] = None)
+import org.joda.time.DateTime
+
+case class UpdateInterval(from: DateTime, to: DateTime, updatedAt: DateTime)
 
 object UpdateInterval {
   val updatedAtColumn = "updated_at"
