@@ -1,1 +1,1 @@
-version in ThisBuild := "0.19.0-SNAPSHOT-item-rollup"
+version in ThisBuild := "0.19.0-SNAPSHOT"
