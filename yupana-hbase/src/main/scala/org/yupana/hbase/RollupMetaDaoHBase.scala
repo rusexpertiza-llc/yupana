@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTime, Interval }
+import org.joda.time.DateTime
 import org.yupana.api.schema.Table
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.RollupMetaDao
@@ -63,7 +63,8 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   override def getUpdatesIntervals(
       tableName: String,
-      updatedAtInterval: Interval
+      updatedAfter: Option[Long],
+      updatedBefore: Option[Long]
   ): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
@@ -79,21 +80,25 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           )
         )
 
-        filterList.addFilter(
-          new SingleColumnValueFilter(
-            FAMILY,
-            UPDATED_AT_QUALIFIER,
-            CompareFilter.CompareOp.GREATER_OR_EQUAL,
-            Bytes.toBytes(updatedAtInterval.getStartMillis)
+        updatedAfter.foreach(ua =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              UPDATED_AT_QUALIFIER,
+              CompareFilter.CompareOp.GREATER_OR_EQUAL,
+              Bytes.toBytes(ua)
+            )
           )
         )
 
-        filterList.addFilter(
-          new SingleColumnValueFilter(
-            FAMILY,
-            UPDATED_AT_QUALIFIER,
-            CompareFilter.CompareOp.LESS_OR_EQUAL,
-            Bytes.toBytes(updatedAtInterval.getEndMillis)
+        updatedBefore.foreach(ub =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              UPDATED_AT_QUALIFIER,
+              CompareFilter.CompareOp.LESS_OR_EQUAL,
+              Bytes.toBytes(ub)
+            )
           )
         )
 
@@ -109,54 +114,6 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
       to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER)),
       updatedAt = Some(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER)))
     )
-  }
-
-  override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = {
-    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      val scan = new Scan()
-        .addColumn(rollupStatusFamily, rollupStatusField)
-        .setStartRow(Bytes.toBytes(fromTime))
-        .setStopRow(Bytes.toBytes(toTime))
-      using(hbaseTable.getScanner(scan)) { scanner =>
-        scanner.asScala.toIterator.flatMap { result =>
-          val time = Bytes.toLong(result.getRow)
-          val value = Option(result.getValue(rollupStatusFamily, rollupStatusField)).map(Bytes.toString)
-          value.map(v => time -> v)
-        }.toSeq
-      }
-    }
-  }
-
-  override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
-    if (statuses.nonEmpty) {
-      checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-      using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-        val puts = statuses.map(status =>
-          new Put(Bytes.toBytes(status._1))
-            .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
-        )
-        hbaseTable.put(puts.asJava)
-      }
-    }
-  }
-
-  override def checkAndPutRollupStatus(
-      time: Long,
-      oldStatus: Option[String],
-      newStatus: String,
-      table: Table
-  ): Boolean = {
-    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      hbaseTable.checkAndPut(
-        Bytes.toBytes(time),
-        rollupStatusFamily,
-        rollupStatusField,
-        oldStatus.map(_.getBytes).orNull,
-        new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
-      )
-    }
   }
 
   override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {

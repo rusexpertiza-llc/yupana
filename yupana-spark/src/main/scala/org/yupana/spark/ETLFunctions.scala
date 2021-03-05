@@ -22,8 +22,6 @@ import org.apache.spark.streaming.dstream.DStream
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.RollupMetaDao
-//import org.yupana.core.model.UpdateInterval
-import org.yupana.hbase.HBaseUtils
 
 import scala.language.implicitConversions
 
@@ -49,7 +47,7 @@ object ETLFunctions extends StrictLogging {
           byTable.foreach {
             case (t, ps) =>
               if (schema.rollups.exists(_.fromTable.name == t.name)) {
-                invalidateRollups(context.rollupMetaDao, ps, t)
+                markUpdatedIntervals(context.rollupMetaDao, ps, t)
               }
           }
         }
@@ -57,28 +55,8 @@ object ETLFunctions extends StrictLogging {
     }
   }
 
-  def invalidateRollups(rollupMetaDao: RollupMetaDao, dps: Seq[DataPoint], table: Table): Unit = {
-    rollupMetaDao.getRollupSpecialField(RollupMetaDao.LAST_KNOWN_ROLLUP_TS_FIELD, table).foreach {
-      etlObligatoryRecalc =>
-        val rollupStatuses = dps
-          .filter(_.time < etlObligatoryRecalc)
-          .groupBy(dp => HBaseUtils.baseTime(dp.time, table))
-          .mapValues(dps => invalidationMark(dps.head))
-          .toSeq
-
-        rollupMetaDao.putRollupStatuses(rollupStatuses, table)
-      /* todo redo this val invalidatedPeriods = rollupStatuses.map {
-        case (baseTime, _) =>
-          UpdateInterval(from = baseTime, to = baseTime + table.rowTimeSpan)
-      }
-      rollupMetaDao.putUpdatesIntervals(table.name, invalidatedPeriods)*/
-    }
-  }
-
-  private def invalidationMark(dataPoint: DataPoint): String = {
-    dataPoint.dimensions.foldLeft(dataPoint.time.toString) {
-      case (acc, (_, v)) => acc + v
-    }
+  def markUpdatedIntervals(rollupMetaDao: RollupMetaDao, dps: Seq[DataPoint], table: Table): Unit = {
+    rollupMetaDao.putUpdatesIntervals(table.name, RollupMetaDao.dataPointsToUpdatedIntervals(dps, table.rowTimeSpan))
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =

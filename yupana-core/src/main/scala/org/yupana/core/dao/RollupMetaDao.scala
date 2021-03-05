@@ -17,21 +17,38 @@
 package org.yupana.core.dao
 
 import org.joda.time.Interval
+import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.Table
 import org.yupana.core.model.UpdateInterval
 
 trait RollupMetaDao {
   def putUpdatesIntervals(tableName: String, periods: Seq[UpdateInterval]): Unit
-  def getUpdatesIntervals(tableName: String, rollupIntervalOpt: Interval): Iterable[UpdateInterval]
+  def getUpdatesIntervals(
+      tableName: String,
+      updatedAfter: Option[Long],
+      updatedBefore: Option[Long]
+  ): Iterable[UpdateInterval]
+  def getUpdatesIntervals(tableName: String, interval: Interval): Iterable[UpdateInterval] = {
+    getUpdatesIntervals(tableName, Some(interval.getStartMillis), Some(interval.getEndMillis))
+  }
 
   def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
   def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit
-
-  def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)]
-  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit
-  def checkAndPutRollupStatus(time: Long, oldStatus: Option[String], newStatus: String, table: Table): Boolean
 }
 
 object RollupMetaDao {
-  val LAST_KNOWN_ROLLUP_TS_FIELD = "etl"
+
+  object SpecialField {
+    val PREV_ROLLUP_TIME: String = "prev_run_ts"
+  }
+
+  def dataPointsToUpdatedIntervals(dps: Seq[DataPoint], timeGranularity: Long): Seq[UpdateInterval] = {
+    val nowMillis = System.currentTimeMillis()
+    dps
+      .map(dp => dp.time - dp.time % timeGranularity)
+      .distinct
+      .map { baseTime =>
+        UpdateInterval(from = baseTime, to = baseTime + timeGranularity, Some(nowMillis))
+      }
+  }
 }

@@ -129,4 +129,58 @@ object Tables {
     externalLinks = itemExternalLinks,
     epochTime
   )
+
+  val itemKkmsByDayTable = new Table(
+    name = "item_kkms_by_day",
+    rowTimeSpan = 86400000L * 30,
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val itemKkmsByWeekTable = new Table(
+    name = "item_kkms_by_week",
+    rowTimeSpan = 86400000L * 30,
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val itemKkmsByMonthTable = new Table(
+    name = "item_kkms_by_month",
+    rowTimeSpan = 86400000L * 30 * 12,
+    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val kkmsItemByDayTable = new Table(
+    name = "kkms_item_by_day",
+    rowTimeSpan = 86400000L * 30,
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val kkmsItemByWeekTable = new Table(
+    name = "kkms_item_by_week",
+    rowTimeSpan = 86400000L * 30,
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
+
+  val kkmsItemByMonthTable = new Table(
+    name = "kkms_item_by_month",
+    rowTimeSpan = 86400000L * 30 * 12,
+    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
+    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
+    externalLinks = itemExternalLinks,
+    epochTime
+  )
 }

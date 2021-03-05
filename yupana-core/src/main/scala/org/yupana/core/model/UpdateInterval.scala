@@ -16,7 +16,12 @@
 
 package org.yupana.core.model
 
-case class UpdateInterval(from: Long, to: Long, updatedAt: Option[Long] = None)
+import org.joda.time.Interval
+
+case class UpdateInterval(from: Long, to: Long, updatedAt: Option[Long] = None) extends Serializable {
+
+  def asInterval: Interval = new Interval(from, to)
+}
 
 object UpdateInterval {
   val updatedAtColumn = "updated_at"

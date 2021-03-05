@@ -42,10 +42,6 @@ class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMeta
     metricsDao.queriesByFilter(filter, limit)
   }
 
-  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
-    rollupMetaDao.putRollupStatuses(statuses, table)
-  }
-
   def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
     rollupMetaDao.getRollupSpecialField(fieldName, table)
   }
