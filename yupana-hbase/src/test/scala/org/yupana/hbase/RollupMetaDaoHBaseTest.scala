@@ -14,12 +14,14 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
     val dao = new RollupMetaDaoHBase(hbaseConnection, "test")
 
     val baseTimes = Set(
-      HBaseUtils.baseTime(DateTime.now().withDayOfMonth(3).getMillis, TestTable),
-      HBaseUtils.baseTime(DateTime.now().withDayOfMonth(4).getMillis, TestTable)
+      HBaseUtils.baseTime(DateTime.now().minusDays(4).getMillis, TestTable),
+      HBaseUtils.baseTime(DateTime.now().minusDays(3).getMillis, TestTable)
     )
 
+    val now = DateTime.now()
+
     val invalidatedIntervals = baseTimes.map { baseTime =>
-      UpdateInterval(from = baseTime, to = baseTime + TestTable.rowTimeSpan)
+      UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + TestTable.rowTimeSpan), now)
     }.toSeq
 
     val from = DateTime.now().plusDays(-1).getMillis
@@ -43,9 +45,9 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matche
     val result = dao.getUpdatesIntervals("rollup_by_day", interval)
     result should have size 2
     val period = result.head
-    val t = baseTimes.head
+    val t = new DateTime(baseTimes.head)
     period.from shouldEqual t
-    period.to shouldEqual t + TestTable.rowTimeSpan
+    period.to shouldEqual t.plusMillis(TestTable.rowTimeSpan.toInt)
 
     And("invalid periods still here")
     dao.getUpdatesIntervals("receipt", interval) should have size 2

@@ -47,14 +47,14 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   override def putUpdatesIntervals(tableName: String, intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
-      val updatedAt = DateTime.now().getMillis
       val puts = intervals.map { period =>
-        val rowKey = Bytes.toBytes(tableName) ++ Bytes.toBytes(period.from) ++ Bytes.toBytes(period.to)
+        val rowKey =
+          Bytes.toBytes(tableName) ++ Bytes.toBytes(period.from.getMillis) ++ Bytes.toBytes(period.to.getMillis)
         val put = new Put(rowKey)
-        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from))
-        put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to))
+        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from.getMillis))
+        put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to.getMillis))
         put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
-        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(period.updatedAt.getOrElse(updatedAt)))
+        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(period.updatedAt.getMillis))
         put
       }
       table.put(puts.asJava)
@@ -110,9 +110,9 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   private def toUpdateInterval(result: Result): UpdateInterval = {
     UpdateInterval(
-      from = Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER)),
-      to = Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER)),
-      updatedAt = Some(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER)))
+      from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
+      to = new DateTime(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
+      updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER)))
     )
   }
 

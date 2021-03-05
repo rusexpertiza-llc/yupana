@@ -19,6 +19,7 @@ package org.yupana.spark
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
+import org.joda.time.DateTime
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.RollupMetaDao
