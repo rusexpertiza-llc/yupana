@@ -33,7 +33,7 @@ class QueryEngineRouter(
     SqlParser.parse(sql).right flatMap {
       case select: Select =>
         val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
-        tsdbQuery flatMap { query =>
+        tsdbQuery.right flatMap { query =>
           Right(timeSeriesQueryEngine.query(query))
         }
 
