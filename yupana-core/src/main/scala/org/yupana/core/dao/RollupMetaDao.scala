@@ -16,7 +16,7 @@
 
 package org.yupana.core.dao
 
-import org.joda.time.Interval
+import org.joda.time.{ DateTime, Interval }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.Table
 import org.yupana.core.model.UpdateInterval
@@ -43,12 +43,12 @@ object RollupMetaDao {
   }
 
   def dataPointsToUpdatedIntervals(dps: Seq[DataPoint], timeGranularity: Long): Seq[UpdateInterval] = {
-    val nowMillis = System.currentTimeMillis()
+    val now = DateTime.now
     dps
       .map(dp => dp.time - dp.time % timeGranularity)
       .distinct
       .map { baseTime =>
-        UpdateInterval(from = baseTime, to = baseTime + timeGranularity, Some(nowMillis))
+        UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + timeGranularity), now)
       }
   }
 }
