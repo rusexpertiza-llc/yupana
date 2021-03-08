@@ -1,8 +1,9 @@
 package org.yupana.spark
 
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
-import org.apache.hadoop.hbase.HBaseTestingUtility
-import org.scalatest.{ FlatSpec, Matchers }
+import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.schema.ExternalLink
@@ -11,7 +12,7 @@ import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables 
 
 import java.nio.file.Paths
 
-class TsdbSparkTest extends FlatSpec with Matchers with DataFrameSuiteBase {
+class TsdbSparkTest extends AnyFlatSpec with Matchers with DataFrameSuiteBase {
 
   private val utility = new HBaseTestingUtility
 
@@ -22,7 +23,14 @@ class TsdbSparkTest extends FlatSpec with Matchers with DataFrameSuiteBase {
 
     println(s"hhp $hadoopHomePath")
 
-    utility.startMiniCluster(1, 1)
+    utility.startMiniCluster(
+      StartMiniClusterOption
+        .builder()
+        .numMasters(1)
+        .numRegionServers(1)
+        .numDataNodes(1)
+        .build()
+    )
   }
 
   override def afterAll(): Unit = {

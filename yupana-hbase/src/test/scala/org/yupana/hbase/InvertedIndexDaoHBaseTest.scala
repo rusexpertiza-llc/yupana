@@ -1,9 +1,10 @@
 package org.yupana.hbase
 
-import org.scalatest.{ FlatSpecLike, Matchers }
 import org.yupana.api.types.FixedStorable
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-trait InvertedIndexDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers {
+trait InvertedIndexDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
   "InvertedIndexDaoHBase" should "put and get values" in {
     val dao = new InvertedIndexDaoHBase(
       connection,

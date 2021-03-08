@@ -1,9 +1,10 @@
 package org.yupana.utils
 
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class OfdItemFixerTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class OfdItemFixerTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   "OfdItemFixer" should "replace broken chars" in {
     val items = Table(
       ("item", "fixer"),

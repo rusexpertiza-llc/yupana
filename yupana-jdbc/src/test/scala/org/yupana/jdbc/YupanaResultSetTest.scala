@@ -7,12 +7,13 @@ import java.{ util, math => jm }
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.{ DataType, DataTypeMeta }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
+class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "Result set" should "provide common information" in {
     val statement = mock[Statement]

@@ -5,7 +5,6 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
@@ -19,10 +18,12 @@ import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCo
 
 import java.util.Properties
 import scala.util.Random
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TsdbBenchmark extends FlatSpec with Matchers {
+class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
-  "HBAse" should "be fast" taggedAs Slow in {
+  "HBase" should "be fast" taggedAs Slow in {
     val hbaseConfiguration = HBaseConfiguration.create()
     hbaseConfiguration.set("hbase.zookeeper.quorum", "localhost:2181")
     hbaseConfiguration.set("zookeeper.session.timeout", "9000000")
@@ -30,7 +31,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //    hbaseConfiguration.set("hbase.client.scanner.max.result.size", "50000000")
 //    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, props)
 
-    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+    HBaseAdmin.available(hbaseConfiguration)
     val nameSpace = "schema43"
 
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
@@ -49,13 +50,13 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     import scala.collection.JavaConverters._
 
     val start = System.currentTimeMillis()
-    val result = table.getScanner(scan)
-    val dps = result.iterator().asScala.foldLeft(0L) { (c, r) =>
+    val scanner = table.getScanner(scan)
+    val dps = scanner.iterator().asScala.foldLeft(0L) { (c, r) =>
       c + r.rawCells().length
     }
 
     println(dps)
-    println(scan.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
+    println(scanner.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
     println("TIME: " + (System.currentTimeMillis() - start))
   }
 

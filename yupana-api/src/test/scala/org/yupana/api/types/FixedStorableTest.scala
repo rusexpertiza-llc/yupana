@@ -1,10 +1,11 @@
 package org.yupana.api.types
 
 import org.scalacheck.Arbitrary
-import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FixedStorableTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
+class FixedStorableTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   "FixedStorable" should "handle Long values" in readWriteTest[Long]
 

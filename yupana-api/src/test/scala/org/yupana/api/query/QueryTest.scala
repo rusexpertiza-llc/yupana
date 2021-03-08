@@ -1,11 +1,12 @@
 package org.yupana.api.query
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, Metric, RawDimension, Table }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class QueryTest extends FlatSpec with Matchers {
+class QueryTest extends AnyFlatSpec with Matchers {
 
   import syntax.All._
 

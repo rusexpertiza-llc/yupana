@@ -1,9 +1,10 @@
 package org.yupana.utils
 
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RussianTokenizerTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class RussianTokenizerTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   "Stemmer" should "split numbers and words" in {
     RussianTokenizer.stemmedTokens("95пульсар") should contain theSameElementsAs List("95пульсар", "95", "пульсар")
 

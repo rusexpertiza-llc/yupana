@@ -1,14 +1,16 @@
 package org.yupana.akka
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.scalatest.{ EitherValues, FlatSpec, Matchers, OptionValues }
+import org.scalatest.{ EitherValues, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.ItemFixer
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues with EitherValues {
+class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues with EitherValues {
 
   val metadataProvider = new JdbcMetadataProvider(TS.schema)
 
@@ -32,7 +34,7 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
   }
 
   it should "describe table by name" in {
-    val res = metadataProvider.describeTable("s1").right.value
+    val res = metadataProvider.describeTable("s1").value
     res.fieldNames should contain theSameElementsAs metadataProvider.columnFieldNames
     val r = res.iterator.toList
     r should have size 6
@@ -60,7 +62,6 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
   it should "provide functions for type" in {
     metadataProvider
       .listFunctions("VARCHAR")
-      .right
       .value
       .toList
       .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
@@ -81,7 +82,6 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
 
     metadataProvider
       .listFunctions("DOUBLE")
-      .right
       .value
       .toList
       .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(
@@ -100,7 +100,6 @@ class JdbcMetadataProviderTest extends FlatSpec with Matchers with OptionValues 
 
     metadataProvider
       .listFunctions("ARRAY[INTEGER]")
-      .right
       .value
       .toList
       .map(row => row.get[String]("NAME")) should contain theSameElementsAs List(

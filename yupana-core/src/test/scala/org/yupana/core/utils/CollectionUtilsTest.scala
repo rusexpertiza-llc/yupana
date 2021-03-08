@@ -1,8 +1,9 @@
 package org.yupana.core.utils
 
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CollectionUtilsTest extends FlatSpec with Matchers {
+class CollectionUtilsTest extends AnyFlatSpec with Matchers {
 
   "Cross join" should "join single list" in {
     val kkms = (1 to 3).map("kkmId" -> _.toString).toList

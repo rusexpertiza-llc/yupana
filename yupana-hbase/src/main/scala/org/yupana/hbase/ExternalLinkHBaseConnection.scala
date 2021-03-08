@@ -17,11 +17,10 @@
 package org.yupana.hbase
 
 import java.io.IOException
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table }
-import org.apache.hadoop.hbase.{ HBaseConfiguration, HTableDescriptor, TableExistsException, TableName }
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table, TableDescriptor }
+import org.apache.hadoop.hbase.{ HBaseConfiguration, TableExistsException, TableName }
 import org.yupana.api.utils.ResourceUtils.using
 
 class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) extends StrictLogging {
@@ -55,7 +54,7 @@ class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) 
     }
   }
 
-  def checkTablesExistsElseCreate(tableDescriptor: HTableDescriptor): Unit = {
+  def checkTablesExistsElseCreate(tableDescriptor: TableDescriptor): Unit = {
     try {
       using(connection.getAdmin) { admin =>
         if (!admin.tableExists(tableDescriptor.getTableName)) {

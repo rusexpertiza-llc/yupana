@@ -3,11 +3,12 @@ package org.yupana.jdbc
 import java.sql.{ ResultSet, SQLException, SQLFeatureNotSupportedException }
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class YupanaStatementTest extends FlatSpec with Matchers with MockFactory {
+class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "YupanaStatement" should "execute queries" in {
     val conn = mock[YupanaConnection]

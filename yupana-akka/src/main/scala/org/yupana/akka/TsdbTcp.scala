@@ -18,7 +18,7 @@ package org.yupana.akka
 
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
+import akka.stream.{ ActorAttributes, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.proto.{ Request, Response }
@@ -46,11 +46,10 @@ class TsdbTcp(
     logger.error("Exception:", e)
     Supervision.Stop
   }
-  implicit private val mat: ActorMaterializer = ActorMaterializer(
-    ActorMaterializerSettings(system).withSupervisionStrategy(decider)
-  )
 
-  private val connections = Tcp().bind(host, port, idleTimeout = 60.seconds)
+  private val connections = Tcp()
+    .bind(host, port, idleTimeout = 60.seconds)
+    .withAttributes(ActorAttributes.supervisionStrategy(decider))
 
   connections runForeach { conn =>
     val sentSize = new AtomicInteger(0)
@@ -145,7 +144,7 @@ class TsdbTcp(
         }
       }
 
-    conn.handleWith(connHandler)
+    conn.handleWith(connHandler.withAttributes(ActorAttributes.supervisionStrategy(decider)))
   }
 
   def humanReadableByteSize(fileSize: Long): String = {
