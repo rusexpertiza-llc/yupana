@@ -127,7 +127,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test,
       "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
       "org.slf4j"                   %  "log4j-over-slf4j"             % "1.7.30"                          % Test,
-      "javax.activation"            % "javax.activation-api"          % "1.2.0"                           % Test
+      "javax.activation"            %  "javax.activation-api"         % "1.2.0"                           % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -181,8 +181,21 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test classifier "tests",
       "org.apache.hbase"            %  "hbase-zookeeper"                % versions.hbase          % Test,
       "org.apache.hbase"            %  "hbase-zookeeper"                % versions.hbase          % Test classifier "tests",
-      "javax.activation"            % "javax.activation-api"            % "1.2.0"                 % Test
-    )
+      "org.apache.hbase"            %  "hbase-http"                     % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-metrics-api"              % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-metrics"                  % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-asyncfs"                  % versions.hbase          % Test,
+      "org.apache.hbase"            %  "hbase-logging"                  % versions.hbase          % Test,
+      "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
+      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"              % "2.1.5"                 % Test,
+      "javax.activation"            %  "javax.activation-api"           % "1.2.0"                 % Test
+    ),
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
+      )
   )
   .dependsOn(core, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
