@@ -14,24 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.core.model
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
-  val compression: String
+case class UpdateInterval(from: Long, to: Long, rollupTime: Option[Long])
+
+object UpdateInterval {
+  val invalidatedFlagColumn = "invalidated_flag"
+  val rollupTimeColumn = "rollup_time"
+  val fromColumn = "from"
+  val toColumn = "to"
+  val tableColumn = "table"
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50,
-    compression: String = "snappy"
-) extends TsdbConfig
