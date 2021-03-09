@@ -65,3 +65,5 @@ case class In(expr: SqlExpr, values: Seq[Value]) extends Condition
 case class NotIn(expr: SqlExpr, values: Seq[Value]) extends Condition
 
 case class ExprCondition(function: SqlExpr) extends Condition
+
+case class BetweenCondition(expr: SqlExpr, from: Value, to: Value) extends Condition

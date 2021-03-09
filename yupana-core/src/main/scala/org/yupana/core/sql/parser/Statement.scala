@@ -16,6 +16,8 @@
 
 package org.yupana.core.sql.parser
 
+import org.joda.time.Interval
+
 sealed trait Statement
 
 case class Select(
@@ -47,7 +49,4 @@ case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 
 case class ShowFunctions(dataType: String) extends Statement
 
-case class ShowUpdatesIntervals(
-    tableName: String,
-    updatedAtPeriod: TimestampPeriodValue
-) extends Statement
+case class ShowUpdatesIntervals(tableName: String, updatedAtInterval: Interval) extends Statement

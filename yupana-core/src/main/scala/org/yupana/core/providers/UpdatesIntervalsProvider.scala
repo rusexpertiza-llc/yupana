@@ -21,7 +21,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.FlatQueryEngine
-import org.yupana.core.sql.parser.TimestampPeriodValue
 
 object UpdatesIntervalsProvider {
   import org.yupana.core.model.UpdateInterval._
@@ -29,11 +28,8 @@ object UpdatesIntervalsProvider {
   def handleGetUpdatesIntervals(
       flatQueryEngine: FlatQueryEngine,
       tableName: String,
-      updatedAtPeriod: TimestampPeriodValue
+      updateInterval: Interval
   ): Result = {
-
-    val updateInterval =
-      new Interval(updatedAtPeriod.from.value.toDateTime.getMillis, updatedAtPeriod.to.value.toDateTime.getMillis)
     val updatesIntervals = flatQueryEngine.getUpdatesIntervals(tableName, updateInterval)
     val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](

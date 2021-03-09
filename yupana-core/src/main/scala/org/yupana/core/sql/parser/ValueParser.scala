@@ -17,8 +17,7 @@
 package org.yupana.core.sql.parser
 
 import fastparse._
-import org.joda.time.{ LocalDateTime, Period }
-
+import org.joda.time.{ DateTime, DateTimeZone, Period }
 import NoWhitespace._
 
 object ValueParser {
@@ -66,9 +65,9 @@ object ValueParser {
   def time[_: P]: P[(Int, Int, Int, Int)] =
     P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
 
-  def dateAndTime[_: P]: P[LocalDateTime] = P(date ~/ (" " ~ time).?).map {
-    case (y, m, d, None)                  => new LocalDateTime(y, m, d, 0, 0, 0, 0)
-    case (y, m, d, Some((h, mm, ss, ms))) => new LocalDateTime(y, m, d, h, mm, ss, ms)
+  def dateAndTime[_: P]: P[DateTime] = P(date ~/ (" " ~ time).?).map {
+    case (y, m, d, None)                  => new DateTime(y, m, d, 0, 0, 0, 0, DateTimeZone.UTC)
+    case (y, m, d, Some((h, mm, ss, ms))) => new DateTime(y, m, d, h, mm, ss, ms, DateTimeZone.UTC)
   }
 
   def duration[_: P]: P[Period] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
@@ -76,10 +75,10 @@ object ValueParser {
       new Period(0, 0, 0, d.getOrElse(0), h, m, s, ms)
   }
 
-  private def pgTimestamp[_: P]: P[LocalDateTime] = {
+  private def pgTimestamp[_: P]: P[DateTime] = {
     P(timestampWord ~/ wsp ~ "'" ~ dateAndTime ~ "'")
   }
-  private def msTimestamp[_: P]: P[LocalDateTime] = {
+  private def msTimestamp[_: P]: P[DateTime] = {
     P("{" ~ wsp ~ tsWord ~/ wsp ~ "'" ~ dateAndTime ~ "'" ~ wsp ~ "}")
   }
 

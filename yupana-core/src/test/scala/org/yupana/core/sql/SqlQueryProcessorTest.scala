@@ -298,6 +298,27 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
     }
   }
 
+  it should "support between conditions" in {
+    testQuery(
+      """
+        | SELECT testField tf, trunc_month(time) m FROM test_table
+        |   WHERE time BETWEEN TIMESTAMP '2019-03-30' and TIMESTAMP '2019-03-31' AND testField2 BETWEEN 5 AND 7
+        |""".stripMargin
+    ) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.filter.value shouldEqual and(
+        and(
+          ge(time, const(Time(new DateTime(2019, 3, 30, 0, 0, DateTimeZone.UTC)))),
+          le(time, const(Time(new DateTime(2019, 3, 31, 0, 0, DateTimeZone.UTC))))
+        ),
+        and(
+          ge(metric(TestTableFields.TEST_FIELD2), const(5d)),
+          le(metric(TestTableFields.TEST_FIELD2), const(7d))
+        )
+      )
+    }
+  }
+
   it should "support functions as conditions" in {
     testQuery(
       """
@@ -386,8 +407,8 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         | GROUP BY m, b
       """.stripMargin
 
-    val from = new LocalDateTime(2017, 9, 1, 0, 0)
-    val to = new LocalDateTime(2017, 9, 15, 0, 0)
+    val from = new DateTime(2017, 9, 1, 0, 0, DateTimeZone.UTC)
+    val to = new DateTime(2017, 9, 15, 0, 0, DateTimeZone.UTC)
 
     inside(
       createQuery(
@@ -481,7 +502,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         statement,
         Map(
           1 -> parser.StringValue("Test me"),
-          2 -> parser.TimestampValue(new LocalDateTime(2018, 1, 23, 16, 44, 20))
+          2 -> parser.TimestampValue(new DateTime(2018, 1, 23, 16, 44, 20, DateTimeZone.UTC))
         )
       )
     ) {
@@ -1152,7 +1173,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   }
 
   it should "handle upsert in batch" in {
-    val t1 = LocalDateTime.now().minusDays(1)
+    val t1 = DateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
@@ -1223,7 +1244,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
   }
 
   it should "fail whole batch if there is incorrect element" in {
-    val t1 = LocalDateTime.now().minusDays(1)
+    val t1 = DateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
@@ -1254,7 +1275,7 @@ class SqlQueryProcessorTest extends FlatSpec with Matchers with Inside with Opti
         Map(
           1 -> parser.StringValue("aaa"),
           2 -> parser.StringValue("bbb"),
-          3 -> parser.TimestampValue(LocalDateTime.now()),
+          3 -> parser.TimestampValue(DateTime.now()),
           4 -> parser.NumericValue(1.1),
           5 -> parser.StringValue("ccc")
         )
