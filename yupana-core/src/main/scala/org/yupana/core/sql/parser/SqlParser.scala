@@ -248,6 +248,7 @@ object SqlParser {
 
   def tableFilter[_: P]: P[String] =
     P(tableWord ~ "=" ~/ ValueParser.string)
+
   def updatedAtFilter[_: P]: P[TimestampPeriodValue] =
     P(updatedAtWord ~ betweenWord ~/ ValueParser.timestampValue ~/ andWord ~/ ValueParser.timestampValue)
       .map(TimestampPeriodValue.tupled)

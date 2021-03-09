@@ -16,7 +16,7 @@
 
 package org.yupana.core.providers
 
-import org.joda.time.Interval
+import org.joda.time.{ DateTimeZone, Interval }
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
@@ -33,7 +33,10 @@ object UpdatesIntervalsProvider {
   ): Result = {
 
     val updateInterval =
-      new Interval(updatedAtPeriod.from.value.toDateTime.getMillis, updatedAtPeriod.to.value.toDateTime.getMillis)
+      new Interval(
+        updatedAtPeriod.from.value.toDateTime(DateTimeZone.UTC).getMillis,
+        updatedAtPeriod.to.value.toDateTime(DateTimeZone.UTC).getMillis
+      )
     val updatesIntervals = flatQueryEngine.getUpdatesIntervals(tableName, updateInterval)
     val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](
