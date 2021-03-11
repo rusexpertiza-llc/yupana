@@ -30,21 +30,21 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
 
   it should "parse timestamps" in {
     parse("TIMESTAMP '2017-08-23 12:44:02.000'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new LocalDateTime(2017, 8, 23, 12, 44, 2, 0)
+      new DateTime(2017, 8, 23, 12, 44, 2, 0, DateTimeZone.UTC)
     )
 
     parse("TIMESTAMP '2017-08-23'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new LocalDateTime(2017, 8, 23, 0, 0)
+      new DateTime(2017, 8, 23, 0, 0, DateTimeZone.UTC)
     )
 
     parse("TIMESTAMP '2018-08-4 22:25:51.03'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new LocalDateTime(2018, 8, 4, 22, 25, 51, 30)
+      new DateTime(2018, 8, 4, 22, 25, 51, 30, DateTimeZone.UTC)
     )
   }
 
   it should "support alternative timestamp syntax" in {
     parse("{TS '2017-10-31 00:00:00' }", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new LocalDateTime(2017, 10, 31, 0, 0, 0)
+      new DateTime(2017, 10, 31, 0, 0, 0, DateTimeZone.UTC)
     )
   }
 
@@ -255,6 +255,32 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
 
           case _ => fail(s"Unexpected field $f")
         }
+    }
+  }
+
+  it should "support between conditions" in {
+    val statement =
+      """SELECT sum(quantity) FROM items WHERE time BETWEEN TIMESTAMP '2021-03-09' AND TIMESTAMP '2021-03-10' AND
+         | sum BETWEEN 1000 AND 10000""".stripMargin
+
+    parsed(statement) {
+      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        schema shouldEqual "items"
+        fields should contain theSameElementsAs List(SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)))
+        condition shouldEqual And(
+          Seq(
+            BetweenCondition(
+              FieldName("time"),
+              TimestampValue(new DateTime(2021, 3, 9, 0, 0, DateTimeZone.UTC)),
+              TimestampValue(new DateTime(2021, 3, 10, 0, 0, DateTimeZone.UTC))
+            ),
+            BetweenCondition(
+              FieldName("sum"),
+              NumericValue(1000),
+              NumericValue(10000)
+            )
+          )
+        )
     }
   }
 
@@ -469,8 +495,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
 
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 10, 1, 0, 0)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 10, 30, 0, 0))))
+            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 10, 1, 0, 0, DateTimeZone.UTC)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 10, 30, 0, 0, DateTimeZone.UTC))))
           )
         )
 
@@ -517,8 +543,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 12, 20, 0, 0)))),
+            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 12, 20, 0, 0, DateTimeZone.UTC)))),
             Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
           )
         )
@@ -548,8 +574,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 12, 20, 0, 0)))),
+            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 12, 20, 0, 0, DateTimeZone.UTC)))),
             Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
           )
         )
@@ -583,8 +609,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 1, 0, 0)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 11, 20, 0, 0)))),
+            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
+            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 20, 0, 0, DateTimeZone.UTC)))),
             Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
           )
         )
@@ -757,8 +783,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         )
         condition shouldEqual And(
           Seq(
-            Lt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2018, 1, 11, 0, 0)))),
-            Gt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2018, 1, 1, 0, 0))))
+            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2018, 1, 11, 0, 0, DateTimeZone.UTC)))),
+            Gt(FieldName("time"), Constant(TimestampValue(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC))))
           )
         )
         groupings should contain theSameElementsAs List(FieldName("kkmId"))
@@ -962,6 +988,16 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
     )
   }
 
+  it should "parse SHOW UPDATES_INTERVALS statements" in {
+    val t = DateTime.now(DateTimeZone.UTC).withMillisOfDay(0)
+    SqlParser.parse(
+      "SHOW UPDATES_INTERVALS WHERE TABLE = 'receipt' AND " +
+        s"UPDATED_AT BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}' AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'"
+    ) shouldBe Right(
+      ShowUpdatesIntervals("receipt", new Interval(t, t))
+    )
+  }
+
   it should "support functions as conditions" in {
     val statement =
       """
@@ -1052,8 +1088,8 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2019, 4, 10, 0, 0)))),
-            Le(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2019, 4, 11, 0, 0)))),
+            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2019, 4, 10, 0, 0, DateTimeZone.UTC)))),
+            Le(FieldName("time"), Constant(TimestampValue(new DateTime(2019, 4, 11, 0, 0, DateTimeZone.UTC)))),
             Lt(UMinus(FieldName("quantity")), UMinus(Constant(NumericValue(100))))
           )
         )
@@ -1077,7 +1113,10 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
           SqlField(FieldName("field")),
           SqlField(FunctionCall("sum", FieldName("sum") :: Nil), Some("sum"))
         )
-        condition shouldEqual Gt(FieldName("time"), Constant(TimestampValue(new LocalDateTime(2017, 1, 3, 0, 0))))
+        condition shouldEqual Gt(
+          FieldName("time"),
+          Constant(TimestampValue(new DateTime(2017, 1, 3, 0, 0, DateTimeZone.UTC)))
+        )
     }
   }
 
@@ -1121,7 +1160,9 @@ class SqlParserTest extends FlatSpec with Matchers with Inside with ParsedValues
   it should "produce error on unknown show" in {
     errorMessage("SHOW cartoons") {
       case msg =>
-        msg should include("""Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS"), but got "cartoons""")
+        msg should include(
+          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
+        )
     }
   }
 

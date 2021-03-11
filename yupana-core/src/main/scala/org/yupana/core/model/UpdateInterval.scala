@@ -14,22 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.core.model
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
+import org.joda.time.DateTime
+
+case class UpdateInterval(from: DateTime, to: DateTime, updatedAt: DateTime)
+
+object UpdateInterval {
+  val updatedAtColumn = "updated_at"
+  val fromColumn = "from"
+  val toColumn = "to"
+  val tableColumn = "table"
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50
-) extends TsdbConfig

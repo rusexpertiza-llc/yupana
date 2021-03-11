@@ -15,21 +15,14 @@
  */
 
 package org.yupana.core
+import org.yupana.api.query.{ DataPoint, Query, Result }
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
+class TimeSeriesQueryEngine(tsdb: TSDB) {
+  def query(query: Query): Result = {
+    tsdb.query(query)
+  }
+
+  def put(dps: Seq[DataPoint]): Unit = {
+    tsdb.put(dps)
+  }
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50
-) extends TsdbConfig

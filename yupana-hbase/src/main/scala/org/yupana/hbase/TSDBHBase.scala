@@ -16,17 +16,35 @@
 
 package org.yupana.hbase
 
-import java.util.Properties
-
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.ConnectionFactory
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.DictionaryProviderImpl
+import org.yupana.core.dao.{ DictionaryProviderImpl, TsdbQueryMetricsDao }
 import org.yupana.core.{ TSDB, TsdbConfig }
 
+import java.util.Properties
+
 object TSDBHBase {
+  def apply(
+      connection: Connection,
+      namespace: String,
+      schema: Schema,
+      prepareQuery: Query => Query,
+      properties: Properties,
+      tsdbConfig: TsdbConfig,
+      metricsDao: TsdbQueryMetricsDao
+  ): TSDB = {
+
+    CacheFactory.init(properties, namespace)
+
+    val dictDao = new DictionaryDaoHBase(connection, namespace)
+    val dictProvider = new DictionaryProviderImpl(dictDao)
+    val dao = new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize)
+    new TSDB(schema, dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
+  }
+
   def apply(
       config: Configuration,
       namespace: String,
@@ -36,15 +54,8 @@ object TSDBHBase {
       tsdbConfig: TsdbConfig
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
-    HBaseUtils.initStorage(connection, namespace, schema)
-
-    CacheFactory.init(properties, namespace)
-
-    val dictDao = new DictionaryDaoHBase(connection, namespace)
-    val dictProvider = new DictionaryProviderImpl(dictDao)
-    val dao = new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize)
-
+    HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
-    new TSDB(schema, dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
+    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig, metricsDao)
   }
 }

@@ -75,7 +75,8 @@ abstract class TsdbSparkBase(
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
     conf.hbaseNamespace,
-    schema
+    schema,
+    conf
   )
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
