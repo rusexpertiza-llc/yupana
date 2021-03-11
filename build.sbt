@@ -98,7 +98,7 @@ lazy val hbase = (project in file("yupana-hbase"))
     libraryDependencies ++= Seq(
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop, // excludeAll(ExclusionRule(organization = "org.eclipse.jetty")),
+      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
       "org.apache.hadoop"           %  "hadoop-hdfs-client"           % versions.hadoop,
       "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
@@ -288,7 +288,8 @@ lazy val versions = new {
 
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
-  val akka = "2.6.12"
+
+  val akka = "2.5.32"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
