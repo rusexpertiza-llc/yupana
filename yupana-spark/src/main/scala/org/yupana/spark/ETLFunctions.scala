@@ -19,6 +19,7 @@ package org.yupana.spark
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
+import org.joda.time.DateTime
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.RollupMetaDao
@@ -66,9 +67,10 @@ object ETLFunctions extends StrictLogging {
         .toSeq
 
       rollupMetaDao.putRollupStatuses(rollupStatuses, table)
+      val now = DateTime.now
       val invalidatedPeriods = rollupStatuses.map {
         case (baseTime, _) =>
-          UpdateInterval(baseTime, baseTime + table.rowTimeSpan, None)
+          UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + table.rowTimeSpan), now)
       }
       rollupMetaDao.putUpdatesIntervals(table.name, invalidatedPeriods)
     }

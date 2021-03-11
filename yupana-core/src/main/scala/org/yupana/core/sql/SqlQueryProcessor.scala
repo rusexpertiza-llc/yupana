@@ -334,6 +334,17 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
             Left(s"$ex has type ${ex.dataType}, but BOOLEAN is required")
           }
         }
+
+      case parser.BetweenCondition(e, f, t) =>
+        createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap {
+          case ex: Expression[t] =>
+            for {
+              from <- convertValue[t](state, f, ex.dataType).right
+              to <- convertValue[t](state, t, ex.dataType).right
+              ge <- createBooleanExpr(ex, ConstantExpr(from)(ex.dataType), ">=").right
+              le <- createBooleanExpr(ex, ConstantExpr(to)(ex.dataType), "<=").right
+            } yield AndExpr(Seq(ge, le))
+        }
     }
   }
 

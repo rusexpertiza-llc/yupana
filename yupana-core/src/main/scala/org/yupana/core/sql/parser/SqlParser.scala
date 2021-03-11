@@ -19,6 +19,7 @@ package org.yupana.core.sql.parser
 import fastparse._
 import fastparse.internal.Util
 import MultiLineWhitespace._
+import org.joda.time.Interval
 
 object SqlParser {
 
@@ -49,7 +50,7 @@ object SqlParser {
   private def nullWord[_: P] = P(IgnoreCase("NULL"))
   private def notWord[_: P] = P(IgnoreCase("NOT"))
   private def queryIdWord[_: P] = P(IgnoreCase("QUERY_ID"))
-  private def rollupTimeWord[_: P] = P(IgnoreCase("ROLLUP_TIME"))
+  private def updatedAtWord[_: P] = P(IgnoreCase("UPDATED_AT"))
   private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
   private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
@@ -159,6 +160,10 @@ object SqlParser {
 
   def isNotNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull)
 
+  def between[_: P]: P[SqlExpr => Condition] = P(betweenWord ~/ ValueParser.value ~ andWord ~/ ValueParser.value).map {
+    case (f, t) => e => BetweenCondition(e, f, t)
+  }
+
   def condition[_: P]: P[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => Or(x +: y)
     case (x, _)               => x
@@ -169,7 +174,7 @@ object SqlParser {
     case (x, _)               => x
   }
 
-  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull).?).map {
+  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull | between).?).map {
     case (e, Some(f)) => f(e)
     case (e, None)    => ExprCondition(e)
   }
@@ -248,19 +253,21 @@ object SqlParser {
 
   def tableFilter[_: P]: P[String] =
     P(tableWord ~ "=" ~/ ValueParser.string)
-  def rollupPeriodFilter[_: P]: P[TimestampPeriodValue] =
-    P(rollupTimeWord ~ betweenWord ~/ ValueParser.timestampValue ~/ andWord ~/ ValueParser.timestampValue)
-      .map(TimestampPeriodValue.tupled)
 
-  def updatesIntervalsFilter[_: P]: P[(String, Option[TimestampPeriodValue])] = {
-    tableFilter ~ (andWord ~ rollupPeriodFilter).?
+  def updatedAtFilter[_: P]: P[(TimestampValue, TimestampValue)] =
+    P(updatedAtWord ~ betweenWord ~/ ValueParser.timestampValue ~/ andWord ~/ ValueParser.timestampValue)
+
+  def updatesIntervalsFilter[_: P]: P[(String, (TimestampValue, TimestampValue))] = {
+    tableFilter ~ andWord ~ updatedAtFilter
   }
 
   def queries[_: P]: P[ShowQueryMetrics] =
     P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
 
   def updatesIntervals[_: P]: P[ShowUpdatesIntervals] =
-    P(updatesIntervalsWord ~/ whereWord ~ updatesIntervalsFilter).map(ShowUpdatesIntervals.tupled)
+    P(updatesIntervalsWord ~/ whereWord ~ updatesIntervalsFilter).map {
+      case (table, (from, to)) => ShowUpdatesIntervals(table, new Interval(from.value, to.value))
+    }
 
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
