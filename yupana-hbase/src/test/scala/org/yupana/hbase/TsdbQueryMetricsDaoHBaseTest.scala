@@ -1,13 +1,15 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.scalatest.{ FlatSpecLike, GivenWhenThen, Matchers }
+import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
 import org.yupana.core.{ TestDims, TestSchema }
 import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.{ MetricData, QueryStates }
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers with GivenWhenThen {
+trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
 
   import org.yupana.api.query.syntax.All._
 

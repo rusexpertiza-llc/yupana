@@ -6,10 +6,11 @@ import java.sql.{ SQLException, SQLFeatureNotSupportedException, Time, Timestamp
 import java.util.Calendar
 
 import org.scalamock.scalatest.MixedMockFactory
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.query.SimpleResult
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class YupanaPreparedStatementTest extends FlatSpec with Matchers with MixedMockFactory {
+class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMockFactory {
 
   "YupanaPreparedStatement" should "collect parameters" in {
     val conn = mock[YupanaConnection]

@@ -1,6 +1,6 @@
 package org.yupana.externallinks.universal
 
-import org.scalatest.{ FlatSpec, Inside, Matchers }
+import org.scalatest.Inside
 import org.yupana.api.schema.Schema
 import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLinkConfig,
@@ -9,8 +9,10 @@ import org.yupana.externallinks.universal.JsonCatalogs.{
 }
 import org.yupana.schema.Tables
 import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class JsonExternalLinkDeclarationsParserTest extends FlatSpec with Matchers with Inside {
+class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers with Inside {
 
   val testSchema = Schema(
     Seq(Tables.itemsKkmTable, Tables.kkmItemsTable, Tables.receiptTable),

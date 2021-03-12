@@ -1,9 +1,10 @@
 package org.yupana.api.utils
 
-import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DimOrderingTest extends FlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
+class DimOrderingTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   val ord = implicitly[DimOrdering[Long]]
 

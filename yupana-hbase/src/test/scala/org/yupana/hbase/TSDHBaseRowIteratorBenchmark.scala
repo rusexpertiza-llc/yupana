@@ -2,7 +2,6 @@ package org.yupana.hbase
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
@@ -10,8 +9,10 @@ import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TSDHBaseRowIteratorBenchmark extends FlatSpec with Matchers {
+class TSDHBaseRowIteratorBenchmark extends AnyFlatSpec with Matchers {
 
   "TSDHBaseRowIterator" should "be fast" taggedAs Slow in {
     val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
