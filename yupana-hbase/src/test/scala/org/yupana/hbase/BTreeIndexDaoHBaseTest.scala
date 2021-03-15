@@ -1,8 +1,9 @@
 package org.yupana.hbase
 
-import org.scalatest.{ FlatSpecLike, Matchers }
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-trait BTreeIndexDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers {
+trait BTreeIndexDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
   "BTreeIndexDaoHBase" should "put and get values by keys" in {
 
     val dao = new BTreeIndexDaoHBase(

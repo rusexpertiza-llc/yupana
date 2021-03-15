@@ -1,9 +1,10 @@
 package org.yupana.utils
 
-import org.scalatest.{ FlatSpec, Matchers }
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RussianTransliteratorTest extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class RussianTransliteratorTest extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   "Transliterator" should "transliterate strings correctly" in {
     val data = Table(

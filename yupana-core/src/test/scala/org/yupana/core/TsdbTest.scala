@@ -17,11 +17,13 @@ import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
 
 import java.util.Properties
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
 class TsdbTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with TsdbMocks
     with OptionValues

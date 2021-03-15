@@ -5,9 +5,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.{ Channels, ReadableByteChannel }
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FramingChannelIteratorTest extends FlatSpec with Matchers with MockFactory {
+class FramingChannelIteratorTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "FramingChannelIterator" should "read frame from channel" in {
     val channel = Channels.newChannel(new ByteArrayInputStream(createFrame(1, 2, 3, 4, 5)))
