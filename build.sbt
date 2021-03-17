@@ -113,8 +113,27 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop                   % Test classifier "tests",
       "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test,
       "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test classifier "tests",
+      "org.apache.hbase"            %  "hbase-http"                   % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-metrics-api"            % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-metrics"                % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-asyncfs"                % versions.hbase                    % Test,
+      "org.apache.hbase"            %  "hbase-logging"                % versions.hbase                    % Test,
       "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests"
+      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
+      "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
+      "junit"                       %  "junit"                        % "4.13"                            % Test,
+      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test,
+      "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
+      "org.slf4j"                   %  "log4j-over-slf4j"             % "1.7.30"                          % Test,
+      "javax.activation"            % "javax.activation-api"          % "1.2.0"                           % Test
+    ),
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
     )
   )
   .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
@@ -145,8 +164,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
       "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
-      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase,
+      "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test,
       "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting         % Test
     )
@@ -239,7 +257,11 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
       case PathList("javax", "servlet", _*)         => MergeStrategy.last
       case PathList("javax", "el", _*)              => MergeStrategy.last
+      case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
+      case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
+      case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
+      case "module-info.class"                      => MergeStrategy.first
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
@@ -264,8 +286,9 @@ lazy val versions = new {
   val scalaLogging = "3.9.2"
   val fastparse = "2.1.3"
 
-  val hbase = "1.3.6"
-  val hadoop = "2.8.5"
+  val hbase = "2.4.1"
+  val hadoop = "3.0.3"
+
   val akka = "2.5.32"
 
   val lucene = "6.6.0"

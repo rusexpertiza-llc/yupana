@@ -19,7 +19,7 @@ package org.yupana.hbase
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
-import org.apache.hadoop.hbase.filter._
+import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTime, Interval }
 import org.yupana.api.schema.Table
@@ -74,7 +74,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           new SingleColumnValueFilter(
             FAMILY,
             TABLE_QUALIFIER,
-            CompareFilter.CompareOp.EQUAL,
+            CompareOperator.EQUAL,
             Bytes.toBytes(tableName)
           )
         )
@@ -83,7 +83,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           new SingleColumnValueFilter(
             FAMILY,
             UPDATED_AT_QUALIFIER,
-            CompareFilter.CompareOp.GREATER_OR_EQUAL,
+            CompareOperator.GREATER_OR_EQUAL,
             Bytes.toBytes(updatedAtInterval.getStartMillis)
           )
         )
@@ -92,7 +92,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           new SingleColumnValueFilter(
             FAMILY,
             UPDATED_AT_QUALIFIER,
-            CompareFilter.CompareOp.LESS_OR_EQUAL,
+            CompareOperator.LESS_OR_EQUAL,
             Bytes.toBytes(updatedAtInterval.getEndMillis)
           )
         )
@@ -116,8 +116,8 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
       val scan = new Scan()
         .addColumn(rollupStatusFamily, rollupStatusField)
-        .setStartRow(Bytes.toBytes(fromTime))
-        .setStopRow(Bytes.toBytes(toTime))
+        .withStartRow(Bytes.toBytes(fromTime))
+        .withStopRow(Bytes.toBytes(toTime))
       using(hbaseTable.getScanner(scan)) { scanner =>
         scanner.asScala.toIterator.flatMap { result =>
           val time = Bytes.toLong(result.getRow)
@@ -149,13 +149,16 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
   ): Boolean = {
     checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
     using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      hbaseTable.checkAndPut(
-        Bytes.toBytes(time),
-        rollupStatusFamily,
-        rollupStatusField,
-        oldStatus.map(_.getBytes).orNull,
-        new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
-      )
+      hbaseTable
+        .checkAndMutate(
+          CheckAndMutate
+            .newBuilder(Bytes.toBytes(time))
+            .ifEquals(rollupStatusFamily, rollupStatusField, oldStatus.map(_.getBytes()).orNull)
+            .build(
+              new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
+            )
+        )
+        .isSuccess
     }
   }
 
@@ -189,8 +192,10 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
       val tableName = getTableName(namespace)
       using(connection.getAdmin) { admin =>
         if (!admin.tableExists(tableName)) {
-          val desc = new HTableDescriptor(tableName)
-            .addFamily(new HColumnDescriptor(FAMILY))
+          val desc = TableDescriptorBuilder
+            .newBuilder(tableName)
+            .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))
+            .build()
           admin.createTable(desc)
         }
       }
