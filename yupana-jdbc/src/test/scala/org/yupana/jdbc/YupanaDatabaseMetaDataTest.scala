@@ -3,13 +3,14 @@ package org.yupana.jdbc
 import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, Types }
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto.Version
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class YupanaDatabaseMetaDataTest extends FlatSpec with Matchers with MockFactory {
+class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "YupanaDatabaseMetaData" should "provide common Yupana capabilities info" in {
     val conn = mock[YupanaConnection]

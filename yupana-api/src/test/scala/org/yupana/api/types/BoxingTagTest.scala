@@ -1,8 +1,9 @@
 package org.yupana.api.types
 
-import org.scalatest.{ FlatSpec, Matchers }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BoxingTagTest extends FlatSpec with Matchers {
+class BoxingTagTest extends AnyFlatSpec with Matchers {
 
   "BoxingTag" should "provide java boxing classes for primitive types" in {
     val intBt = BoxingTag[Int]

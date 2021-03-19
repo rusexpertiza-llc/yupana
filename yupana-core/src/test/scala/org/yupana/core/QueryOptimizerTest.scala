@@ -1,11 +1,12 @@
 package org.yupana.core
 
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.query.{ AndExpr, OrExpr }
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
 import org.yupana.utils.RussianTokenizer
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class QueryOptimizerTest extends FlatSpec with Matchers {
+class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 

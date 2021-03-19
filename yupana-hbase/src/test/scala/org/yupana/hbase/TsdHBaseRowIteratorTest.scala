@@ -1,14 +1,15 @@
 package org.yupana.hbase
 
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, time }
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TsdHBaseRowIteratorTest extends FlatSpec with Matchers {
+class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
 
   val from = 100
   val to = 101

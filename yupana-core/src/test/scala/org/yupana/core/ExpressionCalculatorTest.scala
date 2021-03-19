@@ -1,7 +1,7 @@
 package org.yupana.core
 
 import org.joda.time.LocalDateTime
-import org.scalatest.{ Matchers, OptionValues, WordSpecLike }
+import org.scalatest.OptionValues
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema._
@@ -9,8 +9,10 @@ import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.utils.RussianTokenizer
 
 import scala.collection.mutable
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ExpressionCalculatorTest extends WordSpecLike with Matchers with OptionValues {
+class ExpressionCalculatorTest extends AnyWordSpecLike with Matchers with OptionValues {
 
   private val calculator = new ExpressionCalculator(RussianTokenizer)
 

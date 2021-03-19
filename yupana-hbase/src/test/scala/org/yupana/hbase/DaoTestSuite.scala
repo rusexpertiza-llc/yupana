@@ -1,8 +1,9 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.HBaseTestingUtility
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec }
+import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
 
 trait HBaseTestBase {
   def getConfiguration: Configuration
@@ -10,7 +11,7 @@ trait HBaseTestBase {
 }
 
 class DaoTestSuite
-    extends FlatSpec
+    extends AnyFlatSpec
     with BTreeIndexDaoHBaseTest
     with InvertedIndexDaoHBaseTest
     with DictionaryDaoHBaseTest
@@ -24,7 +25,14 @@ class DaoTestSuite
   override val connection = new ExternalLinkHBaseConnection(getConfiguration, "test")
 
   override def beforeAll(): Unit = {
-    utility.startMiniCluster(1, 1)
+    utility.startMiniCluster(
+      StartMiniClusterOption
+        .builder()
+        .numMasters(1)
+        .numRegionServers(1)
+        .numDataNodes(1)
+        .build()
+    )
   }
 
   override protected def afterAll(): Unit = {

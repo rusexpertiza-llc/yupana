@@ -17,10 +17,10 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.hadoop.hbase.client.{ Get, Put, Scan }
+import org.apache.hadoop.hbase.CellUtil
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ CellUtil, HColumnDescriptor, HTableDescriptor }
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
@@ -34,8 +34,10 @@ object InvertedIndexDaoHBase {
   val BATCH_SIZE = 500000
 
   def checkTableExistsElseCreate(hBaseConnection: ExternalLinkHBaseConnection, tableName: String): Unit = {
-    val desc = new HTableDescriptor(hBaseConnection.getTableName(tableName))
-      .addFamily(new HColumnDescriptor(InvertedIndexDaoHBase.FAMILY))
+    val desc = TableDescriptorBuilder
+      .newBuilder(hBaseConnection.getTableName(tableName))
+      .setColumnFamily(ColumnFamilyDescriptorBuilder.of(InvertedIndexDaoHBase.FAMILY))
+      .build()
     hBaseConnection.checkTablesExistsElseCreate(desc)
   }
 
@@ -155,7 +157,11 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
     logger.trace(s"scan values for key $key")
     val skey = keySerializer(key)
     val table = connection.getTable(tableName)
-    val scan = new Scan(skey, Bytes.padTail(skey, 1)).addFamily(FAMILY).setBatch(BATCH_SIZE)
+    val scan = new Scan()
+      .withStartRow(skey)
+      .withStopRow(Bytes.padTail(skey, 1))
+      .addFamily(FAMILY)
+      .setBatch(BATCH_SIZE)
     val scanner = table.getScanner(scan)
 
     def close(): Unit = {

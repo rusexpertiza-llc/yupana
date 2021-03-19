@@ -1,10 +1,12 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.scalatest.{ FlatSpecLike, Matchers, OptionValues }
+import org.scalatest.OptionValues
 import org.yupana.api.schema.DictionaryDimension
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-trait DictionaryDaoHBaseTest extends HBaseTestBase with FlatSpecLike with Matchers with OptionValues {
+trait DictionaryDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with OptionValues {
   private lazy val hbaseConnection = ConnectionFactory.createConnection(getConfiguration)
 
   private val dimension = DictionaryDimension("X")
