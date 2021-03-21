@@ -165,8 +165,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
       "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
-      "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test,
-      "com.holdenkarau"             %% "spark-testing-base"             % versions.sparkTesting         % Test
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
     )
   )
   .dependsOn(core, hbase, externalLinks)
@@ -277,7 +276,6 @@ lazy val examples = (project in file("yupana-examples"))
 
 lazy val versions = new {
   val spark =  "3.0.1"
-  val sparkTesting = spark + "_1.0.0"
 
   val joda = "2.10.10"
 
