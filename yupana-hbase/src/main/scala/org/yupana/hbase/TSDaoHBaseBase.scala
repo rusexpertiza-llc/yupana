@@ -17,26 +17,31 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.commons.codec.binary.Hex
+import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, RawDimension, Table }
+import org.yupana.api.schema._
+import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
-import org.yupana.api.Time
-import org.yupana.core.MapReducible
+import org.yupana.core.ExpressionCalculator
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
-import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.TimeBoundedCondition
-import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.language.higherKinds
+import scala.util.Try
 
 trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
   type IdType = Long
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean
 
-  import org.yupana.core.utils.ConditionMatchers.{ Equ, Neq }
+  val schema: Schema
+
+  protected lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
 
   val TIME: RawDimension[Time] = RawDimension[Time]("time")
 
@@ -45,7 +50,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   val FUZZY_FILTERS_LIMIT = 20
   val EXTRACT_BATCH_SIZE = 10000
 
-  def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Collection]
   def dictionaryProvider: DictionaryProvider
 
   def executeScans(
@@ -61,7 +65,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
-    val tbc = TimeBoundedCondition(query.condition)
+    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
 
     if (tbc.size != 1) throw new IllegalArgumentException("Only one condition is supported")
 
@@ -101,7 +105,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val includeRowFilter = prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
 
-    val rowFilter = createRowFilter(query.table, includeRowFilter, filters.allExcludes)
+    val excludeRowFilter = filters.allExcludes.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+
+    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
       from,
       to,
@@ -118,7 +124,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       }
 
       new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).get.millis))
+        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
     }
   }
 
@@ -232,65 +238,146 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
     }
   }
 
+  private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: String): Option[R] = {
+    Try(Hex.decodeHex(value.toCharArray)).toOption.map(dim.rStorable.read)
+  }
+
   def createFilters(condition: Option[Condition]): Filters = {
-    def createFilters(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+    def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
-        case Equ(DimensionExpr(dim), ConstantExpr(c)) =>
+        case EqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
           builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
-        case Equ(ConstantExpr(c), DimensionExpr(dim)) =>
+        case EqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
           builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
 
-        case Equ(TimeExpr, ConstantExpr(c: Time)) =>
+        case EqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
+          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+
+        case EqString(ConstantExpr(c), LowerExpr(DimensionExpr(dim))) =>
+          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+
+        case EqString(DimensionIdExpr(dim), ConstantExpr(c)) =>
+          builder.includeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
+
+        case EqString(ConstantExpr(c), DimensionIdExpr(dim)) =>
+          builder.includeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
+
+        case EqTime(TimeExpr, ConstantExpr(c)) =>
           builder.includeTime(c)
 
-        case Equ(ConstantExpr(c: Time), TimeExpr) =>
+        case EqTime(ConstantExpr(c), TimeExpr) =>
           builder.includeTime(c)
 
+        case EqUntyped(t: TupleExpr[a, b], ConstantExpr(v: (_, _))) =>
+          val filters1 = createFilters(InExpr(t.e1, Set(v._1).asInstanceOf[Set[a]]), builder)
+          createFilters(InExpr(t.e2, Set(v._2).asInstanceOf[Set[b]]), filters1)
+
+        case EqUntyped(ConstantExpr(v: (_, _)), t: TupleExpr[a, b]) =>
+          val filters1 = createFilters(InExpr(t.e1, Set(v._1).asInstanceOf[Set[a]]), builder)
+          createFilters(InExpr(t.e2, Set(v._2).asInstanceOf[Set[b]]), filters1)
+
+        case _ => builder
+      }
+    }
+
+    def handleNeq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+      condition match {
+        case NeqExpr(DimensionExpr(dim), ConstantExpr(c)) =>
+          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+
+        case NeqExpr(ConstantExpr(c), DimensionExpr(dim)) =>
+          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+
+        case NeqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c)) =>
+          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+
+        case NeqString(ConstantExpr(c), LowerExpr(DimensionExpr(dim))) =>
+          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+
+        case NeqString(DimensionIdExpr(dim), ConstantExpr(c)) =>
+          builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
+
+        case NeqString(ConstantExpr(c), DimensionIdExpr(dim)) =>
+          builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
+
+        case NeqTime(TimeExpr, ConstantExpr(c)) =>
+          builder.excludeTime(c)
+
+        case NeqTime(ConstantExpr(c), TimeExpr) =>
+          builder.excludeTime(c)
+
+        case _ => builder
+      }
+    }
+
+    def handleIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+      condition match {
         case InExpr(DimensionExpr(dim), consts) =>
           builder.includeValues(dim, consts)
 
-        case InExpr(_: TimeExpr.type, consts) =>
+        case InString(LowerExpr(DimensionExpr(dim)), consts) =>
+          builder.includeValues(
+            dim,
+            consts.asInstanceOf[Set[dim.T]]
+          )
+
+        case InTime(TimeExpr, consts) =>
           builder.includeTime(consts.asInstanceOf[Set[Time]])
 
-        case DimIdInExpr(dim, dimIds) =>
-          builder.includeIds(dim, dimIds)
+        case InString(DimensionIdExpr(dim), dimIds) =>
+          builder.includeIds(
+            dim.aux,
+            dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, v))
+          )
 
-        case Neq(DimensionExpr(dim), ConstantExpr(c)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+        case InUntyped(t: TupleExpr[a, b], vs) =>
+          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(a, b)]].map(_._1)), builder)
+          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(a, b)]].map(_._2)), filters1)
 
-        case Neq(ConstantExpr(c), DimensionExpr(dim)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+        case _ => builder
+      }
+    }
 
-        case Neq(TimeExpr, ConstantExpr(c: Time)) =>
-          builder.excludeTime(c)
-
-        case Neq(ConstantExpr(c: Time), TimeExpr) =>
-          builder.excludeTime(c)
-
+    def handleNotIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+      condition match {
         case NotInExpr(DimensionExpr(dim), consts) =>
           builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
 
-        case NotInExpr(_: TimeExpr.type, consts) =>
-          builder.excludeTime(consts.asInstanceOf[Set[Time]])
+        case NotInString(LowerExpr(DimensionExpr(dim)), consts) =>
+          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+
+        case NotInString(DimensionIdExpr(dim), dimIds) =>
+          builder.excludeIds(
+            dim.aux,
+            dimIds.toSeq.flatMap(v => dimIdValueFromString(dim.aux, v))
+          )
+
+        case NotInTime(TimeExpr, consts) =>
+          builder.excludeTime(consts)
+
+        case _ => builder
+      }
+    }
+
+    def createFilters(condition: Condition, builder: Filters.Builder): Filters.Builder = {
+      condition match {
+        case EqExpr(_, _) => handleEq(condition, builder)
+
+        case NeqExpr(_, _) => handleNeq(condition, builder)
+
+        case InExpr(_, _) => handleIn(condition, builder)
+
+        case NotInExpr(_, _) => handleNotIn(condition, builder)
+
+        case DimIdInExpr(dim, dimIds) =>
+          builder.includeIds(dim, dimIds)
 
         case DimIdNotInExpr(dim, dimIds) =>
           builder.excludeIds(dim, dimIds)
 
         case AndExpr(conditions) =>
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
-
-        case InExpr(t: TupleExpr[_, _], vs) =>
-          val filters1 = createFilters(InExpr(t.e1, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._1)), builder)
-          createFilters(InExpr(t.e2, vs.asInstanceOf[Set[(t.e1.Out, t.e2.Out)]].map(_._2)), filters1)
-
-        case Equ(TupleExpr(e1, e2), ConstantExpr(v: (_, _))) =>
-          val filters1 = createFilters(InExpr(e1.aux, Set(v._1.asInstanceOf[e1.Out])), builder)
-          createFilters(InExpr(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
-
-        case Equ(ConstantExpr(v: (_, _)), TupleExpr(e1, e2)) =>
-          val filters1 = createFilters(InExpr(e1.aux, Set(v._1.asInstanceOf[e1.Out])), builder)
-          createFilters(InExpr(e2.aux, Set(v._2.asInstanceOf[e2.Out])), filters1)
 
         case _ => builder
       }
@@ -306,18 +393,56 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
   }
 
   override def isSupportedCondition(condition: Condition): Boolean = {
+    def handleEq(condition: EqExpr[_]): Boolean = {
+      condition match {
+        case EqTime(TimeExpr, ConstantExpr(_))                         => true
+        case EqTime(ConstantExpr(_), TimeExpr)                         => true
+        case EqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
+        case EqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
+        case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
+        case EqString(ConstantExpr(_), LowerExpr(_: DimensionExpr[_])) => true
+        case EqString(_: DimensionIdExpr, ConstantExpr(_))             => true
+        case EqString(ConstantExpr(_), _: DimensionIdExpr)             => true
+        case _                                                         => false
+      }
+    }
+
+    def handleNeq(condition: NeqExpr[_]): Boolean = {
+      condition match {
+        case NeqTime(TimeExpr, ConstantExpr(_))                         => true
+        case NeqTime(ConstantExpr(_), TimeExpr)                         => true
+        case NeqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
+        case NeqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
+        case NeqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
+        case NeqString(LowerExpr(ConstantExpr(_)), _: DimensionExpr[_]) => true
+        case NeqString(_: DimensionIdExpr, ConstantExpr(_))             => true
+        case NeqString(ConstantExpr(_), _: DimensionIdExpr)             => true
+        case _                                                          => false
+      }
+    }
+
     condition match {
-      case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
-      case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
-      case _: DimIdInExpr[_, _]                                      => true
-      case _: DimIdNotInExpr[_, _]                                   => true
-      case Equ(_: DimensionExpr[_], ConstantExpr(_))                 => true
-      case Equ(ConstantExpr(_), _: DimensionExpr[_])                 => true
-      case Neq(_: DimensionExpr[_], ConstantExpr(_))                 => true
-      case Neq(ConstantExpr(_), _: DimensionExpr[_])                 => true
-      case InExpr(_: DimensionExpr[_], _)                            => true
-      case NotInExpr(_: DimensionExpr[_], _)                         => true
-      case _                                                         => false
+      case e: EqExpr[_]                                   => handleEq(e)
+      case e: NeqExpr[_]                                  => handleNeq(e)
+      case GtTime(TimeExpr, ConstantExpr(_))              => true
+      case GtTime(ConstantExpr(_), TimeExpr)              => true
+      case LtTime(TimeExpr, ConstantExpr(_))              => true
+      case LtTime(ConstantExpr(_), TimeExpr)              => true
+      case GeTime(TimeExpr, ConstantExpr(_))              => true
+      case GeTime(ConstantExpr(_), TimeExpr)              => true
+      case LeTime(TimeExpr, ConstantExpr(_))              => true
+      case LeTime(ConstantExpr(_), TimeExpr)              => true
+      case InTime(TimeExpr, _)                            => true
+      case NotInTime(TimeExpr, _)                         => true
+      case _: DimIdInExpr[_, _]                           => true
+      case _: DimIdNotInExpr[_, _]                        => true
+      case InExpr(_: DimensionExpr[_], _)                 => true
+      case NotInExpr(_: DimensionExpr[_], _)              => true
+      case InString(LowerExpr(_: DimensionExpr[_]), _)    => true
+      case NotInString(LowerExpr(_: DimensionExpr[_]), _) => true
+      case InString(_: DimensionIdExpr, _)                => true
+      case NotInString(_: DimensionIdExpr, _)             => true
+      case _                                              => false
     }
   }
 }

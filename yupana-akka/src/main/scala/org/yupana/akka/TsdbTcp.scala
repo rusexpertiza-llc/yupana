@@ -16,22 +16,19 @@
 
 package org.yupana.akka
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
-import akka.stream.{ ActorMaterializer, ActorMaterializerSettings, Supervision }
+import akka.stream.{ ActorAttributes, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.TSDB
 import org.yupana.proto.{ Request, Response }
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{ Failure, Success, Try }
 
 class TsdbTcp(
-    tsdb: TSDB,
     requestHandler: RequestHandler,
     host: String,
     port: Int,
@@ -49,11 +46,10 @@ class TsdbTcp(
     logger.error("Exception:", e)
     Supervision.Stop
   }
-  implicit private val mat: ActorMaterializer = ActorMaterializer(
-    ActorMaterializerSettings(system).withSupervisionStrategy(decider)
-  )
 
-  private val connections = Tcp().bind(host, port, idleTimeout = 60.seconds)
+  private val connections = Tcp()
+    .bind(host, port, idleTimeout = 60.seconds)
+    .withAttributes(ActorAttributes.supervisionStrategy(decider))
 
   connections runForeach { conn =>
     val sentSize = new AtomicInteger(0)
@@ -89,13 +85,13 @@ class TsdbTcp(
       }
       .mapAsync(1) {
         case Request(Request.Req.Ping(ping)) =>
-          Future.successful(requestHandler.handlePingProto(tsdb, ping, majorVersion, minorVersion, version))
+          Future.successful(requestHandler.handlePingProto(ping, majorVersion, minorVersion, version))
 
         case Request(Request.Req.SqlQuery(sqlQuery)) =>
-          requestHandler.handleQuery(tsdb, sqlQuery)
+          requestHandler.handleQuery(sqlQuery)
 
         case Request(Request.Req.BatchSqlQuery(batchSqlQuery)) =>
-          requestHandler.handleBatchQuery(tsdb, batchSqlQuery)
+          requestHandler.handleBatchQuery(batchSqlQuery)
 
         case Request(Request.Req.Empty) =>
           val error = "Got empty request"
@@ -148,7 +144,7 @@ class TsdbTcp(
         }
       }
 
-    conn.handleWith(connHandler)
+    conn.handleWith(connHandler.withAttributes(ActorAttributes.supervisionStrategy(decider)))
   }
 
   def humanReadableByteSize(fileSize: Long): String = {

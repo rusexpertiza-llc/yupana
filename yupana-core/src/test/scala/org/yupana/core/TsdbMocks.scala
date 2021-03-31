@@ -4,11 +4,14 @@ import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
+import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMetricsDao }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
+import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.utils.RussianTokenizer
 
 trait TsdbMocks extends MockFactory {
 
@@ -26,9 +29,8 @@ trait TsdbMocks extends MockFactory {
       .stubs(*)
       .onCall((condition: Condition) =>
         condition match {
-          case BinaryOperationExpr(op, LinkExpr(c, _), ConstantExpr(_))
-              if Set("==", "!=").contains(op.name) && c.linkName == catalog.linkName =>
-            true
+          case EqExpr(LinkExpr(c, _), ConstantExpr(_))                        => true
+          case NeqExpr(LinkExpr(c, _), ConstantExpr(_))                       => true
           case InExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
           case NotInExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
           case _                                                              => false
@@ -45,41 +47,74 @@ trait TsdbMocks extends MockFactory {
       .expects(*)
       .onCall((c: Condition) =>
         c match {
-          case BinaryOperationExpr(_, _: TimeExpr.type, ConstantExpr(_)) => true
-          case BinaryOperationExpr(_, ConstantExpr(_), _: TimeExpr.type) => true
-          case _: DimIdInExpr[_, _]                                      => true
-          case _: DimIdNotInExpr[_, _]                                   => true
-          case BinaryOperationExpr(op, _: DimensionExpr[_], ConstantExpr(_)) if Set("==", "!=").contains(op.name) =>
-            true
-          case BinaryOperationExpr(op, ConstantExpr(_), _: DimensionExpr[_]) if Set("==", "!=").contains(op.name) =>
-            true
-          case InExpr(_: DimensionExpr[_], _)    => true
-          case NotInExpr(_: DimensionExpr[_], _) => true
-          case _                                 => false
+          case EqTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case EqTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case NeqTime(_: TimeExpr.type, ConstantExpr(_))                 => true
+          case NeqTime(ConstantExpr(_), _: TimeExpr.type)                 => true
+          case GtTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case GtTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case LtTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case LtTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case GeTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case GeTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case LeTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case LeTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case _: DimIdInExpr[_, _]                                       => true
+          case _: DimIdNotInExpr[_, _]                                    => true
+          case EqExpr(_: DimensionExpr[_], ConstantExpr(_))               => true
+          case EqExpr(ConstantExpr(_), _: DimensionExpr[_])               => true
+          case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_))  => true
+          case EqString(ConstantExpr(_), LowerExpr(_: DimensionExpr[_]))  => true
+          case NeqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
+          case NeqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
+          case NeqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
+          case NeqString(LowerExpr(ConstantExpr(_)), _: DimensionExpr[_]) => true
+          case EqString(DimensionIdExpr(_), ConstantExpr(_))              => true
+          case EqString(ConstantExpr(_), DimensionIdExpr(_))              => true
+          case InExpr(_: DimensionExpr[_], _)                             => true
+          case NotInExpr(_: DimensionExpr[_], _)                          => true
+          case InString(LowerExpr(_: DimensionExpr[_]), _)                => true
+          case NotInString(LowerExpr(_: DimensionExpr[_]), _)             => true
+          case _                                                          => false
         }
       )
       .anyNumberOfTimes()
+
+    (tsdbDaoMock.mapReduceEngine _)
+      .expects(*)
+      .onCall((_: MetricQueryCollector) => MapReducible.iteratorMR)
+      .anyNumberOfTimes()
+
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb = new TSDB(tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
+    val tsdb =
+      new TSDB(
+        TestSchema.schema,
+        tsdbDaoMock,
+        metricsDaoMock,
+        dictionaryProvider,
+        identity,
+        SimpleTsdbConfig()
+      )
     body(tsdb, tsdbDaoMock)
   }
 
   def setCatalogValueByTag(
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       datas: Seq[InternalRow],
       catalog: ExternalLink,
       catalogValues: Table[String, String, String]
   ): Unit = {
     datas.foreach { v =>
-      v.get[String](exprIndex, DimensionExpr(catalog.dimension)).foreach { tagValue =>
-        catalogValues.row(tagValue).foreach {
-          case (field, value) =>
-            v.set(exprIndex, LinkExpr(catalog, field), Some(value))
-        }
+      val tagValue = v.get(exprIndex, DimensionExpr(catalog.dimension)).asInstanceOf[String]
+      catalogValues.row(tagValue).foreach {
+        case (field, value) =>
+          v.set(exprIndex, LinkExpr(catalog, field), value)
       }
     }
   }
+
+  private val calculator = new ExpressionCalculator(RussianTokenizer)
 
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
@@ -91,6 +126,8 @@ trait TsdbMocks extends MockFactory {
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
+      .right
+      .map(QueryOptimizer.optimize(calculator))
       .fold(fail(_), identity)
   }
 }

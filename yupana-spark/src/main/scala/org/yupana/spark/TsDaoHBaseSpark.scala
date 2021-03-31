@@ -20,7 +20,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ Result => HResult }
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.yupana.api.schema.Dimension
+import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -28,6 +28,7 @@ import org.yupana.hbase._
 
 class TsDaoHBaseSpark(
     @transient val sparkContext: SparkContext,
+    override val schema: Schema,
     config: Config,
     override val dictionaryProvider: DictionaryProvider
 ) extends TSDaoHBaseBase[RDD]

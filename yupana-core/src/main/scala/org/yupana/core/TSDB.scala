@@ -19,13 +19,14 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Table }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.OnFinishIterator
+import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
 
 class TSDB(
+    override val schema: Schema,
     override val dao: TSDao[Iterator, Long],
     val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,
@@ -40,8 +41,6 @@ class TSDB(
   override lazy val extractBatchSize: Int = config.extractBatchSize
 
   private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
-
-  override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Iterator] = MapReducible.iteratorMR
 
   def registerExternalLink(
       externalLink: ExternalLink,
@@ -71,11 +70,11 @@ class TSDB(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: Iterator[Array[Option[Any]]],
+      data: Iterator[Array[Any]],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
-    val it = new OnFinishIterator(data, metricCollector.finish)
+    val it = CloseableIterator(data, metricCollector.finish)
     new TsdbServerResult(queryContext, it)
 
   }
@@ -100,10 +99,13 @@ class TSDB(
       }
 
     val winFieldsAndGroupValues = queryContext.query.fields.map(_.expr).collect {
-      case winFuncExpr: WindowFunctionExpr =>
+      case winFuncExpr: WindowFunctionExpr[_, _] =>
         val values = grouped.mapValues {
           case (vs, rowNumIndex) =>
-            val funcValues = vs.map(_.get[winFuncExpr.expr.Out](queryContext, winFuncExpr.expr))
+            val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
+            vs.indices.foreach { i =>
+              funcValues(i) = vs(i).get(queryContext, winFuncExpr.expr)
+            }
             (funcValues, rowNumIndex)
         }
         winFuncExpr -> values
@@ -112,25 +114,15 @@ class TSDB(
     seq.map {
       case ((keyData, valueData), rowNumber) =>
         winFieldsAndGroupValues.foreach {
-          case (winFuncExpr, groups) =>
+          case (winFuncExpr: WindowFunctionExpr[t, _], groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = winFuncExpr.operation(group.asInstanceOf[Array[Option[winFuncExpr.expr.Out]]], index)
+              val value = expressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[t]], index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }
         keyData -> valueData
     }.toIterator
-  }
-
-  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
-    if (statuses.nonEmpty) {
-      dao.putRollupStatuses(statuses, table)
-    }
-  }
-
-  def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
-    dao.getRollupSpecialField(fieldName, table)
   }
 
   private def loadDimIds(dataPoints: Seq[DataPoint]): Unit = {
@@ -151,7 +143,7 @@ class TSDB(
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
     externalLinks.getOrElse(
       catalog,
-      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fieldsNames}")
+      throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fields}")
     )
   }
 }

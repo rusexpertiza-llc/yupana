@@ -19,6 +19,7 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.schema.Schema
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
@@ -29,6 +30,8 @@ import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog
 
 class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: RelatedItemsCatalog)
     extends ExternalLinkService[RelatedItemsCatalog] {
+
+  override val schema: Schema = tsdb.schema
 
   import org.yupana.api.query.syntax.All._
 
@@ -45,7 +48,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   }
 
   override def condition(condition: Condition): Condition = {
-    val tbcs = TimeBoundedCondition(condition)
+    val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
     val r = tbcs.map { tbc =>
       val from = tbc.from.getOrElse(
@@ -54,7 +57,8 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       val to =
         tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
-      val (includeValues, excludeValues, other) = ExternalLinkUtils.extractCatalogFields(tbc, externalLink.linkName)
+      val (includeValues, excludeValues, other) =
+        ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
       // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
@@ -82,9 +86,9 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
 
   protected def createFilter(field: String, values: Set[String]): Condition = {
     field match {
-      case externalLink.ITEM_FIELD    => in(dimension(Dimensions.ITEM), values)
-      case externalLink.PHRASE_FIELDS => in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), values)
-      case f                          => throw new IllegalArgumentException(s"Unsupported field $f")
+      case externalLink.ITEM_FIELD   => in(lower(dimension(Dimensions.ITEM)), values)
+      case externalLink.PHRASE_FIELD => in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), values)
+      case f                         => throw new IllegalArgumentException(s"Unsupported field $f")
     }
   }
 
@@ -102,20 +106,19 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     val timeIdx = result.queryContext.exprsIndex(time)
     val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID))
 
-    val extracted = tsdb.mapReduceEngine(NoMetricCollector).flatMap(result.rows) { a =>
-      for {
-        kkmId <- a(kkmIdIdx)
-        time <- a(timeIdx)
-      } yield Set((time.asInstanceOf[Time], kkmId.asInstanceOf[Int]))
+    val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.rows) { a =>
+      val kkmId = a(kkmIdIdx)
+      val time = a(timeIdx)
+      Set((time.asInstanceOf[Time], kkmId.asInstanceOf[Int]))
     }
 
     tsdb.mapReduceEngine(NoMetricCollector).fold(extracted)(Set.empty)(_ ++ _).toSeq
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression, Int],
+      exprIndex: scala.collection.Map[Expression[_], Int],
       valueData: Seq[InternalRow],
-      exprs: Set[LinkExpr]
+      exprs: Set[LinkExpr[_]]
   ): Unit = {
     // may be throw exception here?
   }

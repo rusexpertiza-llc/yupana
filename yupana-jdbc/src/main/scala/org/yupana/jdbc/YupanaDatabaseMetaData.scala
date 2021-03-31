@@ -19,16 +19,16 @@ package org.yupana.jdbc
 import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, SQLException }
 
 import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.types.{ DataType, UnaryOperation }
+import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 
-  private val emptyResultSet = new YupanaResultSet(null, Result.empty)
+  private def emptyResultSet = new YupanaResultSet(null, Result.empty)
 
   override def supportsMinimumSQLGrammar(): Boolean = false
 
-  override def getResultSetHoldability: Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
+  override def getResultSetHoldability: Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
 
   override def getMaxColumnsInGroupBy: Int = 0
 
@@ -52,7 +52,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def allProceduresAreCallable() = false
 
-  override def supportsResultSetConcurrency(`type`: Int, concurrency: Int) = false
+  override def supportsResultSetConcurrency(`type`: Int, concurrency: Int): Boolean =
+    `type` == ResultSet.TYPE_FORWARD_ONLY && concurrency == ResultSet.CONCUR_READ_ONLY
 
   override def getMaxTablesInSelect = 1
 
@@ -64,7 +65,8 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def ownDeletesAreVisible(`type`: Int) = false
 
-  override def supportsResultSetHoldability(holdability: Int) = false
+  override def supportsResultSetHoldability(holdability: Int): Boolean =
+    holdability == ResultSet.CLOSE_CURSORS_AT_COMMIT
 
   override def getMaxStatements = 0
 
@@ -260,7 +262,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getUserName = ""
 
-  override def supportsTransactionIsolationLevel(level: Int) = false
+  override def supportsTransactionIsolationLevel(level: Int): Boolean = level == Connection.TRANSACTION_NONE
 
   override def deletesAreDetected(`type`: Int) = false
 
@@ -321,12 +323,10 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxColumnsInIndex = 0
 
-  override def getTimeDateFunctions = "day,month,week,hour,microsecond"
-
   override def getTableTypes: ResultSet = {
     val names = List("TABLE_TYPE")
     val dataTypes = List(DataType[String])
-    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Option[Any]](Some("TABLE"))))
+    val types = SimpleResult("TYPES", names, dataTypes, Iterator(Array[Any]("TABLE")))
     new YupanaResultSet(null, types)
   }
 
@@ -351,7 +351,11 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def nullsAreSortedAtEnd() = false
 
-  override def getNumericFunctions: String = UnaryOperation.numericOperations(DataType[Long]).keys.mkString(",")
+  override def getTimeDateFunctions: String = getFunctionsForType("TIMESTAMP")
+
+  override def getNumericFunctions: String = getFunctionsForType("DECIMAL")
+
+  override def getStringFunctions: String = getFunctionsForType("VARCHAR")
 
   override def generatedKeyAlwaysReturned = false
 
@@ -401,11 +405,9 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsMixedCaseQuotedIdentifiers() = false
 
-  override def supportsGroupByBeyondSelect() = false
+  override def supportsGroupByBeyondSelect() = true
 
   override def supportsCatalogsInIndexDefinitions() = false
-
-  override def getStringFunctions: String = UnaryOperation.stringOperations.keys.mkString(",")
 
   override def supportsOrderByUnrelated() = false
 
@@ -457,4 +459,12 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
   }
 
   override def isWrapperFor(iface: Class[_]): Boolean = iface.isAssignableFrom(getClass)
+
+  private def getFunctionsForType(t: String): String = {
+    val sql = s"SHOW FUNCTIONS FOR $t"
+    val stmt = connection.createStatement()
+    val rs = stmt.executeQuery(sql)
+    val fs = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("NAME")).toSeq
+    fs mkString ","
+  }
 }

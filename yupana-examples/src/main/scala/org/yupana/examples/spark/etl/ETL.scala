@@ -18,6 +18,7 @@ package org.yupana.examples.spark.etl
 
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.joda.time.DateTimeZone
+import org.yupana.api.Blob
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
@@ -85,7 +86,7 @@ object ETL {
           item.measure.map(v => MetricValue(ItemTableMetrics.measureField, v)),
           item.nomenclatureType.map(v => MetricValue(ItemTableMetrics.nomenclatureTypeField, v)),
           item.gtin.map(v => MetricValue(ItemTableMetrics.gtinField, v)),
-          item.nomenclatureCode.map(v => MetricValue(ItemTableMetrics.nomenclatureCodeField, v))
+          item.nomenclatureCode.map(v => MetricValue(ItemTableMetrics.nomenclatureCodeField, Blob(v)))
         ).flatten
 
         val metrics = commonMetrics ++ itemMetrics

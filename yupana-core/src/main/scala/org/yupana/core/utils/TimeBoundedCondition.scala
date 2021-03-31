@@ -19,8 +19,8 @@ package org.yupana.core.utils
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.core.ExpressionCalculator
-import org.yupana.core.utils.ConditionMatchers._
+import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
+import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
 
 import scala.collection.mutable.ListBuffer
 
@@ -28,11 +28,11 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
   def toCondition: Condition = {
     import org.yupana.api.query.syntax.All._
 
-    ConditionUtils.simplify(
+    QueryOptimizer.simplifyCondition(
       AndExpr(
         Seq(
-          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true).aux),
-          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true).aux)
+          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true)),
+          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true))
         ) ++ conditions
       )
     )
@@ -41,15 +41,15 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
 object TimeBoundedCondition {
 
-  def apply(condition: Condition): Seq[TimeBoundedCondition] = {
+  def apply(expressionCalculator: ExpressionCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
-      case a: AndExpr => andToTimeBounded(a)
+      case a: AndExpr => andToTimeBounded(expressionCalculator)(a)
       case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
     }
   }
 
   def apply(from: Long, to: Long, condition: Condition): TimeBoundedCondition = {
-    ConditionUtils.simplify(condition) match {
+    QueryOptimizer.simplifyCondition(condition) match {
       case AndExpr(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
       case o: OrExpr   => throw new IllegalArgumentException(s"Or not supported yet $o")
       case c           => TimeBoundedCondition(Some(from), Some(to), Seq(c))
@@ -79,39 +79,46 @@ object TimeBoundedCondition {
     TimeBoundedCondition(from, to, cs)
   }
 
-  private def andToTimeBounded(and: AndExpr): Seq[TimeBoundedCondition] = {
+  private object GtTime extends GtMatcher[Time]
+  private object LtTime extends LtMatcher[Time]
+  private object GeTime extends GeMatcher[Time]
+  private object LeTime extends LeMatcher[Time]
+
+  private def andToTimeBounded(expressionCalculator: ExpressionCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
 
-    def updateFrom(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
-      const match {
-        case Some(t) => from = from.map(o => math.max(t.millis + offset, o)) orElse Some(t.millis + offset)
-        case _       => other += c
+    def updateFrom(c: Condition, e: Expression[_], offset: Long): Unit = {
+      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
+      if (const != null) {
+        from = from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
+      } else {
+        other += c
       }
     }
 
-    def updateTo(c: Condition, e: Expression, offset: Long): Unit = {
-      val const = ExpressionCalculator.evaluateConstant(e.asInstanceOf[Expression.Aux[Time]])
-      const match {
-        case Some(t) => to = to.map(o => math.max(t.millis + offset, o)) orElse Some(t.millis)
-        case _       => other += c
+    def updateTo(c: Condition, e: Expression[_], offset: Long): Unit = {
+      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
+      if (const != null) {
+        to = to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis)
+      } else {
+        other += c
       }
     }
 
     and.conditions.foreach {
-      case c @ Gt(TimeExpr, e) => updateFrom(c, e, 1L)
-      case c @ Lt(e, TimeExpr) => updateFrom(c, e, 1L)
+      case c @ GtTime(TimeExpr, e) => updateFrom(c, e, 1L)
+      case c @ LtTime(e, TimeExpr) => updateFrom(c, e, 1L)
 
-      case c @ Ge(TimeExpr, e) => updateFrom(c, e, 0L)
-      case c @ Le(e, TimeExpr) => updateFrom(c, e, 0L)
+      case c @ GeTime(TimeExpr, e) => updateFrom(c, e, 0L)
+      case c @ LeTime(e, TimeExpr) => updateFrom(c, e, 0L)
 
-      case c @ Lt(TimeExpr, e) => updateTo(c, e, 0L)
-      case c @ Gt(e, TimeExpr) => updateTo(c, e, 0L)
+      case c @ LtTime(TimeExpr, e) => updateTo(c, e, 0L)
+      case c @ GtTime(e, TimeExpr) => updateTo(c, e, 0L)
 
-      case c @ Le(TimeExpr, e) => updateTo(c, e, 1L)
-      case c @ Ge(e, TimeExpr) => updateTo(c, e, 1L)
+      case c @ LeTime(TimeExpr, e) => updateTo(c, e, 1L)
+      case c @ GeTime(e, TimeExpr) => updateTo(c, e, 1L)
 
       case c @ (AndExpr(_) | OrExpr(_)) => throw new IllegalArgumentException(s"Unexpected condition $c")
 

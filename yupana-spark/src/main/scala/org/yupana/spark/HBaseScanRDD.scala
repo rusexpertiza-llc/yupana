@@ -16,11 +16,14 @@
 
 package org.yupana.spark
 
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, Result => HBaseResult }
+import org.apache.hadoop.hbase.TableName
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
+import org.yupana.api.utils.ResourceUtils.using
+import org.yupana.core.utils.CloseableIterator
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
 case class HBaseScanPartition(
@@ -43,8 +46,11 @@ class HBaseScanRDD(
 ) extends RDD[HBaseResult](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
-    val regionLocator = connection().getRegionLocator(hTableName())
-    val keys = regionLocator.getStartEndKeys
+    val keys = using(createConnection()) { connection =>
+      using(connection.getRegionLocator(hTableName())) { regionLocator =>
+        regionLocator.getStartEndKeys
+      }
+    }
 
     val regions = keys.getFirst.zip(keys.getSecond)
 
@@ -71,7 +77,6 @@ class HBaseScanRDD(
 
   override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
-
     val scan = queryContext.metricsCollector.createScans.measure(1) {
       val filter =
         HBaseUtils.multiRowRangeFilter(
@@ -92,15 +97,24 @@ class HBaseScanRDD(
       )
     }
 
-    HBaseUtils.executeScan(connection(), config.hbaseNamespace, scan, partition.queryContext, config.extractBatchSize)
+    scan match {
+      case Some(s) =>
+        val connection = createConnection()
+        CloseableIterator(
+          HBaseUtils.executeScan(connection, config.hbaseNamespace, s, partition.queryContext, config.extractBatchSize),
+          connection.close()
+        )
+
+      case None => Iterator.empty
+    }
   }
 
-  private def connection() = {
+  private def createConnection(): Connection = {
     val hbaseConfig = TsDaoHBaseSpark.hbaseConfiguration(config)
     ConnectionFactory.createConnection(hbaseConfig)
   }
 
-  private def hTableName() = {
+  private def hTableName(): TableName = {
     HBaseUtils.tableName(config.hbaseNamespace, queryContext.table)
   }
 }

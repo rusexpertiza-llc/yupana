@@ -1,18 +1,14 @@
 package org.yupana.hbase
 
-import java.util.Properties
-
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
-import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.{ Aggregation, UnaryOperation }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
@@ -20,11 +16,14 @@ import org.yupana.core.dao._
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
 
+import java.util.Properties
 import scala.util.Random
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TsdbBenchmark extends FlatSpec with Matchers {
+class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
-  "HBAse" should "be fast" taggedAs Slow in {
+  "HBase" should "be fast" taggedAs Slow in {
     val hbaseConfiguration = HBaseConfiguration.create()
     hbaseConfiguration.set("hbase.zookeeper.quorum", "localhost:2181")
     hbaseConfiguration.set("zookeeper.session.timeout", "9000000")
@@ -32,7 +31,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //    hbaseConfiguration.set("hbase.client.scanner.max.result.size", "50000000")
 //    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, props)
 
-    HBaseAdmin.checkHBaseAvailable(hbaseConfiguration)
+    HBaseAdmin.available(hbaseConfiguration)
     val nameSpace = "schema43"
 
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
@@ -51,13 +50,13 @@ class TsdbBenchmark extends FlatSpec with Matchers {
     import scala.collection.JavaConverters._
 
     val start = System.currentTimeMillis()
-    val result = table.getScanner(scan)
-    val dps = result.iterator().asScala.foldLeft(0L) { (c, r) =>
-      c + r.rawCells().size
+    val scanner = table.getScanner(scan)
+    val dps = scanner.iterator().asScala.foldLeft(0L) { (c, r) =>
+      c + r.rawCells().length
     }
 
     println(dps)
-    println(scan.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
+    println(scanner.getScanMetrics.getMetricsMap.asScala.mkString("\r\n"))
     println("TIME: " + (System.currentTimeMillis() - start))
   }
 
@@ -87,22 +86,22 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 //    val in = (1 to N).toArray
 
     val metricDao = new TsdbQueryMetricsDao {
-      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Long = ???
+      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit = ???
 
       override def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] =
         ???
 
       override def updateQueryMetrics(
-          rowKey: Long,
+          rowKey: String,
           queryState: QueryStates.QueryState,
           totalDuration: Double,
           metricValues: Map[String, MetricData],
           sparkQuery: Boolean
       ): Unit = ???
 
-      override def setRunningPartitions(queryRowKey: Long, partitions: Int): Unit = ???
+      override def setRunningPartitions(queryRowKey: String, partitions: Int): Unit = ???
 
-      override def decrementRunningPartitions(queryRowKey: Long): Int = ???
+      override def decrementRunningPartitions(queryRowKey: String): Int = ???
 
       override def setQueryState(filter: QueryMetricsFilter, queryState: QueryStates.QueryState): Unit = ???
 
@@ -201,21 +200,7 @@ class TsdbBenchmark extends FlatSpec with Matchers {
 
       override def put(dataPoints: Seq[DataPoint]): Unit = ???
 
-      override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = ???
-
-      override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = ???
-
-      override def checkAndPutRollupStatus(
-          time: Long,
-          oldStatus: Option[String],
-          newStatus: String,
-          table: Table
-      ): Boolean = ???
-
-      override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = ???
-
-      override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = ???
-
+      override val schema: Schema = TestSchema.schema
     }
 
     val query = Query(
@@ -223,19 +208,27 @@ class TsdbBenchmark extends FlatSpec with Matchers {
       const(Time(qtime)),
       const(Time(qtime.plusYears(1))),
       Seq(
-        function(UnaryOperation.truncDay, time) as "time",
+        truncDay(time) as "time",
         dimension(TestDims.DIM_A) as "tag_a",
         dimension(TestDims.DIM_B) as "tag_b",
-        aggregate(Aggregation.sum[Double], TestTableFields.TEST_FIELD) as "sum_testField",
-        aggregate(Aggregation.sum[BigDecimal], TestTableFields.TEST_BIGDECIMAL_FIELD) as "sum_testField"
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        sum(metric(TestTableFields.TEST_BIGDECIMAL_FIELD)) as "sum_testField"
       ),
       None,
-      Seq(function(UnaryOperation.truncDay, time))
+      Seq(truncDay(time))
     )
 
     val mc = new ConsoleMetricQueryCollector(query, "test")
 //    val mc = NoMetricCollector
-    class BenchTSDB extends TSDB(dao, metricDao, dictProvider, identity, SimpleTsdbConfig(putEnabled = true)) {
+    class BenchTSDB
+        extends TSDB(
+          TestSchema.schema,
+          dao,
+          metricDao,
+          dictProvider,
+          identity,
+          SimpleTsdbConfig(putEnabled = true)
+        ) {
       override def createMetricCollector(query: Query): MetricQueryCollector = {
         mc
       }
@@ -248,8 +241,8 @@ class TsdbBenchmark extends FlatSpec with Matchers {
       val result = tsdb.query(query).iterator
 
       val r1 = result.next()
-      r1.fieldValueByName[Double]("sum_testField").get shouldBe N.toDouble
-      r1.fieldValueByName[String]("tag_a").get shouldBe "test1"
+      r1.get[Double]("sum_testField") shouldBe N.toDouble
+      r1.get[String]("tag_a") shouldBe "test1"
 
       println(s"$p. Time: " + (System.nanoTime() - s) / (1000 * 1000))
 

@@ -24,8 +24,9 @@ import scala.util.hashing.MurmurHash3
 
 class KeyData(@transient val queryContext: QueryContext, @transient val row: InternalRow) extends Serializable {
 
-  private var data: Array[Option[Any]] = _
+  private var data: Array[Any] = _
 
+  //TODO: row.get[Any] - fix it!
   override def hashCode(): Int = {
     import scala.util.hashing.MurmurHash3._
 
@@ -47,7 +48,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
         } else if (this.queryContext != null && that.queryContext != null) {
           queryContext.groupByExprs.foldLeft(true) { (a, e) =>
             val i = queryContext.exprsIndex(e)
-            a && this.row.get(i) == that.row.get(i)
+            a && this.row.get[Any](i) == that.row.get[Any](i)
           }
         } else if (this.queryContext != null) {
           queryContext.groupByExprs.indices
@@ -63,8 +64,8 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     }
   }
 
-  private def calcData: Array[Option[Any]] = {
-    val keyData = Array.ofDim[Option[Any]](queryContext.groupByExprs.length)
+  private def calcData: Array[Any] = {
+    val keyData = Array.ofDim[Any](queryContext.groupByExprs.length)
 
     keyData.indices foreach { i =>
       keyData(i) = row.get(queryContext, queryContext.groupByExprs(i))
@@ -80,6 +81,6 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
   }
 
   private def readObject(ois: ObjectInputStream): Unit = {
-    data = ois.readObject().asInstanceOf[Array[Option[Any]]]
+    data = ois.readObject().asInstanceOf[Array[Any]]
   }
 }

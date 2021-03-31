@@ -234,9 +234,13 @@ class YupanaResultSet protected[jdbc] (
 
   private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
     checkRow()
-    val cell = currentRow.fieldByIndex(i - 1)
-    wasNullValue = cell.isEmpty
-    cell.getOrElse(default)
+    val cell = currentRow.get[T](i - 1)
+    wasNullValue = cell == null
+    if (cell == null) {
+      default
+    } else {
+      cell
+    }
   }
 
   private def getPrimitiveByName[T <: AnyVal](name: String, default: T): T = {
@@ -245,11 +249,13 @@ class YupanaResultSet protected[jdbc] (
 
   private def getReference[T >: Null](i: Int, f: Any => T): T = {
     checkRow()
-    val cell = currentRow.fieldByIndex[T](i - 1)
-    wasNullValue = cell.isEmpty
-    cell match {
-      case Some(v) => f(v)
-      case None    => null
+    val cell = currentRow.get[T](i - 1)
+
+    wasNullValue = cell == null
+    if (cell == null) {
+      cell
+    } else {
+      f(cell)
     }
   }
 
@@ -444,20 +450,26 @@ class YupanaResultSet protected[jdbc] (
   override def getRef(i: Int) = throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getRef(int)")
 
   @throws[SQLException]
-  override def getBlob(i: Int) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getBlob(int)")
-
-  @throws[SQLException]
   override def getClob(i: Int) =
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getClob(int)")
 
-  private def createArray(i: Int, name: String, v: Any): SqlArray = {
+  private def createArray(i: Int, name: String, v: Any): YupanaArray[_] = {
     val dt = dataTypes(i - 1)
     if (dt.isArray) {
       val dtt = dt.asInstanceOf[ArrayDataType[_]]
-      new YupanaArray(name, v.asInstanceOf[Array[dtt.valueType.T]], dtt.valueType)
+      new YupanaArray(name, v.asInstanceOf[Seq[dtt.valueType.T]].toArray, dtt.valueType)
     } else {
       throw new SQLException(s"$dt is not an array")
+    }
+  }
+
+  private def createBlob(i: Int, v: Any): YupanaBlob = {
+    import org.yupana.api.{ Blob => ApiBlob }
+    val dt = dataTypes(i - 1)
+    if (dt.meta.sqlType == Types.BLOB) {
+      new YupanaBlob(v.asInstanceOf[ApiBlob].bytes)
+    } else {
+      throw new SQLException(s"$dt is not a blob")
     }
   }
 
@@ -473,6 +485,17 @@ class YupanaResultSet protected[jdbc] (
   }
 
   @throws[SQLException]
+  override def getBlob(i: Int): Blob = {
+    getReference(i, v => createBlob(i, v))
+  }
+
+  @throws[SQLException]
+  override def getBlob(colName: String): Blob = {
+    val idx = columnNameIndex(colName)
+    getBlob(idx)
+  }
+
+  @throws[SQLException]
   override def getObject(colName: String, map: util.Map[String, Class[_]]): AnyRef = {
     JdbcUtils.checkTypeMapping(map)
     getObject(colName)
@@ -481,10 +504,6 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def getRef(colName: String) =
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getRef(String)")
-
-  @throws[SQLException]
-  override def getBlob(colName: String) =
-    throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getBlob(String)")
 
   @throws[SQLException]
   override def getClob(colName: String) =

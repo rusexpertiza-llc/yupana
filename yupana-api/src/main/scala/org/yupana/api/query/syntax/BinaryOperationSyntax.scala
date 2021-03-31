@@ -16,27 +16,21 @@
 
 package org.yupana.api.query.syntax
 
-import org.yupana.api.query.{ BinaryOperationExpr, Expression }
-import org.yupana.api.types.{ BinaryOperation, DataType }
+import org.yupana.api.Time
+import org.yupana.api.query._
 
 trait BinaryOperationSyntax {
-  def minus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.minus(dt), a, b)
-  def plus[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.plus(dt), a, b)
-  def times[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Numeric[T], dt: DataType.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.multiply(dt), a, b)
-  def divInt[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Integral[T], dt: DataType.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.divideInt(dt), a, b)
-  def divFrac[T](a: Expression.Aux[T], b: Expression.Aux[T])(implicit n: Fractional[T], dt: DataType.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.divideFrac(dt), a, b)
+  def minus[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = MinusExpr(a, b)
+  def minus(a: Expression[Time], b: Expression[Time]) = TimeMinusExpr(a, b)
+  def plus[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = PlusExpr(a, b)
+  def times[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = TimesExpr(a, b)
+  def divInt[T](a: Expression[T], b: Expression[T])(implicit n: Integral[T]) = DivIntExpr(a, b)
+  def divFrac[T](a: Expression[T], b: Expression[T])(implicit n: Fractional[T]) = DivFracExpr(a, b)
 
-  def contains[T](a: Expression.Aux[Array[T]], b: Expression.Aux[T]) =
-    BinaryOperationExpr(BinaryOperation.contains[T], a, b)
-  def containsAll[T](a: Expression.Aux[Array[T]], b: Expression.Aux[Array[T]]) =
-    BinaryOperationExpr(BinaryOperation.containsAll[T], a, b)
-  def containsAny[T](a: Expression.Aux[Array[T]], b: Expression.Aux[Array[T]]) =
-    BinaryOperationExpr(BinaryOperation.containsAny[T], a, b)
+  def contains[T](a: Expression[Seq[T]], b: Expression[T]) = ContainsExpr(a, b)
+  def containsAll[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAllExpr(a, b)
+  def containsAny[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAnyExpr(a, b)
+  def containsSame[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsSameExpr(a, b)
 }
 
 object BinaryOperationSyntax extends BinaryOperationSyntax

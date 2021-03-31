@@ -29,20 +29,19 @@ import org.apache.hadoop.hbase.mapreduce.{
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
 import org.apache.spark.SparkContext
-import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.OnFinishIterator
+import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{
   MetricQueryCollector,
   NoMetricCollector,
   PersistentMetricQueryCollector,
   QueryCollectorContext
 }
-import org.yupana.core.{ MapReducible, QueryContext, TsdbBase }
+import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
 object TsdbSparkBase {
@@ -63,7 +62,7 @@ abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
     conf: Config,
-    schema: Schema
+    override val schema: Schema
 ) extends TsdbBase
     with StrictLogging
     with Serializable {
@@ -76,16 +75,14 @@ abstract class TsdbSparkBase(
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
     conf.hbaseNamespace,
-    schema
+    schema,
+    conf
   )
-
-  override def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[RDD] = {
-    new RddMapReducible(sparkContext, metricCollector)
-  }
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
-  override val dao: TSReadingDao[RDD, Long] = new TsDaoHBaseSpark(sparkContext, conf, dictionaryProvider)
+  override val dao: TSReadingDao[RDD, Long] =
+    new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
   private def getMetricsDao(): TsdbQueryMetricsDao = TsdbSparkBase.metricsDao match {
     case None =>
@@ -113,12 +110,12 @@ abstract class TsdbSparkBase(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: RDD[Array[Option[Any]]],
+      data: RDD[Array[Any]],
       metricCollector: MetricQueryCollector
   ): DataRowRDD = {
     metricCollector.setRunningPartitions(data.getNumPartitions)
     val rdd = data.mapPartitions { it =>
-      new OnFinishIterator(it, metricCollector.finishPartition)
+      CloseableIterator(it, metricCollector.finishPartition())
     }
     new DataRowRDD(rdd, queryContext)
   }
@@ -147,7 +144,7 @@ abstract class TsdbSparkBase(
     TableMapReduceUtil.initCredentials(job)
 
     val jconf = new JobConf(job.getConfiguration)
-    SparkHadoopUtil.get.addCredentials(jconf)
+    SparkConfUtils.addCredentials(jconf)
 
     val filtered = dataPointsRDD.filter(_.table == table)
 
@@ -178,7 +175,7 @@ abstract class TsdbSparkBase(
     )
 
     val jconf = new JobConf(job.getConfiguration)
-    SparkHadoopUtil.get.addCredentials(jconf)
+    SparkConfUtils.addCredentials(jconf)
 
     val hbaseRdd = sparkContext.newAPIHadoopRDD(
       job.getConfiguration,

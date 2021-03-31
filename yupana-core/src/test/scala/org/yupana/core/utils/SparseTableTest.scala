@@ -1,8 +1,10 @@
 package org.yupana.core.utils
 
-import org.scalatest.{ FlatSpec, Matchers, OptionValues }
+import org.scalatest.OptionValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SparseTableTest extends FlatSpec with Matchers with OptionValues {
+class SparseTableTest extends AnyFlatSpec with Matchers with OptionValues {
 
   val testData = Map(
     "foo" -> Map(1 -> "foo 1", 2 -> "foo 2"),

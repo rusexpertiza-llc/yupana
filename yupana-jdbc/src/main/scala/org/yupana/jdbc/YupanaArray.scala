@@ -16,7 +16,7 @@
 
 package org.yupana.jdbc
 
-import java.sql.{ ResultSet, SQLFeatureNotSupportedException, Array => SqlArray }
+import java.sql.{ ResultSet, Array => SqlArray }
 import java.util
 
 import org.yupana.api.query.SimpleResult
@@ -65,7 +65,7 @@ class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T])
   override def free(): Unit = {}
 
   private def createResultSet(array: Array[T], startIndex: Int): ResultSet = {
-    val it = array.zip(Stream.from(startIndex)).map { case (v, i) => Array[Option[Any]](Some(i), Option(v)) }.toIterator
+    val it = array.zip(Stream.from(startIndex)).map { case (v, i) => Array[Any](i, v) }.toIterator
     new YupanaResultSet(null, new SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
   }
 }

@@ -18,14 +18,26 @@ package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
+import org.yupana.core.dao.RollupMetaDao
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
-import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
-import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.yupana.hbase.{
+  ExternalLinkHBaseConnection,
+  HBaseUtils,
+  InvertedIndexDaoHBase,
+  RollupMetaDaoHBase,
+  Serializers,
+  TSDBHBase
+}
 import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.schema.{ Dimensions, ItemDimension }
 
-class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
+class EtlContext(
+    val cfg: EtlConfig,
+    schema: Schema
+) extends Serializable {
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
@@ -34,8 +46,30 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
     hbaseconf
   }
 
-  private def init: (TSDB, ItemsInvertedIndexImpl) = {
-    val tsdb = TSDBHBase(hBaseConfiguration, cfg.hbaseNamespace, schema, identity, cfg.properties, cfg)
+  private def initTsdb: TSDB = {
+    val tsdb =
+      TSDBHBase(
+        hBaseConfiguration,
+        cfg.hbaseNamespace,
+        schema,
+        identity,
+        cfg.properties,
+        cfg
+      )
+    setup(tsdb)
+    EtlContext.tsdb = Some(tsdb)
+    tsdb
+  }
+
+  private def initRollupMetaDao: RollupMetaDao = {
+    val connection = ConnectionFactory.createConnection(hBaseConfiguration)
+    HBaseUtils.checkNamespaceExistsElseCreate(connection, cfg.hbaseNamespace)
+    val dao = new RollupMetaDaoHBase(connection, cfg.hbaseNamespace)
+    EtlContext.rollupMetaDao = Some(dao)
+    dao
+  }
+
+  protected def setup(tsdbInstance: TSDB): Unit = {
     val hBaseConnection = new ExternalLinkHBaseConnection(hBaseConfiguration, cfg.hbaseNamespace)
     val invertedIndexDao = new InvertedIndexDaoHBase[String, ItemDimension.KeyType](
       hBaseConnection,
@@ -45,19 +79,20 @@ class EtlContext(val cfg: EtlConfig, schema: Schema) extends Serializable {
       Dimensions.ITEM.rStorable.write,
       Dimensions.ITEM.rStorable.read
     )
-    val itemsInvertedIndex =
-      new ItemsInvertedIndexImpl(tsdb, invertedIndexDao, cfg.putIntoInvertedIndex, ItemsInvertedIndex)
-    tsdb.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
-    setup(tsdb)
-    EtlContext.tsdb = Some(tsdb)
-    (tsdb, itemsInvertedIndex)
+    val itemsInvertedIndex = new ItemsInvertedIndexImpl(
+      schema,
+      invertedIndexDao,
+      cfg.putIntoInvertedIndex,
+      ItemsInvertedIndex
+    )
+    tsdbInstance.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
   }
 
-  protected def setup(TSDB: TSDB): Unit = {}
-
-  @transient lazy val tsdb: TSDB = EtlContext.tsdb.getOrElse(init._1)
+  @transient lazy val tsdb: TSDB = EtlContext.tsdb.getOrElse(initTsdb)
+  @transient lazy val rollupMetaDao: RollupMetaDao = EtlContext.rollupMetaDao.getOrElse(initRollupMetaDao)
 }
 
 object EtlContext {
   private var tsdb: Option[TSDB] = None
+  private var rollupMetaDao: Option[RollupMetaDao] = None
 }

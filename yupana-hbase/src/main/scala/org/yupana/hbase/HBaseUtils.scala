@@ -16,8 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics
@@ -30,9 +28,12 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
+import org.yupana.api.utils.ResourceUtils.using
+import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
-import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
+import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
+import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
@@ -53,7 +54,6 @@ object HBaseUtils extends StrictLogging {
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
-  private val MAX_INITIAL_REGIONS = 500
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -107,7 +107,7 @@ object HBaseUtils extends StrictLogging {
       toTime: Long,
       startRowKey: Option[Array[Byte]] = None,
       endRowKey: Option[Array[Byte]] = None
-  ): Scan = {
+  ): Option[Scan] = {
 
     logger.trace(s"Create range scan for ${multiRowRangeFilter.map(_.getRowRanges.size())} ranges")
 
@@ -120,7 +120,7 @@ object HBaseUtils extends StrictLogging {
     val startKey = List(rangeStartKey, Some(fromTimeKey), startRowKey).flatten
       .max(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
 
-    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey.filter(_.nonEmpty).map(Bytes.padTail(_, 1))).flatten
+    val stopKey = List(rangeStopKey, Some(toTimeKey), endRowKey.filter(_.nonEmpty)).flatten
       .min(Ordering.comparatorToOrdering(Bytes.BYTES_COMPARATOR))
 
     val filter = multiRowRangeFilter match {
@@ -139,11 +139,13 @@ object HBaseUtils extends StrictLogging {
         }
     }
 
-    val scan = new Scan(startKey, stopKey)
-    filter.foreach(scan.setFilter)
+    if (Bytes.BYTES_COMPARATOR.compare(startKey, stopKey) < 0) {
+      val scan = new Scan().withStartRow(startKey).withStopRow(stopKey)
+      filter.foreach(scan.setFilter)
 
-    familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
-    scan
+      familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
+      Some(scan)
+    } else None
   }
 
   def executeScan(
@@ -158,6 +160,11 @@ object HBaseUtils extends StrictLogging {
     scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
     val scanner = htable.getScanner(scan)
 
+    def close(): Unit = {
+      scanner.close()
+      htable.close()
+    }
+
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
@@ -167,7 +174,7 @@ object HBaseUtils extends StrictLogging {
           val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.uuid}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
+              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
             )
           }
           hasNext
@@ -179,7 +186,7 @@ object HBaseUtils extends StrictLogging {
       }
     }
 
-    resultIterator.flatten
+    CloseableIterator(resultIterator.flatten, close())
   }
 
   def multiRowRangeFilter(
@@ -218,23 +225,21 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def rowRange(baseTime: Long, keySize: Int, dimIds: Array[Array[Byte]]): RowRange = {
-    val timeInc = if (dimIds.isEmpty) 1 else 0
+    val tmpBuffer = ByteBuffer.allocate(keySize)
+
+    tmpBuffer.put(Bytes.toBytes(baseTime))
+    dimIds.foreach { dimBytes =>
+      tmpBuffer.put(dimBytes)
+    }
+
+    val bytes = new Array[Byte](tmpBuffer.position())
+    tmpBuffer.rewind()
+    tmpBuffer.get(bytes)
 
     val startBuffer = ByteBuffer.allocate(keySize)
     val stopBuffer = ByteBuffer.allocate(keySize)
-    startBuffer.put(Bytes.toBytes(baseTime))
-    stopBuffer.put(Bytes.toBytes(baseTime + timeInc))
-    dimIds.indices.foreach { i =>
-      val vb = dimIds(i)
-      startBuffer.put(vb)
-      val ve =
-        if (i < dimIds.length - 1) {
-          vb
-        } else {
-          Bytes.unsignedCopyAndIncrement(vb)
-        }
-      stopBuffer.put(ve)
-    }
+    startBuffer.put(bytes)
+    stopBuffer.put(Bytes.unsignedCopyAndIncrement(bytes))
 
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }
@@ -275,43 +280,58 @@ object HBaseUtils extends StrictLogging {
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
 
-    if (connection.getAdmin.tableExists(metaTableName)) {
-      ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+    using(connection.getAdmin) { admin =>
+      if (admin.tableExists(metaTableName)) {
+        ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+      } else {
 
-    } else {
+        val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
+        ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
 
-      val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
-      ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
-
-      logger.info(s"Writing TSDB Schema definition to namespace $namespace")
-
-      val tableDesc = new HTableDescriptor(metaTableName)
-        .addFamily(
-          new HColumnDescriptor(tsdbSchemaFamily)
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-        )
-      connection.getAdmin.createTable(tableDesc)
-      val table = connection.getTable(metaTableName)
-      val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, tsdbSchemaBytes)
-      table.put(put)
-
-      Success
+        writeTsdbSchema(connection, namespace, tsdbSchemaBytes)
+        Success
+      }
     }
   }
 
-  private def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
-    val table = connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))
-    val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
-    table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
+  def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
+    using(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
+      val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
+      table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
+    }
   }
 
-  def initStorage(connection: Connection, namespace: String, schema: Schema): Unit = {
+  def writeTsdbSchema(connection: Connection, namespace: String, schemaBytes: Array[Byte]): Unit = {
+    logger.info(s"Writing TSDB Schema definition to namespace $namespace")
+
+    val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
+    using(connection.getAdmin) { admin =>
+      if (!admin.tableExists(metaTableName)) {
+        val tableDesc = TableDescriptorBuilder
+          .newBuilder(metaTableName)
+          .setColumnFamily(
+            ColumnFamilyDescriptorBuilder
+              .newBuilder(tsdbSchemaFamily)
+              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+              .build()
+          )
+          .build()
+        admin.createTable(tableDesc)
+      }
+      using(connection.getTable(metaTableName)) { table =>
+        val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, schemaBytes)
+        table.put(put)
+      }
+    }
+  }
+
+  def initStorage(connection: Connection, namespace: String, schema: Schema, config: TsdbConfig): Unit = {
     checkNamespaceExistsElseCreate(connection, namespace)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t)
+      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
       checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
@@ -323,51 +343,64 @@ object HBaseUtils extends StrictLogging {
   }
 
   def checkNamespaceExistsElseCreate(connection: Connection, namespace: String): Unit = {
-    if (!connection.getAdmin.listNamespaceDescriptors.exists(_.getName == namespace)) {
-      val namespaceDescriptor = NamespaceDescriptor.create(namespace).build()
-      connection.getAdmin.createNamespace(namespaceDescriptor)
+    using(connection.getAdmin) { admin =>
+      if (!admin.listNamespaceDescriptors.exists(_.getName == namespace)) {
+        val namespaceDescriptor = NamespaceDescriptor.create(namespace).build()
+        admin.createNamespace(namespaceDescriptor)
+      }
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
+  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
     val hbaseTable = tableName(namespace, table)
-    if (!connection.getAdmin.tableExists(hbaseTable)) {
-      val desc = new HTableDescriptor(hbaseTable)
-      val fieldGroups = table.metrics.map(_.group).toSet
-      fieldGroups foreach (group =>
-        desc.addFamily(
-          new HColumnDescriptor(family(group))
+    using(connection.getAdmin) { admin =>
+      if (!admin.tableExists(hbaseTable)) {
+        val fieldGroups = table.metrics.map(_.group).toSet
+        val families = fieldGroups map (group =>
+          ColumnFamilyDescriptorBuilder
+            .newBuilder(family(group))
             .setDataBlockEncoding(DataBlockEncoding.PREFIX)
             .setCompactionCompressionType(Algorithm.SNAPPY)
+            .build()
         )
-      )
-      val endTime = new LocalDateTime()
-        .plusYears(1)
-        .withMonthOfYear(1)
-        .withDayOfMonth(1)
-        .withTime(0, 0, 0, 0)
-        .toDateTime(DateTimeZone.UTC)
-        .getMillis
-      val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-      val regions = math.min(r, MAX_INITIAL_REGIONS)
-      connection.getAdmin.createTable(
-        desc,
-        Bytes.toBytes(baseTime(table.epochTime, table)),
-        Bytes.toBytes(baseTime(endTime, table)),
-        regions
-      )
+        val desc = TableDescriptorBuilder
+          .newBuilder(hbaseTable)
+          .setColumnFamilies(families.asJavaCollection)
+          .build()
+        val endTime = new LocalDateTime()
+          .plusYears(1)
+          .withMonthOfYear(1)
+          .withDayOfMonth(1)
+          .withTime(0, 0, 0, 0)
+          .toDateTime(DateTimeZone.UTC)
+          .getMillis
+        val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
+        val regions = math.min(r, maxRegions)
+        admin.createTable(
+          desc,
+          Bytes.toBytes(baseTime(table.epochTime, table)),
+          Bytes.toBytes(baseTime(endTime, table)),
+          regions
+        )
+      }
     }
   }
 
   def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
     val name = tableName(namespace, table)
-    val hbaseTable = connection.getTable(name)
-    val tableDesc = hbaseTable.getTableDescriptor
-    if (!tableDesc.hasFamily(rollupStatusFamily)) {
-      connection.getAdmin.addColumn(
-        name,
-        new HColumnDescriptor(rollupStatusFamily).setDataBlockEncoding(DataBlockEncoding.PREFIX)
-      )
+    using(connection.getTable(name)) { hbaseTable =>
+      val tableDesc = hbaseTable.getDescriptor
+      if (!tableDesc.hasColumnFamily(rollupStatusFamily)) {
+        using(connection.getAdmin) {
+          _.addColumnFamily(
+            name,
+            ColumnFamilyDescriptorBuilder
+              .newBuilder(rollupStatusFamily)
+              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+              .build()
+          )
+        }
+      }
     }
   }
 

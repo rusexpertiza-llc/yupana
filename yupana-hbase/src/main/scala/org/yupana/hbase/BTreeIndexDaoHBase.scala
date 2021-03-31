@@ -16,10 +16,10 @@
 
 package org.yupana.hbase
 
-import org.apache.hadoop.hbase.client.{ Get, Put, Scan }
+import org.apache.hadoop.hbase.client.{ ColumnFamilyDescriptorBuilder, Get, Put, Scan, TableDescriptorBuilder }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ HColumnDescriptor, HTableDescriptor }
+import org.yupana.api.utils.ResourceUtils.using
 
 import scala.collection.JavaConverters._
 
@@ -38,9 +38,10 @@ class BTreeIndexDaoHBase[K, V](
   checkTableExistsElseCreate()
 
   def put(key: K, value: V): Unit = {
-    val table = connection.getTable(tableName)
-    val put = createPutOperation(key, value)
-    table.put(put)
+    using(connection.getTable(tableName)) { table =>
+      val put = createPutOperation(key, value)
+      table.put(put)
+    }
   }
 
   private def createPutOperation(key: K, value: V): Put = {
@@ -49,45 +50,47 @@ class BTreeIndexDaoHBase[K, V](
 
   def batchPut(batch: Seq[(K, V)]): Unit = {
     val puts = batch.map { case (key, value) => createPutOperation(key, value) }
-    val table = connection.getTable(tableName)
-    table.put(puts.asJava)
+    using(connection.getTable(tableName)) {
+      _.put(puts.asJava)
+    }
   }
 
   def get(key: K): Option[V] = {
-    val table = connection.getTable(tableName)
-    val get = new Get(keySerializer(key)).addColumn(FAMILY, QUALIFIER)
-    val result = table.get(get)
-    Option(result.getValue(FAMILY, QUALIFIER)).map(valueDeserializer)
+    using(connection.getTable(tableName)) { table =>
+      val get = new Get(keySerializer(key)).addColumn(FAMILY, QUALIFIER)
+      val result = table.get(get)
+      Option(result.getValue(FAMILY, QUALIFIER)).map(valueDeserializer)
+    }
   }
 
   def get(keys: Seq[K]): Map[K, V] = {
     if (keys.nonEmpty) {
-      val table = connection.getTable(tableName)
+      using(connection.getTable(tableName)) { table =>
 
-      val ranges = keys.map { id =>
-        val key = keySerializer(id)
-        new MultiRowRangeFilter.RowRange(key, true, key, true)
-      }
-
-      val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
-      val start = filter.getRowRanges.asScala.head.getStartRow
-      val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
-
-      val scan = new Scan(start, end)
-        .addFamily(FAMILY)
-        .addColumn(FAMILY, QUALIFIER)
-        .setFilter(filter)
-
-      val scanner = table.getScanner(scan)
-      scanner
-        .iterator()
-        .asScala
-        .map { r =>
-          val id = keyDeserializer(r.getRow)
-          val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
-          id -> value
+        val ranges = keys.map { id =>
+          val key = keySerializer(id)
+          new MultiRowRangeFilter.RowRange(key, true, key, true)
         }
-        .toMap
+
+        val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
+        val start = filter.getRowRanges.asScala.head.getStartRow
+        val end = Bytes.padTail(filter.getRowRanges.asScala.last.getStopRow, 1)
+
+        val scan = new Scan()
+          .withStartRow(start)
+          .withStopRow(end)
+          .addFamily(FAMILY)
+          .addColumn(FAMILY, QUALIFIER)
+          .setFilter(filter)
+
+        using(table.getScanner(scan)) {
+          _.iterator().asScala.map { r =>
+            val id = keyDeserializer(r.getRow)
+            val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
+            id -> value
+          }.toMap
+        }
+      }
     } else Map.empty
   }
 
@@ -97,8 +100,10 @@ class BTreeIndexDaoHBase[K, V](
   }
 
   private def checkTableExistsElseCreate() {
-    val descriptor = new HTableDescriptor(connection.getTableName(tableName))
-      .addFamily(new HColumnDescriptor(FAMILY))
+    val descriptor = TableDescriptorBuilder
+      .newBuilder(connection.getTableName(tableName))
+      .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))
+      .build()
     connection.checkTablesExistsElseCreate(descriptor)
   }
 }

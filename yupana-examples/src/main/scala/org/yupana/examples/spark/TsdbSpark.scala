@@ -28,10 +28,19 @@ object TsdbSpark {
   var externalLinks = Map.empty[String, ExternalLinkService[_ <: ExternalLink]]
 }
 
-class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: Config, schema: Schema)
-    extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
+class TsdbSpark(
+    sparkContext: SparkContext,
+    prepareQuery: Query => Query,
+    conf: Config,
+    schema: Schema
+) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
   @transient lazy val elRegistrator =
-    new ExternalLinkRegistrator(this, TsDaoHBaseSpark.hbaseConfiguration(conf), conf.hbaseNamespace, conf.properties)
+    new ExternalLinkRegistrator(
+      this,
+      TsDaoHBaseSpark.hbaseConfiguration(conf),
+      conf.hbaseNamespace,
+      conf.properties
+    )
 
   override def linkService(el: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
     if (!TsdbSpark.externalLinks.contains(el.linkName)) {
@@ -40,7 +49,7 @@ class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: 
       elRegistrator.registerExternalLink(el)
     }
     TsdbSpark.externalLinks
-      .getOrElse(el.linkName, throw new Exception(s"Can't find catalog ${el.linkName}: ${el.fieldsNames}"))
+      .getOrElse(el.linkName, throw new Exception(s"Can't find catalog ${el.linkName}: ${el.fields}"))
   }
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {

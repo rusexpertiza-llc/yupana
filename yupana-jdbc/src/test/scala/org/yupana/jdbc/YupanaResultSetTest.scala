@@ -7,12 +7,13 @@ import java.{ util, math => jm }
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, DataTypeMeta }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
+class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "Result set" should "provide common information" in {
     val statement = mock[Statement]
@@ -21,7 +22,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string", "double"),
       Seq(DataType[Int], DataType[String], DataType[Double]),
       Iterator(
-        Array[Option[Any]](Some(42), Some("foo"), None)
+        Array[Any](42, "foo", null)
       )
     )
 
@@ -50,13 +51,13 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string"),
       Seq(DataType[Int], DataType[String]),
       Iterator(
-        Array[Option[Any]](Some(1), Some("aaa")),
-        Array[Option[Any]](Some(2), Some("bbb")),
-        Array[Option[Any]](Some(3), Some("ccc")),
-        Array[Option[Any]](Some(4), Some("ddd")),
-        Array[Option[Any]](Some(5), Some("eee")),
-        Array[Option[Any]](Some(6), Some("fff")),
-        Array[Option[Any]](Some(7), Some("ggg"))
+        Array[Any](1, "aaa"),
+        Array[Any](2, "bbb"),
+        Array[Any](3, "ccc"),
+        Array[Any](4, "ddd"),
+        Array[Any](5, "eee"),
+        Array[Any](6, "fff"),
+        Array[Any](7, "ggg")
       )
     )
 
@@ -137,8 +138,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string"),
       Seq(DataType[Int], DataType[String]),
       Iterator(
-        Array[Option[Any]](Some(1), Some("aaa")),
-        Array[Option[Any]](Some(2), Some("bbb"))
+        Array[Any](1, "aaa"),
+        Array[Any](2, "bbb")
       )
     )
 
@@ -226,7 +227,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     meta.getTableName(3) shouldEqual "test"
     meta.getSchemaName(3) shouldEqual "test"
     meta.getPrecision(3) shouldEqual 0
-    meta.getScale(3) shouldEqual 0
+    meta.getScale(3) shouldEqual DataTypeMeta.MONEY_SCALE
     meta.getColumnDisplaySize(3) shouldEqual 131089
     meta.isSearchable(3) shouldBe true
     meta.isReadOnly(3) shouldBe true
@@ -271,16 +272,16 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
         DataType[BigDecimal]
       ),
       Iterator(
-        Array[Option[Any]](
-          Some(Time(time)),
-          Some(false),
-          Some(42),
-          Some("foo"),
-          Some(55.5d),
-          Some(10L),
-          Some(BigDecimal(1234.321))
+        Array[Any](
+          Time(time),
+          false,
+          42,
+          "foo",
+          55.5d,
+          10L,
+          BigDecimal(1234.321)
         ),
-        Array[Option[Any]](None, None, None, None, None, None)
+        Array[Any](null, null, null, null, null, null)
       )
     )
 
@@ -365,6 +366,49 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     resultSet.getLong("long") shouldEqual 0L
   }
 
+  it should "provide correct info about null values" in {
+    val statement = mock[Statement]
+    val time = LocalDateTime.now()
+
+    val result = SimpleResult(
+      "test",
+      Seq("int", "string", "double", "time"),
+      Seq(DataType[Int], DataType[String], DataType[Double], DataType[Time]),
+      Iterator(
+        Array[Any](42, null, null, Time(time)),
+        Array[Any](null, "not null", 88d, null)
+      )
+    )
+
+    val resultSet = new YupanaResultSet(statement, result)
+
+    resultSet.next
+    resultSet.getInt(1) shouldEqual 42
+    resultSet.wasNull shouldBe false
+
+    resultSet.getString(2) shouldEqual null
+    resultSet.wasNull shouldBe true
+
+    resultSet.getDouble(3) shouldEqual 0d
+    resultSet.wasNull shouldBe true
+
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.toDateTime.getMillis)
+    resultSet.wasNull shouldBe false
+
+    resultSet.next
+    resultSet.getInt(1) shouldEqual 0
+    resultSet.wasNull shouldBe true
+
+    resultSet.getString(2) shouldEqual "not null"
+    resultSet.wasNull shouldBe false
+
+    resultSet.getDouble(3) shouldEqual 88d
+    resultSet.wasNull shouldBe false
+
+    resultSet.getTimestamp(4) shouldEqual null
+    resultSet.wasNull shouldBe true
+  }
+
   it should "support closing" in {
     val resultSet = createResultSet
 
@@ -390,9 +434,6 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
   it should "throw exception on unsupported getters" in {
     val rs = createResultSet
     rs.next
-
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob(1)
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.getBlob("string")
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getClob(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.getClob("string")
@@ -424,8 +465,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     val result = SimpleResult(
       "test",
       Seq("int", "array_string", "array_int"),
-      Seq(DataType[Int], DataType[Array[String]], DataType[Array[Int]]),
-      Iterator(Array[Option[Any]](Some(42), Some(Array("Foo", "bar")), Some(Array(1, 2, 4, 8))))
+      Seq(DataType[Int], DataType[Seq[String]], DataType[Seq[Int]]),
+      Iterator(Array[Any](42, Seq("Foo", "bar"), Seq(1, 2, 4, 8)))
     )
 
     val rs = new YupanaResultSet(statement, result)
@@ -465,6 +506,40 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
 
   }
 
+  it should "support BLOBs" in {
+    import org.yupana.api.{ Blob => ApiBlob }
+
+    val statement = mock[Statement]
+
+    val result = SimpleResult(
+      "test",
+      Seq("int", "bytes"),
+      Seq(DataType[Int], DataType[ApiBlob]),
+      Iterator(Array[Any](42, ApiBlob(Array[Byte](2, 12, 85, 0, 6))))
+    )
+
+    val rs = new YupanaResultSet(statement, result)
+    rs.next
+
+    val blob = rs.getBlob(2)
+    blob.length() shouldEqual 5
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.setBytes(2, Array(3, 4))
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.setBytes(1, Array(3, 4, 5, 6, 7), 3, 2)
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.setBinaryStream(3)
+    an[SQLFeatureNotSupportedException] should be thrownBy blob.truncate(3)
+
+    val blob2 = rs.getBlob("bytes")
+    blob2.getBytes(2, 2) should contain theSameElementsInOrderAs Seq[Byte](12, 85)
+
+    val bytes = new Array[Byte](5)
+    blob2.getBinaryStream.read(bytes)
+    bytes should contain theSameElementsInOrderAs Seq[Byte](2, 12, 85, 0, 6)
+
+    val bytes2 = new Array[Byte](3)
+    blob2.getBinaryStream(2, 3).read(bytes2)
+    bytes2 should contain theSameElementsInOrderAs Seq[Byte](12, 85, 0)
+  }
+
   it should "throw exception on update operation" in {
     val rs = createResultSet
 
@@ -473,6 +548,8 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.moveToCurrentRow()
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.deleteRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateRow()
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.refreshRow()
     an[SQLFeatureNotSupportedException] should be thrownBy rs.cancelRowUpdates()
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.rowInserted()
@@ -583,6 +660,25 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       4L
     )
 
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      1,
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes())
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      1,
+      new ByteArrayInputStream("Test me".getBytes()),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBlob(
+      "string",
+      new ByteArrayInputStream("Test me".getBytes()),
+      4L
+    )
+
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateCharacterStream(
       1,
       new CharArrayReader("Test me".toCharArray)
@@ -611,6 +707,63 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       new CharArrayReader("Test me".toCharArray),
       4L
     )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNCharacterStream(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      1,
+      new CharArrayReader("Test me".toCharArray),
+      3L
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNClob(
+      "string",
+      new CharArrayReader("Test me".toCharArray),
+      4L
+    )
   }
 
   private def createResultSet: YupanaResultSet = {
@@ -620,7 +773,7 @@ class YupanaResultSetTest extends FlatSpec with Matchers with MockFactory {
       Seq("int", "string", "double", "time"),
       Seq(DataType[Int], DataType[String], DataType[BigDecimal], DataType[Time]),
       Iterator(
-        Array[Option[Any]](Some(42), Some("foo"), None, Some(Time(1234567L)))
+        Array[Any](42, "foo", null, Time(1234567L))
       )
     )
 

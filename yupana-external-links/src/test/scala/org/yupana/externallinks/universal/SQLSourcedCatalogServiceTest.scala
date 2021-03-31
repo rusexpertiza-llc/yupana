@@ -3,30 +3,30 @@ package org.yupana.externallinks.universal
 import java.util.Properties
 
 import org.flywaydb.core.Flyway
+import org.h2.jdbcx.JdbcDataSource
 import org.scalatest.exceptions.TestFailedException
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
-import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.jdbc.datasource.DriverManagerDataSource
+import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.yupana.core.cache.CacheFactory
+import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
+class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
   val dbUrl = "jdbc:h2:mem:yupana;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
   val dbUser = "test"
   val dbPass = "secret"
 
   private def createService(config: SQLExternalLinkConfig): SQLSourcedExternalLinkService[Int] = {
-    val ds = new DriverManagerDataSource(
-      config.connection.url,
-      config.connection.username.orNull,
-      config.connection.password.orNull
-    )
-    val jdbc = new JdbcTemplate(ds)
+    val ds = new JdbcDataSource()
+    ds.setURL(config.connection.url)
+    ds.setUser(config.connection.username.orNull)
+    ds.setPassword(config.connection.password.orNull)
 
     val externalLink = SQLExternalLink[Int](config, Dimensions.KKM_ID)
 
-    new SQLSourcedExternalLinkService(externalLink, config.description, jdbc)
+    new SQLSourcedExternalLinkService(TestSchema.schema, externalLink, config.description, ds)
   }
 
   import org.yupana.api.query.syntax.All._
@@ -73,8 +73,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val inCondition = externalLinkService.condition(
       and(
-        in(link(externalLink, "f1"), Set("qwe", "ert")),
-        in(link(externalLink, "f2"), Set("asd", "fgh"))
+        in(lower(link(externalLink, "f1")), Set("qwe", "ert")),
+        in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
       )
     )
 
@@ -82,8 +82,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val notInCondition = externalLinkService.condition(
       and(
-        notIn(link(externalLink, "f1"), Set("qwe", "ert")),
-        notIn(link(externalLink, "f2"), Set("asd", "fgh"))
+        notIn(lower(link(externalLink, "f1")), Set("qwe", "ert")),
+        notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
       )
     )
 
@@ -136,8 +136,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val inCondition = externalLinkService.condition(
       and(
-        in(link(externalLink, "f1"), Set("hhh", "hhh3")),
-        in(link(externalLink, "f2"), Set("ggg2", "ggg3"))
+        in(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
+        in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
       )
     )
 
@@ -145,8 +145,8 @@ class SQLSourcedCatalogServiceTest extends FlatSpec with Matchers with OptionVal
 
     val notInCondition = externalLinkService.condition(
       and(
-        notIn(link(externalLink, "f1"), Set("hhh", "hhh3")),
-        notIn(link(externalLink, "f2"), Set("ggg2", "ggg3"))
+        notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
+        notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
       )
     )
 

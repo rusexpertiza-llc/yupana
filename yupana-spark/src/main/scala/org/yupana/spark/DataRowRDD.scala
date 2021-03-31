@@ -23,12 +23,12 @@ import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
 import org.apache.spark.sql.types._
 import org.apache.spark.{ Partition, TaskContext }
 import org.joda.time.DateTimeZone
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 import org.yupana.api.query.{ DataRow, QueryField }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
-class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override val queryContext: QueryContext)
+class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val queryContext: QueryContext)
     extends RDD[DataRow](rows)
     with TsdbResultBase[RDD] {
 
@@ -51,28 +51,19 @@ class DataRowRDD(override val rows: RDD[Array[Option[Any]]], @transient override
     StructType(fields)
   }
 
-  private def createRow(a: Array[Option[Any]], fields: Seq[QueryField]): Row = {
+  private def createRow(a: Array[Any], fields: Seq[QueryField]): Row = {
     val values = fields.indices.map(idx =>
       a(dataIndexForFieldIndex(idx)) match {
-        case Some(Time(t)) => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
-        case x             => x.orNull
+        case Time(t)     => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
+        case Blob(bytes) => bytes
+        case x           => x
       }
     )
     Row(values: _*)
   }
 
   private def fieldToSpark(field: QueryField): StructField = {
-    val dataType = field.expr.dataType
-    val sparkType = if (!dataType.isArray) {
-      DataRowRDD.TYPE_MAP
-        .getOrElse(dataType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
-    } else {
-      val adt = dataType.asInstanceOf[ArrayDataType[_]]
-      val innerType = DataRowRDD.TYPE_MAP
-        .getOrElse(adt.valueType.meta.sqlType, throw new IllegalArgumentException(s"Unsupported data type $dataType"))
-      ArrayType(innerType)
-    }
-
+    val sparkType = DataRowRDD.yupanaToSparkType(field.expr.dataType)
     StructField(field.name, sparkType, nullable = true)
   }
 }
@@ -86,7 +77,22 @@ object DataRowRDD {
     Types.INTEGER -> IntegerType,
     Types.DOUBLE -> DoubleType,
     Types.BIGINT -> LongType,
-    Types.DECIMAL -> DataTypes.createDecimalType(DecimalType.MAX_PRECISION, 2),
-    Types.TIMESTAMP -> TimestampType
+    Types.TIMESTAMP -> TimestampType,
+    Types.BLOB -> ArrayType(ByteType)
   )
+
+  def yupanaToSparkType(yupanaDataType: org.yupana.api.types.DataType): DataType = {
+    if (yupanaDataType.meta.sqlType == Types.DECIMAL) {
+      DataTypes.createDecimalType(DecimalType.MAX_PRECISION, yupanaDataType.meta.scale)
+    } else if (yupanaDataType.isArray) {
+      val adt = yupanaDataType.asInstanceOf[ArrayDataType[_]]
+      val innerType = yupanaToSparkType(adt.valueType)
+      ArrayType(innerType)
+    } else {
+      TYPE_MAP.getOrElse(
+        yupanaDataType.meta.sqlType,
+        throw new IllegalArgumentException(s"Unsupported data type $yupanaDataType")
+      )
+    }
+  }
 }

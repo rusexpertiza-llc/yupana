@@ -19,8 +19,8 @@ package org.yupana.examples.externallinks
 import java.util.Properties
 
 import com.zaxxer.hikari.{ HikariConfig, HikariDataSource }
+import javax.sql.DataSource
 import org.apache.hadoop.conf.Configuration
-import org.springframework.jdbc.core.JdbcTemplate
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.TsdbBase
 import org.yupana.externallinks.items.{ ItemsInvertedIndexImpl, RelatedItemsCatalogImpl }
@@ -48,17 +48,23 @@ class ExternalLinkRegistrator(
     Dimensions.ITEM.rStorable.read
   )
 
-  lazy val invertedIndex = new ItemsInvertedIndexImpl(tsdb, invertedDao, false, ItemsInvertedIndex)
+  lazy val invertedIndex =
+    new ItemsInvertedIndexImpl(
+      tsdb.schema,
+      invertedDao,
+      false,
+      ItemsInvertedIndex
+    )
 
   def registerExternalLink(link: ExternalLink): Unit = {
     val service = link match {
       case c: SQLExternalLink[_] => createSqlService(c)
       case ItemsInvertedIndex    => invertedIndex
       case RelatedItemsCatalog   => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
-      case AddressCatalog        => new AddressCatalogImpl(AddressCatalog)
+      case AddressCatalog        => new AddressCatalogImpl(tsdb.schema, AddressCatalog)
       case OrganisationCatalog =>
-        val jdbcTemplate = createConnection(OrganisationCatalogImpl.connection(properties))
-        new OrganisationCatalogImpl(jdbcTemplate)
+        val dataSource = createConnection(OrganisationCatalogImpl.connection(properties))
+        new OrganisationCatalogImpl(tsdb.schema, dataSource)
     }
 
     tsdb.registerExternalLink(link, service)
@@ -70,17 +76,16 @@ class ExternalLinkRegistrator(
     }.toSet foreach registerExternalLink
   }
 
-  def createConnection(config: SQLExternalLinkConnection): JdbcTemplate = {
+  def createConnection(config: SQLExternalLinkConnection): DataSource = {
     val hikariConfig = new HikariConfig()
     hikariConfig.setJdbcUrl(config.url)
     config.username.foreach(hikariConfig.setUsername)
     config.password.foreach(hikariConfig.setPassword)
-    val dataSource = new HikariDataSource(hikariConfig)
-    new JdbcTemplate(dataSource)
+    new HikariDataSource(hikariConfig)
   }
 
   def createSqlService(link: SQLExternalLink[_]): SQLSourcedExternalLinkService[link.DimType] = {
     val jdbc = createConnection(link.config.connection)
-    new SQLSourcedExternalLinkService[link.DimType](link, link.config.description, jdbc)
+    new SQLSourcedExternalLinkService[link.DimType](tsdb.schema, link, link.config.description, jdbc)
   }
 }
