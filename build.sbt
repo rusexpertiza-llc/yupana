@@ -278,7 +278,8 @@ lazy val examples = (project in file("yupana-examples"))
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings)
-  .dependsOn(core, externalLinks, hbase, hbase % "compile->test")
+  .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
+  .settings(excludeDependencies += "org.slf4j" % "slf4j-log4j12")
 
 lazy val versions = new {
   val spark =  "3.0.1"

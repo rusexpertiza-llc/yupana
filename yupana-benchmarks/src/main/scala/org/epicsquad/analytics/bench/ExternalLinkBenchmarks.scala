@@ -1,24 +1,14 @@
 package org.epicsquad.analytics.bench
 
 import org.joda.time.DateTime
-import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
+import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
-import org.yupana.api.query.{
-  AndExpr,
-  BinaryOperationExpr,
-  ConstantExpr,
-  DimensionExpr,
-  Expression,
-  LinkExpr,
-  Query,
-  QueryField,
-  TimeExpr
-}
-import org.yupana.api.schema.{ Dimension, ExternalLink, RawDimension, Table => YTable }
-import org.yupana.api.types.BinaryOperation
+import org.yupana.api.query.{AndExpr, ConstantExpr, DimensionExpr, Expression, GeExpr, LinkExpr, LtExpr, Query, QueryField, TimeExpr}
+import org.yupana.api.schema.{Dimension, ExternalLink, LinkField, RawDimension, Table => YTable}
+import org.yupana.api.types.DataType
 import org.yupana.core.QueryContext
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
-import org.yupana.core.utils.{ SparseTable, Table }
+import org.yupana.core.model.{InternalRow, InternalRowBuilder}
+import org.yupana.core.utils.{SparseTable, Table}
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
 
@@ -31,7 +21,8 @@ object BenchLink extends ExternalLink {
   val F2 = "f2"
   override val linkName: String = "benchLink"
   override val dimension: Dimension.Aux[Int] = dim
-  override val fieldsNames: Set[String] = Set(F1, F2)
+  implicit val dataType = DataType.stringDt
+  override val fields: Set[LinkField] = Set(LinkField(F1), LinkField(F2))
 }
 
 class ExternalLinkBenchmarks {
@@ -78,7 +69,7 @@ class ExternalLinkBenchmarkState {
   val dim: RawDimension[Int] = BenchLink.dim
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
   val table = new YTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
-  val linkExpr: LinkExpr = LinkExpr(BenchLink, BenchLink.F1)
+  val linkExpr: LinkExpr[String] = LinkExpr(BenchLink, BenchLink.F1)
   val t0 = new DateTime("2019-04-20")
   val t1: DateTime = t0.plusYears(1)
   val query = new Query(
@@ -87,8 +78,8 @@ class ExternalLinkBenchmarkState {
     Some(
       AndExpr(
         Seq(
-          BinaryOperationExpr(BinaryOperation.ge[Time], TimeExpr, ConstantExpr[Time](Time(t0))),
-          BinaryOperationExpr(BinaryOperation.lt[Time], TimeExpr, ConstantExpr[Time](Time(t1)))
+          GeExpr[Time](TimeExpr, ConstantExpr[Time](Time(t0))),
+          LtExpr[Time](TimeExpr, ConstantExpr[Time](Time(t1)))
         )
       )
     )
@@ -96,12 +87,12 @@ class ExternalLinkBenchmarkState {
   val queryContext: QueryContext = QueryContext(query, None)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
-  var exprIndex: Map[Expression, Int] = queryContext.exprsIndex.toMap
+  var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex.toMap
   var rows: Seq[InternalRow] = 1 to 10000 map { i =>
     new InternalRowBuilder(exprIndex, None)
-      .set(dimExpr, Some(i - (i % 2)))
-      .set(TimeExpr, Some(Time(System.currentTimeMillis())))
+      .set(dimExpr, i - (i % 2))
+      .set(TimeExpr, Time(System.currentTimeMillis()))
       .buildAndReset()
   }
-  var exprs: Set[LinkExpr] = Set(linkExpr)
+  var exprs: Set[LinkExpr[_]] = Set(linkExpr)
 }
