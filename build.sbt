@@ -186,7 +186,8 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            %  "hbase-metrics"                  % versions.hbase          % Test,
       "org.apache.hbase"            %  "hbase-asyncfs"                  % versions.hbase          % Test,
       "org.apache.hbase"            %  "hbase-logging"                  % versions.hbase          % Test,
-      "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
+      "junit"                       %  "junit"                          % "4.13"                  % Test,
       "jakarta.ws.rs"               %  "jakarta.ws.rs-api"              % "2.1.5"                 % Test,
       "javax.activation"            %  "javax.activation-api"           % "1.2.0"                 % Test
     ),

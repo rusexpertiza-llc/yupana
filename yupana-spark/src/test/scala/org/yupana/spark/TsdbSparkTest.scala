@@ -1,7 +1,7 @@
 package org.yupana.spark
 
-import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
@@ -10,18 +10,12 @@ import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
-import java.nio.file.Paths
-
-class TsdbSparkTest extends AnyFlatSpec with Matchers with DataFrameSuiteBase {
+class TsdbSparkTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with SharedSparkSession {
 
   private val utility = new HBaseTestingUtility
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val hadoopHomePath =
-      Paths.get(ClassLoader.getSystemResource("hadoop").toURI)
-
-    println(s"hhp $hadoopHomePath")
 
     utility.startMiniCluster(
       StartMiniClusterOption
@@ -43,9 +37,12 @@ class TsdbSparkTest extends AnyFlatSpec with Matchers with DataFrameSuiteBase {
   "TsdbSpark" should "run queries" in {
 
     val zkPort = utility.getZkCluster.getClientPort
-    val config = new Config(conf.set("hbase.zookeeper", s"localhost:$zkPort"))
-
-    println(config)
+    val config =
+      new Config(
+        sc.getConf
+          .set("hbase.zookeeper", s"localhost:$zkPort")
+          .set("tsdb.hbase.compression", "none")
+      )
 
     val tsdbSpark = new TsdbSparkBase(sc, identity, config, SchemaRegistry.defaultSchema) {
       override def registerExternalLink(
