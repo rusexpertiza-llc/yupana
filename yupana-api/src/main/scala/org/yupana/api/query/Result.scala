@@ -69,7 +69,7 @@ class DataRow(
     val fields: Array[Any],
     dataIndexForFieldName: String => Int,
     dataIndexForFieldIndex: Int => Int
-) {
+) extends Serializable {
 
   def isEmpty(name: String): Boolean = {
     fields(dataIndexForFieldName(name)) == null
