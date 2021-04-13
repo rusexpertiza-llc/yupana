@@ -1,6 +1,6 @@
 package org.yupana.spark
 
-import org.apache.hadoop.hbase.{HBaseTestingUtility, StartMiniClusterOption}
+import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 
