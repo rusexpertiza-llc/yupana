@@ -1,9 +1,8 @@
 package org.yupana.spark
 
-import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
 import org.joda.time.{ DateTime, DateTimeZone }
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
@@ -11,37 +10,21 @@ import org.yupana.api.schema.{ ExternalLink, MetricValue }
 import org.yupana.core.ExternalLinkService
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
-class TsdbSparkTest extends AnyFlatSpec with Matchers with BeforeAndAfterAll with SharedSparkSession {
-
-  private val utility = new HBaseTestingUtility
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
-    utility.startMiniCluster(
-      StartMiniClusterOption
-        .builder()
-        .numMasters(1)
-        .numRegionServers(1)
-        .numDataNodes(1)
-        .build()
-    )
-  }
-
-  override def afterAll(): Unit = {
-    utility.shutdownMiniCluster()
-    super.afterAll()
-  }
+trait TsdbSparkTest
+    extends AnyFlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with SharedSparkSession
+    with SparkTestEnv {
 
   import org.yupana.api.query.syntax.All._
 
   "TsdbSpark" should "run queries" in {
 
-    val zkPort = utility.getZkCluster.getClientPort
     val config =
       new Config(
         sc.getConf
-          .set("hbase.zookeeper", s"localhost:$zkPort")
+          .set("hbase.zookeeper", s"localhost:$getZkPort")
           .set("tsdb.hbase.compression", "none")
       )
 

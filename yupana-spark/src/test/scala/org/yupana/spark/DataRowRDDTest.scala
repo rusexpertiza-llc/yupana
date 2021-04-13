@@ -8,10 +8,10 @@ import org.yupana.api.query.Query
 import org.yupana.api.types.DataTypeMeta
 import org.yupana.core.QueryContext
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class DataRowRDDTest extends AnyFlatSpec with Matchers with SharedSparkSession {
+trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSession {
 
   import org.yupana.api.query.syntax.All._
 
