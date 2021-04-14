@@ -1,11 +1,27 @@
-import scalapb.compiler.Version.scalapbVersion
-import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
+import sbtrelease.ReleasePlugin.autoImport.ReleaseTransformations._
+import scalapb.compiler.Version.scalapbVersion
 
 ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
+  .aggregate(
+    api,
+    proto,
+    jdbc,
+    utils,
+    core,
+    hbase,
+    akka,
+    spark,
+    schema,
+    externalLinks,
+    examples,
+    ehcache,
+    ignite,
+    caffeine,
+    benchmarks
+  )
   .settings(
     allSettings,
     noPublishSettings,
@@ -282,7 +298,7 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
   .settings(excludeDependencies += "org.slf4j" % "slf4j-log4j12")
 
 lazy val versions = new {
-  val spark =  "3.0.1"
+  val spark = "3.0.1"
   val sparkTesting = spark + "_1.0.0"
 
   val joda = "2.10.10"
