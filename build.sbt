@@ -294,7 +294,18 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings)
   .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
-  .settings(excludeDependencies += "org.slf4j" % "slf4j-log4j12")
+  .settings(
+    libraryDependencies ++= Seq(
+      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test
+    ),
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
+    )
+  )
+
 
 lazy val versions = new {
   val spark =  "3.0.1"
