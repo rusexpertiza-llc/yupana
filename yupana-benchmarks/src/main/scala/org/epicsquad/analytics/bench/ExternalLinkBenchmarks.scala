@@ -17,14 +17,14 @@
 package org.epicsquad.analytics.bench
 
 import org.joda.time.DateTime
-import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
+import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
-import org.yupana.api.query.{AndExpr, ConstantExpr, DimensionExpr, Expression, GeExpr, LinkExpr, LtExpr, Query, QueryField, TimeExpr}
-import org.yupana.api.schema.{Dimension, ExternalLink, LinkField, RawDimension, Table => YTable}
+import org.yupana.api.query._
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => YTable }
 import org.yupana.api.types.DataType
 import org.yupana.core.QueryContext
-import org.yupana.core.model.{InternalRow, InternalRowBuilder}
-import org.yupana.core.utils.{SparseTable, Table}
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
 
