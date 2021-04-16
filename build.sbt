@@ -196,7 +196,8 @@ lazy val spark = (project in file("yupana-spark"))
       // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
       "javax.ws.rs" % "javax.ws.rs-api",
       "org.slf4j" % "slf4j-log4j12"
-      )
+    ),
+    Test / fork := true
   )
   .dependsOn(core, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)

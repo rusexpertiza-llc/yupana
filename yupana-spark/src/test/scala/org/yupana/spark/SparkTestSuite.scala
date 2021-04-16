@@ -26,6 +26,7 @@ class SparkTestSuite extends AnyFlatSpec with BeforeAndAfterAll with TsdbSparkTe
   }
 
   override def afterAll(): Unit = {
+    spark.stop()
     utility.shutdownMiniCluster()
     super.afterAll()
   }

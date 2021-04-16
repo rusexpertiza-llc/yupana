@@ -1,7 +1,6 @@
 package org.yupana.spark
 
 import org.joda.time.{ DateTime, DateTimeZone }
-import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
@@ -10,12 +9,7 @@ import org.yupana.api.schema.{ ExternalLink, MetricValue }
 import org.yupana.core.ExternalLinkService
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
-trait TsdbSparkTest
-    extends AnyFlatSpecLike
-    with Matchers
-    with BeforeAndAfterAll
-    with SharedSparkSession
-    with SparkTestEnv {
+trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSession with SparkTestEnv {
 
   import org.yupana.api.query.syntax.All._
 
