@@ -22,7 +22,10 @@ import java.nio.charset.StandardCharsets
 import java.util.Properties
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{ FSDataOutputStream, FileStatus, FileSystem, Path }
+import org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException
 import org.apache.hadoop.io.compress.CompressionCodecFactory
+
+import scala.annotation.tailrec
 
 object HdfsFileUtils {
 
@@ -70,7 +73,21 @@ object HdfsFileUtils {
   }
 
   def appendDataToHdfs(path: String, hadoopConfiguration: Configuration, f: DataOutputStream => Unit): Unit = {
-    writeData(path, hadoopConfiguration, delete = false, f)((fs, ppath) => fs.append(ppath))
+    @tailrec
+    def nextTry(n: Int): Boolean = {
+      try {
+        writeData(path, hadoopConfiguration, delete = false, f)((fs, ppath) => fs.append(ppath))
+        true
+      } catch {
+        case e: AlreadyBeingCreatedException =>
+          if (n < 5) {
+            nextTry(n + 1)
+          } else {
+            throw e
+          }
+      }
+    }
+    nextTry(0)
   }
 
   def readDataFromHdfs[T](path: String, hadoopConfiguration: Configuration, f: DataInputStream => T): T = {
