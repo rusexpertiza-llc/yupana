@@ -21,7 +21,7 @@ import org.joda.time.Interval
 
 case class UpdateInterval(from: DateTime, to: DateTime, updatedAt: DateTime) {
 
-  def asInterval: Interval = new Interval(from, to)
+  def interval: Interval = new Interval(from, to)
 }
 
 object UpdateInterval {

@@ -19,9 +19,11 @@ package org.yupana.spark
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
+import org.joda.time.DateTime
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.RollupMetaDao
+import org.yupana.core.model.UpdateInterval
 
 import scala.language.implicitConversions
 
@@ -55,8 +57,18 @@ object ETLFunctions extends StrictLogging {
     }
   }
 
+  def dataPointsToUpdatedIntervals(dps: Seq[DataPoint], timeGranularity: Long): Seq[UpdateInterval] = {
+    val now = DateTime.now
+    dps
+      .map(dp => dp.time - dp.time % timeGranularity)
+      .distinct
+      .map { baseTime =>
+        UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + timeGranularity), now)
+      }
+  }
+
   def markUpdatedIntervals(rollupMetaDao: RollupMetaDao, dps: Seq[DataPoint], table: Table): Unit = {
-    rollupMetaDao.putUpdatesIntervals(table.name, RollupMetaDao.dataPointsToUpdatedIntervals(dps, table.rowTimeSpan))
+    rollupMetaDao.putUpdatesIntervals(table.name, dataPointsToUpdatedIntervals(dps, table.rowTimeSpan))
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
