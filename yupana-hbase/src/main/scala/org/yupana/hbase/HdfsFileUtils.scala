@@ -22,16 +22,15 @@ import java.nio.charset.StandardCharsets
 import java.util.Properties
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{ FSDataOutputStream, FileStatus, FileSystem, Path }
-import org.apache.hadoop.hdfs.protocol.AlreadyBeingCreatedException
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 
 import scala.annotation.tailrec
 
 object HdfsFileUtils {
 
-  private def writeData(path: String, hadoopConfiguration: Configuration, delete: Boolean, f: DataOutputStream => Unit)(
+  private def writeData(path: String, hadoopConfiguration: Configuration, delete: Boolean)(
       open: (FileSystem, Path) => FSDataOutputStream
-  ): Unit = {
+  )(f: DataOutputStream => Unit): Unit = {
     val uri: URI = new URI(path)
     val ppath = new Path(uri)
     val fs = FileSystem.get(hadoopConfiguration)
@@ -69,25 +68,26 @@ object HdfsFileUtils {
   }
 
   def saveDataToHdfs(path: String, hadoopConfiguration: Configuration, f: DataOutputStream => Unit): Unit = {
-    writeData(path, hadoopConfiguration, delete = true, f)((fs, ppath) => fs.create(ppath))
+    writeData(path, hadoopConfiguration, delete = true)((fs, ppath) => fs.create(ppath))(f)
   }
 
   def appendDataToHdfs(path: String, hadoopConfiguration: Configuration, f: DataOutputStream => Unit): Unit = {
     @tailrec
     def nextTry(n: Int): Boolean = {
       try {
-        writeData(path, hadoopConfiguration, delete = false, f)((fs, ppath) => fs.append(ppath))
+        writeData(path, hadoopConfiguration, delete = false)((fs, ppath) => fs.append(ppath))(f)
         true
       } catch {
-        case e: AlreadyBeingCreatedException =>
-          if (n < 5) {
-            nextTry(n + 1)
+        case e: Throwable =>
+          if (n > 0) {
+            Thread.sleep(500)
+            nextTry(n - 1)
           } else {
             throw e
           }
       }
     }
-    nextTry(0)
+    nextTry(5)
   }
 
   def readDataFromHdfs[T](path: String, hadoopConfiguration: Configuration, f: DataInputStream => T): T = {
