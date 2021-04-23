@@ -16,28 +16,14 @@
 
 package org.yupana.core.dao
 
-import org.joda.time.Interval
-import org.yupana.api.schema.Table
 import org.yupana.core.model.UpdateInterval
 
 trait RollupMetaDao {
   def putUpdatesIntervals(tableName: String, periods: Seq[UpdateInterval]): Unit
   def getUpdatesIntervals(
       tableName: String,
-      updatedAfter: Option[Long],
-      updatedBefore: Option[Long]
+      updatedAfter: Option[Long] = None,
+      updatedBefore: Option[Long] = None,
+      updatedBy: Option[String] = None
   ): Iterable[UpdateInterval]
-  def getUpdatesIntervals(tableName: String, interval: Interval): Iterable[UpdateInterval] = {
-    getUpdatesIntervals(tableName, Some(interval.getStartMillis), Some(interval.getEndMillis))
-  }
-
-  def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
-  def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit
-}
-
-object RollupMetaDao {
-
-  object SpecialField {
-    val PREV_ROLLUP_TIME: String = "prev_run_ts"
-  }
 }

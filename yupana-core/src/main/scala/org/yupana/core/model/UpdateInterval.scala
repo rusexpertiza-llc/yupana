@@ -19,13 +19,14 @@ package org.yupana.core.model
 import org.joda.time.DateTime
 import org.joda.time.Interval
 
-case class UpdateInterval(from: DateTime, to: DateTime, updatedAt: DateTime) {
+case class UpdateInterval(from: DateTime, to: DateTime, updatedAt: DateTime, updatedBy: String) {
 
-  def interval: Interval = new Interval(from, to)
+  lazy val interval: Interval = new Interval(from, to)
 }
 
 object UpdateInterval {
   val updatedAtColumn = "updated_at"
+  val updatedByColumn = "updated_by"
   val fromColumn = "from"
   val toColumn = "to"
   val tableColumn = "table"

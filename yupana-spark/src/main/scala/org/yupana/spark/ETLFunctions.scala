@@ -57,13 +57,15 @@ object ETLFunctions extends StrictLogging {
     }
   }
 
+  val updaterName: String = this.getClass.getSimpleName
+
   def dataPointsToUpdatedIntervals(dps: Seq[DataPoint], timeGranularity: Long): Seq[UpdateInterval] = {
     val now = DateTime.now
     dps
       .map(dp => dp.time - dp.time % timeGranularity)
       .distinct
       .map { baseTime =>
-        UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + timeGranularity), now)
+        UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + timeGranularity), now, updaterName)
       }
   }
 
