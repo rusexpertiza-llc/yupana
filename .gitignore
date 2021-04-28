@@ -2,3 +2,7 @@ target/
 .idea/
 .history
 .bsp/
+website/build
+website/node_modules
+website/static/api
+website/i18n/*

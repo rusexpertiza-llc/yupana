@@ -1,0 +1,12 @@
+{
+  "docs": {
+    "Установка" : [
+       "installation"
+    ],
+    "Документация": [
+       "architecture",
+       "yupanaql",
+       "external-links"
+    ]
+  }
+}

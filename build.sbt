@@ -275,6 +275,34 @@ lazy val examples = (project in file("yupana-examples"))
   .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
+lazy val docs = project
+  .in(file("yupana-docs"))
+  .dependsOn(api, core)
+  .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
+  .settings(
+    moduleName := "yupana-docs",
+    noPublishSettings,
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
+    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    cleanFiles += (ScalaUnidoc / unidoc / target).value,
+    docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
+    mdocVariables := Map(
+      "HBASEVERSION" -> minMaj(versions.hbase, "1.3"),
+      "SPARKVERSION" -> minMaj(versions.spark, "2.4"),
+      "IGNITEVERSION" -> versions.ignite
+    )
+  )
+
+def minMaj(v: String, default: String): String = {
+ val n = VersionNumber(v)
+ val r = for {
+   f <- n._1
+   s <- n._2
+ } yield s"$f.$s"
+ r getOrElse default
+}
+
 lazy val versions = new {
   val spark =  "3.0.1"
   val sparkTesting = spark + "_1.0.0"
