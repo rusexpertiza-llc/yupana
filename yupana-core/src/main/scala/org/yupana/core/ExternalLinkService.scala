@@ -28,7 +28,7 @@ trait ExternalLinkService[T <: ExternalLink] {
 
   def schema: Schema
 
-  lazy val expressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  lazy val expressionCalculator = new RuntimeCalculator(schema.tokenizer)
 
   val putEnabled: Boolean = false
 

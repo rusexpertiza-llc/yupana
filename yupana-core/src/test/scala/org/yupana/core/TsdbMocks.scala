@@ -114,7 +114,7 @@ trait TsdbMocks extends MockFactory {
     }
   }
 
-  private val calculator = new ExpressionCalculator(RussianTokenizer)
+  private val calculator = new RuntimeCalculator(RussianTokenizer)
 
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 

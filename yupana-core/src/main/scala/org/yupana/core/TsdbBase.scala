@@ -51,7 +51,7 @@ trait TsdbBase extends StrictLogging {
 
   def schema: Schema
 
-  lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  protected lazy val expressionCalculator: RuntimeCalculator = new RuntimeCalculator(schema.tokenizer)
 
   /** Batch size for reading values from external links */
   val extractBatchSize: Int

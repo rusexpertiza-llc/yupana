@@ -5,7 +5,7 @@ import org.scalatest.OptionValues
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.RuntimeCalculator
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -18,7 +18,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
   import org.yupana.api.query.syntax.All._
   import TestSchema._
 
-  val calculator = new ExpressionCalculator(RussianTokenizer)
+  val calculator = new RuntimeCalculator(RussianTokenizer)
 
   private def condition(condition: Condition): Condition = {
     ExternalLinkUtils

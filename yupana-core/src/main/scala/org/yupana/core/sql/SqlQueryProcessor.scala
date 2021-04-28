@@ -23,7 +23,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue, Schema, Table }
 import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.RuntimeCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
@@ -31,7 +31,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 
   import SqlQueryProcessor._
 
-  val expressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  private val expressionCalculator = new RuntimeCalculator(schema.tokenizer)
 
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)

@@ -20,7 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
-import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
+import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
 
 import scala.collection.mutable.ListBuffer
 
@@ -41,7 +41,7 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
 object TimeBoundedCondition {
 
-  def apply(expressionCalculator: ExpressionCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
+  def apply(expressionCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
       case a: AndExpr => andToTimeBounded(expressionCalculator)(a)
       case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
@@ -84,7 +84,7 @@ object TimeBoundedCondition {
   private object GeTime extends GeMatcher[Time]
   private object LeTime extends LeMatcher[Time]
 
-  private def andToTimeBounded(expressionCalculator: ExpressionCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
+  private def andToTimeBounded(expressionCalculator: ConstantCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]

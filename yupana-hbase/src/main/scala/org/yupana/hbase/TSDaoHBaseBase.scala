@@ -25,7 +25,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema._
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.RuntimeCalculator
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.TimeBoundedCondition
@@ -41,7 +41,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
   val schema: Schema
 
-  protected lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  protected lazy val expressionCalculator: RuntimeCalculator = new RuntimeCalculator(schema.tokenizer)
 
   val TIME: RawDimension[Time] = RawDimension[Time]("time")
 
