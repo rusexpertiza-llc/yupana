@@ -14,7 +14,7 @@ install:
   - pip install --user codecov
 
 scala:
-  - 2.12.12
+  - 2.12.13
 
 jdk:
   - openjdk8
