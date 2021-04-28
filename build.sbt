@@ -274,6 +274,61 @@ lazy val examples = (project in file("yupana-examples"))
   .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
+lazy val docsMappingsAPIDir = settingKey[String]("Name of subdirectory in site target directory for api docs")
+
+lazy val docs = project
+  .dependsOn(api, core)
+  .enablePlugins(MdocPlugin, ScalaUnidocPlugin, MicrositesPlugin)
+  .settings(
+    moduleName := "yupana-docs",
+    noPublishSettings,
+    micrositeName := "Yupana",
+    micrositeDescription := "Yupana — система анализа розничных продаж",
+    micrositeAuthor := "Rusexpertiza LLC",
+    micrositeFooterText := Some(
+    """
+      |<p>Copyright &copy; Yupana, Первый ОФД 2019</p>
+      |<p style="font-size: 80%; margin-top: 10px">Website built with <a href="https://47deg.github.io/sbt-microsites/">sbt-microsites © 2020 47 Degrees</a></p>
+      |""".stripMargin
+    ),
+    micrositeGithubOwner := "rusexpertiza-llc",
+    micrositeGithubRepo := "yupana",
+    micrositeUrl := "https://docs.yupana.org",
+    micrositeDocumentationUrl := s"${docsMappingsAPIDir.value}/org/yupana",
+    micrositeDocumentationLabelDescription := "API",
+    micrositeTheme := "pattern",
+    micrositePalette := Map(
+      "brand-primary" -> "#00a1a1",
+      "brand-secondary" -> "#004d4d",
+      "brand-tertiary" -> "#002222",
+      "gray-dark" -> "#49494B",
+      "gray" -> "#7B7B7E",
+      "gray-light" -> "#E5E5E6",
+      "gray-lighter" -> "#F4F3F4",
+      "white-color" -> "#FFFFFF"
+    ),
+    micrositeHighlightLanguages ++= Seq("sql"),
+    mdoc / fork := true,
+    mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "src" / "main" / "mdoc",
+    mdocVariables := Map(
+      "HBASEVERSION" -> minMaj(versions.hbase, "1.3"),
+      "SPARKVERSION" -> minMaj(versions.spark, "2.4"),
+      "IGNITEVERSION" -> versions.ignite
+    ),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
+    docsMappingsAPIDir := "api",
+    addMappingsToSiteDir(ScalaUnidoc / packageDoc / mappings, docsMappingsAPIDir)
+  )
+
+def minMaj(v: String, default: String): String = {
+ val n = VersionNumber(v)
+ val r = for {
+   f <- n._1
+   s <- n._2
+ } yield s"$f.$s"
+ r getOrElse default
+}
+
 lazy val versions = new {
   val spark =  "3.0.1"
 

@@ -1,0 +1,12 @@
+options:
+  - title: Установка
+    url: getting-started.html
+
+  - title: Архитектура
+    url: architecture.html
+
+  - title: YupanaQL
+    url: yupanaql.html
+
+  - title: Внешние связи
+    url: external-links.html
