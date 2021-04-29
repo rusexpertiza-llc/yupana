@@ -5,7 +5,23 @@ import sbt.Keys.excludeDependencies
 ThisBuild / useCoursier := false
 
 lazy val yupana = (project in file("."))
-  .aggregate(api, proto, jdbc, utils, core, hbase, akka, spark, schema, externalLinks, examples, ehcache, ignite, caffeine)
+  .aggregate(
+    api,
+    proto,
+    jdbc,
+    utils,
+    core,
+    hbase,
+    akka,
+    spark,
+    schema,
+    externalLinks,
+    examples,
+    ehcache,
+    ignite,
+    caffeine,
+    benchmarks
+  )
   .settings(
     allSettings,
     noPublishSettings,
@@ -273,6 +289,23 @@ lazy val examples = (project in file("yupana-examples"))
   )
   .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
+
+lazy val benchmarks = (project in file("yupana-benchmarks"))
+  .enablePlugins(JmhPlugin)
+  .settings(commonSettings)
+  .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
+  .settings(
+    libraryDependencies ++= Seq(
+      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test
+    ),
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
+    )
+  )
+
 
 lazy val versions = new {
   val spark =  "3.0.1"
