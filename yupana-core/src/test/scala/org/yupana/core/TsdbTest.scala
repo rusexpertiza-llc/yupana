@@ -1649,7 +1649,7 @@ class TsdbTest
       Some(
         in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
       ),
-      Seq.empty
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     (testCatalogServiceMock.condition _)
@@ -1699,7 +1699,9 @@ class TsdbTest
         )
       )
 
-    val rs = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val res = tsdb.query(query).toList
+
+    val rs = res.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
     rs should have size (2)
 
@@ -1743,7 +1745,7 @@ class TsdbTest
           )
         )
       ),
-      Seq.empty
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     (testCatalogServiceMock.condition _)

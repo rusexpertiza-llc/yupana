@@ -80,6 +80,7 @@ class TSDB(
   }
 
   override def applyWindowFunctions(
+      expressionCalculator: ExpressionCalculator,
       queryContext: QueryContext,
       keysAndValues: Iterator[(KeyData, InternalRow)]
   ): Iterator[(KeyData, InternalRow)] = {

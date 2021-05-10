@@ -57,8 +57,8 @@ object QueryContext extends StrictLogging {
       (query.groupBy.toSet ++
         requiredDimExprs ++
         query.postFilter.toSet ++
-        postCondition.toSet +
-        TimeExpr).filterNot(_.isInstanceOf[ConstantExpr[_]])
+        postCondition.toSet ++
+        query.table.map(_ => TimeExpr)).filterNot(_.isInstanceOf[ConstantExpr[_]])
 
     val topRowExprs: Set[Expression[_]] = topExprs.filter { expr =>
       !expr.isInstanceOf[ConstantExpr[_]] && (

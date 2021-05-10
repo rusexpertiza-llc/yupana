@@ -85,6 +85,7 @@ lazy val core = (project in file("yupana-core"))
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
+      "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
@@ -306,9 +307,9 @@ lazy val versions = new {
   val h2Jdbc = "1.4.199"
   val postgresqlJdbc = "42.2.18"
 
-  val scalaTest = "3.2.6"
-  val scalaCheck = "1.15.3"
-  val scalaTestCheck = "3.2.6.0"
+  val scalaTest = "3.2.8"
+  val scalaCheck = "1.15.4"
+  val scalaTestCheck = "3.2.8.0"
   val scalaMock = "5.1.0"
 }
 

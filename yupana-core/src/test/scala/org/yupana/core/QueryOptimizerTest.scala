@@ -10,7 +10,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 
-  private val calculator = new RuntimeCalculator(RussianTokenizer)
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   "QueryOptimizer.simplifyCondition" should "keep simple condition as is" in {
     val c = equ[String](dimension(DictionaryDimension("foo")), const("bar"))

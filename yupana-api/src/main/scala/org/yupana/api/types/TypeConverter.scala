@@ -73,6 +73,9 @@ object TypeConverter {
     partials.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[PartialConverter[T, U]]]
   }
 
+  val short2Int: TypeConverter[Short, Int] = mkTotal(_.toInt)
+  val short2Long: TypeConverter[Short, Long] = mkTotal(_.toLong)
+
   val double2BigDecimal: TypeConverter[Double, BigDecimal] = mkTotal(x => BigDecimal(x))
   val long2BigDecimal: TypeConverter[Long, BigDecimal] = mkTotal(x => BigDecimal(x))
   val long2Double: TypeConverter[Long, Double] = mkTotal(_.toDouble)
