@@ -123,10 +123,19 @@ object ExpressionCalculator extends StrictLogging {
     val idx = queryContext.exprsIndex(e)
     val tpe = mkType(e)
     val v = f(getA)
-    q"""
-       ..$prepare
-       if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe]) else ${elseTree.getOrElse(EmptyTree)}
-     """
+    elseTree match {
+      case Some(e) =>
+        q"""
+          ..$prepare
+          $row.set($idx, if ($getA != null) $v.asInstanceOf[$tpe] else $e.asInstanceOf[$tpe])
+        """
+
+      case None =>
+        q"""
+          ..$prepare
+          if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])
+        """
+    }
   }
 
   private def mkSetBinary(
@@ -216,6 +225,20 @@ object ExpressionCalculator extends StrictLogging {
         Some(q"""..$prepare
              $row.set($idx, if ($getC) $getP else $getN)
              """)
+
+      case AbsExpr(a) => Some(mkSetUnary(queryContext, row, e, a, x => q"_root_.scala.math.abs($x)"))
+
+      case NotExpr(a) => Some(mkSetUnary(queryContext, row, e, a, x => q"!$x"))
+      case AndExpr(cs) =>
+        val idx = queryContext.exprsIndex(e)
+        val sets = cs.flatMap(c => mkSet(queryContext, row, c))
+        val gets = cs.map(c => mkGet(queryContext, row, c))
+        Some(q"""..$sets
+              val vs = List(..$gets)
+              val res = vs.reduce(_ && _)
+              $row.set($idx, res)
+            """)
+
     }
 
     t
@@ -241,7 +264,7 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   def mkEvaluate(qc: QueryContext, row: TermName): Tree = {
-    val trees = qc.topRowExprs.toList.flatMap(e => mkSet(qc, row, e))
+    val trees = qc.query.fields.map(_.expr).toList.flatMap(e => mkSet(qc, row, e))
     q"..$trees"
   }
 
