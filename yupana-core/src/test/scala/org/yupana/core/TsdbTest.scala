@@ -405,7 +405,8 @@ class TsdbTest
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
       ),
-      neq(dimension(TestDims.DIM_A), const("test11"))
+      Some(neq(dimension(TestDims.DIM_A), const("test11"))),
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -458,7 +459,9 @@ class TsdbTest
         sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         dimension(TestDims.DIM_B) as "B"
-      )
+      ),
+      None,
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     val pointTime = qtime.getMillis + 10
@@ -1352,7 +1355,7 @@ class TsdbTest
           )
         )
       ),
-      Seq.empty
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
     (testCatalogServiceMock.condition _)

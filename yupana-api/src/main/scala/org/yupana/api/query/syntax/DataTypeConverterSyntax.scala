@@ -28,12 +28,6 @@ trait DataTypeConverterSyntax {
     convert[Double, BigDecimal](e, TypeConverter.double2BigDecimal)
   def long2BigDecimal(e: Expression[Long]): Expression[BigDecimal] =
     convert[Long, BigDecimal](e, TypeConverter.long2BigDecimal)
-
-  def short2Int(e: Expression[Short]): Expression[Int] =
-    convert[Short, Int](e, TypeConverter.short2Int)
-  def short2Long(e: Expression[Short]): Expression[Long] =
-    convert[Short, Long](e, TypeConverter.short2Long)
-
   def long2Double(e: Expression[Long]): Expression[Double] = convert[Long, Double](e, TypeConverter.long2Double)
   def int2Long(e: Expression[Int]): Expression[Long] = convert[Int, Long](e, TypeConverter.int2Long)
   def int2bigDecimal(e: Expression[Int]): Expression[BigDecimal] =

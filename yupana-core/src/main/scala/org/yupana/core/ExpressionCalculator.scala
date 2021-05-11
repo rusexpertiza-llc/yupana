@@ -54,7 +54,7 @@ object ExpressionCalculator extends StrictLogging {
   import scala.reflect.runtime.currentMirror
   import scala.tools.reflect.ToolBox
 
-  implicit private val timeLiftable: Liftable[Time] = Liftable[Time] { t => q"_root_.org.yupana.api.Time(${t.millis})" }
+//  implicit private val timeLiftable: Liftable[Time] = Liftable[Time] { t => q"_root_.org.yupana.api.Time(${t.millis})" }
 
   private def className(dataType: DataType): String = {
     val tpe = dataType.classTag.toString()
@@ -62,17 +62,21 @@ object ExpressionCalculator extends StrictLogging {
     tpe.substring(lastDot + 1)
   }
 
-  private def mkType(e: Expression[_]): Tree = {
-    e.dataType.kind match {
-      case TypeKind.Regular => Ident(TypeName(className(e.dataType)))
+  private def mkType(dataType: DataType): Tree = {
+    dataType.kind match {
+      case TypeKind.Regular => Ident(TypeName(className(dataType)))
       case TypeKind.Tuple =>
-        val tt = e.dataType.asInstanceOf[TupleDataType[_, _]]
+        val tt = dataType.asInstanceOf[TupleDataType[_, _]]
         AppliedTypeTree(
           Ident(TypeName("Tuple2")),
           List(Ident(TypeName(className(tt.aType))), Ident(TypeName(className(tt.bType))))
         )
       case TypeKind.Array => tq"Seq[Expression[Any]]"
     }
+  }
+
+  private def mkType(e: Expression[_]): Tree = {
+    mkType(e.dataType)
   }
 
   private def mapValue(tpe: DataType)(v: Any): Tree = {
@@ -158,6 +162,43 @@ object ExpressionCalculator extends StrictLogging {
        """
   }
 
+  private def mkSetTypeConvertExpr(
+      qc: QueryContext,
+      row: TermName,
+      e: Expression[_],
+      a: Expression[_]
+  ): Tree = {
+    val mapper = typeConverters.getOrElse(
+      (a.dataType.meta.sqlTypeName, e.dataType.meta.sqlTypeName),
+      throw new IllegalArgumentException(s"Unsupported type conversion ${a.dataType} to ${e.dataType}")
+    )
+    val prepare = mkSet(qc, row, a).toSeq
+    val getA = mkGet(qc, row, a)
+    val idx = qc.exprsIndex(e)
+    val tpe = mkType(e)
+    val v = mapper(getA)
+    q"""
+       ..$prepare
+       if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])
+       """
+  }
+
+  private def tcEntry[A, B](
+      aToB: Tree => Tree
+  )(implicit a: DataType.Aux[A], b: DataType.Aux[B]): ((String, String), Tree => Tree) = {
+    ((a.meta.sqlTypeName, b.meta.sqlTypeName), aToB)
+  }
+
+  private val typeConverters: Map[(String, String), Tree => Tree] = Map(
+    tcEntry[Double, BigDecimal](d => q"BigDecimal($d)"),
+    tcEntry[Long, BigDecimal](l => q"BigDecimal($l)"),
+    tcEntry[Long, Double](l => q"$l.toDouble"),
+    tcEntry[Int, Long](i => q"$i.toLong"),
+    tcEntry[Int, BigDecimal](i => q"BigDecimal($i)"),
+    tcEntry[Short, BigDecimal](s => q"BigDecimal($s)"),
+    tcEntry[Byte, BigDecimal](b => q"BigDecimal($b)")
+  )
+
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
   private val dtft = q"_root_.org.joda.time.DateTimeFieldType"
 
@@ -165,10 +206,16 @@ object ExpressionCalculator extends StrictLogging {
     TermName(s"e_${e.hashCode()}")
   }
 
+  private def dtValName(dt: DataType): TermName = {
+    TermName(s"dt_${dt.toString}")
+  }
+
   private def mkSet(queryContext: QueryContext, row: TermName, e: Expression[_]): Option[Tree] = {
 
     val t = e match {
-      case ConstantExpr(_)      => None
+      case ConstantExpr(c) =>
+        val v = mapValue(e.dataType)(c)
+        queryContext.exprsIndex.get(e).map(idx => q"$row.set($idx, $v)")
       case TimeExpr             => None
       case DimensionExpr(_)     => None
       case DimensionIdExpr(_)   => None
@@ -198,6 +245,8 @@ object ExpressionCalculator extends StrictLogging {
       case DivIntExpr(a, b)  => Some(mkSetBinary(queryContext, row, e, a, b, (x, y) => q"""$x / $y"""))
       case DivFracExpr(a, b) => Some(mkSetBinary(queryContext, row, e, a, b, (x, y) => q"""$x / $y"""))
 
+      case TypeConvertExpr(_, a) => Some(mkSetTypeConvertExpr(queryContext, row, e, a))
+
       case TruncYearExpr(a) => Some(mkSetUnary(queryContext, row, e, a, x => q"""$truncTime($dtft.year())($x)"""))
       case TruncMonthExpr(a) =>
         Some(mkSetUnary(queryContext, row, e, a, x => q"""$truncTime($dtft.monthOfYear())($x)"""))
@@ -226,7 +275,13 @@ object ExpressionCalculator extends StrictLogging {
              $row.set($idx, if ($getC) $getP else $getN)
              """)
 
-      case AbsExpr(a) => Some(mkSetUnary(queryContext, row, e, a, x => q"_root_.scala.math.abs($x)"))
+      case AbsExpr(a) =>
+        val dtName = dtValName(a.dataType)
+        if (a.dataType.integral.nonEmpty) {
+          Some(mkSetUnary(queryContext, row, e, a, x => q"$dtName.integral.get.abs($x)"))
+        } else {
+          Some(mkSetUnary(queryContext, row, e, a, x => q"$dtName.fractional.get.abs($x)"))
+        }
 
       case NotExpr(a) => Some(mkSetUnary(queryContext, row, e, a, x => q"!$x"))
       case AndExpr(cs) =>
@@ -244,7 +299,7 @@ object ExpressionCalculator extends StrictLogging {
     t
   }
 
-  def mkFilter(queryContext: QueryContext, row: TermName, condition: Option[Expression.Condition]): Tree = {
+  private def mkFilter(queryContext: QueryContext, row: TermName, condition: Option[Expression.Condition]): Tree = {
     condition match {
       case Some(ConstantExpr(v)) => q"$v"
 
@@ -263,12 +318,12 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
-  def mkEvaluate(qc: QueryContext, row: TermName): Tree = {
+  private def mkEvaluate(qc: QueryContext, row: TermName): Tree = {
     val trees = qc.query.fields.map(_.expr).toList.flatMap(e => mkSet(qc, row, e))
     q"..$trees"
   }
 
-  def mkMap(qc: QueryContext, row: TermName): Tree = {
+  private def mkMap(qc: QueryContext, row: TermName): Tree = {
     val trees = qc.aggregateExprs.toSeq.map { ae =>
       val idx = qc.exprsIndex(ae)
 
@@ -288,18 +343,19 @@ object ExpressionCalculator extends StrictLogging {
     q"..$trees"
   }
 
-  def mkReduce(qc: QueryContext, rowA: TermName, rowB: TermName, outRow: TermName): Tree = {
+  private def mkReduce(qc: QueryContext, rowA: TermName, rowB: TermName, outRow: TermName): Tree = {
     val trees = qc.aggregateExprs.toSeq.map { ae =>
       val idx = qc.exprsIndex(ae)
       val valueTpe = mkType(ae.expr)
 
       val aValue = mkGet(qc, rowA, ae)
       val bValue = mkGet(qc, rowB, ae)
+      val dtName = dtValName(ae.dataType)
 
       val value = ae match {
         case SumExpr(_)            => q"$aValue + $bValue"
-        case MinExpr(_)            => q"_root_.scala.math.min($aValue, $bValue)"
-        case MaxExpr(_)            => q"_root_.scala.math.max($aValue, $bValue)"
+        case MinExpr(_)            => q"$dtName.ordering.get.min($aValue, $bValue)" //q"_root_.scala.math.min($aValue, $bValue)"
+        case MaxExpr(_)            => q"$dtName.ordering.get.max($aValue, $bValue)"
         case CountExpr(_)          => q"$rowA.get[Long]($idx) + $rowB.get[Long]($idx)"
         case DistinctCountExpr(_)  => q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)"
         case DistinctRandomExpr(_) => q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)"
@@ -310,7 +366,7 @@ object ExpressionCalculator extends StrictLogging {
     q"..$trees"
   }
 
-  def mkPostMap(qc: QueryContext, row: TermName): Tree = {
+  private def mkPostMap(qc: QueryContext, row: TermName): Tree = {
     val trees = qc.aggregateExprs.toSeq.flatMap { ae =>
       val idx = qc.exprsIndex(ae)
       val valueTpe = mkType(ae.expr)
@@ -339,7 +395,7 @@ object ExpressionCalculator extends StrictLogging {
     q"..$trees"
   }
 
-  def mkPostAggregate(queryContext: QueryContext, row: TermName): Tree = {
+  private def mkPostAggregate(queryContext: QueryContext, row: TermName): Tree = {
     val trees = queryContext.exprsOnAggregatesAndWindows.toSeq.flatMap { e =>
       val winExprsIndices = e.flatten.collect { case w: WindowFunctionExpr[_, _] => queryContext.exprsIndex(w) }
       mkSet(queryContext, row, e).map { set =>
@@ -350,7 +406,7 @@ object ExpressionCalculator extends StrictLogging {
     q"..$trees"
   }
 
-  def mkVars(queryContext: QueryContext): Seq[Tree] = {
+  private def mkVars(queryContext: QueryContext): Seq[Tree] = {
     def setVariable[T: TypeTag](e: Expression[_], inner: Expression[_], values: Set[T]): Tree = {
 
       val literals = values.toList.map(mapValue(inner.dataType))
@@ -360,10 +416,21 @@ object ExpressionCalculator extends StrictLogging {
       q"private val ${exprValName(e)}: Set[$tpe] = $v"
     }
 
-    queryContext.exprsIndex.keys.collect {
+    val inVars = queryContext.exprsIndex.keys.collect {
       case e @ InExpr(i, values)    => setVariable(e, i, values)
       case e @ NotInExpr(i, values) => setVariable(e, i, values)
     }.toSeq
+
+    val dtVars = queryContext.exprsIndex.keySet.map(_.dataType).flatMap { dt =>
+      val tpe = mkType(dt)
+      DataType
+        .bySqlName(dt.meta.sqlTypeName)
+        .map(_ =>
+          q"private val ${dtValName(dt)}: DataType.Aux[$tpe] = DataType.bySqlName(${dt.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$tpe]]"
+        )
+    }
+
+    inVars ++ dtVars
   }
 
   def generateCalculator(queryContext: QueryContext, condition: Option[Condition]): Tree = {
@@ -386,6 +453,7 @@ object ExpressionCalculator extends StrictLogging {
 
     q"""
         import _root_.org.yupana.api.Time
+        import _root_.org.yupana.api.types.DataType
         
         new _root_.org.yupana.core.ExpressionCalculator {
           ..$defs
@@ -434,7 +502,7 @@ object ExpressionCalculator extends StrictLogging {
     logger.whenTraceEnabled {
       val index = queryContext.exprsIndex.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
       logger.trace("Expr index: ")
-      index.foreach(s => logger.trace(s"  ${s}"))
+      index.foreach(s => logger.trace(s"  $s"))
       logger.trace(s"Tree: ${show(tree)}")
     }
 

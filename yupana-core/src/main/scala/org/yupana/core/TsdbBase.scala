@@ -137,9 +137,6 @@ trait TsdbBase extends StrictLogging {
         }
       case None =>
         val rb = new InternalRowBuilder(queryContext)
-        queryContext.exprsIndex.foreach {
-          case (e @ ConstantExpr(x), _) => rb.set(e, x)
-        }
         mr.singleton(rb.buildAndReset())
     }
     val processedRows = new AtomicInteger(0)
