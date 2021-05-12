@@ -5,80 +5,12 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 
-import scala.collection.AbstractIterator
-
 class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
   def evaluateConstant[T](expr: Expression[T]): T = {
     assert(expr.kind == Const)
     eval(expr)
   }
-
-//  override def evaluateMap[I, M](expr: AggregateExpr[I, M, _], queryContext: QueryContext, row: InternalRow): M = {
-//    val res = expr match {
-//      case MinExpr(e) => row.get(queryContext, e)
-//      case MaxExpr(e) => row.get(queryContext, e)
-//      case SumExpr(e) => row.get(queryContext, e)
-//      case CountExpr(e) =>
-//        val v = row.get(queryContext, e)
-//        if (v != null) 1L else 0L
-//      case DistinctCountExpr(e) =>
-//        val v = row.get(queryContext, e)
-//        if (v != null) Set(v) else Set.empty[I]
-//      case DistinctRandomExpr(e) =>
-//        val v = row.get(queryContext, e)
-//        if (v != null) Set(v) else Set.empty[I]
-//    }
-//
-//    res.asInstanceOf[M]
-//  }
-//
-//  override def evaluateReduce[M](
-//      expr: AggregateExpr[_, M, _],
-//      queryContext: QueryContext,
-//      a: InternalRow,
-//      b: InternalRow
-//  ): M = {
-//    def reduce(x: M, y: M): M = {
-//      val res = expr match {
-//        case m: MinExpr[_]         => m.ord.min(x, y)
-//        case m: MaxExpr[_]         => m.ord.max(x, y)
-//        case s: SumExpr[_]         => s.numeric.plus(x, y)
-//        case CountExpr(_)          => x.asInstanceOf[Long] + y.asInstanceOf[Long]
-//        case DistinctCountExpr(_)  => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
-//        case DistinctRandomExpr(_) => x.asInstanceOf[Set[_]] ++ y.asInstanceOf[Set[_]]
-//      }
-//
-//      res.asInstanceOf[M]
-//    }
-//
-//    val aValue = a.get(queryContext, expr).asInstanceOf[M]
-//    val bValue = b.get(queryContext, expr).asInstanceOf[M]
-//
-//    if (aValue != null) {
-//      if (bValue != null) {
-//        reduce(aValue, bValue)
-//      } else aValue
-//    } else bValue
-//  }
-//
-//  override def evaluatePostMap[M, O](expr: AggregateExpr[_, M, O], queryContext: QueryContext, row: InternalRow): O = {
-//    val oldValue = row.get(queryContext, expr)
-//
-//    val res = expr match {
-//      case MinExpr(_)           => oldValue
-//      case MaxExpr(_)           => oldValue
-//      case s @ SumExpr(_)       => if (oldValue != null) oldValue else s.numeric.zero
-//      case CountExpr(_)         => oldValue
-//      case DistinctCountExpr(_) => oldValue.asInstanceOf[Set[_]].size
-//      case DistinctRandomExpr(_) =>
-//        val s = oldValue.asInstanceOf[Set[_]]
-//        val n = util.Random.nextInt(s.size)
-//        s.iterator.drop(n).next
-//    }
-//
-//    res.asInstanceOf[O]
-//  }
 
   private def eval[T](expr: Expression[T]): T = {
     import ExpressionCalculator.truncateTime
@@ -160,7 +92,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case LowerExpr(e)  => evaluateUnary(e)(_.toLowerCase)
       case UpperExpr(e)  => evaluateUnary(e)(_.toUpperCase)
       case LengthExpr(e) => evaluateUnary(e)(_.length)
-      case SplitExpr(e)  => evaluateUnary(e)(s => splitBy(s, !_.isLetterOrDigit).toSeq)
+      case SplitExpr(e)  => evaluateUnary(e)(s => ExpressionCalculator.splitBy(s, !_.isLetterOrDigit).toSeq)
       case TokensExpr(e) => evaluateUnary(e)(s => tokenizer.transliteratedTokens(s))
 
       case a @ AbsExpr(e)        => evaluateUnary(e)(a.num.abs)
@@ -198,22 +130,6 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       f(left, right)
     } else {
       null.asInstanceOf[O]
-    }
-  }
-
-  private def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
-    private val len = s.length
-    private var pos = 0
-
-    override def hasNext: Boolean = pos < len
-
-    override def next(): String = {
-      if (pos >= len) throw new NoSuchElementException("next on empty iterator")
-      val start = pos
-      while (pos < len && !p(s(pos))) pos += 1
-      val res = s.substring(start, pos min len)
-      while (pos < len && p(s(pos))) pos += 1
-      res
     }
   }
 }

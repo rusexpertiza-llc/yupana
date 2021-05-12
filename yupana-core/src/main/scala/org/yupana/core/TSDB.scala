@@ -74,7 +74,7 @@ class TSDB(
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
-    val it = CloseableIterator(data, metricCollector.finish)
+    val it = CloseableIterator(data, metricCollector.finish())
     new TsdbServerResult(queryContext, it)
 
   }
@@ -91,7 +91,7 @@ class TSDB(
       .map {
         case (keyData, group) =>
           val (values, rowNumbers) = group
-            .map { case ((_, valuedata), rowNumber) => (valuedata, rowNumber) }
+            .map { case ((_, row), rowNumber) => (row, rowNumber) }
             .toArray
             .sortBy(_._1.get[Time](queryContext, TimeExpr))
             .unzip
@@ -115,10 +115,10 @@ class TSDB(
     seq.map {
       case ((keyData, valueData), rowNumber) =>
         winFieldsAndGroupValues.foreach {
-          case (winFuncExpr: WindowFunctionExpr[t, _], groups) =>
+          case (winFuncExpr: WindowFunctionExpr[_, _], groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = expressionCalculator.evaluateWindow(winFuncExpr, group.asInstanceOf[Array[t]], index)
+              val value = expressionCalculator.evaluateWindow(winFuncExpr, group, index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }
