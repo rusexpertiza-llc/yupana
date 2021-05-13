@@ -20,12 +20,34 @@ import java.io._
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.Properties
-
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{ FileStatus, FileSystem, Path }
+import org.apache.hadoop.fs.{ FSDataOutputStream, FileStatus, FileSystem, Path }
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 
+import scala.annotation.tailrec
+
 object HdfsFileUtils {
+
+  private def writeData(path: String, hadoopConfiguration: Configuration, delete: Boolean)(
+      open: (FileSystem, Path) => FSDataOutputStream
+  )(f: DataOutputStream => Unit): Unit = {
+    val uri: URI = new URI(path)
+    val ppath = new Path(uri)
+    val fs = FileSystem.get(hadoopConfiguration)
+    if (delete) {
+      fs.delete(ppath, true)
+    }
+    val factory = new CompressionCodecFactory(hadoopConfiguration)
+    val codec = factory.getCodec(ppath)
+    val stream: DataOutputStream = if (codec != null) {
+      new DataOutputStream(codec.createOutputStream(open(fs, ppath)))
+    } else {
+      open(fs, ppath)
+    }
+    f(stream)
+    stream.close()
+    fs.close()
+  }
 
   def isFileExists(path: String, hadoopConfiguration: Configuration): Boolean = {
     val uri: URI = new URI(path)
@@ -46,20 +68,26 @@ object HdfsFileUtils {
   }
 
   def saveDataToHdfs(path: String, hadoopConfiguration: Configuration, f: DataOutputStream => Unit): Unit = {
-    val uri: URI = new URI(path)
-    val ppath = new Path(uri)
-    val fs = FileSystem.get(hadoopConfiguration)
-    fs.delete(ppath, true)
-    val factory = new CompressionCodecFactory(hadoopConfiguration)
-    val codec = factory.getCodec(ppath)
-    val stream: DataOutputStream = if (codec != null) {
-      new DataOutputStream(codec.createOutputStream(fs.create(ppath)))
-    } else {
-      fs.create(ppath)
+    writeData(path, hadoopConfiguration, delete = true)((fs, ppath) => fs.create(ppath))(f)
+  }
+
+  def appendDataToHdfs(path: String, hadoopConfiguration: Configuration, f: DataOutputStream => Unit): Unit = {
+    @tailrec
+    def nextTry(n: Int): Boolean = {
+      try {
+        writeData(path, hadoopConfiguration, delete = false)((fs, ppath) => fs.append(ppath))(f)
+        true
+      } catch {
+        case e: Throwable =>
+          if (n > 0) {
+            Thread.sleep(500)
+            nextTry(n - 1)
+          } else {
+            throw e
+          }
+      }
     }
-    f(stream)
-    stream.close()
-    fs.close()
+    nextTry(5)
   }
 
   def readDataFromHdfs[T](path: String, hadoopConfiguration: Configuration, f: DataInputStream => T): T = {
@@ -74,8 +102,6 @@ object HdfsFileUtils {
       fs.open(ppath)
     }
     val result = f(stream)
-    //    stream.close()
-    //    fs.close()
     result
   }
 
