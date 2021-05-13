@@ -327,7 +327,7 @@ lazy val versions = new {
   val ehcache = "3.3.2"
   val caffeine = "2.8.6"
 
-  val json4s = "3.5.3"
+  val json4s = "3.6.6"
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
