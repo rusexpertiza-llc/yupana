@@ -28,21 +28,19 @@ import org.yupana.core.model.InternalRow
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
-  def preEvaluated[T](expr: Expression[T], queryContext: QueryContext, internalRow: InternalRow): T = {
-    expr match {
-      case ConstantExpr(v) => v
-      case _               => internalRow.get[T](queryContext, expr)
-    }
-  }
-
   def evaluateFilter(row: InternalRow): Boolean
   def evaluateExpressions(internalRow: InternalRow): InternalRow
   def evaluateMap(internalRow: InternalRow): InternalRow
   def evaluateReduce(a: InternalRow, b: InternalRow): InternalRow
   def evaluatePostMap(internalRow: InternalRow): InternalRow
   def evaluatePostAggregateExprs(internalRow: InternalRow): InternalRow
+  def evaluatePostFilter(row: InternalRow): Boolean
 
-  def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O
+  def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O = {
+    winFuncExpr match {
+      case LagExpr(_) => if (index > 0) values(index - 1).asInstanceOf[O] else null.asInstanceOf[O]
+    }
+  }
 }
 
 object ExpressionCalculator extends StrictLogging {
@@ -295,7 +293,7 @@ object ExpressionCalculator extends StrictLogging {
       case ExtractSecondExpr(a) => Some(mkSetUnary(qc, row, e, a, x => q"$x.toLocalDateTime.getSecondOfMinute"))
 
       case TimeMinusExpr(a, b) =>
-        Some(mkSetBinary(qc, row, e, a, b, (x, y) => q"_root.scala.math.abs($x.millis - $y.millis)"))
+        Some(mkSetBinary(qc, row, e, a, b, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)"))
       case TimeMinusPeriodExpr(a, b) =>
         Some(mkSetBinary(qc, row, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p).getMillis)"))
       case TimePlusPeriodExpr(a, b) =>
@@ -431,12 +429,7 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mkPostAggregate(queryContext: QueryContext, row: TermName): Tree = {
-    val trees = queryContext.exprsOnAggregatesAndWindows.toSeq.flatMap { e =>
-      val winExprsIndices = e.flatten.collect { case w: WindowFunctionExpr[_, _] => queryContext.exprsIndex(w) }
-      mkSet(queryContext, row, e).map { set =>
-        q"""if ($winExprsIndices.forall((x: Int) => $row.isEmpty(x))) $set"""
-      }
-    }
+    val trees = queryContext.exprsOnAggregatesAndWindows.toSeq.flatMap(e => mkSet(queryContext, row, e))
 
     q"..$trees"
   }
@@ -467,10 +460,10 @@ object ExpressionCalculator extends StrictLogging {
               q"private val ${ordValName(dt)}: Ordering[$tpe] = DataType.bySqlName(${dt.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$tpe]].ordering.get"
             ),
             dt.fractional.map(_ =>
-              q"private val ${fractionalValName(dt)}: Ordering[$tpe] = DataType.bySqlName(${dt.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$tpe]].fractional.get"
+              q"private val ${fractionalValName(dt)}: Fractional[$tpe] = DataType.bySqlName(${dt.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$tpe]].fractional.get"
             ),
             dt.integral.map(_ =>
-              q"private val ${integralValName(dt)}: Ordering[$tpe] = DataType.bySqlName(${dt.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$tpe]].integral.get"
+              q"private val ${integralValName(dt)}: Integral[$tpe] = DataType.bySqlName(${dt.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$tpe]].integral.get"
             )
           ).flatten
         }
@@ -496,6 +489,8 @@ object ExpressionCalculator extends StrictLogging {
 
     val postMap = mkPostMap(queryContext, internalRow)
     val postAggregate = mkPostAggregate(queryContext, internalRow)
+
+    val postFilter = mkFilter(queryContext, internalRow, queryContext.query.postFilter)
 
     q"""
         import _root_.org.yupana.api.Time
@@ -535,7 +530,7 @@ object ExpressionCalculator extends StrictLogging {
             $internalRow
           }
 
-          def evaluateWindow[I, O](winFuncExpr: _root_.org.yupana.api.query.WindowFunctionExpr[I, O], values: Array[I], index: Int): O = ???
+          override def evaluatePostFilter($internalRow: _root_.org.yupana.core.model.InternalRow): Boolean = $postFilter
         }
     """
   }
@@ -549,10 +544,21 @@ object ExpressionCalculator extends StrictLogging {
       val index = queryContext.exprsIndex.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
       logger.trace("Expr index: ")
       index.foreach(s => logger.trace(s"  $s"))
-      logger.trace(s"Tree: ${show(tree)}")
+      logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
     tb.compile(tree)().asInstanceOf[ExpressionCalculator]
+  }
+
+  private def prettyTree(tree: Tree): String = {
+    show(tree)
+      .replaceAll("_root_\\.([^. ]+\\.)+", "")
+      .replaceAll("\\.\\$bang\\$eq", " != ")
+      .replaceAll("\\.\\$eq\\$eq", " == ")
+      .replaceAll("\\.\\$amp\\$amp", " && ")
+      .replaceAll("\\.\\$plus\\$plus", " ++ ")
+      .replaceAll("\\.\\$plus", " + ")
+      .replaceAll("\\.\\$minus", " - ")
   }
 
   def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
@@ -574,5 +580,4 @@ object ExpressionCalculator extends StrictLogging {
       res
     }
   }
-
 }

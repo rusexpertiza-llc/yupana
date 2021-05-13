@@ -213,13 +213,11 @@ trait TsdbBase extends StrictLogging {
     }
 
     val postFiltered = queryContext.query.postFilter match {
-      case Some(cond) =>
+      case Some(_) =>
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
           metricCollector.postFilter.measure(batch.size) {
             val it = batch.iterator
-            it.filter { row =>
-              expressionCalculator.preEvaluated(cond, queryContext, row)
-            }
+            it.filter(expressionCalculator.evaluatePostFilter)
           }
         }
       case None => calculated
