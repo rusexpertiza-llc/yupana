@@ -292,7 +292,7 @@ lazy val examples = (project in file("yupana-examples"))
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
-  .settings(commonSettings)
+  .settings(commonSettings, noPublishSettings)
   .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
   .settings(
     libraryDependencies ++= Seq(
