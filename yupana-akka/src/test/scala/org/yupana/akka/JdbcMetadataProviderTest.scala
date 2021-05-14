@@ -15,7 +15,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   val metadataProvider = new JdbcMetadataProvider(TS.schema)
 
   "JdbcMetadataProvider" should "return None when unknown table description has been requested" in {
-    metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown schema 'unknown_talbe'")
+    metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown table 'unknown_talbe'")
   }
 
   it should "list tables" in {
