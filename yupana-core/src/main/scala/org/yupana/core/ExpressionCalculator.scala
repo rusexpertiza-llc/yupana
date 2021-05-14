@@ -328,6 +328,26 @@ object ExpressionCalculator extends StrictLogging {
         Some(mkSetUnary(qc, row, e, a, x => q"ExpressionCalculator.splitBy($x, !_.isLetterOrDigit).toSeq"))
       case LengthExpr(a)    => Some(mkSetUnary(qc, row, e, a, x => q"$x.length"))
       case ConcatExpr(a, b) => Some(mkSetBinary(qc, row, e, a, b, (x, y) => q"$x + $y"))
+
+      case ArrayExpr(exprs) =>
+        val sets = exprs.map(a => mkSet(qc, row, a))
+        val gets = exprs.map(a => mkGet(qc, row, a))
+        val idx = qc.exprsIndex(e)
+        Some(q"""
+            ..$sets
+            $row.set($idx, Seq(..$gets))
+           """)
+
+      case ArrayLengthExpr(a)   => Some(mkSetUnary(qc, row, e, a, x => q"$x.size"))
+      case ArrayToStringExpr(a) => Some(mkSetUnary(qc, row, e, a, x => q"""$x.mkString(", ")"""))
+      case ArrayTokensExpr(a) =>
+        Some(mkSetUnary(qc, row, e, a, x => q"""$x.flatMap(s => tokenizer.transliteratedTokens(s))"""))
+
+      case ContainsExpr(as, b)     => Some(mkSetBinary(qc, row, e, as, b, (x, y) => q"$x.contains($y)"))
+      case ContainsAnyExpr(as, bs) => Some(mkSetBinary(qc, row, e, as, bs, (x, y) => q"$y.exists($x.contains)"))
+      case ContainsAllExpr(as, bs) => Some(mkSetBinary(qc, row, e, as, bs, (x, y) => q"$y.forall($x.contains)"))
+      case ContainsSameExpr(as, bs) =>
+        Some(mkSetBinary(qc, row, e, as, bs, (x, y) => q"$x.size == $y.size && $x.toSet == $y.toSet"))
     }
 
     t
