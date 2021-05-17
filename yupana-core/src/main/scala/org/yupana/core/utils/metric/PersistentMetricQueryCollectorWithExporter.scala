@@ -25,22 +25,29 @@ class PersistentMetricQueryCollectorWithExporter(
     exporterCallBack: => Option[ExporterMetrics => Unit] = None
 ) extends PersistentMetricQueryCollector(collectorContext, query) {
 
-  override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {
-    exporterCallBack.foreach { exporter =>
-      val duration = totalDuration
-      val labels = Map("id" -> query.id, "state" -> state.name, "is_spark" -> collectorContext.sparkQuery.toString) ++
-        getAndResetMetricsData.flatMap { case (pref, mData) => explodeMetricData(pref, mData) }
-      exporter(ExporterMetrics(labels, duration))
-    }
-    super.saveQueryMetrics(state)
+  override def saveQueryMetrics(state: QueryStates.QueryState): MetricsResult = {
+    val metrics = super.saveQueryMetrics(state)
+    exporterCallBack.foreach(_(metricsResultToLabels(metrics)))
+    metrics
   }
 
-  def explodeMetricData(prefix: String, metricData: MetricData): Seq[(String, String)] = {
+  private def explodeMetricData(prefix: String, metricData: MetricData): Seq[(String, String)] = {
     Seq(
       s"${prefix}_count" -> metricData.count.toString,
       s"${prefix}_time" -> metricData.time.toString,
       s"${prefix}_speed" -> metricData.speed.toString
     )
+  }
+
+  private def metricsResultToLabels(metricsResult: MetricsResult): ExporterMetrics = {
+    val duration = metricsResult.durationSec
+    val labels = Map(
+      "id" -> metricsResult.queryId,
+      "state" -> metricsResult.state,
+      "is_spark" -> metricsResult.isSparkContext.toString
+    ) ++
+      metricsResult.metricsData.flatMap { case (pref, mData) => explodeMetricData(pref, mData) }
+    ExporterMetrics(labels, duration)
   }
 
 }

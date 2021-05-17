@@ -78,7 +78,7 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
     )
   }
 
-  override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {}
+  override def saveQueryMetrics(state: QueryStates.QueryState): MetricsResult = MetricsResult()
 
   override def setRunningPartitions(partitions: Int): Unit = {}
 

@@ -16,8 +16,6 @@
 
 package org.yupana.core.utils.metric
 
-import java.util.concurrent.atomic.LongAdder
-
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
 import org.yupana.core.model.QueryStates.QueryState
@@ -25,6 +23,7 @@ import org.yupana.core.model.TsdbQueryMetrics._
 import org.yupana.core.model.{ MetricData, QueryStates }
 import org.yupana.core.utils.metric.PersistentMetricQueryCollector._
 
+import java.util.concurrent.atomic.LongAdder
 import scala.collection.{ Seq, mutable }
 
 class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, query: Query)
@@ -95,14 +94,16 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
     }
   }
 
-  def saveQueryMetrics(state: QueryState): Unit = {
+  def saveQueryMetrics(state: QueryState): MetricsResult = {
     val duration = totalDuration
+    val metricData = getAndResetMetricsData
     collectorContext
       .metricsDao()
-      .updateQueryMetrics(query.id, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
+      .updateQueryMetrics(query.id, state, duration, metricData, collectorContext.sparkQuery)
+    MetricsResult(query.id, state.name, collectorContext.sparkQuery, metricData, duration)
   }
 
-  def totalDuration: Double = {
+  private def totalDuration: Double = {
     val currentTime = System.nanoTime()
     if (currentTime > startTime) asSeconds(currentTime - startTime)
     else asSeconds(startTime - currentTime)
