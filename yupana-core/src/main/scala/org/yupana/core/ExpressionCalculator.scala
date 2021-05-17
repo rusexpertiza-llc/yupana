@@ -54,6 +54,15 @@ object ExpressionCalculator extends StrictLogging {
     tpe.substring(lastDot + 1)
   }
 
+  private def isNullable(e: Expression[_]): Boolean = {
+    e match {
+      case ConstantExpr(_)  => false
+      case TimeExpr         => false
+      case DimensionExpr(_) => false
+      case _                => true
+    }
+  }
+
   private def mkType(dataType: DataType): Tree = {
     dataType.kind match {
       case TypeKind.Regular => Ident(TypeName(className(dataType)))
@@ -119,18 +128,26 @@ object ExpressionCalculator extends StrictLogging {
     val idx = queryContext.exprsIndex(e)
     val tpe = mkType(e)
     val v = f(getA)
-    elseTree match {
-      case Some(e) =>
-        q"""
+    val aIsNullable = isNullable(a)
+    if (aIsNullable) {
+      elseTree match {
+        case Some(e) =>
+          q"""
           ..$prepare
           $row.set($idx, if ($getA != null) $v.asInstanceOf[$tpe] else $e.asInstanceOf[$tpe])
         """
 
-      case None =>
-        q"""
+        case None =>
+          q"""
           ..$prepare
           if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])
         """
+      }
+    } else {
+      q"""
+         ..$prepare
+         $row.set($idx, $v.asInstanceOf[$tpe])
+         """
     }
   }
 
@@ -162,10 +179,31 @@ object ExpressionCalculator extends StrictLogging {
     val idx = queryContext.exprsIndex(e)
     val tpe = mkType(e)
     val v = f(getA, getB)
-    q"""
+
+    val aIsNullable = isNullable(a)
+    val bIsNullable = isNullable(b)
+
+    if (aIsNullable && bIsNullable) {
+      q"""
        ..$prepare
        if ($getA != null && $getB != null) $row.set($idx, $v.asInstanceOf[$tpe])
        """
+    } else if (aIsNullable) {
+      q"""
+       ..$prepare
+       if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])
+       """
+    } else if (bIsNullable) {
+      q"""
+       ..$prepare
+       if ($getB != null) $row.set($idx, $v.asInstanceOf[$tpe])
+       """
+    } else {
+      q"""
+       ..$prepare
+       $row.set($idx, $v.asInstanceOf[$tpe])
+       """
+    }
   }
 
   private def mkSetTypeConvertExpr(
@@ -436,7 +474,7 @@ object ExpressionCalculator extends StrictLogging {
           Some(
             q"""
               val s = $row.get[Set[$valueTpe]]($idx)
-              val n = util.Random.nextInt(s.size)
+              val n = _root_.scala.util.Random.nextInt(s.size)
               s.iterator.drop(n).next
             """
           )
@@ -504,7 +542,7 @@ object ExpressionCalculator extends StrictLogging {
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
-    val outRow = TermName("reduced")
+    val outRow = rowA
     val reduce = mkReduce(queryContext, rowA, rowB, outRow)
 
     val postMap = mkPostMap(queryContext, internalRow)
@@ -535,7 +573,6 @@ object ExpressionCalculator extends StrictLogging {
             $rowA: _root_.org.yupana.core.model.InternalRow,
             $rowB: _root_.org.yupana.core.model.InternalRow
           ): _root_.org.yupana.core.model.InternalRow = {
-            val $outRow = $rowA.copy
             $reduce
             $outRow
           }
@@ -572,13 +609,14 @@ object ExpressionCalculator extends StrictLogging {
 
   private def prettyTree(tree: Tree): String = {
     show(tree)
-      .replaceAll("_root_\\.([^. ]+\\.)+", "")
+      .replaceAll("_root_\\.([a-z_]+\\.)+", "")
       .replaceAll("\\.\\$bang\\$eq", " != ")
       .replaceAll("\\.\\$eq\\$eq", " == ")
       .replaceAll("\\.\\$amp\\$amp", " && ")
       .replaceAll("\\.\\$plus\\$plus", " ++ ")
       .replaceAll("\\.\\$plus", " + ")
       .replaceAll("\\.\\$minus", " - ")
+      .replaceAll("\\.\\$div", " / ")
   }
 
   def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
