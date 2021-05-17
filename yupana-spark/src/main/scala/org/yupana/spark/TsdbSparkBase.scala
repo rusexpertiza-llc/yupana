@@ -18,31 +18,21 @@ package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, Mutation, Result => HBaseResult }
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Mutation, Result => HBaseResult}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.{
-  IdentityTableMapper,
-  TableInputFormat,
-  TableMapReduceUtil,
-  TableOutputFormat
-}
+import org.apache.hadoop.hbase.mapreduce.{IdentityTableMapper, TableInputFormat, TableMapReduceUtil, TableOutputFormat}
 import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
+import org.apache.hadoop.mapreduce.{Job, OutputFormat}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.{ DataPoint, Query }
-import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.api.query.{DataPoint, Query}
+import org.yupana.api.schema.{Schema, Table}
+import org.yupana.core.dao.{DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao}
+import org.yupana.core.model.{InternalRow, KeyData}
 import org.yupana.core.utils.CloseableIterator
-import org.yupana.core.utils.metric.{
-  MetricQueryCollector,
-  NoMetricCollector,
-  PersistentMetricQueryCollector,
-  QueryCollectorContext
-}
-import org.yupana.core.{ QueryContext, TsdbBase }
-import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
+import org.yupana.core.utils.metric.{ExporterMetrics, MetricQueryCollector, NoMetricCollector, PersistentMetricQueryCollector, QueryCollectorContext}
+import org.yupana.core.{QueryContext, TsdbBase}
+import org.yupana.hbase.{DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase}
 
 object TsdbSparkBase {
   @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
@@ -62,7 +52,8 @@ abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
     conf: Config,
-    override val schema: Schema
+    override val schema: Schema,
+    metricsExporter: Option[ExporterMetrics => Unit] = None
 ) extends TsdbBase
     with StrictLogging
     with Serializable {

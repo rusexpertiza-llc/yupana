@@ -6,7 +6,7 @@ import org.yupana.core.model.{ MetricData, QueryStates }
 class PersistentMetricQueryCollectorWithExporter(
     collectorContext: QueryCollectorContext,
     query: Query,
-    exporterCallBack: => Option[(Map[String, String], Double) => Unit] = None
+    exporterCallBack: => Option[ExporterMetrics => Unit] = None
 ) extends PersistentMetricQueryCollector(collectorContext, query) {
 
   override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {
@@ -14,7 +14,7 @@ class PersistentMetricQueryCollectorWithExporter(
       val duration = totalDuration
       val labels = Map("id" -> query.id, "state" -> state.name, "is_spark" -> collectorContext.sparkQuery.toString) ++
         getAndResetMetricsData.flatMap { case (pref, mData) => explodeMetricData(pref, mData) }
-      exporter(labels, duration)
+      exporter(ExporterMetrics(labels, duration))
     }
     super.saveQueryMetrics(state)
   }
@@ -28,3 +28,5 @@ class PersistentMetricQueryCollectorWithExporter(
   }
 
 }
+
+case class ExporterMetrics(labels: Map[String, String], durationSec: Double)

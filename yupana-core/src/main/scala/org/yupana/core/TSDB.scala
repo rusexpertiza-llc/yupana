@@ -26,12 +26,13 @@ import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
 
 class TSDB(
-    override val schema: Schema,
-    override val dao: TSDao[Iterator, Long],
-    val metricsDao: TsdbQueryMetricsDao,
-    override val dictionaryProvider: DictionaryProvider,
-    override val prepareQuery: Query => Query,
-    config: TsdbConfig
+            override val schema: Schema,
+            override val dao: TSDao[Iterator, Long],
+            val metricsDao: TsdbQueryMetricsDao,
+            override val dictionaryProvider: DictionaryProvider,
+            override val prepareQuery: Query => Query,
+            config: TsdbConfig,
+            metricsExporter: Option[ExporterMetrics => Unit] = None
 ) extends TsdbBase
     with StrictLogging {
 
@@ -64,7 +65,10 @@ class TSDB(
         operationName = "query",
         metricsUpdateInterval = config.metricsUpdateInterval
       )
-      new PersistentMetricQueryCollector(queryCollectorContext, query)
+      metricsExporter match {
+        case Some(exporter) => new PersistentMetricQueryCollectorWithExporter(queryCollectorContext, query, Some(exporter))
+        case None => new PersistentMetricQueryCollector(queryCollectorContext, query)
+      }
     } else NoMetricCollector
   }
 
