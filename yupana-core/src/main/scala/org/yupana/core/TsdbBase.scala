@@ -158,11 +158,11 @@ trait TsdbBase extends StrictLogging {
         val it = withExtLinks.iterator
         val filtered = condition match {
           case Some(_) =>
-            it.filter(row => expressionCalculator.evaluateFilter(row))
+            it.filter(row => expressionCalculator.evaluateFilter(schema.tokenizer, row))
           case None => it
         }
 
-        val withExprValues = filtered.map(row => expressionCalculator.evaluateExpressions(row))
+        val withExprValues = filtered.map(row => expressionCalculator.evaluateExpressions(schema.tokenizer, row))
 
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
       }
@@ -183,15 +183,15 @@ trait TsdbBase extends StrictLogging {
             case (key, row) =>
               val c = processedDataPoints.incrementAndGet()
               if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Extracted $c data points")
-              key -> expressionCalculator.evaluateMap(row) //applyMapOperation(expressionCalculator, queryContext, row)
+              key -> expressionCalculator.evaluateMap(schema.tokenizer, row)
           }
-          CollectionUtils.reduceByKey(mapped)((a, b) => expressionCalculator.evaluateReduce(a, b)) //applyReduceOperation(expressionCalculator, queryContext, a, b))
+          CollectionUtils.reduceByKey(mapped)((a, b) => expressionCalculator.evaluateReduce(schema.tokenizer, a, b))
         }
       }
 
       val r = mr.reduceByKey(keysAndMappedValues) { (a, b) =>
         metricCollector.reduceOperation.measure(1) {
-          expressionCalculator.evaluateReduce(a, b)
+          expressionCalculator.evaluateReduce(schema.tokenizer, a, b)
         }
       }
 
@@ -200,7 +200,7 @@ trait TsdbBase extends StrictLogging {
           val it = batch.iterator
           it.map {
             case (_, row) =>
-              expressionCalculator.evaluatePostMap(row)
+              expressionCalculator.evaluatePostMap(schema.tokenizer, row)
           }
         }
       }
@@ -209,7 +209,7 @@ trait TsdbBase extends StrictLogging {
     }
 
     val calculated = mr.map(reduced) { row =>
-      expressionCalculator.evaluatePostAggregateExprs(row)
+      expressionCalculator.evaluatePostAggregateExprs(schema.tokenizer, row)
     }
 
     val postFiltered = queryContext.query.postFilter match {
@@ -217,7 +217,7 @@ trait TsdbBase extends StrictLogging {
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
           metricCollector.postFilter.measure(batch.size) {
             val it = batch.iterator
-            it.filter(expressionCalculator.evaluatePostFilter)
+            it.filter(row => expressionCalculator.evaluatePostFilter(schema.tokenizer, row))
           }
         }
       case None => calculated

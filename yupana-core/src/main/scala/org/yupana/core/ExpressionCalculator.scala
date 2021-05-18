@@ -22,20 +22,21 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ DataType, TupleDataType }
+import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
+import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
 import scala.annotation.tailrec
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
-  def evaluateFilter(row: InternalRow): Boolean
-  def evaluateExpressions(internalRow: InternalRow): InternalRow
-  def evaluateMap(internalRow: InternalRow): InternalRow
-  def evaluateReduce(a: InternalRow, b: InternalRow): InternalRow
-  def evaluatePostMap(internalRow: InternalRow): InternalRow
-  def evaluatePostAggregateExprs(internalRow: InternalRow): InternalRow
-  def evaluatePostFilter(row: InternalRow): Boolean
+  def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
+  def evaluateExpressions(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluateMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluateReduce(tokenizer: Tokenizer, a: InternalRow, b: InternalRow): InternalRow
+  def evaluatePostMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluatePostAggregateExprs(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluatePostFilter(tokenizer: Tokenizer, row: InternalRow): Boolean
 
   def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O = {
     winFuncExpr match {
@@ -48,6 +49,8 @@ object ExpressionCalculator extends StrictLogging {
   import scala.reflect.runtime.universe._
   import scala.reflect.runtime.currentMirror
   import scala.tools.reflect.ToolBox
+
+  private val tokenizer = TermName("tokenizer")
 
   private def className(dataType: DataType): String = {
     val tpe = dataType.classTag.toString()
@@ -73,7 +76,12 @@ object ExpressionCalculator extends StrictLogging {
           Ident(TypeName("Tuple2")),
           List(Ident(TypeName(className(tt.aType))), Ident(TypeName(className(tt.bType))))
         )
-      case TypeKind.Array => tq"Seq[Expression[Any]]"
+      case TypeKind.Array =>
+        val at = dataType.asInstanceOf[ArrayDataType[_]]
+        AppliedTypeTree(
+          Ident(TypeName("Seq")),
+          List(Ident(TypeName(className(at.valueType))))
+        )
     }
   }
 
@@ -374,8 +382,9 @@ object ExpressionCalculator extends StrictLogging {
         case AndExpr(cs) => mkLogical(qc, row, newKnown, onlySimple, e, cs, q"_ && _")
         case OrExpr(cs)  => mkLogical(qc, row, newKnown, onlySimple, e, cs, q"_ || _")
 
-        case SplitExpr(a) => mkSetUnary(qc, row, newKnown, onlySimple, e, a, x => q"tokenizer.transliteratedTokens($x)")
         case TokensExpr(a) =>
+          mkSetUnary(qc, row, newKnown, onlySimple, e, a, x => q"$tokenizer.transliteratedTokens($x)")
+        case SplitExpr(a) =>
           mkSetUnary(
             qc,
             row,
@@ -383,7 +392,7 @@ object ExpressionCalculator extends StrictLogging {
             onlySimple,
             e,
             a,
-            x => q"ExpressionCalculator.splitBy($x, !_.isLetterOrDigit).toSeq"
+            x => q"_root_.org.yupana.core.ExpressionCalculator.splitBy($x, !_.isLetterOrDigit).toSeq"
           )
         case LengthExpr(a)    => mkSetUnary(qc, row, newKnown, onlySimple, e, a, x => q"$x.length")
         case ConcatExpr(a, b) => mkSetBinary(qc, row, newKnown, onlySimple, e, a, b, (x, y) => q"$x + $y")
@@ -404,7 +413,7 @@ object ExpressionCalculator extends StrictLogging {
             onlySimple,
             e,
             a,
-            x => q"""$x.flatMap(s => tokenizer.transliteratedTokens(s))"""
+            x => q"""$x.flatMap(s => $tokenizer.transliteratedTokens(s))"""
           )
 
         case ContainsExpr(as, b) => mkSetBinary(qc, row, newKnown, onlySimple, e, as, b, (x, y) => q"$x.contains($y)")
@@ -456,7 +465,8 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mkEvaluate(qc: QueryContext, row: TermName, known: Set[Expression[_]]): (Tree, Set[Expression[_]]) = {
-    val (trees, newKnown) = mkSetExprs(qc, row, known, onlySimple = true, qc.query.fields.map(_.expr).toList)
+    val (trees, newKnown) =
+      mkSetExprs(qc, row, known, onlySimple = true, qc.query.fields.map(_.expr).toList ++ qc.groupByExprs)
     (q"..$trees", newKnown)
   }
 
@@ -602,41 +612,40 @@ object ExpressionCalculator extends StrictLogging {
     q"""
         import _root_.org.yupana.api.Time
         import _root_.org.yupana.api.types.DataType
+        import _root_.org.yupana.api.utils.Tokenizer
+        import _root_.org.yupana.core.model.InternalRow
         
         new _root_.org.yupana.core.ExpressionCalculator {
           ..$defs
         
-          override def evaluateFilter($internalRow: _root_.org.yupana.core.model.InternalRow): Boolean = $filter
+          override def evaluateFilter($tokenizer: Tokenizer, $internalRow: InternalRow): Boolean = $filter
           
-          override def evaluateExpressions($internalRow: _root_.org.yupana.core.model.InternalRow): _root_.org.yupana.core.model.InternalRow = {
+          override def evaluateExpressions($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $evaluate
             $internalRow
           }
           
-          override def evaluateMap($internalRow: _root_.org.yupana.core.model.InternalRow): _root_.org.yupana.core.model.InternalRow = {
+          override def evaluateMap($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $map
             $internalRow
           }
           
-          override def evaluateReduce(
-            $rowA: _root_.org.yupana.core.model.InternalRow,
-            $rowB: _root_.org.yupana.core.model.InternalRow
-          ): _root_.org.yupana.core.model.InternalRow = {
+          override def evaluateReduce($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
             $reduce
             $outRow
           }
     
-          override def evaluatePostMap($internalRow: _root_.org.yupana.core.model.InternalRow): _root_.org.yupana.core.model.InternalRow = {
+          override def evaluatePostMap($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $postMap
             $internalRow
           }
     
-          override def evaluatePostAggregateExprs($internalRow: _root_.org.yupana.core.model.InternalRow): _root_.org.yupana.core.model.InternalRow = {
+          override def evaluatePostAggregateExprs($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $postAggregate
             $internalRow
           }
 
-          override def evaluatePostFilter($internalRow: _root_.org.yupana.core.model.InternalRow): Boolean = $postFilter
+          override def evaluatePostFilter($tokenizer: Tokenizer, $internalRow: InternalRow): Boolean = $postFilter
         }
     """
   }
