@@ -26,7 +26,6 @@ case class QueryContext(
     query: Query,
     exprsIndex: mutable.HashMap[Expression[_], Int],
     aggregateExprs: Array[AggregateExpr[_, _, _]],
-    topRowExprs: Array[Expression[_]],
     exprsOnAggregatesAndWindows: Array[Expression[_]],
     bottomExprs: Array[Expression[_]],
     linkExprs: Seq[LinkExpr[_]],
@@ -70,7 +69,7 @@ object QueryContext extends StrictLogging {
 
     val exprsOnAggregatesAndWindows = topExprs diff topRowExprs
 
-    val allExprs: Set[Expression[_]] = topExprs.flatMap(_.flatten)
+    val allExprs: Set[Expression[_]] = topExprs.flatMap(e => e.flatten.filterNot(_.isInstanceOf[ConstantExpr[_]]) + e)
 
     val bottomExprs: Set[Expression[_]] = collectBottomExprs(allExprs)
 
@@ -82,7 +81,6 @@ object QueryContext extends StrictLogging {
       query,
       exprsIndex,
       aggregateExprs.toArray,
-      (topRowExprs -- bottomExprs).toArray,
       exprsOnAggregatesAndWindows.toArray,
       bottomExprs.toArray,
       linkExprs,
