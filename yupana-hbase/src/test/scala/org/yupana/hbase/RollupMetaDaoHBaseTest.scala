@@ -1,7 +1,7 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.joda.time.{ DateTime, Interval }
+import org.joda.time.DateTime
 import org.scalatest.GivenWhenThen
 import org.yupana.core.model.UpdateInterval
 import org.yupana.hbase.HBaseUtilsTest.TestTable
@@ -23,28 +23,27 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Mat
     val now = DateTime.now()
 
     val invalidatedIntervals = baseTimes.map { baseTime =>
-      UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + TestTable.rowTimeSpan), now)
+      UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + TestTable.rowTimeSpan), now, "test")
     }.toSeq
 
     val from = DateTime.now().plusDays(-1).getMillis
     val to = DateTime.now().plusDays(1).getMillis
-    val interval = new Interval(from, to)
 
     When("invalid baseTimes was put")
     dao.putUpdatesIntervals("receipt", invalidatedIntervals)
 
     Then("returned periods must be empty")
-    dao.getUpdatesIntervals("rollup_by_day", interval) should have size 0
+    dao.getUpdatesIntervals("rollup_by_day", Some(from), Some(to)) should have size 0
 
     And("invalid periods must be non empty")
-    dao.getUpdatesIntervals("receipt", interval) should have size 2
-    dao.getUpdatesIntervals("rollup_by_day", interval) should have size 0
+    dao.getUpdatesIntervals("receipt", Some(from), Some(to)) should have size 2
+    dao.getUpdatesIntervals("rollup_by_day", Some(from), Some(to)) should have size 0
 
     When("periods marks as recalculated")
     dao.putUpdatesIntervals("rollup_by_day", invalidatedIntervals)
 
     Then("rollup_by_day periods now exists")
-    val result = dao.getUpdatesIntervals("rollup_by_day", interval)
+    val result = dao.getUpdatesIntervals("rollup_by_day", Some(from), Some(to))
     result should have size 2
     val period = result.head
     val t = new DateTime(baseTimes.head)
@@ -52,13 +51,13 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Mat
     period.to shouldEqual t.plusMillis(TestTable.rowTimeSpan.toInt)
 
     And("invalid periods still here")
-    dao.getUpdatesIntervals("receipt", interval) should have size 2
+    dao.getUpdatesIntervals("receipt", Some(from), Some(to)) should have size 2
 
     And("no new invalid periods")
-    dao.getUpdatesIntervals("receipt", new Interval(to, DateTime.now().plusDays(2).getMillis)) should have size 0
+    dao.getUpdatesIntervals("receipt", Some(to), Some(DateTime.now().plusDays(2).getMillis)) should have size 0
 
     And("no new recalculated periods")
-    dao.getUpdatesIntervals("rollup_by_day", new Interval(to, DateTime.now().plusDays(2).getMillis)) should have size 0
+    dao.getUpdatesIntervals("rollup_by_day", Some(to), Some(DateTime.now().plusDays(2).getMillis)) should have size 0
   }
 
 }
