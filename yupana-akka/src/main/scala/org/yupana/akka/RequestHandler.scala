@@ -22,6 +22,7 @@ import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.DataType
 import org.yupana.core.TSDB
+import org.yupana.core.dao.TsdbQueryMetricsDao
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
 import org.yupana.proto
@@ -29,7 +30,7 @@ import org.yupana.proto.util.ProtocolVersion
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class RequestHandler(schema: Schema) extends StrictLogging {
+class RequestHandler(schema: Schema, metricsDao: TsdbQueryMetricsDao) extends StrictLogging {
 
   private val sqlQueryProcessor = new SqlQueryProcessor(schema)
   private val metadataProvider = new JdbcMetadataProvider(schema)
@@ -63,13 +64,13 @@ class RequestHandler(schema: Schema) extends StrictLogging {
         case ShowFunctions(typeName) => metadataProvider.listFunctions(typeName).right map resultToProto
 
         case ShowQueryMetrics(filter, limit) =>
-          Right(resultToProto(QueryInfoProvider.handleShowQueries(tsdb, filter, limit)))
+          Right(resultToProto(QueryInfoProvider.handleShowQueries(metricsDao, filter, limit)))
 
         case KillQuery(filter) =>
-          Right(resultToProto(QueryInfoProvider.handleKillQuery(tsdb, filter)))
+          Right(resultToProto(QueryInfoProvider.handleKillQuery(metricsDao, filter)))
 
         case DeleteQueryMetrics(filter) =>
-          Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(tsdb, filter)))
+          Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(metricsDao, filter)))
       }
     }
   }

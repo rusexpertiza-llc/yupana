@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
@@ -28,10 +28,10 @@ import org.yupana.core.utils.metric._
 class TSDB(
     override val schema: Schema,
     override val dao: TSDao[Iterator, Long],
-    val metricsDao: TsdbQueryMetricsDao,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
-    config: TsdbConfig
+    config: TsdbConfig,
+    metricCollectorCreator: Query => MetricQueryCollector
 ) extends TsdbBase
     with StrictLogging {
 
@@ -59,12 +59,7 @@ class TSDB(
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
     if (config.collectMetrics) {
-      val queryCollectorContext = new QueryCollectorContext(
-        metricsDao = () => metricsDao,
-        operationName = "query",
-        metricsUpdateInterval = config.metricsUpdateInterval
-      )
-      new PersistentMetricQueryCollector(queryCollectorContext, query)
+      metricCollectorCreator(query)
     } else NoMetricCollector
   }
 

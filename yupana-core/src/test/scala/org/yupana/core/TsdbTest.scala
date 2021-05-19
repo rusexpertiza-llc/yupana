@@ -1,7 +1,5 @@
 package org.yupana.core
 
-import java.util.Properties
-
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
@@ -11,12 +9,14 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TSDao, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TSDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
+
+import java.util.Properties
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -44,16 +44,15 @@ class TsdbTest
   "TSDB" should "put datapoint to database" in {
 
     val tsdbDaoMock = mock[TSTestDao]
-    val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb = new TSDB(
       TestSchema.schema,
       tsdbDaoMock,
-      metricsDaoMock,
       dictionaryProvider,
       identity,
-      SimpleTsdbConfig(putEnabled = true)
+      SimpleTsdbConfig(putEnabled = true),
+      { _: Query => NoMetricCollector }
     )
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
@@ -70,11 +69,12 @@ class TsdbTest
 
   it should "not allow put if disabled" in {
     val tsdbDaoMock = mock[TSTestDao]
-    val metricsDaoMock = mock[TsdbQueryMetricsDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
-      new TSDB(TestSchema.schema, tsdbDaoMock, metricsDaoMock, dictionaryProvider, identity, SimpleTsdbConfig())
+      new TSDB(TestSchema.schema, tsdbDaoMock, dictionaryProvider, identity, SimpleTsdbConfig(), { _: Query =>
+        NoMetricCollector
+      })
 
     val dp = DataPoint(
       TestSchema.testTable,

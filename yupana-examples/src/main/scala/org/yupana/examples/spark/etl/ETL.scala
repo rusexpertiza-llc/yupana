@@ -16,16 +16,20 @@
 
 package org.yupana.examples.spark.etl
 
+import com.typesafe.scalalogging.StrictLogging
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.{ SparkConf, SparkContext }
 import org.joda.time.DateTimeZone
 import org.yupana.api.Blob
-import org.yupana.api.query.DataPoint
+import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Dimension, MetricValue }
+import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.examples.ExampleSchema
+import org.yupana.hbase.TsdbQueryMetricsDaoHBase
 import org.yupana.schema._
-import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
+import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils, TsdbSparkBase }
 
-object ETL {
+object ETL extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
 
@@ -34,7 +38,17 @@ object ETL {
     val sc = SparkContext.getOrCreate(conf)
 
     val cfg = new EtlConfig(conf)
-    val ctx = new EtlContext(cfg, ExampleSchema.schema)
+    logger.info("TsdbQueryMetricsDao initialization...")
+    lazy val hbaseConnection = ConnectionFactory.createConnection(TsdbSparkBase.hbaseConfiguration(cfg))
+    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, cfg.hbaseNamespace)
+    val queryCollectorContext = new QueryCollectorContext(
+      metricsDao = () => tsdbQueryMetricsDaoHBase,
+      operationName = "query",
+      metricsUpdateInterval = cfg.metricsUpdateInterval
+    )
+
+    val metricCreator = { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+    val ctx = new EtlContext(cfg, ExampleSchema.schema, metricCreator)
 
     import org.yupana.spark.ETLFunctions._
 

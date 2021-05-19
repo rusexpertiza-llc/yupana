@@ -21,6 +21,7 @@ import org.yupana.api.query.Query
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.CacheFactory
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }
 
@@ -32,8 +33,9 @@ class TsdbSpark(
     sparkContext: SparkContext,
     prepareQuery: Query => Query,
     conf: Config,
-    schema: Schema
-) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
+    schema: Schema,
+    metricCollectorCreator: Query => MetricQueryCollector
+) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema, metricCollectorCreator) {
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
       this,

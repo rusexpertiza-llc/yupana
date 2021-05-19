@@ -20,13 +20,15 @@ import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.HBaseAdmin
+import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
+import org.yupana.api.query.Query
 import org.yupana.core.SimpleTsdbConfig
+import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
-import org.yupana.hbase.{ HdfsFileUtils, TSDBHBase }
+import org.yupana.hbase.{ HdfsFileUtils, TSDBHBase, TsdbQueryMetricsDaoHBase }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -62,6 +64,17 @@ object Main extends StrictLogging {
 
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
 
+    logger.info("TsdbQueryMetricsDao initialization...")
+    lazy val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration)
+    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
+
+    val queryCollectorContext = new QueryCollectorContext(
+      metricsDao = () => tsdbQueryMetricsDaoHBase,
+      operationName = "query",
+      metricsUpdateInterval = tsdbConfig.metricsUpdateInterval
+    )
+    val metricCreator = { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+
     val tsdb =
       TSDBHBase(
         hbaseConfiguration,
@@ -69,7 +82,8 @@ object Main extends StrictLogging {
         schemaWithJson,
         identity,
         config.properties,
-        tsdbConfig
+        tsdbConfig,
+        metricCreator
       )
     logger.info("Registering catalogs")
     val elRegistrator =
@@ -77,7 +91,7 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val requestHandler = new RequestHandler(schemaWithJson)
+    val requestHandler = new RequestHandler(schemaWithJson, tsdbQueryMetricsDaoHBase)
     new TsdbTcp(tsdb, requestHandler, config.host, config.port, 1, 0, "1.0")
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
 

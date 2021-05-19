@@ -4,7 +4,8 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ FlatSpec, Matchers }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
+import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.core._
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 import org.yupana.schema.{ Dimensions, Tables }
@@ -12,7 +13,8 @@ import org.yupana.schema.{ Dimensions, Tables }
 class RelatedItemsCatalogImplTest extends FlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
 
-  class MockedTsdb extends TSDB(TestSchema.schema, null, null, null, identity, SimpleTsdbConfig())
+  class MockedTsdb
+      extends TSDB(TestSchema.schema, null, null, identity, SimpleTsdbConfig(), { _: Query => NoMetricCollector })
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {
     val tsdb = mock[MockedTsdb]

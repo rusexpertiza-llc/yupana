@@ -18,8 +18,10 @@ package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
+import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -27,7 +29,8 @@ import org.yupana.schema.{ Dimensions, ItemDimension }
 
 class EtlContext(
     val cfg: EtlConfig,
-    schema: Schema
+    schema: Schema,
+    metricCollectorCreator: Query => MetricQueryCollector
 ) extends Serializable {
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
@@ -45,7 +48,8 @@ class EtlContext(
         schema,
         identity,
         cfg.properties,
-        cfg
+        cfg,
+        metricCollectorCreator
       )
     setup(tsdb)
     EtlContext.tsdb = Some(tsdb)

@@ -32,20 +32,14 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
-import org.yupana.core.utils.metric.{
-  MetricQueryCollector,
-  NoMetricCollector,
-  PersistentMetricQueryCollector,
-  QueryCollectorContext
-}
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.{ QueryContext, TsdbBase }
-import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
+import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils }
 
 object TsdbSparkBase {
-  @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
 
   def hbaseConfiguration(config: Config): Configuration = {
     val configuration = new Configuration()
@@ -62,7 +56,8 @@ abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
     conf: Config,
-    override val schema: Schema
+    override val schema: Schema,
+    metricCollectorCreator: Query => MetricQueryCollector
 ) extends TsdbBase
     with StrictLogging
     with Serializable {
@@ -83,25 +78,9 @@ abstract class TsdbSparkBase(
   override val dao: TSReadingDao[RDD, Long] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
-  private def getMetricsDao(): TsdbQueryMetricsDao = TsdbSparkBase.metricsDao match {
-    case None =>
-      logger.info("TsdbQueryMetricsDao initialization...")
-      val hbaseConnection = ConnectionFactory.createConnection(TsdbSparkBase.hbaseConfiguration(conf))
-      val dao = new TsdbQueryMetricsDaoHBase(hbaseConnection, conf.hbaseNamespace)
-      TsdbSparkBase.metricsDao = Some(dao)
-      dao
-    case Some(d) => d
-  }
-
   override def createMetricCollector(query: Query): MetricQueryCollector = {
     if (conf.collectMetrics) {
-      val queryCollectorContext: QueryCollectorContext = new QueryCollectorContext(
-        metricsDao = getMetricsDao,
-        operationName = "spark query",
-        metricsUpdateInterval = conf.metricsUpdateInterval,
-        sparkQuery = true
-      )
-      new PersistentMetricQueryCollector(queryCollectorContext, query)
+      metricCollectorCreator(query)
     } else {
       NoMetricCollector
     }
