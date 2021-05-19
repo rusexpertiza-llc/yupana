@@ -21,7 +21,8 @@ import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryProviderImpl, TsdbQueryMetricsDao }
+import org.yupana.core.dao.DictionaryProviderImpl
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.{ TSDB, TsdbConfig }
 
 import java.util.Properties
@@ -52,11 +53,11 @@ object TSDBHBase {
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties,
-      tsdbConfig: TsdbConfig
+      tsdbConfig: TsdbConfig,
+      metricCollectorCreator: Query => MetricQueryCollector
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
-    val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
-    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig, metricsDao)
+    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig, metricCollectorCreator)
   }
 }

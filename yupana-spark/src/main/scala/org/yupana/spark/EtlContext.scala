@@ -19,6 +19,7 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.ConnectionFactory
+import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.core.utils.metric.MetricQueryCollector

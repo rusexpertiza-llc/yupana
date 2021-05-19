@@ -19,8 +19,8 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
+import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._

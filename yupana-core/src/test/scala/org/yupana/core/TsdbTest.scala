@@ -77,7 +77,6 @@ class TsdbTest
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
-        metricsDaoMock,
         dictionaryProvider,
         identity,
         SimpleTsdbConfig(),

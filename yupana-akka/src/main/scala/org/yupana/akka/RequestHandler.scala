@@ -18,12 +18,6 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.{ Query, Result, SimpleResult }
-import org.yupana.api.schema.Schema
-import org.yupana.api.types.DataType
-import org.yupana.core.TSDB
-import org.yupana.core.dao.TsdbQueryMetricsDao
-import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.api.query.Result
 import org.yupana.core.QueryEngineRouter
 import org.yupana.core.sql.parser._
@@ -32,7 +26,7 @@ import org.yupana.proto.util.ProtocolVersion
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class RequestHandler(queryEngineRouter: QueryEngineRouter, metricsDao: TsdbQueryMetricsDao) extends StrictLogging {
+class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging {
 
   def handleQuery(sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext

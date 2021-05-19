@@ -200,10 +200,9 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
         extends TSDB(
           TestSchema.schema,
           dao,
-          metricDao,
           dictProvider,
           identity,
-          SimpleTsdbConfig(putEnabled = true), { query =>
+          SimpleTsdbConfig(putEnabled = true), { _ =>
             mc
           }
         ) {

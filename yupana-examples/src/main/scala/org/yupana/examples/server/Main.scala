@@ -108,8 +108,6 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val requestHandler = new RequestHandler(schemaWithJson, tsdbQueryMetricsDaoHBase)
-    new TsdbTcp(tsdb, requestHandler, config.host, config.port, 1, 0, "1.0")
     val requestHandler = new RequestHandler(queryEngineRouter)
     new TsdbTcp(requestHandler, config.host, config.port, 1, 0, "1.0")
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
