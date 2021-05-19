@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package org.yupana.akka
+package org.yupana.core.providers
 
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.FlatQueryEngine
+import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.QueryStates
 import org.yupana.core.sql.parser.MetricsFilter
 
@@ -33,14 +34,14 @@ object QueryInfoProvider {
   }
 
   def handleShowQueries(
-      metricsDao: TsdbQueryMetricsDao,
+      flatQueryEngine: FlatQueryEngine,
       sqlFilter: Option[MetricsFilter],
       limit: Option[Int]
   ): Result = {
     import org.yupana.core.model.TsdbQueryMetrics._
 
     val filter = sqlFilter.map(getFilter)
-    val metrics = metricsDao.queriesByFilter(filter, limit)
+    val metrics = flatQueryEngine.queriesByFilter(filter, limit)
     val data: Iterator[Array[Any]] = metrics.map { queryMetrics =>
       Array[Any](
         queryMetrics.queryId,
@@ -82,13 +83,13 @@ object QueryInfoProvider {
     SimpleResult("QUERIES", queryFieldNames, queryFieldTypes, data)
   }
 
-  def handleKillQuery(metricsDao: TsdbQueryMetricsDao, sqlFilter: MetricsFilter): Result = {
-    metricsDao.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
+  def handleKillQuery(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
+    flatQueryEngine.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
     SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
   }
 
-  def handleDeleteQueryMetrics(metricsDao: TsdbQueryMetricsDao, sqlFilter: MetricsFilter): Result = {
-    val deleted = metricsDao.deleteMetrics(getFilter(sqlFilter))
+  def handleDeleteQueryMetrics(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
+    val deleted = flatQueryEngine.deleteMetrics(getFilter(sqlFilter))
     SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(deleted)))
   }
 }

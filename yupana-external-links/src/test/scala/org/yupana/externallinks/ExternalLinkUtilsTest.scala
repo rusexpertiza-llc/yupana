@@ -1,7 +1,7 @@
 package org.yupana.externallinks
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ FlatSpec, Matchers, OptionValues }
+import org.scalatest.OptionValues
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.query.Expression.Condition
@@ -10,8 +10,10 @@ import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.RussianTokenizer
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ExternalLinkUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues {
+class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory with OptionValues {
 
   import org.yupana.api.query.syntax.All._
   import TestSchema._

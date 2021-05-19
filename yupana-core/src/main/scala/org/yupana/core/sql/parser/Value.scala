@@ -16,7 +16,7 @@
 
 package org.yupana.core.sql.parser
 
-import org.joda.time.{ DateTimeZone, LocalDateTime, Period }
+import org.joda.time.{ DateTime, DateTimeZone, Period }
 
 sealed trait Value {
   def asString: String
@@ -34,12 +34,12 @@ case class StringValue(value: String) extends Value {
   override def asString: String = value
 }
 
-case class TimestampValue(value: LocalDateTime) extends Value {
+case class TimestampValue(value: DateTime) extends Value {
   override def asString: String = value.toString
 }
 
 object TimestampValue {
-  def apply(millis: Long): TimestampValue = new TimestampValue(new LocalDateTime(millis, DateTimeZone.UTC))
+  def apply(millis: Long): TimestampValue = new TimestampValue(new DateTime(millis, DateTimeZone.UTC))
 }
 
 case class PeriodValue(value: Period) extends Value {

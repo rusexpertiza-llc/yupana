@@ -7,9 +7,11 @@ import org.scalatest._
 import org.yupana.api.schema.DictionaryDimension
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class DictionaryTest
-    extends FlatSpec
+    extends AnyFlatSpec
     with Matchers
     with MockFactory
     with OptionValues

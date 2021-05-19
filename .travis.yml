@@ -39,11 +39,6 @@ jobs:
       script:
         - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport
         - codecov
-    - stage: test
-      scala:
-        - 2.11.12
-      script:
-        sbt ++$TRAVIS_SCALA_VERSION clean test
     - stage: release
       script:
         sbt +clean +publishSigned sonatypeBundleRelease

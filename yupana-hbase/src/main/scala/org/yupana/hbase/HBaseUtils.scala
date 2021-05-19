@@ -16,8 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics
@@ -31,9 +29,11 @@ import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
+import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
+import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
@@ -54,7 +54,6 @@ object HBaseUtils extends StrictLogging {
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
-  private val MAX_INITIAL_REGIONS = 500
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -141,7 +140,7 @@ object HBaseUtils extends StrictLogging {
     }
 
     if (Bytes.BYTES_COMPARATOR.compare(startKey, stopKey) < 0) {
-      val scan = new Scan(startKey, stopKey)
+      val scan = new Scan().withStartRow(startKey).withStopRow(stopKey)
       filter.foreach(scan.setFilter)
 
       familiesQueried(queryContext).foreach(f => scan.addFamily(HBaseUtils.family(f)))
@@ -175,7 +174,7 @@ object HBaseUtils extends StrictLogging {
           val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scan.getScanMetrics)}"
+              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
             )
           }
           hasNext
@@ -308,11 +307,15 @@ object HBaseUtils extends StrictLogging {
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
     using(connection.getAdmin) { admin =>
       if (!admin.tableExists(metaTableName)) {
-        val tableDesc = new HTableDescriptor(metaTableName)
-          .addFamily(
-            new HColumnDescriptor(tsdbSchemaFamily)
+        val tableDesc = TableDescriptorBuilder
+          .newBuilder(metaTableName)
+          .setColumnFamily(
+            ColumnFamilyDescriptorBuilder
+              .newBuilder(tsdbSchemaFamily)
               .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+              .build()
           )
+          .build()
         admin.createTable(tableDesc)
       }
       using(connection.getTable(metaTableName)) { table =>
@@ -322,13 +325,13 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def initStorage(connection: Connection, namespace: String, schema: Schema): Unit = {
+  def initStorage(connection: Connection, namespace: String, schema: Schema, config: TsdbConfig): Unit = {
     checkNamespaceExistsElseCreate(connection, namespace)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t)
+      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
       checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
@@ -348,19 +351,22 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
+  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
     val hbaseTable = tableName(namespace, table)
     using(connection.getAdmin) { admin =>
       if (!admin.tableExists(hbaseTable)) {
-        val desc = new HTableDescriptor(hbaseTable)
         val fieldGroups = table.metrics.map(_.group).toSet
-        fieldGroups foreach (group =>
-          desc.addFamily(
-            new HColumnDescriptor(family(group))
-              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-              .setCompactionCompressionType(Algorithm.SNAPPY)
-          )
+        val families = fieldGroups map (group =>
+          ColumnFamilyDescriptorBuilder
+            .newBuilder(family(group))
+            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+            .setCompactionCompressionType(Algorithm.SNAPPY)
+            .build()
         )
+        val desc = TableDescriptorBuilder
+          .newBuilder(hbaseTable)
+          .setColumnFamilies(families.asJavaCollection)
+          .build()
         val endTime = new LocalDateTime()
           .plusYears(1)
           .withMonthOfYear(1)
@@ -369,7 +375,7 @@ object HBaseUtils extends StrictLogging {
           .toDateTime(DateTimeZone.UTC)
           .getMillis
         val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-        val regions = math.min(r, MAX_INITIAL_REGIONS)
+        val regions = math.min(r, maxRegions)
         admin.createTable(
           desc,
           Bytes.toBytes(baseTime(table.epochTime, table)),
@@ -383,12 +389,15 @@ object HBaseUtils extends StrictLogging {
   def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
     val name = tableName(namespace, table)
     using(connection.getTable(name)) { hbaseTable =>
-      val tableDesc = hbaseTable.getTableDescriptor
-      if (!tableDesc.hasFamily(rollupStatusFamily)) {
+      val tableDesc = hbaseTable.getDescriptor
+      if (!tableDesc.hasColumnFamily(rollupStatusFamily)) {
         using(connection.getAdmin) {
-          _.addColumn(
+          _.addColumnFamily(
             name,
-            new HColumnDescriptor(rollupStatusFamily).setDataBlockEncoding(DataBlockEncoding.PREFIX)
+            ColumnFamilyDescriptorBuilder
+              .newBuilder(rollupStatusFamily)
+              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+              .build()
           )
         }
       }

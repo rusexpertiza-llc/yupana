@@ -24,75 +24,39 @@ import org.yupana.api.types.DataType
 import org.yupana.core.TSDB
 import org.yupana.core.dao.TsdbQueryMetricsDao
 import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.api.query.Result
+import org.yupana.core.QueryEngineRouter
 import org.yupana.core.sql.parser._
 import org.yupana.proto
 import org.yupana.proto.util.ProtocolVersion
 
 import scala.concurrent.{ ExecutionContext, Future }
 
-class RequestHandler(schema: Schema, metricsDao: TsdbQueryMetricsDao) extends StrictLogging {
+class RequestHandler(queryEngineRouter: QueryEngineRouter, metricsDao: TsdbQueryMetricsDao) extends StrictLogging {
 
-  private val sqlQueryProcessor = new SqlQueryProcessor(schema)
-  private val metadataProvider = new JdbcMetadataProvider(schema)
-
-  def handleQuery(tsdb: TSDB, sqlQuery: proto.SqlQuery)(
+  def handleQuery(sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
-
     logger.debug(s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}""")
 
     Future {
-
-      SqlParser.parse(sqlQuery.sql).right flatMap {
-
-        case select: Select =>
-          val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
-          val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
-          tsdbQuery.right flatMap { query =>
-            val rs = tsdb.query(query)
-            Right(resultToProto(rs))
-          }
-
-        case upsert: Upsert =>
-          val params = Seq(sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap)
-          doUpsert(tsdb, upsert, params)
-
-        case ShowTables => Right(resultToProto(metadataProvider.listTables))
-
-        case ShowColumns(tableName) => metadataProvider.describeTable(tableName).right map resultToProto
-
-        case ShowFunctions(typeName) => metadataProvider.listFunctions(typeName).right map resultToProto
-
-        case ShowQueryMetrics(filter, limit) =>
-          Right(resultToProto(QueryInfoProvider.handleShowQueries(metricsDao, filter, limit)))
-
-        case KillQuery(filter) =>
-          Right(resultToProto(QueryInfoProvider.handleKillQuery(metricsDao, filter)))
-
-        case DeleteQueryMetrics(filter) =>
-          Right(resultToProto(QueryInfoProvider.handleDeleteQueryMetrics(metricsDao, filter)))
-      }
+      val params = sqlQuery.parameters.map(p => p.index -> convertValue(p.value)).toMap
+      queryEngineRouter.query(sqlQuery.sql, params).right.map(resultToProto)
     }
   }
 
-  def handleBatchQuery(tsdb: TSDB, batchSqlQuery: proto.BatchSqlQuery)(
+  def handleBatchQuery(batchSqlQuery: proto.BatchSqlQuery)(
       implicit ec: ExecutionContext
   ): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"Processing batch SQL ${batchSqlQuery.sql} with ${batchSqlQuery.batch.size}")
 
     Future {
-      SqlParser.parse(batchSqlQuery.sql).right.flatMap {
-        case upsert: Upsert =>
-          val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
-          doUpsert(tsdb, upsert, params)
-
-        case _ => Left(s"Only UPSERT can have batch parameters, but got ${batchSqlQuery.sql}")
-      }
+      val params = batchSqlQuery.batch.map(ps => ps.parameters.map(p => p.index -> convertValue(p.value)).toMap)
+      queryEngineRouter.batchQuery(batchSqlQuery.sql, params).right.map(resultToProto)
     }
   }
 
   def handlePingProto(
-      tsdb: TSDB,
       ping: proto.Ping,
       majorVersion: Int,
       minorVersion: Int,
@@ -115,19 +79,6 @@ class RequestHandler(schema: Schema, metricsDao: TsdbQueryMetricsDao) extends St
       )
 
       Right(Iterator(proto.Response(proto.Response.Resp.Pong(pong))))
-    }
-  }
-
-  private def doUpsert(
-      tsdb: TSDB,
-      upsert: Upsert,
-      params: Seq[Map[Int, Value]]
-  ): Either[String, Iterator[proto.Response]] = {
-    sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
-      tsdb.put(dps)
-      Right(
-        resultToProto(SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK"))))
-      )
     }
   }
 

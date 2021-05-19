@@ -8,15 +8,17 @@ import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, FlatSpec, Matchers, OptionValues }
+import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
 import scala.collection.JavaConverters._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class HBaseUtilsTest extends FlatSpec with Matchers with MockFactory with OptionValues with BeforeAndAfterAll {
+class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with OptionValues with BeforeAndAfterAll {
 
   import HBaseUtilsTest._
 

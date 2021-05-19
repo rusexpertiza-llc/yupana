@@ -4,8 +4,7 @@ import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMetricsDao }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -87,9 +86,15 @@ trait TsdbMocks extends MockFactory {
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
-      new TSDB(TestSchema.schema, tsdbDaoMock, dictionaryProvider, identity, SimpleTsdbConfig(), { _: Query =>
-        NoMetricCollector
-      })
+      new TSDB(
+        TestSchema.schema,
+        tsdbDaoMock,
+        metricsDaoMock,
+        dictionaryProvider,
+        identity,
+        SimpleTsdbConfig(),
+        { _: Query => NoMetricCollector }
+      )
     body(tsdb, tsdbDaoMock)
   }
 
