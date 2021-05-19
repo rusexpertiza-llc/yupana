@@ -120,7 +120,7 @@ trait TsdbBase extends StrictLogging {
 
     val rows = queryContext.query.table match {
       case Some(table) =>
-        val daoExprs = queryContext.bottomExprs.collect {
+        val daoExprs = queryContext.exprsIndex.keys.collect {
           case e: DimensionExpr[_] => e
           case e: DimensionIdExpr  => e
           case e: MetricExpr[_]    => e

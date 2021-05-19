@@ -237,8 +237,48 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       "водичка",
       "7"
     )
+    result.get(qc, tokens(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
+      "vkusn",
+      "vodichk",
+      "№7"
+    )
     result.get(qc, upper(dimension(TestDims.DIM_A))) shouldEqual "ВКУСНАЯ ВОДИЧКА №7"
     result.get(qc, lower(dimension(TestDims.DIM_A))) shouldEqual "вкусная водичка №7"
     result.get(qc, ConcatExpr(dimension(TestDims.DIM_A), const("!!!"))) shouldEqual "Вкусная водичка №7!!!"
+  }
+
+  it should "evaluate array functions" in {
+    val now = DateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        arrayLength(tokens(dimension(TestDims.DIM_A))) as "len",
+        contains(tokens(dimension(TestDims.DIM_A)), const("vodichk")) as "c1",
+        containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c2",
+        containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk"))) as "c3",
+        containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c4"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = ExpressionCalculator.makeCalculator(qc, None)
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusDays(2)))
+      .set(dimension(TestDims.DIM_A), "Вкусная водичка №7")
+      .buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+    result.get(qc, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
+    result.get(qc, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
+    result.get(qc, containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual true
+    result.get(
+      qc,
+      containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk")))
+    ) shouldEqual true
+    result.get(qc, containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual false
   }
 }

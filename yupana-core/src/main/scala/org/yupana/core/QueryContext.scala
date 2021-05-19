@@ -27,7 +27,6 @@ case class QueryContext(
     exprsIndex: mutable.HashMap[Expression[_], Int],
     aggregateExprs: Array[AggregateExpr[_, _, _]],
     exprsOnAggregatesAndWindows: Array[Expression[_]],
-    bottomExprs: Array[Expression[_]],
     linkExprs: Seq[LinkExpr[_]],
     groupByExprs: Array[Expression[_]]
 )
@@ -71,8 +70,6 @@ object QueryContext extends StrictLogging {
 
     val allExprs: Set[Expression[_]] = topExprs.flatMap(e => e.flatten.filterNot(_.isInstanceOf[ConstantExpr[_]]) + e)
 
-    val bottomExprs: Set[Expression[_]] = collectBottomExprs(allExprs)
-
     val aggregateExprs = allExprs.collect { case ae: AggregateExpr[_, _, _] => ae }
 
     val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
@@ -82,24 +79,9 @@ object QueryContext extends StrictLogging {
       exprsIndex,
       aggregateExprs.toArray,
       exprsOnAggregatesAndWindows.toArray,
-      bottomExprs.toArray,
       linkExprs,
       query.groupBy.toArray
     )
-  }
-
-  private def collectBottomExprs(exprs: Set[Expression[_]]): Set[Expression[_]] = {
-    exprs.collect {
-      case a: AggregateExpr[_, _, _]      => Set(a, a.expr)
-      case ConditionExpr(condition, _, _) => Set(condition)
-      case c: ConstantExpr[_]             => Set(c)
-      case d: DimensionExpr[_]            => Set(d)
-      case i: DimensionIdExpr             => Set(i)
-      case c: LinkExpr[_]                 => Set(c)
-      case m: MetricExpr[_]               => Set(m)
-      case TimeExpr                       => Set(TimeExpr)
-      case _                              => Set.empty
-    }.flatten
   }
 
   private def containsAggregates(e: Expression[_]): Boolean = e.flatten.exists {

@@ -87,23 +87,4 @@ class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues
     calculator.evaluateConstant(containsSame(array(const("1"), const("2")), const(Seq("2", "1")))) shouldBe true
     calculator.evaluateConstant(containsSame(const(Seq(1, 2, 2)), const(Seq(1, 2)))) shouldBe false
   }
-
-//  private def createContext(exprs: Seq[Expression[_]]): QueryContext = {
-//    QueryContext(
-//      Query(
-//        TestSchema.testTable,
-//        ConstantExpr(Time(LocalDateTime.now().minusMonths(1))),
-//        ConstantExpr(Time(LocalDateTime.now())),
-//        exprs.zipWithIndex.map { case (e, i) => e as i.toString }
-//      ),
-//      mutable.HashMap(exprs.zipWithIndex: _*),
-//      Array.empty,
-//      Array.empty,
-//      Array.empty,
-//      Array.empty,
-//      Seq.empty,
-//      Array.empty
-//    )
-//  }
-
 }
