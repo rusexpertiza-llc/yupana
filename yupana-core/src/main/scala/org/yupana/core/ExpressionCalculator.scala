@@ -290,7 +290,13 @@ object ExpressionCalculator extends StrictLogging {
     if (known.contains(e)) {
       (Nil, known)
     } else {
-      val newKnown = if (!onlySimple || (e.kind == Simple || e.kind == Const)) known + e else known
+      val newKnown =
+        if (!onlySimple ||
+            e.kind == Simple ||
+            e.kind == Const ||
+            e.isInstanceOf[AggregateExpr[_, _, _]] ||
+            e.isInstanceOf[WindowFunctionExpr[_, _]]) known + e
+        else known
       e match {
         case ConstantExpr(c) =>
           val v = mapValue(e.dataType)(c)
@@ -305,8 +311,8 @@ object ExpressionCalculator extends StrictLogging {
 
         case TupleExpr(a, b) => mkSetBinary(qc, row, newKnown, onlySimple, e, a, b, (x, y) => q"($x, $y)")
 
-        case ae: AggregateExpr[_, _, _]   => mkSet(qc, row, known, onlySimple, ae.expr)
-        case we: WindowFunctionExpr[_, _] => mkSet(qc, row, known, onlySimple, we.expr)
+        case ae: AggregateExpr[_, _, _]   => mkSet(qc, row, newKnown, onlySimple, ae.expr)
+        case we: WindowFunctionExpr[_, _] => mkSet(qc, row, newKnown, onlySimple, we.expr)
 
         case GtExpr(a, b)  => mkSetBinary(qc, row, newKnown, onlySimple, e, a, b, (x, y) => q"""$x > $y""")
         case LtExpr(a, b)  => mkSetBinary(qc, row, newKnown, onlySimple, e, a, b, (x, y) => q"""$x < $y""")
@@ -470,8 +476,8 @@ object ExpressionCalculator extends StrictLogging {
     (q"..$trees", newKnown)
   }
 
-  private def mkMap(qc: QueryContext, row: TermName): Tree = {
-    val trees = qc.aggregateExprs.toSeq.map { ae =>
+  private def mkMap(qc: QueryContext, aggregates: Seq[AggregateExpr[_, _, _]], row: TermName): Tree = {
+    val trees = aggregates.map { ae =>
       val idx = qc.exprsIndex(ae)
 
       val exprValue = mkGet(qc, row, ae.expr)
@@ -490,8 +496,14 @@ object ExpressionCalculator extends StrictLogging {
     q"..$trees"
   }
 
-  private def mkReduce(qc: QueryContext, rowA: TermName, rowB: TermName, outRow: TermName): Tree = {
-    val trees = qc.aggregateExprs.toSeq.map { ae =>
+  private def mkReduce(
+      qc: QueryContext,
+      aggregates: Seq[AggregateExpr[_, _, _]],
+      rowA: TermName,
+      rowB: TermName,
+      outRow: TermName
+  ): Tree = {
+    val trees = aggregates.map { ae =>
       val idx = qc.exprsIndex(ae)
       val valueTpe = mkType(ae.expr)
 
@@ -512,8 +524,8 @@ object ExpressionCalculator extends StrictLogging {
     q"..$trees"
   }
 
-  private def mkPostMap(qc: QueryContext, row: TermName): Tree = {
-    val trees = qc.aggregateExprs.toSeq.flatMap { ae =>
+  private def mkPostMap(qc: QueryContext, aggregates: Seq[AggregateExpr[_, _, _]], row: TermName): Tree = {
+    val trees = aggregates.flatMap { ae =>
       val idx = qc.exprsIndex(ae)
       val valueTpe = mkType(ae.expr)
 
@@ -546,7 +558,7 @@ object ExpressionCalculator extends StrictLogging {
       row: TermName,
       known: Set[Expression[_]]
   ): (Tree, Set[Expression[_]]) = {
-    val (trees, nk) = mkSetExprs(qc, row, known, onlySimple = false, qc.exprsOnAggregatesAndWindows.toSeq)
+    val (trees, nk) = mkSetExprs(qc, row, known, onlySimple = false, qc.query.fields.map(_.expr))
 
     (q"..$trees", nk)
   }
@@ -597,14 +609,17 @@ object ExpressionCalculator extends StrictLogging {
     val (filter, k1) = mkFilter(queryContext, internalRow, Set.empty, onlySimple = true, condition)
 
     val (evaluate, k2) = mkEvaluate(queryContext, internalRow, k1)
-    val map = mkMap(queryContext, internalRow)
+
+    val knownAggregates = k2.collect { case ae: AggregateExpr[_, _, _] => ae }.toSeq
+
+    val map = mkMap(queryContext, knownAggregates, internalRow)
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
     val outRow = rowA
-    val reduce = mkReduce(queryContext, rowA, rowB, outRow)
+    val reduce = mkReduce(queryContext, knownAggregates, rowA, rowB, outRow)
 
-    val postMap = mkPostMap(queryContext, internalRow)
+    val postMap = mkPostMap(queryContext, knownAggregates, internalRow)
     val (postAggregate, k3) = mkPostAggregate(queryContext, internalRow, k2)
 
     val (postFilter, _) = mkFilter(queryContext, internalRow, k3, onlySimple = false, queryContext.query.postFilter)

@@ -25,8 +25,6 @@ import scala.collection.mutable
 case class QueryContext(
     query: Query,
     exprsIndex: mutable.HashMap[Expression[_], Int],
-    aggregateExprs: Array[AggregateExpr[_, _, _]],
-    exprsOnAggregatesAndWindows: Array[Expression[_]],
     linkExprs: Seq[LinkExpr[_]],
     groupByExprs: Array[Expression[_]]
 )
@@ -58,39 +56,15 @@ object QueryContext extends StrictLogging {
         postCondition.toSet ++
         query.table.map(_ => TimeExpr)).filterNot(_.isInstanceOf[ConstantExpr[_]])
 
-    val topRowExprs: Set[Expression[_]] = topExprs.filter { expr =>
-      !expr.isInstanceOf[ConstantExpr[_]] && (
-        (!containsAggregates(expr) && !containsWindows(expr)) ||
-        expr.isInstanceOf[AggregateExpr[_, _, _]] ||
-        expr.isInstanceOf[WindowFunctionExpr[_, _]]
-      )
-    }
-
-    val exprsOnAggregatesAndWindows = topExprs diff topRowExprs
-
     val allExprs: Set[Expression[_]] = topExprs.flatMap(e => e.flatten.filterNot(_.isInstanceOf[ConstantExpr[_]]) + e)
-
-    val aggregateExprs = allExprs.collect { case ae: AggregateExpr[_, _, _] => ae }
 
     val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
 
     new QueryContext(
       query,
       exprsIndex,
-      aggregateExprs.toArray,
-      exprsOnAggregatesAndWindows.toArray,
       linkExprs,
       query.groupBy.toArray
     )
-  }
-
-  private def containsAggregates(e: Expression[_]): Boolean = e.flatten.exists {
-    case _: AggregateExpr[_, _, _] => true
-    case _                         => false
-  }
-
-  private def containsWindows(e: Expression[_]): Boolean = e.flatten.exists {
-    case _: WindowFunctionExpr[_, _] => true
-    case _                           => false
   }
 }
