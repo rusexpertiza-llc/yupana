@@ -16,55 +16,24 @@
 
 package org.yupana.core
 
-import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 
 import scala.collection.mutable
 
-case class QueryContext(
-    query: Query,
-    exprsIndex: mutable.HashMap[Expression[_], Int],
-    linkExprs: Seq[LinkExpr[_]],
-    groupByExprs: Array[Expression[_]]
-)
+class QueryContext(
+    val query: Query,
+    val exprsIndex: mutable.HashMap[Expression[_], Int],
+    val postCondition: Option[Condition],
+    val calculator: ExpressionCalculator
+) extends Serializable {
+  val groupByExprs: Array[Expression[_]] = query.groupBy.toArray
+  val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
+}
 
-object QueryContext extends StrictLogging {
-
+object QueryContext {
   def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
-    import org.yupana.core.utils.QueryUtils.{ requiredDimensions, requiredLinks }
-
-    val requiredDims = query.groupBy.flatMap(requiredDimensions).toSet ++
-      query.fields.flatMap(f => requiredDimensions(f.expr)).toSet ++
-      postCondition.toSet.flatMap(requiredDimensions) ++
-      query.postFilter.toSeq.flatMap(requiredDimensions)
-
-    val requiredDimExprs = requiredDims.map(d => DimensionExpr(d.aux))
-
-    val groupByExternalLinks = query.groupBy.flatMap(requiredLinks)
-    val fieldsExternalLinks = query.fields.flatMap(f => requiredLinks(f.expr))
-    val dataFiltersExternalLinks = postCondition.toSet.flatMap(requiredLinks)
-    val havingExternalLinks = query.postFilter.toSeq.flatMap(requiredLinks)
-
-    val linkExprs =
-      (groupByExternalLinks ++ fieldsExternalLinks ++ dataFiltersExternalLinks ++ havingExternalLinks).distinct
-
-    val topExprs: Set[Expression[_]] = query.fields.map(_.expr).toSet ++
-      (query.groupBy.toSet ++
-        requiredDimExprs ++
-        query.postFilter.toSet ++
-        postCondition.toSet ++
-        query.table.map(_ => TimeExpr)).filterNot(_.isInstanceOf[ConstantExpr[_]])
-
-    val allExprs: Set[Expression[_]] = topExprs.flatMap(e => e.flatten.filterNot(_.isInstanceOf[ConstantExpr[_]]) + e)
-
-    val exprsIndex = mutable.HashMap(allExprs.zipWithIndex.toSeq: _*)
-
-    new QueryContext(
-      query,
-      exprsIndex,
-      linkExprs,
-      query.groupBy.toArray
-    )
+    val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
+    new QueryContext(query, mutable.HashMap(index.toSeq: _*), postCondition, calculator)
   }
 }

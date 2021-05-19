@@ -80,7 +80,6 @@ class TSDB(
   }
 
   override def applyWindowFunctions(
-      expressionCalculator: ExpressionCalculator,
       queryContext: QueryContext,
       keysAndValues: Iterator[(KeyData, InternalRow)]
   ): Iterator[(KeyData, InternalRow)] = {
@@ -118,7 +117,7 @@ class TSDB(
           case (winFuncExpr, groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
-              val value = expressionCalculator.evaluateWindow(winFuncExpr, group, index)
+              val value = queryContext.calculator.evaluateWindow(winFuncExpr, group, index)
               valueData.set(queryContext, winFuncExpr, value)
             }
         }

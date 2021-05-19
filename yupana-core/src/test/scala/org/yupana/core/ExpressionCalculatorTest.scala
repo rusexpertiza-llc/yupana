@@ -28,8 +28,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val qc = QueryContext(query, Some(cond))
-
-    val calc = ExpressionCalculator.makeCalculator(qc, Some(cond))
+    val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
@@ -69,8 +68,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val qc = QueryContext(query, None)
-
-    val calc = ExpressionCalculator.makeCalculator(qc, None)
+    val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
@@ -118,7 +116,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val qc = QueryContext(query, None)
-    val calc = ExpressionCalculator.makeCalculator(qc, None)
+    val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
     When("map called")
@@ -222,7 +220,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val qc = QueryContext(query, None)
-    val calc = ExpressionCalculator.makeCalculator(qc, None)
+    val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
     val row = builder
@@ -263,7 +261,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val qc = QueryContext(query, None)
-    val calc = ExpressionCalculator.makeCalculator(qc, None)
+    val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
     val row = builder

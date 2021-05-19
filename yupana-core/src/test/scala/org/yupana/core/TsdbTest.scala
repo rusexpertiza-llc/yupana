@@ -1930,6 +1930,7 @@ class TsdbTest
       )
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    results should have size 2
 
     val r1 = results(0)
     r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)

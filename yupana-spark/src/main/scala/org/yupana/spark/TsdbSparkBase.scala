@@ -41,7 +41,7 @@ import org.yupana.core.utils.metric.{
   PersistentMetricQueryCollector,
   QueryCollectorContext
 }
-import org.yupana.core.{ ExpressionCalculator, QueryContext, TsdbBase }
+import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 
 object TsdbSparkBase {
@@ -197,7 +197,6 @@ abstract class TsdbSparkBase(
   }
 
   override def applyWindowFunctions(
-      calculator: ExpressionCalculator,
       queryContext: QueryContext,
       keysAndValues: RDD[(KeyData, InternalRow)]
   ): RDD[(KeyData, InternalRow)] = {
