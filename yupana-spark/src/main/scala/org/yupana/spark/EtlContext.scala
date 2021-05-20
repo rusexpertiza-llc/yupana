@@ -55,7 +55,7 @@ class EtlContext(
         hBaseConfiguration,
         cfg.hbaseNamespace,
         schema,
-        identity,
+        identity(_),
         cfg.properties,
         cfg,
         metricCollectorCreator

@@ -90,7 +90,7 @@ object Main extends StrictLogging {
         connection,
         config.hbaseNamespace,
         schemaWithJson,
-        identity,
+        identity(_),
         config.properties,
         tsdbConfig,
         metricCreator
