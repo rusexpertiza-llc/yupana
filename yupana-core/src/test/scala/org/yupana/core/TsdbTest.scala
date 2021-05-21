@@ -380,14 +380,14 @@ class TsdbTest
     rows should have size 2
 
     val row1 = rows(0)
-    row1.get[Time]("time") shouldBe Time(pointTime2)
-    row1.get[Double]("testField") shouldBe 2d
-    row1.get[String]("A") shouldBe "test24"
+    row1.get[Time]("time") shouldBe Time(pointTime1)
+    row1.get[Double]("testField") shouldBe 1d
+    row1.get[String]("A") shouldBe "test42"
 
     val row2 = rows(1)
-    row2.get[Time]("time") shouldBe Time(pointTime1)
-    row2.get[Double]("testField") shouldBe 1d
-    row2.get[String]("A") shouldBe "test42"
+    row2.get[Time]("time") shouldBe Time(pointTime2)
+    row2.get[Double]("testField") shouldBe 2d
+    row2.get[String]("A") shouldBe "test24"
   }
 
   it should "support filter not equal for tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -623,13 +623,13 @@ class TsdbTest
 
     val group1 = results(0)
     group1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    group1.get[Double]("sum_testField") shouldBe 4d
-    group1.get[String]("A") shouldBe "test1"
+    group1.get[Double]("sum_testField") shouldBe 2d
+    group1.get[String]("A") shouldBe "test12"
 
     val group2 = results(1)
     group2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    group2.get[Double]("sum_testField") shouldBe 2d
-    group2.get[String]("A") shouldBe "test12"
+    group2.get[Double]("sum_testField") shouldBe 4d
+    group2.get[String]("A") shouldBe "test1"
   }
 
   it should "execute query with aggregation by expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1934,13 +1934,13 @@ class TsdbTest
 
     val r1 = results(0)
     r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r1.get[Double]("sum_testField") shouldBe 4d
-    r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue1"
+    r1.get[Double]("sum_testField") shouldBe 2d
+    r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
 
     val r2 = results(1)
     r2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
-    r2.get[Double]("sum_testField") shouldBe 2d
-    r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
+    r2.get[Double]("sum_testField") shouldBe 4d
+    r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue1"
   }
 
   it should "execute query with aggregate functions on string field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2887,12 +2887,12 @@ class TsdbTest
     results should have size (3)
 
     val r1 = results(0)
-    r1.get[Double]("testField") shouldBe 1d
+    r1.get[Double]("testField") shouldBe 2d
     r1.get[String]("A") shouldBe "test1"
     r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
 
     val r2 = results(1)
-    r2.get[Double]("testField") shouldBe 2d
+    r2.get[Double]("testField") shouldBe 1d
     r2.get[String]("A") shouldBe "test1"
     r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
 

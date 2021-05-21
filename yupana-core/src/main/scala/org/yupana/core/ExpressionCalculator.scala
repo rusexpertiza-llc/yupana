@@ -118,6 +118,13 @@ object ExpressionCalculator extends StrictLogging {
       case ConstantExpr(x) =>
         val lit = mapValue(e.dataType)(x)
         q"$lit.asInstanceOf[$tpe]"
+      case ae @ ArrayExpr(exprs) if e.kind == Const =>
+        val lits = exprs.map {
+          case ConstantExpr(v) => mapValue(ae.elementDataType)(v)
+          case x               => throw new IllegalArgumentException(s"Unexpected constant expression $x")
+        }
+        val innerTpe = mkType(ae.elementDataType)
+        q"Seq[$innerTpe](..$lits)"
       case x =>
         val idx = known(x)
         q"$row.get[$tpe]($idx)"
@@ -292,7 +299,7 @@ object ExpressionCalculator extends StrictLogging {
       val newKnown =
         if (!onlySimple ||
             e.kind == Simple ||
-//            e.kind == Const ||
+            e.kind == Const ||
             e.isInstanceOf[AggregateExpr[_, _, _]] ||
             e.isInstanceOf[WindowFunctionExpr[_, _]]) known + (e -> known.size)
         else known
@@ -311,10 +318,12 @@ object ExpressionCalculator extends StrictLogging {
           if (newKnown.contains(dimExpr)) (Nil, newKnown)
           else (Nil, newKnown + (dimExpr -> newKnown.size))
 
-        case TupleExpr(a, b) => mkSetBinary(row, newKnown, onlySimple, e, a, b, (x, y) => q"($x, $y)")
-
-        case ae: AggregateExpr[_, _, _]   => mkSet(row, newKnown, onlySimple, ae.expr)
+        case _: AggregateExpr[_, _, _] => (Nil, newKnown)
+//        case we: WindowFunctionExpr[_, _] => (Nil, newKnown)
+        //        case ae: AggregateExpr[_, _, _]   => mkSet(row, newKnown, onlySimple, ae.expr)
         case we: WindowFunctionExpr[_, _] => mkSet(row, newKnown, onlySimple, we.expr)
+
+        case TupleExpr(a, b) => mkSetBinary(row, newKnown, onlySimple, e, a, b, (x, y) => q"($x, $y)")
 
         case GtExpr(a, b)  => mkSetBinary(row, newKnown, onlySimple, e, a, b, (x, y) => q"""$x > $y""")
         case LtExpr(a, b)  => mkSetBinary(row, newKnown, onlySimple, e, a, b, (x, y) => q"""$x < $y""")
@@ -472,11 +481,18 @@ object ExpressionCalculator extends StrictLogging {
     (q"..$trees", newKnown)
   }
 
-  private def mkMap(known: Map[Expression[_], Int], aggregates: Seq[AggregateExpr[_, _, _]], row: TermName): Tree = {
-    val trees = aggregates.map { ae =>
-      val idx = known(ae)
+  private def mkMap(
+      known: Map[Expression[_], Int],
+      aggregates: Seq[AggregateExpr[_, _, _]],
+      row: TermName
+  ): (Tree, Map[Expression[_], Int]) = {
+    val (prepare, newKnown) = mkSetExprs(row, known, onlySimple = false, aggregates.map(_.expr))
 
-      val exprValue = mkGet(known, row, ae.expr)
+    val trees = aggregates.map { ae =>
+
+      val idx = newKnown(ae)
+
+      val exprValue = mkGet(newKnown, row, ae.expr)
 
       val value = ae match {
         case SumExpr(_)            => exprValue
@@ -489,7 +505,11 @@ object ExpressionCalculator extends StrictLogging {
       q"$row.set($idx, $value)"
     }
 
-    q"..$trees"
+    val tree = q"""
+      ..$prepare
+      ..$trees
+      """
+    (tree, newKnown)
   }
 
   private def mkReduce(
@@ -603,24 +623,24 @@ object ExpressionCalculator extends StrictLogging {
 
   def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int]) = {
     val internalRow = TermName("internalRow")
-    val (filter, k1) = mkFilter(internalRow, Map.empty, onlySimple = true, condition)
+    val (filter, k1) = mkFilter(internalRow, Map(TimeExpr -> 0), onlySimple = true, condition)
 
     val (evaluate, k2) = mkEvaluate(query, internalRow, k1)
 
     val knownAggregates = k2.collect { case (ae: AggregateExpr[_, _, _], _) => ae }.toSeq
 
-    val map = mkMap(k2, knownAggregates, internalRow)
+    val (map, k3) = mkMap(k2, knownAggregates, internalRow)
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
     val outRow = rowA
-    val reduce = mkReduce(k2, knownAggregates, rowA, rowB, outRow)
+    val reduce = mkReduce(k3, knownAggregates, rowA, rowB, outRow)
 
-    val postMap = mkPostMap(k2, knownAggregates, internalRow)
-    val (postAggregate, k3) = mkPostAggregate(query, internalRow, k2)
+    val postMap = mkPostMap(k3, knownAggregates, internalRow)
+    val (postAggregate, k4) = mkPostAggregate(query, internalRow, k3)
 
-    val (postFilter, k4) = mkFilter(internalRow, k3, onlySimple = false, query.postFilter)
-    val defs = mkVars(k4)
+    val (postFilter, k5) = mkFilter(internalRow, k4, onlySimple = false, query.postFilter)
+    val defs = mkVars(k5)
 
     val tree = q"""
         import _root_.org.yupana.api.Time
@@ -661,12 +681,8 @@ object ExpressionCalculator extends StrictLogging {
           override def evaluatePostFilter($tokenizer: Tokenizer, $internalRow: InternalRow): Boolean = $postFilter
         }
     """
-//    val knownWithLinks = k4.foldLeft(k4) {
-//      case (a, (l: LinkExpr[_], _)) => a + (DimensionExpr(l.link.dimension) -> a.size)
-//      case (a, _)                   => a
-//    }
 
-    tree -> k4
+    tree -> k5
   }
 
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {
