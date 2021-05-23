@@ -16,18 +16,14 @@
 
 package org.yupana.core.dao
 
-import org.joda.time.Interval
-import org.yupana.api.schema.Table
 import org.yupana.core.model.UpdateInterval
 
 trait RollupMetaDao {
   def putUpdatesIntervals(tableName: String, periods: Seq[UpdateInterval]): Unit
-  def getUpdatesIntervals(tableName: String, rollupIntervalOpt: Interval): Iterable[UpdateInterval]
-
-  def getRollupSpecialField(fieldName: String, table: Table): Option[Long]
-  def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit
-
-  def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)]
-  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit
-  def checkAndPutRollupStatus(time: Long, oldStatus: Option[String], newStatus: String, table: Table): Boolean
+  def getUpdatesIntervals(
+      tableName: String,
+      updatedAfter: Option[Long] = None,
+      updatedBefore: Option[Long] = None,
+      updatedBy: Option[String] = None
+  ): Iterable[UpdateInterval]
 }

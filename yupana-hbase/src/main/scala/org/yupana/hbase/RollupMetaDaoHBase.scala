@@ -16,26 +16,28 @@
 
 package org.yupana.hbase
 
+import java.nio.charset.StandardCharsets
+
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTime, Interval }
-import org.yupana.api.schema.Table
+import org.joda.time.DateTime
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.RollupMetaDao
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.model.UpdateInterval._
-import org.yupana.hbase.HBaseUtils._
 import org.yupana.hbase.RollupMetaDaoHBase._
 
 import scala.collection.JavaConverters._
 
 object RollupMetaDaoHBase {
+
   val TABLE_NAME: String = "ts_updates_intervals"
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
   val UPDATED_AT_QUALIFIER: Array[Byte] = Bytes.toBytes(updatedAtColumn)
+  val UPDATED_BY_QUALIFIER: Array[Byte] = Bytes.toBytes(updatedByColumn)
   val FROM_QUALIFIER: Array[Byte] = Bytes.toBytes(fromColumn)
   val TO_QUALIFIER: Array[Byte] = Bytes.toBytes(toColumn)
   val TABLE_QUALIFIER: Array[Byte] = Bytes.toBytes(tableColumn)
@@ -55,6 +57,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
         put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to.getMillis))
         put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
         put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(period.updatedAt.getMillis))
+        put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, period.updatedBy.getBytes(StandardCharsets.UTF_8))
         put
       }
       table.put(puts.asJava)
@@ -63,7 +66,9 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   override def getUpdatesIntervals(
       tableName: String,
-      updatedAtInterval: Interval
+      updatedAfter: Option[Long],
+      updatedBefore: Option[Long],
+      updatedBy: Option[String]
   ): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
@@ -79,21 +84,36 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
           )
         )
 
-        filterList.addFilter(
-          new SingleColumnValueFilter(
-            FAMILY,
-            UPDATED_AT_QUALIFIER,
-            CompareOperator.GREATER_OR_EQUAL,
-            Bytes.toBytes(updatedAtInterval.getStartMillis)
+        updatedAfter.foreach(ua =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              UPDATED_AT_QUALIFIER,
+              CompareOperator.GREATER_OR_EQUAL,
+              Bytes.toBytes(ua)
+            )
           )
         )
 
-        filterList.addFilter(
-          new SingleColumnValueFilter(
-            FAMILY,
-            UPDATED_AT_QUALIFIER,
-            CompareOperator.LESS_OR_EQUAL,
-            Bytes.toBytes(updatedAtInterval.getEndMillis)
+        updatedBefore.foreach(ub =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              UPDATED_AT_QUALIFIER,
+              CompareOperator.LESS_OR_EQUAL,
+              Bytes.toBytes(ub)
+            )
+          )
+        )
+
+        updatedBy.foreach(ub =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              UPDATED_BY_QUALIFIER,
+              CompareOperator.EQUAL,
+              ub.getBytes(StandardCharsets.UTF_8)
+            )
           )
         )
 
@@ -107,77 +127,9 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     UpdateInterval(
       from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
       to = new DateTime(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
-      updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER)))
+      updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
+      updatedBy = new String(result.getValue(FAMILY, UPDATED_BY_QUALIFIER), StandardCharsets.UTF_8)
     )
-  }
-
-  override def getRollupStatuses(fromTime: Long, toTime: Long, table: Table): Seq[(Long, String)] = {
-    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      val scan = new Scan()
-        .addColumn(rollupStatusFamily, rollupStatusField)
-        .withStartRow(Bytes.toBytes(fromTime))
-        .withStopRow(Bytes.toBytes(toTime))
-      using(hbaseTable.getScanner(scan)) { scanner =>
-        scanner.asScala.toIterator.flatMap { result =>
-          val time = Bytes.toLong(result.getRow)
-          val value = Option(result.getValue(rollupStatusFamily, rollupStatusField)).map(Bytes.toString)
-          value.map(v => time -> v)
-        }.toSeq
-      }
-    }
-  }
-
-  override def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
-    if (statuses.nonEmpty) {
-      checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-      using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-        val puts = statuses.map(status =>
-          new Put(Bytes.toBytes(status._1))
-            .addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(status._2))
-        )
-        hbaseTable.put(puts.asJava)
-      }
-    }
-  }
-
-  override def checkAndPutRollupStatus(
-      time: Long,
-      oldStatus: Option[String],
-      newStatus: String,
-      table: Table
-  ): Boolean = {
-    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      hbaseTable
-        .checkAndMutate(
-          CheckAndMutate
-            .newBuilder(Bytes.toBytes(time))
-            .ifEquals(rollupStatusFamily, rollupStatusField, oldStatus.map(_.getBytes()).orNull)
-            .build(
-              new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, Bytes.toBytes(newStatus))
-            )
-        )
-        .isSuccess
-    }
-  }
-
-  override def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
-    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      val get = new Get(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes)
-      val res = hbaseTable.get(get)
-      val cell = Option(res.getColumnLatestCell(rollupStatusFamily, fieldName.getBytes))
-      cell.map(c => Bytes.toLong(CellUtil.cloneValue(c)))
-    }
-  }
-
-  override def putRollupSpecialField(fieldName: String, value: Long, table: Table): Unit = {
-    checkRollupStatusFamilyExistsElseCreate(connection, namespace, table)
-    using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-      val put: Put = new Put(rollupSpecialKey).addColumn(rollupStatusFamily, fieldName.getBytes, Bytes.toBytes(value))
-      hbaseTable.put(put)
-    }
   }
 
   def withTables[T](block: => T): T = {
