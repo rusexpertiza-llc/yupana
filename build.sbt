@@ -319,6 +319,17 @@ lazy val docs = project
     docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "mdoc",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
+    Compile / resourceGenerators += Def.task {
+      val imagesPath =  (LocalRootProject / baseDirectory).value / "docs" / "assets" / "images"
+      val images = (imagesPath * "*").get()
+
+      val targetPath = (LocalRootProject / baseDirectory).value / "website" / "static" / "assets" / "images"
+
+      val pairs = images pair Path.rebase(imagesPath, targetPath)
+      IO.copy(pairs, overwrite = true, preserveLastModified = true, preserveExecutable = false)
+
+      pairs.map(_._2)
+    }.taskValue,
     mdocVariables := Map(
       "HBASEVERSION" -> minMaj(versions.hbase, "1.3"),
       "SPARKVERSION" -> minMaj(versions.spark, "2.4"),

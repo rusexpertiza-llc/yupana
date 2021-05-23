@@ -16,7 +16,7 @@ title: Подключение внешних источников
 
 Например:
 
-![Пример внешней связи](/assets/img/external-link-example.svg)
+![Пример внешней связи](/assets/images/external-link-example.svg)
 
 ## Стандартные внешние связи
 

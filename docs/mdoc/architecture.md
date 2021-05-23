@@ -34,4 +34,4 @@ HBase. Данные сохраняются в виде отдельных вре
 
 ## Модули Yupana
 
-![Архитектура Yupana](/assets/img/yupana-common.svg)
+![Архитектура Yupana](/assets/images/yupana-common.svg)

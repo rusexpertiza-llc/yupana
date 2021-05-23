@@ -5,4 +5,5 @@ target/
 website/build
 website/node_modules
 website/static/api
+website/static/assets
 website/i18n/*
