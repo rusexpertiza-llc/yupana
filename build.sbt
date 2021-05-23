@@ -331,9 +331,10 @@ lazy val docs = project
       pairs.map(_._2)
     }.taskValue,
     mdocVariables := Map(
-      "HBASEVERSION" -> minMaj(versions.hbase, "1.3"),
-      "SPARKVERSION" -> minMaj(versions.spark, "2.4"),
-      "IGNITEVERSION" -> versions.ignite
+      "SCALA_VERSION" -> minMaj(scalaVersion.value, "2.12"),
+      "HBASE_VERSION" -> minMaj(versions.hbase, "1.3"),
+      "SPARK_VERSION" -> minMaj(versions.spark, "2.4"),
+      "IGNITE_VERSION" -> versions.ignite
     )
   )
 
