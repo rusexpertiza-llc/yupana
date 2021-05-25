@@ -31,7 +31,7 @@ class TSDB(
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
     config: TsdbConfig,
-    metricCollectorCreator: Query => MetricQueryCollector
+    metricCollectorCreator: Query => MetricQueryCollector = { _ => NoMetricCollector }
 ) extends TsdbBase
     with StrictLogging {
 
@@ -57,11 +57,9 @@ class TSDB(
     } else throw new IllegalAccessException("Put is disabled")
   }
 
-  override def createMetricCollector(query: Query): MetricQueryCollector = {
-    if (config.collectMetrics) {
-      metricCollectorCreator(query)
-    } else NoMetricCollector
-  }
+  override def createMetricCollector(query: Query): MetricQueryCollector =
+    if (config.collectMetrics) metricCollectorCreator(query)
+    else NoMetricCollector
 
   override def finalizeQuery(
       queryContext: QueryContext,
@@ -69,7 +67,7 @@ class TSDB(
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
-    val it = CloseableIterator(data, metricCollector.finish)
+    val it = CloseableIterator(data, metricCollector.finish())
     new TsdbServerResult(queryContext, it)
 
   }
