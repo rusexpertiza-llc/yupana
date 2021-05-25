@@ -22,20 +22,38 @@ import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
-import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.core.{ TSDB, TsdbConfig }
 
 import java.util.Properties
 
 object TSDBHBase {
+
+  private def createDefaultMetricCollector(
+      tsdbConfig: TsdbConfig,
+      connection: Connection,
+      namespace: String
+  ): Query => PersistentMetricQueryCollector = {
+    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(connection, namespace)
+    val queryCollectorContext = new QueryCollectorContext(
+      metricsDao = () => tsdbQueryMetricsDaoHBase,
+      operationName = "query",
+      metricsUpdateInterval = tsdbConfig.metricsUpdateInterval
+    )
+
+    { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+  }
+
   def apply(
       connection: Connection,
       namespace: String,
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties,
-      tsdbConfig: TsdbConfig,
-      metricCollectorCreator: Query => MetricQueryCollector
+      tsdbConfig: TsdbConfig
+  )(
+      metricCollectorCreator: Query => MetricQueryCollector =
+        createDefaultMetricCollector(tsdbConfig, connection, namespace)
   ): TSDB = {
 
     CacheFactory.init(properties, namespace)
@@ -58,6 +76,6 @@ object TSDBHBase {
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
-    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig, metricCollectorCreator)
+    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig)(metricCollectorCreator)
   }
 }

@@ -31,7 +31,7 @@ class TSDB(
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
     config: TsdbConfig,
-    metricCollectorCreator: Query => MetricQueryCollector = { _ => NoMetricCollector }
+    metricCollectorCreator: Query => MetricQueryCollector
 ) extends TsdbBase
     with StrictLogging {
 

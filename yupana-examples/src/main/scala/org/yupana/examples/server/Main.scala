@@ -86,13 +86,7 @@ object Main extends StrictLogging {
     val metricCreator = { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
 
     val tsdb =
-      TSDBHBase(
-        connection,
-        config.hbaseNamespace,
-        schemaWithJson,
-        identity(_),
-        config.properties,
-        tsdbConfig,
+      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(
         metricCreator
       )
 
