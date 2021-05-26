@@ -5,8 +5,13 @@
     ],
     "Документация": [
        "architecture",
-       "yupanaql",
        "external-links"
+    ],
+    "Язык запросов": [
+       "yupanaql",
+       "select",
+       "upsert",
+       "show"
     ]
   }
 }

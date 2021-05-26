@@ -1,24 +1,23 @@
 ---
 id: yupanaql
-title: YupanaQL
+title: Язык запросов Yupana (YupanaQL)
 ---
-
-# Язык запросов Yupana (YupanaQL)
 
 Для выполнения запросов Yupana поддерживает собственный диалект SQL.  Поддерживаются следующие операции:
 
  - `SELECT` -- выборка данных.
+ - `UPSERT` -- вставка данных.
+ - `KILL QUERY` -- остановка запроса.
  - `SHOW TABLES` -- вывод списка таблиц.
  - `SHOW COLUMNS FROM <table_name>` -- вывод списка полей таблицы.
+ - `SHOW QUERIES` -- просмотр истории запросов.
+ - `SHOW UPDATES_INTERVALS` - вывод списка изменений временных рядов, произошедших в указанный период.
 
 ## Правила наименования полей
 
 1. Время для любой схемы указывается как поле `time` типа TIMESTAMP. Доступны следующие функции для работы со временем:
 `trunc_second`, `trunc_minute`, `trunc_hour`, `trunc_day`, `trunc_month`, `trunc_year`.
 `extract_second`, `extract_minute`, `extract_hour`, `extract_day`, `extract_month`, `extract_year`.
-
-При работе с драйвером следует учитывать, что выражение WHERE **обязательно и должно содержать**
-временной интервал `time >= x and time < y`.
 
 2. Поля таблицы указываются:
   - как есть (quantity или "quantity")
@@ -61,119 +60,7 @@ title: YupanaQL
 
 При выполнении математических операций (плюс или минус) над интервалами можно использовать любые интервалы.
 
-## Примеры запросов
-
-Суммы продаж для указанной кассы за указанный период с разбивкой по дням:
-```sql
-SELECT sum(sum), day(time) as d, kkmId
-  FROM items_kkm
-  WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND kkmId = '10'
-  GROUP BY d, kkmId
-```
-
-Суммы продаж товаров в которых встречается слово "штангенциркуль" за указанный период с разбивкой по дням:
-```sql
-SELECT 
-    sum(sum), day(time) as d, kkmId
-FROM 
-    items_kkm
-WHERE 
-    time >= TIMESTAMP '2019-06-01' AND 
-    time < TIMESTAMP '2019-07-01' AND 
-    itemsInvertedIndex_phrase = 'штангенциркуль'
-GROUP BY 
-    d, kkmId
-```
-
-Первой и последней продажи селедки за сутки:
-
-```sql
-SELECT 
-    min(time) as mint, max(time) as maxt, day(time) as d
-FROM items_kkm
-WHERE 
-    time >= TIMESTAMP '2019-06-01' AND 
-    time < TIMESTAMP '2019-07-01' AND
-    itemsInvertedIndex_phrase = 'селедка'
-GROUP BY d
-```
-
-Считаем количество продаж товаров, купленных в количестве больше 10:
-
-```sql
-SELECT 
-    item, 
-    sum(
-    CASE
-        WHEN quantity > 9 THEN 1
-        ELSE 0 
-    )
-FROM items_kkm
-WHERE 
-    time >= TIMESTAMP '2019-06-01'
-    AND time < TIMESTAMP '2019-07-01'
-GROUP BY item
-```
-
-Применяем фильтры после расчета оконной функции:
-
-```sql
-SELECT
-  kkmId,
-  time AS t,
-  lag(time) AS l
-FROM receipt
-WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01'
-GROUP BY kkmId
-HAVING
-  ((l - t) > INTERVAL '2' HOUR AND extract_hour(t) >= 8 AND extract_hour(t) <= 18) OR
-  ((l - t) > INTERVAL '4' HOUR AND extract_hour(t) > 18 OR extract_hour(t) < 8)
-```
-
-Выбираем предыдущие три месяца:
-```sql
-SELECT sum(sum), day(time) as d, kkmId
-FROM items_kkm
-WHERE time >= trunc_month(now() - INTERVAL '3' MONTH) AND time < trunc_month(now())
-GROUP BY d, kkmId
-```
-
-Агрегация по выражению:
-```sql
-SELECT kkmId,
-    (CASE WHEN totalReceiptCardSum > 0 THEN 1 ELSE 0) as paymentType
-FROM items_kkm
-WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01'
-GROUP BY paymentType, kkmId
-```
-
-Используем арифметику (`+`, `-`, `*`, `/`):
-```sql
-SELECT sum(totalSum) as ts, sum(cardSum) * max(cashSum) / 2 as something
-FROM receipt
-WHERE 
-    time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' AND
-    kkmId = '11'
-GROUP BY kkmId
-```
-
-Группируем колбасу по вкусу и считаем сумму:
-```sql
-SELECT
-    item,
-    case
-      when contains_any(stem(item), stem('вареная')) then 'вареная'
-      when contains_any(stem(item), stem('соленая')) then 'соленая'
-      else 'невкусная' as taste,
-    sum(sum)
-FROM items_kkm
-WHERE 
-    time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01' 
-    AND itemsInvertedIndex_phrase = 'колбаса'
-GROUP BY item, taste
-```
-
-#### Функции <a name="sql-functions"></a>
+## Функции
 
 | Функция          | Тип функции   | Типы аргументов         | Тип значения    | Описание                                                                          |
 |------------------|:-------------:|:-----------------------:|:---------------:|-----------------------------------------------------------------------------------|
@@ -220,7 +107,7 @@ GROUP BY item, taste
 | `contains_any`   | бинарная      | массив и массив         | логический      | True если массив1 содержит хотя бы один элемент из массива2, иначе False          |
 | `contains_same`  | бинарная      | массив и массив         | логический      | True если массив1 содержит те же элементы что и массив2 (в любом порядке)         |
 
-#### Типы функций
+### Типы функций
 
 - Агрегация -- функция вычисляющая общее значение из множества значений (например сумму или максимум).  Агрегации не могут использоваться вместе с оконными функциями.
 - Оконная -- функция вычисляющая общее значение из множества значении и их порядка. Оконные функции не могут использоваться вместе с агрегациями. Не поддерживаются в реализации Yupana для Spark.
@@ -236,3 +123,6 @@ GROUP BY item, taste
 | `x NOT IN (3, 4, .. z)`   | Проверка что `x` не является одним из элементов заданного множества констант  |
 | `x IN NULL`               | Проверка что значение `x` не определено                                       |
 | `x IS NOT NULL`           | Проверка что значение `x` определено                                          |
+| `x BETWEEN 1 AND 10`      | То же самое что `x >= 1 AND x <= 10`                                          |
+
+

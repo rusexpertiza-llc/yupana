@@ -35,7 +35,7 @@ const siteConfig = {
 
   // For no header links in the top nav bar -> headerLinks: [],
   headerLinks: [
-    {doc: 'architecture', label: 'Docs'},
+    {doc: 'architecture', label: 'Документация'},
     {href: '/api/org/yupana/index.html', label: 'API'},
     {href: repoUrl, label: 'GitHub', external: true }
 //    {doc: 'api', label: 'API'},
