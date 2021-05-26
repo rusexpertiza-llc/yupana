@@ -16,40 +16,20 @@
 
 package org.yupana.examples.spark
 
-import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkContext
 import org.yupana.api.query.Query
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
-import org.yupana.examples.spark.TsdbSpark.createDefaultMetricCollector
-import org.yupana.hbase.TsdbQueryMetricsDaoHBase
 import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }
 
 object TsdbSpark {
   var externalLinks = Map.empty[String, ExternalLinkService[_ <: ExternalLink]]
-
-  private def createDefaultMetricCollector(config: Config): Query => PersistentMetricQueryCollector = {
-
-    val queryCollectorContext = new QueryCollectorContext(
-      metricsDao = () =>
-        new TsdbQueryMetricsDaoHBase(
-          ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
-          config.hbaseNamespace
-        ),
-      operationName = "query",
-      metricsUpdateInterval = config.metricsUpdateInterval
-    )
-
-    { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
-  }
 }
 
-class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: Config, schema: Schema)(
-    metricCollectorCreator: Query => MetricQueryCollector = createDefaultMetricCollector(conf)
-) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema, metricCollectorCreator) {
+class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: Config, schema: Schema)
+    extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
       this,

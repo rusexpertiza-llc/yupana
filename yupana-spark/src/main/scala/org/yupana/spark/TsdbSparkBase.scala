@@ -35,9 +35,15 @@ import org.yupana.api.schema.{ Schema, Table }
 import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.metric.{
+  MetricQueryCollector,
+  NoMetricCollector,
+  PersistentMetricQueryCollector,
+  QueryCollectorContext
+}
 import org.yupana.core.{ QueryContext, TsdbBase }
-import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils }
+import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
+import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
 object TsdbSparkBase {
 
@@ -50,14 +56,32 @@ object TsdbSparkBase {
     }
     configuration
   }
+  private def createDefaultMetricCollector(
+      config: Config,
+      opName: String = "query"
+  ): Query => PersistentMetricQueryCollector = {
+
+    val queryCollectorContext = new QueryCollectorContext(
+      metricsDao = () =>
+        new TsdbQueryMetricsDaoHBase(
+          ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
+          config.hbaseNamespace
+        ),
+      operationName = opName,
+      metricsUpdateInterval = config.metricsUpdateInterval
+    )
+
+    { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+  }
 }
 
 abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
     conf: Config,
-    override val schema: Schema,
-    metricCollectorCreator: Query => MetricQueryCollector
+    override val schema: Schema
+)(
+    metricCollectorCreator: Query => MetricQueryCollector = createDefaultMetricCollector(conf)
 ) extends TsdbBase
     with StrictLogging
     with Serializable {
