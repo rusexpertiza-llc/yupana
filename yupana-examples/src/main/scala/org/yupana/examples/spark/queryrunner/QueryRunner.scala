@@ -16,17 +16,13 @@
 
 package org.yupana.examples.spark.queryrunner
 
-import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.yupana.api.query.Query
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
-import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
-import org.yupana.hbase.TsdbQueryMetricsDaoHBase
-import org.yupana.spark.{ DataRowRDD, SparkConfUtils, TsdbSparkBase }
+import org.yupana.spark.{ DataRowRDD, SparkConfUtils }
 
 object QueryRunner {
 
@@ -37,17 +33,7 @@ object QueryRunner {
     val config = new QueryRunnerConfig(sparkConf)
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 
-    System.out.println("TsdbQueryMetricsDao initialization...")
-    lazy val hbaseConnection = ConnectionFactory.createConnection(TsdbSparkBase.hbaseConfiguration(config))
-    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
-
-    val queryCollectorContext = new QueryCollectorContext(
-      metricsDao = () => tsdbQueryMetricsDaoHBase,
-      operationName = "query",
-      metricsUpdateInterval = config.metricsUpdateInterval
-    )
-    val metricCreator = { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
-    val tsdbSpark = new TsdbSpark(spark.sparkContext, identity, config, ExampleSchema.schema, metricCreator)
+    val tsdbSpark = new TsdbSpark(spark.sparkContext, identity, config, ExampleSchema.schema)()
 
     executeQuery(config.query, tsdbSpark) match {
       case Right(rdd) =>
