@@ -315,13 +315,7 @@ trait TsdbBase extends StrictLogging {
 
   def evalExprsOnAggregatesAndWindows(queryContext: QueryContext, data: InternalRow): InternalRow = {
     queryContext.exprsOnAggregatesAndWindows.foreach { e =>
-      val nullWindowExpressionsExists = e.flatten.exists {
-        case w: WindowFunctionExpr[_, _] => data.isEmpty(queryContext, w)
-        case _                           => false
-      }
-      val evaluationResult =
-        if (nullWindowExpressionsExists) null
-        else expressionCalculator.evaluateExpression(e, queryContext, data)
+      val evaluationResult = expressionCalculator.evaluateExpression(e, queryContext, data)
       data.set(queryContext, e, evaluationResult)
     }
     data

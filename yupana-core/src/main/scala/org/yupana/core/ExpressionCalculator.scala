@@ -141,8 +141,8 @@ class ExpressionCalculator(tokenizer: Tokenizer) extends Serializable {
       case DimIdNotInExpr(_, _) => null.asInstanceOf[T]
 
       // GENERALLY ae.dataType != ae.expr.dataType, but we don't care here
-      case ae: AggregateExpr[_, _, _]   => evaluateExpression(ae.expr, qc, row).asInstanceOf[T]
-      case we: WindowFunctionExpr[_, _] => evaluateExpression(we.expr, qc, row).asInstanceOf[T]
+      case ae: AggregateExpr[_, _, _]  => evaluateExpression(ae.expr, qc, row).asInstanceOf[T]
+      case _: WindowFunctionExpr[_, _] => null.asInstanceOf[T]
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateExpression(condition, qc, row)
