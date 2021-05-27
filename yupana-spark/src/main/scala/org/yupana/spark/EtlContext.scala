@@ -39,7 +39,7 @@ import org.yupana.schema.{ Dimensions, ItemDimension }
 class EtlContext(
     val cfg: EtlConfig,
     schema: Schema,
-    metricCollectorCreator: Query => MetricQueryCollector
+    metricCollectorCreator: Option[Query => MetricQueryCollector] = None
 ) extends Serializable {
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()

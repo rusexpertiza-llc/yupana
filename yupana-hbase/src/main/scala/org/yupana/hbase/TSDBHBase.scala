@@ -72,10 +72,12 @@ object TSDBHBase {
       prepareQuery: Query => Query,
       properties: Properties,
       tsdbConfig: TsdbConfig,
-      metricCollectorCreator: Query => MetricQueryCollector
+      metricCollectorCreator: Option[Query => MetricQueryCollector]
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
-    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig)(metricCollectorCreator)
+    val metricsCollectorOrDefault =
+      metricCollectorCreator.getOrElse(createDefaultMetricCollector(tsdbConfig, connection, namespace))
+    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig)(metricsCollectorOrDefault)
   }
 }
