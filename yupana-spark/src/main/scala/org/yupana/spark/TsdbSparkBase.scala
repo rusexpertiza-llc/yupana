@@ -32,7 +32,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
+import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{
@@ -45,7 +45,8 @@ import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
-object TsdbSparkBase {
+object TsdbSparkBase extends StrictLogging {
+  @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
 
   def hbaseConfiguration(config: Config): Configuration = {
     val configuration = new Configuration()
@@ -56,17 +57,24 @@ object TsdbSparkBase {
     }
     configuration
   }
+
+  private def getMetricsDao(config: Config): TsdbQueryMetricsDao = metricsDao match {
+    case None =>
+      logger.info("TsdbQueryMetricsDao initialization...")
+      val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration(config))
+      val dao = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
+      metricsDao = Some(dao)
+      dao
+    case Some(d) => d
+  }
+
   private def createDefaultMetricCollector(
       config: Config,
       opName: String = "query"
   ): Query => PersistentMetricQueryCollector = {
 
     val queryCollectorContext = new QueryCollectorContext(
-      metricsDao = () =>
-        new TsdbQueryMetricsDaoHBase(
-          ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
-          config.hbaseNamespace
-        ),
+      metricsDao = () => getMetricsDao(config),
       operationName = opName,
       metricsUpdateInterval = config.metricsUpdateInterval
     )
@@ -83,7 +91,6 @@ abstract class TsdbSparkBase(
 )(
     metricCollectorCreator: Query => MetricQueryCollector = createDefaultMetricCollector(conf)
 ) extends TsdbBase
-    with StrictLogging
     with Serializable {
 
   override type Collection[X] = RDD[X]
