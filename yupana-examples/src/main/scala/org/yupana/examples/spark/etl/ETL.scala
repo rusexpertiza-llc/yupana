@@ -36,7 +36,7 @@ object ETL extends StrictLogging {
 
     val cfg = new EtlConfig(conf)
 
-    val ctx = new EtlContext(cfg, ExampleSchema.schema, None)
+    val ctx = new EtlContext(cfg, ExampleSchema.schema)
 
     import org.yupana.spark.ETLFunctions._
 
