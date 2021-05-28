@@ -23,7 +23,12 @@ trait RollupMetaDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Mat
     val now = DateTime.now()
 
     val invalidatedIntervals = baseTimes.map { baseTime =>
-      UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + TestTable.rowTimeSpan), now, "test")
+      UpdateInterval(
+        from = new DateTime(baseTime),
+        to = new DateTime(baseTime + TestTable.rowTimeSpan),
+        now,
+        Some("test")
+      )
     }.toSeq
 
     val from = DateTime.now().plusDays(-1).getMillis
