@@ -101,8 +101,7 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override def dataType: DataType.Aux[I] = expr.dataType
 }
 
-final case class ConstantExpr[T](v: T)(implicit dt: DataType.Aux[T]) extends Expression[T] {
-  override val dataType: DataType.Aux[T] = dt
+final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.Aux[T]) extends Expression[T] {
   override def encode: String = {
     if (dataType.isArray) {
       val adt = dataType.asInstanceOf[ArrayDataType[T]]
