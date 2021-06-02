@@ -36,8 +36,8 @@ sealed trait Expression[Out] extends Serializable {
 
   def flatten: Set[Expression[_]] = fold(Set.empty[Expression[_]])(_ + _)
 
-  private lazy val encoded: String = encode
-  private lazy val encodedHashCode: Int = encoded.hashCode()
+  private val encoded: String = encode
+  private val encodedHashCode: Int = encoded.hashCode()
 
   override def toString: String = encoded
 
