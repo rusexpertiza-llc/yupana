@@ -58,7 +58,7 @@ object ItemRollups {
     name = "itemKkmsByDay",
     filter = None,
     groupBy = itemKkmsByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRawData,
+    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
     fromTable = itemsKkmTable,
     toTable = itemKkmsByDayTable,
     timeExpr = TruncDayExpr(TimeExpr)
@@ -68,7 +68,7 @@ object ItemRollups {
     name = "itemKkmsByWeek",
     filter = None,
     groupBy = itemKkmsByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRollup,
+    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
     fromTable = itemKkmsByDayTable,
     toTable = itemKkmsByWeekTable,
     timeExpr = TruncWeekExpr(TimeExpr)
@@ -78,7 +78,7 @@ object ItemRollups {
     name = "itemKkmsByMonth",
     filter = None,
     groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRollup,
+    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
     fromTable = itemKkmsByDayTable,
     toTable = itemKkmsByMonthTable,
     timeExpr = TruncMonthExpr(TimeExpr)
@@ -88,7 +88,7 @@ object ItemRollups {
     name = "kkmsItemByDay",
     filter = None,
     groupBy = kkmsItemByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRawData,
+    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
     fromTable = itemsKkmTable,
     toTable = kkmsItemByDayTable,
     timeExpr = TruncDayExpr(TimeExpr)
@@ -98,7 +98,7 @@ object ItemRollups {
     name = "kkmsItemByWeek",
     filter = None,
     groupBy = kkmsItemByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRollup,
+    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
     fromTable = kkmsItemByDayTable,
     toTable = kkmsItemByWeekTable,
     timeExpr = TruncWeekExpr(TimeExpr)
@@ -108,8 +108,8 @@ object ItemRollups {
     name = "kkmsItemByMonth",
     filter = None,
     groupBy = kkmsItemByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRollup,
-    fromTable = itemByDayTable,
+    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
+    fromTable = kkmsItemByDayTable,
     toTable = kkmsItemByMonthTable,
     timeExpr = TruncMonthExpr(TimeExpr)
   )
