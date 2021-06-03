@@ -76,7 +76,6 @@ class TSDB(
 
     val it = CloseableIterator(data, metricCollector.finish())
     new TsdbServerResult(queryContext, it)
-
   }
 
   override def applyWindowFunctions(

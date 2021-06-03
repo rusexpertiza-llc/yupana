@@ -137,6 +137,7 @@ trait TsdbBase extends StrictLogging {
 
     processData(queryContext, metricCollector, mr, rows)
   }
+
   def processData(
       queryContext: QueryContext,
       metricCollector: MetricQueryCollector,

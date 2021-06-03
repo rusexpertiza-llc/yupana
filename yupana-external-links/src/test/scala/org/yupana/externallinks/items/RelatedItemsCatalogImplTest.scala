@@ -37,9 +37,9 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
         new TsdbServerResult(
           qc1,
           Seq(
-            Array[Any](123456, Time(120)),
-            Array[Any](123456, Time(150)),
-            Array[Any](345112, Time(120))
+            Array[Any](Time(120), 123456),
+            Array[Any](Time(150), 123456),
+            Array[Any](Time(120), 345112)
           ).toIterator
         )
       )
@@ -60,8 +60,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
         new TsdbServerResult(
           qc2,
           Seq(
-            Array[Any](123456, Time(125)),
-            Array[Any](123456, Time(120))
+            Array[Any](Time(125), 123456),
+            Array[Any](Time(120), 123456)
           ).toIterator
         )
       )
@@ -111,8 +111,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
         new TsdbServerResult(
           qc,
           Seq(
-            Array[Any](123456, Time(220)),
-            Array[Any](654321, Time(330))
+            Array[Any](Time(220), 123456),
+            Array[Any](Time(330), 654321)
           ).toIterator
         )
       )
