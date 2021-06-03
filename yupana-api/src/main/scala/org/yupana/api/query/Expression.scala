@@ -36,8 +36,8 @@ sealed trait Expression[Out] extends Serializable {
 
   def flatten: Set[Expression[_]] = fold(Set.empty[Expression[_]])(_ + _)
 
-  private lazy val encoded: String = encode
-  private lazy val encodedHashCode: Int = encoded.hashCode()
+  private val encoded: String = encode
+  private val encodedHashCode: Int = encoded.hashCode()
 
   override def toString: String = encoded
 
@@ -101,8 +101,7 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override def dataType: DataType.Aux[I] = expr.dataType
 }
 
-final case class ConstantExpr[T](v: T)(implicit dt: DataType.Aux[T]) extends Expression[T] {
-  override val dataType: DataType.Aux[T] = dt
+final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.Aux[T]) extends Expression[T] {
   override def encode: String = {
     if (dataType.isArray) {
       val adt = dataType.asInstanceOf[ArrayDataType[T]]

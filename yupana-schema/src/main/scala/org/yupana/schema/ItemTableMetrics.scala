@@ -132,6 +132,7 @@ trait ItemTableMetrics {
       QueryFieldToMetric(sum(metric(sumField)) as sumField.name, sumField),
       QueryFieldToMetric(sum(metric(quantityField)) as quantityField.name, quantityField)
     )
+    val kkmIdDim = QueryFieldToDimension(dimension(Dimensions.KKM_ID) as Dimensions.KKM_ID.name, Dimensions.KKM_ID)
     val countFromRawData = QueryFieldToMetric(count(time) as itemCountField.name, itemCountField)
     val countFromRollup = QueryFieldToMetric(sum(metric(itemCountField)) as itemCountField.name, itemCountField)
   }
