@@ -26,7 +26,6 @@ import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
-import scala.annotation.tailrec
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
@@ -285,7 +284,6 @@ object ExpressionCalculator extends StrictLogging {
     (sets ++ tree.toSeq, newKnown)
   }
 
-  @tailrec
   private def mkSet(
       row: TermName,
       known: Map[Expression[_], Int],
@@ -319,9 +317,10 @@ object ExpressionCalculator extends StrictLogging {
           else (Nil, newKnown + (dimExpr -> newKnown.size))
 
         case _: AggregateExpr[_, _, _] => (Nil, newKnown)
-//        case we: WindowFunctionExpr[_, _] => (Nil, newKnown)
-        //        case ae: AggregateExpr[_, _, _]   => mkSet(row, newKnown, onlySimple, ae.expr)
-        case we: WindowFunctionExpr[_, _] => mkSet(row, newKnown, onlySimple, we.expr)
+        case we: WindowFunctionExpr[_, _] =>
+          val (tree1, k1) = mkSet(row, newKnown, onlySimple, TimeExpr)
+          val (tree2, newestKnown) = mkSet(row, k1, onlySimple, we.expr)
+          (tree1 ++ tree2, newestKnown)
 
         case TupleExpr(a, b) => mkSetBinary(row, newKnown, onlySimple, e, a, b, (x, y) => q"($x, $y)")
 
@@ -623,7 +622,7 @@ object ExpressionCalculator extends StrictLogging {
 
   def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int]) = {
     val internalRow = TermName("internalRow")
-    val (filter, k1) = mkFilter(internalRow, Map(TimeExpr -> 0), onlySimple = true, condition)
+    val (filter, k1) = mkFilter(internalRow, Map.empty, onlySimple = true, condition)
 
     val (evaluate, k2) = mkEvaluate(query, internalRow, k1)
 

@@ -2852,14 +2852,11 @@ class TsdbTest
         )
       })
 
-    val pointTime1 = qtime.getMillis + 10
-    val pointTime2 = pointTime1 + 1
-
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set(metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2867,16 +2864,13 @@ class TsdbTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Time(pointTime2))
-            .set(dimension(TestDims.DIM_A), "test1")
+          b.set(dimension(TestDims.DIM_A), "test1")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
-          b.set(time, Time(pointTime1))
-            .set(dimension(TestDims.DIM_A), "test1")
+          b.set(dimension(TestDims.DIM_A), "test1")
             .set(metric(TestTableFields.TEST_FIELD), 2d)
             .buildAndReset(),
-          b.set(time, Time(pointTime2))
-            .set(dimension(TestDims.DIM_A), "test2")
+          b.set(dimension(TestDims.DIM_A), "test2")
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .buildAndReset()
         )
@@ -2887,12 +2881,12 @@ class TsdbTest
     results should have size (3)
 
     val r1 = results(0)
-    r1.get[Double]("testField") shouldBe 2d
+    r1.get[Double]("testField") shouldBe 1d
     r1.get[String]("A") shouldBe "test1"
     r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
 
     val r2 = results(1)
-    r2.get[Double]("testField") shouldBe 1d
+    r2.get[Double]("testField") shouldBe 2d
     r2.get[String]("A") shouldBe "test1"
     r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
 
