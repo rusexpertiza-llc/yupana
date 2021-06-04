@@ -32,6 +32,7 @@ object QueryRunner {
 
     val config = new QueryRunnerConfig(sparkConf)
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
+
     val tsdbSpark = new TsdbSpark(spark.sparkContext, identity, config, ExampleSchema.schema)
 
     executeQuery(config.query, tsdbSpark) match {

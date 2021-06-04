@@ -80,8 +80,6 @@ object TsdbQueryMetrics {
   )
 }
 
-case class MetricData(count: Long, time: Double, speed: Double)
-
 object QueryStates {
 
   sealed abstract class QueryState(val name: String) {

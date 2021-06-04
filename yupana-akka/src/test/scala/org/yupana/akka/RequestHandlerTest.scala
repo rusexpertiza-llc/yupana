@@ -13,6 +13,8 @@ import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
+import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.schema.externallinks.ItemsInvertedIndex
@@ -236,8 +238,10 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     resp should have size SchemaRegistry.defaultSchema.tables.size + 2 // Header and footer
   }
 
-  class MockedTsdb(metricsDao: TsdbQueryMetricsDao)
-      extends TSDB(SchemaRegistry.defaultSchema, null, metricsDao, null, identity, SimpleTsdbConfig())
+  class MockedTsdb
+      extends TSDB(SchemaRegistry.defaultSchema, null, null, identity, SimpleTsdbConfig(), { q: Query =>
+        new PersistentMetricQueryCollector(mock[QueryCollectorContext], q)
+      })
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]

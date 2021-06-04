@@ -21,20 +21,39 @@ import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryProviderImpl, TsdbQueryMetricsDao }
+import org.yupana.core.dao.DictionaryProviderImpl
+import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.core.{ TSDB, TsdbConfig }
 
 import java.util.Properties
 
 object TSDBHBase {
+
+  private def createDefaultMetricCollector(
+      tsdbConfig: TsdbConfig,
+      connection: Connection,
+      namespace: String
+  ): Query => PersistentMetricQueryCollector = {
+    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(connection, namespace)
+    val queryCollectorContext = new QueryCollectorContext(
+      metricsDao = () => tsdbQueryMetricsDaoHBase,
+      operationName = "query",
+      metricsUpdateInterval = tsdbConfig.metricsUpdateInterval
+    )
+
+    { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+  }
+
   def apply(
       connection: Connection,
       namespace: String,
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties,
-      tsdbConfig: TsdbConfig,
-      metricsDao: TsdbQueryMetricsDao
+      tsdbConfig: TsdbConfig
+  )(
+      metricCollectorCreator: Query => MetricQueryCollector =
+        createDefaultMetricCollector(tsdbConfig, connection, namespace)
   ): TSDB = {
 
     CacheFactory.init(properties, namespace)
@@ -42,7 +61,8 @@ object TSDBHBase {
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
     val dao = new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize)
-    new TSDB(schema, dao, metricsDao, dictProvider, prepareQuery, tsdbConfig)
+
+    new TSDB(schema, dao, dictProvider, prepareQuery, tsdbConfig, metricCollectorCreator)
   }
 
   def apply(
@@ -51,11 +71,13 @@ object TSDBHBase {
       schema: Schema,
       prepareQuery: Query => Query,
       properties: Properties,
-      tsdbConfig: TsdbConfig
+      tsdbConfig: TsdbConfig,
+      metricCollectorCreator: Option[Query => MetricQueryCollector]
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
-    val metricsDao = new TsdbQueryMetricsDaoHBase(connection, namespace)
-    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig, metricsDao)
+    val metricsCollectorOrDefault =
+      metricCollectorCreator.getOrElse(createDefaultMetricCollector(tsdbConfig, connection, namespace))
+    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig)(metricsCollectorOrDefault)
   }
 }

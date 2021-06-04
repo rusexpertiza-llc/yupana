@@ -16,6 +16,7 @@
 
 package org.yupana.core.utils.metric
 
+import org.yupana.core.model.MetricResult
 import org.yupana.core.model.QueryStates.QueryState
 
 trait MetricQueryCollector extends Serializable {
@@ -28,7 +29,7 @@ trait MetricQueryCollector extends Serializable {
 
   def isEnabled: Boolean
 
-  def saveQueryMetrics(state: QueryState): Unit
+  def saveQueryMetrics(state: QueryState): MetricResult
   def setRunningPartitions(partitions: Int): Unit
   def finishPartition(): Unit
 
@@ -53,7 +54,7 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override def finish(): Unit = {}
 
-  override def saveQueryMetrics(state: QueryState): Unit = {}
+  override def saveQueryMetrics(state: QueryState): MetricResult = MetricResult(queryId, state.name, false, Map(), 0)
 
   override def setRunningPartitions(partitions: Int): Unit = {}
 
