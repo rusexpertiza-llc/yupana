@@ -28,7 +28,7 @@ import org.yupana.core.model.InternalRow
 
 import scala.collection.AbstractIterator
 
-trait ExpressionCalculator {
+trait ExpressionCalculator extends Serializable {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
   def evaluateExpressions(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluateMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
