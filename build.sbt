@@ -348,7 +348,7 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val spark =  "3.0.1"
+  val spark =  "3.1.2"
 
   val joda = "2.10.10"
 
@@ -383,7 +383,7 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.13",
+  scalaVersion := "2.12.14",
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.12",
