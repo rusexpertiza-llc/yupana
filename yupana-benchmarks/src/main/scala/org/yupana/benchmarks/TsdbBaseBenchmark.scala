@@ -21,18 +21,6 @@ import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, MetricExpr, Query, TimeExpr }
-import org.yupana.api.query.syntax.All.{
-  const,
-  count,
-  dimension,
-  distinctCount,
-  divFrac,
-  double2bigDecimal,
-  long2BigDecimal,
-  metric,
-  sum,
-  time
-}
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
@@ -53,13 +41,15 @@ class TsdbBaseBenchmark {
   }
 }
 
-@State(Scope.Thread)
+@State(Scope.Benchmark)
 class TsdbBaseBenchmarkState {
   val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
   val rows = TsdbBaseBenchmark.getRows(1000000)
 }
 
 object TsdbBaseBenchmark {
+  import org.yupana.api.query.syntax.All._
+
   val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),
@@ -73,9 +63,20 @@ object TsdbBaseBenchmark {
         sum(divFrac(double2bigDecimal(metric(ItemTableMetrics.quantityField)), metric(ItemTableMetrics.sumField))),
         long2BigDecimal(count(dimension(Dimensions.ITEM)))
       ) as "avg",
-      distinctCount(dimension(Dimensions.KKM_ID)) as "kkm_count"
+      distinctCount(dimension(Dimensions.KKM_ID)) as "kkm_count",
+      min(divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField)))) as "min_price",
+      sum(
+        condition(
+          gt(
+            divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))),
+            const(BigDecimal(100))
+          ),
+          const(1L),
+          const(0L)
+        )
+      ) as "count_expensive"
     ),
-    filter = None, //Some(in(dimension(Dimensions.KKM_ID), (1 to 1000).toSet)),
+    filter = None,
     groupBy = Seq(time, dimension(Dimensions.ITEM))
   )
 
