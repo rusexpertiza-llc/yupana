@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.epicsquad.analytics.bench
+package org.yupana.benchmarks
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
@@ -24,7 +24,7 @@ import org.yupana.api.query.syntax.All._
 import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.hbase._
+import org.yupana.hbase.{ HBaseTestUtils, InternalQueryContext, TSDHBaseRowIterator }
 
 class TSDHBaseRowIteratorBenchmark {
 

@@ -14,19 +14,21 @@
  * limitations under the License.
  */
 
-package org.epicsquad.analytics.bench
+package org.yupana.benchmarks
 
-import org.openjdk.jmh.annotations.{ Benchmark, State }
-import org.yupana.core.TsdbBase
+import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
+import org.yupana.core.TSDB
 
 class TsdbBaseBenchmark {
 
   @Benchmark
   def processRows(state: TsdbBaseBenchmarkState): Unit = {
-
-    val tsdb = new BenchTsdb.BenchTsdb()
+    val tsdb = state.tsdb
+    tsdb.query(BenchTsdb.query)
   }
 }
 
-@State
-class TsdbBaseBenchmarkState {}
+@State(Scope.Thread)
+class TsdbBaseBenchmarkState {
+  val tsdb: TSDB = new BenchTsdb.BenchTsdb()
+}

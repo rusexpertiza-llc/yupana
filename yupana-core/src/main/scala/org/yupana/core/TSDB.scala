@@ -74,7 +74,7 @@ class TSDB(
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
 
-    val it = CloseableIterator(data, metricCollector.finish)
+    val it = CloseableIterator(data, metricCollector.finish())
     new TsdbServerResult(queryContext, it)
 
   }
