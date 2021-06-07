@@ -21,7 +21,6 @@ import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
-import org.yupana.api.types.DataType
 import org.yupana.core.QueryContext
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.{ SparseTable, Table }
@@ -37,8 +36,7 @@ object BenchLink extends ExternalLink {
   val F2 = "f2"
   override val linkName: String = "benchLink"
   override val dimension: Dimension.Aux[Int] = dim
-  implicit val dataType = DataType.stringDt
-  override val fields: Set[LinkField] = Set(LinkField(F1), LinkField(F2))
+  override val fields: Set[LinkField] = Set(LinkField[String](F1), LinkField[String](F2))
 }
 
 class ExternalLinkBenchmarks {

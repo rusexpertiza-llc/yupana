@@ -24,7 +24,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.Dimension
 import org.yupana.core.dao._
 import org.yupana.core.model._
-import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
@@ -72,10 +72,10 @@ object BenchTsdb {
       extends TSDB(
         SchemaRegistry.defaultSchema,
         new BenchDao(1000000),
-        new BenchMetricDao,
         new DictionaryProviderImpl(new BenchDictDao),
         identity,
-        SimpleTsdbConfig()
+        SimpleTsdbConfig(),
+        _ => NoMetricCollector
       ) {}
 
   class BenchDao(n: Int) extends TSDao[Iterator, Long] {
@@ -103,24 +103,5 @@ object BenchTsdb {
     override def getIdByValue(dimension: Dimension, value: String): Option[Long] = unsupported
     override def getIdsByValues(dimension: Dimension, value: Set[String]): Map[String, Long] = unsupported
     override def checkAndPut(dimension: Dimension, id: Long, value: String): Boolean = unsupported
-  }
-
-  class BenchMetricDao extends TsdbQueryMetricsDao {
-    override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit = {}
-    override def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] =
-      Nil
-
-    override def updateQueryMetrics(
-        queryId: String,
-        queryState: QueryStates.QueryState,
-        totalDuration: Double,
-        metricValues: Map[String, MetricData],
-        sparkQuery: Boolean
-    ): Unit = {}
-
-    override def setQueryState(filter: QueryMetricsFilter, queryState: QueryStates.QueryState): Unit = {}
-    override def setRunningPartitions(queryId: String, partitions: Int): Unit = {}
-    override def decrementRunningPartitions(queryId: String): Int = 0
-    override def deleteMetrics(filter: QueryMetricsFilter): Int = 0
   }
 }
