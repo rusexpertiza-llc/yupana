@@ -17,12 +17,11 @@
 package org.yupana.core.utils.metric
 
 import java.util.concurrent.atomic.LongAdder
-
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.TsdbQueryMetrics._
-import org.yupana.core.model.{ MetricData, QueryStates }
+import org.yupana.core.model.{ MetricData, MetricResult, QueryStates }
 import org.yupana.core.utils.metric.PersistentMetricQueryCollector._
 
 import scala.collection.{ Seq, mutable }
@@ -95,11 +94,13 @@ class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, qu
     }
   }
 
-  def saveQueryMetrics(state: QueryState): Unit = {
+  def saveQueryMetrics(state: QueryState): MetricResult = {
     val duration = totalDuration
+    val metricsData = getAndResetMetricsData
     collectorContext
       .metricsDao()
-      .updateQueryMetrics(query.id, state, duration, getAndResetMetricsData, collectorContext.sparkQuery)
+      .updateQueryMetrics(query.id, state, duration, metricsData, collectorContext.sparkQuery)
+    MetricResult(query.id, state.name, collectorContext.sparkQuery, metricsData, duration)
   }
 
   private def totalDuration: Double = {

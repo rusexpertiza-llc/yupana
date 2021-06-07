@@ -22,6 +22,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
+import org.yupana.api.query.Query
+import org.yupana.core.SimpleTsdbConfig
+import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
@@ -71,15 +74,20 @@ object Main extends StrictLogging {
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, config.hbaseNamespace)
     HBaseUtils.initStorage(connection, config.hbaseNamespace, schema, tsdbConfig)
 
+    logger.info("TsdbQueryMetricsDao initialization...")
+    lazy val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration)
+    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
+
+    val queryCollectorContext = new QueryCollectorContext(
+      metricsDao = () => tsdbQueryMetricsDaoHBase,
+      operationName = "query",
+      metricsUpdateInterval = tsdbConfig.metricsUpdateInterval
+    )
+    val metricCreator = { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+
     val tsdb =
-      TSDBHBase(
-        connection,
-        config.hbaseNamespace,
-        schemaWithJson,
-        identity,
-        config.properties,
-        tsdbConfig,
-        metricsDao
+      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(
+        metricCreator
       )
 
     val queryEngineRouter = new QueryEngineRouter(

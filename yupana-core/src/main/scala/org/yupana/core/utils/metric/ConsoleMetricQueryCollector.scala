@@ -17,10 +17,9 @@
 package org.yupana.core.utils.metric
 
 import java.util.concurrent.atomic.{ AtomicLong, LongAdder }
-
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
-import org.yupana.core.model.QueryStates
+import org.yupana.core.model.{ MetricResult, QueryStates }
 
 import scala.collection.{ Seq, mutable }
 
@@ -78,7 +77,8 @@ class ConsoleMetricQueryCollector(query: Query, operationName: String) extends M
     )
   }
 
-  override def saveQueryMetrics(state: QueryStates.QueryState): Unit = {}
+  override def saveQueryMetrics(state: QueryStates.QueryState): MetricResult =
+    MetricResult(queryId, state.name, false, Map(), (System.nanoTime() - startTime) / 1e-9)
 
   override def setRunningPartitions(partitions: Int): Unit = {}
 

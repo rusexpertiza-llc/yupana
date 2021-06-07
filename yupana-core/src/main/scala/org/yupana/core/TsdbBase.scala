@@ -135,10 +135,10 @@ trait TsdbBase extends StrictLogging {
         mr.singleton(rb.buildAndReset())
     }
 
-    processData(queryContext, metricCollector, mr, rows)
+    processRows(queryContext, metricCollector, mr, rows)
   }
 
-  def processData(
+  def processRows(
       queryContext: QueryContext,
       metricCollector: MetricQueryCollector,
       mr: MapReducible[Collection],

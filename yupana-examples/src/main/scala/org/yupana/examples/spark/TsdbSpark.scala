@@ -28,12 +28,8 @@ object TsdbSpark {
   var externalLinks = Map.empty[String, ExternalLinkService[_ <: ExternalLink]]
 }
 
-class TsdbSpark(
-    sparkContext: SparkContext,
-    prepareQuery: Query => Query,
-    conf: Config,
-    schema: Schema
-) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
+class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: Config, schema: Schema)
+    extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
       this,
