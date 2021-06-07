@@ -42,6 +42,8 @@ object RollupMetaDaoHBase {
   val TO_QUALIFIER: Array[Byte] = Bytes.toBytes(toColumn)
   val TABLE_QUALIFIER: Array[Byte] = Bytes.toBytes(tableColumn)
 
+  val UPDATER_UNKNOWN = "UNKNOWN"
+
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 }
 
@@ -124,11 +126,13 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     }
 
   private def toUpdateInterval(result: Result): UpdateInterval = {
+    val byBytes = result.getValue(FAMILY, UPDATED_BY_QUALIFIER)
+    val by = if (byBytes != null) new String(byBytes, StandardCharsets.UTF_8) else RollupMetaDaoHBase.UPDATER_UNKNOWN
     UpdateInterval(
       from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
       to = new DateTime(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
       updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
-      updatedBy = new String(result.getValue(FAMILY, UPDATED_BY_QUALIFIER), StandardCharsets.UTF_8)
+      updatedBy = by
     )
   }
 

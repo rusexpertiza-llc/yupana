@@ -307,9 +307,49 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
     )
   )
 
+lazy val docs = project
+  .in(file("yupana-docs"))
+  .dependsOn(api, core)
+  .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
+  .settings(
+    moduleName := "yupana-docs",
+    noPublishSettings,
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
+    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+    cleanFiles += (ScalaUnidoc / unidoc / target).value,
+    docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "mdoc",
+    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
+    Compile / resourceGenerators += Def.task {
+      val imagesPath =  (LocalRootProject / baseDirectory).value / "docs" / "assets" / "images"
+      val images = (imagesPath * "*").get()
+
+      val targetPath = (LocalRootProject / baseDirectory).value / "website" / "static" / "assets" / "images"
+
+      val pairs = images pair Path.rebase(imagesPath, targetPath)
+      IO.copy(pairs, overwrite = true, preserveLastModified = true, preserveExecutable = false)
+
+      pairs.map(_._2)
+    }.taskValue,
+    mdocVariables := Map(
+      "SCALA_VERSION" -> minMaj(scalaVersion.value, "2.12"),
+      "HBASE_VERSION" -> minMaj(versions.hbase, "1.3"),
+      "SPARK_VERSION" -> minMaj(versions.spark, "2.4"),
+      "IGNITE_VERSION" -> versions.ignite
+    )
+  )
+
+def minMaj(v: String, default: String): String = {
+ val n = VersionNumber(v)
+ val r = for {
+   f <- n._1
+   s <- n._2
+ } yield s"$f.$s"
+ r getOrElse default
+}
 
 lazy val versions = new {
-  val spark =  "3.0.1"
+  val spark =  "3.1.2"
 
   val joda = "2.10.10"
 
@@ -344,7 +384,7 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.13",
+  scalaVersion := "2.12.14",
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.12",
