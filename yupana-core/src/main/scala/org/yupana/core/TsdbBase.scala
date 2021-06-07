@@ -136,7 +136,16 @@ trait TsdbBase extends StrictLogging {
         val rb = new InternalRowBuilder(queryContext)
         mr.singleton(rb.buildAndReset())
     }
+    processRows(queryContext, metricCollector, mr, rows, condition)
+  }
 
+  def processRows(
+      queryContext: QueryContext,
+      metricCollector: MetricQueryCollector,
+      mr: MapReducible[Collection],
+      rows: Collection[InternalRow],
+      condition: Option[Condition]
+  ): Result = {
     val processedRows = new AtomicInteger(0)
     val processedDataPoints = new AtomicInteger(0)
 
