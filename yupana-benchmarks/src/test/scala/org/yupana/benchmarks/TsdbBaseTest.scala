@@ -8,6 +8,6 @@ class TsdbBaseTest extends AnyFlatSpec with Matchers {
   val bench = new TsdbBaseBenchmark
 
   "TsdbBase" should "return correct value" in {
-    bench.processRows(new TsdbBaseBenchmarkState()) should have size 1000
+    bench.processRowsWithAgg(new TsdbBaseBenchmarkStateAgg) shouldEqual 1000
   }
 }

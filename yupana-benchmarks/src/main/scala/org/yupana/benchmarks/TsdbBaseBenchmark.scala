@@ -19,42 +19,64 @@ package org.yupana.benchmarks
 import org.joda.time.LocalDateTime
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
-import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ DimensionExpr, MetricExpr, Query, TimeExpr }
+import org.yupana.api.query.syntax.All._
+import org.yupana.api.query._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
+import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
 class TsdbBaseBenchmark {
 
   @Benchmark
-  def processRows(state: TsdbBaseBenchmarkState): TsdbServerResult = {
+  def processRowsWithAgg(state: TsdbBaseBenchmarkStateAgg): Int = {
     val tsdb = state.tsdb
-    tsdb.processRows(
-      TsdbBaseBenchmark.queryContext,
-      NoMetricCollector,
-      MapReducible.iteratorMR,
-      state.rows.iterator
-    )
+    tsdb
+      .processRows(
+        state.queryContext,
+        NoMetricCollector,
+        MapReducible.iteratorMR,
+        state.rows.iterator
+      )
+      .size
+  }
+
+  @Benchmark
+  def processRowsMinimal(state: TsdbBaseBenchmarkStateMin): Int = {
+    val tsdb = state.tsdb
+    tsdb
+      .processRows(
+        state.queryContext,
+        NoMetricCollector,
+        MapReducible.iteratorMR,
+        state.rows.iterator
+      )
+      .size
+  }
+
+  @Benchmark
+  def processRows(state: TsdbBaseBenchmarkState): Int = {
+    val tsdb = state.tsdb
+    tsdb
+      .processRows(
+        state.queryContext,
+        NoMetricCollector,
+        MapReducible.iteratorMR,
+        state.rows.iterator
+      )
+      .size
   }
 }
 
 @State(Scope.Benchmark)
-class TsdbBaseBenchmarkState {
-  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
-  val rows = TsdbBaseBenchmark.getRows(100000)
-}
-
-object TsdbBaseBenchmark {
-  import org.yupana.api.query.syntax.All._
+class TsdbBaseBenchmarkStateAgg {
 
   val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
-      time as "time",
+      truncDay(time) as "day",
       dimension(Dimensions.ITEM) as "item",
       sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
       metric(ItemTableMetrics.sumField) as "total_sum",
@@ -78,23 +100,97 @@ object TsdbBaseBenchmark {
     groupBy = Seq(time, dimension(Dimensions.ITEM))
   )
 
-  val postCondition: Option[Condition] = None
-  val queryContext: QueryContext = QueryContext(query, postCondition)
+  val daoExprs = Seq(
+    time,
+    dimension(Dimensions.ITEM),
+    metric(ItemTableMetrics.quantityField),
+    metric(ItemTableMetrics.sumField)
+  )
 
+  val queryContext: QueryContext = QueryContext(query, None)
   private val rowBuilder = new InternalRowBuilder(queryContext)
 
-  def getRows(n: Int): Seq[InternalRow] = {
-    val qtime = new LocalDateTime(2021, 5, 24, 22, 40, 0)
+  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
+  val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(
+    rowBuilder,
+    100000,
+    daoExprs
+  )
+}
 
+@State(Scope.Benchmark)
+class TsdbBaseBenchmarkStateMin {
+  val query: Query = Query(
+    table = Tables.itemsKkmTable,
+    from = const(Time(LocalDateTime.now().minusDays(1))),
+    to = const(Time(LocalDateTime.now())),
+    fields = Seq(
+      time as "time",
+      dimension(Dimensions.ITEM) as "item",
+      metric(ItemTableMetrics.quantityField) as "quantity"
+    ),
+    filter = None,
+    groupBy = Seq.empty
+  )
+
+  val daoExprs = Seq(time, dimension(Dimensions.ITEM), metric(ItemTableMetrics.quantityField))
+
+  val queryContext: QueryContext = QueryContext(query, None)
+  private val rowBuilder = new InternalRowBuilder(queryContext)
+
+  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
+  val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(rowBuilder, 100000, daoExprs)
+}
+
+@State(Scope.Benchmark)
+class TsdbBaseBenchmarkState {
+  val query: Query = Query(
+    table = Tables.itemsKkmTable,
+    from = const(Time(LocalDateTime.now().minusDays(1))),
+    to = const(Time(LocalDateTime.now())),
+    fields = Seq(
+      time as "time",
+      dimension(Dimensions.ITEM) as "item",
+      divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
+      metric(ItemTableMetrics.quantityField) as "quantity",
+      divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))) as "price"
+    ),
+    filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
+    groupBy = Seq.empty
+  )
+
+  val daoExprs =
+    Seq(
+      time,
+      dimension(Dimensions.ITEM),
+      metric(ItemTableMetrics.quantityField),
+      metric(ItemTableMetrics.sumField),
+      dimension(Dimensions.KKM_ID)
+    )
+
+  val queryContext: QueryContext = QueryContext(query, None)
+  private val rowBuilder = new InternalRowBuilder(queryContext)
+
+  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
+  val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(rowBuilder, 100000, daoExprs)
+}
+
+object TsdbBaseBenchmark {
+
+  val qtime = new LocalDateTime(2021, 5, 24, 22, 40, 0)
+
+  private val EXPR_CALC: Map[Expression[_], Int => Any] = Map(
+    TimeExpr -> (i => Time(qtime.minusHours(i % 100))),
+    MetricExpr(ItemTableMetrics.sumField) -> (i => BigDecimal(i.toDouble / 1000)),
+    MetricExpr(ItemTableMetrics.quantityField) -> (i => math.abs(101d - i.toDouble / 10000)),
+    DimensionExpr(Dimensions.ITEM) -> (i => s"The thing #${i % 1000}"),
+    DimensionExpr(Dimensions.KKM_ID) -> (i => i % 500)
+  )
+
+  def getRows(rowBuilder: InternalRowBuilder, n: Int, exprs: Seq[Expression[_]]): Seq[InternalRow] = {
     (1 to n).map { i =>
-      val time = qtime.minusHours(i % 100)
-
-      rowBuilder
-        .set(TimeExpr, Time(time))
-        .set(MetricExpr(ItemTableMetrics.sumField), BigDecimal(i.toDouble / 1000))
-        .set(MetricExpr(ItemTableMetrics.quantityField), 101d - i.toDouble / 10000)
-        .set(DimensionExpr(Dimensions.ITEM), s"The thing #${(n - i) % 1000}")
-        .buildAndReset()
+      exprs.foreach(expr => rowBuilder.set(expr, EXPR_CALC(expr)(i)))
+      rowBuilder.buildAndReset()
     }
   }
 
