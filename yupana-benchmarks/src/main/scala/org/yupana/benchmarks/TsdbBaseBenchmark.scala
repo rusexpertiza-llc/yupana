@@ -44,7 +44,7 @@ class TsdbBaseBenchmark {
 @State(Scope.Benchmark)
 class TsdbBaseBenchmarkState {
   val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
-  val rows = TsdbBaseBenchmark.getRows(1000000)
+  val rows = TsdbBaseBenchmark.getRows(100000)
 }
 
 object TsdbBaseBenchmark {
@@ -63,7 +63,6 @@ object TsdbBaseBenchmark {
         sum(divFrac(double2bigDecimal(metric(ItemTableMetrics.quantityField)), metric(ItemTableMetrics.sumField))),
         long2BigDecimal(count(dimension(Dimensions.ITEM)))
       ) as "avg",
-      distinctCount(dimension(Dimensions.KKM_ID)) as "kkm_count",
       min(divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField)))) as "min_price",
       sum(
         condition(
@@ -96,7 +95,6 @@ object TsdbBaseBenchmark {
         .set(MetricExpr(ItemTableMetrics.sumField), BigDecimal(i.toDouble / 1000))
         .set(MetricExpr(ItemTableMetrics.quantityField), 101d - i.toDouble / 10000)
         .set(DimensionExpr(Dimensions.ITEM), s"The thing #${(n - i) % 1000}")
-        .set(DimensionExpr(Dimensions.KKM_ID), i % 500)
         .buildAndReset()
     }
   }
