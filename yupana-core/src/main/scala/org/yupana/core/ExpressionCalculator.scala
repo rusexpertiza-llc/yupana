@@ -130,6 +130,11 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
+  private def mkIsDefined(known: Map[Expression[_], Int], row: TermName, e: Expression[_]): Tree = {
+    val idx = known(e)
+    q"$row.isDefined($idx)"
+  }
+
   private def mkSetUnary(
       row: TermName,
       known: Map[Expression[_], Int],
@@ -146,12 +151,13 @@ object ExpressionCalculator extends StrictLogging {
       val v = f(getA)
       val aIsNullable = isNullable(a)
       if (aIsNullable) {
+        val aIsDefined = mkIsDefined(newKnown, row, a)
         elseTree match {
           case Some(e) =>
-            q"$row.set($idx, if ($getA != null) $v.asInstanceOf[$tpe] else $e.asInstanceOf[$tpe])"
+            q"$row.set($idx, if ($aIsDefined) $v.asInstanceOf[$tpe] else $e.asInstanceOf[$tpe])"
 
           case None =>
-            q"if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])"
+            q"if ($aIsDefined) $row.set($idx, $v.asInstanceOf[$tpe])"
         }
       } else {
         q"$row.set($idx, $v.asInstanceOf[$tpe])"
@@ -175,6 +181,20 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
+  private def mkSetTypeConvertExpr(
+      row: TermName,
+      known: Map[Expression[_], Int],
+      onlySimple: Boolean,
+      e: Expression[_],
+      a: Expression[_]
+  ): (Seq[Tree], Map[Expression[_], Int]) = {
+    val mapper = typeConverters.getOrElse(
+      (a.dataType.meta.sqlTypeName, e.dataType.meta.sqlTypeName),
+      throw new IllegalArgumentException(s"Unsupported type conversion ${a.dataType} to ${e.dataType}")
+    )
+    mkSetUnary(row, known, onlySimple, e, a, mapper)
+  }
+
   private def mkSetBinary(
       row: TermName,
       known: Map[Expression[_], Int],
@@ -194,38 +214,19 @@ object ExpressionCalculator extends StrictLogging {
       val aIsNullable = isNullable(a)
       val bIsNullable = isNullable(b)
 
+      val aDefined = mkIsDefined(newKnown, row, a)
+      val bDefined = mkIsDefined(newKnown, row, b)
+
       if (aIsNullable && bIsNullable) {
-        q"if ($getA != null && $getB != null) $row.set($idx, $v.asInstanceOf[$tpe])"
+        q"if ($aDefined && $bDefined) $row.set($idx, $v.asInstanceOf[$tpe])"
       } else if (aIsNullable) {
-        q"if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])"
+        q"if ($aDefined) $row.set($idx, $v.asInstanceOf[$tpe])"
       } else if (bIsNullable) {
-        q"if ($getB != null) $row.set($idx, $v.asInstanceOf[$tpe])"
+        q"if ($bDefined) $row.set($idx, $v.asInstanceOf[$tpe])"
       } else {
         q"$row.set($idx, $v.asInstanceOf[$tpe])"
       }
     }
-    (prepare ++ set.toSeq, newKnown)
-  }
-
-  private def mkSetTypeConvertExpr(
-      row: TermName,
-      known: Map[Expression[_], Int],
-      onlySimple: Boolean,
-      e: Expression[_],
-      a: Expression[_]
-  ): (Seq[Tree], Map[Expression[_], Int]) = {
-    val mapper = typeConverters.getOrElse(
-      (a.dataType.meta.sqlTypeName, e.dataType.meta.sqlTypeName),
-      throw new IllegalArgumentException(s"Unsupported type conversion ${a.dataType} to ${e.dataType}")
-    )
-    val (prepare, newKnown) = mkSet(row, known, onlySimple, a)
-    val set = newKnown.get(e).map { idx =>
-      val getA = mkGet(newKnown, row, a)
-      val tpe = mkType(e)
-      val v = mapper(getA)
-      q"if ($getA != null) $row.set($idx, $v.asInstanceOf[$tpe])"
-    }
-
     (prepare ++ set.toSeq, newKnown)
   }
 
