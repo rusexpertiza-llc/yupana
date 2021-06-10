@@ -16,39 +16,72 @@
 
 package org.yupana.core.providers
 
-import org.joda.time.Interval
+import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.FlatQueryEngine
+import org.yupana.core.{ FlatQueryEngine, UpdatesIntervalsFilter }
+import org.yupana.core.sql.parser.{
+  And,
+  BetweenCondition,
+  Condition,
+  Constant,
+  Eq,
+  FieldName,
+  StringValue,
+  TimestampValue
+}
 
-object UpdatesIntervalsProvider {
+object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
 
-  def handleGetUpdatesIntervals(
-      flatQueryEngine: FlatQueryEngine,
-      tableName: String,
-      updateInterval: Interval
-  ): Result = {
-    val updatesIntervals = flatQueryEngine.getUpdatesIntervals(tableName, updateInterval)
+  def handleGetUpdatesIntervals(flatQueryEngine: FlatQueryEngine, maybeCondition: Option[Condition]): Result = {
+
+    def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): UpdatesIntervalsFilter = {
+      c match {
+        case Eq(FieldName("table"), Constant(StringValue(value))) => f.withTableName(value)
+        case Eq(Constant(StringValue(value)), FieldName("table")) => f.withTableName(value)
+        case BetweenCondition(FieldName("updated_at"), TimestampValue(from), TimestampValue(to)) =>
+          f.withFrom(from).withTo(to)
+        case Eq(FieldName("updated_by"), Constant(StringValue(value))) => f.withBy(value)
+        case Eq(Constant(StringValue(value)), FieldName("updated_by")) => f.withBy(value)
+        case c =>
+          logger.warn(s"Unsapported condition: $c")
+          f
+      }
+    }
+
+    val filter = maybeCondition match {
+      case None          => UpdatesIntervalsFilter.empty
+      case Some(And(cs)) => cs.foldLeft(UpdatesIntervalsFilter.empty)((f, c) => addSimpleCondition(f, c))
+      case Some(c)       => addSimpleCondition(UpdatesIntervalsFilter.empty, c)
+    }
+
+    val updatesIntervals = flatQueryEngine.getUpdatesIntervals(filter)
     val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](
+        period.table,
         Time(period.updatedAt),
         Time(period.from),
-        Time(period.to)
+        Time(period.to),
+        period.updatedBy
       )
     }.iterator
 
     val queryFieldNames = List(
+      tableColumn,
       updatedAtColumn,
       fromColumn,
-      toColumn
+      toColumn,
+      updatedByColumn
     )
 
     val queryFieldTypes = List(
+      DataType[String],
       DataType[Time],
       DataType[Time],
-      DataType[Time]
+      DataType[Time],
+      DataType[String]
     )
 
     SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)

@@ -49,15 +49,15 @@ object RollupMetaDaoHBase {
 
 class RollupMetaDaoHBase(connection: Connection, namespace: String) extends RollupMetaDao with StrictLogging {
 
-  override def putUpdatesIntervals(tableName: String, intervals: Seq[UpdateInterval]): Unit = withTables {
+  override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
       val puts = intervals.map { period =>
         val rowKey =
-          Bytes.toBytes(tableName) ++ Bytes.toBytes(period.from.getMillis) ++ Bytes.toBytes(period.to.getMillis)
+          Bytes.toBytes(period.table) ++ Bytes.toBytes(period.from.getMillis) ++ Bytes.toBytes(period.to.getMillis)
         val put = new Put(rowKey)
         put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from.getMillis))
         put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to.getMillis))
-        put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(tableName))
+        put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(period.table))
         put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(period.updatedAt.getMillis))
         put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, period.updatedBy.getBytes(StandardCharsets.UTF_8))
         put
@@ -67,7 +67,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
   }
 
   override def getUpdatesIntervals(
-      tableName: String,
+      tableName: Option[String],
       updatedAfter: Option[Long],
       updatedBefore: Option[Long],
       updatedBy: Option[String]
@@ -77,12 +77,14 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
         val scan = new Scan().addFamily(FAMILY)
         val filterList = new FilterList()
 
-        filterList.addFilter(
-          new SingleColumnValueFilter(
-            FAMILY,
-            TABLE_QUALIFIER,
-            CompareOperator.EQUAL,
-            Bytes.toBytes(tableName)
+        tableName.foreach(t =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              TABLE_QUALIFIER,
+              CompareOperator.EQUAL,
+              Bytes.toBytes(t)
+            )
           )
         )
 
@@ -129,6 +131,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
     val byBytes = result.getValue(FAMILY, UPDATED_BY_QUALIFIER)
     val by = if (byBytes != null) new String(byBytes, StandardCharsets.UTF_8) else RollupMetaDaoHBase.UPDATER_UNKNOWN
     UpdateInterval(
+      table = new String(result.getValue(FAMILY, TABLE_QUALIFIER), StandardCharsets.UTF_8),
       from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
       to = new DateTime(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
       updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
