@@ -21,16 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.{ FlatQueryEngine, UpdatesIntervalsFilter }
-import org.yupana.core.sql.parser.{
-  And,
-  BetweenCondition,
-  Condition,
-  Constant,
-  Eq,
-  FieldName,
-  StringValue,
-  TimestampValue
-}
+import org.yupana.core.sql.parser._
 
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
