@@ -51,15 +51,15 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
-      val puts = intervals.map { period =>
+      val puts = intervals.map { i =>
         val rowKey =
-          Bytes.toBytes(period.table) ++ Bytes.toBytes(period.from.getMillis) ++ Bytes.toBytes(period.to.getMillis)
+          Bytes.toBytes(i.table) ++ Bytes.toBytes(i.from.getMillis) ++ Bytes.toBytes(i.to.getMillis)
         val put = new Put(rowKey)
-        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(period.from.getMillis))
-        put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(period.to.getMillis))
-        put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(period.table))
-        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(period.updatedAt.getMillis))
-        put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, period.updatedBy.getBytes(StandardCharsets.UTF_8))
+        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(i.from.getMillis))
+        put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(i.to.getMillis))
+        put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(i.table))
+        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(i.updatedAt.getMillis))
+        put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, i.updatedBy.getBytes(StandardCharsets.UTF_8))
         put
       }
       table.put(puts.asJava)

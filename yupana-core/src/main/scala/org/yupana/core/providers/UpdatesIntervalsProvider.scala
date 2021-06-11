@@ -17,37 +17,18 @@
 package org.yupana.core.providers
 
 import com.typesafe.scalalogging.StrictLogging
+import org.joda.time.DateTime
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.{ FlatQueryEngine, UpdatesIntervalsFilter }
+import org.yupana.core.FlatQueryEngine
 import org.yupana.core.sql.parser._
 
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
 
   def handleGetUpdatesIntervals(flatQueryEngine: FlatQueryEngine, maybeCondition: Option[Condition]): Result = {
-
-    def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): UpdatesIntervalsFilter = {
-      c match {
-        case Eq(FieldName("table"), Constant(StringValue(value))) => f.withTableName(value)
-        case Eq(Constant(StringValue(value)), FieldName("table")) => f.withTableName(value)
-        case BetweenCondition(FieldName("updated_at"), TimestampValue(from), TimestampValue(to)) =>
-          f.withFrom(from).withTo(to)
-        case Eq(FieldName("updated_by"), Constant(StringValue(value))) => f.withBy(value)
-        case Eq(Constant(StringValue(value)), FieldName("updated_by")) => f.withBy(value)
-        case c =>
-          logger.warn(s"Unsapported condition: $c")
-          f
-      }
-    }
-
-    val filter = maybeCondition match {
-      case None          => UpdatesIntervalsFilter.empty
-      case Some(And(cs)) => cs.foldLeft(UpdatesIntervalsFilter.empty)((f, c) => addSimpleCondition(f, c))
-      case Some(c)       => addSimpleCondition(UpdatesIntervalsFilter.empty, c)
-    }
-
+    val filter = createFilter(maybeCondition)
     val updatesIntervals = flatQueryEngine.getUpdatesIntervals(filter)
     val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
       Array[Any](
@@ -76,5 +57,43 @@ object UpdatesIntervalsProvider extends StrictLogging {
     )
 
     SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)
+  }
+
+  case class UpdatesIntervalsFilter(
+      maybeTableName: Option[String] = None,
+      maybeFrom: Option[DateTime] = None,
+      maybeTo: Option[DateTime] = None,
+      maybeBy: Option[String] = None
+  ) {
+    def withTableName(tn: String): UpdatesIntervalsFilter = this.copy(maybeTableName = Some(tn))
+    def withFrom(f: DateTime): UpdatesIntervalsFilter = this.copy(maybeFrom = Some(f))
+    def withTo(t: DateTime): UpdatesIntervalsFilter = this.copy(maybeTo = Some(t))
+    def withBy(ub: String): UpdatesIntervalsFilter = this.copy(maybeBy = Some(ub))
+  }
+
+  object UpdatesIntervalsFilter {
+    val empty: UpdatesIntervalsFilter = UpdatesIntervalsFilter()
+  }
+
+  def createFilter(maybeCondition: Option[Condition]): UpdatesIntervalsFilter = {
+    def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): UpdatesIntervalsFilter = {
+      c match {
+        case Eq(FieldName("table"), Constant(StringValue(value))) => f.withTableName(value)
+        case Eq(Constant(StringValue(value)), FieldName("table")) => f.withTableName(value)
+        case BetweenCondition(FieldName("updated_at"), TimestampValue(from), TimestampValue(to)) =>
+          f.withFrom(from).withTo(to)
+        case Eq(FieldName("updated_by"), Constant(StringValue(value))) => f.withBy(value)
+        case Eq(Constant(StringValue(value)), FieldName("updated_by")) => f.withBy(value)
+        case c =>
+          logger.warn(s"Unsupported condition: $c")
+          f
+      }
+    }
+
+    maybeCondition match {
+      case None          => UpdatesIntervalsFilter.empty
+      case Some(And(cs)) => cs.foldLeft(UpdatesIntervalsFilter.empty)((f, c) => addSimpleCondition(f, c))
+      case Some(c)       => addSimpleCondition(UpdatesIntervalsFilter.empty, c)
+    }
   }
 }

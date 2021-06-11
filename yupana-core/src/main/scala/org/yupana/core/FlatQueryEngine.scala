@@ -16,26 +16,10 @@
 
 package org.yupana.core
 
-import org.joda.time.DateTime
 import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ TsdbQueryMetrics, UpdateInterval }
-
-case class UpdatesIntervalsFilter(
-    maybeTableName: Option[String] = None,
-    maybeFrom: Option[DateTime] = None,
-    maybeTo: Option[DateTime] = None,
-    maybeBy: Option[String] = None
-) {
-  def withTableName(tn: String): UpdatesIntervalsFilter = this.copy(maybeTableName = Some(tn))
-  def withFrom(f: DateTime): UpdatesIntervalsFilter = this.copy(maybeFrom = Some(f))
-  def withTo(t: DateTime): UpdatesIntervalsFilter = this.copy(maybeTo = Some(t))
-  def withBy(ub: String): UpdatesIntervalsFilter = this.copy(maybeBy = Some(ub))
-}
-
-object UpdatesIntervalsFilter {
-  val empty: UpdatesIntervalsFilter = UpdatesIntervalsFilter()
-}
+import org.yupana.core.providers.UpdatesIntervalsProvider.UpdatesIntervalsFilter
 
 class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
   def getUpdatesIntervals(filter: UpdatesIntervalsFilter = UpdatesIntervalsFilter.empty): Iterable[UpdateInterval] = {
