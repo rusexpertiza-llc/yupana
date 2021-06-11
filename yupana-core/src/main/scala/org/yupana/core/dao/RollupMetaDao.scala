@@ -19,9 +19,9 @@ package org.yupana.core.dao
 import org.yupana.core.model.UpdateInterval
 
 trait RollupMetaDao {
-  def putUpdatesIntervals(tableName: String, periods: Seq[UpdateInterval]): Unit
+  def putUpdatesIntervals(periods: Seq[UpdateInterval]): Unit
   def getUpdatesIntervals(
-      tableName: String,
+      tableName: Option[String],
       updatedAfter: Option[Long] = None,
       updatedBefore: Option[Long] = None,
       updatedBy: Option[String] = None

@@ -16,17 +16,19 @@
 
 package org.yupana.core
 
-import org.joda.time.Interval
 import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.core.model.{ UpdateInterval, TsdbQueryMetrics }
+import org.yupana.core.model.{ TsdbQueryMetrics, UpdateInterval }
+import org.yupana.core.providers.UpdatesIntervalsProvider.UpdatesIntervalsFilter
 
 class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
-  def getUpdatesIntervals(
-      tableName: String,
-      rollupInterval: Interval
-  ): Iterable[UpdateInterval] = {
-    rollupMetaDao.getUpdatesIntervals(tableName, Some(rollupInterval.getStartMillis), Some(rollupInterval.getEndMillis))
+  def getUpdatesIntervals(filter: UpdatesIntervalsFilter = UpdatesIntervalsFilter.empty): Iterable[UpdateInterval] = {
+    rollupMetaDao.getUpdatesIntervals(
+      filter.maybeTableName,
+      filter.maybeFrom.map(_.getMillis),
+      filter.maybeTo.map(_.getMillis),
+      filter.maybeBy
+    )
   }
 
   def deleteMetrics(filter: QueryMetricsFilter): Int = {
