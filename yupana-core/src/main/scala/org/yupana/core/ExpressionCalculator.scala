@@ -55,6 +55,7 @@ object ExpressionCalculator extends StrictLogging {
   case class State(
       index: Map[Expression[_], Int],
       required: Set[Expression[_]],
+      unfinished: Set[Expression[_]],
       globalDecls: Map[TermName, Tree],
       localDecls: Seq[(Expression[_], TermName, Tree)],
       trees: Seq[Tree]
@@ -78,6 +79,8 @@ object ExpressionCalculator extends StrictLogging {
       }
     }
 
+    def withUnfinished(e: Expression[_]): State = copy(unfinished = unfinished + e)
+
     def withDefineIf(row: TermName, e: Expression[_], cond: Tree, v: Tree): State = {
       if (required.contains(e)) {
         val newState = withExpr(e)
@@ -100,7 +103,7 @@ object ExpressionCalculator extends StrictLogging {
       else this
     }
 
-    def appendLocal(ts: Tree*): State = copy(trees = trees ++ ts)
+    def appendLocal(ts: Tree*): State = copy(trees = ts.reverse ++ trees)
 
     def fresh: (Tree, State) = {
       val locals = localDecls.reverse.map {
@@ -112,10 +115,10 @@ object ExpressionCalculator extends StrictLogging {
       val res =
         q"""
             ..$locals
-            ..$trees
+            ..${trees.reverse}
           """
 
-      val newState = State(index, required, globalDecls, Seq.empty, Seq.empty)
+      val newState = State(index, required, unfinished, globalDecls, Seq.empty, Seq.empty)
 
       res -> newState
     }
@@ -174,29 +177,35 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
-  private def mkGet(state: State, row: TermName, e: Expression[_]): Tree = {
+  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     val tpe = mkType(e)
     e match {
+      case x if state.unfinished.contains(x) => None
+
       case ConstantExpr(x) =>
         val lit = mapValue(e.dataType)(x)
-        q"$lit.asInstanceOf[$tpe]"
+        Some(q"$lit.asInstanceOf[$tpe]")
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
         val lits = exprs.map {
           case ConstantExpr(v) => mapValue(ae.elementDataType)(v)
           case x               => throw new IllegalArgumentException(s"Unexpected constant expression $x")
         }
         val innerTpe = mkType(ae.elementDataType)
-        q"Seq[$innerTpe](..$lits)"
+        Some(q"Seq[$innerTpe](..$lits)")
+
       case x if state.index.contains(x) =>
         val idx = state.index(x)
-        q"$row.get[$tpe]($idx)"
+        Some(q"$row.get[$tpe]($idx)")
 
       case x =>
         state.localDecls
           .find(_._1 == x)
           .map(x => q"${x._2}")
-          .getOrElse(throw new IllegalArgumentException(s"Unknown expression $x"))
     }
+  }
+
+  private def mkGetNow(state: State, row: TermName, e: Expression[_]): Tree = {
+    mkGet(state, row, e) getOrElse (throw new IllegalStateException(s"Unknown expression $e"))
   }
 
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
@@ -221,21 +230,22 @@ object ExpressionCalculator extends StrictLogging {
       elseTree: Option[Tree] = None
   ): State = {
     val newState = mkSet(row, state, a)
-    val getA = mkGet(newState, row, a)
-    val tpe = mkType(e)
-    val v = f(getA)
-    mkIsDefined(newState, row, a) match {
-      case Some(aIsDefined) =>
-        elseTree match {
-          case Some(d) =>
-            newState.withDefine(row, e, q"if ($aIsDefined) $v.asInstanceOf[$tpe] else $d.asInstanceOf[$tpe]")
+    mkGet(newState, row, a).map { getA =>
+      val tpe = mkType(e)
+      val v = f(getA)
+      mkIsDefined(newState, row, a) match {
+        case Some(aIsDefined) =>
+          elseTree match {
+            case Some(d) =>
+              newState.withDefine(row, e, q"if ($aIsDefined) $v.asInstanceOf[$tpe] else $d.asInstanceOf[$tpe]")
 
-          case None =>
-            newState.withDefineIf(row, e, aIsDefined, q"$v.asInstanceOf[$tpe]")
-        }
-      case None =>
-        newState.withDefine(row, e, q"$v.asInstanceOf[$tpe]")
-    }
+            case None =>
+              newState.withDefineIf(row, e, aIsDefined, q"$v.asInstanceOf[$tpe]")
+          }
+        case None =>
+          newState.withDefine(row, e, q"$v.asInstanceOf[$tpe]")
+      }
+    } getOrElse newState
   }
 
   def mkSetMathUnary(
@@ -286,21 +296,26 @@ object ExpressionCalculator extends StrictLogging {
   ): State = {
     val newState = mkSetExprs(row, state, Seq(a, b))
 
-    val getA = mkGet(newState, row, a)
-    val getB = mkGet(newState, row, b)
-    val tpe = mkType(e)
-    val v = q"${f(getA, getB)}.asInstanceOf[$tpe]"
+    val res = for {
+      getA <- mkGet(newState, row, a)
+      getB <- mkGet(newState, row, b)
+    } yield {
+      val tpe = mkType(e)
+      val v = q"${f(getA, getB)}.asInstanceOf[$tpe]"
 
-    (mkIsDefined(newState, row, a), mkIsDefined(newState, row, b)) match {
-      case (Some(aDefined), Some(bDefined)) =>
-        newState.withDefineIf(row, e, q"$aDefined && $bDefined", v)
-      case (Some(aDefined), None) =>
-        newState.withDefineIf(row, e, q"$aDefined", v)
-      case (None, Some(bDefined)) =>
-        newState.withDefineIf(row, e, q"$bDefined", v)
-      case (None, None) =>
-        newState.withDefine(row, e, v)
+      (mkIsDefined(newState, row, a), mkIsDefined(newState, row, b)) match {
+        case (Some(aDefined), Some(bDefined)) =>
+          newState.withDefineIf(row, e, q"$aDefined && $bDefined", v)
+        case (Some(aDefined), None) =>
+          newState.withDefineIf(row, e, q"$aDefined", v)
+        case (None, Some(bDefined)) =>
+          newState.withDefineIf(row, e, q"$bDefined", v)
+        case (None, None) =>
+          newState.withDefine(row, e, v)
+      }
     }
+
+    res getOrElse newState
   }
 
   private def tcEntry[A, B](
@@ -347,7 +362,7 @@ object ExpressionCalculator extends StrictLogging {
       reducer: (Tree, Tree) => Tree
   ): State = {
     val newState = mkSetExprs(row, state, cs)
-    val gets = cs.map(c => mkGet(newState, row, c))
+    val gets = cs.flatMap(c => mkGet(newState, row, c))
     if (gets.nonEmpty)
       newState.withDefine(row, e, gets.reduceLeft(reducer))
     else newState
@@ -378,10 +393,11 @@ object ExpressionCalculator extends StrictLogging {
           val dimExpr = DimensionExpr(link.dimension)
           state.withExpr(dimExpr).withExpr(e)
 
-        case _: AggregateExpr[_, _, _] => state.withRequired(e)
+        case _: AggregateExpr[_, _, _] => state.withRequired(e).withUnfinished(e)
+
         case we: WindowFunctionExpr[_, _] =>
-          val s1 = mkSet(row, state, TimeExpr)
-          mkSet(row, s1, we.expr).withExpr(e)
+          val s1 = state.withRequired(we).withRequired(we.expr).withRequired(TimeExpr).withUnfinished(we)
+          s1.withDefine(row, we, mkGetNow(s1, row, we.expr))
 
         case TupleExpr(a, b) => mkSetBinary(row, state, e, a, b, (x, y) => q"($x, $y)")
 
@@ -446,9 +462,9 @@ object ExpressionCalculator extends StrictLogging {
 
         case ConditionExpr(c, p, n) =>
           val newState = mkSetExprs(row, state, Seq(c, p, n))
-          val getC = mkGet(newState, row, c)
-          val getP = mkGet(newState, row, p)
-          val getN = mkGet(newState, row, n)
+          val getC = mkGetNow(newState, row, c)
+          val getP = mkGetNow(newState, row, p)
+          val getN = mkGetNow(newState, row, n)
           newState.withDefine(row, e, q"if ($getC) $getP else $getN")
 
         case AbsExpr(a)        => mkSetMathUnary(row, state, e, a, TermName("abs"))
@@ -465,7 +481,7 @@ object ExpressionCalculator extends StrictLogging {
 
         case ArrayExpr(exprs) =>
           val newState = mkSetExprs(row, state, exprs)
-          val gets = exprs.map(a => mkGet(newState, row, a))
+          val gets = exprs.map(a => mkGetNow(newState, row, a))
           newState.withDefine(row, e, q"Seq(..$gets)")
 
         case ArrayLengthExpr(a)   => mkSetUnary(row, state, e, a, x => q"$x.size")
@@ -494,8 +510,9 @@ object ExpressionCalculator extends StrictLogging {
 
       case Some(cond) =>
         val newState = mkSet(row, state, cond)
-        val t = mkGet(newState, row, cond)
-        newState.appendLocal(t)
+        mkGet(newState, row, cond) map { t =>
+          newState.appendLocal(t)
+        } getOrElse newState
 
       case None => state.appendLocal(q"true")
     }
@@ -527,7 +544,7 @@ object ExpressionCalculator extends StrictLogging {
     val newState = mkSetExprs(row, state, aggregates.map(_.expr))
 
     aggregates.foldLeft(newState) { (s, ae) =>
-      val exprValue = mkGet(newState, row, ae.expr)
+      val exprValue = mkGetNow(newState, row, ae.expr)
 
       ae match {
         case SumExpr(_) => s.withDefine(row, ae, exprValue)
@@ -567,8 +584,8 @@ object ExpressionCalculator extends StrictLogging {
       val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
-      val aValue = mkGet(state, rowA, ae)
-      val bValue = mkGet(state, rowB, ae)
+      val aValue = mkGetNow(state, rowA, ae)
+      val bValue = mkGetNow(state, rowB, ae)
 
       val value = ae match {
         case SumExpr(_)            => q"$aValue + $bValue"
@@ -593,7 +610,7 @@ object ExpressionCalculator extends StrictLogging {
       val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
-      val oldValue = mkGet(state, row, ae)
+      val oldValue = mkGetNow(state, row, ae)
 
       val value = ae match {
         case SumExpr(_)           => Some(q"if ($oldValue != null) $oldValue else 0")
@@ -633,17 +650,26 @@ object ExpressionCalculator extends StrictLogging {
   def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int]) = {
     val internalRow = TermName("internalRow")
     val initialState =
-      State(Map.empty, query.fields.map(_.expr).toSet ++ query.groupBy ++ condition, Map.empty, Seq.empty, Seq.empty)
+      State(
+        Map.empty,
+        query.fields.map(_.expr).toSet ++ query.groupBy ++ condition ++ query.postFilter,
+        Set.empty,
+        Map.empty,
+        Seq.empty,
+        Seq.empty
+      )
 
     val (filter, filteredState) = mkFilter(internalRow, initialState, condition).fresh
 
     val (evaluate, evaluatedState) = mkEvaluate(query, internalRow, filteredState).fresh
 
-    val knownAggregates = evaluatedState.index.collect { case (ae: AggregateExpr[_, _, _], _) => ae }.toSeq
+    val knownAggregates = (evaluatedState.index.keySet ++ evaluatedState.required).collect {
+      case ae: AggregateExpr[_, _, _] => ae
+    }.toSeq
 
-    val s3 = evaluatedState //.copy(required = s2.required ++ knownAggregates)
+    val beforeAggregationState = evaluatedState.copy(unfinished = Set.empty)
 
-    val (map, aggregateState) = mkMap(s3, knownAggregates, internalRow).fresh
+    val (map, aggregateState) = mkMap(beforeAggregationState, knownAggregates, internalRow).fresh
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
@@ -655,6 +681,8 @@ object ExpressionCalculator extends StrictLogging {
     val (postAggregate, postAggregateState) = mkPostAggregate(query, internalRow, aggregateState).fresh
 
     val (postFilter, finalState) = mkFilter(internalRow, postAggregateState, query.postFilter).fresh
+    assert(finalState.unfinished.isEmpty)
+
     val defs = q"""..${postAggregateState.globalDecls.values}"""
 
     val tree = q"""
@@ -697,7 +725,10 @@ object ExpressionCalculator extends StrictLogging {
         }
     """
 
-    tree -> finalState.index
+    val finalRequirements = finalState.required -- finalState.index.keySet
+    val index = finalRequirements.foldLeft(finalState.index)((i, e) => i + (e -> i.size))
+
+    tree -> index
   }
 
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {

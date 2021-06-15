@@ -107,7 +107,9 @@ trait TsdbBase extends StrictLogging {
     val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
 
-    val condition = substitutedCondition.map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
+    val condition = substitutedCondition
+      .map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
+      .filterNot(_ == ConstantExpr(true))
 
     logger.debug(s"Final condition: $condition")
 
