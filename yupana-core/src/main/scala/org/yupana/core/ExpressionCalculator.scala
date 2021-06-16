@@ -154,57 +154,63 @@ object ExpressionCalculator extends StrictLogging {
     mkType(e.dataType)
   }
 
-  private def mapValue(tpe: DataType)(v: Any): Tree = {
+  private def mapValue(state: State, tpe: DataType)(v: Any): (Tree, State) = {
     import scala.reflect.classTag
 
     tpe.kind match {
       case TypeKind.Regular if tpe.classTag == classTag[Time] =>
         val t = v.asInstanceOf[Time]
-        q"_root_.org.yupana.api.Time(${t.millis})"
+        q"_root_.org.yupana.api.Time(${t.millis})" -> state
 
       case TypeKind.Regular if tpe.classTag == classTag[BigDecimal] =>
         val str = v.asInstanceOf[BigDecimal].toString()
-        q"""_root_.scala.math.BigDecimal($str)"""
+        val bdVal = TermName(s"DECIMAL_${str.replace(".", "_")}")
+        val ns = state.withGlobal(bdVal, mkType(tpe), q"""_root_.scala.math.BigDecimal($str)""")
+        q"$bdVal" -> ns
 
-      case TypeKind.Regular => Literal(Constant(v))
+      case TypeKind.Regular => Literal(Constant(v)) -> state
 
       case TypeKind.Tuple =>
         val tt = tpe.asInstanceOf[TupleDataType[_, _]]
         val (a, b) = v.asInstanceOf[(_, _)]
-        Apply(Ident(TermName("Tuple2")), List(mapValue(tt.aType)(a), mapValue(tt.bType)(b)))
+        val (aTree, s1) = mapValue(state, tt.aType)(a)
+        val (bTree, s2) = mapValue(s1, tt.bType)(b)
+        (Apply(Ident(TermName("Tuple2")), List(aTree, bTree)), s2)
 
       case TypeKind.Array => throw new IllegalAccessException("Didn't expect to see Array here")
     }
   }
 
-  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
+  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[(Tree, State)] = {
     val tpe = mkType(e)
     e match {
       case x if state.unfinished.contains(x) => None
 
       case ConstantExpr(x) =>
-        val lit = mapValue(e.dataType)(x)
-        Some(q"$lit.asInstanceOf[$tpe]")
+        val (v, ns) = mapValue(state, e.dataType)(x)
+        Some(q"$v.asInstanceOf[$tpe]" -> ns)
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
-        val lits = exprs.map {
-          case ConstantExpr(v) => mapValue(ae.elementDataType)(v)
-          case x               => throw new IllegalArgumentException(s"Unexpected constant expression $x")
+        val (lits, newState) = exprs.foldLeft((Seq.empty[Tree], state)) {
+          case ((ts, s), ConstantExpr(v)) =>
+            val (t, ns) = mapValue(s, ae.elementDataType)(v)
+            (ts :+ t, ns)
+          case (_, x) => throw new IllegalArgumentException(s"Unexpected constant expression $x")
         }
         val innerTpe = mkType(ae.elementDataType)
-        Some(q"Seq[$innerTpe](..$lits)")
+        Some(q"Seq[$innerTpe](..$lits)" -> newState)
 
       case x if state.index.contains(x) =>
         val idx = state.index(x)
-        Some(q"$row.get[$tpe]($idx)")
+        Some(q"$row.get[$tpe]($idx)" -> state)
 
       case x =>
         state.localDecls
           .find(_._1 == x)
-          .map(x => q"${x._2}")
+          .map(x => q"${x._2}" -> state)
     }
   }
 
-  private def mkGetNow(state: State, row: TermName, e: Expression[_]): Tree = {
+  private def mkGetNow(state: State, row: TermName, e: Expression[_]): (Tree, State) = {
     mkGet(state, row, e) getOrElse (throw new IllegalStateException(s"Unknown expression $e"))
   }
 
@@ -222,49 +228,44 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mkSetUnary(
-      row: TermName,
       state: State,
+      row: TermName,
       e: Expression[_],
       a: Expression[_],
       f: Tree => Tree,
       elseTree: Option[Tree] = None
   ): State = {
-    val newState = mkSet(row, state, a)
-    mkGet(newState, row, a).map { getA =>
-      val tpe = mkType(e)
-      val v = f(getA)
-      mkIsDefined(newState, row, a) match {
-        case Some(aIsDefined) =>
-          elseTree match {
-            case Some(d) =>
-              newState.withDefine(row, e, q"if ($aIsDefined) $v.asInstanceOf[$tpe] else $d.asInstanceOf[$tpe]")
+    val preparedState = mkSet(state, row, a)
+    mkGet(preparedState, row, a).map {
+      case (getA, newState) =>
+        val tpe = mkType(e)
+        val v = f(getA)
+        mkIsDefined(newState, row, a) match {
+          case Some(aIsDefined) =>
+            elseTree match {
+              case Some(d) =>
+                newState.withDefine(row, e, q"if ($aIsDefined) $v.asInstanceOf[$tpe] else $d.asInstanceOf[$tpe]")
 
-            case None =>
-              newState.withDefineIf(row, e, aIsDefined, q"$v.asInstanceOf[$tpe]")
-          }
-        case None =>
-          newState.withDefine(row, e, q"$v.asInstanceOf[$tpe]")
-      }
-    } getOrElse newState
+              case None =>
+                newState.withDefineIf(row, e, aIsDefined, q"$v.asInstanceOf[$tpe]")
+            }
+          case None =>
+            newState.withDefine(row, e, q"$v.asInstanceOf[$tpe]")
+        }
+    } getOrElse preparedState
   }
 
-  def mkSetMathUnary(
-      row: TermName,
-      state: State,
-      e: Expression[_],
-      a: Expression[_],
-      fun: TermName
-  ): State = {
+  private def mkSetMathUnary(state: State, row: TermName, e: Expression[_], a: Expression[_], fun: TermName): State = {
     val aType = mkType(a)
     if (a.dataType.integral.nonEmpty) {
-      mkSetUnary(row, state, e, a, x => q"${integralValName(a.dataType)}.$fun($x)")
+      mkSetUnary(state, row, e, a, x => q"${integralValName(a.dataType)}.$fun($x)")
         .withGlobal(
           integralValName(a.dataType),
           tq"Integral[$aType]",
           q"DataType.bySqlName(${e.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].integral.get"
         )
     } else {
-      mkSetUnary(row, state, e, a, x => q"${fractionalValName(a.dataType)}.$fun($x)")
+      mkSetUnary(state, row, e, a, x => q"${fractionalValName(a.dataType)}.$fun($x)")
         .withGlobal(
           fractionalValName(a.dataType),
           tq"Fractional[$aType]",
@@ -273,35 +274,31 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
-  private def mkSetTypeConvertExpr(
-      row: TermName,
-      state: State,
-      e: Expression[_],
-      a: Expression[_]
-  ): State = {
+  private def mkSetTypeConvertExpr(state: State, row: TermName, e: Expression[_], a: Expression[_]): State = {
     val mapper = typeConverters.getOrElse(
       (a.dataType.meta.sqlTypeName, e.dataType.meta.sqlTypeName),
       throw new IllegalArgumentException(s"Unsupported type conversion ${a.dataType} to ${e.dataType}")
     )
-    mkSetUnary(row, state, e, a, mapper)
+    mkSetUnary(state, row, e, a, mapper)
   }
 
   private def mkSetBinary(
-      row: TermName,
       state: State,
+      row: TermName,
       e: Expression[_],
       a: Expression[_],
       b: Expression[_],
       f: (Tree, Tree) => Tree
   ): State = {
-    val newState = mkSetExprs(row, state, Seq(a, b))
+    val preparedState = mkSetExprs(state, row, Seq(a, b))
 
     val res = for {
-      getA <- mkGet(newState, row, a)
-      getB <- mkGet(newState, row, b)
+      getA <- mkGet(preparedState, row, a)
+      getB <- mkGet(getA._2, row, b)
     } yield {
       val tpe = mkType(e)
-      val v = q"${f(getA, getB)}.asInstanceOf[$tpe]"
+      val v = q"${f(getA._1, getB._1)}.asInstanceOf[$tpe]"
+      val newState = getB._2
 
       (mkIsDefined(newState, row, a), mkIsDefined(newState, row, b)) match {
         case (Some(aDefined), Some(bDefined)) =>
@@ -315,7 +312,7 @@ object ExpressionCalculator extends StrictLogging {
       }
     }
 
-    res getOrElse newState
+    res getOrElse preparedState
   }
 
   private def tcEntry[A, B](
@@ -355,24 +352,20 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mkLogical(
-      row: TermName,
       state: State,
+      row: TermName,
       e: Expression[_],
       cs: Seq[Condition],
       reducer: (Tree, Tree) => Tree
   ): State = {
-    val newState = mkSetExprs(row, state, cs)
-    val gets = cs.flatMap(c => mkGet(newState, row, c))
+    val preparedState = mkSetExprs(state, row, cs)
+    val (gets, newState) = mkGetExprs(preparedState, row, cs)
     if (gets.nonEmpty)
       newState.withDefine(row, e, gets.reduceLeft(reducer))
     else newState
   }
 
-  private def mkSet(
-      row: TermName,
-      state: State,
-      e: Expression[_]
-  ): State = {
+  private def mkSet(state: State, row: TermName, e: Expression[_]): State = {
 
     if (state.index.contains(e)) {
       state
@@ -380,8 +373,8 @@ object ExpressionCalculator extends StrictLogging {
 
       e match {
         case ConstantExpr(c) =>
-          val v = mapValue(e.dataType)(c)
-          if (state.required.contains(e)) state.withDefine(row, e, v) else state
+          val (v, s) = mapValue(state, e.dataType)(c)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
 
         case TimeExpr             => state.withExpr(e)
         case DimensionExpr(_)     => state.withExpr(e)
@@ -397,134 +390,138 @@ object ExpressionCalculator extends StrictLogging {
 
         case we: WindowFunctionExpr[_, _] =>
           val s1 = state.withRequired(we).withRequired(we.expr).withRequired(TimeExpr).withUnfinished(we)
-          s1.withDefine(row, we, mkGetNow(s1, row, we.expr))
+          val (t, s2) = mkGetNow(s1, row, we.expr)
+          s2.withDefine(row, we, t)
 
-        case TupleExpr(a, b) => mkSetBinary(row, state, e, a, b, (x, y) => q"($x, $y)")
+        case TupleExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"($x, $y)")
 
-        case GtExpr(a, b)  => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x > $y""")
-        case LtExpr(a, b)  => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x < $y""")
-        case GeExpr(a, b)  => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x >= $y""")
-        case LeExpr(a, b)  => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x <= $y""")
-        case EqExpr(a, b)  => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x == $y""")
-        case NeqExpr(a, b) => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x != $y""")
+        case GtExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x > $y""")
+        case LtExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x < $y""")
+        case GeExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x >= $y""")
+        case LeExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x <= $y""")
+        case EqExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x == $y""")
+        case NeqExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x != $y""")
 
         case InExpr(v, vs) =>
-          mkSetUnary(row, state, e, v, x => q"""${exprValName(e)}.contains($x)""")
-            .withGlobal(exprValName(e), tq"Set[${mkType(v)}]", mkSetValue(v, vs))
+          val (t, s) = mkSetValue(state, v, vs)
+          mkSetUnary(s, row, e, v, x => q"""${exprValName(e)}.contains($x)""")
+            .withGlobal(exprValName(e), tq"Set[${mkType(v)}]", t)
         case NotInExpr(v, vs) =>
-          mkSetUnary(row, state, e, v, x => q"""!${exprValName(e)}.contains($x)""")
-            .withGlobal(exprValName(e), tq"Set[${mkType(v)}]", mkSetValue(v, vs))
+          val (t, s) = mkSetValue(state, v, vs)
+          mkSetUnary(s, row, e, v, x => q"""!${exprValName(e)}.contains($x)""")
+            .withGlobal(exprValName(e), tq"Set[${mkType(v)}]", t)
 
-        case PlusExpr(a, b)    => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x + $y""")
-        case MinusExpr(a, b)   => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x - $y""")
-        case TimesExpr(a, b)   => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x * $y""")
-        case DivIntExpr(a, b)  => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x / $y""")
-        case DivFracExpr(a, b) => mkSetBinary(row, state, e, a, b, (x, y) => q"""$x / $y""")
+        case PlusExpr(a, b)    => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x + $y""")
+        case MinusExpr(a, b)   => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x - $y""")
+        case TimesExpr(a, b)   => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x * $y""")
+        case DivIntExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x / $y""")
+        case DivFracExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x / $y""")
 
-        case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(row, state, e, a)
+        case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
 
-        case TruncYearExpr(a) => mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.year())($x)""")
+        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.year())($x)""")
         case TruncMonthExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.monthOfYear())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.monthOfYear())($x)""")
         case TruncWeekExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.weekOfWeekyear())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.weekOfWeekyear())($x)""")
         case TruncDayExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.dayOfMonth())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.dayOfMonth())($x)""")
         case TruncHourExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.hourOfDay())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.hourOfDay())($x)""")
         case TruncMinuteExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.minuteOfHour())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.minuteOfHour())($x)""")
         case TruncSecondExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$truncTime($dtft.secondOfMinute())($x)""")
-        case ExtractYearExpr(a) => mkSetUnary(row, state, e, a, x => q"$x.toLocalDateTime.getYear")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.secondOfMinute())($x)""")
+        case ExtractYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
         case ExtractMonthExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"$x.toLocalDateTime.getMonthOfYear")
-        case ExtractDayExpr(a)  => mkSetUnary(row, state, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
-        case ExtractHourExpr(a) => mkSetUnary(row, state, e, a, x => q"$x.toLocalDateTime.getHourOfDay")
+          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthOfYear")
+        case ExtractDayExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
+        case ExtractHourExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHourOfDay")
         case ExtractMinuteExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"$x.toLocalDateTime.getMinuteOfHour")
+          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMinuteOfHour")
         case ExtractSecondExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"$x.toLocalDateTime.getSecondOfMinute")
+          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getSecondOfMinute")
 
         case TimeMinusExpr(a, b) =>
-          mkSetBinary(row, state, e, a, b, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
+          mkSetBinary(state, row, e, a, b, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
         case TimeMinusPeriodExpr(a, b) =>
-          mkSetBinary(row, state, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p).getMillis)")
+          mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p).getMillis)")
         case TimePlusPeriodExpr(a, b) =>
-          mkSetBinary(row, state, e, a, b, (t, p) => q"Time($t.toDateTime.plus($p).getMillis)")
-        case PeriodPlusPeriodExpr(a, b) => mkSetBinary(row, state, e, a, b, (x, y) => q"$x plus $y")
+          mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.plus($p).getMillis)")
+        case PeriodPlusPeriodExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"$x plus $y")
 
-        case IsNullExpr(a)    => mkSetUnary(row, state, e, a, _ => q"false", Some(q"true"))
-        case IsNotNullExpr(a) => mkSetUnary(row, state, e, a, _ => q"true", Some(q"false"))
+        case IsNullExpr(a)    => mkSetUnary(state, row, e, a, _ => q"false", Some(q"true"))
+        case IsNotNullExpr(a) => mkSetUnary(state, row, e, a, _ => q"true", Some(q"false"))
 
-        case LowerExpr(a) => mkSetUnary(row, state, e, a, x => q"$x.toLowerCase")
-        case UpperExpr(a) => mkSetUnary(row, state, e, a, x => q"$x.toUpperCase")
+        case LowerExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLowerCase")
+        case UpperExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toUpperCase")
 
         case ConditionExpr(c, p, n) =>
-          val newState = mkSetExprs(row, state, Seq(c, p, n))
-          val getC = mkGetNow(newState, row, c)
-          val getP = mkGetNow(newState, row, p)
-          val getN = mkGetNow(newState, row, n)
-          newState.withDefine(row, e, q"if ($getC) $getP else $getN")
+          val newState = mkSetExprs(state, row, Seq(c, p, n))
+          val (getC, cState) = mkGetNow(newState, row, c)
+          val (getP, pState) = mkGetNow(cState, row, p)
+          val (getN, nState) = mkGetNow(pState, row, n)
+          nState.withDefine(row, e, q"if ($getC) $getP else $getN")
 
-        case AbsExpr(a)        => mkSetMathUnary(row, state, e, a, TermName("abs"))
-        case UnaryMinusExpr(a) => mkSetMathUnary(row, state, e, a, TermName("negate"))
+        case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
+        case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
 
-        case NotExpr(a)  => mkSetUnary(row, state, e, a, x => q"!$x")
-        case AndExpr(cs) => mkLogical(row, state, e, cs, (a, b) => q"$a && $b")
-        case OrExpr(cs)  => mkLogical(row, state, e, cs, (a, b) => q"$a || $b")
+        case NotExpr(a)  => mkSetUnary(state, row, e, a, x => q"!$x")
+        case AndExpr(cs) => mkLogical(state, row, e, cs, (a, b) => q"$a && $b")
+        case OrExpr(cs)  => mkLogical(state, row, e, cs, (a, b) => q"$a || $b")
 
-        case TokensExpr(a)    => mkSetUnary(row, state, e, a, x => q"$tokenizer.transliteratedTokens($x)")
-        case SplitExpr(a)     => mkSetUnary(row, state, e, a, x => q"$calculator.splitBy($x, !_.isLetterOrDigit).toSeq")
-        case LengthExpr(a)    => mkSetUnary(row, state, e, a, x => q"$x.length")
-        case ConcatExpr(a, b) => mkSetBinary(row, state, e, a, b, (x, y) => q"$x + $y")
+        case TokensExpr(a)    => mkSetUnary(state, row, e, a, x => q"$tokenizer.transliteratedTokens($x)")
+        case SplitExpr(a)     => mkSetUnary(state, row, e, a, x => q"$calculator.splitBy($x, !_.isLetterOrDigit).toSeq")
+        case LengthExpr(a)    => mkSetUnary(state, row, e, a, x => q"$x.length")
+        case ConcatExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"$x + $y")
 
         case ArrayExpr(exprs) =>
-          val newState = mkSetExprs(row, state, exprs)
-          val gets = exprs.map(a => mkGetNow(newState, row, a))
-          newState.withDefine(row, e, q"Seq(..$gets)")
+          val newState = mkSetExprs(state, row, exprs)
+          val (gets, newestState) = mkGetExprs(newState, row, exprs)
+          newestState.withDefine(row, e, q"Seq(..$gets)")
 
-        case ArrayLengthExpr(a)   => mkSetUnary(row, state, e, a, x => q"$x.size")
-        case ArrayToStringExpr(a) => mkSetUnary(row, state, e, a, x => q"""$x.mkString(", ")""")
+        case ArrayLengthExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.size")
+        case ArrayToStringExpr(a) => mkSetUnary(state, row, e, a, x => q"""$x.mkString(", ")""")
         case ArrayTokensExpr(a) =>
-          mkSetUnary(row, state, e, a, x => q"""$x.flatMap(s => $tokenizer.transliteratedTokens(s))""")
+          mkSetUnary(state, row, e, a, x => q"""$x.flatMap(s => $tokenizer.transliteratedTokens(s))""")
 
-        case ContainsExpr(as, b) => mkSetBinary(row, state, e, as, b, (x, y) => q"$x.contains($y)")
+        case ContainsExpr(as, b) => mkSetBinary(state, row, e, as, b, (x, y) => q"$x.contains($y)")
         case ContainsAnyExpr(as, bs) =>
-          mkSetBinary(row, state, e, as, bs, (x, y) => q"$y.exists($x.contains)")
+          mkSetBinary(state, row, e, as, bs, (x, y) => q"$y.exists($x.contains)")
         case ContainsAllExpr(as, bs) =>
-          mkSetBinary(row, state, e, as, bs, (x, y) => q"$y.forall($x.contains)")
+          mkSetBinary(state, row, e, as, bs, (x, y) => q"$y.forall($x.contains)")
         case ContainsSameExpr(as, bs) =>
-          mkSetBinary(row, state, e, as, bs, (x, y) => q"$x.size == $y.size && $x.toSet == $y.toSet")
+          mkSetBinary(state, row, e, as, bs, (x, y) => q"$x.size == $y.size && $x.toSet == $y.toSet")
       }
     }
   }
 
-  private def mkFilter(
-      row: TermName,
-      state: State,
-      condition: Option[Expression.Condition]
-  ): State = {
+  private def mkFilter(state: State, row: TermName, condition: Option[Condition]): State = {
     condition match {
       case Some(ConstantExpr(v)) => state.appendLocal(q"$v")
 
       case Some(cond) =>
-        val newState = mkSet(row, state, cond)
-        mkGet(newState, row, cond) map { t =>
-          newState.appendLocal(t)
+        val newState = mkSet(state, row, cond)
+        mkGet(newState, row, cond) map {
+          case (t, ns) =>
+            ns.appendLocal(t)
         } getOrElse newState
 
       case None => state.appendLocal(q"true")
     }
   }
 
-  private def mkSetExprs(
-      row: TermName,
-      state: State,
-      exprs: Seq[Expression[_]]
-  ): State = {
+  private def mkSetExprs(state: State, row: TermName, exprs: Seq[Expression[_]]): State = {
     exprs.foldLeft(state) {
-      case (s, c) => mkSet(row, s, c)
+      case (s, c) => mkSet(s, row, c)
+    }
+  }
+
+  private def mkGetExprs(state: State, row: TermName, exprs: Seq[Expression[_]]): (Seq[Tree], State) = {
+    exprs.foldLeft((Seq.empty[Tree], state)) {
+      case ((ts, s), e) =>
+        val (t, ns) = mkGetNow(s, row, e)
+        (ts :+ t, ns)
     }
   }
 
@@ -533,7 +530,7 @@ object ExpressionCalculator extends StrictLogging {
       row: TermName,
       state: State
   ): State = {
-    mkSetExprs(row, state, query.fields.map(_.expr).toList ++ query.groupBy)
+    mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
   private def mkMap(
@@ -541,16 +538,16 @@ object ExpressionCalculator extends StrictLogging {
       aggregates: Seq[AggregateExpr[_, _, _]],
       row: TermName
   ): State = {
-    val newState = mkSetExprs(row, state, aggregates.map(_.expr))
+    val newState = mkSetExprs(state, row, aggregates.map(_.expr))
 
     aggregates.foldLeft(newState) { (s, ae) =>
-      val exprValue = mkGetNow(newState, row, ae.expr)
+      val (exprValue, s2) = mkGetNow(s, row, ae.expr)
 
       ae match {
-        case SumExpr(_) => s.withDefine(row, ae, exprValue)
+        case SumExpr(_) => s2.withDefine(row, ae, exprValue)
         case MinExpr(_) | MaxExpr(_) =>
           val aType = mkType(ae.expr)
-          s.withDefine(row, ae, exprValue)
+          s2.withDefine(row, ae, exprValue)
             .withGlobal(
               ordValName(ae.expr.dataType),
               tq"Ordering[${mkType(ae.expr)}]",
@@ -584,8 +581,8 @@ object ExpressionCalculator extends StrictLogging {
       val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
-      val aValue = mkGetNow(state, rowA, ae)
-      val bValue = mkGetNow(state, rowB, ae)
+      val (aValue, _) = mkGetNow(state, rowA, ae)
+      val (bValue, _) = mkGetNow(state, rowB, ae)
 
       val value = ae match {
         case SumExpr(_)            => q"$aValue + $bValue"
@@ -610,7 +607,7 @@ object ExpressionCalculator extends StrictLogging {
       val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
-      val oldValue = mkGetNow(state, row, ae)
+      val (oldValue, _) = mkGetNow(state, row, ae)
 
       val value = ae match {
         case SumExpr(_)           => Some(q"if ($oldValue != null) $oldValue else 0")
@@ -639,12 +636,16 @@ object ExpressionCalculator extends StrictLogging {
       row: TermName,
       state: State
   ): State = {
-    mkSetExprs(row, state, query.fields.map(_.expr))
+    mkSetExprs(state, row, query.fields.map(_.expr))
   }
 
-  private def mkSetValue[T: TypeTag](inner: Expression[_], values: Set[T]): Tree = {
-    val literals = values.toList.map(mapValue(inner.dataType))
-    Apply(Ident(TermName("Set")), literals)
+  private def mkSetValue[T: TypeTag](state: State, inner: Expression[_], values: Set[T]): (Tree, State) = {
+    val (literals, newState) = values.toList.foldLeft((List.empty[Tree], state)) {
+      case ((ts, s), v) =>
+        val (t, ns) = mapValue(s, inner.dataType)(v)
+        (ts :+ t, ns)
+    }
+    Apply(Ident(TermName("Set")), literals) -> newState
   }
 
   def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int]) = {
@@ -659,7 +660,7 @@ object ExpressionCalculator extends StrictLogging {
         Seq.empty
       )
 
-    val (filter, filteredState) = mkFilter(internalRow, initialState, condition).fresh
+    val (filter, filteredState) = mkFilter(initialState, internalRow, condition).fresh
 
     val (evaluate, evaluatedState) = mkEvaluate(query, internalRow, filteredState).fresh
 
@@ -680,7 +681,7 @@ object ExpressionCalculator extends StrictLogging {
 
     val (postAggregate, postAggregateState) = mkPostAggregate(query, internalRow, aggregateState).fresh
 
-    val (postFilter, finalState) = mkFilter(internalRow, postAggregateState, query.postFilter).fresh
+    val (postFilter, finalState) = mkFilter(postAggregateState, internalRow, query.postFilter).fresh
     assert(finalState.unfinished.isEmpty)
 
     val defs = q"""..${postAggregateState.globalDecls.values}"""
