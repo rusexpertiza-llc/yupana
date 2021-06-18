@@ -45,7 +45,7 @@ jobs:
       with:
         java-version: '8'
         distribution: 'adopt'
-        
+
     - name: Cache sbt
       uses: actions/cache@v2
       with:
