@@ -26,6 +26,7 @@ import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
+import java.sql.Types
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator extends Serializable {
@@ -315,6 +316,22 @@ object ExpressionCalculator extends StrictLogging {
     res getOrElse preparedState
   }
 
+  private def mkDivFrac(state: State, row: TermName, e: Expression[_], a: Expression[_], b: Expression[_]): State = {
+    if (a.dataType.meta.sqlType != Types.DECIMAL) mkSetBinary(state, row, e, a, b, (x, y) => q"$x / $y")
+    else {
+      val scale = a.dataType.meta.scale
+      mkSetBinary(
+        state,
+        row,
+        e,
+        a,
+        b,
+        (x, y) =>
+          q"new BigDecimal($x.bigDecimal.divide($y.bigDecimal, $scale, _root_.java.math.RoundingMode.HALF_EVEN))"
+      )
+    }
+  }
+
   private def tcEntry[A, B](
       aToB: Tree => Tree
   )(implicit a: DataType.Aux[A], b: DataType.Aux[B]): ((String, String), Tree => Tree) = {
@@ -415,7 +432,7 @@ object ExpressionCalculator extends StrictLogging {
         case MinusExpr(a, b)   => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x - $y""")
         case TimesExpr(a, b)   => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x * $y""")
         case DivIntExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x / $y""")
-        case DivFracExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x / $y""")
+        case DivFracExpr(a, b) => mkDivFrac(state, row, e, a, b)
 
         case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
 
