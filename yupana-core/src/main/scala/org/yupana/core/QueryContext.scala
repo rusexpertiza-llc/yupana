@@ -27,7 +27,7 @@ class QueryContext(
     val postCondition: Option[Condition],
     val calculator: ExpressionCalculator
 ) extends Serializable {
-  val groupByExprs: Array[Expression[_]] = query.groupBy.toArray
+  val groupByIndices: Array[Int] = query.groupBy.map(exprsIndex.apply).toArray
   val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
 }
 
