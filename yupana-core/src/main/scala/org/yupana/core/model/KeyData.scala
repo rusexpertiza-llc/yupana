@@ -31,7 +31,7 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     import scala.util.hashing.MurmurHash3._
 
     if (queryContext != null) {
-      var h = queryContext.groupByIndices.foldLeft(MurmurHash3.arraySeed) { (h, idx) =>
+      val h = queryContext.groupByIndices.foldLeft(MurmurHash3.arraySeed) { (h, idx) =>
         mix(h, row.get[Any](idx).##)
       }
       finalizeHash(h, queryContext.groupByIndices.length)
