@@ -398,8 +398,8 @@ val commonSettings = Seq(
     "-Ywarn-unused-import"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
-  testOptions in Test += Tests.Argument("-l", "org.scalatest.tags.Slow"),
-  parallelExecution in Test := false,
+  Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
+  Test / parallelExecution := false,
   coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
 )
@@ -460,7 +460,7 @@ val releaseSettings = Seq(
 
 val allSettings = commonSettings ++ publishSettings ++ releaseSettings
 
-credentials in ThisBuild ++= (for {
+ThisBuild / credentials ++= (for {
   username <- Option(System.getenv().get("SONATYPE_USERNAME"))
   password <- Option(System.getenv().get("SONATYPE_PASSWORD"))
 } yield Credentials("Sonatype Nexus Repository Manager", "oss.sonatype.org", username, password)).toSeq

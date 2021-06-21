@@ -993,10 +993,45 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "parse SHOW UPDATES_INTERVALS statements" in {
     val t = DateTime.now(DateTimeZone.UTC).withMillisOfDay(0)
     SqlParser.parse(
-      "SHOW UPDATES_INTERVALS WHERE TABLE = 'receipt' AND " +
-        s"UPDATED_AT BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}' AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'"
+      s"""SHOW UPDATES_INTERVALS
+         |  WHERE table = 'receipt'
+         |    AND updated_at BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'
+         |      AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'""".stripMargin
     ) shouldBe Right(
-      ShowUpdatesIntervals("receipt", new Interval(t, t))
+      ShowUpdatesIntervals(
+        Some(
+          And(
+            Seq(
+              Eq(FieldName("table"), Constant(StringValue("receipt"))),
+              BetweenCondition(FieldName("updated_at"), TimestampValue(t), TimestampValue(t))
+            )
+          )
+        )
+      )
+    )
+    SqlParser.parse(
+      s"""SHOW UPDATES_INTERVALS""".stripMargin
+    ) shouldBe Right(
+      ShowUpdatesIntervals(None)
+    )
+    SqlParser.parse(
+      s"""SHOW UPDATES_INTERVALS
+         |  WHERE table = 'receipt'
+         |    AND 'somebody' = updated_by
+         |    AND updated_at BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'
+         |      AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'""".stripMargin
+    ) shouldBe Right(
+      ShowUpdatesIntervals(
+        Some(
+          And(
+            Seq(
+              Eq(FieldName("table"), Constant(StringValue("receipt"))),
+              Eq(Constant(StringValue("somebody")), FieldName("updated_by")),
+              BetweenCondition(FieldName("updated_at"), TimestampValue(t), TimestampValue(t))
+            )
+          )
+        )
+      )
     )
   }
 

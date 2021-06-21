@@ -25,6 +25,7 @@ object Tables {
   val epochTime = new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
 
   val itemExternalLinks: Seq[ExternalLink] = Seq(ItemsInvertedIndex, RelatedItemsCatalog)
+  val itemRollupsExternalLinks: Seq[ExternalLink] = itemExternalLinks.filterNot(_ == RelatedItemsCatalog)
 
   val itemsKkmTable = new Table(
     name = "items_kkm",
@@ -108,7 +109,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -117,7 +118,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -126,7 +127,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -135,7 +136,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -144,7 +145,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -153,7 +154,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -162,7 +163,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -171,7 +172,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 
@@ -180,7 +181,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemExternalLinks,
+    externalLinks = itemRollupsExternalLinks,
     epochTime
   )
 }

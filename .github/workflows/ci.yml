@@ -1,10 +1,10 @@
-name: Scala CI
+name: CI
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ '*' ]
+    branches: [ '**' ]
 
 jobs:
   check:
@@ -31,6 +31,10 @@ jobs:
           ~/Library/Caches/Coursier/v1
         key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
 
+    - run: |
+        mkdir -p "$HOME/.ivy2"
+        echo -e "realm=Dummy\nhost=example.com\nuser=user\npassword=password" > "$HOME/.ivy2/.credentials_nexus"
+
     - name: Verify the code
       run: sbt headerCheck scalafmtCheckAll
 
@@ -45,7 +49,7 @@ jobs:
       with:
         java-version: '8'
         distribution: 'adopt'
-        
+
     - name: Cache sbt
       uses: actions/cache@v2
       with:
@@ -57,6 +61,10 @@ jobs:
           ~/AppData/Local/Coursier/Cache/v1
           ~/Library/Caches/Coursier/v1
         key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+    - run: |
+        mkdir -p "$HOME/.ivy2"
+        echo -e "realm=Dummy\nhost=example.com\nuser=user\npassword=password" > "$HOME/.ivy2/.credentials_nexus"
 
     - name: Run tests
       run: sbt clean coverage test coverageReport
