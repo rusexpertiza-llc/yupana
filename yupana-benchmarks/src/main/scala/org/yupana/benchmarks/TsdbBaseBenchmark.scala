@@ -29,22 +29,8 @@ import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables 
 class TsdbBaseBenchmark {
 
   @Benchmark
-  def processRowsWithAgg(state: TsdbBaseBenchmarkStateAgg): Int = {
-    val tsdb = state.tsdb
-    tsdb
-      .processRows(
-        state.queryContext,
-        NoMetricCollector,
-        MapReducible.iteratorMR,
-        state.rows.iterator
-      )
-      .size
-  }
-
-  @Benchmark
   def processRowsMinimal(state: TsdbBaseBenchmarkStateMin): Int = {
-    val tsdb = state.tsdb
-    tsdb
+    state.tsdb
       .processRows(
         state.queryContext,
         NoMetricCollector,
@@ -56,8 +42,7 @@ class TsdbBaseBenchmark {
 
   @Benchmark
   def processRows(state: TsdbBaseBenchmarkState): Int = {
-    val tsdb = state.tsdb
-    tsdb
+    state.tsdb
       .processRows(
         state.queryContext,
         NoMetricCollector,
@@ -66,12 +51,124 @@ class TsdbBaseBenchmark {
       )
       .size
   }
+
+  @Benchmark
+  def processRowsWithSimpleAgg(state: TsdbBaseBenchmarkStateSimpleAgg): Int = {
+    state.tsdb
+      .processRows(
+        state.queryContext,
+        NoMetricCollector,
+        MapReducible.iteratorMR,
+        state.rows.iterator
+      )
+      .size
+  }
+
+  @Benchmark
+  def processRowsWithAgg(state: TsdbBaseBenchmarkStateAgg): Int = {
+    state.tsdb
+      .processRows(
+        state.queryContext,
+        NoMetricCollector,
+        MapReducible.iteratorMR,
+        state.rows.iterator,
+        None
+      )
+      .size
+  }
+}
+
+abstract class TsdbBaseBenchmarkStateBase {
+  def query: Query
+  def daoExprs: Seq[Expression[_]]
+
+  lazy val queryContext: QueryContext = QueryContext(query, None)
+  private def rowBuilder = new InternalRowBuilder(queryContext)
+
+  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
+  lazy val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(
+    rowBuilder,
+    100000,
+    daoExprs
+  )
 }
 
 @State(Scope.Benchmark)
-class TsdbBaseBenchmarkStateAgg {
+class TsdbBaseBenchmarkStateMin extends TsdbBaseBenchmarkStateBase {
+  override val query: Query = Query(
+    table = Tables.itemsKkmTable,
+    from = const(Time(LocalDateTime.now().minusDays(1))),
+    to = const(Time(LocalDateTime.now())),
+    fields = Seq(
+      time as "time",
+      dimension(Dimensions.ITEM) as "item",
+      metric(ItemTableMetrics.quantityField) as "quantity"
+    ),
+    filter = None,
+    groupBy = Seq.empty
+  )
 
+  override val daoExprs: Seq[Expression[_]] =
+    Seq(time, dimension(Dimensions.ITEM), metric(ItemTableMetrics.quantityField))
+}
+
+@State(Scope.Benchmark)
+class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
   val query: Query = Query(
+    table = Tables.itemsKkmTable,
+    from = const(Time(LocalDateTime.now().minusDays(1))),
+    to = const(Time(LocalDateTime.now())),
+    fields = Seq(
+      time as "time",
+      dimension(Dimensions.ITEM) as "item",
+      divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
+      metric(ItemTableMetrics.quantityField) as "quantity",
+      divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))) as "price"
+    ),
+    filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
+    groupBy = Seq.empty
+  )
+
+  val daoExprs: Seq[Expression[_]] =
+    Seq(
+      time,
+      dimension(Dimensions.ITEM),
+      metric(ItemTableMetrics.quantityField),
+      metric(ItemTableMetrics.sumField),
+      dimension(Dimensions.KKM_ID)
+    )
+}
+
+@State(Scope.Benchmark)
+class TsdbBaseBenchmarkStateSimpleAgg extends TsdbBaseBenchmarkStateBase {
+
+  override val query: Query = Query(
+    table = Tables.itemsKkmTable,
+    from = const(Time(LocalDateTime.now().minusDays(1))),
+    to = const(Time(LocalDateTime.now())),
+    fields = Seq(
+      truncDay(time) as "day",
+      dimension(Dimensions.ITEM) as "item",
+      sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
+      metric(ItemTableMetrics.sumField) as "total_sum",
+      max(ItemTableMetrics.sumField) as "max_sum"
+    ),
+    filter = None,
+    groupBy = Seq(time, dimension(Dimensions.ITEM))
+  )
+
+  override val daoExprs: Seq[Expression[_]] = Seq(
+    time,
+    dimension(Dimensions.ITEM),
+    metric(ItemTableMetrics.quantityField),
+    metric(ItemTableMetrics.sumField)
+  )
+}
+
+@State(Scope.Benchmark)
+class TsdbBaseBenchmarkStateAgg extends TsdbBaseBenchmarkStateBase {
+
+  override val query: Query = Query(
     table = Tables.itemsKkmTable,
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
@@ -100,79 +197,12 @@ class TsdbBaseBenchmarkStateAgg {
     groupBy = Seq(time, dimension(Dimensions.ITEM))
   )
 
-  val daoExprs = Seq(
+  override val daoExprs: Seq[Expression[_]] = Seq(
     time,
     dimension(Dimensions.ITEM),
     metric(ItemTableMetrics.quantityField),
     metric(ItemTableMetrics.sumField)
   )
-
-  val queryContext: QueryContext = QueryContext(query, None)
-  private val rowBuilder = new InternalRowBuilder(queryContext)
-
-  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
-  val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(
-    rowBuilder,
-    100000,
-    daoExprs
-  )
-}
-
-@State(Scope.Benchmark)
-class TsdbBaseBenchmarkStateMin {
-  val query: Query = Query(
-    table = Tables.itemsKkmTable,
-    from = const(Time(LocalDateTime.now().minusDays(1))),
-    to = const(Time(LocalDateTime.now())),
-    fields = Seq(
-      time as "time",
-      dimension(Dimensions.ITEM) as "item",
-      metric(ItemTableMetrics.quantityField) as "quantity"
-    ),
-    filter = None,
-    groupBy = Seq.empty
-  )
-
-  val daoExprs = Seq(time, dimension(Dimensions.ITEM), metric(ItemTableMetrics.quantityField))
-
-  val queryContext: QueryContext = QueryContext(query, None)
-  private val rowBuilder = new InternalRowBuilder(queryContext)
-
-  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
-  val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(rowBuilder, 100000, daoExprs)
-}
-
-@State(Scope.Benchmark)
-class TsdbBaseBenchmarkState {
-  val query: Query = Query(
-    table = Tables.itemsKkmTable,
-    from = const(Time(LocalDateTime.now().minusDays(1))),
-    to = const(Time(LocalDateTime.now())),
-    fields = Seq(
-      time as "time",
-      dimension(Dimensions.ITEM) as "item",
-      divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
-      metric(ItemTableMetrics.quantityField) as "quantity",
-      divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))) as "price"
-    ),
-    filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
-    groupBy = Seq.empty
-  )
-
-  val daoExprs =
-    Seq(
-      time,
-      dimension(Dimensions.ITEM),
-      metric(ItemTableMetrics.quantityField),
-      metric(ItemTableMetrics.sumField),
-      dimension(Dimensions.KKM_ID)
-    )
-
-  val queryContext: QueryContext = QueryContext(query, None)
-  private val rowBuilder = new InternalRowBuilder(queryContext)
-
-  val tsdb: TSDB = new TsdbBaseBenchmark.BenchTsdb()
-  val rows: Seq[InternalRow] = TsdbBaseBenchmark.getRows(rowBuilder, 100000, daoExprs)
 }
 
 object TsdbBaseBenchmark {

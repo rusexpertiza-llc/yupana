@@ -59,18 +59,24 @@ object ETLFunctions extends StrictLogging {
 
   val updaterName: String = this.getClass.getSimpleName
 
-  def dataPointsToUpdatedIntervals(dps: Seq[DataPoint], timeGranularity: Long): Seq[UpdateInterval] = {
+  def dataPointsToUpdatedIntervals(table: Table, dps: Seq[DataPoint]): Seq[UpdateInterval] = {
     val now = DateTime.now
     dps
-      .map(dp => dp.time - dp.time % timeGranularity)
+      .map(dp => dp.time - dp.time % table.rowTimeSpan)
       .distinct
       .map { baseTime =>
-        UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + timeGranularity), now, updaterName)
+        UpdateInterval(
+          table = table.name,
+          from = new DateTime(baseTime),
+          to = new DateTime(baseTime + table.rowTimeSpan),
+          now,
+          updaterName
+        )
       }
   }
 
   def markUpdatedIntervals(rollupMetaDao: RollupMetaDao, dps: Seq[DataPoint], table: Table): Unit = {
-    rollupMetaDao.putUpdatesIntervals(table.name, dataPointsToUpdatedIntervals(dps, table.rowTimeSpan))
+    rollupMetaDao.putUpdatesIntervals(dataPointsToUpdatedIntervals(table, dps))
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
