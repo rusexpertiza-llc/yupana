@@ -295,8 +295,10 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
   .settings(commonSettings, noPublishSettings)
   .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
   .settings(
+    name := "yupana-benchmarks",
     libraryDependencies ++= Seq(
-      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test
+      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5",
+      "org.scalatest"               %% "scalatest"                    % versions.scalaTest    % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -354,7 +356,7 @@ lazy val versions = new {
 
   val protobufJava = "2.6.1"
 
-  val scalaLogging = "3.9.2"
+  val scalaLogging = "3.9.3"
   val fastparse = "2.1.3"
 
   val hbase = "2.4.1"
@@ -372,12 +374,12 @@ lazy val versions = new {
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
   val logback = "1.2.3"
-  val h2Jdbc = "1.4.199"
-  val postgresqlJdbc = "42.2.18"
+  val h2Jdbc = "1.4.200"
+  val postgresqlJdbc = "42.2.20"
 
-  val scalaTest = "3.2.6"
-  val scalaCheck = "1.15.3"
-  val scalaTestCheck = "3.2.6.0"
+  val scalaTest = "3.2.9"
+  val scalaCheck = "1.15.4"
+  val scalaTestCheck = "3.2.9.0"
   val scalaMock = "5.1.0"
 }
 
