@@ -32,7 +32,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
     import ExpressionCalculator.truncateTime
 
     expr match {
-      case ConstantExpr(x) => x //.asInstanceOf[expr.Out]
+      case ConstantExpr(x) => x
 
       case TimeExpr             => null.asInstanceOf[T]
       case DimensionExpr(_)     => null.asInstanceOf[T]
