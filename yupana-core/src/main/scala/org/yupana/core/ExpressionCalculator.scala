@@ -777,7 +777,7 @@ object ExpressionCalculator extends StrictLogging {
       .replaceAll("\\.\\$greater\\$eq", " >= ")
       .replaceAll("\\.\\$greater", " > ")
       .replaceAll("\\.\\$lower\\$eq", " <= ")
-      .replaceAll("\\.\\$lower", " > ")
+      .replaceAll("\\.\\$lower", " < ")
   }
 
   def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {

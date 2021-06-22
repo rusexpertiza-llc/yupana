@@ -89,18 +89,18 @@ object TimeBoundedCondition {
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
 
-    def updateFrom(c: Condition, e: Expression[_], offset: Long): Unit = {
-      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
-      if (const != null) {
+    def updateFrom(c: Condition, e: Expression[Time], offset: Long): Unit = {
+      if (e.kind == Const) {
+        val const = expressionCalculator.evaluateConstant(e)
         from = from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
       } else {
         other += c
       }
     }
 
-    def updateTo(c: Condition, e: Expression[_], offset: Long): Unit = {
-      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
-      if (const != null) {
+    def updateTo(c: Condition, e: Expression[Time], offset: Long): Unit = {
+      if (e.kind == Const) {
+        val const = expressionCalculator.evaluateConstant(e)
         to = to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis)
       } else {
         other += c

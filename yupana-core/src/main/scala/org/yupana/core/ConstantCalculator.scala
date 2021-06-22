@@ -25,33 +25,18 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
   def evaluateConstant[T](expr: Expression[T]): T = {
     assert(expr.kind == Const)
-    eval(expr)
-  }
 
-  private def eval[T](expr: Expression[T]): T = {
     import ExpressionCalculator.truncateTime
 
     expr match {
       case ConstantExpr(x) => x
 
-      case TimeExpr             => null.asInstanceOf[T]
-      case DimensionExpr(_)     => null.asInstanceOf[T]
-      case DimensionIdExpr(_)   => null.asInstanceOf[T]
-      case MetricExpr(_)        => null.asInstanceOf[T]
-      case LinkExpr(_, _)       => null.asInstanceOf[T]
-      case DimIdInExpr(_, _)    => null.asInstanceOf[T]
-      case DimIdNotInExpr(_, _) => null.asInstanceOf[T]
-
-      // GENERALLY ae.dataType != ae.expr.dataType, but we don't care here
-      case ae: AggregateExpr[_, _, _]   => eval(ae.expr).asInstanceOf[T]
-      case we: WindowFunctionExpr[_, _] => eval(we.expr).asInstanceOf[T]
-
       case ConditionExpr(condition, positive, negative) =>
-        val x = eval(condition)
+        val x = evaluateConstant(condition)
         if (x) {
-          eval(positive)
+          evaluateConstant(positive)
         } else {
-          eval(negative)
+          evaluateConstant(negative)
         }
 
       case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(DateTimeFieldType.year()))
@@ -84,26 +69,26 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case e @ GeExpr(a, b) => evaluateBinary(a, b)(e.ordering.gteq)
       case e @ LeExpr(a, b) => evaluateBinary(a, b)(e.ordering.lteq)
 
-      case IsNullExpr(e)    => eval(e) == null
-      case IsNotNullExpr(e) => eval(e) != null
+      case IsNullExpr(e)    => evaluateConstant(e) == null
+      case IsNotNullExpr(e) => evaluateConstant(e) != null
 
-      case TypeConvertExpr(tc, e) => tc.convert(eval(e))
+      case TypeConvertExpr(tc, e) => tc.convert(evaluateConstant(e))
 
-      case InExpr(e, vs) => vs contains eval(e)
+      case InExpr(e, vs) => vs contains evaluateConstant(e)
 
       case NotInExpr(e, vs) =>
-        val eValue = eval(e)
+        val eValue = evaluateConstant(e)
         eValue != null && !vs.contains(eValue)
 
       case AndExpr(cs) =>
-        val executed = cs.map(c => eval(c))
+        val executed = cs.map(c => evaluateConstant(c))
         executed.reduce((a, b) => a && b)
 
       case OrExpr(cs) =>
-        val executed = cs.map(c => eval(c))
+        val executed = cs.map(c => evaluateConstant(c))
         executed.reduce((a, b) => a || b)
 
-      case TupleExpr(e1, e2) => (eval(e1), eval(e2))
+      case TupleExpr(e1, e2) => (evaluateConstant(e1), evaluateConstant(e2))
 
       case LowerExpr(e)  => evaluateUnary(e)(_.toLowerCase)
       case UpperExpr(e)  => evaluateUnary(e)(_.toUpperCase)
@@ -130,18 +115,20 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case ContainsAnyExpr(a, b)  => evaluateBinary(a, b)((x, y) => y.exists(x.contains))
       case ContainsSameExpr(a, b) => evaluateBinary(a, b)((x, y) => x.size == y.size && x.toSet == y.toSet)
 
-      case ArrayExpr(es) => es.map(e => eval(e))
+      case ArrayExpr(es) => es.map(e => evaluateConstant(e))
+
+      case x => throw new IllegalArgumentException(s"Expression is not constant $x")
     }
   }
 
   private def evaluateUnary[A, O](e: Expression[A])(f: A => O): O = {
-    val ev = eval(e)
+    val ev = evaluateConstant(e)
     if (ev != null) f(ev) else null.asInstanceOf[O]
   }
 
   private def evaluateBinary[A, B, O](a: Expression[A], b: Expression[B])(f: (A, B) => O): O = {
-    val left = eval(a)
-    val right = eval(b)
+    val left = evaluateConstant(a)
+    val right = evaluateConstant(b)
     if (left != null && right != null) {
       f(left, right)
     } else {
