@@ -96,9 +96,12 @@ lazy val core = (project in file("yupana-core"))
     name := "yupana-core",
     allSettings,
     libraryDependencies ++= Seq(
+      "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
+      "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
+      "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )

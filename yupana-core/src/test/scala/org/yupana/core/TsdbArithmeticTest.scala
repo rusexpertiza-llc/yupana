@@ -49,13 +49,11 @@ class TsdbArithmeticTest
     val sql = "SELECT testField + testField2 as some_sum FROM test_table WHERE A = 'taga'" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
-
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)),
           and(
             equ(lower(dimension(TestDims.DIM_A)), const("taga")),
             ge(time, const(Time(from))),
@@ -67,12 +65,10 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1d)
+          b.set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 3d)
+          b.set(metric(TestTableFields.TEST_FIELD), 3d)
             .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
@@ -95,13 +91,11 @@ class TsdbArithmeticTest
       timeBounds() + " GROUP BY A"
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
-
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A), time),
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -113,13 +107,11 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Time(pointTime))
-            .set(dimension(TestDims.DIM_A), "taga")
+          b.set(dimension(TestDims.DIM_A), "taga")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(dimension(TestDims.DIM_A), "taga")
+          b.set(dimension(TestDims.DIM_A), "taga")
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
@@ -158,8 +150,6 @@ class TsdbArithmeticTest
         )
       )
 
-    val pointTime = from.getMillis + 10
-
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
@@ -168,8 +158,7 @@ class TsdbArithmeticTest
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_STRING_FIELD),
-            dimension(TestDims.DIM_A),
-            time
+            dimension(TestDims.DIM_A)
           ),
           and(
             ge(time, const(Time(from))),
@@ -182,14 +171,12 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Time(pointTime))
-            .set(dimension(TestDims.DIM_A), "0000270761025003")
+          b.set(dimension(TestDims.DIM_A), "0000270761025003")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
             .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(dimension(TestDims.DIM_A), "0000270761025003")
+          b.set(dimension(TestDims.DIM_A), "0000270761025003")
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
@@ -251,13 +238,11 @@ class TsdbArithmeticTest
       "FROM test_table " + timeBounds(and = false)
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
-
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD), time),
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -265,8 +250,7 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1d)
+          b.set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
             .buildAndReset()
         )
@@ -399,16 +383,13 @@ class TsdbArithmeticTest
     val sql = "SELECT TestLink5_testField5D + 5 AS plus5 FROM test_table " + timeBounds(and = false)
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
-    val pointTime2 = pointTime + 10 * 1000
-
     val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(dimension(TestDims.DIM_B), time),
+          Set(dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -416,8 +397,8 @@ class TsdbArithmeticTest
       )
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15).buildAndReset()
+          b.set(dimension(TestDims.DIM_B), 12).buildAndReset(),
+          b.set(dimension(TestDims.DIM_B), 15).buildAndReset()
         )
       )
 

@@ -1,218 +1,282 @@
 package org.yupana.core
 
-import org.joda.time.LocalDateTime
-import org.scalatest.OptionValues
+import org.joda.time.{ DateTime, DateTimeZone }
+import org.scalatest.GivenWhenThen
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query._
-import org.yupana.api.schema._
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
+import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
-import scala.collection.mutable
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
+class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
+  import org.yupana.api.query.syntax.All._
 
-class ExpressionCalculatorTest extends AnyWordSpecLike with Matchers with OptionValues {
+  "ExpressionCalculator" should "filter rows" in {
+    val cond = gt(plus(dimension(TestDims.DIM_B), const(1.toShort)), const(42.toShort))
 
-  private val calculator = new ExpressionCalculator(RussianTokenizer)
-
-  "Expression calculator" should {
-
-    import org.yupana.api.query.syntax.All._
-
-    "Never try to evaluate time, dim, metric or link expressions" in {
-      val queryContext = createContext(Seq.empty)
-      calculator.evaluateExpression(TimeExpr, queryContext, new InternalRow(Array.empty)) shouldBe null
-
-      calculator.evaluateExpression(
-        DimensionExpr(RawDimension[Int]("anyDim")),
-        queryContext,
-        new InternalRow(Array.empty)
-      ) shouldBe null.asInstanceOf[String]
-
-      calculator.evaluateExpression(
-        MetricExpr(Metric[Int]("anyMetric", 1)),
-        queryContext,
-        new InternalRow(Array.empty)
-      ) shouldBe null.asInstanceOf[String]
-
-      val testLink: ExternalLink = new ExternalLink {
-        override type DimType = String
-        override val linkName: String = "test_link"
-        override val dimension: Dimension.Aux[String] = DictionaryDimension("testDim")
-        override val fields: Set[LinkField] = Set("foo", "bar").map(LinkField[String])
-      }
-
-      calculator.evaluateExpression(LinkExpr(testLink, "foo"), queryContext, new InternalRow(Array.empty)) shouldBe null
-    }
-
-    "Evaluate constants" in {
-      import org.yupana.api.query.syntax.All
-
-      calculator.evaluateConstant(plus(const(2), times(const(2), const(2)))) shouldEqual 6
-      calculator.evaluateConstant(divInt(All.length(const("9 letters")), const(3))) shouldEqual 3
-      calculator.evaluateConstant(All.not(contains(const(Seq(1L, 2L, 3L)), const(5L)))) shouldEqual true
-    }
-
-    "Evaluate different time functions" in {
-      val qc = createContext(Seq(TimeExpr))
-      val builder = new InternalRowBuilder(qc)
-      val row = builder.set(Time(new LocalDateTime(2020, 10, 21, 11, 36, 42))).buildAndReset()
-
-      calculator.evaluateExpression(extractYear(time), qc, row) shouldEqual 2020
-      calculator.evaluateExpression(extractMonth(time), qc, row) shouldEqual 10
-      calculator.evaluateExpression(extractDay(time), qc, row) shouldEqual 21
-      calculator.evaluateExpression(extractHour(time), qc, row) shouldEqual 11
-      calculator.evaluateExpression(extractMinute(time), qc, row) shouldEqual 36
-      calculator.evaluateExpression(extractSecond(time), qc, row) shouldEqual 42
-
-      calculator.evaluateExpression(truncYear(time), qc, row) shouldEqual Time(new LocalDateTime(2020, 1, 1, 0, 0))
-      calculator.evaluateExpression(truncMonth(time), qc, row) shouldEqual Time(new LocalDateTime(2020, 10, 1, 0, 0))
-      calculator.evaluateExpression(truncDay(time), qc, row) shouldEqual Time(new LocalDateTime(2020, 10, 21, 0, 0))
-      calculator.evaluateExpression(truncWeek(time), qc, row) shouldEqual Time(new LocalDateTime(2020, 10, 19, 0, 0))
-      calculator.evaluateExpression(truncHour(time), qc, row) shouldEqual Time(new LocalDateTime(2020, 10, 21, 11, 0))
-      calculator.evaluateExpression(truncMinute(time), qc, row) shouldEqual Time(
-        new LocalDateTime(2020, 10, 21, 11, 36)
-      )
-      calculator.evaluateExpression(truncSecond(time), qc, row) shouldEqual Time(
-        new LocalDateTime(2020, 10, 21, 11, 36, 42)
-      )
-    }
-
-    "Evaluate string functions" in {
-      val qc = createContext(Seq(TimeExpr, DimensionExpr(TestDims.DIM_A)))
-      val builder = new InternalRowBuilder(qc)
-      val row = builder
-        .set(Time(new LocalDateTime(2020, 10, 21, 11, 36, 42)))
-        .set(DimensionExpr(TestDims.DIM_A), "Вкусная водичка №7")
-        .buildAndReset()
-
-      calculator.evaluateExpression(upper(dimension(TestDims.DIM_A)), qc, row) shouldEqual "ВКУСНАЯ ВОДИЧКА №7"
-      calculator.evaluateExpression(lower(dimension(TestDims.DIM_A)), qc, row) shouldEqual "вкусная водичка №7"
-
-      calculator.evaluateExpression(split(dimension(TestDims.DIM_A)), qc, row) should contain theSameElementsInOrderAs Seq(
-        "Вкусная",
-        "водичка",
-        "7"
-      )
-
-      calculator
-        .evaluateExpression(tokens(dimension(TestDims.DIM_A)), qc, row) should contain theSameElementsInOrderAs Seq(
-        "vkusn",
-        "vodichk",
-        "№7"
-      )
-    }
-
-    "Evaluate array functions" in {
-      calculator.evaluateConstant(arrayLength(const(Seq(1, 2, 3)))) shouldEqual 3
-      calculator.evaluateConstant(arrayToString(const(Seq(1, 2, 3, 4)))) shouldEqual "1, 2, 3, 4"
-      calculator.evaluateConstant(arrayToString(const(Seq("1", "2", "4")))) shouldEqual "1, 2, 4"
-      calculator.evaluateConstant(ArrayTokensExpr(const(Seq("красная вода", "соленые яблоки")))) should contain theSameElementsAs Seq(
-        "krasn",
-        "vod",
-        "solen",
-        "yablok"
-      )
-
-      calculator.evaluateConstant(arrayToString(array(const(1), plus(const(2), const(3)), const(4)))) shouldEqual "1, 5, 4"
-
-      calculator.evaluateConstant(containsAll(array(const(1), const(2), const(3)), const(Seq(2, 3)))) shouldBe true
-      calculator.evaluateConstant(containsAll(array(const(1), const(2), const(3)), const(Seq(2, 4)))) shouldBe false
-
-      calculator.evaluateConstant(containsAny(array(const(1), const(2), const(3)), const(Seq(2, 3)))) shouldBe true
-      calculator.evaluateConstant(containsAny(const(Seq(1, 2, 3)), const(Seq(2, 4)))) shouldBe true
-
-      calculator.evaluateConstant(containsSame(array(const(1), const(2)), const(Seq(1, 2)))) shouldBe true
-      calculator.evaluateConstant(containsSame(array(const("1"), const("2")), const(Seq("2", "1")))) shouldBe true
-      calculator.evaluateConstant(containsSame(const(Seq(1, 2, 2)), const(Seq(1, 2)))) shouldBe false
-    }
-
-    "Evaluate aggregations" in {
-      val qc =
-        createContext(
-          Seq(
-            time,
-            metric(TestTableFields.TEST_FIELD),
-            sum(metric(TestTableFields.TEST_FIELD)),
-            min(metric(TestTableFields.TEST_FIELD)),
-            max(metric(TestTableFields.TEST_FIELD)),
-            count(metric(TestTableFields.TEST_FIELD)),
-            distinctCount(metric(TestTableFields.TEST_FIELD)),
-            distinctRandom(metric(TestTableFields.TEST_FIELD))
-          )
-        )
-      val builder = new InternalRowBuilder(qc)
-      val rows = Seq(
-        builder
-          .set(Time(new LocalDateTime(2020, 10, 21, 11, 36, 42)))
-          .set(MetricExpr(TestTableFields.TEST_FIELD), 73d)
-          .buildAndReset(),
-        builder
-          .set(Time(new LocalDateTime(2020, 10, 22, 15, 36, 42)))
-          .set(MetricExpr(TestTableFields.TEST_FIELD), 154d)
-          .buildAndReset(),
-        builder
-          .set(Time(new LocalDateTime(2020, 10, 22, 15, 59, 24)))
-          .set(MetricExpr(TestTableFields.TEST_FIELD), 73d)
-          .buildAndReset()
-      )
-
-      val aggregations = Seq[AggregateExpr[_, _, _]](
-        sum(metric(TestTableFields.TEST_FIELD)),
-        min(metric(TestTableFields.TEST_FIELD)),
-        max(metric(TestTableFields.TEST_FIELD)),
-        count(metric(TestTableFields.TEST_FIELD)),
-        distinctCount(metric(TestTableFields.TEST_FIELD)),
-        distinctRandom(metric(TestTableFields.TEST_FIELD))
-      )
-
-      for {
-        row <- rows
-        agg <- aggregations
-      } yield {
-        val v = calculator.evaluateMap(agg, qc, row)
-        row.set(qc, agg, v)
-      }
-
-      val resultRow = rows.reduce { (r1, r2) =>
-        aggregations.foreach { agg =>
-          val v = calculator.evaluateReduce(agg, qc, r1, r2)
-          r1.set(qc, agg, v)
-        }
-        r1
-      }
-
-      aggregations.foreach { agg =>
-        val v = calculator.evaluatePostMap(agg, qc, resultRow)
-        resultRow.set(qc, agg, v)
-      }
-
-      resultRow.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 300d
-      resultRow.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 73d
-      resultRow.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 154d
-      resultRow.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
-      resultRow.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
-      resultRow.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should equal(154).or(equal(73d))
-    }
-  }
-
-  private def createContext(exprs: Seq[Expression[_]]): QueryContext = {
-    QueryContext(
-      Query(
-        TestSchema.testTable,
-        ConstantExpr(Time(LocalDateTime.now().minusMonths(1))),
-        ConstantExpr(Time(LocalDateTime.now())),
-        exprs.zipWithIndex.map { case (e, i) => e as i.toString }
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(123456789)),
+      const(Time(234567890)),
+      Seq(
+        dimension(TestDims.DIM_A) as "A",
+        metric(TestTableFields.TEST_FIELD) as "F",
+        time as "T"
       ),
-      mutable.HashMap(exprs.zipWithIndex: _*),
-      Array.empty,
-      Array.empty,
-      Array.empty,
-      Array.empty,
-      Seq.empty,
-      Array.empty
+      cond
     )
+
+    val qc = QueryContext(query, Some(cond))
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    calc.evaluateFilter(
+      RussianTokenizer,
+      builder
+        .set(Time(DateTime.now()))
+        .set(dimension(TestDims.DIM_A), "значение")
+        .set(dimension(TestDims.DIM_B), 12.toShort)
+        .buildAndReset()
+    ) shouldBe false
+
+    calc.evaluateFilter(
+      RussianTokenizer,
+      builder
+        .set(Time(DateTime.now()))
+        .set(dimension(TestDims.DIM_A), "value")
+        .set(dimension(TestDims.DIM_B), 42.toShort)
+        .buildAndReset()
+    ) shouldBe true
   }
 
+  it should "evaluate row values" in {
+    val now = DateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        metric(TestTableFields.TEST_FIELD) as "F",
+        truncDay(time) as "T",
+        divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)) as "PRICE",
+        plus(dimension(TestDims.DIM_B), const(1.toShort)) as "B_PLUS_1",
+        divInt(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb",
+        divInt(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb_2"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusDays(2)))
+      .set(metric(TestTableFields.TEST_FIELD), 10d)
+      .set(metric(TestTableFields.TEST_FIELD2), 5d)
+      .buildAndReset()
+
+    calc.evaluateExpressions(RussianTokenizer, row)
+    row.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
+    row.get(qc, truncDay(time)) shouldEqual Time(now.withZone(DateTimeZone.UTC).minusDays(2).withTimeAtStartOfDay())
+
+    val rowWithNulls = builder
+      .set(Time(now.minusDays(1)))
+      .set(metric(TestTableFields.TEST_FIELD), 3d)
+      .buildAndReset()
+
+    calc.evaluateExpressions(RussianTokenizer, rowWithNulls)
+    rowWithNulls.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual null
+      .asInstanceOf[java.lang.Double]
+  }
+
+  it should "calculate aggregation" in {
+    Given("Query with aggregate expressions")
+
+    val now = DateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        sum(metric(TestTableFields.TEST_FIELD)) as "SUM",
+        max(metric(TestTableFields.TEST_FIELD)) as "MAX",
+        count(metric(TestTableFields.TEST_FIELD)) as "COUNT",
+        count(metric(TestTableFields.TEST_STRING_FIELD)) as "CS",
+        distinctCount(metric(TestTableFields.TEST_FIELD)) as "DISTINCT",
+        distinctRandom(metric(TestTableFields.TEST_FIELD)) as "RANDOM",
+        truncDay(time) as "T",
+        min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) as "MIN_PRICE",
+        divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d)) as "MIDDLE"
+      ),
+      None,
+      Seq(truncDay(time))
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    When("map called")
+    val row1 = builder
+      .set(Time(now.minusDays(1)))
+      .set(metric(TestTableFields.TEST_FIELD), 10d)
+      .set(metric(TestTableFields.TEST_FIELD2), 5d)
+      .buildAndReset()
+
+    val row2 = builder
+      .set(Time(now.minusDays(1)))
+      .set(metric(TestTableFields.TEST_FIELD), 12d)
+      .set(metric(TestTableFields.TEST_FIELD2), 4d)
+      .set(metric(TestTableFields.TEST_STRING_FIELD), "foo")
+      .buildAndReset()
+
+    val mapped1 = calc.evaluateMap(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row1))
+    val mapped2 = calc.evaluateMap(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row2))
+    Then("fields filled with map phase values")
+    mapped1.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    mapped1.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    mapped1.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    mapped1.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
+    mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
+    mapped1.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
+    mapped1.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
+    mapped1.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    mapped1.isEmpty(
+      qc,
+      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+    ) shouldBe true
+
+    mapped2.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    mapped2.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    mapped2.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    mapped2.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
+    mapped2.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
+    mapped2.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
+    mapped2.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
+    mapped2.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 3d
+    mapped2.isEmpty(
+      qc,
+      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+    ) shouldBe true
+
+    When("reduce called")
+    val reduced = calc.evaluateReduce(RussianTokenizer, mapped1, mapped2)
+    Then("reduced values shall be calculated")
+    reduced.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 22d
+    reduced.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    reduced.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    reduced.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 2L
+    reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
+    reduced.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
+    reduced.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
+    reduced.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    reduced.isEmpty(
+      qc,
+      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+    ) shouldBe true
+
+    When("postMap called")
+    val postMapped = calc.evaluatePostMap(RussianTokenizer, reduced)
+    Then("post map calculations shall be performed")
+    postMapped.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 22d
+    postMapped.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    postMapped.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    postMapped.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 2L
+    postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
+    postMapped.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
+    postMapped.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(10d) or equal(12d))
+    postMapped.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    postMapped.isEmpty(
+      qc,
+      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+    ) shouldBe true
+
+    When("evaluatePostAggregateExprs called")
+    val postCalculated = calc.evaluatePostAggregateExprs(RussianTokenizer, postMapped)
+    Then("calculations on aggregates are performed")
+    postCalculated.get(
+      qc,
+      divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
+    ) shouldEqual 11d
+  }
+
+  it should "evaluate string functions" in {
+    val now = DateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        LengthExpr(dimension(TestDims.DIM_A)) as "len",
+        split(dimension(TestDims.DIM_A)) as "split",
+        tokens(dimension(TestDims.DIM_A)) as "tokens",
+        upper(dimension(TestDims.DIM_A)) as "up",
+        lower(dimension(TestDims.DIM_A)) as "down",
+        ConcatExpr(dimension(TestDims.DIM_A), const("!!!")) as "yeah"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusDays(2)))
+      .set(dimension(TestDims.DIM_A), "Вкусная водичка №7")
+      .buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+    result.get(qc, LengthExpr(dimension(TestDims.DIM_A))) shouldEqual 18
+    result.get(qc, split(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
+      "Вкусная",
+      "водичка",
+      "7"
+    )
+    result.get(qc, tokens(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
+      "vkusn",
+      "vodichk",
+      "№7"
+    )
+    result.get(qc, upper(dimension(TestDims.DIM_A))) shouldEqual "ВКУСНАЯ ВОДИЧКА №7"
+    result.get(qc, lower(dimension(TestDims.DIM_A))) shouldEqual "вкусная водичка №7"
+    result.get(qc, ConcatExpr(dimension(TestDims.DIM_A), const("!!!"))) shouldEqual "Вкусная водичка №7!!!"
+  }
+
+  it should "evaluate array functions" in {
+    val now = DateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        arrayLength(tokens(dimension(TestDims.DIM_A))) as "len",
+        contains(tokens(dimension(TestDims.DIM_A)), const("vodichk")) as "c1",
+        containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c2",
+        containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk"))) as "c3",
+        containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c4"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusDays(2)))
+      .set(dimension(TestDims.DIM_A), "Вкусная водичка №7")
+      .buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+    result.get(qc, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
+    result.get(qc, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
+    result.get(qc, containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual true
+    result.get(
+      qc,
+      containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk")))
+    ) shouldEqual true
+    result.get(qc, containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual false
+  }
 }
