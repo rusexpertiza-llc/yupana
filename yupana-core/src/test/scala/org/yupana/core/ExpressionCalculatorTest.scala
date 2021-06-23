@@ -279,4 +279,58 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     ) shouldEqual true
     result.get(qc, containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual false
   }
+
+  it should "support comparing of non-numeric types" in {
+    val now = DateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        min(time) as "min_time",
+        dimension(TestDims.DIM_A) as "A"
+      ),
+      None,
+      Seq(dimension(TestDims.DIM_A)),
+      None,
+      Some(lt(min(time), const(Time(now.minusMonths(1)))))
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    val row1 = builder
+      .set(Time(now.minusDays(2)))
+      .set(dimension(TestDims.DIM_A), "AAA")
+      .buildAndReset()
+
+    val row2 = builder
+      .set(Time(now.minusDays(32)))
+      .set(dimension(TestDims.DIM_A), "AAA")
+      .buildAndReset()
+
+    val row3 = builder
+      .set(Time(now.minusDays(35)))
+      .set(dimension(TestDims.DIM_A), "BBB")
+      .buildAndReset()
+
+    val rows = Seq(row1, row2, row3).groupBy(_.get(qc, dimension(TestDims.DIM_A)))
+    val mapped = rows.map { case (s, rs)    => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
+    val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateReduce(RussianTokenizer, a, b)) }
+    val postMapped = reduced.map(r => calc.evaluatePostMap(RussianTokenizer, r))
+
+    val postFiltered = postMapped
+      .filter(r => calc.evaluatePostFilter(RussianTokenizer, r))
+      .toList
+      .sortBy(_.get(qc, dimension(TestDims.DIM_A)))
+
+    postFiltered should have size 2
+    postFiltered(0).get(qc, dimension(TestDims.DIM_A)) shouldEqual "AAA"
+    postFiltered(0).get(qc, min(time)) shouldEqual Time(now.minusDays(32))
+
+    postFiltered(1).get(qc, dimension(TestDims.DIM_A)) shouldEqual "BBB"
+    postFiltered(1).get(qc, min(time)) shouldEqual Time(now.minusDays(35))
+  }
 }
