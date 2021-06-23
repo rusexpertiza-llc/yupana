@@ -332,6 +332,30 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
+  private def mkSetOrd(
+      state: State,
+      row: TermName,
+      e: Expression[_],
+      a: Expression[_],
+      b: Expression[_],
+      f: (Tree, Tree) => Tree,
+      ordFunName: TermName
+  ): State = {
+    if (a.dataType.numeric.nonEmpty) {
+      mkSetBinary(state, row, e, a, b, f)
+    } else {
+      val aType = mkType(a)
+      val ord = ordValName(a.dataType)
+      val newState = state.withGlobal(
+        ord,
+        tq"Ordering[$aType]",
+        q"DataType.bySqlName(${a.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].ordering.get"
+      )
+
+      mkSetBinary(newState, row, e, a, b, (x, y) => q"$ord.$ordFunName($x, $y)")
+    }
+  }
+
   private def tcEntry[A, B](
       aToB: Tree => Tree
   )(implicit a: DataType.Aux[A], b: DataType.Aux[B]): ((String, String), Tree => Tree) = {
@@ -412,10 +436,10 @@ object ExpressionCalculator extends StrictLogging {
 
         case TupleExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"($x, $y)")
 
-        case GtExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x > $y""")
-        case LtExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x < $y""")
-        case GeExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x >= $y""")
-        case LeExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x <= $y""")
+        case GtExpr(a, b)  => mkSetOrd(state, row, e, a, b, (x, y) => q"""$x > $y""", TermName("gt"))
+        case LtExpr(a, b)  => mkSetOrd(state, row, e, a, b, (x, y) => q"""$x < $y""", TermName("lt"))
+        case GeExpr(a, b)  => mkSetOrd(state, row, e, a, b, (x, y) => q"""$x >= $y""", TermName("gteq"))
+        case LeExpr(a, b)  => mkSetOrd(state, row, e, a, b, (x, y) => q"""$x <= $y""", TermName("lteq"))
         case EqExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x == $y""")
         case NeqExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x != $y""")
 
@@ -567,7 +591,7 @@ object ExpressionCalculator extends StrictLogging {
           s2.withDefine(row, ae, exprValue)
             .withGlobal(
               ordValName(ae.expr.dataType),
-              tq"Ordering[${mkType(ae.expr)}]",
+              tq"Ordering[$aType]",
               q"DataType.bySqlName(${ae.expr.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].ordering.get"
             )
 
@@ -776,8 +800,8 @@ object ExpressionCalculator extends StrictLogging {
       .replaceAll("\\.\\$div", " / ")
       .replaceAll("\\.\\$greater\\$eq", " >= ")
       .replaceAll("\\.\\$greater", " > ")
-      .replaceAll("\\.\\$lower\\$eq", " <= ")
-      .replaceAll("\\.\\$lower", " < ")
+      .replaceAll("\\.\\$less\\$eq", " <= ")
+      .replaceAll("\\.\\$less", " < ")
   }
 
   def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
