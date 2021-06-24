@@ -33,7 +33,7 @@ object BenchmarksRunner {
     val gateway = new PushGateway(params.pushGatewayUrl)
 
     results.asScala.foreach { result ⇒
-      val benchmark = result.getParams.getBenchmark.replaceAll("\\.", "_")
+      val benchmark = result.getParams.getBenchmark.split("\\.").takeRight(2).mkString("_")
       val score = result.getAggregatedResult.getPrimaryResult.getScore
       observe(benchmark, "score", score)
       result.getSecondaryResults.entrySet().asScala.foreach { r =>
