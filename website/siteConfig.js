@@ -16,6 +16,7 @@ const siteConfig = {
   title: 'Yupana', // Title for your website.
   tagline: 'Yupana — система анализа розничных продаж',
   url: 'https://docs.yupana.org', // Your website URL
+  cname: 'docs.yupana.org',
   baseUrl: '/', // Base URL for your project */
   // For github.io type URLs, you would set the url and baseUrl like:
   //   url: 'https://facebook.github.io',
