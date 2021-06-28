@@ -5,12 +5,12 @@ title: Быстрый старт
 
 ## Системные требования
 
-1. JDK 8+
-2. GNU/Linux (работа на других окружениях не проверялась)
-3. Apache HBase @HBASE_VERSION@.x с поддержкой сжатия Snappy
-4. Apache Spark @SPARK_VERSION@.x для запуска запросов на кластере.  Кроме того, в прилагаемых примерах загрузка данных также производится
-   из Spark-приложения, хотя это и не является обязательным условием
-5. Кластер Apache Ignite @IGNITE_VERSION@ при использовании распределенных кэшей в Ignite (опционально)
+1. JDK 8+.
+2. GNU/Linux (работа на других окружениях не проверялась).
+3. Apache HBase @HBASE_VERSION@.x с поддержкой сжатия Snappy.
+4. Apache Spark @SPARK_VERSION@.x для запуска запросов на кластере.  Кроме того, в прилагаемых примерах загрузка данных также производится.
+   из Spark-приложения, хотя это и не является обязательным условием.
+5. Кластер Apache Ignite @IGNITE_VERSION@ при использовании распределенных кэшей в Ignite (опционально).
 6. sbt -- для сборки проекта.
 
 ## Сборка проекта
@@ -20,6 +20,16 @@ title: Быстрый старт
  - compile -- компиляция проекта
  - test -- запуск юнит-тестов
  - assembly -- сборка толстых jar-ов, применяется в yupana-jdbc и yupana-examples
+
+
+## Подготовка окружения
+1. Установить hbase @HBASE_VERSION@.x
+2. Для нативной поддержки snappy небходимо скопировать нативные библиотеки из сборки hadoop @HADOOP_VERSION@.x в выбранную папку и 
+   добавить в hbase-env.sh строки 
+```
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/native/lib
+  export JAVA_LIBRARY_PATH=$JAVA_LIBRARY_PATH:/path/to/native/lib
+```
 
 ## Запуск примеров
 

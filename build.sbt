@@ -334,6 +334,7 @@ lazy val docs = project
     mdocVariables := Map(
       "SCALA_VERSION" -> minMaj(scalaVersion.value, "2.12"),
       "HBASE_VERSION" -> minMaj(versions.hbase, "1.3"),
+      "HADOOP_VERSION" -> minMaj(versions.hadoop, "3.0"),
       "SPARK_VERSION" -> minMaj(versions.spark, "2.4"),
       "IGNITE_VERSION" -> versions.ignite
     )
