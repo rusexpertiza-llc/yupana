@@ -34,6 +34,6 @@ title: SHOW
   
 Где:
 
-  - `tableName` - имя таблицы (сейчас используется только 'receipt' и  'receipt_by_day')
+  - `tableName` - имя таблицы
   - `FROM` - Начало периода
   - `TO` - Конец периода
