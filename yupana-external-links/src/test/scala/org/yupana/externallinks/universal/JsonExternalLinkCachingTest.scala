@@ -4,6 +4,7 @@ import java.sql.{ Connection, PreparedStatement, ResultSet }
 import java.util.Properties
 import javax.sql.DataSource
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.cache.CacheFactory
@@ -15,13 +16,21 @@ import org.yupana.externallinks.universal.JsonCatalogs.{
 }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
 
-class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFactory {
+class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll {
 
-  val props = new Properties()
-  props.put("analytics.caches.default.engine", "EhCache")
-  props.put("analytics.caches.TestLink_fields.maxElements", "100")
-  props.put("analytics.caches.TestLink_fields.heapSize", "1024")
-  CacheFactory.init(props, "ns")
+  import JsonExternalLinkCachingTest._
+
+  override def beforeAll(): Unit = {
+    val props = new Properties()
+    props.put("analytics.caches.default.engine", "EhCache")
+    props.put("analytics.caches.TestLink_fields.maxElements", "100")
+    props.put("analytics.caches.TestLink_fields.heapSize", "1024")
+    CacheFactory.init(props, "ns")
+  }
+
+  override def afterAll(): Unit = {
+    resetCacheFactory()
+  }
 
   "SQL sourced universal external link" should "use cache" in {
 
@@ -59,5 +68,15 @@ class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFac
     val r2 = link.fieldValuesForDimValues(Set("f1"), Set(578941516))
 
     r1 shouldEqual r2
+  }
+}
+
+object JsonExternalLinkCachingTest {
+
+  def resetCacheFactory(): Unit = {
+    val propsField = CacheFactory.getClass.getDeclaredField("properties")
+    propsField.setAccessible(true)
+    propsField.set(CacheFactory, null)
+    println("dropped props")
   }
 }
