@@ -45,11 +45,8 @@ object HBaseUtils extends StrictLogging {
   type ValuesByGroup = Map[Int, TimeShiftedValues]
 
   val tableNamePrefix: String = "ts_"
-  val rollupStatusFamily: Array[Byte] = "v".getBytes
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
-  val rollupStatusField: Array[Byte] = "st".getBytes
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
-  val rollupSpecialKey: Array[Byte] = "\u0000".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
@@ -332,7 +329,6 @@ object HBaseUtils extends StrictLogging {
 
     schema.tables.values.foreach { t =>
       checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
-      checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
     checkSchemaDefinition(connection, namespace, schema) match {
@@ -384,28 +380,6 @@ object HBaseUtils extends StrictLogging {
         )
       }
     }
-  }
-
-  def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
-    val name = tableName(namespace, table)
-    using(connection.getTable(name)) { hbaseTable =>
-      val tableDesc = hbaseTable.getDescriptor
-      if (!tableDesc.hasColumnFamily(rollupStatusFamily)) {
-        using(connection.getAdmin) {
-          _.addColumnFamily(
-            name,
-            ColumnFamilyDescriptorBuilder
-              .newBuilder(rollupStatusFamily)
-              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-              .build()
-          )
-        }
-      }
-    }
-  }
-
-  def createRollupStatusPut(time: Long, status: String): Put = {
-    new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
   private[hbase] def tableKeySize(table: Table): Int = {
