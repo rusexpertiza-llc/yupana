@@ -1,20 +1,19 @@
 import com.typesafe.sbt.SbtGit.GitKeys
 import com.typesafe.sbt.git.JGit
 import mdoc.DocusaurusPlugin.autoImport.{ docusaurusCreateSite, docusaurusProjectName }
-import org.eclipse.jgit.api.CreateBranchCommand
-import org.eclipse.jgit.lib.Constants
+import org.eclipse.jgit.api.{ CreateBranchCommand, Git }
+import org.eclipse.jgit.lib.{ CommitBuilder, Constants, ObjectId, PersonIdent, Repository }
 import org.eclipse.jgit.revwalk.RevWalk
 import org.eclipse.jgit.transport.{ JschConfigSessionFactory, SshSessionFactory }
 import org.eclipse.jgit.treewalk.TreeWalk
 import sbt._
-
-import scala.sys.process.Process
 
 object DeployDocs {
 
   val deployDocs: TaskKey[Unit] = taskKey("Deploy website to git repo")
   val deployBranch: SettingKey[String] = settingKey("Branch to deploy site")
   val deployRepo: SettingKey[String] = settingKey("Git repo to deploy site")
+  val deployMessage: SettingKey[String] = settingKey("Commit message template")
 
   SshSessionFactory.setInstance(new JschConfigSessionFactory())
 
@@ -30,18 +29,41 @@ object DeployDocs {
 
     log.info(s"Cloned to $repo")
 
-    if (jGit.remoteBranches.contains(s"origin/${deployBranch.value}")) {
-      git
+    val parentId = if (jGit.remoteBranches.contains(s"origin/${deployBranch.value}")) {
+      val ref = git
         .checkout()
         .setCreateBranch(true)
         .setName(deployBranch.value)
         .setStartPoint(s"origin/${deployBranch.value}")
         .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
         .call()
+
+      Some(ref.getObjectId)
     } else {
-      Process("git" :: "checkout" :: "--orphan" :: deployBranch.value :: Nil, repoDir).!
+      None
     }
 
+    rmAll(git)
+
+    IO.copyDirectory(site / docusaurusProjectName.value, repoDir)
+    git.add().addFilepattern(".").call()
+
+    val status = git.status().call()
+
+    if (status.isClean) {
+      log.info("No changes for the site...")
+    } else {
+      val commitInfo = GitKeys.gitHeadCommit.value.getOrElse("UNKNOWN COMMIT")
+      val message = deployMessage.value
+        .replace("%version%", Keys.version.value)
+        .replace("%commit%", commitInfo)
+      commit(repo, message, deployBranch.value, parentId)
+      git.push().call()
+    }
+  }
+
+  private def rmAll(git: Git): Unit = {
+    val repo = git.getRepository
     val rw = new RevWalk(repo)
     val tree = rw.parseCommit(repo.findRef(Constants.HEAD).getObjectId).getTree
 
@@ -52,24 +74,40 @@ object DeployDocs {
     val rm = git.rm()
     while (walk.next()) rm.addFilepattern(walk.getPathString)
     rm.call()
+  }
 
-    IO.copyDirectory(site / docusaurusProjectName.value, repoDir)
+  private def commit(repo: Repository, message: String, branchName: String, parent: Option[ObjectId]): ObjectId = {
 
-    git.add().addFilepattern(".").call()
+    val inserter = repo.newObjectInserter()
+    val index = repo.lockDirCache()
 
-    val status = git.status().call()
+    val treeId = index.writeTree(inserter)
 
-    if (status.isClean) {
-      log.info("No changes for the site...")
-    } else {
-      jGit.porcelain.commit().setMessage(s"BG-0: Create site version ${Keys.version.value}").call()
-      jGit.porcelain.push().call()
-    }
+    val ident = new PersonIdent(repo)
+    val cb = new CommitBuilder()
+    cb.setAuthor(ident)
+    cb.setCommitter(ident)
+    cb.setTreeId(treeId)
+    cb.setMessage(message)
+    parent.foreach(cb.addParentId)
+    val commitId = inserter.insert(cb)
+
+    val fullRef = Constants.R_HEADS + branchName
+    val upd = repo.getRefDatabase.newUpdate(fullRef, false)
+    upd.setNewObjectId(commitId)
+    upd.update()
+
+    val headUpd = repo.getRefDatabase.newUpdate(Constants.HEAD, false)
+    headUpd.link(fullRef)
+
+    index.unlock()
+    commitId
   }
 
   def deployDocsSettings: Seq[Setting[_]] = Seq(
     deployDocs := deployDocsImpl.value,
     deployRepo := GitKeys.gitReader.value.withGit(_.remoteOrigin),
-    deployBranch := "gh-pages"
+    deployBranch := "gh-pages",
+    deployMessage := "BG-0: Create site version %version% (%commit%)."
   )
 }
