@@ -17,22 +17,22 @@
 package org.yupana.hbase
 
 import java.nio.charset.StandardCharsets
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.DateTime
+import org.yupana.api.schema.Table
 import org.yupana.api.utils.ResourceUtils.using
-import org.yupana.core.dao.RollupMetaDao
+import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.model.UpdateInterval._
-import org.yupana.hbase.RollupMetaDaoHBase._
+import org.yupana.hbase.ChangelogDaoHBase._
 
 import scala.collection.JavaConverters._
 
-object RollupMetaDaoHBase {
+object ChangelogDaoHBase {
 
   val TABLE_NAME: String = "ts_updates_intervals"
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
@@ -45,23 +45,42 @@ object RollupMetaDaoHBase {
   val UPDATER_UNKNOWN = "UNKNOWN"
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
+
+  def createChangelogPut(updateInterval: UpdateInterval): Put = {
+    val rowKey = Bytes.toBytes(updateInterval.table) ++
+      Bytes.toBytes(updateInterval.from.getMillis) ++
+      Bytes.toBytes(updateInterval.to.getMillis)
+    val put = new Put(rowKey)
+    put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(updateInterval.from.getMillis))
+    put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(updateInterval.to.getMillis))
+    put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(updateInterval.table))
+    put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updateInterval.updatedAt.getMillis))
+    put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, updateInterval.updatedBy.getBytes(StandardCharsets.UTF_8))
+    put
+  }
+
+  def createUpdatesIntervals(table: Table, username: String, dataPuts: Seq[Put]): Seq[UpdateInterval] = {
+    val now = DateTime.now()
+    dataPuts
+      .map(p => Bytes.toLong(p.getRow))
+      .distinct
+      .map { baseTime =>
+        UpdateInterval(
+          table.name,
+          new DateTime(baseTime),
+          new DateTime(baseTime + table.rowTimeSpan),
+          now,
+          username
+        )
+      }
+  }
 }
 
-class RollupMetaDaoHBase(connection: Connection, namespace: String) extends RollupMetaDao with StrictLogging {
+class ChangelogDaoHBase(connection: Connection, namespace: String) extends ChangelogDao with StrictLogging {
 
   override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>
-      val puts = intervals.map { i =>
-        val rowKey =
-          Bytes.toBytes(i.table) ++ Bytes.toBytes(i.from.getMillis) ++ Bytes.toBytes(i.to.getMillis)
-        val put = new Put(rowKey)
-        put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(i.from.getMillis))
-        put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(i.to.getMillis))
-        put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(i.table))
-        put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(i.updatedAt.getMillis))
-        put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, i.updatedBy.getBytes(StandardCharsets.UTF_8))
-        put
-      }
+      val puts = intervals.map(ChangelogDaoHBase.createChangelogPut)
       table.put(puts.asJava)
     }
   }
@@ -129,7 +148,7 @@ class RollupMetaDaoHBase(connection: Connection, namespace: String) extends Roll
 
   private def toUpdateInterval(result: Result): UpdateInterval = {
     val byBytes = result.getValue(FAMILY, UPDATED_BY_QUALIFIER)
-    val by = if (byBytes != null) new String(byBytes, StandardCharsets.UTF_8) else RollupMetaDaoHBase.UPDATER_UNKNOWN
+    val by = if (byBytes != null) new String(byBytes, StandardCharsets.UTF_8) else ChangelogDaoHBase.UPDATER_UNKNOWN
     UpdateInterval(
       table = new String(result.getValue(FAMILY, TABLE_QUALIFIER), StandardCharsets.UTF_8),
       from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),

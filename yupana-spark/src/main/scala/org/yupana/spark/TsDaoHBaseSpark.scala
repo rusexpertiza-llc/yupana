@@ -17,12 +17,18 @@
 package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.apache.hadoop.hbase.client.{ Mutation, Result => HResult }
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.mapreduce.{ TableMapReduceUtil, TableOutputFormat }
+import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.MapReducible
-import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase._
 
@@ -32,6 +38,7 @@ class TsDaoHBaseSpark(
     config: Config,
     override val dictionaryProvider: DictionaryProvider
 ) extends TSDaoHBaseBase[RDD]
+    with TSDao[RDD, Long]
     with Serializable {
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[RDD] = {
@@ -52,6 +59,38 @@ class TsDaoHBaseSpark(
     } else {
       sparkContext.emptyRDD[HResult]
     }
+  }
+
+  override def put(dataPoints: RDD[DataPoint], username: String): RDD[UpdateInterval] = {
+    val hbaseConf = TsDaoHBaseSpark.hbaseConfiguration(config)
+
+    val table = dataPoints.first().table
+
+    hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, HBaseUtils.tableNameString(config.hbaseNamespace, table))
+    hbaseConf.setClass(
+      "mapreduce.job.outputformat.class",
+      classOf[TableOutputFormat[String]],
+      classOf[OutputFormat[String, Mutation]]
+    )
+    hbaseConf.set("mapreduce.output.fileoutputformat.outputdir", "/tmp")
+
+    val job: Job = Job.getInstance(hbaseConf, "TsdbRollup-write")
+    TableMapReduceUtil.initCredentials(job)
+
+    val jconf = new JobConf(job.getConfiguration)
+    SparkConfUtils.addCredentials(jconf)
+
+    val puts = dataPoints
+      .mapPartitions { partition =>
+        partition.grouped(10000).flatMap { dataPoints =>
+          HBaseUtils.createPuts(dataPoints, dictionaryProvider).head._2
+        }
+      }
+      .cache()
+    puts.map(p => new ImmutableBytesWritable() -> p).saveAsNewAPIHadoopDataset(job.getConfiguration)
+    puts.mapPartitions(prt =>
+      prt.grouped(10000).flatMap(pts => ChangelogDaoHBase.createUpdatesIntervals(table, username, pts))
+    )
   }
 }
 

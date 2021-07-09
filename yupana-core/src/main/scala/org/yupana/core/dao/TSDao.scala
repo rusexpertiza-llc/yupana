@@ -17,9 +17,10 @@
 package org.yupana.core.dao
 
 import org.yupana.api.query.DataPoint
+import org.yupana.core.model.UpdateInterval
 
 import scala.language.higherKinds
 
 trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
-  def put(dataPoints: Seq[DataPoint]): Unit
+  def put(dataPoints: Collection[DataPoint], username: String): Collection[UpdateInterval]
 }

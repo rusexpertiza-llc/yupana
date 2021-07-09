@@ -8,7 +8,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
-import org.yupana.core.dao.{ RollupMetaDao, QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
@@ -25,6 +25,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.auth.YupanaUser
 
 class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
@@ -196,7 +197,8 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 2d), MetricValue(ItemTableMetrics.sumField, BigDecimal(300)))
         )
-      )
+      ),
+      YupanaUser.ANONYMOUS
     )
 
     val requestHandler = new RequestHandler(queryEngineRouter)
@@ -239,7 +241,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
   }
 
   class MockedTsdb
-      extends TSDB(SchemaRegistry.defaultSchema, null, null, identity, SimpleTsdbConfig(), { q: Query =>
+      extends TSDB(SchemaRegistry.defaultSchema, null, null, null, identity, SimpleTsdbConfig(), { q: Query =>
         new PersistentMetricQueryCollector(mock[QueryCollectorContext], q)
       })
 
@@ -247,7 +249,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     val metricsDao = mock[TsdbQueryMetricsDao]
     val queryEngineRouter = new QueryEngineRouter(
       mock[TimeSeriesQueryEngine],
-      new FlatQueryEngine(metricsDao, mock[RollupMetaDao]),
+      new FlatQueryEngine(metricsDao, mock[ChangelogDao]),
       jdbcMetadataProvider,
       sqlQueryProcessor
     )
@@ -308,7 +310,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     val metricsDao = mock[TsdbQueryMetricsDao]
     val queryEngineRouter = new QueryEngineRouter(
       mock[TimeSeriesQueryEngine],
-      new FlatQueryEngine(metricsDao, mock[RollupMetaDao]),
+      new FlatQueryEngine(metricsDao, mock[ChangelogDao]),
       jdbcMetadataProvider,
       sqlQueryProcessor
     )
@@ -327,7 +329,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     val metricsDao = mock[TsdbQueryMetricsDao]
     val queryEngineRouter = new QueryEngineRouter(
       mock[TimeSeriesQueryEngine],
-      new FlatQueryEngine(metricsDao, mock[RollupMetaDao]),
+      new FlatQueryEngine(metricsDao, mock[ChangelogDao]),
       jdbcMetadataProvider,
       sqlQueryProcessor
     )

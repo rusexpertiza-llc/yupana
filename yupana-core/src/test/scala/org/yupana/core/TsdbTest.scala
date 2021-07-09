@@ -9,7 +9,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TSDao }
+import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl, TSDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -19,6 +19,7 @@ import org.yupana.core.utils.metric.NoMetricCollector
 import java.util.Properties
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.auth.YupanaUser
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -46,11 +47,13 @@ class TsdbTest
   "TSDB" should "put datapoint to database" in {
 
     val tsdbDaoMock = mock[TSTestDao]
+    val changelogDaoMock = mock[ChangelogDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb = new TSDB(
       TestSchema.schema,
       tsdbDaoMock,
+      changelogDaoMock,
       dictionaryProvider,
       identity,
       SimpleTsdbConfig(putEnabled = true),
@@ -64,19 +67,27 @@ class TsdbTest
     val dp3 =
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
-    (tsdbDaoMock.put _).expects(Seq(dp1, dp2, dp3))
+    (tsdbDaoMock.put _)
+      .expects(where { (dps, user) =>
+        dps.toSeq == Seq(dp1, dp2, dp3) && user == YupanaUser.ANONYMOUS.name
+      })
+      .returning(Seq.empty[UpdateInterval].iterator)
+
+    (changelogDaoMock.putUpdatesIntervals _).expects(Seq.empty)
 
     tsdb.put(Seq(dp1, dp2, dp3))
   }
 
   it should "not allow put if disabled" in {
     val tsdbDaoMock = mock[TSTestDao]
+    val changelogDaoMock = mock[ChangelogDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
+        changelogDaoMock,
         dictionaryProvider,
         identity,
         SimpleTsdbConfig(),

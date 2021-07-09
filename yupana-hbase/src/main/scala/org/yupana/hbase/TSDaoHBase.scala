@@ -22,6 +22,7 @@ import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.api.utils.ResourceUtils._
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
 
@@ -61,11 +62,13 @@ class TSDaoHBase(
     }
   }
 
-  override def put(dataPoints: Seq[DataPoint]): Unit = {
-    logger.trace(s"Put ${dataPoints.size} dataPoints to tsdb")
+  override def put(dataPoints: Iterator[DataPoint], username: String): Iterator[UpdateInterval] = {
+    val dpsSeq = dataPoints.toSeq
+    logger.trace(s"Put ${dpsSeq.size} dataPoints to tsdb")
     logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPoints.mkString("\r\n")}")
 
-    createPuts(dataPoints, dictionaryProvider).foreach {
+    val putsByTable = createPuts(dpsSeq, dictionaryProvider)
+    putsByTable.foreach {
       case (table, puts) =>
         using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
           puts
@@ -74,6 +77,9 @@ class TSDaoHBase(
           logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
         }
     }
-  }
 
+    putsByTable.flatMap {
+      case (table, puts) => ChangelogDaoHBase.createUpdatesIntervals(table, username, puts)
+    }.iterator
+  }
 }

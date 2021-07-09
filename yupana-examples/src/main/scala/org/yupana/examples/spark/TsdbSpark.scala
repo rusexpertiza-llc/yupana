@@ -17,10 +17,12 @@
 package org.yupana.examples.spark
 
 import org.apache.spark.SparkContext
-import org.yupana.api.query.Query
-import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.apache.spark.rdd.RDD
+import org.yupana.api.query.{ DataPoint, Query }
+import org.yupana.api.schema.{ ExternalLink, Schema, Table }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.CacheFactory
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }
 
@@ -28,8 +30,15 @@ object TsdbSpark {
   var externalLinks = Map.empty[String, ExternalLinkService[_ <: ExternalLink]]
 }
 
-class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: Config, schema: Schema)
-    extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
+class TsdbSpark(
+    override val dao: TSDao[RDD, Long],
+    val changelogDao: ChangelogDao,
+    sparkContext: SparkContext,
+    prepareQuery: Query => Query,
+    conf: Config,
+    schema: Schema
+) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
+
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
       this,
@@ -50,5 +59,20 @@ class TsdbSpark(sparkContext: SparkContext, prepareQuery: Query => Query, conf: 
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
     TsdbSpark.externalLinks += (catalog.linkName -> catalogService)
+  }
+
+  /**
+    * Save DataPoints into table.
+    *
+    * @note This method takes table as a parameter, and saves only data points related to this table. All data points
+    *       related to another tables are ignored.
+    *
+    * @param dataPointsRDD data points to be saved
+    * @param table table to store data points
+    */
+  def writeRDD(dataPointsRDD: RDD[DataPoint], table: Table, username: String): Unit = {
+    val filtered = dataPointsRDD.filter(_.table == table)
+    val updatedIntervals = dao.put(filtered, username).collect()
+    changelogDao.putUpdatesIntervals(updatedIntervals)
   }
 }
