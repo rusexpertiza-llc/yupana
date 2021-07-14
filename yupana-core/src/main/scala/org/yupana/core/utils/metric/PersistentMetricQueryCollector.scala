@@ -16,156 +16,45 @@
 
 package org.yupana.core.utils.metric
 
-import java.util.concurrent.atomic.LongAdder
-import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.Query
 import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.core.model.TsdbQueryMetrics._
-import org.yupana.core.model.{ MetricData, MetricResult, QueryStates }
-import org.yupana.core.utils.metric.PersistentMetricQueryCollector._
+import org.yupana.core.model.{ MetricData, QueryStates }
 
-import scala.collection.{ Seq, mutable }
+class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext) extends MetricReporter {
 
-class PersistentMetricQueryCollector(collectorContext: QueryCollectorContext, query: Query)
-    extends MetricQueryCollector
-    with StrictLogging {
+  override def start(mc: MetricQueryCollector): Unit = {
+    collectorContext.metricsDao().initializeQueryMetrics(mc.query, collectorContext.sparkQuery)
+  }
 
-  override val isEnabled: Boolean = true
-
-  private val operationName: String = collectorContext.operationName
-  private val metricsUpdateInterval: Int = collectorContext.metricsUpdateInterval
-  val queryId: String = query.id
-
-  private def createMetric(qualifier: String): PersistentMetricImpl =
-    PersistentMetricImpl(collectorContext, qualifier, query.id, this)
-
-  override val createDimensionFilters: PersistentMetricImpl = createMetric(createDimensionFiltersQualifier)
-  override val createScans: PersistentMetricImpl = createMetric(createScansQualifier)
-  override val scan: PersistentMetricImpl = createMetric(scanQualifier)
-  override val parseScanResult: PersistentMetricImpl = createMetric(parseScanResultQualifier)
-  override val dimensionValuesForIds: PersistentMetricImpl = createMetric(dimensionValuesForIdsQualifier)
-  override val readExternalLinks: PersistentMetricImpl = createMetric(readExternalLinksQualifier)
-  override val extractDataComputation: PersistentMetricImpl = createMetric(extractDataComputationQualifier)
-  override val filterRows: PersistentMetricImpl = createMetric(filterRowsQualifier)
-  override val windowFunctions: PersistentMetricImpl = createMetric(windowFunctionsQualifier)
-  override val reduceOperation: PersistentMetricImpl = createMetric(reduceOperationQualifier)
-  override val postFilter: PersistentMetricImpl = createMetric(postFilterQualifier)
-  override val collectResultRows: PersistentMetricImpl = createMetric(collectResultRowsQualifier)
-  override val dictionaryScan: PersistentMetricImpl = createMetric(dictionaryScanQualifier)
-
-  collectorContext.metricsDao().initializeQueryMetrics(query, collectorContext.sparkQuery)
-  logger.info(s"${query.id} - ${query.uuidLog}; operation: $operationName started, query: $query")
-
-  private val dynamicMetrics = mutable.Map.empty[String, PersistentMetricImpl]
-  private val startTime = System.nanoTime()
-  private var lastSaveTime = startTime
-
-  def allMetrics: Seq[PersistentMetricImpl] =
-    Seq(
-      createDimensionFilters,
-      createScans,
-      scan,
-      parseScanResult,
-      dimensionValuesForIds,
-      readExternalLinks,
-      extractDataComputation,
-      filterRows,
-      windowFunctions,
-      reduceOperation,
-      postFilter,
-      collectResultRows,
-      dictionaryScan
-    ) ++ dynamicMetrics.values
-
-  def getAndResetMetricsData: Map[String, MetricData] = {
-    allMetrics.map { m =>
+  def getAndResetMetricsData(mc: MetricQueryCollector): Map[String, MetricData] = {
+    mc.allMetrics.map { m =>
       val cnt = m.count.sumThenReset()
-      val time = asSeconds(m.time.sumThenReset())
+      val time = MetricCollector.asSeconds(m.time.sumThenReset())
       val speed = if (time != 0) cnt.toDouble / time else 0.0
       val data = MetricData(cnt, time, speed)
       m.name -> data
     }.toMap
   }
 
-  def saveMetricsIfItsTime(end: Long): Unit = {
-    if (asSeconds(end - lastSaveTime) > metricsUpdateInterval) {
-      saveQueryMetrics(QueryStates.Running)
-      lastSaveTime = end
-    }
-  }
-
-  def saveQueryMetrics(state: QueryState): MetricResult = {
-    val duration = totalDuration
-    val metricsData = getAndResetMetricsData
+  def saveQueryMetrics(mc: MetricQueryCollector, state: QueryState): Unit = {
+    val duration = MetricCollector.asSeconds(mc.resultTime)
+    val metricsData = getAndResetMetricsData(mc)
     collectorContext
       .metricsDao()
-      .updateQueryMetrics(query.id, state, duration, metricsData, collectorContext.sparkQuery)
-    MetricResult(query.id, state.name, collectorContext.sparkQuery, metricsData, duration)
+      .updateQueryMetrics(mc.query.id, state, duration, metricsData, collectorContext.sparkQuery)
   }
 
-  private def totalDuration: Double = {
-    val currentTime = System.nanoTime()
-    if (currentTime > startTime) asSeconds(currentTime - startTime)
-    else asSeconds(startTime - currentTime)
+  override def finish(mc: MetricQueryCollector): Unit = {}
+
+  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {
+    collectorContext.metricsDao().setRunningPartitions(mc.query.id, partitions)
   }
 
-  override def finish(): Unit = {
-    allMetrics.sortBy(_.name).foreach { metric =>
-      logger.info(
-        s"${query.id} - ${query.uuidLog}; stage: ${metric.name}; time: ${asSeconds(metric.time.sum)}; count: ${metric.count.sum}"
-      )
-    }
-    saveQueryMetrics(QueryStates.Finished)
-    logger.info(
-      s"${query.id} - ${query.uuidLog}; operation: $operationName finished; time: $totalDuration; query: $query"
-    )
-  }
-
-  override def setRunningPartitions(partitions: Int): Unit = {
-    collectorContext.metricsDao().setRunningPartitions(query.id, partitions)
-  }
-
-  override def finishPartition(): Unit = {
-    val restPartitions = collectorContext.metricsDao().decrementRunningPartitions(query.id)
-    saveQueryMetrics(QueryStates.Running)
+  override def finishPartition(mc: MetricQueryCollector): Unit = {
+    val restPartitions = collectorContext.metricsDao().decrementRunningPartitions(mc.query.id)
+    saveQueryMetrics(mc, QueryStates.Running)
 
     if (restPartitions <= 0) {
-      finish()
-    }
-  }
-
-  override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
-}
-
-object PersistentMetricQueryCollector {
-  def asSeconds(n: Long): Double = n / 1000000000.0
-}
-
-case class PersistentMetricImpl(
-    collectorContext: QueryCollectorContext,
-    name: String,
-    queryId: String,
-    metricCollector: PersistentMetricQueryCollector,
-    count: LongAdder = new LongAdder(),
-    time: LongAdder = new LongAdder()
-) extends Metric {
-
-  override def measure[T](cnt: Int)(f: => T): T = {
-    if (!collectorContext.queryActive) {
-      throw new IllegalStateException(s"Metric $name: query $queryId was cancelled!")
-    }
-    try {
-      val start = System.nanoTime()
-      val result = f
-      count.add(cnt)
-      val end = System.nanoTime()
-      time.add(end - start)
-      metricCollector.saveMetricsIfItsTime(end)
-      result
-    } catch {
-      case e: Throwable =>
-        collectorContext.timer.cancel()
-        throw e
+      finish(mc)
     }
   }
 }

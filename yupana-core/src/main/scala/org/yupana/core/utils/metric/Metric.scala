@@ -16,11 +16,10 @@
 
 package org.yupana.core.utils.metric
 
-import org.yupana.core.dao.TsdbQueryMetricsDao
+trait Metric extends Serializable {
+  def name: String
+  def measure[T](count: Int)(f: => T): T
 
-class QueryCollectorContext(
-    val metricsDao: () => TsdbQueryMetricsDao,
-    val operationName: String,
-    val metricsUpdateInterval: Int,
-    val sparkQuery: Boolean = false
-) extends Serializable
+  def time: Long
+  def count: Long
+}

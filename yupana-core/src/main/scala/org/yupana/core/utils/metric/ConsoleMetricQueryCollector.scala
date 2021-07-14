@@ -16,91 +16,35 @@
 
 package org.yupana.core.utils.metric
 
-import java.util.concurrent.atomic.{ AtomicLong, LongAdder }
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.Query
-import org.yupana.core.model.{ MetricResult, QueryStates }
+import org.yupana.core.model.QueryStates
 
-import scala.collection.{ Seq, mutable }
+class ConsoleMetricQueryCollector extends MetricReporter with StrictLogging {
 
-class ConsoleMetricQueryCollector(query: Query, operationName: String) extends MetricQueryCollector with StrictLogging {
+  override def start(mc: MetricQueryCollector): Unit = {
+    logger.info(s"${mc.query.id} - ${mc.query.uuidLog}; operation: ${mc.operationName} started, query: ${mc.query}")
+  }
 
-  override val isEnabled: Boolean = true
-
-  val queryId: String = query.id
-
-  override val createDimensionFilters = MetricImpl("createQueries.tags")
-  override val createScans = MetricImpl("createScans")
-  override val scan = MetricImpl("scan")
-  override val parseScanResult = MetricImpl("parseScanResult")
-  override val dimensionValuesForIds = MetricImpl("dimensionValuesForIds")
-  override val readExternalLinks = MetricImpl("readExternalLinks")
-  override val extractDataComputation = MetricImpl("extractDataComputation")
-  override val filterRows = MetricImpl("filterRows")
-  override val windowFunctions = MetricImpl("windowFunctions")
-  override val reduceOperation = MetricImpl("reduceOperation")
-  override val postFilter = MetricImpl("postFilter")
-  override val collectResultRows = MetricImpl("collectResultRows")
-
-  private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
-  private val startTime = System.nanoTime()
-  logger.info(s"${query.uuidLog}; operation: $operationName started, query: $query")
-
-  def getMetrics: Seq[MetricImpl] =
-    Seq(
-      createDimensionFilters,
-      createScans,
-      scan,
-      parseScanResult,
-      dimensionValuesForIds,
-      readExternalLinks,
-      extractDataComputation,
-      filterRows,
-      windowFunctions,
-      reduceOperation,
-      postFilter,
-      collectResultRows
-    )
-
-  override def finish(): Unit = {
+  override def finish(mc: MetricQueryCollector): Unit = {
     import ConsoleMetricQueryCollector._
 
-    val resultTime = System.nanoTime() - startTime
-    val metrics = (dynamicMetrics.values ++ getMetrics).toSeq
-    metrics.sortBy(_.name).foreach { metric =>
+    mc.allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
-        s"${query.uuidLog}; stage: ${metric.name}; time: ${formatNanoTime(metric.time.sum())}; count: ${metric.count}"
+        s"${mc.query.uuidLog}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
       )
     }
     logger.info(
-      s"${query.uuidLog}; operation: $operationName finished; time: ${formatNanoTime(resultTime)}; query: $query"
+      s"${mc.query.uuidLog}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultTime)}; query: ${mc.query}"
     )
   }
 
-  override def saveQueryMetrics(state: QueryStates.QueryState): MetricResult =
-    MetricResult(queryId, state.name, false, Map(), (System.nanoTime() - startTime) / 1e-9)
-
-  override def setRunningPartitions(partitions: Int): Unit = {}
-
-  override def finishPartition(): Unit = {}
-
-  override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, MetricImpl(name))
+  override def saveQueryMetrics(mc: MetricQueryCollector, state: QueryStates.QueryState): Unit = {}
+  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {}
+  override def finishPartition(mc: MetricQueryCollector): Unit = {}
 }
 
 object ConsoleMetricQueryCollector {
   private def formatNanoTime(value: Long): String = {
     new java.text.DecimalFormat("#.##########").format(value / 1000000000.0)
-  }
-}
-
-case class MetricImpl(name: String, count: AtomicLong = new AtomicLong(), time: LongAdder = new LongAdder())
-    extends Metric {
-
-  override def measure[T](cnt: Int)(f: => T): T = {
-    val start = System.nanoTime()
-    val result = f
-    count.addAndGet(cnt)
-    time.add(System.nanoTime() - start)
-    result
   }
 }

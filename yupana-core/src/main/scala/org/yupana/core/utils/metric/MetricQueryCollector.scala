@@ -16,60 +16,58 @@
 
 package org.yupana.core.utils.metric
 
-import org.yupana.core.model.MetricResult
-import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.api.query.Query
 
 trait MetricQueryCollector extends Serializable {
 
-  def queryId: String
+  def query: Query
+  def operationName: String
 
   def dynamicMetric(name: String): Metric
 
-  def finish(): Unit
-
   def isEnabled: Boolean
 
-  def saveQueryMetrics(state: QueryState): MetricResult
+  def finish(): Unit
+
+  def metricUpdated(metric: Metric, time: Long): Unit
   def setRunningPartitions(partitions: Int): Unit
   def finishPartition(): Unit
 
-  val createDimensionFilters: Metric = NoMetric
-  val createScans: Metric = NoMetric
-  val filterRows: Metric = NoMetric
-  val windowFunctions: Metric = NoMetric
-  val reduceOperation: Metric = NoMetric
-  val postFilter: Metric = NoMetric
-  val collectResultRows: Metric = NoMetric
-  val dimensionValuesForIds: Metric = NoMetric
-  val extractDataComputation: Metric = NoMetric
-  val readExternalLinks: Metric = NoMetric
-  val scan: Metric = NoMetric
-  val parseScanResult: Metric = NoMetric
-  val dictionaryScan: Metric = NoMetric
+  def allMetrics: Seq[Metric]
+
+  def startTime: Long
+  def resultTime: Long
 }
 
 object NoMetricCollector extends MetricQueryCollector {
 
   override def dynamicMetric(name: String): Metric = NoMetric
 
+  override def operationName: String = "UNKNOWN"
+
   override def finish(): Unit = {}
 
-  override def saveQueryMetrics(state: QueryState): MetricResult = MetricResult(queryId, state.name, false, Map(), 0)
+  override def metricUpdated(metric: Metric, time: Long): Unit = {}
 
   override def setRunningPartitions(partitions: Int): Unit = {}
 
   override def finishPartition(): Unit = {}
 
-  override val queryId: String = ""
+  override val query: Query = null
 
   override val isEnabled: Boolean = false
-}
 
-trait Metric extends Serializable {
-  def measure[T](count: Int)(f: => T): T
+  override val allMetrics: Seq[Metric] = Seq.empty
+
+  override def startTime: Long = 0L
+  override def resultTime: Long = 0L
 }
 
 object NoMetric extends Metric {
+  override val name: String = "NONE"
+
+  override def time: Long = 0L
+  override def count: Long = 0L
 
   @inline
   override def measure[T](count: Int)(f: => T): T = f
