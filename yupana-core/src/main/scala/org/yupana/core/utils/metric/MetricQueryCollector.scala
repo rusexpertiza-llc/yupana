@@ -20,12 +20,27 @@ import org.yupana.api.query.Query
 
 trait MetricQueryCollector extends Serializable {
 
+  def createDimensionFilters: Metric
+  def createScans: Metric
+  def scan: Metric
+  def parseScanResult: Metric
+  def dimensionValuesForIds: Metric
+  def readExternalLinks: Metric
+  def extractDataComputation: Metric
+  def filterRows: Metric
+  def windowFunctions: Metric
+  def reduceOperation: Metric
+  def postFilter: Metric
+  def collectResultRows: Metric
+  def dictionaryScan: Metric
+
   def query: Query
   def operationName: String
 
   def dynamicMetric(name: String): Metric
 
   def isEnabled: Boolean
+  def isSparkQuery: Boolean
 
   def finish(): Unit
 
@@ -37,38 +52,4 @@ trait MetricQueryCollector extends Serializable {
 
   def startTime: Long
   def resultTime: Long
-}
-
-object NoMetricCollector extends MetricQueryCollector {
-
-  override def dynamicMetric(name: String): Metric = NoMetric
-
-  override def operationName: String = "UNKNOWN"
-
-  override def finish(): Unit = {}
-
-  override def metricUpdated(metric: Metric, time: Long): Unit = {}
-
-  override def setRunningPartitions(partitions: Int): Unit = {}
-
-  override def finishPartition(): Unit = {}
-
-  override val query: Query = null
-
-  override val isEnabled: Boolean = false
-
-  override val allMetrics: Seq[Metric] = Seq.empty
-
-  override def startTime: Long = 0L
-  override def resultTime: Long = 0L
-}
-
-object NoMetric extends Metric {
-  override val name: String = "NONE"
-
-  override def time: Long = 0L
-  override def count: Long = 0L
-
-  @inline
-  override def measure[T](count: Int)(f: => T): T = f
 }

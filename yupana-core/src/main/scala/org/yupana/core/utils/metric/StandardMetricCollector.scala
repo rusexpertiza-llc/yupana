@@ -23,8 +23,13 @@ import org.yupana.core.model.QueryStates
 
 import scala.collection.mutable
 
-class MetricCollector(val query: Query, collectorContext: QueryCollectorContext, reporter: MetricReporter)
-    extends MetricQueryCollector {
+class StandardMetricCollector(
+    val query: Query,
+    val operationName: String,
+    metricsUpdateInterval: Int,
+    val isSparkQuery: Boolean,
+    reporter: MetricReporter
+) extends MetricQueryCollector {
 
   import org.yupana.core.model.TsdbQueryMetrics._
 
@@ -35,31 +40,28 @@ class MetricCollector(val query: Query, collectorContext: QueryCollectorContext,
   override def resultTime: Long = endTime - startTime
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
-  private val metricsUpdateInterval: Int = collectorContext.metricsUpdateInterval
 
   reporter.start(this)
 
   private def createMetric(qualifier: String): MetricImpl = new MetricImpl(qualifier, this)
 
-  val createDimensionFilters: MetricImpl = createMetric(createDimensionFiltersQualifier)
-  val createScans: MetricImpl = createMetric(createScansQualifier)
-  val scan: MetricImpl = createMetric(scanQualifier)
-  val parseScanResult: MetricImpl = createMetric(parseScanResultQualifier)
-  val dimensionValuesForIds: MetricImpl = createMetric(dimensionValuesForIdsQualifier)
-  val readExternalLinks: MetricImpl = createMetric(readExternalLinksQualifier)
-  val extractDataComputation: MetricImpl = createMetric(extractDataComputationQualifier)
-  val filterRows: MetricImpl = createMetric(filterRowsQualifier)
-  val windowFunctions: MetricImpl = createMetric(windowFunctionsQualifier)
-  val reduceOperation: MetricImpl = createMetric(reduceOperationQualifier)
-  val postFilter: MetricImpl = createMetric(postFilterQualifier)
-  val collectResultRows: MetricImpl = createMetric(collectResultRowsQualifier)
-  val dictionaryScan: MetricImpl = createMetric(dictionaryScanQualifier)
-
-  override def operationName: String = collectorContext.operationName
+  override val createDimensionFilters: MetricImpl = createMetric(createDimensionFiltersQualifier)
+  override val createScans: MetricImpl = createMetric(createScansQualifier)
+  override val scan: MetricImpl = createMetric(scanQualifier)
+  override val parseScanResult: MetricImpl = createMetric(parseScanResultQualifier)
+  override val dimensionValuesForIds: MetricImpl = createMetric(dimensionValuesForIdsQualifier)
+  override val readExternalLinks: MetricImpl = createMetric(readExternalLinksQualifier)
+  override val extractDataComputation: MetricImpl = createMetric(extractDataComputationQualifier)
+  override val filterRows: MetricImpl = createMetric(filterRowsQualifier)
+  override val windowFunctions: MetricImpl = createMetric(windowFunctionsQualifier)
+  override val reduceOperation: MetricImpl = createMetric(reduceOperationQualifier)
+  override val postFilter: MetricImpl = createMetric(postFilterQualifier)
+  override val collectResultRows: MetricImpl = createMetric(collectResultRowsQualifier)
+  override val dictionaryScan: MetricImpl = createMetric(dictionaryScanQualifier)
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
 
-  override def isEnabled: Boolean = true
+  override val isEnabled: Boolean = true
 
   override def finish(): Unit = {
     endTime = System.nanoTime()
@@ -68,7 +70,7 @@ class MetricCollector(val query: Query, collectorContext: QueryCollectorContext,
   }
 
   override def metricUpdated(metric: Metric, time: Long): Unit = {
-    if (MetricCollector.asSeconds(time - lastSaveTime) > metricsUpdateInterval) {
+    if (StandardMetricCollector.asSeconds(time - lastSaveTime) > metricsUpdateInterval) {
       reporter.saveQueryMetrics(this, QueryStates.Running)
       lastSaveTime = time
     }
@@ -119,6 +121,6 @@ class MetricImpl(
   }
 }
 
-object MetricCollector {
+object StandardMetricCollector {
   def asSeconds(n: Long): Double = n / 1000000000.0
 }

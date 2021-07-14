@@ -24,7 +24,7 @@ import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
 import org.yupana.core.SimpleTsdbConfig
-import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, QueryCollectorContext }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
@@ -83,7 +83,7 @@ object Main extends StrictLogging {
       operationName = "query",
       metricsUpdateInterval = tsdbConfig.metricsUpdateInterval
     )
-    val metricCreator = { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
+    val metricCreator = { query: Query => new PersistentMetricQueryReporter(queryCollectorContext, query) }
 
     val tsdb =
       TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(

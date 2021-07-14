@@ -174,7 +174,7 @@ object HBaseUtils extends StrictLogging {
           val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
+              s"query_uuid: ${context.metricsCollector.query.id}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
             )
           }
           hasNext

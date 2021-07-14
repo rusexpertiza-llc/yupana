@@ -36,10 +36,10 @@ import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsD
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{
+  StandardMetricCollector,
   MetricQueryCollector,
   NoMetricCollector,
-  PersistentMetricQueryCollector,
-  QueryCollectorContext
+  PersistentMetricQueryReporter
 }
 import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
@@ -71,15 +71,14 @@ object TsdbSparkBase extends StrictLogging {
   private def createDefaultMetricCollector(
       config: Config,
       opName: String = "query"
-  ): Query => PersistentMetricQueryCollector = {
-
-    val queryCollectorContext = new QueryCollectorContext(
-      metricsDao = () => getMetricsDao(config),
-      operationName = opName,
-      metricsUpdateInterval = config.metricsUpdateInterval
+  ): Query => MetricQueryCollector = { query: Query =>
+    new StandardMetricCollector(
+      query,
+      opName,
+      config.metricsUpdateInterval,
+      true,
+      new PersistentMetricQueryReporter(() => getMetricsDao(config))
     )
-
-    { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
   }
 }
 

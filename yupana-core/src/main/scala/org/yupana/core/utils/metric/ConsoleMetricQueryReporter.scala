@@ -19,14 +19,14 @@ package org.yupana.core.utils.metric
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.core.model.QueryStates
 
-class ConsoleMetricQueryCollector extends MetricReporter with StrictLogging {
+class ConsoleMetricQueryReporter extends MetricReporter with StrictLogging {
 
   override def start(mc: MetricQueryCollector): Unit = {
     logger.info(s"${mc.query.id} - ${mc.query.uuidLog}; operation: ${mc.operationName} started, query: ${mc.query}")
   }
 
   override def finish(mc: MetricQueryCollector): Unit = {
-    import ConsoleMetricQueryCollector._
+    import ConsoleMetricQueryReporter._
 
     mc.allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
@@ -43,7 +43,7 @@ class ConsoleMetricQueryCollector extends MetricReporter with StrictLogging {
   override def finishPartition(mc: MetricQueryCollector): Unit = {}
 }
 
-object ConsoleMetricQueryCollector {
+object ConsoleMetricQueryReporter {
   private def formatNanoTime(value: Long): String = {
     new java.text.DecimalFormat("#.##########").format(value / 1000000000.0)
   }
