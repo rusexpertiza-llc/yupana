@@ -18,13 +18,16 @@ package org.yupana.core.utils.metric
 
 import org.yupana.core.model.QueryStates.QueryState
 
-trait MetricReporter[Collector <: MetricCollector] {
+class CombinedMetricReporter[C <: MetricCollector](reporters: MetricReporter[C]*) extends MetricReporter[C] {
+  override def start(mc: C): Unit = reporters.foreach(_.start(mc))
 
-  def start(mc: Collector): Unit
-  def finish(mc: Collector): Unit
+  override def finish(mc: C): Unit = reporters.foreach(_.finish(mc))
 
-  def saveQueryMetrics(mc: Collector, state: QueryState): Unit
-  def setRunningPartitions(mc: Collector, partitions: Int): Unit
-  def finishPartition(mc: Collector): Unit
+  override def saveQueryMetrics(mc: C, state: QueryState): Unit =
+    reporters.foreach(_.saveQueryMetrics(mc, state))
 
+  override def setRunningPartitions(mc: C, partitions: Int): Unit =
+    reporters.foreach(_.setRunningPartitions(mc, partitions))
+
+  override def finishPartition(mc: C): Unit = reporters.foreach(_.finishPartition(mc))
 }

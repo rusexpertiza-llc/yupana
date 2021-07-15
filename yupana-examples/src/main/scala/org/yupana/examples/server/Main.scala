@@ -25,7 +25,7 @@ import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
 import org.yupana.core.utils.metric.{
   CombinedMetricReporter,
-  ConsoleMetricQueryReporter,
+  ConsoleMetricReporter,
   PersistentMetricQueryReporter,
   StandardMetricCollector
 }
@@ -89,7 +89,7 @@ object Main extends StrictLogging {
         tsdbConfig.metricsUpdateInterval,
         false,
         new CombinedMetricReporter(
-          new ConsoleMetricQueryReporter,
+          new ConsoleMetricReporter,
           new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
         )
       )

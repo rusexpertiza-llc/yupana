@@ -20,6 +20,8 @@ trait Metric extends Serializable {
   def name: String
   def measure[T](count: Int)(f: => T): T
 
+  def reset(): Unit
+
   def time: Long
   def count: Long
 }

@@ -20,7 +20,8 @@ import org.yupana.core.dao.TsdbQueryMetricsDao
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ MetricData, QueryStates }
 
-class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao) extends MetricReporter {
+class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
+    extends MetricReporter[MetricQueryCollector] {
 
   override def start(mc: MetricQueryCollector): Unit = {
     metricsDao().initializeQueryMetrics(mc.query, mc.isSparkQuery)
@@ -29,7 +30,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao) exten
   private def getAndResetMetricsData(mc: MetricQueryCollector): Map[String, MetricData] = {
     mc.allMetrics.map { m =>
       val cnt = m.count
-      val time = StandardMetricCollector.asSeconds(m.time)
+      val time = MetricCollector.asSeconds(m.time)
       val speed = if (time != 0) cnt.toDouble / time else 0.0
       val data = MetricData(cnt, time, speed)
       m.name -> data
@@ -37,7 +38,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao) exten
   }
 
   def saveQueryMetrics(mc: MetricQueryCollector, state: QueryState): Unit = {
-    val duration = StandardMetricCollector.asSeconds(mc.resultTime)
+    val duration = MetricCollector.asSeconds(mc.resultTime)
     val metricsData = getAndResetMetricsData(mc)
 
     metricsDao().updateQueryMetrics(mc.query.id, state, duration, metricsData, mc.isSparkQuery)

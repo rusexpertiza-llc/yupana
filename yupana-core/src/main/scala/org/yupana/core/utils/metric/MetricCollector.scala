@@ -16,15 +16,29 @@
 
 package org.yupana.core.utils.metric
 
-import org.yupana.core.model.QueryStates.QueryState
+trait MetricCollector extends Serializable {
+  def id: String
+  def operationName: String
+  def meta: String = ""
 
-trait MetricReporter[Collector <: MetricCollector] {
+  protected var startAt: Long = 0L
+  protected var finishAt: Long = 0L
 
-  def start(mc: Collector): Unit
-  def finish(mc: Collector): Unit
+  def dynamicMetric(name: String): Metric
 
-  def saveQueryMetrics(mc: Collector, state: QueryState): Unit
-  def setRunningPartitions(mc: Collector, partitions: Int): Unit
-  def finishPartition(mc: Collector): Unit
+  def isEnabled: Boolean
 
+  def start(): Unit = startAt = System.nanoTime()
+  def checkpoint(): Unit
+  def metricUpdated(metric: Metric, time: Long): Unit
+  def finish(): Unit = finishAt = System.nanoTime()
+
+  def allMetrics: Seq[Metric]
+
+  def startTime: Long = startAt
+  def resultTime: Long = finishAt - startAt
+}
+
+object MetricCollector {
+  def asSeconds(n: Long): Double = n / 1000000000.0
 }

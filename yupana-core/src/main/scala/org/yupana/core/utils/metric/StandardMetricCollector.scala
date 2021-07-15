@@ -16,8 +16,6 @@
 
 package org.yupana.core.utils.metric
 
-import java.util.concurrent.atomic.LongAdder
-
 import org.yupana.api.query.Query
 import org.yupana.core.model.QueryStates
 
@@ -28,16 +26,12 @@ class StandardMetricCollector(
     val operationName: String,
     metricsUpdateInterval: Int,
     val isSparkQuery: Boolean,
-    reporter: MetricReporter
+    reporter: MetricReporter[MetricQueryCollector]
 ) extends MetricQueryCollector {
 
   import org.yupana.core.model.TsdbQueryMetrics._
 
-  override val startTime: Long = System.nanoTime()
-  private var endTime: Long = startTime
   private var lastSaveTime: Long = -1L
-
-  override def resultTime: Long = endTime - startTime
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
 
@@ -64,13 +58,13 @@ class StandardMetricCollector(
   override val isEnabled: Boolean = true
 
   override def finish(): Unit = {
-    endTime = System.nanoTime()
+    super.finish()
     reporter.saveQueryMetrics(this, QueryStates.Finished)
     reporter.finish(this)
   }
 
   override def metricUpdated(metric: Metric, time: Long): Unit = {
-    if (StandardMetricCollector.asSeconds(time - lastSaveTime) > metricsUpdateInterval) {
+    if (MetricCollector.asSeconds(time - lastSaveTime) > metricsUpdateInterval) {
       reporter.saveQueryMetrics(this, QueryStates.Running)
       lastSaveTime = time
     }
@@ -98,30 +92,4 @@ class StandardMetricCollector(
       collectResultRows,
       dictionaryScan
     ) ++ dynamicMetrics.values
-}
-
-class MetricImpl(
-    val name: String,
-    metricCollector: MetricQueryCollector
-) extends Metric {
-
-  private val countAdder: LongAdder = new LongAdder()
-  private val timeAdder: LongAdder = new LongAdder()
-
-  override def time: Long = timeAdder.sum()
-  override def count: Long = countAdder.sum()
-
-  override def measure[T](cnt: Int)(f: => T): T = {
-    val start = System.nanoTime()
-    val result = f
-    countAdder.add(cnt)
-    val end = System.nanoTime()
-    timeAdder.add(end - start)
-    metricCollector.metricUpdated(this, end)
-    result
-  }
-}
-
-object StandardMetricCollector {
-  def asSeconds(n: Long): Double = n / 1000000000.0
 }

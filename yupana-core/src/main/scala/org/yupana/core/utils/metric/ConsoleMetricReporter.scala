@@ -19,31 +19,31 @@ package org.yupana.core.utils.metric
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.core.model.QueryStates
 
-class ConsoleMetricQueryReporter extends MetricReporter with StrictLogging {
+class ConsoleMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging {
 
-  override def start(mc: MetricQueryCollector): Unit = {
-    logger.info(s"${mc.query.id} - ${mc.query.uuidLog}; operation: ${mc.operationName} started, query: ${mc.query}")
+  override def start(mc: C): Unit = {
+    logger.info(s"${mc.id}; operation: ${mc.operationName} started, meta: ${mc.meta}")
   }
 
-  override def finish(mc: MetricQueryCollector): Unit = {
-    import ConsoleMetricQueryReporter._
+  override def finish(mc: C): Unit = {
+    import ConsoleMetricReporter._
 
     mc.allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
-        s"${mc.query.uuidLog}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
+        s"${mc.id}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
       )
     }
     logger.info(
-      s"${mc.query.uuidLog}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultTime)}; query: ${mc.query}"
+      s"${mc.id}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultTime)}; meta: ${mc.meta}"
     )
   }
 
-  override def saveQueryMetrics(mc: MetricQueryCollector, state: QueryStates.QueryState): Unit = {}
-  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {}
-  override def finishPartition(mc: MetricQueryCollector): Unit = {}
+  override def saveQueryMetrics(mc: C, state: QueryStates.QueryState): Unit = {}
+  override def setRunningPartitions(mc: C, partitions: Int): Unit = {}
+  override def finishPartition(mc: C): Unit = {}
 }
 
-object ConsoleMetricQueryReporter {
+object ConsoleMetricReporter {
   private def formatNanoTime(value: Long): String = {
     new java.text.DecimalFormat("#.##########").format(value / 1000000000.0)
   }

@@ -18,7 +18,14 @@ package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
 
-trait MetricQueryCollector extends Serializable {
+trait MetricQueryCollector extends MetricCollector {
+  def query: Query
+  override def id: String = query.id
+  override def meta: String = query.toString
+  def isSparkQuery: Boolean
+
+  def setRunningPartitions(partitions: Int): Unit
+  def finishPartition(): Unit
 
   def createDimensionFilters: Metric
   def createScans: Metric
@@ -33,23 +40,4 @@ trait MetricQueryCollector extends Serializable {
   def postFilter: Metric
   def collectResultRows: Metric
   def dictionaryScan: Metric
-
-  def query: Query
-  def operationName: String
-
-  def dynamicMetric(name: String): Metric
-
-  def isEnabled: Boolean
-  def isSparkQuery: Boolean
-
-  def checkpoint(): Unit
-  def metricUpdated(metric: Metric, time: Long): Unit
-  def setRunningPartitions(partitions: Int): Unit
-  def finishPartition(): Unit
-  def finish(): Unit
-
-  def allMetrics: Seq[Metric]
-
-  def startTime: Long
-  def resultTime: Long
 }

@@ -13,7 +13,7 @@ import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
-import org.yupana.core.utils.metric.{ ConsoleMetricQueryReporter, StandardMetricCollector, MetricQueryCollector }
+import org.yupana.core.utils.metric.{ ConsoleMetricReporter, StandardMetricCollector, MetricQueryCollector }
 import java.util.Properties
 
 import scala.util.Random
@@ -194,7 +194,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new StandardMetricCollector(query, "test", 10, false, new ConsoleMetricQueryReporter)
+    val mc = new StandardMetricCollector(query, "test", 10, false, new ConsoleMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(
