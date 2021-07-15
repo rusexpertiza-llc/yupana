@@ -8,12 +8,12 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
-import org.yupana.core.dao.{ RollupMetaDao, QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, QueryCollectorContext }
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandardMetricCollector }
 import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
@@ -240,7 +240,13 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
 
   class MockedTsdb
       extends TSDB(SchemaRegistry.defaultSchema, null, null, identity, SimpleTsdbConfig(), { q: Query =>
-        new PersistentMetricQueryReporter(mock[QueryCollectorContext], q)
+        new StandardMetricCollector(
+          q,
+          "test",
+          5,
+          false,
+          new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
+        )
       })
 
   it should "handle show queries request" in {

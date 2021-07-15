@@ -42,11 +42,11 @@ trait MetricQueryCollector extends Serializable {
   def isEnabled: Boolean
   def isSparkQuery: Boolean
 
-  def finish(): Unit
-
+  def checkpoint(): Unit
   def metricUpdated(metric: Metric, time: Long): Unit
   def setRunningPartitions(partitions: Int): Unit
   def finishPartition(): Unit
+  def finish(): Unit
 
   def allMetrics: Seq[Metric]
 

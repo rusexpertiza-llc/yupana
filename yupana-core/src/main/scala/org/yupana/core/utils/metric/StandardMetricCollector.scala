@@ -74,8 +74,9 @@ class StandardMetricCollector(
       reporter.saveQueryMetrics(this, QueryStates.Running)
       lastSaveTime = time
     }
-
   }
+
+  override def checkpoint(): Unit = reporter.saveQueryMetrics(this, QueryStates.Running)
 
   override def setRunningPartitions(partitions: Int): Unit = reporter.setRunningPartitions(this, partitions)
 

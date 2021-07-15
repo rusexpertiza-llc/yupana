@@ -29,7 +29,7 @@ trait MetricReporter {
 
 }
 
-class CombinedMetricReporter(reporters: Seq[MetricReporter]) extends MetricReporter {
+class CombinedMetricReporter(reporters: MetricReporter*) extends MetricReporter {
   override def start(mc: MetricQueryCollector): Unit = reporters.foreach(_.start(mc))
 
   override def finish(mc: MetricQueryCollector): Unit = reporters.foreach(_.finish(mc))

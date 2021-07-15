@@ -19,15 +19,12 @@ object NoMetricCollector extends MetricQueryCollector {
   override val dictionaryScan: Metric = NoMetric
 
   override def dynamicMetric(name: String): Metric = NoMetric
-  override val operationName: String = "UNKNOWN"
 
-  override def finish(): Unit = {}
-
+  override def checkpoint(): Unit = {}
   override def metricUpdated(metric: Metric, time: Long): Unit = {}
-
   override def setRunningPartitions(partitions: Int): Unit = {}
-
   override def finishPartition(): Unit = {}
+  override def finish(): Unit = {}
 
   override val query: Query = null
 
@@ -36,6 +33,7 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override val allMetrics: Seq[Metric] = Seq.empty
 
+  override val operationName: String = "UNKNOWN"
   override def startTime: Long = 0L
   override def resultTime: Long = 0L
 }
