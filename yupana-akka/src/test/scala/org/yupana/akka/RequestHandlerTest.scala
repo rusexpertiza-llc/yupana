@@ -173,8 +173,8 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
       )
     )
 
-    (tsdb.put _).expects(
-      Seq(
+    (tsdb.put _).expects(where { (dps, user) =>
+      dps.toSeq == Seq(
         DataPoint(
           Tables.itemsKkmTable,
           1578426233000L,
@@ -197,9 +197,8 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
           ),
           Seq(MetricValue(ItemTableMetrics.quantityField, 2d), MetricValue(ItemTableMetrics.sumField, BigDecimal(300)))
         )
-      ),
-      YupanaUser.ANONYMOUS
-    )
+      ) && user == YupanaUser.ANONYMOUS
+    })
 
     val requestHandler = new RequestHandler(queryEngineRouter)
     val resp =

@@ -46,7 +46,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
-  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => Iterator[B]): RDD[B] = {
+  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => TraversableOnce[B]): RDD[B] = {
     val r = rdd.mapPartitions(_.grouped(size).flatMap(f))
     saveMetricOnCompleteRdd(r)
   }
@@ -69,6 +69,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     val r = sparkContext.parallelize(rdd.take(n))
     saveMetricOnCompleteRdd(r)
   }
+
+  override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = c.collect()
 
   private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]) = {
     rdd.mapPartitions { it =>

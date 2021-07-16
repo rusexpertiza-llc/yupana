@@ -29,10 +29,11 @@ object ETLFunctions extends StrictLogging {
 
     dataPoints.foreachPartition { ls =>
       ls.sliding(5000, 5000).foreach { batch =>
-        val dps = batch.toList
+        val dps = batch
 
         logger.trace(s"Put ${dps.size} datapoints")
-        context.tsdb.put(dps)
+        // todo use TsdbSpark for ETL writes? Or use context.tsdb.put(ls) and relay on underlying batching?
+        context.tsdb.put(dps.iterator)
       }
     }
   }

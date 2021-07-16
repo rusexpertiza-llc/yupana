@@ -23,7 +23,6 @@ import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.joda.time.DateTime
-import org.yupana.api.schema.Table
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model.UpdateInterval
@@ -57,22 +56,6 @@ object ChangelogDaoHBase {
     put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updateInterval.updatedAt.getMillis))
     put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, updateInterval.updatedBy.getBytes(StandardCharsets.UTF_8))
     put
-  }
-
-  def createUpdatesIntervals(table: Table, username: String, dataPuts: Seq[Put]): Seq[UpdateInterval] = {
-    val now = DateTime.now()
-    dataPuts
-      .map(p => Bytes.toLong(p.getRow))
-      .distinct
-      .map { baseTime =>
-        UpdateInterval(
-          table.name,
-          new DateTime(baseTime),
-          new DateTime(baseTime + table.rowTimeSpan),
-          now,
-          username
-        )
-      }
   }
 }
 

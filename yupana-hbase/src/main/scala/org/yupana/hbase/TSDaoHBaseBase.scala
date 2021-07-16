@@ -34,7 +34,7 @@ import org.yupana.core.utils.metric.MetricQueryCollector
 import scala.language.higherKinds
 import scala.util.Try
 
-trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
+trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
   type IdType = Long
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean

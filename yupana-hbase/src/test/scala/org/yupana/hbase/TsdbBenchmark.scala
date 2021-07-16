@@ -175,9 +175,9 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 //        in.map(_ => row).iterator
 //      }
 
-      override def put(dataPoints: Iterator[DataPoint], username: String): Iterator[UpdateInterval] = ???
-
       override val schema: Schema = TestSchema.schema
+
+      override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = ???
     }
 
     val changelogDao: ChangelogDao = new ChangelogDao {

@@ -18,8 +18,8 @@ package org.yupana.examples.spark
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.{ DataPoint, Query }
-import org.yupana.api.schema.{ ExternalLink, Schema, Table }
+import org.yupana.api.query.Query
+import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
@@ -59,20 +59,5 @@ class TsdbSpark(
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
     TsdbSpark.externalLinks += (catalog.linkName -> catalogService)
-  }
-
-  /**
-    * Save DataPoints into table.
-    *
-    * @note This method takes table as a parameter, and saves only data points related to this table. All data points
-    *       related to another tables are ignored.
-    *
-    * @param dataPointsRDD data points to be saved
-    * @param table table to store data points
-    */
-  def writeRDD(dataPointsRDD: RDD[DataPoint], table: Table, username: String): Unit = {
-    val filtered = dataPointsRDD.filter(_.table == table)
-    val updatedIntervals = dao.put(filtered, username).collect()
-    changelogDao.putUpdatesIntervals(updatedIntervals)
   }
 }

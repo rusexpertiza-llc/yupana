@@ -21,9 +21,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
-import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao }
+import org.yupana.core.auth.YupanaUser
+import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
-import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 
 import scala.language.higherKinds
@@ -41,7 +42,9 @@ trait TsdbBase extends StrictLogging {
   type Result <: TsdbResultBase[Collection]
 
   // TODO: it should work with different DAO Id types
-  def dao: TSReadingDao[Collection, Long]
+  def dao: TSDao[Collection, Long]
+
+  def changelogDao: ChangelogDao
 
   def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection] =
     dao.mapReduceEngine(metricCollector)
@@ -273,5 +276,10 @@ trait TsdbBase extends StrictLogging {
     } else {
       condition
     }
+  }
+
+  def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
+    val updatedIntervals = dao.put(mapReduceEngine(NoMetricCollector), dataPoints, user.name)
+    changelogDao.putUpdatesIntervals(updatedIntervals)
   }
 }

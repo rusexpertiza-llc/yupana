@@ -25,12 +25,13 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTimeZone, LocalDateTime }
+import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
@@ -71,17 +72,34 @@ object HBaseUtils extends StrictLogging {
 
   def createPuts(
       dataPoints: Seq[DataPoint],
-      dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[Put])] = {
+      dictionaryProvider: DictionaryProvider,
+      username: String
+  ): Seq[(Table, Seq[Put], Seq[UpdateInterval])] = {
+    val now = DateTime.now()
     dataPoints
       .groupBy(_.table)
       .map {
         case (table, points) =>
           val keySize = tableKeySize(table)
           val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
-          table -> grouped.map {
-            case (key, dps) => createPutOperation(table, key, dps)
-          }.toSeq
+          val (puts, intervals) = grouped
+            .map {
+              case (key, dps) =>
+                val baseTime = Bytes.toLong(key)
+                (
+                  createPutOperation(table, key, dps),
+                  UpdateInterval(
+                    table.name,
+                    new DateTime(baseTime),
+                    new DateTime(baseTime + table.rowTimeSpan),
+                    now,
+                    username
+                  )
+                )
+            }
+            .toSeq
+            .unzip
+          (table, puts, intervals.distinct)
       }
       .toSeq
   }
@@ -97,6 +115,31 @@ object HBaseUtils extends StrictLogging {
         }
     }
     put
+  }
+
+  def doPutBatch(
+      connection: Connection,
+      dictionaryProvider: DictionaryProvider,
+      namespace: String,
+      username: String,
+      putsBatchSize: Int,
+      dataPointsBatch: Seq[DataPoint]
+  ): Seq[UpdateInterval] = {
+    logger.trace(s"Put ${dataPointsBatch.size} dataPoints to tsdb")
+    logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPointsBatch.mkString("\r\n")}")
+
+    val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
+    putsWithIntervalsByTable.flatMap {
+      case (table, puts, updateIntervals) =>
+        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+          puts
+          // todo probably we don't need this, seems like HBase is smart enough to process long put sequences?
+            .sliding(putsBatchSize, putsBatchSize)
+            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
+          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
+          updateIntervals
+        }
+    }
   }
 
   def createScan(

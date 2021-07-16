@@ -17,11 +17,7 @@
 package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ Mutation, Result => HResult }
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.{ TableMapReduceUtil, TableOutputFormat }
-import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Result => HResult }
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.DataPoint
@@ -30,13 +26,15 @@ import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.hbase.HBaseUtils.doPutBatch
 import org.yupana.hbase._
 
 class TsDaoHBaseSpark(
     @transient val sparkContext: SparkContext,
     override val schema: Schema,
     config: Config,
-    override val dictionaryProvider: DictionaryProvider
+    override val dictionaryProvider: DictionaryProvider,
+    putsBatchSize: Int = 10000
 ) extends TSDaoHBaseBase[RDD]
     with TSDao[RDD, Long]
     with Serializable {
@@ -61,36 +59,18 @@ class TsDaoHBaseSpark(
     }
   }
 
-  override def put(dataPoints: RDD[DataPoint], username: String): RDD[UpdateInterval] = {
-    val hbaseConf = TsDaoHBaseSpark.hbaseConfiguration(config)
+  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
+    doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
+  }
 
-    val table = dataPoints.first().table
-
-    hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, HBaseUtils.tableNameString(config.hbaseNamespace, table))
-    hbaseConf.setClass(
-      "mapreduce.job.outputformat.class",
-      classOf[TableOutputFormat[String]],
-      classOf[OutputFormat[String, Mutation]]
-    )
-    hbaseConf.set("mapreduce.output.fileoutputformat.outputdir", "/tmp")
-
-    val job: Job = Job.getInstance(hbaseConf, "TsdbRollup-write")
-    TableMapReduceUtil.initCredentials(job)
-
-    val jconf = new JobConf(job.getConfiguration)
-    SparkConfUtils.addCredentials(jconf)
-
-    val puts = dataPoints
-      .mapPartitions { partition =>
-        partition.grouped(10000).flatMap { dataPoints =>
-          HBaseUtils.createPuts(dataPoints, dictionaryProvider).head._2
-        }
-      }
-      .cache()
-    puts.map(p => new ImmutableBytesWritable() -> p).saveAsNewAPIHadoopDataset(job.getConfiguration)
-    puts.mapPartitions(prt =>
-      prt.grouped(10000).flatMap(pts => ChangelogDaoHBase.createUpdatesIntervals(table, username, pts))
-    )
+  @transient lazy val connection: Connection = {
+    TsDaoHBaseSpark.executorHBaseConnection match {
+      case None =>
+        val c = ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config))
+        TsDaoHBaseSpark.executorHBaseConnection = Some(c)
+        c
+      case Some(c) => c
+    }
   }
 }
 
@@ -104,4 +84,6 @@ object TsDaoHBaseSpark {
     }
     configuration
   }
+
+  var executorHBaseConnection: Option[Connection] = None
 }

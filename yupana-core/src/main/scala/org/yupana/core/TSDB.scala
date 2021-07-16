@@ -51,12 +51,12 @@ class TSDB(
     externalLinks += (externalLink -> externalLinkService)
   }
 
-  def put(dataPoints: Seq[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
+  override def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
     if (config.putEnabled) {
-      loadDimIds(dataPoints)
-      val updatedIntervals = dao.put(dataPoints.iterator, user.name)
-      externalLinks.foreach(_._2.put(dataPoints))
-      changelogDao.putUpdatesIntervals(updatedIntervals.toSeq)
+      // todo this is very bad, don't leave this as is. Implement properly or jigsaw out.
+      val dpsSeq = dataPoints.toSeq
+      loadDimIds(dpsSeq)
+      super.put(dpsSeq.iterator, user)
     } else throw new IllegalAccessException("Put is disabled")
   }
 

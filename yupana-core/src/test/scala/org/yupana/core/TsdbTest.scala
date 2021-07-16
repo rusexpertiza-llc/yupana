@@ -67,15 +67,17 @@ class TsdbTest
     val dp3 =
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
+    (tsdbDaoMock.mapReduceEngine _).expects(NoMetricCollector).returning(MapReducible.iteratorMR)
+
     (tsdbDaoMock.put _)
-      .expects(where { (dps, user) =>
+      .expects(where { (_, dps, user) =>
         dps.toSeq == Seq(dp1, dp2, dp3) && user == YupanaUser.ANONYMOUS.name
       })
-      .returning(Seq.empty[UpdateInterval].iterator)
+      .returning(Seq.empty[UpdateInterval])
 
     (changelogDaoMock.putUpdatesIntervals _).expects(Seq.empty)
 
-    tsdb.put(Seq(dp1, dp2, dp3))
+    tsdb.put(Iterator(dp1, dp2, dp3))
   }
 
   it should "not allow put if disabled" in {
@@ -101,7 +103,7 @@ class TsdbTest
       Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0))
     )
 
-    an[IllegalAccessException] should be thrownBy tsdb.put(Seq(dp))
+    an[IllegalAccessException] should be thrownBy tsdb.put(Iterator(dp))
   }
 
   it should "execute query with filter by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>

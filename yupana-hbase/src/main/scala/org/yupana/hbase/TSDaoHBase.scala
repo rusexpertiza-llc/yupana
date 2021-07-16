@@ -19,14 +19,11 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
-import org.yupana.api.utils.ResourceUtils._
 import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
-
-import scala.collection.JavaConverters._
 
 class TSDaoHBase(
     override val schema: Schema,
@@ -62,24 +59,7 @@ class TSDaoHBase(
     }
   }
 
-  override def put(dataPoints: Iterator[DataPoint], username: String): Iterator[UpdateInterval] = {
-    val dpsSeq = dataPoints.toSeq
-    logger.trace(s"Put ${dpsSeq.size} dataPoints to tsdb")
-    logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPoints.mkString("\r\n")}")
-
-    val putsByTable = createPuts(dpsSeq, dictionaryProvider)
-    putsByTable.foreach {
-      case (table, puts) =>
-        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-          puts
-            .sliding(putsBatchSize, putsBatchSize)
-            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
-        }
-    }
-
-    putsByTable.flatMap {
-      case (table, puts) => ChangelogDaoHBase.createUpdatesIntervals(table, username, puts)
-    }.iterator
+  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
+    doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
   }
 }
