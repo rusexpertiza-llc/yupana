@@ -24,7 +24,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     extends MetricReporter[MetricQueryCollector] {
 
   override def start(mc: MetricQueryCollector): Unit = {
-    metricsDao().initializeQueryMetrics(mc.query, mc.isSparkQuery)
+    metricsDao().saveQueryMetrics(mc.query, 0, mc.startTime, QueryStates.Running, 0, Map.empty, mc.isSparkQuery)
   }
 
   private def getAndResetMetricsData(mc: MetricQueryCollector): Map[String, MetricData] = {
@@ -41,7 +41,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     val duration = MetricCollector.asSeconds(mc.resultTime)
     val metricsData = getAndResetMetricsData(mc)
 
-    metricsDao().updateQueryMetrics(mc.query.id, state, duration, metricsData, mc.isSparkQuery)
+    metricsDao().saveQueryMetrics(mc.query, 0, mc.startTime, state, duration, metricsData, mc.isSparkQuery)
   }
 
   override def finish(mc: MetricQueryCollector): Unit = {}

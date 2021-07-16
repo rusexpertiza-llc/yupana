@@ -21,6 +21,7 @@ import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
     queryId: String,
+    partitionId: Option[Int],
     startDate: DateTime,
     totalDuration: Double = 0.0,
     query: String,

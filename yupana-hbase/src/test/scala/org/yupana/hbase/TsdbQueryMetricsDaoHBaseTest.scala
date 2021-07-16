@@ -1,6 +1,7 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
+import org.joda.time.DateTime
 import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
 import org.yupana.core.{ TestDims, TestSchema }
@@ -24,8 +25,10 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
       None
     )
 
+    val startTime = DateTime.now
+
     When("metric dao initialized")
-    dao.initializeQueryMetrics(query, sparkQuery = false)
+    dao.saveQueryMetrics(query, 0, startTime.getMillis, QueryStates.Running, 0d, Map.empty, sparkQuery = false)
 
     Then("all metrics shall be zero")
     val qs = dao.queriesByFilter(Some(QueryMetricsFilter(queryId = Some(query.id)))).toList
@@ -37,6 +40,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     m.query shouldEqual query.toString
     m.totalDuration shouldEqual 0d
     m.metrics.foreach { case (_, data) => data shouldEqual MetricData(0, 0, 0) }
+    m.startDate shouldEqual startTime
 
     When("Set running partitions called")
     dao.setRunningPartitions(query.id, 2)
@@ -46,8 +50,10 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     dao.decrementRunningPartitions(query.id) shouldEqual 0
 
     When("metrics are updated")
-    dao.updateQueryMetrics(
-      query.id,
+    dao.saveQueryMetrics(
+      query,
+      0,
+      startTime.getMillis,
       QueryStates.Finished,
       42d,
       Map("create_scans" -> MetricData(1, 2, 3)),
@@ -58,6 +64,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     val qsu = dao.queriesByFilter(Some(QueryMetricsFilter(queryState = Some(QueryStates.Finished)))).toList
     qsu should have size 1
     val mu = qsu.head
+    mu.startDate shouldEqual startTime
     mu.queryId shouldEqual query.id
     mu.state shouldEqual QueryStates.Finished
     mu.engine shouldEqual "STANDALONE"
