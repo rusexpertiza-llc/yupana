@@ -20,7 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.InternalRow
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
@@ -95,7 +95,7 @@ object ExternalLinkUtils {
   }
 
   def transformConditionT[T](
-      expressionCalculator: ExpressionCalculator,
+      expressionCalculator: ConstantCalculator,
       linkName: String,
       condition: Condition,
       includeCondition: Seq[(String, Set[T])] => Condition,
@@ -113,7 +113,7 @@ object ExternalLinkUtils {
   }
 
   def transformCondition(
-      expressionCalculator: ExpressionCalculator,
+      expressionCalculator: ConstantCalculator,
       linkName: String,
       condition: Condition,
       includeCondition: Seq[(String, Set[Any])] => Condition,
