@@ -18,8 +18,7 @@ class ProcessRowsWithSimpleAggBenchmark {
         state.queryContext,
         NoMetricCollector,
         MapReducible.iteratorMR,
-        state.rows.iterator,
-        None
+        state.rows.iterator
       )
       .size
   }
