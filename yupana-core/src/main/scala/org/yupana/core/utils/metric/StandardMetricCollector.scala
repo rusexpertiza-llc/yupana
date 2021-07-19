@@ -35,7 +35,10 @@ class StandardMetricCollector(
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
 
-  reporter.start(this)
+  override def start(partitionId: Int): Unit = {
+    super.start(partitionId)
+    reporter.start(this, partitionId)
+  }
 
   private def createMetric(qualifier: String): MetricImpl = new MetricImpl(qualifier, this)
 
@@ -57,24 +60,20 @@ class StandardMetricCollector(
 
   override val isEnabled: Boolean = true
 
-  override def finish(): Unit = {
-    super.finish()
-    reporter.saveQueryMetrics(this, QueryStates.Finished)
-    reporter.finish(this)
+  override def finish(partitionId: Int): Unit = {
+    super.finish(partitionId)
+    reporter.saveQueryMetrics(this, partitionId, QueryStates.Finished)
+    reporter.finish(this, partitionId)
   }
 
-  override def metricUpdated(metric: Metric, time: Long): Unit = {
+  override def metricUpdated(metric: Metric, partitionId: Int, time: Long): Unit = {
     if (MetricCollector.asSeconds(time - lastSaveTime) > metricsUpdateInterval) {
-      reporter.saveQueryMetrics(this, QueryStates.Running)
+      reporter.saveQueryMetrics(this, partitionId, QueryStates.Running)
       lastSaveTime = time
     }
   }
 
-  override def checkpoint(): Unit = reporter.saveQueryMetrics(this, QueryStates.Running)
-
-  override def setRunningPartitions(partitions: Int): Unit = reporter.setRunningPartitions(this, partitions)
-
-  override def finishPartition(): Unit = reporter.finishPartition(this)
+  override def checkpoint(partitionId: Int): Unit = reporter.saveQueryMetrics(this, partitionId, QueryStates.Running)
 
   def allMetrics: Seq[MetricImpl] =
     Seq(

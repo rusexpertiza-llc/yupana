@@ -36,11 +36,11 @@ trait TsdbQueryMetricsDao {
       sparkQuery: Boolean
   ): Unit
 
-  def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit
+//  def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit
 
-  def setRunningPartitions(queryId: String, partitions: Int): Unit
-
-  def decrementRunningPartitions(queryId: String): Int
+//  def setRunningPartitions(queryId: String, partitions: Int): Unit
+//
+//  def decrementRunningPartitions(queryId: String): Int
 
   def deleteMetrics(filter: QueryMetricsFilter): Int
 }

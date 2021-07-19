@@ -92,7 +92,26 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       filter: Option[QueryMetricsFilter],
       limit: Option[Int] = None
   ): Iterable[TsdbQueryMetrics] = withTables {
-    val queries = using(getTable) { table =>
+    def setFilters(scan: Scan): Unit = {
+      val filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL)
+      filter.foreach { f =>
+        f.queryState.foreach { queryState =>
+          filterList.addFilter(
+            new SingleColumnValueFilter(
+              FAMILY,
+              STATE_QUALIFIER,
+              CompareOperator.EQUAL,
+              Bytes.toBytes(queryState.name)
+            )
+          )
+        }
+      }
+      if (!filterList.getFilters.isEmpty) {
+        scan.setFilter(filterList)
+      }
+    }
+
+    val results = using(getTable) { table =>
       filter match {
         case Some(f) =>
           (f.queryId, f.partitionId) match {
@@ -101,22 +120,15 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
               val result = table.get(get)
               if (result.isEmpty) List()
               else List(result)
+
             case (Some(queryId), None) =>
               val scan = new Scan().setRowPrefixFilter(Bytes.toBytes(queryId + "_")).addFamily(FAMILY).setReversed(true)
-              val filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL)
-              f.queryState.foreach { queryState =>
-                filterList.addFilter(
-                  new SingleColumnValueFilter(
-                    FAMILY,
-                    STATE_QUALIFIER,
-                    CompareOperator.EQUAL,
-                    Bytes.toBytes(queryState.name)
-                  )
-                )
-              }
-              if (!filterList.getFilters.isEmpty) {
-                scan.setFilter(filterList)
-              }
+              setFilters(scan)
+              using(table.getScanner(scan))(_.asScala.toList)
+
+            case _ =>
+              val scan = new Scan().addFamily(FAMILY).setReversed(true)
+              setFilters(scan)
               using(table.getScanner(scan))(_.asScala.toList)
           }
         case None =>
@@ -126,44 +138,44 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     }
     limit match {
       case Some(lim) =>
-        queries
+        results
           .take(lim)
           .map(toMetric)
       case None =>
-        queries
+        results
           .map(toMetric)
     }
   }
 
-  override def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit = {
-    val table = getTable
-    queriesByFilter(filter = Some(filter), limit = Some(1)).headOption match {
-      case Some(query) =>
-        val put = new Put(Bytes.toBytes(query.queryId))
-        put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
-        table
-          .checkAndMutate(
-            CheckAndMutate
-              .newBuilder(Bytes.toBytes(query.queryId))
-              .ifEquals(FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name))
-              .build(put)
-          )
+//  override def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit = {
+//    val table = getTable
+//    queriesByFilter(filter = Some(filter), limit = Some(1)).headOption match {
+//      case Some(query) =>
+//        val put = new Put(Bytes.toBytes(query.queryId))
+//        put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
+//        table
+//          .checkAndMutate(
+//            CheckAndMutate
+//              .newBuilder(Bytes.toBytes(query.queryId))
+//              .ifEquals(FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name))
+//              .build(put)
+//          )
+//
+//      case None =>
+//        throw new IllegalArgumentException(s"Query not found by filter $filter!")
+//    }
+//  }
 
-      case None =>
-        throw new IllegalArgumentException(s"Query not found by filter $filter!")
-    }
-  }
-
-  override def setRunningPartitions(queryId: String, partitions: Int): Unit = {
-    val table = getTable
-    val put = new Put(Bytes.toBytes(queryId))
-    put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(partitions))
-    table.put(put)
-  }
-
-  def decrementRunningPartitions(queryId: String): Int = {
-    decrementRunningPartitions(queryId, 1)
-  }
+//  override def setRunningPartitions(queryId: String, partitions: Int): Unit = {
+//    val table = getTable
+//    val put = new Put(Bytes.toBytes(queryId))
+//    put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(partitions))
+//    table.put(put)
+//  }
+//
+//  def decrementRunningPartitions(queryId: String): Int = {
+//    decrementRunningPartitions(queryId, 1)
+//  }
 
   @tailrec
   private def decrementRunningPartitions(queryId: String, attempt: Int): Int = {
@@ -240,12 +252,16 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   private def getTable: Table = connection.getTable(getTableName(namespace))
 
   private def rowKey(queryId: String, partitionId: Int): Array[Byte] = {
+
+    println(s"MAKE KEY: $queryId, $partitionId")
     Bytes.toBytes(s"${queryId}_$partitionId")
   }
 
   private def parseKey(bytes: Array[Byte]): (String, Int) = {
-    val parts = Bytes.toString(bytes).split("_")
-    if (parts.length != 2) throw new IllegalArgumentException(s"Invalid row key ${Hex.encodeHexString(bytes)}")
+    val strKey = Bytes.toString(bytes)
+    val parts = strKey.split("_")
+    if (parts.length != 2)
+      throw new IllegalArgumentException(s"Invalid row key ${Hex.encodeHexString(bytes)} '$strKey'")
     (parts(0), parts(1).toInt)
   }
 

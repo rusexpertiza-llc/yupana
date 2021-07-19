@@ -24,8 +24,8 @@ trait MetricQueryCollector extends MetricCollector {
   override def meta: String = query.toString
   def isSparkQuery: Boolean
 
-  def setRunningPartitions(partitions: Int): Unit
-  def finishPartition(): Unit
+//  def setRunningPartitions(partitions: Int): Unit
+//  def finishPartition(): Unit
 
   def createDimensionFilters: Metric
   def createScans: Metric

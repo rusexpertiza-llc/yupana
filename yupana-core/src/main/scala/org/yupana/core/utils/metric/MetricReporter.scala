@@ -20,11 +20,11 @@ import org.yupana.core.model.QueryStates.QueryState
 
 trait MetricReporter[Collector <: MetricCollector] {
 
-  def start(mc: Collector): Unit
-  def finish(mc: Collector): Unit
+  def start(mc: Collector, partitionId: Int): Unit
+  def finish(mc: Collector, partitionId: Int): Unit
 
-  def saveQueryMetrics(mc: Collector, state: QueryState): Unit
-  def setRunningPartitions(mc: Collector, partitions: Int): Unit
-  def finishPartition(mc: Collector): Unit
+  def saveQueryMetrics(mc: Collector, partitionId: Int, state: QueryState): Unit
+//  def setRunningPartitions(mc: Collector, partitions: Int): Unit
+//  def finishPartition(mc: Collector): Unit
 
 }

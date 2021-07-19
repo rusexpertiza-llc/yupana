@@ -19,7 +19,6 @@ package org.yupana.core.utils.metric
 import org.yupana.api.query.Query
 
 object NoMetricCollector extends MetricQueryCollector {
-
   override val createDimensionFilters: Metric = NoMetric
   override val createScans: Metric = NoMetric
   override val scan: Metric = NoMetric
@@ -38,11 +37,11 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override def checkpoint(): Unit = {}
   override def metricUpdated(metric: Metric, time: Long): Unit = {}
-  override def setRunningPartitions(partitions: Int): Unit = {}
-  override def finishPartition(): Unit = {}
   override def finish(): Unit = {}
 
   override val query: Query = null
+
+  override def partitionId: Int = 0
 
   override val isEnabled: Boolean = false
   override def isSparkQuery: Boolean = false

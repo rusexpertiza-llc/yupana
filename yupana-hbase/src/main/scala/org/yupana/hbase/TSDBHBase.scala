@@ -38,6 +38,7 @@ object TSDBHBase {
     { query: Query =>
       new StandardMetricCollector(
         query,
+        -1,
         "query",
         tsdbConfig.metricsUpdateInterval,
         false,

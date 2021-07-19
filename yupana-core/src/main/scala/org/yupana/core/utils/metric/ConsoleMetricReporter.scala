@@ -21,26 +21,24 @@ import org.yupana.core.model.QueryStates
 
 class ConsoleMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging {
 
-  override def start(mc: C): Unit = {
-    logger.info(s"${mc.id}; operation: ${mc.operationName} started, meta: ${mc.meta}")
+  override def start(mc: C, partitionId: Int): Unit = {
+    logger.info(s"${mc.id}-$partitionId; operation: ${mc.operationName} started, meta: ${mc.meta}")
   }
 
-  override def finish(mc: C): Unit = {
+  override def finish(mc: C, partitionId: Int): Unit = {
     import ConsoleMetricReporter._
 
     mc.allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
-        s"${mc.id}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
+        s"${mc.id}-$partitionId; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
       )
     }
     logger.info(
-      s"${mc.id}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultTime)}; meta: ${mc.meta}"
+      s"${mc.id}-$partitionId; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultTime)}; meta: ${mc.meta}"
     )
   }
 
-  override def saveQueryMetrics(mc: C, state: QueryStates.QueryState): Unit = {}
-  override def setRunningPartitions(mc: C, partitions: Int): Unit = {}
-  override def finishPartition(mc: C): Unit = {}
+  override def saveQueryMetrics(mc: C, partitionId: Int, state: QueryStates.QueryState): Unit = {}
 }
 
 object ConsoleMetricReporter {

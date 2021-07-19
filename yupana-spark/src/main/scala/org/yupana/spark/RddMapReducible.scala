@@ -70,7 +70,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
   }
 
   private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]) = {
-    rdd.mapPartitions { it =>
+    rdd.mapPartitionsWithIndex { (id, it) =>
       CloseableIterator[A](it, metricCollector.checkpoint())
     }
   }

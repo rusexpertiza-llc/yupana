@@ -194,7 +194,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new StandardMetricCollector(query, "test", 10, false, new ConsoleMetricReporter)
+    val mc = new StandardMetricCollector(query, -1, "test", 10, false, new ConsoleMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(

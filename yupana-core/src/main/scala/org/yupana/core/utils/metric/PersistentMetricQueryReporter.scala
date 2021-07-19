@@ -23,11 +23,19 @@ import org.yupana.core.model.{ MetricData, QueryStates }
 class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     extends MetricReporter[MetricQueryCollector] {
 
-  override def start(mc: MetricQueryCollector): Unit = {
-    metricsDao().saveQueryMetrics(mc.query, 0, mc.startTime, QueryStates.Running, 0, Map.empty, mc.isSparkQuery)
+  override def start(mc: MetricQueryCollector, partitionId: Int): Unit = {
+    metricsDao().saveQueryMetrics(
+      mc.query,
+      partitionId,
+      mc.startTime,
+      QueryStates.Running,
+      0,
+      Map.empty,
+      mc.isSparkQuery
+    )
   }
 
-  private def getAndResetMetricsData(mc: MetricQueryCollector): Map[String, MetricData] = {
+  private def createMetricsData(mc: MetricQueryCollector): Map[String, MetricData] = {
     mc.allMetrics.map { m =>
       val cnt = m.count
       val time = MetricCollector.asSeconds(m.time)
@@ -37,25 +45,25 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     }.toMap
   }
 
-  def saveQueryMetrics(mc: MetricQueryCollector, state: QueryState): Unit = {
+  def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Int, state: QueryState): Unit = {
     val duration = MetricCollector.asSeconds(mc.resultTime)
-    val metricsData = getAndResetMetricsData(mc)
+    val metricsData = createMetricsData(mc)
 
-    metricsDao().saveQueryMetrics(mc.query, 0, mc.startTime, state, duration, metricsData, mc.isSparkQuery)
+    metricsDao().saveQueryMetrics(mc.query, partitionId, mc.startTime, state, duration, metricsData, mc.isSparkQuery)
   }
 
-  override def finish(mc: MetricQueryCollector): Unit = {}
+  override def finish(mc: MetricQueryCollector, partitionId: Int): Unit = {}
 
-  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {
-    metricsDao().setRunningPartitions(mc.query.id, partitions)
-  }
-
-  override def finishPartition(mc: MetricQueryCollector): Unit = {
-    val restPartitions = metricsDao().decrementRunningPartitions(mc.query.id)
-    saveQueryMetrics(mc, QueryStates.Running)
-
-    if (restPartitions <= 0) {
-      finish(mc)
-    }
-  }
+//  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {
+//    metricsDao().setRunningPartitions(mc.query.id, partitions)
+//  }
+//
+//  override def finishPartition(mc: MetricQueryCollector): Unit = {
+//    val restPartitions = metricsDao().decrementRunningPartitions(mc.query.id)
+//    saveQueryMetrics(mc, QueryStates.Running)
+//
+//    if (restPartitions <= 0) {
+//      finish(mc)
+//    }
+//  }
 }
