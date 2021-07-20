@@ -23,7 +23,7 @@ import org.yupana.core.model.{ MetricData, QueryStates }
 class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     extends MetricReporter[MetricQueryCollector] {
 
-  override def start(mc: MetricQueryCollector, partitionId: Int): Unit = {
+  override def start(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
     metricsDao().saveQueryMetrics(
       mc.query,
       partitionId,
@@ -45,14 +45,14 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     }.toMap
   }
 
-  def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Int, state: QueryState): Unit = {
+  def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryState): Unit = {
     val duration = MetricCollector.asSeconds(mc.resultTime)
     val metricsData = createMetricsData(mc)
 
     metricsDao().saveQueryMetrics(mc.query, partitionId, mc.startTime, state, duration, metricsData, mc.isSparkQuery)
   }
 
-  override def finish(mc: MetricQueryCollector, partitionId: Int): Unit = {}
+  override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {}
 
 //  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {
 //    metricsDao().setRunningPartitions(mc.query.id, partitions)

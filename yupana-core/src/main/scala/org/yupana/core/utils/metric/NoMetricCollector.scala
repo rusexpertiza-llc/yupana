@@ -35,13 +35,14 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override def dynamicMetric(name: String): Metric = NoMetric
 
+  override val partitionId: Option[String] = None
+
+  override def start(): Unit = {}
   override def checkpoint(): Unit = {}
   override def metricUpdated(metric: Metric, time: Long): Unit = {}
   override def finish(): Unit = {}
 
   override val query: Query = null
-
-  override def partitionId: Int = 0
 
   override val isEnabled: Boolean = false
   override def isSparkQuery: Boolean = false

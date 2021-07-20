@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.spark
 
-import org.yupana.core.model.QueryStates.QueryState
+import org.apache.spark.SparkEnv
+import org.yupana.api.query.Query
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandardMetricCollector }
 
-trait MetricReporter[Collector <: MetricCollector] {
-  def start(mc: Collector, partitionId: Option[String]): Unit
-  def finish(mc: Collector, partitionId: Option[String]): Unit
-
-  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryState): Unit
+class SparkMetricCollector(
+    query: Query,
+    opName: String,
+    metricsUpdateInterval: Int,
+    reporter: PersistentMetricQueryReporter
+) extends StandardMetricCollector(query, opName, metricsUpdateInterval, true, reporter) {
+  override def partitionId: Option[String] = Some(SparkEnv.get.executorId)
 }

@@ -28,7 +28,7 @@ trait TsdbQueryMetricsDao {
 
   def saveQueryMetrics(
       query: Query,
-      partitionId: Int,
+      partitionId: Option[String],
       startDate: Long,
       queryState: QueryState,
       totalDuration: Double,
@@ -47,6 +47,6 @@ trait TsdbQueryMetricsDao {
 
 case class QueryMetricsFilter(
     queryId: Option[String] = None,
-    partitionId: Option[Int] = None,
+    partitionId: Option[String] = None,
     queryState: Option[QueryState] = None
 )

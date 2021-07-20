@@ -16,11 +16,13 @@
 
 package org.yupana.core.utils.metric
 
-import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.api.query.Query
 
-trait MetricReporter[Collector <: MetricCollector] {
-  def start(mc: Collector, partitionId: Option[String]): Unit
-  def finish(mc: Collector, partitionId: Option[String]): Unit
-
-  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryState): Unit
+class StandaloneMetricCollector(
+    query: Query,
+    operationName: String,
+    metricsUpdateInterval: Int,
+    reporter: MetricReporter[MetricQueryCollector]
+) extends StandardMetricCollector(query, operationName, metricsUpdateInterval, false, reporter) {
+  override val partitionId: Option[String] = None
 }

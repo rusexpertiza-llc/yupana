@@ -17,7 +17,6 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
@@ -57,7 +56,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
 
   override def saveQueryMetrics(
       query: Query,
-      partitionId: Int,
+      partitionId: Option[String],
       startDate: Long,
       queryState: QueryState,
       totalDuration: Double,
@@ -116,7 +115,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         case Some(f) =>
           (f.queryId, f.partitionId) match {
             case (Some(queryId), Some(pId)) =>
-              val get = new Get(rowKey(queryId, pId)).addFamily(FAMILY)
+              val get = new Get(rowKey(queryId, f.partitionId)).addFamily(FAMILY)
               val result = table.get(get)
               if (result.isEmpty) List()
               else List(result)
@@ -146,36 +145,6 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
           .map(toMetric)
     }
   }
-
-//  override def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit = {
-//    val table = getTable
-//    queriesByFilter(filter = Some(filter), limit = Some(1)).headOption match {
-//      case Some(query) =>
-//        val put = new Put(Bytes.toBytes(query.queryId))
-//        put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(queryState.name))
-//        table
-//          .checkAndMutate(
-//            CheckAndMutate
-//              .newBuilder(Bytes.toBytes(query.queryId))
-//              .ifEquals(FAMILY, STATE_QUALIFIER, Bytes.toBytes(QueryStates.Running.name))
-//              .build(put)
-//          )
-//
-//      case None =>
-//        throw new IllegalArgumentException(s"Query not found by filter $filter!")
-//    }
-//  }
-
-//  override def setRunningPartitions(queryId: String, partitions: Int): Unit = {
-//    val table = getTable
-//    val put = new Put(Bytes.toBytes(queryId))
-//    put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(partitions))
-//    table.put(put)
-//  }
-//
-//  def decrementRunningPartitions(queryId: String): Int = {
-//    decrementRunningPartitions(queryId, 1)
-//  }
 
   @tailrec
   private def decrementRunningPartitions(queryId: String, attempt: Int): Int = {
@@ -234,7 +203,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val (qId, pId) = parseKey(result.getRow)
     TsdbQueryMetrics(
       queryId = qId,
-      partitionId = Some(pId),
+      partitionId = pId,
       state = QueryStates.getByName(Bytes.toString(result.getValue(FAMILY, STATE_QUALIFIER))),
       engine = Bytes.toString(result.getValue(FAMILY, ENGINE_QUALIFIER)),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
@@ -251,18 +220,15 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
 
   private def getTable: Table = connection.getTable(getTableName(namespace))
 
-  private def rowKey(queryId: String, partitionId: Int): Array[Byte] = {
-
-    println(s"MAKE KEY: $queryId, $partitionId")
-    Bytes.toBytes(s"${queryId}_$partitionId")
+  private def rowKey(queryId: String, partitionId: Option[String]): Array[Byte] = {
+    val key = partitionId.map(x => s"${queryId}_$partitionId").getOrElse(queryId)
+    Bytes.toBytes(key)
   }
 
-  private def parseKey(bytes: Array[Byte]): (String, Int) = {
+  private def parseKey(bytes: Array[Byte]): (String, Option[String]) = {
     val strKey = Bytes.toString(bytes)
-    val parts = strKey.split("_")
-    if (parts.length != 2)
-      throw new IllegalArgumentException(s"Invalid row key ${Hex.encodeHexString(bytes)} '$strKey'")
-    (parts(0), parts(1).toInt)
+    val splitIndex = strKey.indexOf('_')
+    (strKey.substring(0, splitIndex), if (splitIndex != -1) Some(strKey.substring(splitIndex + 1)) else None)
   }
 
   private def checkTablesExistsElseCreate(): Unit = {

@@ -27,7 +27,7 @@ import org.yupana.core.utils.metric.{
   CombinedMetricReporter,
   ConsoleMetricReporter,
   PersistentMetricQueryReporter,
-  StandardMetricCollector
+  StandaloneMetricCollector
 }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
@@ -83,11 +83,10 @@ object Main extends StrictLogging {
     lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
 
     val metricCreator = { query: Query =>
-      new StandardMetricCollector(
+      new StandaloneMetricCollector(
         query,
         "query",
         tsdbConfig.metricsUpdateInterval,
-        false,
         new CombinedMetricReporter(
           new ConsoleMetricReporter,
           new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)

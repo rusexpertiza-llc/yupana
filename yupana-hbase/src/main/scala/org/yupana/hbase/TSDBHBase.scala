@@ -22,7 +22,7 @@ import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
-import org.yupana.core.utils.metric.{ StandardMetricCollector, MetricQueryCollector, PersistentMetricQueryReporter }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ TSDB, TsdbConfig }
 import java.util.Properties
 
@@ -36,12 +36,10 @@ object TSDBHBase {
     lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(connection, namespace)
 
     { query: Query =>
-      new StandardMetricCollector(
+      new StandaloneMetricCollector(
         query,
-        -1,
         "query",
         tsdbConfig.metricsUpdateInterval,
-        false,
         new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
       )
     }

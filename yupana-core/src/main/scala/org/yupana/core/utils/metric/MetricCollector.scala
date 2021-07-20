@@ -19,6 +19,9 @@ package org.yupana.core.utils.metric
 trait MetricCollector extends Serializable {
   def id: String
   def operationName: String
+  def partitionId: Option[String]
+
+  lazy val fullId: String = partitionId.map(pId => s"${id}_$pId").getOrElse(id)
 
   def meta: String = ""
 
@@ -29,10 +32,10 @@ trait MetricCollector extends Serializable {
 
   def isEnabled: Boolean
 
-  def start(partitionId: Int): Unit = startAt = System.nanoTime()
-  def checkpoint(partitionId: Int): Unit
-  def metricUpdated(metric: Metric, partitionId: Int, time: Long): Unit
-  def finish(partitionId: Int): Unit = finishAt = System.nanoTime()
+  def start(): Unit = startAt = System.nanoTime()
+  def checkpoint(): Unit
+  def metricUpdated(metric: Metric, time: Long): Unit
+  def finish(): Unit = finishAt = System.nanoTime()
 
   def allMetrics: Seq[Metric]
 

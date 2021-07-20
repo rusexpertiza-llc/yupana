@@ -21,9 +21,9 @@ import org.yupana.core.model.QueryStates
 
 import scala.collection.mutable
 
-class StandardMetricCollector(
-    val query: Query,
-    val operationName: String,
+abstract class StandardMetricCollector(
+    override val query: Query,
+    override val operationName: String,
     metricsUpdateInterval: Int,
     val isSparkQuery: Boolean,
     reporter: MetricReporter[MetricQueryCollector]
@@ -35,8 +35,8 @@ class StandardMetricCollector(
 
   private val dynamicMetrics = mutable.Map.empty[String, MetricImpl]
 
-  override def start(partitionId: Int): Unit = {
-    super.start(partitionId)
+  override def start(): Unit = {
+    super.start()
     reporter.start(this, partitionId)
   }
 
@@ -60,20 +60,20 @@ class StandardMetricCollector(
 
   override val isEnabled: Boolean = true
 
-  override def finish(partitionId: Int): Unit = {
-    super.finish(partitionId)
+  override def finish(): Unit = {
+    super.finish()
     reporter.saveQueryMetrics(this, partitionId, QueryStates.Finished)
     reporter.finish(this, partitionId)
   }
 
-  override def metricUpdated(metric: Metric, partitionId: Int, time: Long): Unit = {
+  override def metricUpdated(metric: Metric, time: Long): Unit = {
     if (MetricCollector.asSeconds(time - lastSaveTime) > metricsUpdateInterval) {
       reporter.saveQueryMetrics(this, partitionId, QueryStates.Running)
       lastSaveTime = time
     }
   }
 
-  override def checkpoint(partitionId: Int): Unit = reporter.saveQueryMetrics(this, partitionId, QueryStates.Running)
+  override def checkpoint(): Unit = reporter.saveQueryMetrics(this, partitionId, QueryStates.Running)
 
   def allMetrics: Seq[MetricImpl] =
     Seq(

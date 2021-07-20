@@ -28,10 +28,10 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     val startTime = DateTime.now
 
     When("metric dao initialized")
-    dao.saveQueryMetrics(query, 0, startTime.getMillis, QueryStates.Running, 0d, Map.empty, sparkQuery = false)
+    dao.saveQueryMetrics(query, None, startTime.getMillis, QueryStates.Running, 0d, Map.empty, sparkQuery = false)
 
     Then("all metrics shall be zero")
-    val qs = dao.queriesByFilter(Some(QueryMetricsFilter(queryId = Some(query.id), partitionId = Some(0)))).toList
+    val qs = dao.queriesByFilter(Some(QueryMetricsFilter(queryId = Some(query.id), partitionId = Some("0")))).toList
     qs should have size 1
     val m = qs.head
     m.queryId shouldEqual query.id
@@ -45,7 +45,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     When("metrics are updated")
     dao.saveQueryMetrics(
       query,
-      0,
+      None,
       startTime.getMillis,
       QueryStates.Finished,
       42d,
