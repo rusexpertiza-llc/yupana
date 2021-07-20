@@ -23,9 +23,11 @@ import org.yupana.core.model.UpdateInterval
 import scala.language.higherKinds
 
 trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
+
+  val dataPointsBatchSize: Int
+
   def put(mr: MapReducible[Collection], dataPoints: Collection[DataPoint], username: String): Seq[UpdateInterval] = {
-    // todo we have two batchings, here in batchFlatMap (usefull) and before HTable.put (probably less usefull). Need to clarify and factor out to some setting.
-    mr.materialize(mr.batchFlatMap(dataPoints, 10000)(putBatch(username)))
+    mr.materialize(mr.batchFlatMap(dataPoints, dataPointsBatchSize)(putBatch(username)))
   }
   def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval]
 }

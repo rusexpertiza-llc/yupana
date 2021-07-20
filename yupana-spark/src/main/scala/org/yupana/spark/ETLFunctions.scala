@@ -26,16 +26,7 @@ import scala.language.implicitConversions
 object ETLFunctions extends StrictLogging {
 
   def processTransactions(context: EtlContext, dataPoints: RDD[DataPoint]): Unit = {
-
-    dataPoints.foreachPartition { ls =>
-      ls.sliding(5000, 5000).foreach { batch =>
-        val dps = batch
-
-        logger.trace(s"Put ${dps.size} datapoints")
-        // todo use TsdbSpark for ETL writes? Or use context.tsdb.put(ls) and relay on underlying batching?
-        context.tsdb.put(dps.iterator)
-      }
-    }
+    dataPoints.foreachPartition({ ls => context.tsdb.put(ls) })
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =

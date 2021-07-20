@@ -34,7 +34,19 @@ import org.yupana.core.utils.metric.MetricQueryCollector
 import scala.language.higherKinds
 import scala.util.Try
 
+object TSDaoHBaseBase {
+  val CROSS_JOIN_LIMIT = 500000
+  val RANGE_FILTERS_LIMIT = 100000
+  val FUZZY_FILTERS_LIMIT = 20
+  val EXTRACT_BATCH_SIZE = 10000
+  val INSERT_BATCH_SIZE = 5000
+  val PUTS_BATCH_SIZE = 1000
+}
+
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
+
+  import TSDaoHBaseBase._
+
   type IdType = Long
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean
@@ -45,10 +57,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
   val TIME: RawDimension[Time] = RawDimension[Time]("time")
 
-  val CROSS_JOIN_LIMIT = 500000
-  val RANGE_FILTERS_LIMIT = 100000
-  val FUZZY_FILTERS_LIMIT = 20
-  val EXTRACT_BATCH_SIZE = 10000
+  override val dataPointsBatchSize: Int = INSERT_BATCH_SIZE
 
   def dictionaryProvider: DictionaryProvider
 

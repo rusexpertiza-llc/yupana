@@ -20,7 +20,7 @@ import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.MapReducible
-import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
@@ -30,9 +30,8 @@ class TSDaoHBase(
     connection: Connection,
     namespace: String,
     override val dictionaryProvider: DictionaryProvider,
-    putsBatchSize: Int = 1000
-) extends TSDaoHBaseBase[Iterator]
-    with TSDao[Iterator, Long] {
+    putsBatchSize: Int = TSDaoHBaseBase.PUTS_BATCH_SIZE
+) extends TSDaoHBaseBase[Iterator] {
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
     MapReducible.iteratorMR
@@ -50,7 +49,7 @@ class TSDaoHBase(
           val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
           createScan(queryContext, filter, Seq.empty, from, to)
         } match {
-          case Some(scan) => executeScan(connection, namespace, scan, queryContext, EXTRACT_BATCH_SIZE)
+          case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
           case None       => Iterator.empty
         }
       }

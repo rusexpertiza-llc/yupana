@@ -70,6 +70,17 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
+  def loadDimIds(dictionaryProvider: DictionaryProvider, table: Table, dataPoints: Seq[DataPoint]): Unit = {
+    table.dimensionSeq.foreach {
+      case dimension: DictionaryDimension =>
+        val values = dataPoints.flatMap { dp =>
+          dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
+        }
+        dictionaryProvider.dictionary(dimension).findIdsByValues(values.toSet)
+      case _ =>
+    }
+  }
+
   def createPuts(
       dataPoints: Seq[DataPoint],
       dictionaryProvider: DictionaryProvider,
@@ -80,6 +91,7 @@ object HBaseUtils extends StrictLogging {
       .groupBy(_.table)
       .map {
         case (table, points) =>
+          loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
           val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
           val (puts, intervals) = grouped
@@ -133,7 +145,6 @@ object HBaseUtils extends StrictLogging {
       case (table, puts, updateIntervals) =>
         using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
           puts
-          // todo probably we don't need this, seems like HBase is smart enough to process long put sequences?
             .sliding(putsBatchSize, putsBatchSize)
             .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
           logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
