@@ -17,20 +17,22 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableName }
 import org.joda.time.DateTime
 import org.yupana.api.query.Query
+import org.yupana.api.utils.GroupByIterator
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.TsdbQueryMetrics._
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
+import org.yupana.core.utils.metric.{ MetricCollector, NoMetricCollector }
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object TsdbQueryMetricsDaoHBase {
@@ -43,9 +45,7 @@ object TsdbQueryMetricsDaoHBase {
   val STATE_QUALIFIER: Array[Byte] = Bytes.toBytes(stateColumn)
   val ENGINE_QUALIFIER: Array[Byte] = Bytes.toBytes(engineColumn)
   val RUNNING_PARTITIONS_QUALIFIER: Array[Byte] = Bytes.toBytes("runningPartitions")
-
-  private val UPDATE_ATTEMPTS_LIMIT = 100
-  private val MAX_SLEEP_TIME_BETWEEN_ATTEMPTS = 500
+  val BATCH_SIZE = 10000
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 }
@@ -59,7 +59,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       partitionId: Option[String],
       startDate: Long,
       queryState: QueryState,
-      totalDuration: Double,
+      totalDuration: Long,
       metricValues: Map[String, MetricData],
       sparkQuery: Boolean
   ): Unit = withTables {
@@ -76,7 +76,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     TsdbQueryMetrics.qualifiers.foreach { metricName =>
       val (count, time, speed) = metricValues.get(metricName) match {
         case Some(data) => (data.count, data.time, data.speed)
-        case None       => (0L, 0d, 0d)
+        case None       => (0L, 0L, 0d)
       }
 
       put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricCount), Bytes.toBytes(count))
@@ -90,7 +90,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   override def queriesByFilter(
       filter: Option[QueryMetricsFilter],
       limit: Option[Int] = None
-  ): Iterable[TsdbQueryMetrics] = withTables {
+  ): Iterator[TsdbQueryMetrics] = withTables {
     def setFilters(scan: Scan): Unit = {
       val filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL)
       filter.foreach { f =>
@@ -110,72 +110,35 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       }
     }
 
-    val results = using(getTable) { table =>
-      filter match {
-        case Some(f) =>
-          (f.queryId, f.partitionId) match {
-            case (Some(queryId), Some(pId)) =>
-              val get = new Get(rowKey(queryId, f.partitionId)).addFamily(FAMILY)
-              val result = table.get(get)
-              if (result.isEmpty) List()
-              else List(result)
+    val scan = filter match {
+      case Some(f) =>
+        f.queryId match {
+          case Some(queryId) =>
+            val begin = Bytes.toBytes(queryId)
+            val end = ClientUtil.calculateTheClosestNextRowKeyForPrefix(begin)
+            val scan = new Scan().withStartRow(end, false).withStopRow(begin, true).addFamily(FAMILY).setReversed(true)
+            setFilters(scan)
+            scan
 
-            case (Some(queryId), None) =>
-              val scan = new Scan().setRowPrefixFilter(Bytes.toBytes(queryId + "_")).addFamily(FAMILY).setReversed(true)
-              setFilters(scan)
-              using(table.getScanner(scan))(_.asScala.toList)
-
-            case _ =>
-              val scan = new Scan().addFamily(FAMILY).setReversed(true)
-              setFilters(scan)
-              using(table.getScanner(scan))(_.asScala.toList)
-          }
-        case None =>
-          val scan = new Scan().addFamily(FAMILY).setReversed(true)
-          using(table.getScanner(scan))(_.asScala.toList)
-      }
-    }
-    limit match {
-      case Some(lim) =>
-        results
-          .take(lim)
-          .map(toMetric)
+          case _ =>
+            val scan = new Scan().addFamily(FAMILY).setReversed(true)
+            setFilters(scan)
+            scan
+        }
       case None =>
-        results
-          .map(toMetric)
+        new Scan().addFamily(FAMILY).setReversed(true)
     }
-  }
 
-  @tailrec
-  private def decrementRunningPartitions(queryId: String, attempt: Int): Int = {
-    val table = getTable
+    val results = HBaseUtils
+      .executeScan(connection, getTableName(namespace), scan, NoMetricCollector, BATCH_SIZE)
+      .map(toMetric)
 
-    val get = new Get(Bytes.toBytes(queryId)).addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER)
-    val res = table.get(get)
-    val runningPartitions = Bytes.toInt(res.getValue(FAMILY, RUNNING_PARTITIONS_QUALIFIER))
+    val grouped = new GroupByIterator[TsdbQueryMetrics, String](_.queryId, results)
+      .map(x => joinMetrics(x._2))
 
-    val decrementedRunningPartitions = runningPartitions - 1
-
-    val put = new Put(Bytes.toBytes(queryId))
-    put.addColumn(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(decrementedRunningPartitions))
-    val successes = table
-      .checkAndMutate(
-        CheckAndMutate
-          .newBuilder(Bytes.toBytes(queryId))
-          .ifEquals(FAMILY, RUNNING_PARTITIONS_QUALIFIER, Bytes.toBytes(runningPartitions))
-          .build(put)
-      )
-      .isSuccess
-
-    if (successes) {
-      decrementedRunningPartitions
-    } else if (attempt < UPDATE_ATTEMPTS_LIMIT) {
-      Thread.sleep(util.Random.nextInt(MAX_SLEEP_TIME_BETWEEN_ATTEMPTS))
-      decrementRunningPartitions(queryId, attempt + 1)
-    } else {
-      throw new IllegalStateException(
-        s"Cannot decrement running partitions for $queryId, concurrent update attempt limit $attempt has been reached"
-      )
+    limit match {
+      case Some(lim) => grouped.take(lim)
+      case None      => grouped
     }
   }
 
@@ -195,7 +158,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         qualifier -> {
           MetricData(
             Bytes.toLong(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricCount))),
-            Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime))),
+            Bytes.toLong(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricTime))),
             Bytes.toDouble(result.getValue(FAMILY, Bytes.toBytes(qualifier + "_" + metricSpeed)))
           )
         }
@@ -208,12 +171,54 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       engine = Bytes.toString(result.getValue(FAMILY, ENGINE_QUALIFIER)),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
       startDate = new DateTime(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
-      totalDuration = Bytes.toDouble(result.getValue(FAMILY, TOTAL_DURATION_QUALIFIER)),
+      totalDuration = Bytes.toLong(result.getValue(FAMILY, TOTAL_DURATION_QUALIFIER)),
       metrics = metrics
     )
   }
 
-  def withTables[T](block: => T): T = {
+  private def joinMetrics(metrics: Seq[TsdbQueryMetrics]): TsdbQueryMetrics = {
+    case class Info(startTime: DateTime, stopTime: DateTime, state: QueryState, metrics: Map[String, MetricData])
+    val h = metrics.head
+
+    if (metrics.size > 1) {
+      // FIXME: Use plusNanos after switch to Java time
+      val merged =
+        metrics.foldLeft(
+          Info(h.startDate, h.startDate.plusMillis((h.totalDuration / 1000).toInt), h.state, h.metrics)
+        ) { (i, m) =>
+          val end = m.startDate.plusMillis((m.totalDuration / 1000).toInt)
+          i.copy(
+            startTime = if (i.startTime.isBefore(m.startDate)) i.startTime else m.startDate,
+            stopTime = if (i.stopTime.isAfter(end)) i.stopTime else end,
+            state = QueryStates.combine(i.state, m.state),
+            metrics = mergeMetrics(i.metrics, m.metrics)
+          )
+        }
+
+      val duration = (merged.stopTime.getMillis - merged.startTime.getMillis) * 1000
+      val ms = merged.metrics.map {
+        case (k, v) =>
+          (k, v.copy(speed = if (duration != 0d) v.count.toDouble / MetricCollector.asSeconds(duration) else 0d))
+      }
+
+      h.copy(
+        startDate = merged.startTime,
+        totalDuration = duration,
+        state = merged.state,
+        metrics = ms
+      )
+    } else h
+  }
+
+  private def mergeMetrics(a: Map[String, MetricData], b: Map[String, MetricData]): Map[String, MetricData] = {
+    (a.keySet ++ b.keySet).map { k =>
+      val m1 = a.getOrElse(k, MetricData(0L, 0L, 0d))
+      val m2 = b.getOrElse(k, MetricData(0L, 0L, 0d))
+      k -> MetricData(m1.count + m2.count, m1.time + m2.time, m1.speed + m2.speed)
+    }.toMap
+  }
+
+  private def withTables[T](block: => T): T = {
     checkTablesExistsElseCreate()
     block
   }
@@ -221,14 +226,18 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   private def getTable: Table = connection.getTable(getTableName(namespace))
 
   private def rowKey(queryId: String, partitionId: Option[String]): Array[Byte] = {
-    val key = partitionId.map(x => s"${queryId}_$partitionId").getOrElse(queryId)
-    Bytes.toBytes(key)
+    val key = partitionId.map(x => s"${queryId}_$x").getOrElse(queryId)
+    val result = Bytes.toBytes(key)
+    println(s"PUT:  ${Hex.encodeHexString(result)} '$key'")
+    result
   }
 
   private def parseKey(bytes: Array[Byte]): (String, Option[String]) = {
     val strKey = Bytes.toString(bytes)
+    println(s"REAL: ${Hex.encodeHexString(bytes)} '$strKey'")
     val splitIndex = strKey.indexOf('_')
-    (strKey.substring(0, splitIndex), if (splitIndex != -1) Some(strKey.substring(splitIndex + 1)) else None)
+    if (splitIndex != -1) (strKey.substring(0, splitIndex), Some(strKey.substring(splitIndex + 1)))
+    else (strKey, None)
   }
 
   private def checkTablesExistsElseCreate(): Unit = {

@@ -23,6 +23,7 @@ import org.yupana.core.FlatQueryEngine
 import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.QueryStates
 import org.yupana.core.sql.parser.MetricsFilter
+import org.yupana.core.utils.metric.MetricCollector
 
 object QueryInfoProvider {
 
@@ -49,16 +50,16 @@ object QueryInfoProvider {
         queryMetrics.state.name,
         queryMetrics.query,
         Time(queryMetrics.startDate),
-        queryMetrics.totalDuration
+        MetricCollector.asSeconds(queryMetrics.totalDuration)
       ) ++ qualifiers.flatMap { q =>
         queryMetrics.metrics.get(q) match {
           case Some(metric) =>
-            Array(metric.count.toString, metric.time.toString, metric.speed.toString)
+            Array(metric.count.toString, MetricCollector.asSeconds(metric.time).toString, metric.speed.toString)
           case None =>
             Array("-", "-", "-")
         }
       }
-    }.iterator
+    }
 
     val queryFieldNames = List(
       queryIdColumn,

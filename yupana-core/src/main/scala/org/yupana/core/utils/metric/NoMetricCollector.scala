@@ -51,7 +51,7 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override val operationName: String = "UNKNOWN"
   override def startTime: Long = 0L
-  override def resultTime: Long = 0L
+  override def resultDuration: Long = 0L
 }
 
 object NoMetric extends Metric {

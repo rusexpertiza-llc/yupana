@@ -32,7 +32,7 @@ class ConsoleMetricReporter[C <: MetricCollector] extends MetricReporter[C] with
       )
     }
     logger.info(
-      s"${mc.fullId}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultTime)}; meta: ${mc.meta}"
+      s"${mc.fullId}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultDuration)}; meta: ${mc.meta}"
     )
   }
 

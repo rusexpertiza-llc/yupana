@@ -280,7 +280,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     (metricsDao.queriesByFilter _)
       .expects(None, Some(3))
       .returning(
-        Seq(
+        Iterator(
           TsdbQueryMetrics(
             "323232",
             None,
@@ -289,7 +289,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
             "SELECT kkm FROM kkm_items",
             QueryStates.Running,
             "standalone",
-            metrics.zipWithIndex.map { case (m, i) => m -> MetricData(i, i * 5d, i * 7d) }.toMap
+            metrics.zipWithIndex.map { case (m, i) => m -> MetricData(i, i * 5000000L, i * 7d) }.toMap
           )
         )
       )
@@ -338,7 +338,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
       sqlQueryProcessor
     )
 
-    (metricsDao.deleteMetrics _).expects(QueryMetricsFilter(None, None, Some(QueryStates.Cancelled))).returning(8)
+    (metricsDao.deleteMetrics _).expects(QueryMetricsFilter(None, Some(QueryStates.Cancelled))).returning(8)
     val query = SqlQuery("DELETE QUERIES WHERE state = 'CANCELLED'")
     val requestHandler = new RequestHandler(queryEngineRouter)
     val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList

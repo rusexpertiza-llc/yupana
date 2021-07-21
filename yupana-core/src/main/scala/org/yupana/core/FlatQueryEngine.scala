@@ -39,7 +39,7 @@ class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMeta
 //    metricsDao.setQueryState(filter, queryState)
   }
 
-  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] = {
+  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterator[TsdbQueryMetrics] = {
     metricsDao.queriesByFilter(filter, limit)
   }
 }

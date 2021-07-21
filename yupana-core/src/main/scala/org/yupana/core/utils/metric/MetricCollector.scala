@@ -40,7 +40,7 @@ trait MetricCollector extends Serializable {
   def allMetrics: Seq[Metric]
 
   def startTime: Long = startAt
-  def resultTime: Long = finishAt - startAt
+  def resultDuration: Long = finishAt - startAt
 }
 
 object MetricCollector {

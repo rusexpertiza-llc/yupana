@@ -40,30 +40,23 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
       val cnt = m.count
       val time = MetricCollector.asSeconds(m.time)
       val speed = if (time != 0) cnt.toDouble / time else 0.0
-      val data = MetricData(cnt, time, speed)
+      val data = MetricData(cnt, m.time, speed)
       m.name -> data
     }.toMap
   }
 
   def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryState): Unit = {
-    val duration = MetricCollector.asSeconds(mc.resultTime)
     val metricsData = createMetricsData(mc)
-
-    metricsDao().saveQueryMetrics(mc.query, partitionId, mc.startTime, state, duration, metricsData, mc.isSparkQuery)
+    metricsDao().saveQueryMetrics(
+      mc.query,
+      partitionId,
+      mc.startTime,
+      state,
+      mc.resultDuration,
+      metricsData,
+      mc.isSparkQuery
+    )
   }
 
   override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {}
-
-//  override def setRunningPartitions(mc: MetricQueryCollector, partitions: Int): Unit = {
-//    metricsDao().setRunningPartitions(mc.query.id, partitions)
-//  }
-//
-//  override def finishPartition(mc: MetricQueryCollector): Unit = {
-//    val restPartitions = metricsDao().decrementRunningPartitions(mc.query.id)
-//    saveQueryMetrics(mc, QueryStates.Running)
-//
-//    if (restPartitions <= 0) {
-//      finish(mc)
-//    }
-//  }
 }
