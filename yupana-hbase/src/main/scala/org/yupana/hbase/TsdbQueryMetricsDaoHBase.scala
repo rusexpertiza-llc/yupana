@@ -90,6 +90,28 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       filter: Option[QueryMetricsFilter],
       limit: Option[Int] = None
   ): Iterator[TsdbQueryMetrics] = withTables {
+    val results = rowsForFilter(filter).map(toMetric)
+
+    val grouped = new GroupByIterator[TsdbQueryMetrics, String](_.queryId, results)
+      .map(x => joinMetrics(x._2))
+
+    limit match {
+      case Some(lim) => grouped.take(lim)
+      case None      => grouped
+    }
+  }
+
+  override def deleteMetrics(filter: QueryMetricsFilter): Int = {
+    val table = getTable
+    var n = 0
+    rowsForFilter(Some(filter)).foreach { result =>
+      table.delete(new Delete(result.getRow))
+      n += 1
+    }
+    n
+  }
+
+  private def rowsForFilter(filter: Option[QueryMetricsFilter]): Iterator[Result] = {
     def setFilters(scan: Scan): Unit = {
       val filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL)
       filter.foreach { f =>
@@ -128,27 +150,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         new Scan().addFamily(FAMILY).setReversed(true)
     }
 
-    val results = HBaseUtils
-      .executeScan(connection, getTableName(namespace), scan, NoMetricCollector, BATCH_SIZE)
-      .map(toMetric)
-
-    val grouped = new GroupByIterator[TsdbQueryMetrics, String](_.queryId, results)
-      .map(x => joinMetrics(x._2))
-
-    limit match {
-      case Some(lim) => grouped.take(lim)
-      case None      => grouped
-    }
-  }
-
-  override def deleteMetrics(filter: QueryMetricsFilter): Int = {
-    val table = getTable
-    var n = 0
-    queriesByFilter(filter = Some(filter)).foreach { query =>
-      table.delete(new Delete(Bytes.toBytes(query.queryId)))
-      n += 1
-    }
-    n
+    HBaseUtils.executeScan(connection, getTableName(namespace), scan, NoMetricCollector, BATCH_SIZE)
   }
 
   private def toMetric(result: Result): TsdbQueryMetrics = {
