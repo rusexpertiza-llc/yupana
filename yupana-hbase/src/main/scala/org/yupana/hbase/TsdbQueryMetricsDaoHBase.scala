@@ -17,7 +17,6 @@
 package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
@@ -183,10 +182,10 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     if (metrics.size > 1) {
       // FIXME: Use plusNanos after switch to Java time
       val merged =
-        metrics.foldLeft(
-          Info(h.startDate, h.startDate.plusMillis((h.totalDuration / 1000).toInt), h.state, h.metrics)
+        metrics.tail.foldLeft(
+          Info(h.startDate, h.startDate.plusMillis((h.totalDuration / 1000000).toInt), h.state, h.metrics)
         ) { (i, m) =>
-          val end = m.startDate.plusMillis((m.totalDuration / 1000).toInt)
+          val end = m.startDate.plusMillis((m.totalDuration / 1000000).toInt)
           i.copy(
             startTime = if (i.startTime.isBefore(m.startDate)) i.startTime else m.startDate,
             stopTime = if (i.stopTime.isAfter(end)) i.stopTime else end,
@@ -195,7 +194,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
           )
         }
 
-      val duration = (merged.stopTime.getMillis - merged.startTime.getMillis) * 1000
+      val duration = (merged.stopTime.getMillis - merged.startTime.getMillis) * 1000000
       val ms = merged.metrics.map {
         case (k, v) =>
           (k, v.copy(speed = if (duration != 0d) v.count.toDouble / MetricCollector.asSeconds(duration) else 0d))
@@ -227,14 +226,11 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
 
   private def rowKey(queryId: String, partitionId: Option[String]): Array[Byte] = {
     val key = partitionId.map(x => s"${queryId}_$x").getOrElse(queryId)
-    val result = Bytes.toBytes(key)
-    println(s"PUT:  ${Hex.encodeHexString(result)} '$key'")
-    result
+    Bytes.toBytes(key)
   }
 
   private def parseKey(bytes: Array[Byte]): (String, Option[String]) = {
     val strKey = Bytes.toString(bytes)
-    println(s"REAL: ${Hex.encodeHexString(bytes)} '$strKey'")
     val splitIndex = strKey.indexOf('_')
     if (splitIndex != -1) (strKey.substring(0, splitIndex), Some(strKey.substring(splitIndex + 1)))
     else (strKey, None)
