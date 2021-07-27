@@ -694,7 +694,7 @@ object ExpressionCalculator extends StrictLogging {
     val initialState =
       State(
         Map.empty,
-        query.fields.map(_.expr).toSet ++ query.groupBy ++ condition ++ query.postFilter,
+        query.fields.map(_.expr).toSet ++ query.groupBy ++ condition ++ query.postFilter + TimeExpr,
         Set.empty,
         Map.empty,
         Seq.empty,
