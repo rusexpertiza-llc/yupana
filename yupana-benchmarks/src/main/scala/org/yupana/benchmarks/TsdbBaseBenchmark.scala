@@ -228,6 +228,7 @@ object TsdbBaseBenchmark {
         SchemaRegistry.defaultSchema,
         null,
         null,
+        null,
         identity,
         SimpleTsdbConfig(),
         _ => NoMetricCollector

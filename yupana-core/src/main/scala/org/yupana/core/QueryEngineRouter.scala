@@ -30,10 +30,10 @@ class QueryEngineRouter(
 ) {
 
   def query(sql: String, params: Map[Int, Value]): Either[String, Result] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case select: Select =>
         val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
-        tsdbQuery.right flatMap { query =>
+        tsdbQuery flatMap { query =>
           Right(timeSeriesQueryEngine.query(query))
         }
 

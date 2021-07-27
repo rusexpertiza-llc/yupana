@@ -17,9 +17,17 @@
 package org.yupana.core.dao
 
 import org.yupana.api.query.DataPoint
+import org.yupana.core.MapReducible
+import org.yupana.core.model.UpdateInterval
 
 import scala.language.higherKinds
 
 trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
-  def put(dataPoints: Seq[DataPoint]): Unit
+
+  val dataPointsBatchSize: Int
+
+  def put(mr: MapReducible[Collection], dataPoints: Collection[DataPoint], username: String): Seq[UpdateInterval] = {
+    mr.materialize(mr.batchFlatMap(dataPoints, dataPointsBatchSize)(putBatch(username)))
+  }
+  def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval]
 }

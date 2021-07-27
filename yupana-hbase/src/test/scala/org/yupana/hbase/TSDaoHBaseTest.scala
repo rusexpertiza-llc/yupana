@@ -2,7 +2,6 @@ package org.yupana.hbase
 
 import java.nio.ByteBuffer
 import java.util.Properties
-
 import org.apache.hadoop.hbase.client.{ Scan, Result => HResult }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
@@ -10,7 +9,7 @@ import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
+import org.yupana.api.query.{ DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
@@ -1210,6 +1209,8 @@ class TSDaoHBaseTest
     }
 
     override val schema: Schema = TestSchema.schema
+
+    override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = ???
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {

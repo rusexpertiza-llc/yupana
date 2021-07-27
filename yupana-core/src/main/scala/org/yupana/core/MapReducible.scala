@@ -32,13 +32,15 @@ trait MapReducible[Collection[_]] extends Serializable {
   def map[A: ClassTag, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
   def flatMap[A: ClassTag, B: ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
 
-  def batchFlatMap[A, B: ClassTag](c: Collection[A], size: Int)(f: Seq[A] => Iterator[B]): Collection[B]
+  def batchFlatMap[A, B: ClassTag](c: Collection[A], size: Int)(f: Seq[A] => TraversableOnce[B]): Collection[B]
 
   def fold[A: ClassTag](c: Collection[A])(zero: A)(f: (A, A) => A): A
   def reduce[A: ClassTag](c: Collection[A])(f: (A, A) => A): A
   def reduceByKey[K: ClassTag, V: ClassTag](c: Collection[(K, V)])(f: (V, V) => V): Collection[(K, V)]
 
   def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
+
+  def materialize[A: ClassTag](c: Collection[A]): Seq[A]
 }
 
 object MapReducible {
@@ -49,7 +51,9 @@ object MapReducible {
     override def map[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => B): Iterator[B] = it.map(f)
     override def flatMap[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => Iterable[B]): Iterator[B] = it.flatMap(f)
 
-    override def batchFlatMap[A, B: ClassTag](it: Iterator[A], size: Int)(f: Seq[A] => Iterator[B]): Iterator[B] = {
+    override def batchFlatMap[A, B: ClassTag](it: Iterator[A], size: Int)(
+        f: Seq[A] => TraversableOnce[B]
+    ): Iterator[B] = {
       it.grouped(size).flatMap(f)
     }
 
@@ -62,5 +66,7 @@ object MapReducible {
     }
 
     override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)
+
+    override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toSeq
   }
 }

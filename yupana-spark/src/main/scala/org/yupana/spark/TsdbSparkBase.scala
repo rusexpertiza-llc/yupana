@@ -18,21 +18,12 @@ package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ ConnectionFactory, Mutation, Result => HBaseResult }
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable
-import org.apache.hadoop.hbase.mapreduce.{
-  IdentityTableMapper,
-  TableInputFormat,
-  TableMapReduceUtil,
-  TableOutputFormat
-}
-import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.mapreduce.{ Job, OutputFormat }
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.{ DataPoint, Query }
-import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.dao.{ DictionaryProvider, TSReadingDao, TsdbQueryMetricsDao }
+import org.yupana.api.query.Query
+import org.yupana.api.schema.Schema
+import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{
@@ -42,10 +33,11 @@ import org.yupana.core.utils.metric.{
   QueryCollectorContext
 }
 import org.yupana.core.{ QueryContext, TsdbBase }
-import org.yupana.hbase.{ DictionaryDaoHBase, HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
+import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
 object TsdbSparkBase extends StrictLogging {
+
   @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
 
   def hbaseConfiguration(config: Config): Configuration = {
@@ -107,7 +99,7 @@ abstract class TsdbSparkBase(
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
-  override val dao: TSReadingDao[RDD, Long] =
+  override val dao: TSDao[RDD, Long] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
@@ -128,77 +120,6 @@ abstract class TsdbSparkBase(
       CloseableIterator(it, metricCollector.finishPartition())
     }
     new DataRowRDD(rdd, queryContext)
-  }
-
-  /**
-    * Save DataPoints into table.
-    *
-    * @note This method takes table as a parameter, and saves only data points related to this table. All data points
-    *       related to another tables are ignored.
-    *
-    * @param dataPointsRDD data points to be saved
-    * @param table table to store data points
-    */
-  def writeRDD(dataPointsRDD: RDD[DataPoint], table: Table): Unit = {
-    val hbaseConf = TsDaoHBaseSpark.hbaseConfiguration(conf)
-
-    hbaseConf.set(TableOutputFormat.OUTPUT_TABLE, HBaseUtils.tableNameString(conf.hbaseNamespace, table))
-    hbaseConf.setClass(
-      "mapreduce.job.outputformat.class",
-      classOf[TableOutputFormat[String]],
-      classOf[OutputFormat[String, Mutation]]
-    )
-    hbaseConf.set("mapreduce.output.fileoutputformat.outputdir", "/tmp")
-
-    val job: Job = Job.getInstance(hbaseConf, "TsdbRollup-write")
-    TableMapReduceUtil.initCredentials(job)
-
-    val jconf = new JobConf(job.getConfiguration)
-    SparkConfUtils.addCredentials(jconf)
-
-    val filtered = dataPointsRDD.filter(_.table == table)
-
-    val puts = filtered.mapPartitions { partition =>
-      partition.grouped(10000).flatMap { dataPoints =>
-        val putsByTable = HBaseUtils.createPuts(dataPoints, dictionaryProvider)
-        putsByTable.flatMap {
-          case (_, puts) =>
-            puts.map(put => new ImmutableBytesWritable() -> put)
-        }
-      }
-    }
-    puts.saveAsNewAPIHadoopDataset(job.getConfiguration)
-  }
-
-  def dictionaryRdd(namespace: String, name: String): RDD[(Long, String)] = {
-    val scan = DictionaryDaoHBase.getReverseScan
-
-    val job: Job = Job.getInstance(TsDaoHBaseSpark.hbaseConfiguration(conf))
-    TableMapReduceUtil.initCredentials(job)
-    TableMapReduceUtil.initTableMapperJob(
-      DictionaryDaoHBase.getTableName(namespace, name),
-      scan,
-      classOf[IdentityTableMapper],
-      null,
-      null,
-      job
-    )
-
-    val jconf = new JobConf(job.getConfiguration)
-    SparkConfUtils.addCredentials(jconf)
-
-    val hbaseRdd = sparkContext.newAPIHadoopRDD(
-      job.getConfiguration,
-      classOf[TableInputFormat],
-      classOf[ImmutableBytesWritable],
-      classOf[HBaseResult]
-    )
-
-    val rowsRdd = hbaseRdd.flatMap {
-      case (_, hbaseResult) =>
-        DictionaryDaoHBase.getReversePairFromResult(hbaseResult)
-    }
-    rowsRdd
   }
 
   def union(rdds: Seq[DataRowRDD]): DataRowRDD = {

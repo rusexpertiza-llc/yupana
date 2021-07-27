@@ -50,10 +50,10 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
 
-    (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "test2").returning(Some(22))
-    (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "test3").returning(Some(33))
+    (dictionaryDaoMock.getIdsByValues _).expects(DIM_B, Set("test2")).returning(Map("test2" -> 22))
+    (dictionaryDaoMock.getIdsByValues _).expects(DIM_C, Set("test3")).returning(Map("test3" -> 33))
 
-    val pbt = HBaseUtils.createPuts(Seq(dp1, dp2, dp3), dictionaryProvider)
+    val pbt = HBaseUtils.createPuts(Seq(dp1, dp2, dp3), dictionaryProvider, "test")
 
     pbt should have size 2
 
