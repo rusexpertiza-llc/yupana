@@ -25,9 +25,4 @@ class CombinedMetricReporter[C <: MetricCollector](reporters: MetricReporter[C]*
 
   override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryState): Unit =
     reporters.foreach(_.saveQueryMetrics(mc, partitionId, state))
-
-//  override def setRunningPartitions(mc: C, partitions: Int): Unit =
-//    reporters.foreach(_.setRunningPartitions(mc, partitions))
-//
-//  override def finishPartition(mc: C): Unit = reporters.foreach(_.finishPartition(mc))
 }
