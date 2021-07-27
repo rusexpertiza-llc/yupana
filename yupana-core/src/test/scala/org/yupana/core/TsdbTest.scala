@@ -2854,7 +2854,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,

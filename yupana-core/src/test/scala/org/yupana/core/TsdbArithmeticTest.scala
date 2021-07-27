@@ -53,7 +53,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)),
+          Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)),
           and(
             equ(lower(dimension(TestDims.DIM_A)), const("taga")),
             ge(time, const(Time(from))),
@@ -95,7 +95,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A)),
+          Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -155,6 +155,7 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set(
+            time,
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_STRING_FIELD),
@@ -242,7 +243,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
+          Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -389,7 +390,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(dimension(TestDims.DIM_B)),
+          Set(time, dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
