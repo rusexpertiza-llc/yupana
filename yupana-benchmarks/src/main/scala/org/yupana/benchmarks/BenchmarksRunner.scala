@@ -23,6 +23,11 @@ import org.openjdk.jmh.runner.options.CommandLineOptions
 
 import scala.collection.JavaConverters.collectionAsScalaIterableConverter
 
+/**
+  * Entry point for pushing benchmark results into prometheus. Pass all incoming arguments into JMH benchmark
+  * Example of usage:
+  * sbt "benchmarks/jmh:runMain org.yupana.benchmarks.BenchmarksRunner --pushGatewayUrl=localhost:9091 .TSDHBaseRowIteratorBenchmark. -prof gc
+  */
 object BenchmarksRunner {
 
   def main(args: Array[String]): Unit = {
