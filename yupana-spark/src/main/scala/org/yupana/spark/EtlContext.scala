@@ -18,19 +18,10 @@ package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
-import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
-import org.yupana.core.dao.RollupMetaDao
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
-import org.yupana.hbase.{
-  ExternalLinkHBaseConnection,
-  HBaseUtils,
-  InvertedIndexDaoHBase,
-  RollupMetaDaoHBase,
-  Serializers,
-  TSDBHBase
-}
+import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 
@@ -62,14 +53,6 @@ class EtlContext(
     tsdb
   }
 
-  private def initRollupMetaDao: RollupMetaDao = {
-    val connection = ConnectionFactory.createConnection(hBaseConfiguration)
-    HBaseUtils.checkNamespaceExistsElseCreate(connection, cfg.hbaseNamespace)
-    val dao = new RollupMetaDaoHBase(connection, cfg.hbaseNamespace)
-    EtlContext.rollupMetaDao = Some(dao)
-    dao
-  }
-
   protected def setup(tsdbInstance: TSDB): Unit = {
     val hBaseConnection = new ExternalLinkHBaseConnection(hBaseConfiguration, cfg.hbaseNamespace)
     val invertedIndexDao = new InvertedIndexDaoHBase[String, ItemDimension.KeyType](
@@ -90,10 +73,8 @@ class EtlContext(
   }
 
   @transient lazy val tsdb: TSDB = EtlContext.tsdb.getOrElse(initTsdb)
-  @transient lazy val rollupMetaDao: RollupMetaDao = EtlContext.rollupMetaDao.getOrElse(initRollupMetaDao)
 }
 
 object EtlContext {
   private var tsdb: Option[TSDB] = None
-  private var rollupMetaDao: Option[RollupMetaDao] = None
 }
