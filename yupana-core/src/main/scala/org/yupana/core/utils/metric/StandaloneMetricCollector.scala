@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.core.model
+package org.yupana.core.utils.metric
 
-case class MetricData(count: Long, time: Long, speed: Double)
+import org.yupana.api.query.Query
+
+class StandaloneMetricCollector(
+    query: Query,
+    operationName: String,
+    metricsUpdateInterval: Int,
+    reporter: MetricReporter[MetricQueryCollector]
+) extends StandardMetricCollector(query, operationName, metricsUpdateInterval, false, reporter) {
+  override val partitionId: Option[String] = None
+}

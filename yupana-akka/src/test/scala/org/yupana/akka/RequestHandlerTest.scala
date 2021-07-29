@@ -8,12 +8,12 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
-import org.yupana.core.dao.{ RollupMetaDao, QueryMetricsFilter, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.utils.metric.{ PersistentMetricQueryCollector, QueryCollectorContext }
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
@@ -240,7 +240,12 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
 
   class MockedTsdb
       extends TSDB(SchemaRegistry.defaultSchema, null, null, identity, SimpleTsdbConfig(), { q: Query =>
-        new PersistentMetricQueryCollector(mock[QueryCollectorContext], q)
+        new StandaloneMetricCollector(
+          q,
+          "test",
+          5,
+          new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
+        )
       })
 
   it should "handle show queries request" in {
@@ -275,15 +280,16 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     (metricsDao.queriesByFilter _)
       .expects(None, Some(3))
       .returning(
-        Seq(
+        Iterator(
           TsdbQueryMetrics(
             "323232",
+            None,
             new DateTime(2019, 11, 13, 0, 0),
             0,
             "SELECT kkm FROM kkm_items",
             QueryStates.Running,
             "standalone",
-            metrics.zipWithIndex.map { case (m, i) => m -> MetricData(i, i * 5d, i * 7d) }.toMap
+            metrics.zipWithIndex.map { case (m, i) => m -> MetricData(i, i * 5000000L, i * 7d) }.toMap
           )
         )
       )
@@ -313,7 +319,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
       sqlQueryProcessor
     )
 
-    (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some("12345"), None), QueryStates.Cancelled)
+//    (metricsDao.setQueryState _).expects(QueryMetricsFilter(Some("12345"), None, None), QueryStates.Cancelled)
     val query = SqlQuery("KILL QUERY WHERE query_id = '12345'")
     val requestHandler = new RequestHandler(queryEngineRouter)
     val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList

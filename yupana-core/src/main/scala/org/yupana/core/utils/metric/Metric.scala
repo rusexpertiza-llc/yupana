@@ -14,6 +14,14 @@
  * limitations under the License.
  */
 
-package org.yupana.core.model
+package org.yupana.core.utils.metric
 
-case class MetricData(count: Long, time: Long, speed: Double)
+trait Metric extends Serializable {
+  def name: String
+  def measure[T](count: Int)(f: => T): T
+
+  def reset(): Unit
+
+  def time: Long
+  def count: Long
+}
