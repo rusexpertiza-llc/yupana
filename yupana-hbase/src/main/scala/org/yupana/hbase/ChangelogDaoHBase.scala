@@ -59,7 +59,10 @@ object ChangelogDaoHBase {
   }
 }
 
-class ChangelogDaoHBase(connection: Connection, namespace: String) extends ChangelogDao with StrictLogging {
+class ChangelogDaoHBase(@transient connection: Connection, namespace: String)
+    extends ChangelogDao
+    with Serializable
+    with StrictLogging {
 
   override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = withTables {
     using(getTable) { table =>

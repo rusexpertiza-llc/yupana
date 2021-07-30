@@ -20,13 +20,16 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
 import org.yupana.api.query.DataPoint
+import org.yupana.core.auth.YupanaUser
 
 import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
+  val updater: YupanaUser = YupanaUser("ETL")
+
   def processTransactions(context: EtlContext, dataPoints: RDD[DataPoint]): Unit = {
-    dataPoints.foreachPartition({ ls => context.tsdb.put(ls) })
+    dataPoints.foreachPartition({ ls => context.tsdb.put(ls, updater) })
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
