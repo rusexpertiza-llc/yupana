@@ -53,7 +53,7 @@ object TsdbSparkBase extends StrictLogging {
     configuration
   }
 
-  private def getMetricsDao(config: Config): TsdbQueryMetricsDao = metricsDao match {
+  def getMetricsDao(config: Config): TsdbQueryMetricsDao = metricsDao match {
     case None =>
       logger.info("TsdbQueryMetricsDao initialization...")
       val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration(config))
