@@ -26,12 +26,7 @@ import org.yupana.api.schema.Schema
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
-import org.yupana.core.utils.metric.{
-  MetricQueryCollector,
-  NoMetricCollector,
-  PersistentMetricQueryCollector,
-  QueryCollectorContext
-}
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector, PersistentMetricQueryReporter }
 import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
@@ -50,7 +45,7 @@ object TsdbSparkBase extends StrictLogging {
     configuration
   }
 
-  private def getMetricsDao(config: Config): TsdbQueryMetricsDao = metricsDao match {
+  def getMetricsDao(config: Config): TsdbQueryMetricsDao = metricsDao match {
     case None =>
       logger.info("TsdbQueryMetricsDao initialization...")
       val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration(config))
@@ -63,15 +58,13 @@ object TsdbSparkBase extends StrictLogging {
   private def createDefaultMetricCollector(
       config: Config,
       opName: String = "query"
-  ): Query => PersistentMetricQueryCollector = {
-
-    val queryCollectorContext = new QueryCollectorContext(
-      metricsDao = () => getMetricsDao(config),
-      operationName = opName,
-      metricsUpdateInterval = config.metricsUpdateInterval
+  ): Query => MetricQueryCollector = { query: Query =>
+    new SparkMetricCollector(
+      query,
+      opName,
+      config.metricsUpdateInterval,
+      new PersistentMetricQueryReporter(() => getMetricsDao(config))
     )
-
-    { query: Query => new PersistentMetricQueryCollector(queryCollectorContext, query) }
   }
 }
 
@@ -115,9 +108,8 @@ abstract class TsdbSparkBase(
       data: RDD[Array[Any]],
       metricCollector: MetricQueryCollector
   ): DataRowRDD = {
-    metricCollector.setRunningPartitions(data.getNumPartitions)
     val rdd = data.mapPartitions { it =>
-      CloseableIterator(it, metricCollector.finishPartition())
+      CloseableIterator(it, metricCollector.finish())
     }
     new DataRowRDD(rdd, queryContext)
   }

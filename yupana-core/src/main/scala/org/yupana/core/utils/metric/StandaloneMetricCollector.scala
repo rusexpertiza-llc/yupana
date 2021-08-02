@@ -16,18 +16,13 @@
 
 package org.yupana.core.utils.metric
 
-import java.util.Timer
+import org.yupana.api.query.Query
 
-import org.yupana.core.dao.TsdbQueryMetricsDao
-
-class QueryCollectorContext(
-    val metricsDao: () => TsdbQueryMetricsDao,
-    val operationName: String,
-    val metricsUpdateInterval: Int,
-    val sparkQuery: Boolean = false
-) extends Serializable {
-
-  @transient lazy val timer = new Timer()
-
-  var queryActive: Boolean = true
+class StandaloneMetricCollector(
+    query: Query,
+    operationName: String,
+    metricsUpdateInterval: Int,
+    reporter: MetricReporter[MetricQueryCollector]
+) extends StandardMetricCollector(query, operationName, metricsUpdateInterval, false, reporter) {
+  override val partitionId: Option[String] = None
 }

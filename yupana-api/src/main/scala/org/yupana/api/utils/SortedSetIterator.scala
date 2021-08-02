@@ -122,7 +122,7 @@ private class SortedSetIteratorImpl[A: DimOrdering](it: SortedSetIterator[A]) ex
   }
 
   override def next(): A = {
-    if (!hasNext) throw new IllegalStateException("Next on empty iterator")
+    if (!hasNext) throw new NoSuchElementException("Next on empty iterator")
     hasNextVal = false
     nextVal
   }
@@ -168,7 +168,7 @@ private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(imp
       bIts.tail.foreach(_.next())
       bIts.head.next()
     } else {
-      throw new IllegalStateException("Next on empty iterator")
+      throw new NoSuchElementException("Next on empty iterator")
     }
   }
 
@@ -214,7 +214,7 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
     if (hasNext) {
       bIt.next()
     } else {
-      throw new IllegalStateException("Next on empty iterator")
+      throw new NoSuchElementException("Next on empty iterator")
     }
   }
 }

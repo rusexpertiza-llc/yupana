@@ -36,10 +36,10 @@ class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, changelogDao: ChangelogDa
   }
 
   def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit = {
-    metricsDao.setQueryState(filter, queryState)
+//    metricsDao.setQueryState(filter, queryState)
   }
 
-  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] = {
+  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterator[TsdbQueryMetrics] = {
     metricsDao.queriesByFilter(filter, limit)
   }
 }

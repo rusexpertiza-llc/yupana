@@ -24,3 +24,4 @@ addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.3")
 
 addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.2.21")
 addSbtPlugin("com.eed3si9n" % "sbt-unidoc" % "0.4.3")
+addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.1")

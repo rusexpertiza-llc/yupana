@@ -14,6 +14,13 @@
  * limitations under the License.
  */
 
-package org.yupana.core.model
+package org.yupana.core.utils.metric
 
-case class MetricData(count: Long, time: Long, speed: Double)
+import org.yupana.core.model.QueryStates.QueryState
+
+trait MetricReporter[Collector <: MetricCollector] extends Serializable {
+  def start(mc: Collector, partitionId: Option[String]): Unit
+  def finish(mc: Collector, partitionId: Option[String]): Unit
+
+  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryState): Unit
+}

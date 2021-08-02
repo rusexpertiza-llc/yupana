@@ -16,14 +16,15 @@ const siteConfig = {
   title: 'Yupana', // Title for your website.
   tagline: 'Yupana — система анализа розничных продаж',
   url: 'https://docs.yupana.org', // Your website URL
+  cname: 'docs.yupana.org',
   baseUrl: '/', // Base URL for your project */
   // For github.io type URLs, you would set the url and baseUrl like:
   //   url: 'https://facebook.github.io',
   //   baseUrl: '/test-site/',
 
   // Used for publishing and more
-  projectName: 'yupana-site',
-  organizationName: 'Rusexpertiza LLC',
+  projectName: 'yupana',
+  organizationName: 'rusexpertiza-llc',
   // For top-level user or org sites, the organization is still the same.
   // e.g., for the https://JoelMarcey.github.io site, it would be set like...
   //   organizationName: 'JoelMarcey'
