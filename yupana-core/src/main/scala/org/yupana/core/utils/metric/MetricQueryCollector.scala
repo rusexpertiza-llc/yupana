@@ -27,8 +27,6 @@ trait MetricQueryCollector extends MetricCollector {
   def createDimensionFilters: Metric
   def createScans: Metric
   def scan: Metric
-  def parseScanResult: Metric
-  def dimensionValuesForIds: Metric
   def readExternalLinks: Metric
   def extractDataComputation: Metric
   def filterRows: Metric
@@ -36,5 +34,4 @@ trait MetricQueryCollector extends MetricCollector {
   def reduceOperation: Metric
   def postFilter: Metric
   def collectResultRows: Metric
-  def dictionaryScan: Metric
 }
