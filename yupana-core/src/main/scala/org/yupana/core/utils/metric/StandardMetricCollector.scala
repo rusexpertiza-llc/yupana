@@ -45,8 +45,6 @@ abstract class StandardMetricCollector(
   override val createDimensionFilters: MetricImpl = createMetric(createDimensionFiltersQualifier)
   override val createScans: MetricImpl = createMetric(createScansQualifier)
   override val scan: MetricImpl = createMetric(scanQualifier)
-  override val parseScanResult: MetricImpl = createMetric(parseScanResultQualifier)
-  override val dimensionValuesForIds: MetricImpl = createMetric(dimensionValuesForIdsQualifier)
   override val readExternalLinks: MetricImpl = createMetric(readExternalLinksQualifier)
   override val extractDataComputation: MetricImpl = createMetric(extractDataComputationQualifier)
   override val filterRows: MetricImpl = createMetric(filterRowsQualifier)
@@ -54,7 +52,6 @@ abstract class StandardMetricCollector(
   override val reduceOperation: MetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: MetricImpl = createMetric(postFilterQualifier)
   override val collectResultRows: MetricImpl = createMetric(collectResultRowsQualifier)
-  override val dictionaryScan: MetricImpl = createMetric(dictionaryScanQualifier)
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
 
@@ -80,15 +77,12 @@ abstract class StandardMetricCollector(
       createDimensionFilters,
       createScans,
       scan,
-      parseScanResult,
-      dimensionValuesForIds,
       readExternalLinks,
       extractDataComputation,
       filterRows,
       windowFunctions,
       reduceOperation,
       postFilter,
-      collectResultRows,
-      dictionaryScan
+      collectResultRows
     ) ++ dynamicMetrics.values
 }
