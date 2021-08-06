@@ -23,6 +23,7 @@ object DeployDocs {
 
     val repoDir = IO.createTemporaryDirectory
 
+    log.info(s"Cloning ${deployRepo.value} into $repoDir")
     val jGit = JGit.clone(deployRepo.value, repoDir)
     val git = jGit.porcelain
     val repo = jGit.repo
