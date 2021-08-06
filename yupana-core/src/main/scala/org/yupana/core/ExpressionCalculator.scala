@@ -29,7 +29,7 @@ import org.yupana.core.model.InternalRow
 import java.sql.Types
 import scala.collection.AbstractIterator
 
-trait ExpressionCalculator extends Serializable {
+trait ExpressionCalculator {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
   def evaluateExpressions(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluateMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
@@ -785,7 +785,7 @@ object ExpressionCalculator extends StrictLogging {
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
-    (tb.compile(tree)().asInstanceOf[ExpressionCalculator], known)
+    (tb.eval(tree).asInstanceOf[ExpressionCalculator], known)
   }
 
   private def prettyTree(tree: Tree): String = {

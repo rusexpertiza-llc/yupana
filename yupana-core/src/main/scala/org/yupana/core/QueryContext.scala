@@ -23,17 +23,32 @@ import scala.collection.mutable
 
 class QueryContext(
     val query: Query,
-    val exprsIndex: mutable.HashMap[Expression[_], Int],
-    val postCondition: Option[Condition],
-    val calculator: ExpressionCalculator
+    val postCondition: Option[Condition]
 ) extends Serializable {
-  val groupByIndices: Array[Int] = query.groupBy.map(exprsIndex.apply).toArray
-  val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
+  @transient private var calc: ExpressionCalculator = _
+  @transient private var idx: mutable.Map[Expression[_], Int] = _
+
+  def exprsIndex: mutable.Map[Expression[_], Int] = {
+    if (idx == null) init()
+    idx
+  }
+  def calculator: ExpressionCalculator = {
+    if (calc == null) init()
+    calc
+  }
+
+  lazy val groupByIndices: Array[Int] = query.groupBy.map(exprsIndex.apply).toArray
+  lazy val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
+
+  private def init(): Unit = {
+    val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
+    calc = calculator
+    idx = mutable.HashMap(index.toSeq: _*)
+  }
 }
 
 object QueryContext {
   def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
-    val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
-    new QueryContext(query, mutable.HashMap(index.toSeq: _*), postCondition, calculator)
+    new QueryContext(query, postCondition)
   }
 }
