@@ -22,8 +22,6 @@ object NoMetricCollector extends MetricQueryCollector {
   override val createDimensionFilters: Metric = NoMetric
   override val createScans: Metric = NoMetric
   override val scan: Metric = NoMetric
-  override val parseScanResult: Metric = NoMetric
-  override val dimensionValuesForIds: Metric = NoMetric
   override val readExternalLinks: Metric = NoMetric
   override val extractDataComputation: Metric = NoMetric
   override val filterRows: Metric = NoMetric
@@ -31,7 +29,6 @@ object NoMetricCollector extends MetricQueryCollector {
   override val reduceOperation: Metric = NoMetric
   override val postFilter: Metric = NoMetric
   override val collectResultRows: Metric = NoMetric
-  override val dictionaryScan: Metric = NoMetric
 
   override def dynamicMetric(name: String): Metric = NoMetric
 
