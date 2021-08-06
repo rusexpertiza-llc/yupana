@@ -25,12 +25,13 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTimeZone, LocalDateTime }
+import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
@@ -46,11 +47,8 @@ object HBaseUtils extends StrictLogging {
   type ValuesByGroup = Map[Int, TimeShiftedValues]
 
   val tableNamePrefix: String = "ts_"
-  val rollupStatusFamily: Array[Byte] = "v".getBytes
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
-  val rollupStatusField: Array[Byte] = "st".getBytes
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
-  val rollupSpecialKey: Array[Byte] = "\u0000".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
@@ -70,19 +68,48 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
+  def loadDimIds(dictionaryProvider: DictionaryProvider, table: Table, dataPoints: Seq[DataPoint]): Unit = {
+    table.dimensionSeq.foreach {
+      case dimension: DictionaryDimension =>
+        val values = dataPoints.flatMap { dp =>
+          dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
+        }
+        dictionaryProvider.dictionary(dimension).findIdsByValues(values.toSet)
+      case _ =>
+    }
+  }
+
   def createPuts(
       dataPoints: Seq[DataPoint],
-      dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[Put])] = {
+      dictionaryProvider: DictionaryProvider,
+      username: String
+  ): Seq[(Table, Seq[Put], Seq[UpdateInterval])] = {
+    val now = DateTime.now()
     dataPoints
       .groupBy(_.table)
       .map {
         case (table, points) =>
+          loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
           val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
-          table -> grouped.map {
-            case (key, dps) => createPutOperation(table, key, dps)
-          }.toSeq
+          val (puts, intervals) = grouped
+            .map {
+              case (key, dps) =>
+                val baseTime = Bytes.toLong(key)
+                (
+                  createPutOperation(table, key, dps),
+                  UpdateInterval(
+                    table.name,
+                    new DateTime(baseTime),
+                    new DateTime(baseTime + table.rowTimeSpan),
+                    now,
+                    username
+                  )
+                )
+            }
+            .toSeq
+            .unzip
+          (table, puts, intervals.distinct)
       }
       .toSeq
   }
@@ -98,6 +125,30 @@ object HBaseUtils extends StrictLogging {
         }
     }
     put
+  }
+
+  def doPutBatch(
+      connection: Connection,
+      dictionaryProvider: DictionaryProvider,
+      namespace: String,
+      username: String,
+      putsBatchSize: Int,
+      dataPointsBatch: Seq[DataPoint]
+  ): Seq[UpdateInterval] = {
+    logger.trace(s"Put ${dataPointsBatch.size} dataPoints to tsdb")
+    logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPointsBatch.mkString("\r\n")}")
+
+    val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
+    putsWithIntervalsByTable.flatMap {
+      case (table, puts, updateIntervals) =>
+        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+          puts
+            .sliding(putsBatchSize, putsBatchSize)
+            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
+          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
+          updateIntervals
+        }
+    }
   }
 
   def createScan(
@@ -343,7 +394,6 @@ object HBaseUtils extends StrictLogging {
 
     schema.tables.values.foreach { t =>
       checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
-      checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
     checkSchemaDefinition(connection, namespace, schema) match {
@@ -395,28 +445,6 @@ object HBaseUtils extends StrictLogging {
         )
       }
     }
-  }
-
-  def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
-    val name = tableName(namespace, table)
-    using(connection.getTable(name)) { hbaseTable =>
-      val tableDesc = hbaseTable.getDescriptor
-      if (!tableDesc.hasColumnFamily(rollupStatusFamily)) {
-        using(connection.getAdmin) {
-          _.addColumnFamily(
-            name,
-            ColumnFamilyDescriptorBuilder
-              .newBuilder(rollupStatusFamily)
-              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-              .build()
-          )
-        }
-      }
-    }
-  }
-
-  def createRollupStatusPut(time: Long, status: String): Put = {
-    new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
   }
 
   private[hbase] def tableKeySize(table: Table): Int = {

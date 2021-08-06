@@ -8,12 +8,12 @@ import org.yupana.hbase.HBaseUtilsTest.TestTable
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-trait RollupMetaDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
+trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
 
   private lazy val hbaseConnection = ConnectionFactory.createConnection(getConfiguration)
 
   "RollupMetaDaoHBase" should "handle invalid periods" in {
-    val dao = new RollupMetaDaoHBase(hbaseConnection, "test")
+    val dao = new ChangelogDaoHBase(hbaseConnection, "test")
 
     val baseTimes = Set(
       HBaseUtils.baseTime(DateTime.now().minusDays(4).getMillis, TestTable),

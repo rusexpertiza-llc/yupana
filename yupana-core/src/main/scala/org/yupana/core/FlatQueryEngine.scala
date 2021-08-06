@@ -16,14 +16,14 @@
 
 package org.yupana.core
 
-import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ QueryMetricsFilter, ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ TsdbQueryMetrics, UpdateInterval }
 import org.yupana.core.providers.UpdatesIntervalsProvider.UpdatesIntervalsFilter
 
-class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
+class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, changelogDao: ChangelogDao) {
   def getUpdatesIntervals(filter: UpdatesIntervalsFilter = UpdatesIntervalsFilter.empty): Iterable[UpdateInterval] = {
-    rollupMetaDao.getUpdatesIntervals(
+    changelogDao.getUpdatesIntervals(
       filter.maybeTableName,
       filter.maybeFrom.map(_.getMillis),
       filter.maybeTo.map(_.getMillis),

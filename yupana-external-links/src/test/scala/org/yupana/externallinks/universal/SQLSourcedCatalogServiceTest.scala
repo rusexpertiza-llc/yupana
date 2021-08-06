@@ -164,4 +164,10 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
     props.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
     CacheFactory.init(props, "ns")
   }
+
+  import JsonExternalLinkCachingTest._
+
+  override protected def afterAll(): Unit = {
+    resetCacheFactory()
+  }
 }

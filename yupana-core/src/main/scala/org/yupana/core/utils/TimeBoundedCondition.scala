@@ -20,7 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
-import org.yupana.core.{ ExpressionCalculator, QueryOptimizer }
+import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
 
 import scala.collection.mutable.ListBuffer
 
@@ -41,7 +41,7 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
 object TimeBoundedCondition {
 
-  def apply(expressionCalculator: ExpressionCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
+  def apply(expressionCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
       case a: AndExpr => andToTimeBounded(expressionCalculator)(a)
       case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
@@ -84,23 +84,23 @@ object TimeBoundedCondition {
   private object GeTime extends GeMatcher[Time]
   private object LeTime extends LeMatcher[Time]
 
-  private def andToTimeBounded(expressionCalculator: ExpressionCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
+  private def andToTimeBounded(expressionCalculator: ConstantCalculator)(and: AndExpr): Seq[TimeBoundedCondition] = {
     var from = Option.empty[Long]
     var to = Option.empty[Long]
     val other = ListBuffer.empty[Condition]
 
-    def updateFrom(c: Condition, e: Expression[_], offset: Long): Unit = {
-      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
-      if (const != null) {
+    def updateFrom(c: Condition, e: Expression[Time], offset: Long): Unit = {
+      if (e.kind == Const) {
+        val const = expressionCalculator.evaluateConstant(e)
         from = from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
       } else {
         other += c
       }
     }
 
-    def updateTo(c: Condition, e: Expression[_], offset: Long): Unit = {
-      val const = expressionCalculator.evaluateConstant(e.asInstanceOf[Expression[Time]])
-      if (const != null) {
+    def updateTo(c: Condition, e: Expression[Time], offset: Long): Unit = {
+      if (e.kind == Const) {
+        val const = expressionCalculator.evaluateConstant(e)
         to = to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis)
       } else {
         other += c

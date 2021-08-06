@@ -19,6 +19,7 @@ import java.util.Properties
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.model.UpdateInterval
 
 class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
@@ -174,9 +175,19 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 //        in.map(_ => row).iterator
 //      }
 
-      override def put(dataPoints: Seq[DataPoint]): Unit = ???
-
       override val schema: Schema = TestSchema.schema
+
+      override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = ???
+    }
+
+    val changelogDao: ChangelogDao = new ChangelogDao {
+      override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = ???
+      override def getUpdatesIntervals(
+          tableName: Option[String],
+          updatedAfter: Option[Long],
+          updatedBefore: Option[Long],
+          updatedBy: Option[String]
+      ): Iterable[UpdateInterval] = ???
     }
 
     val query = Query(
@@ -200,6 +211,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
         extends TSDB(
           TestSchema.schema,
           dao,
+          changelogDao,
           dictProvider,
           identity,
           SimpleTsdbConfig(putEnabled = true), { _ =>

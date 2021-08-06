@@ -17,21 +17,26 @@
 package org.yupana.spark
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Result => HResult }
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.MapReducible
-import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.hbase.HBaseUtils.doPutBatch
 import org.yupana.hbase._
 
 class TsDaoHBaseSpark(
     @transient val sparkContext: SparkContext,
     override val schema: Schema,
     config: Config,
-    override val dictionaryProvider: DictionaryProvider
+    override val dictionaryProvider: DictionaryProvider,
+    putsBatchSize: Int = 10000
 ) extends TSDaoHBaseBase[RDD]
+    with TSDao[RDD, Long]
     with Serializable {
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[RDD] = {
@@ -53,6 +58,20 @@ class TsDaoHBaseSpark(
       sparkContext.emptyRDD[HResult]
     }
   }
+
+  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
+    doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
+  }
+
+  @transient lazy val connection: Connection = {
+    TsDaoHBaseSpark.executorHBaseConnection match {
+      case None =>
+        val c = ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config))
+        TsDaoHBaseSpark.executorHBaseConnection = Some(c)
+        c
+      case Some(c) => c
+    }
+  }
 }
 
 object TsDaoHBaseSpark {
@@ -65,4 +84,6 @@ object TsDaoHBaseSpark {
     }
     configuration
   }
+
+  var executorHBaseConnection: Option[Connection] = None
 }

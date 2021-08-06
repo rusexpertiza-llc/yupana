@@ -23,7 +23,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue, Schema, Table }
 import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.ConstantCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
@@ -31,7 +31,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 
   import SqlQueryProcessor._
 
-  val expressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  private val expressionCalculator = new ConstantCalculator(schema.tokenizer)
 
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)
@@ -307,7 +307,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertValue[t](state, v, ce.dataType)))
+              .collectErrors(vs.map(v => convertValue(state, v, ce.dataType)))
               .right
               .map(cvs => InExpr(ce, cvs.toSet))
         }
@@ -316,7 +316,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertValue[t](state, v, ce.dataType)))
+              .collectErrors(vs.map(v => convertValue(state, v, ce.dataType)))
               .right
               .map(cvs => NotInExpr(ce, cvs.toSet))
         }
@@ -339,8 +339,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         createExpr(state, nameResolver, e, ExprType.Cmp).right.flatMap {
           case ex: Expression[t] =>
             for {
-              from <- convertValue[t](state, f, ex.dataType).right
-              to <- convertValue[t](state, t, ex.dataType).right
+              from <- convertValue(state, f, ex.dataType).right
+              to <- convertValue(state, t, ex.dataType).right
               ge <- createBooleanExpr(ex, ConstantExpr(from)(ex.dataType), ">=").right
               le <- createBooleanExpr(ex, ConstantExpr(to)(ex.dataType), "<=").right
             } yield AndExpr(Seq(ge, le))

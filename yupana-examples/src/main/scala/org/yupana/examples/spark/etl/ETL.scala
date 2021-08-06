@@ -44,7 +44,7 @@ object ETL extends StrictLogging {
 
     receiptsRdd
       .flatMap(toDataPoints)
-      .saveDataPoints(ctx, ExampleSchema.schema)
+      .saveDataPoints(ctx)
 
   }
 

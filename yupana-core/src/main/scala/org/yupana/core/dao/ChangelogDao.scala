@@ -18,8 +18,8 @@ package org.yupana.core.dao
 
 import org.yupana.core.model.UpdateInterval
 
-trait RollupMetaDao {
-  def putUpdatesIntervals(periods: Seq[UpdateInterval]): Unit
+trait ChangelogDao {
+  def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit
   def getUpdatesIntervals(
       tableName: Option[String],
       updatedAfter: Option[Long] = None,
