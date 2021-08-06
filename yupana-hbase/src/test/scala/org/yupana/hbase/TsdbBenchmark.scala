@@ -13,10 +13,9 @@ import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
-import org.yupana.core.model._
-import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
-
+import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
 import java.util.Properties
+
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -84,29 +83,6 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val N = 1000000
 //    val in = (1 to N).toArray
-
-    val metricDao = new TsdbQueryMetricsDao {
-      override def initializeQueryMetrics(query: Query, sparkQuery: Boolean): Unit = ???
-
-      override def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] =
-        ???
-
-      override def updateQueryMetrics(
-          rowKey: String,
-          queryState: QueryStates.QueryState,
-          totalDuration: Double,
-          metricValues: Map[String, MetricData],
-          sparkQuery: Boolean
-      ): Unit = ???
-
-      override def setRunningPartitions(queryRowKey: String, partitions: Int): Unit = ???
-
-      override def decrementRunningPartitions(queryRowKey: String): Int = ???
-
-      override def setQueryState(filter: QueryMetricsFilter, queryState: QueryStates.QueryState): Unit = ???
-
-      override def deleteMetrics(filter: QueryMetricsFilter): Int = ???
-    }
 
     val dictDao = new DictionaryDao {
       override def createSeqId(dimension: Dimension): Int = ???
@@ -218,16 +194,17 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new ConsoleMetricQueryCollector(query, "test")
+    val mc = new StandaloneMetricCollector(query, "test", 10, new ConsoleMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(
           TestSchema.schema,
           dao,
-          metricDao,
           dictProvider,
           identity,
-          SimpleTsdbConfig(putEnabled = true)
+          SimpleTsdbConfig(putEnabled = true), { _ =>
+            mc
+          }
         ) {
       override def createMetricCollector(query: Query): MetricQueryCollector = {
         mc

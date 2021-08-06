@@ -54,7 +54,8 @@ class EtlContext(
         schema,
         identity,
         cfg.properties,
-        cfg
+        cfg,
+        None
       )
     setup(tsdb)
     EtlContext.tsdb = Some(tsdb)

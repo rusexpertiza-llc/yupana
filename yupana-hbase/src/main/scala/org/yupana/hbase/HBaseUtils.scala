@@ -31,6 +31,7 @@ import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
@@ -155,9 +156,19 @@ object HBaseUtils extends StrictLogging {
       context: InternalQueryContext,
       batchSize: Int
   ): Iterator[Result] = {
+    executeScan(connection, tableName(namespace, context.table), scan, context.metricsCollector, batchSize)
+  }
 
-    val htable = connection.getTable(tableName(namespace, context.table))
-    scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
+  def executeScan(
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector,
+      batchSize: Int
+  ): Iterator[Result] = {
+
+    val htable = connection.getTable(table)
+    scan.setScanMetricsEnabled(metricsCollector.isEnabled)
     val scanner = htable.getScanner(scan)
 
     def close(): Unit = {
@@ -170,11 +181,11 @@ object HBaseUtils extends StrictLogging {
 
     val resultIterator = new AbstractIterator[List[Result]] {
       override def hasNext: Boolean = {
-        context.metricsCollector.scan.measure(1) {
+        metricsCollector.scan.measure(1) {
           val hasNext = batchIterator.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
+              s"query_uuid: ${metricsCollector.query.id}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
             )
           }
           hasNext

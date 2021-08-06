@@ -19,7 +19,6 @@ package org.yupana.spark
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.core.MapReducible
-import org.yupana.core.model.QueryStates
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
 
@@ -71,8 +70,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
   }
 
   private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]) = {
-    rdd.mapPartitions { it =>
-      CloseableIterator[A](it, metricCollector.saveQueryMetrics(QueryStates.Running))
+    rdd.mapPartitionsWithIndex { (id, it) =>
+      CloseableIterator[A](it, metricCollector.checkpoint())
     }
   }
 }
