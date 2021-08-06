@@ -109,7 +109,7 @@ object DeployDocs {
 
   def deployDocsSettings: Seq[Setting[_]] = Seq(
     deployDocs := deployDocsImpl.value,
-    deployRepo := GitKeys.gitReader.value.withGit(_.remoteOrigin),
+    deployRepo := sys.env.get("DEPLOY_DOCS_REPO") getOrElse GitKeys.gitReader.value.withGit(_.remoteOrigin),
     deployBranch := "gh-pages",
     deployMessage := "BG-0: Create site version %version% (%commit%)."
   )
