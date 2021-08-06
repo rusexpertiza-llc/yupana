@@ -38,8 +38,10 @@ object DeployDocs {
         .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.TRACK)
         .call()
 
+      log.info(s"Found origin/${deployBranch.value} id ${ref.getObjectId}")
       Some(ref.getObjectId)
     } else {
+      log.info(s"origin/${deployBranch.value} is not found")
       None
     }
 
@@ -57,8 +59,9 @@ object DeployDocs {
       val message = deployMessage.value
         .replace("%version%", Keys.version.value)
         .replace("%commit%", commitInfo)
-      commit(repo, message, deployBranch.value, parentId)
-      git.push().call()
+      val id = commit(repo, message, deployBranch.value, parentId)
+      log.info(s"Changes commited '$message', $id")
+//      git.push().call()
     }
   }
 
