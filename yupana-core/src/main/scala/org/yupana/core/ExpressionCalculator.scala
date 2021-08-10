@@ -169,6 +169,13 @@ object ExpressionCalculator extends StrictLogging {
     mkType(e.dataType)
   }
 
+  private def mkZero(state: State, dataType: DataType): (Tree, State) = {
+    dataType.numeric match {
+      case Some(n) => mapValue(state, dataType)(n.zero)
+      case None    => throw new IllegalArgumentException(s"$dataType is not numeric")
+    }
+  }
+
   private def mapValue(state: State, tpe: DataType)(v: Any): (Tree, State) = {
     import scala.reflect.classTag
 
@@ -627,65 +634,81 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
-  private def mkReduce(
+  private def mkSetReduce(
       state: State,
-      aggregates: Seq[AggregateExpr[_, _, _]],
       rowA: TermName,
       rowB: TermName,
-      outRow: TermName
-  ): Tree = {
-    val trees = aggregates.map { ae =>
+      ae: AggregateExpr[_, _, _],
+      f: (Tree, Tree) => Tree
+  ): State = {
+    val (aValue, s1) = mkGetNow(state, rowA, ae)
+    val (bValue, s2) = mkGetNow(s1, rowB, ae)
+
+    (mkIsDefined(s2, rowA, ae), mkIsDefined(s2, rowB, ae)) match {
+      case (Some(da), Some(db)) =>
+        s2.withDefine(
+          rowA,
+          ae,
+          q"""if ($da && $db) ${f(aValue, bValue)}
+              else if ($da) $aValue
+              else $bValue"""
+        )
+      case (Some(da), None) => s2.withDefine(rowA, ae, q"if ($da) ${f(aValue, bValue)} else $bValue")
+      case (None, Some(db)) => s2.withDefine(rowA, ae, q"if ($db) ${f(aValue, bValue)} else $aValue")
+      case (None, None)     => s2.withDefine(rowA, ae, f(aValue, bValue))
+    }
+  }
+
+  private def mkReduce(state: State, aggregates: Seq[AggregateExpr[_, _, _]], rowA: TermName, rowB: TermName): State = {
+
+    aggregates.foldLeft(state) { (s, ae) =>
       val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
-      val (aValue, _) = mkGetNow(state, rowA, ae)
-      val (bValue, _) = mkGetNow(state, rowB, ae)
-
-      val value = ae match {
-        case SumExpr(_)            => q"$aValue + $bValue"
-        case MinExpr(_)            => q"${ordValName(ae.expr.dataType)}.min($aValue, $bValue)"
-        case MaxExpr(_)            => q"${ordValName(ae.expr.dataType)}.max($aValue, $bValue)"
-        case CountExpr(_)          => q"$rowA.get[Long]($idx) + $rowB.get[Long]($idx)"
-        case DistinctCountExpr(_)  => q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)"
-        case DistinctRandomExpr(_) => q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)"
+      ae match {
+        case SumExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
+        case MinExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.min($a, $b)")
+        case MaxExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.max($a, $b)")
+        case CountExpr(_) => s.withDefine(rowA, ae, q"$rowA.get[Long]($idx) + $rowB.get[Long]($idx)")
+        case DistinctCountExpr(_) =>
+          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
+        case DistinctRandomExpr(_) =>
+          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
       }
-      q"$outRow.set($idx, $value)"
     }
-
-    q"..$trees"
   }
 
   private def mkPostMap(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
       row: TermName
-  ): Tree = {
-    val trees = aggregates.flatMap { ae =>
+  ): State = {
+    aggregates.foldLeft(state) { (s, ae) =>
       val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
       val (oldValue, _) = mkGetNow(state, row, ae)
 
-      val value = ae match {
-        case SumExpr(_)           => Some(q"if ($oldValue != null) $oldValue else 0")
+      val valueAndState = ae match {
+        case SumExpr(_) =>
+          val (z, ns) = mkZero(s, ae.dataType)
+          Some(mkIsDefined(state, row, ae).fold(oldValue)(d => q"if ($d) $oldValue else $z") -> ns)
         case MinExpr(_)           => None
         case MaxExpr(_)           => None
         case CountExpr(_)         => None
-        case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size")
+        case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
         case DistinctRandomExpr(_) =>
           Some(
             q"""
               val s = $row.get[Set[$valueTpe]]($idx)
               val n = _root_.scala.util.Random.nextInt(s.size)
               s.iterator.drop(n).next
-            """
+            """ -> s
           )
       }
 
-      value.map(v => q"$row.set($idx, $v)")
+      valueAndState map { case (v, ns) => ns.withDefine(row, ae, v) } getOrElse s
     }
-
-    q"..$trees"
   }
 
   private def mkPostAggregate(
@@ -733,16 +756,15 @@ object ExpressionCalculator extends StrictLogging {
 
     val beforeAggregationState = evaluatedState.copy(unfinished = Set.empty)
 
-    val (map, aggregateState) = mkMap(beforeAggregationState, knownAggregates, internalRow).fresh
+    val (map, mappedState) = mkMap(beforeAggregationState, knownAggregates, internalRow).fresh
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
-    val outRow = rowA
-    val reduce = mkReduce(aggregateState, knownAggregates, rowA, rowB, outRow)
+    val (reduce, reducedState) = mkReduce(mappedState, knownAggregates, rowA, rowB).fresh
 
-    val postMap = mkPostMap(aggregateState, knownAggregates, internalRow)
+    val (postMap, postMappedState) = mkPostMap(reducedState, knownAggregates, internalRow).fresh
 
-    val (postAggregate, postAggregateState) = mkPostAggregate(query, internalRow, aggregateState).fresh
+    val (postAggregate, postAggregateState) = mkPostAggregate(query, internalRow, postMappedState).fresh
 
     val (postFilter, finalState) = mkFilter(postAggregateState, internalRow, query.postFilter).fresh
     assert(finalState.unfinished.isEmpty)
@@ -772,7 +794,7 @@ object ExpressionCalculator extends StrictLogging {
           
           override def evaluateReduce($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
             $reduce
-            $outRow
+            $rowA
           }
     
           override def evaluatePostMap($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
