@@ -2,6 +2,9 @@ target/
 .idea/
 .history
 .bsp/
+.bloop/
+.metals/
+metals.sbt
 website/build
 website/node_modules
 website/static/api
