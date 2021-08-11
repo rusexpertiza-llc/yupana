@@ -313,7 +313,6 @@ lazy val docs = project
   .settings(
     moduleName := "yupana-docs",
     noPublishSettings,
-    DeployDocs.deployDocsSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
