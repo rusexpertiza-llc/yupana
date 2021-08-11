@@ -1,7 +1,7 @@
 name: Website
 on:
   push:
-    branches: [release/0.23.1]
+    branches: [master]
     tags: ["*"]
 jobs:
   publish:
