@@ -63,8 +63,8 @@ class HBaseScanRDD(
             val t1 = Bytes.toBytes(time)
             val t2 = Bytes.toBytes(time + 1)
 
-            (Bytes
-              .compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
+            (Bytes.compareTo(t1, endKey) <= 0 || endKey.isEmpty) &&
+            (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
           }
       }
       .zipWithIndex
