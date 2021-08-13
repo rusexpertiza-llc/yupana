@@ -99,7 +99,8 @@ object SparseTable extends TableFactory[SparseTable] {
         case (m, (r, c, v)) =>
           val col = m.getOrElse(r, Map.empty)
           m + (r -> (col + (c -> v)))
-      }, {
+      },
+      {
         case (a, b) =>
           val ks = a.keySet ++ b.keySet
           ks.map { k =>

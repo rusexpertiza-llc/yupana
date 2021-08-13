@@ -71,8 +71,8 @@ case class DictionaryDimension(override val name: String, hashFunction: Option[S
   }
 }
 
-case class RawDimension[TT](override val name: String)(
-    implicit val rStorable: FixedStorable[TT],
+case class RawDimension[TT](override val name: String)(implicit
+    val rStorable: FixedStorable[TT],
     val rOrdering: DimOrdering[TT],
     val rCt: ClassTag[TT],
     dt: DataType.Aux[TT]

@@ -328,56 +328,56 @@ final case class NeqExpr[T](override val a: Expression[T], override val b: Expre
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class LtExpr[T](override val a: Expression[T], override val b: Expression[T])(
-    implicit val ordering: Ordering[T]
+final case class LtExpr[T](override val a: Expression[T], override val b: Expression[T])(implicit
+    val ordering: Ordering[T]
 ) extends BinaryOperationExpr[T, T, Boolean](a, b, "<", true) {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class GtExpr[T](override val a: Expression[T], override val b: Expression[T])(
-    implicit val ordering: Ordering[T]
+final case class GtExpr[T](override val a: Expression[T], override val b: Expression[T])(implicit
+    val ordering: Ordering[T]
 ) extends BinaryOperationExpr[T, T, Boolean](a, b, ">", true) {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class LeExpr[T](override val a: Expression[T], override val b: Expression[T])(
-    implicit val ordering: Ordering[T]
+final case class LeExpr[T](override val a: Expression[T], override val b: Expression[T])(implicit
+    val ordering: Ordering[T]
 ) extends BinaryOperationExpr[T, T, Boolean](a, b, "<=", true) {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class GeExpr[T](override val a: Expression[T], override val b: Expression[T])(
-    implicit val ordering: Ordering[T]
+final case class GeExpr[T](override val a: Expression[T], override val b: Expression[T])(implicit
+    val ordering: Ordering[T]
 ) extends BinaryOperationExpr[T, T, Boolean](a, b, ">=", true) {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class PlusExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val numeric: Numeric[N]
+final case class PlusExpr[N](override val a: Expression[N], override val b: Expression[N])(implicit
+    val numeric: Numeric[N]
 ) extends BinaryOperationExpr[N, N, N](a, b, "+", true) {
   override val dataType: DataType.Aux[N] = a.dataType
 }
 
-final case class MinusExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val numeric: Numeric[N]
+final case class MinusExpr[N](override val a: Expression[N], override val b: Expression[N])(implicit
+    val numeric: Numeric[N]
 ) extends BinaryOperationExpr[N, N, N](a, b, "-", true) {
   override val dataType: DataType.Aux[N] = a.dataType
 }
 
-final case class TimesExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val numeric: Numeric[N]
+final case class TimesExpr[N](override val a: Expression[N], override val b: Expression[N])(implicit
+    val numeric: Numeric[N]
 ) extends BinaryOperationExpr[N, N, N](a, b, "*", true) {
   override val dataType: DataType.Aux[N] = a.dataType
 }
 
-final case class DivIntExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val integral: Integral[N]
+final case class DivIntExpr[N](override val a: Expression[N], override val b: Expression[N])(implicit
+    val integral: Integral[N]
 ) extends BinaryOperationExpr[N, N, N](a, b, "/", true) {
   override val dataType: DataType.Aux[N] = a.dataType
 }
 
-final case class DivFracExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val fractional: Fractional[N]
+final case class DivFracExpr[N](override val a: Expression[N], override val b: Expression[N])(implicit
+    val fractional: Fractional[N]
 ) extends BinaryOperationExpr[N, N, N](a, b, "/", true) {
   override val dataType: DataType.Aux[N] = a.dataType
 }
@@ -428,8 +428,8 @@ final case class ContainsSameExpr[T](override val a: Expression[Seq[T]], overrid
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(
-    implicit rtt: DataType.Aux[T],
+final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(implicit
+    rtt: DataType.Aux[T],
     rtu: DataType.Aux[U]
 ) extends Expression[(T, U)] {
   override val dataType: DataType.Aux[(T, U)] = DataType[(T, U)]

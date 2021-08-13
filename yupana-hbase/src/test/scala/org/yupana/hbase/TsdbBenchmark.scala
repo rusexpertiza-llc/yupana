@@ -214,7 +214,8 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
           changelogDao,
           dictProvider,
           identity,
-          SimpleTsdbConfig(putEnabled = true), { _ =>
+          SimpleTsdbConfig(putEnabled = true),
+          { _ =>
             mc
           }
         ) {

@@ -55,27 +55,42 @@ object FunctionRegistry {
 
   private val unaryFunctions: List[FunctionDesc] = List(
     // AGGREGATES
-    uNum("sum", new Bind2R[Expression, Numeric, Expression] {
-      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = SumExpr(e)(n)
-    }),
-    uOrd("min", new Bind2R[Expression, Ordering, Expression] {
-      override def apply[T](e: Expression[T], o: Ordering[T]): Expression[T] = MinExpr(e)(o)
-    }),
-    uOrd("max", new Bind2R[Expression, Ordering, Expression] {
-      override def apply[T](e: Expression[T], o: Ordering[T]): Expression[T] = MaxExpr(e)(o)
-    }),
+    uNum(
+      "sum",
+      new Bind2R[Expression, Numeric, Expression] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = SumExpr(e)(n)
+      }
+    ),
+    uOrd(
+      "min",
+      new Bind2R[Expression, Ordering, Expression] {
+        override def apply[T](e: Expression[T], o: Ordering[T]): Expression[T] = MinExpr(e)(o)
+      }
+    ),
+    uOrd(
+      "max",
+      new Bind2R[Expression, Ordering, Expression] {
+        override def apply[T](e: Expression[T], o: Ordering[T]): Expression[T] = MaxExpr(e)(o)
+      }
+    ),
     uAny("count", e => CountExpr(e)),
     uAny("distinct_count", e => DistinctCountExpr(e)),
     uAny("distinct_random", e => DistinctRandomExpr(e)),
     // WINDOW
     uAny("lag", e => LagExpr(e)),
     // REAL UNARY
-    uNum("-", new Bind2R[Expression, Numeric, Expression] {
-      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = UnaryMinusExpr(e)(n)
-    }),
-    uNum("abs", new Bind2R[Expression, Numeric, Expression] {
-      override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
-    }),
+    uNum(
+      "-",
+      new Bind2R[Expression, Numeric, Expression] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = UnaryMinusExpr(e)(n)
+      }
+    ),
+    uNum(
+      "abs",
+      new Bind2R[Expression, Numeric, Expression] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
+      }
+    ),
     uTyped("year", TruncYearExpr),
     uTyped("trunc_year", TruncYearExpr),
     uTyped("month", TruncMonthExpr),
@@ -110,9 +125,12 @@ object FunctionRegistry {
         override def apply[T](a: ArrayExpr[T]): Expression[_] = ArrayToStringExpr(a)
       }
     ),
-    uArray("length", new Bind[ArrayExpr, Expression[_]] {
-      override def apply[T](a: ArrayExpr[T]): Expression[_] = ArrayLengthExpr(a)
-    }),
+    uArray(
+      "length",
+      new Bind[ArrayExpr, Expression[_]] {
+        override def apply[T](a: ArrayExpr[T]): Expression[_] = ArrayLengthExpr(a)
+      }
+    ),
     uTyped("tokens", ArrayTokensExpr),
     // SPECIAL
     FunctionDesc("id", OtherParam, createDimIdExpr)
@@ -192,18 +210,30 @@ object FunctionRegistry {
     biTyped("-", TimeMinusPeriodExpr),
     biTyped("+", TimePlusPeriodExpr),
     biTyped("+", PeriodPlusPeriodExpr),
-    biArrayAndElem("contains", new Bind2[ArrayExpr, Expression, Expression[_]] {
-      override def apply[T](a: ArrayExpr[T], b: Expression[T]): Expression[Boolean] = ContainsExpr(a, b)
-    }),
-    biArray("contains_any", new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
-      override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAnyExpr(a, b)
-    }),
-    biArray("contains_all", new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
-      override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAllExpr(a, b)
-    }),
-    biArray("contains_same", new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
-      override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsSameExpr(a, b)
-    })
+    biArrayAndElem(
+      "contains",
+      new Bind2[ArrayExpr, Expression, Expression[_]] {
+        override def apply[T](a: ArrayExpr[T], b: Expression[T]): Expression[Boolean] = ContainsExpr(a, b)
+      }
+    ),
+    biArray(
+      "contains_any",
+      new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
+        override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAnyExpr(a, b)
+      }
+    ),
+    biArray(
+      "contains_all",
+      new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
+        override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsAllExpr(a, b)
+      }
+    ),
+    biArray(
+      "contains_same",
+      new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
+        override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsSameExpr(a, b)
+      }
+    )
   )
 
   def unary(name: String, e: Expression[_]): Either[String, Expression[_]] = {
@@ -252,7 +282,8 @@ object FunctionRegistry {
   ): FunctionDesc = {
     FunctionDesc(
       fn,
-      NumberParam, {
+      NumberParam,
+      {
         case e: Expression[t] =>
           e.dataType.numeric.fold[Either[String, Expression[t]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
             num => Right(create(e, num))
@@ -267,7 +298,8 @@ object FunctionRegistry {
   ): FunctionDesc = {
     FunctionDesc(
       fn,
-      OrdParam, {
+      OrdParam,
+      {
         case e: Expression[t] =>
           e.dataType.ordering.fold[Either[String, Expression[t]]](Left(s"$fn cannot be applied to ${e.dataType}"))(
             ord => Right(create(e, ord))
@@ -279,8 +311,8 @@ object FunctionRegistry {
   private def uAny(fn: String, create: Expression[_] => Expression[_]): FunctionDesc =
     FunctionDesc(fn, AnyParam, e => Right(create(e)))
 
-  private def uTyped[T](fn: String, create: Expression[T] => Expression[_])(
-      implicit dt: DataType.Aux[T]
+  private def uTyped[T](fn: String, create: Expression[T] => Expression[_])(implicit
+      dt: DataType.Aux[T]
   ): FunctionDesc = {
     FunctionDesc(
       fn,
@@ -340,8 +372,8 @@ object FunctionRegistry {
     )
   }
 
-  private def biTyped[T, U](fn: String, create: (Expression[T], Expression[U]) => Expression[_])(
-      implicit dtt: DataType.Aux[T],
+  private def biTyped[T, U](fn: String, create: (Expression[T], Expression[U]) => Expression[_])(implicit
+      dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): Function2Desc = Function2Desc(
     fn,

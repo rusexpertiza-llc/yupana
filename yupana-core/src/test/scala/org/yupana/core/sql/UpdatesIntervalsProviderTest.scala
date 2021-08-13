@@ -12,7 +12,9 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
   "UpdatesIntervalsProvider" should "create filters" in {
     createFilter(None) shouldBe UpdatesIntervalsFilter.empty
 
-    createFilter(Some(Eq(FieldName("table"), Constant(StringValue("some_table"))))) shouldBe UpdatesIntervalsFilter.empty
+    createFilter(
+      Some(Eq(FieldName("table"), Constant(StringValue("some_table"))))
+    ) shouldBe UpdatesIntervalsFilter.empty
       .withTableName("some_table")
     createFilter(
       Some(
@@ -26,7 +28,9 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
       .withFrom(DateTime.parse("2021-06-01"))
       .withTo(DateTime.parse("2021-06-02"))
 
-    createFilter(Some(Eq(FieldName("updated_by"), Constant(StringValue("somebody"))))) shouldBe UpdatesIntervalsFilter.empty
+    createFilter(
+      Some(Eq(FieldName("updated_by"), Constant(StringValue("somebody"))))
+    ) shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
 
     createFilter(
@@ -49,6 +53,8 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
       .withFrom(DateTime.parse("2021-06-01"))
       .withTableName("some_table")
 
-    createFilter(Some(Eq(FieldName("unknown_field"), Constant(StringValue("unknown"))))) shouldBe UpdatesIntervalsFilter.empty
+    createFilter(
+      Some(Eq(FieldName("unknown_field"), Constant(StringValue("unknown"))))
+    ) shouldBe UpdatesIntervalsFilter.empty
   }
 }

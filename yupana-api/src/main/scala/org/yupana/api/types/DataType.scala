@@ -158,8 +158,7 @@ object DataType {
     override val fractional: Option[Fractional[Null]] = None
   }
 
-  private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
-      implicit
+  private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(implicit
       s: Storable[TT],
       m: DataTypeMeta[TT],
       ct: ClassTag[TT],
@@ -175,8 +174,7 @@ object DataType {
     override val fractional: Option[Fractional[TT]] = f
   }
 
-  def scaledDecimalDt(scale: Int)(
-      implicit
+  def scaledDecimalDt(scale: Int)(implicit
       s: Storable[BigDecimal],
       ct: ClassTag[BigDecimal],
       bt: BoxingTag[BigDecimal]

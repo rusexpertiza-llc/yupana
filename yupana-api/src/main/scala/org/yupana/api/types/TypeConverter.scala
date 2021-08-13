@@ -89,8 +89,7 @@ object TypeConverter {
     mkPartial(x => if (x.isValidShort) Some(x.toShort) else None)
   val bigDecimal2Byte: PartialConverter[BigDecimal, Byte] = mkPartial(x => if (x.isValidByte) Some(x.toByte) else None)
 
-  def mkTotal[T, U](f: T => U)(
-      implicit
+  def mkTotal[T, U](f: T => U)(implicit
       dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): TypeConverter[T, U] = {
@@ -111,16 +110,14 @@ object TypeConverter {
     )
   }
 
-  private def entry[T, U](tc: TypeConverter[T, U])(
-      implicit
+  private def entry[T, U](tc: TypeConverter[T, U])(implicit
       dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): ((String, String), TypeConverter[T, U]) = {
     ((dtt.meta.sqlTypeName, dtu.meta.sqlTypeName), tc)
   }
 
-  private def pEntry[T, U](pc: PartialConverter[T, U])(
-      implicit
+  private def pEntry[T, U](pc: PartialConverter[T, U])(implicit
       dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): ((String, String), PartialConverter[T, U]) = {

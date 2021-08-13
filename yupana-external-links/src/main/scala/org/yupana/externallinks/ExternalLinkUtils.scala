@@ -91,7 +91,11 @@ object ExternalLinkUtils {
       linkName: String
   ): (List[(String, Set[T])], List[(String, Set[T])], List[Condition]) = {
     val (inc, exc, cond) = extractCatalogFields(simpleCondition, linkName)
-    (inc.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) }, exc.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) }, cond)
+    (
+      inc.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) },
+      exc.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) },
+      cond
+    )
   }
 
   def transformConditionT[T](
@@ -104,9 +108,11 @@ object ExternalLinkUtils {
     transformCondition(
       expressionCalculator,
       linkName,
-      condition, { metricsWithValues: Seq[(String, Set[Any])] =>
+      condition,
+      { metricsWithValues: Seq[(String, Set[Any])] =>
         includeCondition(metricsWithValues.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) })
-      }, { metricsWithValues: Seq[(String, Set[Any])] =>
+      },
+      { metricsWithValues: Seq[(String, Set[Any])] =>
         excludeCondition(metricsWithValues.map { case (n, vs) => (n, vs.asInstanceOf[Set[T]]) })
       }
     )
