@@ -59,7 +59,7 @@ object ExpressionCalculator extends StrictLogging {
       index: Map[Expression[_], Int],
       required: Set[Expression[_]],
       unfinished: Set[Expression[_]],
-      globalDecls: Map[Any, Decl],
+      globalDecls: Seq[(Any, Decl)],
       localDecls: Seq[(Expression[_], TermName, Tree)],
       trees: Seq[Tree],
       exprId: Int
@@ -102,18 +102,18 @@ object ExpressionCalculator extends StrictLogging {
     }
 
     def withNamedGlobal(name: TermName, tpe: Tree, tree: Tree): State = {
-      if (!globalDecls.contains(name))
-        copy(globalDecls = globalDecls + (name -> Decl(name, tpe, tree)))
+      if (!globalDecls.exists(_._1 == name))
+        copy(globalDecls = globalDecls :+ (name -> Decl(name, tpe, tree)))
       else this
     }
 
     def withGlobal(key: Any, tpe: Tree, tree: Tree): (TermName, State) = {
-      globalDecls.get(key) match {
-        case Some(Decl(name, _, _)) => name -> this
+      globalDecls.find(_._1 == key) match {
+        case Some((_, Decl(name, _, _))) => name -> this
         case None =>
           val name = TermName(s"e_$exprId")
           val ns =
-            copy(globalDecls = globalDecls + (key -> Decl(name, tpe, tree)), exprId = exprId + 1)
+            copy(globalDecls = globalDecls :+ (key -> Decl(name, tpe, tree)), exprId = exprId + 1)
           name -> ns
       }
     }
@@ -121,7 +121,7 @@ object ExpressionCalculator extends StrictLogging {
     def appendLocal(ts: Tree*): State = copy(trees = ts.reverse ++ trees)
 
     def fresh: (Tree, State) = {
-      val locals = localDecls.reverse.map {
+      val locals = localDecls.reverseMap {
         case (e, n, v) =>
           val tpe = mkType(e)
           q"val $n: $tpe = $v"
@@ -247,6 +247,15 @@ object ExpressionCalculator extends StrictLogging {
       case ConstantExpr(_)  => None
       case TimeExpr         => None
       case DimensionExpr(_) => None
+      case TupleExpr(e1, e2) =>
+        val d1 = mkIsDefined(state, row, e1)
+        val d2 = mkIsDefined(state, row, e2)
+
+        (d1, d2) match {
+          case (Some(t1), Some(t2)) => Some(q"$t1 && $t2")
+          case _                    => d1 orElse d2
+        }
+
       case _ =>
         state.index
           .get(e)
@@ -738,9 +747,9 @@ object ExpressionCalculator extends StrictLogging {
     val initialState =
       State(
         Map.empty,
-        query.fields.map(_.expr).toSet ++ query.groupBy ++ condition ++ query.postFilter + TimeExpr,
+        query.fields.map(_.expr).toSet ++ query.groupBy ++ query.postFilter + TimeExpr,
         Set.empty,
-        Map.empty,
+        Seq.empty,
         Seq.empty,
         Seq.empty,
         0
@@ -769,7 +778,7 @@ object ExpressionCalculator extends StrictLogging {
     val (postFilter, finalState) = mkFilter(postAggregateState, internalRow, query.postFilter).fresh
     assert(finalState.unfinished.isEmpty)
 
-    val defs = finalState.globalDecls.values.map(d => q"private val ${d.name}: ${d.tpe} = ${d.value}")
+    val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" }
 
     val tree = q"""
         import _root_.org.yupana.api.Time
