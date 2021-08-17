@@ -247,6 +247,15 @@ object ExpressionCalculator extends StrictLogging {
       case ConstantExpr(_)  => None
       case TimeExpr         => None
       case DimensionExpr(_) => None
+      case TupleExpr(e1, e2) =>
+        val d1 = mkIsDefined(state, row, e1)
+        val d2 = mkIsDefined(state, row, e2)
+
+        (d1, d2) match {
+          case (Some(t1), Some(t2)) => Some(q"$t1 && $t2")
+          case _                    => d1 orElse d2
+        }
+
       case _ =>
         state.index
           .get(e)
@@ -738,7 +747,7 @@ object ExpressionCalculator extends StrictLogging {
     val initialState =
       State(
         Map.empty,
-        query.fields.map(_.expr).toSet ++ query.groupBy ++ condition ++ query.postFilter + TimeExpr,
+        query.fields.map(_.expr).toSet ++ query.groupBy ++ query.postFilter + TimeExpr,
         Set.empty,
         Seq.empty,
         Seq.empty,
