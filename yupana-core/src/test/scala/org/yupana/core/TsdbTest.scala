@@ -67,7 +67,7 @@ class TsdbTest
     val dp3 =
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
 
-    val mr = new MapReducibleBase(None)
+    val mr = new IteratorMapReducible(None)
     (tsdbDaoMock.mapReduceEngine _).expects(NoMetricCollector).returning(mr)
 
     (tsdbDaoMock.put _)

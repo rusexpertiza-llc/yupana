@@ -31,7 +31,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val qc1 = QueryContext(expQuery1, None)
 
-    (tsdb.mapReduceEngine _).expects(*).returning(MapReducibleBase.iteratorMR).anyNumberOfTimes()
+    (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery1)
@@ -105,7 +105,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val qc = QueryContext(expQuery, None)
 
-    (tsdb.mapReduceEngine _).expects(*).returning(MapReducibleBase.iteratorMR).anyNumberOfTimes()
+    (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery)

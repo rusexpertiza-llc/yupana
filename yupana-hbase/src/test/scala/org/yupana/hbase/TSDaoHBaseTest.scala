@@ -16,7 +16,7 @@ import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ MapReducible, MapReducibleBase, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ MapReducible, IteratorMapReducible, TestDims, TestSchema, TestTableFields }
 
 import scala.collection.JavaConverters._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -1193,7 +1193,7 @@ class TSDaoHBaseTest
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
       extends TSDaoHBaseBase[Iterator] {
     override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
-      MapReducibleBase.iteratorMR
+      IteratorMapReducible.iteratorMR
 
     override def executeScans(
         queryContext: InternalQueryContext,
