@@ -19,11 +19,11 @@ package org.yupana.benchmarks
 import org.joda.time.LocalDateTime
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
-import org.yupana.api.query.syntax.All._
 import org.yupana.api.query._
+import org.yupana.api.query.syntax.All._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{ MapReducible, QueryContext, SimpleTsdbConfig, TSDB }
+import org.yupana.core.{ MapReducibleBase, QueryContext, SimpleTsdbConfig, TSDB }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
 class TsdbBaseBenchmark {
@@ -34,7 +34,7 @@ class TsdbBaseBenchmark {
       .processRows(
         state.queryContext,
         NoMetricCollector,
-        MapReducible.iteratorMR,
+        MapReducibleBase.iteratorMR,
         state.rows.iterator
       )
       .size
@@ -46,7 +46,7 @@ class TsdbBaseBenchmark {
       .processRows(
         state.queryContext,
         NoMetricCollector,
-        MapReducible.iteratorMR,
+        MapReducibleBase.iteratorMR,
         state.rows.iterator
       )
       .size
@@ -58,7 +58,7 @@ class TsdbBaseBenchmark {
       .processRows(
         state.queryContext,
         NoMetricCollector,
-        MapReducible.iteratorMR,
+        MapReducibleBase.iteratorMR,
         state.rows.iterator
       )
       .size
@@ -70,7 +70,7 @@ class TsdbBaseBenchmark {
       .processRows(
         state.queryContext,
         NoMetricCollector,
-        MapReducible.iteratorMR,
+        MapReducibleBase.iteratorMR,
         state.rows.iterator
       )
       .size

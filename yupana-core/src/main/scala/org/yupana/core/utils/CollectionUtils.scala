@@ -21,13 +21,16 @@ import scala.collection.JavaConverters._
 
 object CollectionUtils {
 
-  def reduceByKey[K, A](it: Iterator[(K, A)])(func: (A, A) => A): Iterator[(K, A)] = {
+  def reduceByKey[K, A](it: Iterator[(K, A)], limit: Option[Int] = None)(func: (A, A) => A): Iterator[(K, A)] = {
     val map = new java.util.HashMap[K, A]()
     it.foreach {
       case (k, v) =>
         val old = map.get(k)
         val n = if (old != null) func(old, v) else v
         map.put(k, n)
+        if (limit.exists(_ < map.size())) {
+          throw new IllegalStateException(s"reduceByKey operation is out of limit = $limit")
+        }
     }
     map.asScala.iterator
   }

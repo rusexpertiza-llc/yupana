@@ -50,4 +50,9 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
       .foldLeft(new Properties) { case (_props, (k, v)) => _props.put(prefix + k, v); _props }
 
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
+
+  override val reduceLimit: Option[Int] =
+    if (sparkConf.contains("analytics.tsdb.spark.reduce.limit"))
+      Some(sparkConf.get("analytics.tsdb.spark.reduce.limit").toInt)
+    else None
 }
