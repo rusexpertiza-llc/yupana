@@ -1,7 +1,6 @@
 package org.yupana.jdbc
 
 import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, Types }
-
 import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
@@ -9,6 +8,7 @@ import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto.Version
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.model.ParameterValue
 
 class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
 

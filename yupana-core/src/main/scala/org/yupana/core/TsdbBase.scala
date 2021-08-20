@@ -27,8 +27,6 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, K
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
 
-import scala.language.higherKinds
-
 /**
   * Core of time series database processing pipeline.
   */

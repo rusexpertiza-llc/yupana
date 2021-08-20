@@ -20,7 +20,7 @@ import java.util
 
 import javax.cache.{ Cache => JavaCache }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class JCache[K, V](underlying: JavaCache[K, V]) extends Cache[K, V] {
   override def get(key: K): Option[V] = Option(underlying.get(key))

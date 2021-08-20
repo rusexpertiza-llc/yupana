@@ -222,7 +222,7 @@ object ExpressionCalculator extends StrictLogging {
 
       case TypeKind.Array =>
         val (c, s) =
-          mkCollectionValue(state, tpe.asInstanceOf[ArrayDataType[_]].valueType, v.asInstanceOf[Traversable[_]], "Seq")
+          mkCollectionValue(state, tpe.asInstanceOf[ArrayDataType[_]].valueType, v.asInstanceOf[Iterable[_]], "Seq")
         val (name, ns) = s.withGlobal(v, mkType(tpe), c)
         q"$name" -> ns
     }
@@ -750,7 +750,7 @@ object ExpressionCalculator extends StrictLogging {
   private def mkCollectionValue[T: TypeTag](
       state: State,
       tpe: DataType,
-      values: Traversable[T],
+      values: Iterable[T],
       collectionName: String
   ): (Tree, State) = {
     val (literals, newState) = values.toList.foldLeft((List.empty[Tree], state)) {

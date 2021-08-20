@@ -16,6 +16,8 @@
 
 package org.yupana.core.utils
 
+import scala.collection.compat.IterableOnce
+
 class SparseTable[R, C, +V](val values: Map[R, Map[C, V]]) extends Table[R, C, V] with TableOps[R, C, V, SparseTable] {
 
   override def hashCode(): Int = values.hashCode()
@@ -62,8 +64,8 @@ class SparseTable[R, C, +V](val values: Map[R, Map[C, V]]) extends Table[R, C, V
     new SparseTable(values.map { case (k, v) => f(k) -> v })
   }
 
-  override def toIterator: Iterator[(R, C, V)] = {
-    values.toIterator.flatMap { case (r, cv) => cv.toIterator.map { case (c, v) => (r, c, v) } }
+  override def iterator: Iterator[(R, C, V)] = {
+    values.iterator.flatMap { case (r, cv) => cv.iterator.map { case (c, v) => (r, c, v) } }
   }
 
   override def +[V1 >: V](e: (R, C, V1)): SparseTable[R, C, V1] = {
@@ -85,7 +87,7 @@ class SparseTable[R, C, +V](val values: Map[R, Map[C, V]]) extends Table[R, C, V
 
         new SparseTable(newValues)
       case _ =>
-        t.toIterator.foldLeft(v2) { case (a, v) => a + v }
+        t.iterator.foldLeft(v2) { case (a, v) => a + v }
     }
   }
 }
@@ -93,20 +95,12 @@ class SparseTable[R, C, +V](val values: Map[R, Map[C, V]]) extends Table[R, C, V
 object SparseTable extends TableFactory[SparseTable] {
   override def empty[R, C, V]: SparseTable[R, C, V] = new SparseTable[R, C, V](Map.empty)
 
-  override def apply[R, C, V](items: TraversableOnce[(R, C, V)]): SparseTable[R, C, V] = {
-    val allValues = items.aggregate(Map.empty[R, Map[C, V]])(
-      {
-        case (m, (r, c, v)) =>
-          val col = m.getOrElse(r, Map.empty)
-          m + (r -> (col + (c -> v)))
-      }, {
-        case (a, b) =>
-          val ks = a.keySet ++ b.keySet
-          ks.map { k =>
-            k -> (a.getOrElse(k, Map.empty) ++ b.getOrElse(k, Map.empty))
-          }.toMap
-      }
-    )
+  override def apply[R, C, V](items: IterableOnce[(R, C, V)]): SparseTable[R, C, V] = {
+    val allValues = items.iterator.foldLeft(Map.empty[R, Map[C, V]]) {
+      case (m, (r, c, v)) =>
+        val col = m.getOrElse(r, Map.empty)
+        m + (r -> (col + (c -> v)))
+    }
 
     new SparseTable(allValues)
   }

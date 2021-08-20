@@ -92,13 +92,13 @@ class TSDB(
 
     val winFieldsAndGroupValues = queryContext.query.fields.map(_.expr).collect {
       case winFuncExpr: WindowFunctionExpr[_, _] =>
-        val values = grouped.mapValues {
-          case (vs, rowNumIndex) =>
+        val values = grouped.map {
+          case (key, (vs, rowNumIndex)) =>
             val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
             vs.indices.foreach { i =>
               funcValues(i) = vs(i).get(queryContext, winFuncExpr.expr)
             }
-            (funcValues, rowNumIndex)
+            (key, (funcValues, rowNumIndex))
         }
         winFuncExpr -> values
     }
@@ -114,7 +114,7 @@ class TSDB(
             }
         }
         keyData -> valueData
-    }.toIterator
+    }.iterator
   }
 
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {

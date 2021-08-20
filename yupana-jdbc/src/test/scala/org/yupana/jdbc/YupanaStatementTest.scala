@@ -1,12 +1,12 @@
 package org.yupana.jdbc
 
 import java.sql.{ ResultSet, SQLException, SQLFeatureNotSupportedException }
-
 import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.model.ParameterValue
 
 class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
 

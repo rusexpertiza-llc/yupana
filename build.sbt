@@ -58,8 +58,9 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
+      "org.scala-lang.modules" %% "scala-collection-compat" % versions.colCompat,
+      "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
+      "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
     buildInfoKeys := {
       val vn = VersionNumber(version.value)
@@ -98,6 +99,7 @@ lazy val core = (project in file("yupana-core"))
     libraryDependencies ++= Seq(
       "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
+      "org.scala-lang.modules"        %% "scala-collection-compat"      % versions.colCompat,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
@@ -354,6 +356,7 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
+  val colCompat = "2.5.0"
   val spark =  "3.1.2"
 
   val joda = "2.10.10"
@@ -390,16 +393,18 @@ lazy val versions = new {
 val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := "2.12.14",
+  crossScalaVersions := Seq("2.12.14", "2.13.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
-    "-Xsource:2.12",
+    "-Xsource:2.13",
     "-deprecation",
     "-unchecked",
     "-feature",
+    "-language:higherKinds",
     "-Xlint",
     "-Xfatal-warnings",
     "-Ywarn-dead-code",
-    "-Ywarn-unused-import"
+    "-Ywarn-unused:imports"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),

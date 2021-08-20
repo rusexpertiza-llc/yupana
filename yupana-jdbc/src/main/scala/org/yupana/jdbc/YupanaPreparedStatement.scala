@@ -16,19 +16,20 @@
 
 package org.yupana.jdbc
 
+import org.yupana.jdbc.model.{ NumericValue, ParameterValue, StringValue, TimestampValue }
+
 import java.io.{ InputStream, Reader }
 import java.net.URL
 import java.sql.{ Array => SqlArray, _ }
 import java.util.Calendar
 import java.util.logging.{ Level, Logger }
-
 import scala.collection.mutable.ArrayBuffer
 
 object YupanaPreparedStatement {
   private val LOGGER: Logger = Logger.getLogger(classOf[YupanaPreparedStatement].getName)
 }
 
-@throws[SQLException]
+// @throws[SQLException]
 class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, templateQuery: String)
     extends YupanaStatement(connection)
     with PreparedStatement {
@@ -68,7 +69,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
   override def executeBatch: Array[Int] = {
     YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
     if (batch.isEmpty) throw new SQLException("Batch is not defined")
-    val result = connection.runBatchQuery(templateQuery, batch)
+    val result = connection.runBatchQuery(templateQuery, batch.toSeq)
     lastResultSet = new YupanaResultSet(this, result)
     Array.fill(batch.size)(1)
   }

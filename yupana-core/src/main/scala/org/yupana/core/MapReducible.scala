@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.core.utils.CollectionUtils
 
-import scala.language.higherKinds
+import scala.collection.compat.IterableOnce
 import scala.reflect.ClassTag
 
 /**
@@ -32,7 +32,7 @@ trait MapReducible[Collection[_]] extends Serializable {
   def map[A: ClassTag, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
   def flatMap[A: ClassTag, B: ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
 
-  def batchFlatMap[A, B: ClassTag](c: Collection[A], size: Int)(f: Seq[A] => TraversableOnce[B]): Collection[B]
+  def batchFlatMap[A, B: ClassTag](c: Collection[A], size: Int)(f: Seq[A] => IterableOnce[B]): Collection[B]
 
   def fold[A: ClassTag](c: Collection[A])(zero: A)(f: (A, A) => A): A
   def reduce[A: ClassTag](c: Collection[A])(f: (A, A) => A): A
@@ -52,7 +52,7 @@ object MapReducible {
     override def flatMap[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => Iterable[B]): Iterator[B] = it.flatMap(f)
 
     override def batchFlatMap[A, B: ClassTag](it: Iterator[A], size: Int)(
-        f: Seq[A] => TraversableOnce[B]
+        f: Seq[A] => IterableOnce[B]
     ): Iterator[B] = {
       it.grouped(size).flatMap(f)
     }
