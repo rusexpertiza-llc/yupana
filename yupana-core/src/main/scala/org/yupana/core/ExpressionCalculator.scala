@@ -54,13 +54,20 @@ object ExpressionCalculator extends StrictLogging {
   private val calculator = q"_root_.org.yupana.core.ExpressionCalculator"
 
   case class Decl(name: TermName, tpe: Tree, value: Tree)
+  case class LocalDecl(e: Expression[_], name: TermName, value: Tree, defTree: Option[Tree]) {
+    val defName: TermName = TermName(name.toString + "_def")
+
+    val isDefined: Option[Tree] = {
+      if (defTree.isDefined) Some(q"$defName") else None
+    }
+  }
 
   case class State(
       index: Map[Expression[_], Int],
       required: Set[Expression[_]],
       unfinished: Set[Expression[_]],
       globalDecls: Seq[(Any, Decl)],
-      localDecls: Seq[(Expression[_], TermName, Tree)],
+      localDecls: Seq[LocalDecl],
       trees: Seq[Tree],
       exprId: Int
   ) {
@@ -75,9 +82,9 @@ object ExpressionCalculator extends StrictLogging {
         val newState = withExpr(e)
         val idx = newState.index(e)
         newState.copy(trees = q"$row.set($idx, $v)" +: trees)
-      } else if (!localDecls.exists(_._1 == e)) {
-        val entry: (Expression[_], TermName, Tree) = (e, nextLocalName, v)
-        copy(localDecls = entry +: localDecls)
+      } else if (!localDecls.exists(_.e == e)) {
+        val decl = LocalDecl(e, nextLocalName, v, None)
+        copy(localDecls = decl +: localDecls)
       } else {
         this
       }
@@ -91,11 +98,9 @@ object ExpressionCalculator extends StrictLogging {
         val idx = newState.index(e)
         val tree = q"if ($cond) $row.set($idx, $v)"
         newState.withExpr(e).copy(trees = tree +: trees)
-      } else if (!localDecls.exists(_._1 == e)) {
-        val tpe = mkType(e)
-        val tree = q"if ($cond) $v else null.asInstanceOf[$tpe]"
-        val entry: (Expression[_], TermName, Tree) = (e, nextLocalName, tree)
-        copy(localDecls = entry +: localDecls)
+      } else if (!localDecls.exists(_.e == e)) {
+        val decl = LocalDecl(e, nextLocalName, v, Some(cond))
+        copy(localDecls = decl +: localDecls)
       } else {
         this
       }
@@ -121,10 +126,14 @@ object ExpressionCalculator extends StrictLogging {
     def appendLocal(ts: Tree*): State = copy(trees = ts.reverse ++ trees)
 
     def fresh: (Tree, State) = {
-      val locals = localDecls.reverseMap {
-        case (e, n, v) =>
+      val locals = localDecls.reverse.flatMap {
+        case decl @ LocalDecl(e, n, v, d) =>
           val tpe = mkType(e)
-          q"val $n: $tpe = $v"
+          val defTree = d.map(t => q"val ${decl.defName}: Boolean = $t")
+          val default = mkDefault(e.dataType)
+          val tree = if (defTree.isDefined) q"if (${decl.defName}) $v else $default.asInstanceOf[$tpe]" else v
+
+          Seq(defTree, Some(q"val $n: $tpe = $tree")).flatten
       }
 
       val res =
@@ -174,6 +183,16 @@ object ExpressionCalculator extends StrictLogging {
       case Some(n) => mapValue(state, dataType)(n.zero)
       case None    => throw new IllegalArgumentException(s"$dataType is not numeric")
     }
+  }
+
+  private def mkDefault(dataType: DataType): Tree = {
+    if (dataType.classTag.runtimeClass.isPrimitive) {
+      if (dataType == DataType[Boolean]) q"false"
+      else
+        dataType.numeric
+          .map(_ => q"0")
+          .getOrElse(throw new IllegalArgumentException(s"Unexpected primitive type $dataType"))
+    } else q"null"
   }
 
   private def mapValue(state: State, tpe: DataType)(v: Any): (Tree, State) = {
@@ -233,8 +252,8 @@ object ExpressionCalculator extends StrictLogging {
 
       case x =>
         state.localDecls
-          .find(_._1 == x)
-          .map(x => q"${x._2}" -> state)
+          .find(_.e == x)
+          .map(x => q"${x.name}" -> state)
     }
   }
 
@@ -260,7 +279,7 @@ object ExpressionCalculator extends StrictLogging {
         state.index
           .get(e)
           .map(idx => q"$row.isDefined($idx)")
-          .orElse(state.localDecls.find(_._1 == e).map(x => q"${x._2} != null"))
+          .orElse(state.localDecls.find(_.e == e).flatMap(_.isDefined))
     }
   }
 
