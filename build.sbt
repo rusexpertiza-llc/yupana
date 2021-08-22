@@ -117,6 +117,7 @@ lazy val hbase = (project in file("yupana-hbase"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
+      "org.scala-lang.modules"      %% "scala-collection-compat"      % versions.colCompat,
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
       "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
@@ -181,10 +182,11 @@ lazy val spark = (project in file("yupana-spark"))
   .settings(
     name := "yupana-spark",
     allSettings,
+    resolvers += "Spark 3.2.0 staging" at "https://repository.apache.org/content/repositories/orgapachespark-1388",
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
     )
@@ -209,6 +211,7 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
+      "org.scala-lang.modules"      %% "scala-collection-compat"    % versions.colCompat,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -262,9 +265,9 @@ lazy val examples = (project in file("yupana-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
       "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
       "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc       % Runtime,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
@@ -341,7 +344,7 @@ lazy val docs = project
       "SCALA_VERSION" -> minMaj(scalaVersion.value, "2.12"),
       "HBASE_VERSION" -> minMaj(versions.hbase, "1.3"),
       "HADOOP_VERSION" -> minMaj(versions.hadoop, "3.0"),
-      "SPARK_VERSION" -> minMaj(versions.spark, "2.4"),
+      "SPARK_VERSION" -> minMaj(versions.spark_212, "2.4"),
       "IGNITE_VERSION" -> versions.ignite
     )
   )
@@ -357,7 +360,17 @@ def minMaj(v: String, default: String): String = {
 
 lazy val versions = new {
   val colCompat = "2.5.0"
-  val spark =  "3.1.2"
+
+  val spark_212 = "3.1.2"
+  val spark_213 = "3.2.0"
+
+  val spark = Def.setting(
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) => spark_212
+      case Some((2, 13)) => spark_213
+      case _             => sys.error(s"Unsupported Scala version ${scalaVersion.value}")
+    }
+  )
 
   val joda = "2.10.10"
 
@@ -392,7 +405,7 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.14",
+  scalaVersion := "2.13.6",
   crossScalaVersions := Seq("2.12.14", "2.13.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
@@ -403,8 +416,7 @@ val commonSettings = Seq(
     "-language:higherKinds",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Ywarn-unused:imports"
+    "-Ywarn-dead-code"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),

@@ -99,7 +99,7 @@ class BTreeIndexDaoHBase[K, V](
     keys.map(k => k -> result.contains(k)).toMap
   }
 
-  private def checkTableExistsElseCreate() {
+  private def checkTableExistsElseCreate(): Unit = {
     val descriptor = TableDescriptorBuilder
       .newBuilder(connection.getTableName(tableName))
       .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))

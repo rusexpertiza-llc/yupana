@@ -230,7 +230,7 @@ object HBaseUtils extends StrictLogging {
     val scannerIterator = scanner.iterator()
     val batchIterator = scannerIterator.asScala.grouped(batchSize)
 
-    val resultIterator = new AbstractIterator[List[Result]] {
+    val resultIterator = new AbstractIterator[Seq[Result]] {
       override def hasNext: Boolean = {
         metricsCollector.scan.measure(1) {
           val hasNext = batchIterator.hasNext
@@ -243,7 +243,7 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): List[Result] = {
+      override def next(): Seq[Result] = {
         batchIterator.next()
       }
     }

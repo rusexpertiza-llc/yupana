@@ -16,7 +16,7 @@
 
 package org.yupana.core.utils
 
-import scala.collection.compat.IterableOnce
+import scala.collection.compat._
 
 class SparseTable[R, C, +V](val values: Map[R, Map[C, V]]) extends Table[R, C, V] with TableOps[R, C, V, SparseTable] {
 

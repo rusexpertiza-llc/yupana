@@ -31,7 +31,6 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.language.higherKinds
 import scala.util.Try
 
 object TSDaoHBaseBase {
@@ -112,9 +111,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     val rows = executeScans(context, from, to, rangeScanDimIds)
 
-    val includeRowFilter = prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    val includeRowFilter = prefetchedDimIterators.view.filterKeys(d => !sizeLimitedRangeScanDims.contains(d)).toMap
 
-    val excludeRowFilter = filters.allExcludes.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    val excludeRowFilter = filters.allExcludes.view.filterKeys(d => !sizeLimitedRangeScanDims.contains(d)).toMap
 
     val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(

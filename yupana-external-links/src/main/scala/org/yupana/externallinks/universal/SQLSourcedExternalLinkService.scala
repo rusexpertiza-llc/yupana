@@ -128,7 +128,10 @@ class SQLSourcedExternalLinkService[DimensionValue](
         .runQuery(dataSource, q, sqlFields, params)
         .map(vs => vs.map { case (k, v) => snakeToCamel(k) -> v })
         .groupBy(m => m(dimensionName))
-        .map { case (k, v) => k.asInstanceOf[DimensionValue] -> (v.head - dimensionName).mapValues(_.toString) }
+        .map {
+          case (k, v) =>
+            k.asInstanceOf[DimensionValue] -> (v.head - dimensionName).map { case (a, b) => a -> b.toString }
+        }
       fieldValuesForDimValuesCache.putAll(dataFromDb)
       SparseTable(tableRows ++ dataFromDb)
     }
