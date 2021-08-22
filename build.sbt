@@ -415,9 +415,14 @@ val commonSettings = Seq(
     "-feature",
     "-language:higherKinds",
     "-Xlint",
-//    "-Xfatal-warnings",
+    "-Xfatal-warnings",
     "-Ywarn-dead-code"
-  ),
+  ) ++ {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
+      case _ => Seq.empty
+    }
+  },
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,

@@ -110,7 +110,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
 
     val values = kkmAddressData
       .filter(x => kkmIds.contains(x._1))
-      .map { case (kkmId, addr) => kkmId -> addr.asMap.view.filterKeys(fields.contains).toMap }
+      .map { case (kkmId, addr) => kkmId -> addr.asMap.filter { case (k, _) => fields.contains(k) } }
       .toMap
     SparseTable(values)
   }
