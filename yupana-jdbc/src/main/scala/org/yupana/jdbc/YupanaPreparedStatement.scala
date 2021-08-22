@@ -29,7 +29,6 @@ object YupanaPreparedStatement {
   private val LOGGER: Logger = Logger.getLogger(classOf[YupanaPreparedStatement].getName)
 }
 
-// @throws[SQLException]
 class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, templateQuery: String)
     extends YupanaStatement(connection)
     with PreparedStatement {

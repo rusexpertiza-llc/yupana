@@ -415,7 +415,7 @@ val commonSettings = Seq(
     "-feature",
     "-language:higherKinds",
     "-Xlint",
-    "-Xfatal-warnings",
+//    "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),

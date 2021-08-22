@@ -21,6 +21,8 @@ import org.yupana.api.schema.Schema
 
 import scala.collection.mutable.ListBuffer
 
+import scala.collection.compat._
+
 object JsonExternalLinkDeclarationsParser {
 
   import JsonCatalogs._

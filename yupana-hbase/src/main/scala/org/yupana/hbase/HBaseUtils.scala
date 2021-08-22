@@ -505,9 +505,7 @@ object HBaseUtils extends StrictLogging {
     val timeShift = HBaseUtils.restTime(dp.time, table)
     dp.metrics
       .groupBy(_.metric.group)
-      .view
-      .mapValues(metricValues => Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))))
-      .toMap
+      .map { case (k, metricValues) => k -> Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))) }
   }
 
   private def mergeMaps(

@@ -111,9 +111,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     val rows = executeScans(context, from, to, rangeScanDimIds)
 
-    val includeRowFilter = prefetchedDimIterators.view.filterKeys(d => !sizeLimitedRangeScanDims.contains(d)).toMap
+    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
-    val excludeRowFilter = filters.allExcludes.view.filterKeys(d => !sizeLimitedRangeScanDims.contains(d)).toMap
+    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
     val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
