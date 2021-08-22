@@ -28,7 +28,7 @@ import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 
-import scala.collection.compat._
+//import scala.collection.compat._
 
 object ItemsInvertedIndexImpl {
 

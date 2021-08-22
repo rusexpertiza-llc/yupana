@@ -1,11 +1,10 @@
 package org.yupana.externallinks.universal
 
 import java.util.Properties
-
 import org.flywaydb.core.Flyway
 import org.h2.jdbcx.JdbcDataSource
 import org.scalatest.exceptions.TestFailedException
-import org.scalatest.{ BeforeAndAfterAll, OptionValues }
+import org.scalatest.{ BeforeAndAfterAll, EitherValues, OptionValues }
 import org.yupana.core.cache.CacheFactory
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
@@ -13,7 +12,12 @@ import org.yupana.schema.{ Dimensions, SchemaRegistry }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
+class SQLSourcedCatalogServiceTest
+    extends AnyFlatSpec
+    with Matchers
+    with OptionValues
+    with EitherValues
+    with BeforeAndAfterAll {
   val dbUrl = "jdbc:h2:mem:yupana;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
   val dbUser = "test"
   val dbPass = "secret"
@@ -56,7 +60,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
       case Left(err) => throw new TestFailedException(err, 3)
       case _         =>
     }
-    val externalLinkConfig = parsed.right.get.head
+    val externalLinkConfig = parsed.value.head
     val externalLinkService = createService(externalLinkConfig)
     val externalLink = externalLinkService.externalLink
 
@@ -119,7 +123,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
                                |  ]
                                |}""".stripMargin
     val externalLinkConfig =
-      JsonExternalLinkDeclarationsParser.parse(SchemaRegistry.defaultSchema, complicatedCatalogJson).right.get.head
+      JsonExternalLinkDeclarationsParser.parse(SchemaRegistry.defaultSchema, complicatedCatalogJson).value.head
     val externalLinkService = createService(externalLinkConfig)
     val externalLink = externalLinkService.externalLink
 

@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.utils.ResourceUtils.using
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class BTreeIndexDaoHBase[K, V](
     connection: ExternalLinkHBaseConnection,

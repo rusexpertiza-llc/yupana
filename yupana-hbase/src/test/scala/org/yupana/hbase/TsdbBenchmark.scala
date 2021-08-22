@@ -47,7 +47,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 //    scan.setCacheBlocks(false)
     scan.setScanMetricsEnabled(true)
 
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     val start = System.currentTimeMillis()
     val scanner = table.getScanner(scan)

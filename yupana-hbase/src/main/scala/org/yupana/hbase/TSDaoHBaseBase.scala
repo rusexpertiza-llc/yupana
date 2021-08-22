@@ -218,8 +218,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       exclude: Map[Dimension, SortedSetIterator[_]]
   ): RowFilter = {
 
-    val includeMap = include.map { case (k, v) => k -> v.toSet }
-    val excludeMap = exclude.map { case (k, v) => k -> v.toSet }
+    val includeMap: Map[Dimension, Set[Any]] = include.map { case (k, v) => k -> v.toSet }
+    val excludeMap: Map[Dimension, Set[Any]] = exclude.map { case (k, v) => k -> v.toSet }
 
     if (excludeMap.nonEmpty) {
       if (includeMap.nonEmpty) {

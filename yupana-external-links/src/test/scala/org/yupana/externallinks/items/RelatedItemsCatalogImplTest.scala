@@ -42,7 +42,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
             Array[Any](123456, Time(120)),
             Array[Any](123456, Time(150)),
             Array[Any](345112, Time(120))
-          ).toIterator
+          ).iterator
         )
       )
 
@@ -64,7 +64,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           Seq(
             Array[Any](123456, Time(125)),
             Array[Any](123456, Time(120))
-          ).toIterator
+          ).iterator
         )
       )
 
@@ -115,7 +115,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           Seq(
             Array[Any](123456, Time(220)),
             Array[Any](654321, Time(330))
-          ).toIterator
+          ).iterator
         )
       )
 

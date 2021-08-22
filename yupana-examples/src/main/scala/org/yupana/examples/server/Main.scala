@@ -65,7 +65,6 @@ object Main extends StrictLogging {
       .map(json =>
         JsonExternalLinkDeclarationsParser
           .parse(schema, json)
-          .right
           .map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
       )
       .getOrElse(Right(schema))
