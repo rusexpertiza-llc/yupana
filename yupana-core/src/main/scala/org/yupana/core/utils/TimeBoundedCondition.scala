@@ -48,22 +48,6 @@ object TimeBoundedCondition {
     }
   }
 
-  def apply(from: Long, to: Long, condition: Condition): TimeBoundedCondition = {
-    QueryOptimizer.simplifyCondition(condition) match {
-      case AndExpr(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
-      case o: OrExpr   => throw new IllegalArgumentException(s"Or not supported yet $o")
-      case c           => TimeBoundedCondition(Some(from), Some(to), Seq(c))
-    }
-  }
-
-  def toCondition(conditions: Seq[TimeBoundedCondition]): Condition = {
-    conditions.map(_.toCondition) match {
-      case Nil    => ConstantExpr(true)
-      case Seq(x) => x
-      case xs     => OrExpr(xs)
-    }
-  }
-
   def merge(conditions: Seq[TimeBoundedCondition]): TimeBoundedCondition = {
     if (conditions.isEmpty) throw new IllegalArgumentException("Conditions must not be empty")
 
