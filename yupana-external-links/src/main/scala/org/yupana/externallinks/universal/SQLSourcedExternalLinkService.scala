@@ -17,15 +17,16 @@
 package org.yupana.externallinks.universal
 
 import com.typesafe.scalalogging.StrictLogging
+
 import javax.sql.DataSource
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, LinkExpr }
-import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
-import org.yupana.api.types.{ BoxingTag, DataType }
+import org.yupana.api.query.{Expression, LinkExpr, Transform}
+import org.yupana.api.schema.{Dimension, ExternalLink, Schema}
+import org.yupana.api.types.{BoxingTag, DataType}
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.cache.{ Cache, CacheFactory }
+import org.yupana.core.cache.{Cache, CacheFactory}
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{ SparseTable, Table }
+import org.yupana.core.utils.{SparseTable, Table}
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
@@ -170,6 +171,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
       .toSet
   }
 
+  override def transform(condition: Condition): Seq[Transform] = ???
 }
 
 object SQLSourcedExternalLinkService {

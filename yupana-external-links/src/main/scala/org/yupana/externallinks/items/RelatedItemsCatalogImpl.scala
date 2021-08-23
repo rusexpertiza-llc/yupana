@@ -122,4 +122,6 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   ): Unit = {
     // may be throw exception here?
   }
+
+  override def transform(condition: Condition): Seq[Transform] = ???
 }

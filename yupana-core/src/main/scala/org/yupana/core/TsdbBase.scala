@@ -266,9 +266,25 @@ trait TsdbBase extends StrictLogging {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val substituted = linkServices.map(service =>
+    val transformations = linkServices.flatMap(service =>
       metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.condition(condition)
+        service.transform(condition)
+      }
+    )
+
+    if (transformations.nonEmpty) {
+      val transformed = transformations.foldLeft(condition) { case (c, transform) =>
+        ConditionUtils.transform(c, transform)
+      }
+      transformed
+    } else {
+      condition
+    }
+
+    /*val substituted = linkServices.map(service =>
+      metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
+        val c = service.condition(condition)
+        c
       }
     )
 
@@ -277,7 +293,7 @@ trait TsdbBase extends StrictLogging {
       ConditionUtils.split(merged)(c => linkServices.exists(_.isSupportedCondition(c)))._2
     } else {
       condition
-    }
+    }*/
   }
 
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {

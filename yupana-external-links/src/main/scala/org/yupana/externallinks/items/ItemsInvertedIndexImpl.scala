@@ -24,9 +24,9 @@ import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
-import org.yupana.externallinks.ExternalLinkUtils
+import org.yupana.externallinks.{ExternalLinkUtils, ExternalLinkUtilsNew}
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.yupana.schema.{Dimensions, ItemDimension}
 
 object ItemsInvertedIndexImpl {
 
@@ -96,6 +96,24 @@ class ItemsInvertedIndexImpl(
     DimIdNotInExpr(externalLink.dimension, it)
   }
 
+  private def includeExpression(values: Seq[(Expression[_], String, Set[String])]): Transform = {
+    val ids = getPhraseIdsNew(values)
+    val it = SortedSetIterator.intersectAll(ids)
+    Replace(
+      values.map(_._1),
+      Seq(DimIdInExpr(externalLink.dimension, it))
+    )
+  }
+
+  private def excludeExpression(values: Seq[(Expression[_], String, Set[String])]): Transform = {
+    val ids = getPhraseIdsNew(values)
+    val it = SortedSetIterator.unionAll(ids)
+    Replace(
+      values.map(_._1),
+      Seq(DimIdNotInExpr(externalLink.dimension, it))
+    )
+  }
+
   // Read only external link
   override def setLinkedValues(
       exprIndex: collection.Map[Expression[_], Int],
@@ -110,6 +128,16 @@ class ItemsInvertedIndexImpl(
       condition,
       includeCondition,
       excludeCondition
+    )
+  }
+
+  override def transform(condition: Condition): Seq[Transform] = {
+    ExternalLinkUtilsNew.transformConditionT[String](
+      expressionCalculator,
+      externalLink.linkName,
+      condition,
+      includeExpression,
+      excludeExpression
     )
   }
 
@@ -133,5 +161,12 @@ class ItemsInvertedIndexImpl(
       .map(schema.transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
     SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
+  }
+
+  private def getPhraseIdsNew(fieldsValues: Seq[(Expression[_], String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
+    fieldsValues.map {
+      case (_, PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
+      case (_, x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
+    }
   }
 }

@@ -73,6 +73,8 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def condition(condition: Condition): Condition
 
+  def transform(condition: Condition): Seq[Transform]
+
   /**
     * Checks what passed simple condition can be handled by this catalog
     *

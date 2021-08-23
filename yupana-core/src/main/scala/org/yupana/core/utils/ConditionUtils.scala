@@ -72,4 +72,9 @@ object ConditionUtils {
 
     (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
+
+  def transform(c: Condition, transform: Transform): Condition = {
+    println(transform)
+    c
+  }
 }
