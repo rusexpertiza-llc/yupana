@@ -73,8 +73,18 @@ object ConditionUtils {
     (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
 
-  def transform(c: Condition, transform: Transform): Condition = {
-    println(transform)
-    c
+  def transform(tbc: TimeBoundedCondition, transform: Transform): TimeBoundedCondition = {
+    transform match {
+      case Replace(from, to) =>
+        val exclude = tbc.conditions.filterNot { c =>
+          from.contains(c) || c == to
+        }
+        tbc.copy(conditions = exclude :+ to)
+      case Original(other) =>
+        //TODO: need to check how to use 'other' conditions from org.yupana.externallinks.ExternalLinkUtils.extractCatalogFields
+        tbc
+      case _ =>
+        throw new IllegalArgumentException("Unsupported Transform type!")
+    }
   }
 }

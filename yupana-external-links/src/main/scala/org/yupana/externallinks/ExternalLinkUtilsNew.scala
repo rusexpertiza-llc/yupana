@@ -39,47 +39,47 @@ object ExternalLinkUtilsNew {
   def extractCatalogFields(
       simpleCondition: TimeBoundedCondition,
       linkName: String
-  ): (List[(Expression[_], String, Set[Any])], List[(Expression[_], String, Set[Any])], List[Condition]) = {
+  ): (List[(Condition, String, Set[Any])], List[(Condition, String, Set[Any])], List[Condition]) = {
     simpleCondition.conditions.foldLeft(
-      (List.empty[(Expression[_], String, Set[Any])], List.empty[(Expression[_], String, Set[Any])], List.empty[Condition])
+      (List.empty[(Condition, String, Set[Any])], List.empty[(Condition, String, Set[Any])], List.empty[Condition])
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
-          case EqExpr(e @ LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
-            ((e, field.name, Set[Any](v)) :: cat, neg, oth)
+          case EqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
+            ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case EqExpr(e @ ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
-            ((e, field.name, Set[Any](v)) :: cat, neg, oth)
+          case EqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
+            ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case InExpr(e @ LinkExpr(c, field), cs) if c.linkName == linkName =>
-            ((e, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
+          case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
+            ((cond, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case NeqExpr(e @ LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
-            (cat, (e, field.name, Set[Any](v)) :: neg, oth)
+          case NeqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
+            (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NeqExpr(e @ ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
-            (cat, (e, field.name, Set[Any](v)) :: neg, oth)
+          case NeqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
+            (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NotInExpr(e @ LinkExpr(c, field), cs) if c.linkName == linkName =>
-            (cat, (e, field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
+          case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
+            (cat, (cond, field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
 
-          case EqString(e @ LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
-            ((e, field.name, Set[Any](v)) :: cat, neg, oth)
+          case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
+            ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case EqString(e @ ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
-            ((e, field.name, Set[Any](v)) :: cat, neg, oth)
+          case EqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+            ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case InString(e @ LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            ((e, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
+          case InString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
+            ((cond, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case NeqString(e @ LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
-            (cat, (e, field.name, Set[Any](v)) :: neg, oth)
+          case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
+            (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NeqString(e @ ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
-            (cat, (e, field.name, Set[Any](v)) :: neg, oth)
+          case NeqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+            (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NotInString(e @ LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
-            (cat, (e, field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
+          case NotInString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
+            (cat, (cond, field.name, cs.asInstanceOf[Set[Any]]) :: neg, oth)
 
           case _ => (cat, neg, cond :: oth)
         }
@@ -89,25 +89,24 @@ object ExternalLinkUtilsNew {
   def extractCatalogFieldsT[T](
       simpleCondition: TimeBoundedCondition,
       linkName: String
-  ): (List[(String, Set[T])], List[(String, Set[T])], List[Condition]) = {
+  ): (List[(Condition, String, Set[T])], List[(Condition, String, Set[T])], List[Condition]) = {
     val (inc, exc, cond) = extractCatalogFields(simpleCondition, linkName)
-    //TODO use e!!!!
-    (inc.map { case (e, n, vs) => (n, vs.asInstanceOf[Set[T]]) }, exc.map { case (e, n, vs) => (n, vs.asInstanceOf[Set[T]]) }, cond)
+    (inc.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) }, exc.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) }, cond)
   }
 
   def transformConditionT[T](
       expressionCalculator: ConstantCalculator,
       linkName: String,
       condition: Condition,
-      includeExpression: Seq[(Expression[_], String, Set[T])] => Transform,
-      excludeExpression: Seq[(Expression[_], String, Set[T])] => Transform
+      includeExpression: Seq[(Condition, String, Set[T])] => Transform,
+      excludeExpression: Seq[(Condition, String, Set[T])] => Transform
   ): Seq[Transform] = {
     transformCondition(
       expressionCalculator,
       linkName,
-      condition, { metricsWithValues: Seq[(Expression[_], String, Set[Any])] =>
+      condition, { metricsWithValues: Seq[(Condition, String, Set[Any])] =>
         includeExpression(metricsWithValues.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) })
-      }, { metricsWithValues: Seq[(Expression[_], String, Set[Any])] =>
+      }, { metricsWithValues: Seq[(Condition, String, Set[Any])] =>
         excludeExpression(metricsWithValues.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) })
       }
     )
@@ -117,32 +116,28 @@ object ExternalLinkUtilsNew {
       expressionCalculator: ConstantCalculator,
       linkName: String,
       condition: Condition,
-      includeExpression: Seq[(Expression[_], String, Set[Any])] => Transform,
-      excludeExpression: Seq[(Expression[_], String, Set[Any])] => Transform
+      includeCondition: Seq[(Condition, String, Set[Any])] => Transform,
+      excludeCondition: Seq[(Condition, String, Set[Any])] => Transform
   ): Seq[Transform] = {
     val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
-    val r = tbcs.flatMap { tbc =>
+    tbcs.flatMap { tbc =>
       val (includeExprValues, excludeExprValues, other) = extractCatalogFields(tbc, linkName)
 
       val include = if (includeExprValues.nonEmpty) {
-        Some(includeExpression(includeExprValues))
+        Some(includeCondition(includeExprValues))
       } else {
         None
       }
 
       val exclude = if (excludeExprValues.nonEmpty) {
-        Some(excludeExpression(excludeExprValues))
+        Some(excludeCondition(excludeExprValues))
       } else {
         None
       }
 
-      //TODO: other!!!
-      //TimeBoundedCondition(tbc.from, tbc.to, include :: exclude :: other)
-      Seq(include, exclude).flatten
+      Seq(include, exclude, Some(Original(other.toSet))).flatten
     }
-
-    r
   }
 
   def setLinkedValues[R](
@@ -200,7 +195,7 @@ object ExternalLinkUtilsNew {
     }
   }
 
-  def crossJoinFieldValues[T](fieldsValues: Seq[(Expression[_], String, Set[T])]): List[Map[String, T]] = {
+  def crossJoinFieldValues[T](fieldsValues: Seq[(Condition, String, Set[T])]): List[Map[String, T]] = {
     val flatValues = fieldsValues
       .groupBy(_._2)
       .map {

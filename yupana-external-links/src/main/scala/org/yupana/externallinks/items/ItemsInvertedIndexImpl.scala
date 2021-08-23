@@ -96,21 +96,21 @@ class ItemsInvertedIndexImpl(
     DimIdNotInExpr(externalLink.dimension, it)
   }
 
-  private def includeExpression(values: Seq[(Expression[_], String, Set[String])]): Transform = {
+  private def includeExpression(values: Seq[(Condition, String, Set[String])]): Transform = {
     val ids = getPhraseIdsNew(values)
     val it = SortedSetIterator.intersectAll(ids)
     Replace(
-      values.map(_._1),
-      Seq(DimIdInExpr(externalLink.dimension, it))
+      values.map(_._1).toSet,
+      DimIdInExpr(externalLink.dimension, it)
     )
   }
 
-  private def excludeExpression(values: Seq[(Expression[_], String, Set[String])]): Transform = {
+  private def excludeExpression(values: Seq[(Condition, String, Set[String])]): Transform = {
     val ids = getPhraseIdsNew(values)
     val it = SortedSetIterator.unionAll(ids)
     Replace(
-      values.map(_._1),
-      Seq(DimIdNotInExpr(externalLink.dimension, it))
+      values.map(_._1).toSet,
+      DimIdNotInExpr(externalLink.dimension, it)
     )
   }
 

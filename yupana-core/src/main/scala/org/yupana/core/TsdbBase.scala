@@ -20,12 +20,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
+import org.yupana.api.schema.{DictionaryDimension, ExternalLink, Schema}
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
-import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
+import org.yupana.core.dao.{ChangelogDao, DictionaryProvider, TSDao}
+import org.yupana.core.model.{InternalQuery, InternalRow, InternalRowBuilder, KeyData}
+import org.yupana.core.utils.metric.{MetricQueryCollector, NoMetricCollector}
+import org.yupana.core.utils.{CollectionUtils, ConditionUtils, TimeBoundedCondition}
 
 import scala.language.higherKinds
 
@@ -273,27 +273,18 @@ trait TsdbBase extends StrictLogging {
     )
 
     if (transformations.nonEmpty) {
-      val transformed = transformations.foldLeft(condition) { case (c, transform) =>
-        ConditionUtils.transform(c, transform)
+      TimeBoundedCondition(constantCalculator, condition) match {
+        case Seq(tbc) =>
+          val transformed = transformations.foldLeft(tbc) { case (c, transform) =>
+            ConditionUtils.transform(c, transform)
+          }
+          transformed.toCondition
+        case _ =>
+          throw new IllegalArgumentException("Using of multiple TimeBoundedCondition are unsupported!")
       }
-      transformed
     } else {
       condition
     }
-
-    /*val substituted = linkServices.map(service =>
-      metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        val c = service.condition(condition)
-        c
-      }
-    )
-
-    if (substituted.nonEmpty) {
-      val merged = substituted.reduceLeft(ConditionUtils.merge)
-      ConditionUtils.split(merged)(c => linkServices.exists(_.isSupportedCondition(c)))._2
-    } else {
-      condition
-    }*/
   }
 
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
