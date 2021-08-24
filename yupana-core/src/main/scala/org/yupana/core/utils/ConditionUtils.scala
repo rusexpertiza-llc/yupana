@@ -40,19 +40,6 @@ object ConditionUtils {
     QueryOptimizer.simplifyCondition(mapped)
   }
 
-  def merge(a: Condition, b: Condition): Condition = {
-    (a, b) match {
-      case (ConstantExpr(true), x)    => x
-      case (x, ConstantExpr(true))    => x
-      case (AndExpr(as), AndExpr(bs)) => AndExpr((as ++ bs).distinct)
-      case (_, OrExpr(_))             => throw new IllegalArgumentException("OR is not supported yet")
-      case (OrExpr(_), _)             => throw new IllegalArgumentException("OR is not supported yet")
-      case (AndExpr(as), _)           => AndExpr((as :+ b).distinct)
-      case (_, AndExpr(bs))           => AndExpr((a +: bs).distinct)
-      case _                          => AndExpr(Seq(a, b))
-    }
-  }
-
   def split(c: Condition)(p: Condition => Boolean): (Condition, Condition) = {
     def doSplit(c: Condition): (Condition, Condition) = {
       c match {
