@@ -76,12 +76,15 @@ object ConditionUtils {
   def transform(tbc: TimeBoundedCondition, transform: Transform): TimeBoundedCondition = {
     transform match {
       case Replace(from, to) =>
-        val exclude = tbc.conditions.filterNot { c =>
+        val filtered = tbc.conditions.filterNot { c =>
           from.contains(c) || c == to
         }
-        tbc.copy(conditions = exclude :+ to)
+        if (filtered.size != tbc.conditions.size)
+          tbc.copy(conditions = filtered :+ to)
+        else
+          tbc
       case Original(other) =>
-        //TODO: need to check how to use 'other' conditions from org.yupana.externallinks.ExternalLinkUtils.extractCatalogFields
+        //TODO: looks like, no need to do anything with 'other' conditions
         tbc
       case _ =>
         throw new IllegalArgumentException("Unsupported Transform type!")

@@ -20,12 +20,12 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{DictionaryDimension, ExternalLink, Schema}
+import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ChangelogDao, DictionaryProvider, TSDao}
-import org.yupana.core.model.{InternalQuery, InternalRow, InternalRowBuilder, KeyData}
-import org.yupana.core.utils.metric.{MetricQueryCollector, NoMetricCollector}
-import org.yupana.core.utils.{CollectionUtils, ConditionUtils, TimeBoundedCondition}
+import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
+import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
 
 import scala.language.higherKinds
 
@@ -275,8 +275,9 @@ trait TsdbBase extends StrictLogging {
     if (transformations.nonEmpty) {
       TimeBoundedCondition(constantCalculator, condition) match {
         case Seq(tbc) =>
-          val transformed = transformations.foldLeft(tbc) { case (c, transform) =>
-            ConditionUtils.transform(c, transform)
+          val transformed = transformations.foldLeft(tbc) {
+            case (c, transform) =>
+              ConditionUtils.transform(c, transform)
           }
           transformed.toCondition
         case _ =>

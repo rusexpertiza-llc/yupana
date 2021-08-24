@@ -1,8 +1,8 @@
 package org.yupana.api.query
 
-`import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.Expression.Condition
 
 trait Transform
 
-case class Replace(from: Set[Condition], to: Condition) extends Transform
-case class Original(conditions: Set[Condition]) extends Transform
+case class Replace(in: Set[Condition], out: Condition) extends Transform
+case class Original(in: Set[Condition]) extends Transform

@@ -24,9 +24,9 @@ import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
-import org.yupana.externallinks.{ExternalLinkUtils, ExternalLinkUtilsNew}
+import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{Dimensions, ItemDimension}
+import org.yupana.schema.{ Dimensions, ItemDimension }
 
 object ItemsInvertedIndexImpl {
 
@@ -84,20 +84,8 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
-  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
     val ids = getPhraseIds(values)
-    val it = SortedSetIterator.intersectAll(ids)
-    DimIdInExpr(externalLink.dimension, it)
-  }
-
-  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-    val ids = getPhraseIds(values)
-    val it = SortedSetIterator.unionAll(ids)
-    DimIdNotInExpr(externalLink.dimension, it)
-  }
-
-  private def includeExpression(values: Seq[(Condition, String, Set[String])]): Transform = {
-    val ids = getPhraseIdsNew(values)
     val it = SortedSetIterator.intersectAll(ids)
     Replace(
       values.map(_._1).toSet,
@@ -105,8 +93,8 @@ class ItemsInvertedIndexImpl(
     )
   }
 
-  private def excludeExpression(values: Seq[(Condition, String, Set[String])]): Transform = {
-    val ids = getPhraseIdsNew(values)
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+    val ids = getPhraseIds(values)
     val it = SortedSetIterator.unionAll(ids)
     Replace(
       values.map(_._1).toSet,
@@ -121,30 +109,22 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def condition(condition: Condition): Condition = {
+  override def transform(condition: Condition): Seq[Transform] = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
       condition,
-      includeCondition,
-      excludeCondition
+      includeTransform,
+      excludeTransform
     )
   }
 
-  override def transform(condition: Condition): Seq[Transform] = {
-    ExternalLinkUtilsNew.transformConditionT[String](
-      expressionCalculator,
-      externalLink.linkName,
-      condition,
-      includeExpression,
-      excludeExpression
-    )
-  }
-
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
+  private def getPhraseIds(
+      fieldsValues: Seq[(Condition, String, Set[String])]
+  ): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
     fieldsValues.map {
-      case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
-      case (x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
+      case (_, PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
+      case (_, x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 
@@ -161,12 +141,5 @@ class ItemsInvertedIndexImpl(
       .map(schema.transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
     SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
-  }
-
-  private def getPhraseIdsNew(fieldsValues: Seq[(Expression[_], String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
-    fieldsValues.map {
-      case (_, PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
-      case (_, x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
-    }
   }
 }

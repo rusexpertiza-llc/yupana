@@ -20,13 +20,13 @@ import com.typesafe.scalalogging.StrictLogging
 
 import javax.sql.DataSource
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{Expression, LinkExpr, Transform}
-import org.yupana.api.schema.{Dimension, ExternalLink, Schema}
-import org.yupana.api.types.{BoxingTag, DataType}
+import org.yupana.api.query.{ Expression, LinkExpr, Replace, Transform }
+import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
+import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.cache.{Cache, CacheFactory}
+import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{SparseTable, Table}
+import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
@@ -65,37 +65,49 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  override def condition(condition: Condition): Condition = {
+  override def transform(condition: Condition): Seq[Transform] = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
       condition,
-      includeCondition,
-      excludeCondition
+      includeTransform,
+      excludeTransform
     )
   }
 
-  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
     val dimValues = dimValuesForFieldsValues(values, "AND").filter(x => x != null)
     if (externalLink.dimension.dataType == DataType[String]) {
-      in(
-        lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
-        dimValues.asInstanceOf[Set[String]]
+      Replace(
+        values.map(_._1).toSet,
+        in(
+          lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
+          dimValues.asInstanceOf[Set[String]]
+        )
       )
     } else {
-      in(dimension(externalLink.dimension.aux), dimValues)
+      Replace(
+        values.map(_._1).toSet,
+        in(dimension(externalLink.dimension.aux), dimValues)
+      )
     }
   }
 
-  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
     val dimValues = dimValuesForFieldsValues(values, "OR").filter(x => x != null)
     if (externalLink.dimension.dataType == DataType[String]) {
-      notIn(
-        lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
-        dimValues.asInstanceOf[Set[String]]
+      Replace(
+        values.map(_._1).toSet,
+        notIn(
+          lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
+          dimValues.asInstanceOf[Set[String]]
+        )
       )
     } else {
-      notIn(dimension(externalLink.dimension.aux), dimValues)
+      Replace(
+        values.map(_._1).toSet,
+        notIn(dimension(externalLink.dimension.aux), dimValues)
+      )
     }
   }
 
@@ -141,7 +153,10 @@ class SQLSourcedExternalLinkService[DimensionValue](
        |WHERE ${catalogFieldToSqlField(dimensionName)} ${tagValueInClause(tagValuesCount)}""".stripMargin
   }
 
-  private def tagsByFieldsQuery(fieldValues: Seq[(FieldName, Set[FieldValue])], joiningOperator: String): String = {
+  private def tagsByFieldsQuery(
+      fieldValues: Seq[(Condition, FieldName, Set[FieldValue])],
+      joiningOperator: String
+  ): String = {
     s"""SELECT ${catalogFieldToSqlFieldWithAlias(dimensionName)}
        |FROM $relation
        |WHERE ${fieldValuesInClauses(fieldValues).mkString(s" $joiningOperator ")}""".stripMargin
@@ -151,27 +166,25 @@ class SQLSourcedExternalLinkService[DimensionValue](
     s"""IN (${Seq.fill(tagValuesCount)("?").mkString(", ")})"""
   }
 
-  private def fieldValuesInClauses(fieldValues: Seq[(FieldName, Set[FieldValue])]): Seq[String] = {
+  private def fieldValuesInClauses(fieldValues: Seq[(Condition, FieldName, Set[FieldValue])]): Seq[String] = {
     fieldValues map {
-      case (fieldName, possibleValues) =>
+      case (_, fieldName, possibleValues) =>
         s"""lower(${catalogFieldToSqlField(fieldName)}) IN (${Seq.fill(possibleValues.size)("?").mkString(", ")})"""
     }
   }
 
   private def dimValuesForFieldsValues(
-      fieldsValues: Seq[(FieldName, Set[FieldValue])],
+      fieldsValues: Seq[(Condition, FieldName, Set[FieldValue])],
       joiningOperator: String
   ): Set[DimensionValue] = {
     val q = tagsByFieldsQuery(fieldsValues, joiningOperator)
-    val params = fieldsValues.flatMap(_._2).map(_.asInstanceOf[Object])
+    val params = fieldsValues.flatMap(_._3).map(_.asInstanceOf[Object])
     logger.debug(s"Query for dimensions for catalog $linkName: $q with params: $params")
     JdbcUtils
       .runQuery(dataSource, q, Set(camelToSnake(dimensionName)), params)
       .flatMap(_.values.map(_.asInstanceOf[DimensionValue]))
       .toSet
   }
-
-  override def transform(condition: Condition): Seq[Transform] = ???
 }
 
 object SQLSourcedExternalLinkService {

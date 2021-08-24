@@ -35,53 +35,57 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
 
   import org.yupana.api.query.syntax.All._
 
-  def includeCondition(fieldsValues: Seq[(String, Set[String])], from: Long, to: Long): Condition = {
+  def includeTransform(fieldsValues: Seq[(Condition, String, Set[String])], from: Long, to: Long): Transform = {
     val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
     val tuples = CollectionUtils.intersectAll(info)
-    in(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
+    Replace(
+      fieldsValues.map(_._1).toSet,
+      in(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
+    )
   }
 
-  def excludeCondition(fieldsValues: Seq[(String, Set[String])], from: Long, to: Long): Condition = {
+  def excludeTransform(fieldsValues: Seq[(Condition, String, Set[String])], from: Long, to: Long): Transform = {
     val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
     val tuples = info.fold(Set.empty)(_ union _)
-    notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
+    Replace(
+      fieldsValues.map(_._1).toSet,
+      notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
+    )
   }
 
-  override def condition(condition: Condition): Condition = {
+  override def transform(condition: Condition): Seq[Transform] = {
     val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
-    val r = tbcs.map { tbc =>
+    tbcs.flatMap { tbc =>
       val from = tbc.from.getOrElse(
         throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")
       )
       val to =
         tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
-      val (includeValues, excludeValues, other) =
-        ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
-
       // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
-      val include = if (includeValues.nonEmpty) {
-        includeCondition(includeValues, from, to)
+      val (includeExprValues, excludeExprValues, other) =
+        ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
+
+      val include = if (includeExprValues.nonEmpty) {
+        Some(includeTransform(includeExprValues, from, to))
       } else {
-        const(true)
+        None
       }
 
-      val exclude = if (excludeValues.nonEmpty) {
-        excludeCondition(excludeValues, from, to)
+      val exclude = if (excludeExprValues.nonEmpty) {
+        Some(excludeTransform(excludeExprValues, from, to))
       } else {
-        const(true)
+        None
       }
 
-      TimeBoundedCondition(tbc.from, tbc.to, include :: exclude :: other)
+      Seq(include, exclude, Some(Original(other.toSet))).flatten
     }
-
-    TimeBoundedCondition.merge(r).toCondition
   }
 
-  protected def createFilter(fieldValues: Seq[(String, Set[String])]): Seq[Condition] = {
-    fieldValues.map { case (f, vs) => createFilter(f, vs) }
+  protected def createFilter(fieldValues: Seq[(Condition, String, Set[String])]): Seq[Condition] = {
+    fieldValues.map { case (_, f, vs) => createFilter(f, vs) }
   }
 
   protected def createFilter(field: String, values: Set[String]): Condition = {
@@ -122,6 +126,4 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   ): Unit = {
     // may be throw exception here?
   }
-
-  override def transform(condition: Condition): Seq[Transform] = ???
 }

@@ -1,14 +1,13 @@
 package org.yupana.core
 
 import java.util.Properties
-
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, LinkExpr }
+import org.yupana.api.query.{ Expression, LinkExpr, Original, Replace }
 import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
@@ -373,7 +372,8 @@ class TsdbDataFilterTest
       timeBounds()
     val query = createQuery(sql)
 
-    (testCatalogServiceMock.condition _)
+    val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
+    (testCatalogServiceMock.transform _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -384,12 +384,13 @@ class TsdbDataFilterTest
         )
       )
       .returning(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
-          neq(metric(TestTableFields.TEST_STRING_FIELD), const("Str@!")),
-          in(dimension(TestDims.DIM_A), Set("test1"))
+        Seq(
+          Replace(
+            Set(c),
+            and(
+              in(dimension(TestDims.DIM_A), Set("test1"))
+            )
+          )
         )
       )
 
@@ -410,7 +411,7 @@ class TsdbDataFilterTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
-            neq(metric(TestTableFields.TEST_STRING_FIELD), const("Str@!")),
+            neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
             in(dimension(TestDims.DIM_A), Set("test1"))
           )
         ),
@@ -462,7 +463,13 @@ class TsdbDataFilterTest
       isNull(link(TestLinks.TEST_LINK, "testField"))
     )
 
-    (testCatalogServiceMock.condition _).expects(condition).returning(condition)
+    (testCatalogServiceMock.transform _)
+      .expects(condition)
+      .returning(
+        Seq(
+          Original(Set(condition))
+        )
+      )
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -530,7 +537,7 @@ class TsdbDataFilterTest
       isNotNull(link(TestLinks.TEST_LINK, "testField"))
     )
 
-    (testCatalogServiceMock.condition _).expects(condition).returning(condition)
+    (testCatalogServiceMock.transform _).expects(condition).returning(Seq(Original(Set(condition))))
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -606,8 +613,16 @@ class TsdbDataFilterTest
         equ(dimension(TestDims.DIM_B), const(15.toShort))
       )
 
-      (testCatalogServiceMock.condition _).expects(condition).returning(condition)
-      (testCatalogServiceMock2.condition _).expects(condition).returning(condition)
+      (testCatalogServiceMock.transform _)
+        .expects(condition)
+        .returning(
+          Seq(Original(Set(condition)))
+        )
+      (testCatalogServiceMock2.transform _)
+        .expects(condition)
+        .returning(
+          Seq(Original(Set(condition)))
+        )
 
       (testCatalogServiceMock.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -699,19 +714,23 @@ class TsdbDataFilterTest
         setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test1a" -> Map("testField" -> "c1-value")))
       )
 
-    (testCatalogServiceMock2.condition _)
+    val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
+    (testCatalogServiceMock2.transform _)
       .expects(
         and(
           ge(time, const(Time(from))),
           lt(time, const(Time(to))),
-          equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
+          c
         )
       )
       .returning(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
+        Seq(
+          Replace(
+            Set(c),
+            and(
+              in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
+            )
+          )
         )
       )
 
@@ -812,7 +831,7 @@ class TsdbDataFilterTest
         }
       )
 
-    (link5.condition _).expects(*).onCall((c: Condition) => c)
+    (link5.transform _).expects(*).onCall((c: Condition) => Seq(Original(Set(c))))
 
     val rows = tsdb.query(query).iterator.toList
 
