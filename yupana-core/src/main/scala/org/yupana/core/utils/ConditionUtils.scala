@@ -74,7 +74,7 @@ object ConditionUtils {
         //TODO: looks like, no need to do anything with 'other' conditions
         tbc
       case _ =>
-        throw new IllegalArgumentException("Unsupported Transform type!")
+        throw new UnsupportedOperationException("Unsupported Transform type!")
     }
   }
 }

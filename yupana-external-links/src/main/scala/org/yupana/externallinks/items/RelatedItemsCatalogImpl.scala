@@ -80,7 +80,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
         None
       }
 
-      Seq(include, exclude, Some(Original(other.toSet))).flatten
+      val result =
+        if (other.nonEmpty)
+          Seq(include, exclude, Some(Original(other.toSet))).flatten
+        else
+          Seq(include, exclude).flatten
+
+      result
     }
   }
 
