@@ -273,16 +273,12 @@ trait TsdbBase extends StrictLogging {
     )
 
     if (transformations.nonEmpty) {
-      TimeBoundedCondition(constantCalculator, condition) match {
-        case Seq(tbc) =>
-          val transformed = transformations.foldLeft(tbc) {
-            case (c, transform) =>
-              ConditionUtils.transform(c, transform)
-          }
-          transformed.toCondition
-        case _ =>
-          throw new IllegalArgumentException("Using of multiple TimeBoundedCondition are unsupported!")
+      val tbc = TimeBoundedCondition.single(constantCalculator, condition)
+      val transformed = transformations.foldLeft(tbc) {
+        case (c, transform) =>
+          ConditionUtils.transform(c, transform)
       }
+      transformed.toCondition
     } else {
       condition
     }

@@ -48,6 +48,15 @@ object TimeBoundedCondition {
     }
   }
 
+  def single(expressionCalculator: ConstantCalculator, condition: Condition): TimeBoundedCondition = {
+    TimeBoundedCondition(expressionCalculator, condition) match {
+      case Seq(tbc) =>
+        tbc
+      case _ =>
+        throw new IllegalArgumentException("Using of several TimeBoundedCondition are unsupported!")
+    }
+  }
+
   def merge(conditions: Seq[TimeBoundedCondition]): TimeBoundedCondition = {
     if (conditions.isEmpty) throw new IllegalArgumentException("Conditions must not be empty")
 
