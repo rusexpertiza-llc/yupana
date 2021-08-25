@@ -1,15 +1,15 @@
 package org.yupana.externallinks.items
 
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.{ Original, Query, Replace }
-import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.api.query.{ Query, Replace }
 import org.yupana.core._
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 import org.yupana.schema.{ Dimensions, Tables }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
@@ -94,8 +94,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           tuple(time, dimension(Dimensions.KKM_ID)),
           Set((Time(125L), 123456), (Time(120L), 123456))
         )
-      ),
-      Original(Set.empty)
+      )
     )
   }
 
@@ -143,8 +142,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           tuple(time, dimension(Dimensions.KKM_ID)),
           Set((Time(220L), 123456), (Time(330L), 654321))
         )
-      ),
-      Original(Set.empty)
+      )
     )
   }
 
