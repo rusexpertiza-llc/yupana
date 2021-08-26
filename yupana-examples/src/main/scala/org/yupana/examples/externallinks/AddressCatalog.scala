@@ -87,9 +87,9 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     values.map {
       case (_, AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
       case (_, AddressCatalog.LAT, latitudes) =>
-        kkmAddressData.filter(x => latitudes.contains(x._2.lat)).map(_._1).toSet
+        kkmAddressData.collect { case (value, coord) if latitudes.contains(coord.lat) => value }.toSet
       case (_, AddressCatalog.LON, longitudes) =>
-        kkmAddressData.filter(x => longitudes.contains(x._2.lon)).map(_._1).toSet
+        kkmAddressData.collect { case (value, coord) if longitudes.contains(coord.lon) => value }.toSet
       case (_, f, _) => throw new IllegalArgumentException(s"Unknown field $f")
     }
   }
