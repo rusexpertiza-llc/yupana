@@ -13,9 +13,9 @@ import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
-import org.yupana.core.utils.metric.{ ConsoleMetricQueryCollector, MetricQueryCollector }
-
+import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
 import java.util.Properties
+
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -111,7 +111,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 
       override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] = {
-        MapReducible.iteratorMR
+        IteratorMapReducible.iteratorMR
       }
 
       override def dictionaryProvider: DictionaryProvider = dictProvider
@@ -205,7 +205,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new ConsoleMetricQueryCollector(query, "test")
+    val mc = new StandaloneMetricCollector(query, "test", 10, new ConsoleMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(

@@ -107,6 +107,8 @@ trait TsdbBase extends StrictLogging {
     val metricCollector = createMetricCollector(optimizedQuery)
     val mr = mapReduceEngine(metricCollector)
 
+    metricCollector.start()
+
     val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
 

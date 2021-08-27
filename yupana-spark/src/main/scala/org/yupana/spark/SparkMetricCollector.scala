@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.spark
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
-  val reduceLimit: Int
+import org.apache.spark.SparkEnv
+import org.yupana.api.query.Query
+import org.yupana.core.utils.metric.{ MetricQueryCollector, MetricReporter, StandardMetricCollector }
+
+class SparkMetricCollector(
+    query: Query,
+    opName: String,
+    metricsUpdateInterval: Int,
+    reporter: MetricReporter[MetricQueryCollector]
+) extends StandardMetricCollector(query, opName, metricsUpdateInterval, true, reporter) {
+  override def partitionId: Option[String] = Some(SparkEnv.get.executorId)
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50,
-    reduceLimit: Int = Int.MaxValue
-) extends TsdbConfig

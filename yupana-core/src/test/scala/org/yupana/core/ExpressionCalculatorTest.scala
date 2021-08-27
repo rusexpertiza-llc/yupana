@@ -333,4 +333,82 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     postFiltered(1).get(qc, dimension(TestDims.DIM_A)) shouldEqual "BBB"
     postFiltered(1).get(qc, min(time)) shouldEqual Time(now.minusDays(35))
   }
+
+  it should "support arrays" in {
+    val now = DateTime.now()
+    val ce = condition(
+      containsAny(tokens(dimension(TestDims.DIM_A)), const(Seq("aaa", "bbb"))),
+      const("X"),
+      const("Y")
+    )
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        min(time) as "min_time",
+        ce as "X_OR_Y"
+      ),
+      None,
+      Seq(dimension(TestDims.DIM_A)),
+      None,
+      Some(lt(min(time), const(Time(now.minusMonths(1)))))
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    val row1 = calc.evaluateExpressions(
+      RussianTokenizer,
+      builder
+        .set(Time(now.minusDays(2)))
+        .set(dimension(TestDims.DIM_A), "aaa")
+        .buildAndReset()
+    )
+
+    row1.get(qc, ce) shouldEqual "X"
+
+    val row2 = calc.evaluateExpressions(
+      RussianTokenizer,
+      builder
+        .set(Time(now.minusDays(32)))
+        .set(dimension(TestDims.DIM_A), "ggg")
+        .buildAndReset()
+    )
+
+    row2.get(qc, ce) shouldEqual "Y"
+  }
+
+  it should "handle nulls properly" in {
+    val now = DateTime.now()
+
+    val exp = divFrac(plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)), const(2d))
+    val cond = equ(exp, const(0d))
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        metric(TestTableFields.TEST_FIELD) as "F",
+        metric(TestTableFields.TEST_FIELD2) as "F2"
+      )
+    )
+
+    val qc = QueryContext(query, Some(cond))
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    calc.evaluateFilter(
+      RussianTokenizer,
+      builder
+        .set(Time(now.minusDays(1)))
+        .set(metric(TestTableFields.TEST_FIELD2), 42d)
+        .buildAndReset()
+    ) shouldBe false
+  }
 }

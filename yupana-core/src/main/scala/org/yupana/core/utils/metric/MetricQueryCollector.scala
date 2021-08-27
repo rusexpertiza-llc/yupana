@@ -16,61 +16,22 @@
 
 package org.yupana.core.utils.metric
 
-import org.yupana.core.model.MetricResult
-import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.api.query.Query
 
-trait MetricQueryCollector extends Serializable {
+trait MetricQueryCollector extends MetricCollector {
+  def query: Query
+  override def id: String = query.id
+  override def meta: String = query.toString
+  def isSparkQuery: Boolean
 
-  def queryId: String
-
-  def dynamicMetric(name: String): Metric
-
-  def finish(): Unit
-
-  def isEnabled: Boolean
-
-  def saveQueryMetrics(state: QueryState): MetricResult
-  def setRunningPartitions(partitions: Int): Unit
-  def finishPartition(): Unit
-
-  val createDimensionFilters: Metric = NoMetric
-  val createScans: Metric = NoMetric
-  val filterRows: Metric = NoMetric
-  val windowFunctions: Metric = NoMetric
-  val reduceOperation: Metric = NoMetric
-  val postFilter: Metric = NoMetric
-  val collectResultRows: Metric = NoMetric
-  val dimensionValuesForIds: Metric = NoMetric
-  val extractDataComputation: Metric = NoMetric
-  val readExternalLinks: Metric = NoMetric
-  val scan: Metric = NoMetric
-  val parseScanResult: Metric = NoMetric
-  val dictionaryScan: Metric = NoMetric
-}
-
-object NoMetricCollector extends MetricQueryCollector {
-
-  override def dynamicMetric(name: String): Metric = NoMetric
-
-  override def finish(): Unit = {}
-
-  override def saveQueryMetrics(state: QueryState): MetricResult = MetricResult(queryId, state.name, false, Map(), 0)
-
-  override def setRunningPartitions(partitions: Int): Unit = {}
-
-  override def finishPartition(): Unit = {}
-
-  override val queryId: String = ""
-
-  override val isEnabled: Boolean = false
-}
-
-trait Metric extends Serializable {
-  def measure[T](count: Int)(f: => T): T
-}
-
-object NoMetric extends Metric {
-
-  @inline
-  override def measure[T](count: Int)(f: => T): T = f
+  def createDimensionFilters: Metric
+  def createScans: Metric
+  def scan: Metric
+  def readExternalLinks: Metric
+  def extractDataComputation: Metric
+  def filterRows: Metric
+  def windowFunctions: Metric
+  def reduceOperation: Metric
+  def postFilter: Metric
+  def collectResultRows: Metric
 }

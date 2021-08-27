@@ -27,7 +27,8 @@ object QueryOptimizer {
     query.copy(
       fields = query.fields.map(optimizeField(expressionCalculator)),
       filter = query.filter.map(optimizeCondition(expressionCalculator)),
-      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator))
+      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator)),
+      groupBy = query.groupBy.map(e => optimizeExpr(expressionCalculator)(e))
     )
   }
 

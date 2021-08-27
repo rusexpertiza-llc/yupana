@@ -14,24 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.core.utils.metric
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
-  val reduceLimit: Int
+import org.yupana.core.model.QueryStates.QueryState
+
+class CombinedMetricReporter[C <: MetricCollector](reporters: MetricReporter[C]*) extends MetricReporter[C] {
+  override def start(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.start(mc, partitionId))
+
+  override def finish(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.finish(mc, partitionId))
+
+  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryState): Unit =
+    reporters.foreach(_.saveQueryMetrics(mc, partitionId, state))
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50,
-    reduceLimit: Int = Int.MaxValue
-) extends TsdbConfig
