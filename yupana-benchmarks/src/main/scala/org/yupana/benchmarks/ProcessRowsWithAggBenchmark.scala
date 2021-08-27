@@ -35,7 +35,7 @@ import org.yupana.api.query.syntax.All.{
   time,
   truncDay
 }
-import org.yupana.core.MapReducible
+import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
@@ -47,7 +47,7 @@ class ProcessRowsWithAggBenchmark {
       .processRows(
         state.queryContext,
         NoMetricCollector,
-        MapReducible.iteratorMR,
+        IteratorMapReducible.iteratorMR,
         state.rows.iterator
       )
       .size
