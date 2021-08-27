@@ -51,5 +51,5 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
 
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
 
-  override val reduceLimit: Option[Int] = None
+  override val reduceLimit: Int = Int.MaxValue
 }

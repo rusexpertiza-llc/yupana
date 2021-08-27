@@ -31,7 +31,7 @@ class TSDaoHBase(
     namespace: String,
     override val dictionaryProvider: DictionaryProvider,
     putsBatchSize: Int = TSDaoHBaseBase.PUTS_BATCH_SIZE,
-    reduceLimit: Option[Int]
+    reduceLimit: Int
 ) extends TSDaoHBaseBase[Iterator] {
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =

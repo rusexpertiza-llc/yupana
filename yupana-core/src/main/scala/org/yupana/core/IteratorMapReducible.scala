@@ -20,7 +20,7 @@ import org.yupana.core.utils.CollectionUtils
 
 import scala.reflect.ClassTag
 
-class IteratorMapReducible(reduceLimit: Option[Int] = None) extends MapReducible[Iterator] {
+class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
   override def singleton[A: ClassTag](a: A): Iterator[A] = Iterator(a)
   override def filter[A: ClassTag](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 

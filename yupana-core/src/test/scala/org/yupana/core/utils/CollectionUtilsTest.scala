@@ -73,6 +73,6 @@ class CollectionUtilsTest extends AnyFlatSpec with Matchers {
 
   it should "throw exception if reduce stage is too big" in {
     val it = (0 to 10).map(i => i -> i).toIterator
-    an[IllegalStateException] should be thrownBy CollectionUtils.reduceByKey(it, Some(2))(_ + _)
+    an[IllegalStateException] should be thrownBy CollectionUtils.reduceByKey(it, 2)(_ + _)
   }
 }
