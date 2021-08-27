@@ -5,7 +5,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
+import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -85,11 +85,13 @@ trait TsdbMocks extends MockFactory {
       .anyNumberOfTimes()
 
     val dictionaryDaoMock = mock[DictionaryDao]
+    val changelogDaoMock = mock[ChangelogDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
+        changelogDaoMock,
         dictionaryProvider,
         identity,
         SimpleTsdbConfig(),
@@ -113,7 +115,7 @@ trait TsdbMocks extends MockFactory {
     }
   }
 
-  private val calculator = new ExpressionCalculator(RussianTokenizer)
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 

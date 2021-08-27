@@ -17,7 +17,6 @@
 package org.yupana.spark
 
 import java.sql.{ Timestamp, Types }
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
 import org.apache.spark.sql.types._
@@ -26,6 +25,7 @@ import org.joda.time.DateTimeZone
 import org.yupana.api.{ Blob, Time }
 import org.yupana.api.query.{ DataRow, QueryField }
 import org.yupana.api.types.ArrayDataType
+import org.yupana.api.types.DataType.TypeKind
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
 class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val queryContext: QueryContext)
@@ -84,7 +84,7 @@ object DataRowRDD {
   def yupanaToSparkType(yupanaDataType: org.yupana.api.types.DataType): DataType = {
     if (yupanaDataType.meta.sqlType == Types.DECIMAL) {
       DataTypes.createDecimalType(DecimalType.MAX_PRECISION, yupanaDataType.meta.scale)
-    } else if (yupanaDataType.isArray) {
+    } else if (yupanaDataType.kind == TypeKind.Array) {
       val adt = yupanaDataType.asInstanceOf[ArrayDataType[_]]
       val innerType = yupanaToSparkType(adt.valueType)
       ArrayType(innerType)

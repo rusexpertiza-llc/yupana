@@ -19,22 +19,19 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
-import org.yupana.api.utils.ResourceUtils._
 import org.yupana.core.MapReducible
-import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
-
-import scala.collection.JavaConverters._
 
 class TSDaoHBase(
     override val schema: Schema,
     connection: Connection,
     namespace: String,
     override val dictionaryProvider: DictionaryProvider,
-    putsBatchSize: Int = 1000
-) extends TSDaoHBaseBase[Iterator]
-    with TSDao[Iterator, Long] {
+    putsBatchSize: Int = TSDaoHBaseBase.PUTS_BATCH_SIZE
+) extends TSDaoHBaseBase[Iterator] {
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
     MapReducible.iteratorMR
@@ -52,7 +49,7 @@ class TSDaoHBase(
           val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
           createScan(queryContext, filter, Seq.empty, from, to)
         } match {
-          case Some(scan) => executeScan(connection, namespace, scan, queryContext, EXTRACT_BATCH_SIZE)
+          case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
           case None       => Iterator.empty
         }
       }
@@ -61,19 +58,7 @@ class TSDaoHBase(
     }
   }
 
-  override def put(dataPoints: Seq[DataPoint]): Unit = {
-    logger.trace(s"Put ${dataPoints.size} dataPoints to tsdb")
-    logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPoints.mkString("\r\n")}")
-
-    createPuts(dataPoints, dictionaryProvider).foreach {
-      case (table, puts) =>
-        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
-          puts
-            .sliding(putsBatchSize, putsBatchSize)
-            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
-          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
-        }
-    }
+  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
+    doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
   }
-
 }

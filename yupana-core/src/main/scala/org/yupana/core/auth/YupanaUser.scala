@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.core
-import org.yupana.api.query.{ DataPoint, Query, Result }
+package org.yupana.core.auth
 
-class TimeSeriesQueryEngine(tsdb: TSDB) {
-  def query(query: Query): Result = {
-    tsdb.query(query)
-  }
+case class YupanaUser(name: String)
 
-  def put(dps: Seq[DataPoint]): Unit = {
-    tsdb.put(dps.iterator)
-  }
+object YupanaUser {
+
+  val ANONYMOUS: YupanaUser = YupanaUser("ANONYMOUS")
 }

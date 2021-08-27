@@ -16,13 +16,17 @@
 
 package org.yupana.examples.spark.queryrunner
 
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
-import org.yupana.spark.{ DataRowRDD, SparkConfUtils }
+import org.yupana.hbase.ChangelogDaoHBase
+import org.yupana.spark.{ DataRowRDD, SparkConfUtils, SparkDictionaryProvider, TsDaoHBaseSpark }
 
 object QueryRunner {
 
@@ -33,7 +37,13 @@ object QueryRunner {
     val config = new QueryRunnerConfig(sparkConf)
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 
-    val tsdbSpark = new TsdbSpark(spark.sparkContext, identity, config, ExampleSchema.schema)
+    val sparkDao: TSDao[RDD, Long] =
+      new TsDaoHBaseSpark(spark.sparkContext, ExampleSchema.schema, config, new SparkDictionaryProvider(config))
+    val changelogDao: ChangelogDao = new ChangelogDaoHBase(
+      ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
+      config.hbaseNamespace
+    )
+    val tsdbSpark = new TsdbSpark(sparkDao, changelogDao, spark.sparkContext, identity, config, ExampleSchema.schema)
 
     executeQuery(config.query, tsdbSpark) match {
       case Right(rdd) =>

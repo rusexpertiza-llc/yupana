@@ -792,17 +792,14 @@ class TsdbDataFilterTest
     val sql = "SELECT B FROM test_table WHERE TestLink5_testField5D > 20" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
-    val pointTime2 = pointTime + 10 * 1000
-
     val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
     (tsdbDaoMock.query _)
       .expects(*, *, *)
       .onCall((_, b, _) =>
         Iterator(
-          b.set(time, Some(Time(pointTime))).set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
-          b.set(time, Some(Time(pointTime2))).set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
+          b.set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
+          b.set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
         )
       )
 

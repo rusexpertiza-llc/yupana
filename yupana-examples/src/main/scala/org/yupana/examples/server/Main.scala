@@ -74,7 +74,7 @@ object Main extends StrictLogging {
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
 
-    val rollupMetaDao = new RollupMetaDaoHBase(connection, config.hbaseNamespace)
+    val changelogDao = new ChangelogDaoHBase(connection, config.hbaseNamespace)
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, config.hbaseNamespace)
     HBaseUtils.initStorage(connection, config.hbaseNamespace, schema, tsdbConfig)
 
@@ -101,7 +101,7 @@ object Main extends StrictLogging {
 
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
-      new FlatQueryEngine(metricsDao, rollupMetaDao),
+      new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson),
       new SqlQueryProcessor(schemaWithJson)
     )

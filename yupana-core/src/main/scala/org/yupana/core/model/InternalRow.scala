@@ -27,6 +27,10 @@ class InternalRow(val data: Array[Any]) extends Serializable {
     data(idx) == null
   }
 
+  def isDefined(idx: Int): Boolean = {
+    data(idx) != null
+  }
+
   def isEmpty(queryContext: QueryContext, expr: Expression[_]): Boolean = {
     isEmpty(queryContext.exprsIndex(expr))
   }

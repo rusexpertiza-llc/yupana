@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package org.epicsquad.analytics.bench
+package org.yupana.benchmarks
 
 import org.joda.time.DateTime
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => YTable }
-import org.yupana.api.types.DataType
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
 import org.yupana.core.QueryContext
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.{ SparseTable, Table }
@@ -37,8 +36,7 @@ object BenchLink extends ExternalLink {
   val F2 = "f2"
   override val linkName: String = "benchLink"
   override val dimension: Dimension.Aux[Int] = dim
-  implicit val dataType = DataType.stringDt
-  override val fields: Set[LinkField] = Set(LinkField(F1), LinkField(F2))
+  override val fields: Set[LinkField] = Set(LinkField[String](F1), LinkField[String](F2))
 }
 
 class ExternalLinkBenchmarks {
@@ -84,7 +82,7 @@ class ExternalLinkBenchmarkState {
 
   val dim: RawDimension[Int] = BenchLink.dim
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
-  val table = new YTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
+  val table = new SchemaTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
   val linkExpr: LinkExpr[String] = LinkExpr(BenchLink, BenchLink.F1)
   val t0 = new DateTime("2019-04-20")
   val t1: DateTime = t0.plusYears(1)
