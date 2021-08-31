@@ -1,6 +1,5 @@
 package org.yupana.core.utils
 
-import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
 import org.yupana.api.utils.ConditionMatchers.{ EqString, InString, NeqString }
@@ -44,55 +43,6 @@ class ConditionUtilsTest extends AnyFlatSpec with Matchers {
     } shouldEqual or(
       equ(dimension(RawDimension[Int]("x")), const(66)),
       neq(dimension(DictionaryDimension("y")), const("b"))
-    )
-  }
-
-  "ConditionUtils.merge" should "combine two AND conditions" in {
-    val a = and(
-      equ(dimension(DictionaryDimension("x")), const("foo")),
-      equ(dimension(DictionaryDimension("y")), const("bar"))
-    )
-    val b = and(
-      equ(dimension(DictionaryDimension("a")), const("baz")),
-      in(dimension(DictionaryDimension("b")), Set("a", "b", "c"))
-    )
-
-    ConditionUtils.merge(a, b) shouldEqual and(
-      equ(dimension(DictionaryDimension("x")), const("foo")),
-      equ(dimension(DictionaryDimension("y")), const("bar")),
-      equ(dimension(DictionaryDimension("a")), const("baz")),
-      in(dimension(DictionaryDimension("b")), Set("a", "b", "c"))
-    )
-  }
-
-  it should "combine AND and comparison" in {
-    val a = and(
-      equ(dimension(DictionaryDimension("x")), const("foo")),
-      equ(dimension(DictionaryDimension("y")), const("bar"))
-    )
-    val b = gt(dimension(DictionaryDimension("z")), const("qux"))
-
-    ConditionUtils.merge(a, b) shouldEqual and(
-      equ(dimension(DictionaryDimension("x")), const("foo")),
-      equ(dimension(DictionaryDimension("y")), const("bar")),
-      gt(dimension(DictionaryDimension("z")), const("qux"))
-    )
-  }
-
-  it should "avoid duplicates" in {
-    val a = and(
-      equ(dimension(DictionaryDimension("x")), const("bar")),
-      gt(time, const(Time(100))),
-      lt(time, const(Time(500)))
-    )
-    val b =
-      and(in(dimension(RawDimension[Int]("y")), Set(1, 2)), gt(time, const(Time(100))), lt(time, const(Time(500))))
-
-    ConditionUtils.merge(a, b) shouldEqual and(
-      equ(dimension(DictionaryDimension("x")), const("bar")),
-      in(dimension(RawDimension[Int]("y")), Set(1, 2)),
-      gt(time, const(Time(100))),
-      lt(time, const(Time(500)))
     )
   }
 
