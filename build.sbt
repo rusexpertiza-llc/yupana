@@ -363,7 +363,7 @@ lazy val versions = new {
 
   val protobufJava = "2.6.1"
 
-  val scalaLogging = "3.9.3"
+  val scalaLogging = "3.9.4"
   val fastparse = "2.1.3"
   val scopt = "4.0.1"
   val prometheus = "0.9.0"
@@ -382,9 +382,9 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
-  val logback = "1.2.3"
+  val logback = "1.2.5"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.2.20"
+  val postgresqlJdbc = "42.2.23"
 
   val scalaTest = "3.2.9"
   val scalaCheck = "1.15.4"
