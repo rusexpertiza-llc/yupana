@@ -73,7 +73,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  override def transform(condition: Condition): Seq[Transform] = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformCondition(
       expressionCalculator,
       externalLink.linkName,
@@ -94,7 +94,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     }
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[Any])]): Transform = {
+  private def includeTransform(values: Seq[(Condition, String, Set[Any])]): TransformCondition = {
     val ids = idsForValues(values)
     val dimValues = CollectionUtils.intersectAll(ids)
     Replace(
@@ -103,7 +103,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[Any])]): Transform = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[Any])]): TransformCondition = {
     val ids = idsForValues(values)
     val dimValues = ids.fold(Set.empty)(_ union _)
     Replace(

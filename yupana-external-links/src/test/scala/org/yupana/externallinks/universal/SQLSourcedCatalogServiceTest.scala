@@ -74,7 +74,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
 
     val c1 = in(lower(link(externalLink, "f1")), Set("qwe", "ert"))
     val c1_2 = in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
-    val inCondition = externalLinkService.transform(
+    val inCondition = externalLinkService.transformCondition(
       and(
         c1,
         c1_2
@@ -89,7 +89,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
 
     val c2 = notIn(lower(link(externalLink, "f1")), Set("qwe", "ert"))
     val c2_2 = notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
-    val notInCondition = externalLinkService.transform(
+    val notInCondition = externalLinkService.transformCondition(
       and(
         c2,
         c2_2
@@ -150,7 +150,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
 
     val c1 = in(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
     val c1_2 = in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
-    val inCondition = externalLinkService.transform(
+    val inCondition = externalLinkService.transformCondition(
       and(
         c1,
         c1_2
@@ -166,7 +166,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
 
     val c2 = notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
     val c2_2 = notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
-    val notInCondition = externalLinkService.transform(
+    val notInCondition = externalLinkService.transformCondition(
       and(
         c2,
         c2_2

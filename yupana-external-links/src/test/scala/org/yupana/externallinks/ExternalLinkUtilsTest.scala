@@ -3,7 +3,7 @@ package org.yupana.externallinks
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.yupana.api.Time
-import org.yupana.api.query.{ ConstantExpr, Expression, Original, Replace, Transform }
+import org.yupana.api.query.{ ConstantExpr, Expression, Original, Replace, TransformCondition }
 import org.yupana.api.query.Expression.Condition
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.InternalRowBuilder
@@ -20,12 +20,12 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
 
   val calculator = new ConstantCalculator(RussianTokenizer)
 
-  private def transform(condition: Condition): Seq[Transform] = {
+  private def transform(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils
       .transformConditionT[String](calculator, TestLink.linkName, condition, includeTransform, excludeTransform)
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     Replace(
       values.map(_._1).toSet,
       and(values.map {
@@ -34,7 +34,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     Replace(
       values.map(_._1).toSet,
       and(values.map {

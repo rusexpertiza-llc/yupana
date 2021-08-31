@@ -35,7 +35,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
 
   import org.yupana.api.query.syntax.All._
 
-  def includeTransform(fieldsValues: Seq[(Condition, String, Set[String])], from: Long, to: Long): Transform = {
+  def includeTransform(
+      fieldsValues: Seq[(Condition, String, Set[String])],
+      from: Long,
+      to: Long
+  ): TransformCondition = {
     val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
     val tuples = CollectionUtils.intersectAll(info)
     Replace(
@@ -44,7 +48,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     )
   }
 
-  def excludeTransform(fieldsValues: Seq[(Condition, String, Set[String])], from: Long, to: Long): Transform = {
+  def excludeTransform(
+      fieldsValues: Seq[(Condition, String, Set[String])],
+      from: Long,
+      to: Long
+  ): TransformCondition = {
     val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
     val tuples = info.fold(Set.empty)(_ union _)
     Replace(
@@ -53,7 +61,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     )
   }
 
-  override def transform(condition: Condition): Seq[Transform] = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
     tbcs.flatMap { tbc =>

@@ -84,7 +84,7 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.intersectAll(ids)
     Replace(
@@ -93,7 +93,7 @@ class ItemsInvertedIndexImpl(
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.unionAll(ids)
     Replace(
@@ -109,7 +109,7 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def transform(condition: Condition): Seq[Transform] = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,

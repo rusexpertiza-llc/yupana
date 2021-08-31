@@ -804,7 +804,7 @@ class TsdbTest
     )
 
     val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -914,7 +914,7 @@ class TsdbTest
       )
 
       val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      (testCatalogServiceMock.transform _)
+      (testCatalogServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -980,7 +980,7 @@ class TsdbTest
       )
 
       val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      (testCatalogServiceMock.transform _)
+      (testCatalogServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -1051,7 +1051,7 @@ class TsdbTest
     )
 
     val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -1151,7 +1151,7 @@ class TsdbTest
       )
 
       val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-      (testCatalogServiceMock.transform _)
+      (testCatalogServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -1260,7 +1260,7 @@ class TsdbTest
 
       val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       val c2 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      (testCatalogServiceMock.transform _)
+      (testCatalogServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -1284,7 +1284,7 @@ class TsdbTest
 
       val c3 = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       val c4 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      (testCatalog2ServiceMock.transform _)
+      (testCatalog2ServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -1395,7 +1395,7 @@ class TsdbTest
     val c2 = neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("aaa"))
     val c3 = neq(link(TestLinks.TEST_LINK3, "testField3-1"), const("bbb"))
     val c4 = neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -1498,7 +1498,7 @@ class TsdbTest
 
       val c1 = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       val c2 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      (testCatalogServiceMock.transform _)
+      (testCatalogServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -1522,7 +1522,7 @@ class TsdbTest
 
       val c3 = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       val c4 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-      (testCatalog2ServiceMock.transform _)
+      (testCatalog2ServiceMock.transformCondition _)
         .expects(
           and(
             ge(time, const(Time(from))),
@@ -1617,7 +1617,7 @@ class TsdbTest
 
     val c1 = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     val c2 = equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -1640,7 +1640,7 @@ class TsdbTest
       )
     val c3 = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     val c4 = equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-    (testCatalog4ServiceMock.transform _)
+    (testCatalog4ServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -1728,7 +1728,7 @@ class TsdbTest
     )
 
     val c = in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -1826,7 +1826,7 @@ class TsdbTest
     )
 
     val c = in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -2416,7 +2416,7 @@ class TsdbTest
     )
 
     val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),

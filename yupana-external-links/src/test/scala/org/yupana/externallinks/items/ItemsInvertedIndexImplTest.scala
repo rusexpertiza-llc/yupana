@@ -50,7 +50,7 @@ class ItemsInvertedIndexImplTest
       lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
       const("хол копчения")
     )
-    val actual = index.transform(
+    val actual = index.transformCondition(
       and(
         c1,
         c2
@@ -85,7 +85,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("yablok").returning(si("еще красное яблоко", "красное яблоко", "сок яблоко"))
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
-    val res = index.transform(
+    val res = index.transformCondition(
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
     )
 
@@ -101,7 +101,7 @@ class ItemsInvertedIndexImplTest
 
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
-    val res = index.transform(
+    val res = index.transformCondition(
       notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
     )
 

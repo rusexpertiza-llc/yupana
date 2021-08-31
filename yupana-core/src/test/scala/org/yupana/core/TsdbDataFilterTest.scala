@@ -373,7 +373,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -463,7 +463,7 @@ class TsdbDataFilterTest
       isNull(link(TestLinks.TEST_LINK, "testField"))
     )
 
-    (testCatalogServiceMock.transform _)
+    (testCatalogServiceMock.transformCondition _)
       .expects(condition)
       .returning(
         Seq(
@@ -537,7 +537,7 @@ class TsdbDataFilterTest
       isNotNull(link(TestLinks.TEST_LINK, "testField"))
     )
 
-    (testCatalogServiceMock.transform _).expects(condition).returning(Seq(Original(Set(condition))))
+    (testCatalogServiceMock.transformCondition _).expects(condition).returning(Seq(Original(Set(condition))))
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -613,12 +613,12 @@ class TsdbDataFilterTest
         equ(dimension(TestDims.DIM_B), const(15.toShort))
       )
 
-      (testCatalogServiceMock.transform _)
+      (testCatalogServiceMock.transformCondition _)
         .expects(condition)
         .returning(
           Seq(Original(Set(condition)))
         )
-      (testCatalogServiceMock2.transform _)
+      (testCatalogServiceMock2.transformCondition _)
         .expects(condition)
         .returning(
           Seq(Original(Set(condition)))
@@ -715,7 +715,7 @@ class TsdbDataFilterTest
       )
 
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
-    (testCatalogServiceMock2.transform _)
+    (testCatalogServiceMock2.transformCondition _)
       .expects(
         and(
           ge(time, const(Time(from))),
@@ -831,7 +831,7 @@ class TsdbDataFilterTest
         }
       )
 
-    (link5.transform _).expects(*).onCall((c: Condition) => Seq(Original(Set(c))))
+    (link5.transformCondition _).expects(*).onCall((c: Condition) => Seq(Original(Set(c))))
 
     val rows = tsdb.query(query).iterator.toList
 

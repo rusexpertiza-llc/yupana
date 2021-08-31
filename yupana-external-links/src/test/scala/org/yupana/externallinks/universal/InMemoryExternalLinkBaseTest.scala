@@ -109,7 +109,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   it should "support positive conditions" in {
     val c = equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
-    testCatalog.transform(c) shouldEqual Seq(
+    testCatalog.transformCondition(c) shouldEqual Seq(
       Replace(
         Set(c),
         in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
@@ -118,7 +118,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
     val c2 = equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     val c2_2 = equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("bar"))
-    testCatalog.transform(
+    testCatalog.transformCondition(
       and(
         c2,
         c2_2
@@ -132,7 +132,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
     val c3 = equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     val c3_2 = in(lower(link(testExternalLink, TestExternalLink.testField3)), Set("abc"))
-    testCatalog.transform(
+    testCatalog.transformCondition(
       and(
         c3,
         c3_2
@@ -147,7 +147,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   it should "support negativeCondition operation" in {
     val c = neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
-    testCatalog.transform(c) shouldEqual Seq(
+    testCatalog.transformCondition(c) shouldEqual Seq(
       Replace(
         Set(c),
         notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
@@ -156,7 +156,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
     val c2 = neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     val c2_2 = notIn(lower(link(testExternalLink, TestExternalLink.testField3)), Set("look"))
-    testCatalog.transform(
+    testCatalog.transformCondition(
       and(
         c2,
         c2_2
@@ -170,7 +170,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
     val c3 = neq(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
     val c3_2 = neq(lower(link(testExternalLink, TestExternalLink.testField3)), const("baz"))
-    testCatalog.transform(
+    testCatalog.transformCondition(
       and(
         c3,
         c3_2

@@ -71,7 +71,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     val c1 = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("хлеб ржаной"))
     val c2 = notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
 
-    val conditions = catalog.transform(
+    val conditions = catalog.transformCondition(
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
@@ -127,7 +127,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       )
 
     val c = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
-    val conditions = catalog.transform(
+    val conditions = catalog.transformCondition(
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),

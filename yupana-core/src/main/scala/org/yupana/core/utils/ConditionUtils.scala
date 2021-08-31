@@ -60,7 +60,7 @@ object ConditionUtils {
     (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
 
-  def transform(tbc: TimeBoundedCondition, transform: Transform): TimeBoundedCondition = {
+  def transform(tbc: TimeBoundedCondition, transform: TransformCondition): TimeBoundedCondition = {
     transform match {
       case Replace(from, to) =>
         val filtered = tbc.conditions.filterNot { c =>
@@ -70,11 +70,9 @@ object ConditionUtils {
           tbc.copy(conditions = filtered :+ to)
         else
           tbc
-      case Original(other) =>
+      case Original(_) =>
         //TODO: looks like, no need to do anything with 'other' conditions
         tbc
-      case _ =>
-        throw new UnsupportedOperationException("Unsupported Transform type!")
     }
   }
 }

@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 
 import javax.sql.DataSource
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, LinkExpr, Replace, Transform }
+import org.yupana.api.query.{ Expression, LinkExpr, Replace, TransformCondition }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
 import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.core.ExternalLinkService
@@ -65,7 +65,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  override def transform(condition: Condition): Seq[Transform] = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
@@ -75,7 +75,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val dimValues = dimValuesForFieldsValues(values, "AND").filter(x => x != null)
     if (externalLink.dimension.dataType == DataType[String]) {
       Replace(
@@ -93,7 +93,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
     }
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val dimValues = dimValuesForFieldsValues(values, "OR").filter(x => x != null)
     if (externalLink.dimension.dataType == DataType[String]) {
       Replace(

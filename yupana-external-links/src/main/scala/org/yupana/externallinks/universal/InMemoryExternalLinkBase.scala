@@ -89,7 +89,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     }
   }
 
-  override def transform(condition: Condition): Seq[Transform] = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
@@ -99,7 +99,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     )
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
     Replace(
       values.map(_._1).toSet,
@@ -107,7 +107,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): Transform = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
     Replace(
       values.map(_._1).toSet,

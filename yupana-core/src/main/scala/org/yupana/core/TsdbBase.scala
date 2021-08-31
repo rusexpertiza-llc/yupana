@@ -268,7 +268,7 @@ trait TsdbBase extends StrictLogging {
 
     val transformations = linkServices.flatMap(service =>
       metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.transform(condition)
+        service.transformCondition(condition)
       }
     )
 

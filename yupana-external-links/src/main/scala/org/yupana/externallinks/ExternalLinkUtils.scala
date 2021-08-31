@@ -100,9 +100,9 @@ object ExternalLinkUtils {
       expressionCalculator: ConstantCalculator,
       linkName: String,
       condition: Condition,
-      includeExpression: Seq[(Condition, String, Set[T])] => Transform,
-      excludeExpression: Seq[(Condition, String, Set[T])] => Transform
-  ): Seq[Transform] = {
+      includeExpression: Seq[(Condition, String, Set[T])] => TransformCondition,
+      excludeExpression: Seq[(Condition, String, Set[T])] => TransformCondition
+  ): Seq[TransformCondition] = {
     transformCondition(
       expressionCalculator,
       linkName,
@@ -118,9 +118,9 @@ object ExternalLinkUtils {
       expressionCalculator: ConstantCalculator,
       linkName: String,
       condition: Condition,
-      includeTransform: Seq[(Condition, String, Set[Any])] => Transform,
-      excludeTransform: Seq[(Condition, String, Set[Any])] => Transform
-  ): Seq[Transform] = {
+      includeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition,
+      excludeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition
+  ): Seq[TransformCondition] = {
     val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
     tbcs.flatMap { tbc =>
