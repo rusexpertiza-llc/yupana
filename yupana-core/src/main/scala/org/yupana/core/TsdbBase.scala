@@ -25,7 +25,7 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
 
 import scala.language.higherKinds
 
@@ -266,15 +266,19 @@ trait TsdbBase extends StrictLogging {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val substituted = linkServices.map(service =>
+    val transformations = linkServices.flatMap(service =>
       metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.condition(condition)
+        service.transformCondition(condition)
       }
     )
 
-    if (substituted.nonEmpty) {
-      val merged = substituted.reduceLeft(ConditionUtils.merge)
-      ConditionUtils.split(merged)(c => linkServices.exists(_.isSupportedCondition(c)))._2
+    if (transformations.nonEmpty) {
+      val tbc = TimeBoundedCondition.single(constantCalculator, condition)
+      val transformed = transformations.foldLeft(tbc) {
+        case (c, transform) =>
+          ConditionUtils.transform(c, transform)
+      }
+      transformed.toCondition
     } else {
       condition
     }

@@ -84,16 +84,22 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
-  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.intersectAll(ids)
-    DimIdInExpr(externalLink.dimension, it)
+    Replace(
+      values.map(_._1).toSet,
+      DimIdInExpr(externalLink.dimension, it)
+    )
   }
 
-  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.unionAll(ids)
-    DimIdNotInExpr(externalLink.dimension, it)
+    Replace(
+      values.map(_._1).toSet,
+      DimIdNotInExpr(externalLink.dimension, it)
+    )
   }
 
   // Read only external link
@@ -103,20 +109,22 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def condition(condition: Condition): Condition = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
       condition,
-      includeCondition,
-      excludeCondition
+      includeTransform,
+      excludeTransform
     )
   }
 
-  private def getPhraseIds(fieldsValues: Seq[(String, Set[String])]): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
+  private def getPhraseIds(
+      fieldsValues: Seq[(Condition, String, Set[String])]
+  ): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
     fieldsValues.map {
-      case (PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
-      case (x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
+      case (_, PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
+      case (_, x, _)                  => throw new IllegalArgumentException(s"Unknown field $x")
     }
   }
 

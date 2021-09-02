@@ -14,24 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.api.query
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
-  val reduceLimit: Int
-}
+import org.yupana.api.query.Expression.Condition
 
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50,
-    reduceLimit: Int = Int.MaxValue
-) extends TsdbConfig
+sealed trait TransformCondition
+
+case class Replace(in: Set[Condition], out: Condition) extends TransformCondition
+case class Original(in: Set[Condition]) extends TransformCondition
