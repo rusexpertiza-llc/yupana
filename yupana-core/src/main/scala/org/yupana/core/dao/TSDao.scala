@@ -27,7 +27,8 @@ trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
   val dataPointsBatchSize: Int
 
   def put(mr: MapReducible[Collection], dataPoints: Collection[DataPoint], username: String): Seq[UpdateInterval] = {
-    mr.materialize(mr.batchFlatMap(dataPoints, dataPointsBatchSize)(putBatch(username)))
+    mr.materialize(mr.distinct(mr.batchFlatMap(dataPoints, dataPointsBatchSize)(putBatch(username)))).distinct
   }
+
   def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval]
 }
