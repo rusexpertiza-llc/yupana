@@ -29,7 +29,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     Replace(
       values.map(_._1).toSet,
       and(values.map {
-        case (_, field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
+        case (_, field, vs) => in[Int](dimension(xDim), vs.map(v => v.size))
       }: _*)
     )
   }
@@ -38,7 +38,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     Replace(
       values.map(_._1).toSet,
       and(values.map {
-        case (_, field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
+        case (_, field, vs) => notIn(dimension(xDim), vs.map(v => v.size))
       }: _*)
     )
   }
@@ -48,14 +48,14 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     transform(c) shouldEqual Seq(
       Replace(
         Set(c),
-        and(in(dimension(xDim), Set("field1_foo")))
+        and(in(dimension(xDim), Set(3)))
       )
     )
   }
 
   it should "support IN condition" in {
     val c1 = equ(lower(link(TestLink, TestLink.field2)), const("bar"))
-    val c2 = in(lower(link(TestLink, TestLink.field3)), Set("aaa", "bbb"))
+    val c2 = in(lower(link(TestLink, TestLink.field3)), Set("a", "bb"))
     val conditions = transform(
       and(
         c1,
@@ -66,8 +66,8 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       Replace(
         Set(c1, c2),
         and(
-          in(dimension(xDim), Set("field2_bar")),
-          in(dimension(xDim), Set("field3_aaa", "field3_bbb"))
+          in(dimension(xDim), Set(3)),
+          in(dimension(xDim), Set(1, 2))
         )
       )
     )
@@ -79,7 +79,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       Replace(
         Set(c),
         and(
-          notIn(dimension(xDim), Set("field1_foo"))
+          notIn(dimension(xDim), Set(3))
         )
       )
     )
@@ -89,14 +89,14 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     val conditions = transform(
       and(
         in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
-        notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))
+        notIn(lower(link(TestLink, TestLink.field1)), Set("a", "bb"))
       )
     )
 
     conditions shouldEqual Seq(
       Replace(
-        Set(notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))),
-        and(notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")))
+        Set(notIn(lower(link(TestLink, TestLink.field1)), Set("a", "bb"))),
+        and(notIn(dimension(xDim), Set(1, 2)))
       ),
       Original(
         Set(in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")))
@@ -105,11 +105,10 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
   }
 
   it should "fill internal rows" in {
-    val testSetter = mockFunction[Set[String], Set[String], Table[String, String, String]]
+    val testSetter = mockFunction[Set[String], Set[Int], Table[Int, String, String]]
 
-    testSetter.expects(Set("field1", "field2"), Set("foo", "bar")).onCall {
-      (fields: Set[String], dimValues: Set[String]) =>
-        SparseTable[String, String, String](dimValues.map(dv => dv -> fields.map(f => f -> s"$f:$dv").toMap).toMap)
+    testSetter.expects(Set("field1", "field2"), Set(1, 2)).onCall { (fields: Set[String], dimValues: Set[Int]) =>
+      SparseTable[Int, String, String](dimValues.map(dv => dv -> fields.map(f => f -> s"$f:$dv").toMap).toMap)
     }
 
     val exprIndex = Map[Expression[_], Int](
@@ -123,16 +122,16 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
 
     val row1 = ib
       .set(time, Time(10L))
-      .set(dimension(xDim), "foo")
+      .set(dimension(xDim), 1)
       .buildAndReset()
 
     val row2 = ib
-      .set(dimension(xDim), "bar")
+      .set(dimension(xDim), 2)
       .set(time, Time(20L))
       .buildAndReset()
     val rows = Seq(row1, row2)
 
-    ExternalLinkUtils.setLinkedValues[String](
+    ExternalLinkUtils.setLinkedValues[Int](
       TestLink,
       exprIndex,
       rows,
@@ -140,10 +139,10 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       testSetter
     )
 
-    row1.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
-    row1.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
-    row2.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
-    row2.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
+    row1.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:1"
+    row1.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:1"
+    row2.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:2"
+    row2.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:2"
   }
 
   it should "cross join multiple values" in {

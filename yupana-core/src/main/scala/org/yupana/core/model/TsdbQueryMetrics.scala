@@ -47,7 +47,6 @@ object TsdbQueryMetrics {
   val readExternalLinksQualifier: String = "read_external_links"
   val extractDataComputationQualifier = "extract_data_computation"
   val parseScanResultQualifier = "parse_scan_result"
-  val dictionaryScanQualifier = "dictionary_scan"
 
   val queryIdColumn = "query_id"
   val stateColumn = "state"
@@ -76,8 +75,7 @@ object TsdbQueryMetrics {
     dimensionValuesForIdsQualifier,
     readExternalLinksQualifier,
     extractDataComputationQualifier,
-    parseScanResultQualifier,
-    dictionaryScanQualifier
+    parseScanResultQualifier
   )
 }
 

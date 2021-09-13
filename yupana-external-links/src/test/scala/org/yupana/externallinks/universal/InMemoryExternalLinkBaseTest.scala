@@ -32,7 +32,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       }
     }
 
-    override def keyExpr: Expression[String] = dimension(DictionaryDimension("TAG_X"))
+    override def keyExpr: Expression[String] = metric(TestSchema.aMetric)
   }
 
   class TestLink extends ExternalLink {
@@ -112,7 +112,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     testCatalog.transformCondition(c) shouldEqual Seq(
       Replace(
         Set(c),
-        in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
+        in(lower(metric(TestSchema.aMetric)), Set("aaa"))
       )
     )
 
@@ -126,7 +126,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     ) shouldEqual Seq(
       Replace(
         Set(c2, c2_2),
-        in(lower(dimension(DictionaryDimension("TAG_X"))), Set("bar"))
+        in(lower(metric(TestSchema.aMetric)), Set("bar"))
       )
     )
 
@@ -140,7 +140,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     ) shouldEqual Seq(
       Replace(
         Set(c3, c3_2),
-        in(lower(dimension(DictionaryDimension("TAG_X"))), Set.empty)
+        in(lower(metric(TestSchema.aMetric)), Set.empty)
       )
     )
   }
@@ -150,7 +150,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     testCatalog.transformCondition(c) shouldEqual Seq(
       Replace(
         Set(c),
-        notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
+        notIn(lower(metric(TestSchema.aMetric)), Set("foo", "bar"))
       )
     )
 
@@ -164,7 +164,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     ) shouldEqual Seq(
       Replace(
         Set(c2, c2_2),
-        notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
+        notIn(lower(metric(TestSchema.aMetric)), Set("foo", "bar"))
       )
     )
 
@@ -178,7 +178,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     ) shouldEqual Seq(
       Replace(
         Set(c3, c3_2),
-        notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa", "foo"))
+        notIn(lower(metric(TestSchema.aMetric)), Set("aaa", "foo"))
       )
     )
   }

@@ -23,7 +23,7 @@ import org.apache.spark.rdd.RDD
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.MapReducible
-import org.yupana.core.dao.{ DictionaryProvider, TSDao }
+import org.yupana.core.dao.TSDao
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils.doPutBatch
@@ -33,7 +33,6 @@ class TsDaoHBaseSpark(
     @transient val sparkContext: SparkContext,
     override val schema: Schema,
     config: Config,
-    override val dictionaryProvider: DictionaryProvider,
     putsBatchSize: Int = 10000
 ) extends TSDaoHBaseBase[RDD]
     with TSDao[RDD, Long]
@@ -60,7 +59,7 @@ class TsDaoHBaseSpark(
   }
 
   override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
-    doPutBatch(connection, dictionaryProvider, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
+    doPutBatch(connection, config.hbaseNamespace, username, putsBatchSize, dataPointsBatch)
   }
 
   @transient lazy val connection: Connection = {

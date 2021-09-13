@@ -442,10 +442,10 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   it should "handle parenthesis" in {
     testQuery(
       """
-        |SELECT "test_table_2"."X" AS "tagX", "test_table_2"."time" AS "time"
+        |SELECT "test_table_2"."Y" AS "tagY", "test_table_2"."time" AS "time"
         |  FROM "test_table_2"
-        |  WHERE (("receipt"."time" >= {ts '2017-10-23 00:00:00'}) AND (("receipt"."time" <= {ts '2017-11-02 00:00:00'}) AND ("receipt"."X" = '0001388410039121')))
-        |  GROUP BY "receipt"."X",
+        |  WHERE (("receipt"."time" >= {ts '2017-10-23 00:00:00'}) AND (("receipt"."time" <= {ts '2017-11-02 00:00:00'}) AND ("receipt"."Y" = 1388410039121)))
+        |  GROUP BY "receipt"."Y",
         |    "receipt"."time"
     """.stripMargin
     ) { q =>
@@ -453,11 +453,11 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2017, 10, 23, 0, 0, DateTimeZone.UTC)))),
         le(time, const(Time(new DateTime(2017, 11, 2, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(dimension(DIM_X)), const("0001388410039121"))
+        equ(dimension(DIM_Y), const(1388410039121L))
       )
-      q.groupBy should contain theSameElementsAs List(dimension(DIM_X), time)
+      q.groupBy should contain theSameElementsAs List(dimension(DIM_Y), time)
       q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_X) as "tagX",
+        dimension(DIM_Y) as "tagY",
         time as "time"
       )
     }
@@ -599,13 +599,13 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |     ELSE 0
         |   AS log_sum
         | FROM test_table_2
-        |   WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1' AND X = '1234567890'
+        |   WHERE time >= TIMESTAMP '2018-1-1' AND time < TIMESTAMP '2018-2-1' AND Y = 1234567890
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table_2"
       q.filter.value shouldBe and(
         ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
         lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
-        equ(lower(dimension(DIM_X)), const("1234567890"))
+        equ(dimension(DIM_Y), const(1234567890L))
       )
       q.groupBy shouldBe empty
       q.fields should contain theSameElementsInOrderAs List(

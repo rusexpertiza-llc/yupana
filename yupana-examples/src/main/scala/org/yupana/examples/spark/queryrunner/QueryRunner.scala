@@ -26,7 +26,7 @@ import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
 import org.yupana.hbase.ChangelogDaoHBase
-import org.yupana.spark.{ DataRowRDD, SparkConfUtils, SparkDictionaryProvider, TsDaoHBaseSpark }
+import org.yupana.spark.{ DataRowRDD, SparkConfUtils, TsDaoHBaseSpark }
 
 object QueryRunner {
 
@@ -38,7 +38,7 @@ object QueryRunner {
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 
     val sparkDao: TSDao[RDD, Long] =
-      new TsDaoHBaseSpark(spark.sparkContext, ExampleSchema.schema, config, new SparkDictionaryProvider(config))
+      new TsDaoHBaseSpark(spark.sparkContext, ExampleSchema.schema, config)
     val changelogDao: ChangelogDao = new ChangelogDaoHBase(
       ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
       config.hbaseNamespace

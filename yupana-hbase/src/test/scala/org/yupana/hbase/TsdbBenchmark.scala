@@ -85,25 +85,6 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
     val N = 1000000
 //    val in = (1 to N).toArray
 
-    val dictDao = new DictionaryDao {
-      override def createSeqId(dimension: Dimension): Int = ???
-
-      val vals = (0 until N / 10000).map { b =>
-        (0 until 10000).map { i =>
-          val id = b * 10000 + i
-          id.toLong -> "Test"
-        }.toMap
-      }.toArray
-
-      override def getIdByValue(dimension: Dimension, value: String): Option[Long] = ???
-
-      override def getIdsByValues(dimension: Dimension, value: Set[String]): Map[String, Long] = ???
-
-      override def checkAndPut(dimension: Dimension, id: Long, value: String): Boolean = ???
-    }
-
-    val dictProvider = new DictionaryProviderImpl(dictDao)
-
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
     CacheFactory.init(properties, "test")
@@ -113,8 +94,6 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] = {
         IteratorMapReducible.iteratorMR
       }
-
-      override def dictionaryProvider: DictionaryProvider = dictProvider
 
       val rows = {
         val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
@@ -212,7 +191,6 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
           TestSchema.schema,
           dao,
           changelogDao,
-          dictProvider,
           identity,
           SimpleTsdbConfig(putEnabled = true), { _ =>
             mc

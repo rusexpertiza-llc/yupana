@@ -30,7 +30,6 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
-import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
@@ -50,7 +49,6 @@ object HBaseUtils extends StrictLogging {
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
-  private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
 
@@ -68,20 +66,8 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
-  def loadDimIds(dictionaryProvider: DictionaryProvider, table: Table, dataPoints: Seq[DataPoint]): Unit = {
-    table.dimensionSeq.foreach {
-      case dimension: DictionaryDimension =>
-        val values = dataPoints.flatMap { dp =>
-          dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
-        }
-        dictionaryProvider.dictionary(dimension).findIdsByValues(values.toSet)
-      case _ =>
-    }
-  }
-
   def createPuts(
       dataPoints: Seq[DataPoint],
-      dictionaryProvider: DictionaryProvider,
       username: String
   ): Seq[(Table, Seq[Put], Seq[UpdateInterval])] = {
     val now = DateTime.now()
@@ -89,9 +75,8 @@ object HBaseUtils extends StrictLogging {
       .groupBy(_.table)
       .map {
         case (table, points) =>
-          loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
-          val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
+          val grouped = points.groupBy(rowKey(_, table, keySize))
           val (puts, intervals) = grouped
             .map {
               case (key, dps) =>
@@ -129,7 +114,6 @@ object HBaseUtils extends StrictLogging {
 
   def doPutBatch(
       connection: Connection,
-      dictionaryProvider: DictionaryProvider,
       namespace: String,
       username: String,
       putsBatchSize: Int,
@@ -138,7 +122,7 @@ object HBaseUtils extends StrictLogging {
     logger.trace(s"Put ${dataPointsBatch.size} dataPoints to tsdb")
     logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPointsBatch.mkString("\r\n")}")
 
-    val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
+    val putsWithIntervalsByTable = createPuts(dataPointsBatch, username)
     putsWithIntervalsByTable.flatMap {
       case (table, puts, updateIntervals) =>
         using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
@@ -390,12 +374,10 @@ object HBaseUtils extends StrictLogging {
   def initStorage(connection: Connection, namespace: String, schema: Schema, config: TsdbConfig): Unit = {
     checkNamespaceExistsElseCreate(connection, namespace)
 
-    val dictDao = new DictionaryDaoHBase(connection, namespace)
-
     schema.tables.values.foreach { t =>
       checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
-      t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
+
     checkSchemaDefinition(connection, namespace, schema) match {
       case Success      => logger.info("TSDB table definition checked successfully")
       case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
@@ -454,8 +436,7 @@ object HBaseUtils extends StrictLogging {
   private[hbase] def rowKey(
       dataPoint: DataPoint,
       table: Table,
-      keySize: Int,
-      dictionaryProvider: DictionaryProvider
+      keySize: Int
   ): Array[Byte] = {
     val bt = HBaseUtils.baseTime(dataPoint.time, table)
     val baseTimeBytes = Bytes.toBytes(bt)
@@ -466,15 +447,6 @@ object HBaseUtils extends StrictLogging {
 
     table.dimensionSeq.foreach { dim =>
       val bytes = dim match {
-        case dd: DictionaryDimension =>
-          val id = dataPoint.dimensions
-            .get(dim)
-            .asInstanceOf[Option[String]]
-            .filter(_.trim.nonEmpty)
-            .map(v => dictionaryProvider.dictionary(dd).id(v))
-            .getOrElse(NULL_VALUE)
-          Bytes.toBytes(id)
-
         case rd: RawDimension[_] =>
           val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
           rd.rStorable.write(v)
@@ -526,10 +498,6 @@ object HBaseUtils extends StrictLogging {
       (f.metric.tag, bytes)
     }
     val dimensionFieldBytes = dimensions.collect {
-      case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
-        val tag = table.dimensionTag(d)
-        val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
-        (tag, bytes)
       case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
         val bytes = d.tStorable.write(value.asInstanceOf[d.T])

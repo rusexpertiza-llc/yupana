@@ -14,7 +14,6 @@ class DaoTestSuite
     extends AnyFlatSpec
     with BTreeIndexDaoHBaseTest
     with InvertedIndexDaoHBaseTest
-    with DictionaryDaoHBaseTest
     with TsdbQueryMetricsDaoHBaseTest
     with ChangelogDaoHBaseTest
     with BeforeAndAfterAll {

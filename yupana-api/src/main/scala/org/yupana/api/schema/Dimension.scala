@@ -42,35 +42,6 @@ object Dimension {
   type Aux2[TT, RR] = Dimension { type T = TT; type R = RR }
 }
 
-case class DictionaryDimension(override val name: String, hashFunction: Option[String => Int] = None)
-    extends Dimension {
-
-  override type T = String
-  override type R = Long
-  override val rCt: ClassTag[Long] = implicitly[ClassTag[Long]]
-
-  override def rStorable: FixedStorable[Long] = FixedStorable[Long]
-  override def tOrdering: DimOrdering[String] = implicitly[DimOrdering[String]]
-  override def rOrdering: DimOrdering[Long] = implicitly[DimOrdering[Long]]
-
-  override val dataType: DataType.Aux[T] = DataType[String]
-
-  def hash(v: String): Int = _hash(v)
-
-  private val _hash: String => Int = hashFunction.getOrElse(zeroHash)
-
-  private def zeroHash(s: String): Int = 0
-
-  override def toString: String = s"DicDimension($name)"
-
-  override def hashCode(): Int = name.hashCode
-
-  override def equals(obj: Any): Boolean = obj match {
-    case DictionaryDimension(n, _) => name == n
-    case _                         => false
-  }
-}
-
 case class RawDimension[TT](override val name: String)(
     implicit val rStorable: FixedStorable[TT],
     val rOrdering: DimOrdering[TT],

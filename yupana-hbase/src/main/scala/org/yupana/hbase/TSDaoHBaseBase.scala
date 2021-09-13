@@ -59,8 +59,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
   override val dataPointsBatchSize: Int = INSERT_BATCH_SIZE
 
-  def dictionaryProvider: DictionaryProvider
-
   def executeScans(
       queryContext: InternalQueryContext,
       from: Long,
@@ -135,12 +133,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
         .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
     }
-  }
-
-  def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
-    val dictionary = dictionaryProvider.dictionary(dimension)
-    val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(dimension.rOrdering.lt).iterator
-    SortedSetIterator(it)
   }
 
   private def rangeScanDimensions(
@@ -394,7 +386,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     condition match {
       case Some(c) =>
-        createFilters(c, Filters.newBuilder).build(valuesToIds)
+        createFilters(c, Filters.newBuilder).build()
 
       case None =>
         Filters.empty

@@ -1,7 +1,7 @@
 package org.yupana.core
 
 import org.yupana.api.query.{ AndExpr, OrExpr }
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
+import org.yupana.api.schema.RawDimension
 import org.yupana.utils.RussianTokenizer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +13,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   private val calculator = new ConstantCalculator(RussianTokenizer)
 
   "QueryOptimizer.simplifyCondition" should "keep simple condition as is" in {
-    val c = equ[String](dimension(DictionaryDimension("foo")), const("bar"))
+    val c = equ[Int](dimension(RawDimension[Int]("foo")), const(1))
     QueryOptimizer.simplifyCondition(c) shouldEqual c
   }
 
@@ -22,8 +22,8 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
       Seq(
         AndExpr(
           Seq(
-            gt[String](dimension(DictionaryDimension("a")), dimension(DictionaryDimension("b"))),
-            gt[String](dimension(DictionaryDimension("b")), const("c"))
+            gt[Int](dimension(RawDimension[Int]("a")), dimension(RawDimension[Int]("b"))),
+            gt[Int](dimension(RawDimension[Int]("b")), const(3))
           )
         ),
         AndExpr(Seq()),
@@ -32,8 +32,8 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
       )
     )
     QueryOptimizer.simplifyCondition(c) shouldEqual and(
-      gt[String](dimension(DictionaryDimension("a")), dimension(DictionaryDimension("b"))),
-      gt[String](dimension(DictionaryDimension("b")), const("c")),
+      gt[Int](dimension(RawDimension[Int]("a")), dimension(RawDimension[Int]("b"))),
+      gt[Int](dimension(RawDimension[Int]("b")), const(3)),
       gt(dimension(RawDimension[Int]("c")), const(42)),
       gt(dimension(RawDimension[Long]("d")), const(5L))
     )
@@ -44,21 +44,21 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
       Seq(
         OrExpr(
           Seq(
-            gt[String](dimension(DictionaryDimension("a")), dimension(DictionaryDimension("b"))),
-            gt[String](dimension(DictionaryDimension("b")), const("c"))
+            gt[Int](dimension(RawDimension[Int]("a")), dimension(RawDimension[Int]("b"))),
+            gt[Int](dimension(RawDimension[Int]("b")), const(2))
           )
         ),
         OrExpr(Seq()),
-        gt[String](dimension(DictionaryDimension("c")), const("c")),
-        OrExpr(Seq(OrExpr(Seq(gt[String](dimension(DictionaryDimension("d")), const("e"))))))
+        gt[Int](dimension(RawDimension[Int]("c")), const(2)),
+        OrExpr(Seq(OrExpr(Seq(gt[Int](dimension(RawDimension[Int]("d")), const(3))))))
       )
     )
     QueryOptimizer.simplifyCondition(c) shouldEqual OrExpr(
       Seq(
-        gt[String](dimension(DictionaryDimension("a")), dimension(DictionaryDimension("b"))),
-        gt[String](dimension(DictionaryDimension("b")), const("c")),
-        gt[String](dimension(DictionaryDimension("c")), const("c")),
-        gt[String](dimension(DictionaryDimension("d")), const("e"))
+        gt[Int](dimension(RawDimension[Int]("a")), dimension(RawDimension[Int]("b"))),
+        gt[Int](dimension(RawDimension[Int]("b")), const(2)),
+        gt[Int](dimension(RawDimension[Int]("c")), const(2)),
+        gt[Int](dimension(RawDimension[Int]("d")), const(3))
       )
     )
   }
@@ -90,13 +90,13 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   it should "handle OR in AND" in {
     val c = and(
       or(
-        or(equ[String](dimension(DictionaryDimension("a")), const("a"))),
-        equ[String](dimension(DictionaryDimension("b")), const("b"))
+        or(equ[Int](dimension(RawDimension[Int]("a")), const(1))),
+        equ[Int](dimension(RawDimension[Int]("b")), const(2))
       ),
       or(
         or(
-          equ[String](dimension(DictionaryDimension("c")), const("c")),
-          equ[String](dimension(DictionaryDimension("d")), const("d"))
+          equ[Int](dimension(RawDimension[Int]("c")), const(3)),
+          equ[Int](dimension(RawDimension[Int]("d")), const(4))
         )
       )
     )
@@ -105,20 +105,20 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
     actual shouldEqual or(
       and(
-        equ[String](dimension(DictionaryDimension("a")), const("a")),
-        equ[String](dimension(DictionaryDimension("c")), const("c"))
+        equ[Int](dimension(RawDimension[Int]("a")), const(1)),
+        equ[Int](dimension(RawDimension[Int]("c")), const(3))
       ),
       and(
-        equ[String](dimension(DictionaryDimension("a")), const("a")),
-        equ[String](dimension(DictionaryDimension("d")), const("d"))
+        equ[Int](dimension(RawDimension[Int]("a")), const(1)),
+        equ[Int](dimension(RawDimension[Int]("d")), const(4))
       ),
       and(
-        equ[String](dimension(DictionaryDimension("b")), const("b")),
-        equ[String](dimension(DictionaryDimension("c")), const("c"))
+        equ[Int](dimension(RawDimension[Int]("b")), const(2)),
+        equ[Int](dimension(RawDimension[Int]("c")), const(3))
       ),
       and(
-        equ[String](dimension(DictionaryDimension("b")), const("b")),
-        equ[String](dimension(DictionaryDimension("d")), const("d"))
+        equ[Int](dimension(RawDimension[Int]("b")), const(2)),
+        equ[Int](dimension(RawDimension[Int]("d")), const(4))
       )
     )
   }

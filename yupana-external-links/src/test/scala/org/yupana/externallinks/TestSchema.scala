@@ -1,12 +1,14 @@
 package org.yupana.externallinks
 
 import org.joda.time.{ DateTimeZone, LocalDateTime }
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, LinkField, RawDimension, Schema, Table }
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric, RawDimension, Schema, Table }
 import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 
 object TestSchema {
-  val xDim = DictionaryDimension("X")
+  val xDim = RawDimension[Int]("X")
   val yDim = RawDimension[Int]("Y")
+
+  val aMetric = Metric[String]("A", 1)
 
   object TestLink extends ExternalLink {
 
@@ -14,9 +16,9 @@ object TestSchema {
     val field2 = "field2"
     val field3 = "field3"
 
-    override type DimType = String
+    override type DimType = Int
     override val linkName: String = "Test"
-    override val dimension: DictionaryDimension = xDim
+    override val dimension: Dimension.Aux[Int] = xDim
     override val fields: Set[LinkField] = Set(field1, field2, field3).map(LinkField[String])
   }
 
@@ -24,7 +26,7 @@ object TestSchema {
     "test",
     1000,
     Seq(xDim, yDim),
-    Seq.empty,
+    Seq(aMetric),
     Seq(TestLink),
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
   )

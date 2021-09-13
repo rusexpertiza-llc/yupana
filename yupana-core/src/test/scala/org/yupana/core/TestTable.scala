@@ -13,7 +13,6 @@ object TestDims {
     (s: String) => (s.hashCode, UUID.nameUUIDFromBytes(s.getBytes(StandardCharsets.UTF_8)).getMostSignificantBits)
   )
   val DIM_B = RawDimension[Short]("B")
-  val DIM_X = DictionaryDimension("X")
   val DIM_Y = RawDimension[Long]("Y")
 }
 
@@ -101,7 +100,7 @@ object TestSchema {
   val testTable2 = new Table(
     name = "test_table_2",
     rowTimeSpan = 7 * 24 * 3600 * 1000,
-    dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
+    dimensionSeq = Seq(TestDims.DIM_Y),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
     externalLinks = Seq(),
     new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
@@ -110,7 +109,7 @@ object TestSchema {
   val testTable3 = new Table(
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
-    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_X),
+    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_Y),
     metrics = Seq(
       TestTableFields.TEST_FIELD,
       TestTableFields.TEST_STRING_FIELD,
