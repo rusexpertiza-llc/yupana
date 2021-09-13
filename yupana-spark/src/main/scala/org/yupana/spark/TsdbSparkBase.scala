@@ -23,7 +23,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
-import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector, PersistentMetricQueryReporter }
@@ -90,10 +90,8 @@ abstract class TsdbSparkBase(
     conf
   )
 
-  override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
-
   override val dao: TSDao[RDD, Long] =
-    new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
+    new TsDaoHBaseSpark(sparkContext, schema, conf)
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {
     if (conf.collectMetrics) {

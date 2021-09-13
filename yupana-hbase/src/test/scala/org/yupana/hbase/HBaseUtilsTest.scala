@@ -1,7 +1,6 @@
 package org.yupana.hbase
 
 import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
 import java.util.Properties
 
 import org.apache.hadoop.hbase.CellUtil
@@ -12,7 +11,6 @@ import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
 import scala.collection.JavaConverters._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -24,17 +22,11 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
 
   "HBaseUtils" should "serialize and parse row TsdRow keys" in {
 
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-
     val time = new DateTime(2020, 4, 22, 11, 21, 55, DateTimeZone.UTC).getMillis
-    val dp = DataPoint(TestTable, time, Map(DIM_B -> "b value", DIM_A -> 4, DIM_C -> "c value"), Seq.empty)
+    val dp = DataPoint(TestTable, time, Map(DIM_B -> 2.toByte, DIM_A -> 1, DIM_C -> 3L), Seq.empty)
 
-    (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
-    (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "c value").returning(Some(31L))
-
-    val bytes = HBaseUtils.rowKey(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
-    val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(4), Some(1L), Some(31L)))
+    val bytes = HBaseUtils.rowKey(dp, TestTable, HBaseUtils.tableKeySize(TestTable))
+    val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(1), Some(2.toByte), Some(3L)))
     val actualRowKey = HBaseUtils.parseRowKey(bytes, TestTable)
 
     actualRowKey should be(expectedRowKey)
@@ -42,18 +34,12 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
 
   it should "create TSDRows from datapoints" in {
     val time = new DateTime(2017, 10, 15, 12, 57, DateTimeZone.UTC).getMillis
-    val dims: Map[Dimension, Any] = Map(DIM_A -> 1111, DIM_B -> "test2", DIM_C -> "test3")
+    val dims: Map[Dimension, Any] = Map(DIM_A -> 1, DIM_B -> 2.toByte, DIM_C -> 3L)
     val dp1 = DataPoint(TestTable, time, dims, Seq(MetricValue(TEST_FIELD, 1.0)))
     val dp2 = DataPoint(TestTable2, time + 1, dims, Seq(MetricValue(TEST_FIELD, 2.0)))
     val dp3 = DataPoint(TestTable, time + 2, dims, Seq(MetricValue(TEST_FIELD, 3.0)))
 
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-
-    (dictionaryDaoMock.getIdsByValues _).expects(DIM_B, Set("test2")).returning(Map("test2" -> 22))
-    (dictionaryDaoMock.getIdsByValues _).expects(DIM_C, Set("test3")).returning(Map("test3" -> 33))
-
-    val pbt = HBaseUtils.createPuts(Seq(dp1, dp2, dp3), dictionaryProvider, "test")
+    val pbt = HBaseUtils.createPuts(Seq(dp1, dp2, dp3), "test")
 
     pbt should have size 2
 
@@ -70,12 +56,6 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
       .allocate(256)
       .put(1.toByte)
       .putDouble(1.0)
-      .put((Table.DIM_TAG_OFFSET + 1).toByte)
-      .putInt("test2".length)
-      .put("test2".getBytes(StandardCharsets.UTF_8))
-      .put((Table.DIM_TAG_OFFSET + 2).toByte)
-      .putInt("test3".length)
-      .put("test3".getBytes(StandardCharsets.UTF_8))
 
     val expected1 = new Array[Byte](bb.position())
     bb.rewind()
@@ -92,12 +72,6 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     bb.rewind()
     bb.put(1.toByte)
       .putDouble(3.0)
-      .put((Table.DIM_TAG_OFFSET + 1).toByte)
-      .putInt("test2".length)
-      .put("test2".getBytes(StandardCharsets.UTF_8))
-      .put((Table.DIM_TAG_OFFSET + 2).toByte)
-      .putInt("test3".length)
-      .put("test3".getBytes(StandardCharsets.UTF_8))
 
     val expected2 = new Array[Byte](bb.position())
     bb.rewind()
@@ -118,12 +92,6 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     bb.rewind()
     bb.put(1.toByte)
       .putDouble(2.0)
-      .put(Table.DIM_TAG_OFFSET.toByte)
-      .putInt("test2".length)
-      .put("test2".getBytes(StandardCharsets.UTF_8))
-      .put((Table.DIM_TAG_OFFSET + 2).toByte)
-      .putInt("test3".length)
-      .put("test3".getBytes(StandardCharsets.UTF_8))
 
     val expected3 = new Array[Byte](bb.position())
     bb.rewind()
@@ -135,9 +103,9 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
 
     bb.rewind()
     bb.putLong(HBaseUtils.baseTime(time, TestTable))
-      .putInt(1111)
-      .putLong(22)
-      .putLong(33)
+      .putInt(1)
+      .put(2.toByte)
+      .putLong(3)
       .rewind()
 
     bb.get(expectedRow)
@@ -164,8 +132,8 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
 
 object HBaseUtilsTest {
   val DIM_A = RawDimension[Int]("A")
-  val DIM_B = DictionaryDimension("B")
-  val DIM_C = DictionaryDimension("C")
+  val DIM_B = RawDimension[Byte]("B")
+  val DIM_C = RawDimension[Long]("C")
   val TEST_FIELD = Metric[Double]("testField", 1)
 
   val TestTable = new Table(

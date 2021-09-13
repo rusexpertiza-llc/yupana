@@ -240,7 +240,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
   }
 
   class MockedTsdb
-      extends TSDB(SchemaRegistry.defaultSchema, null, null, null, identity, SimpleTsdbConfig(), { q: Query =>
+      extends TSDB(SchemaRegistry.defaultSchema, null, null, identity, SimpleTsdbConfig(), { q: Query =>
         new StandaloneMetricCollector(
           q,
           "test",

@@ -9,10 +9,10 @@ import org.scalatest.matchers.should.Matchers
 
 class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
-  val DIM_A = DictionaryDimension("dim_a")
+  val DIM_A = RawDimension[Byte]("dim_a")
   val DIM_B = RawDimension[Int]("dim_b")
   val DIM_C = RawDimension[Long]("dim_c")
-  val DIM_D = DictionaryDimension("dim_d")
+  val DIM_D = RawDimension[Short]("dim_d")
 
   val METRIC_A = Metric[Double]("metric_a", 1)
   val METRIC_B = Metric[Long]("metric_b", 2)

@@ -9,7 +9,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl, TSDao }
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -48,13 +48,10 @@ class TsdbTest
 
     val tsdbDaoMock = mock[TSTestDao]
     val changelogDaoMock = mock[ChangelogDao]
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb = new TSDB(
       TestSchema.schema,
       tsdbDaoMock,
       changelogDaoMock,
-      dictionaryProvider,
       identity,
       SimpleTsdbConfig(putEnabled = true),
       { _: Query => NoMetricCollector }
@@ -84,14 +81,11 @@ class TsdbTest
   it should "not allow put if disabled" in {
     val tsdbDaoMock = mock[TSTestDao]
     val changelogDaoMock = mock[ChangelogDao]
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
         changelogDaoMock,
-        dictionaryProvider,
         identity,
         SimpleTsdbConfig(),
         { _: Query => NoMetricCollector }

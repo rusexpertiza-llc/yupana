@@ -15,7 +15,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
   import org.yupana.api.query.syntax.All._
 
   class MockedTsdb
-      extends TSDB(TestSchema.schema, null, null, null, identity, SimpleTsdbConfig(), { _: Query => NoMetricCollector })
+      extends TSDB(TestSchema.schema, null, null, identity, SimpleTsdbConfig(), { _: Query => NoMetricCollector })
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {
     val tsdb = mock[MockedTsdb]

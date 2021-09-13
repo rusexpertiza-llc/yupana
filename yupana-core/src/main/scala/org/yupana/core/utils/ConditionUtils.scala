@@ -21,43 +21,25 @@ import org.yupana.api.query._
 import org.yupana.core.QueryOptimizer
 
 object ConditionUtils {
-  def flatMap(c: Condition)(f: Condition => Condition): Condition = {
-    def doFlat(xs: Seq[Condition]): Seq[Condition] = {
-      xs.flatMap(x =>
-        flatMap(x)(f) match {
-          case ConstantExpr(true) => None
-          case nonEmpty           => Some(nonEmpty)
-        }
-      )
-    }
 
-    val mapped = c match {
-      case AndExpr(cs) => AndExpr(doFlat(cs))
-      case OrExpr(cs)  => OrExpr(doFlat(cs))
-      case x           => f(x)
-    }
-
-    QueryOptimizer.simplifyCondition(mapped)
-  }
-
-  def split(c: Condition)(p: Condition => Boolean): (Condition, Condition) = {
-    def doSplit(c: Condition): (Condition, Condition) = {
+  def filter(c: Condition)(p: Condition => Boolean): Condition = {
+    def doFilter(c: Condition): Condition = {
       c match {
         case AndExpr(cs) =>
-          val (a, b) = cs.map(doSplit).unzip
-          (AndExpr(a), AndExpr(b))
+          val a = cs.map(doFilter)
+          AndExpr(a)
 
         case OrExpr(cs) =>
-          val (a, b) = cs.map(doSplit).unzip
-          (OrExpr(a), OrExpr(b))
+          val a = cs.map(doFilter)
+          OrExpr(a)
 
-        case x => if (p(x)) (x, ConstantExpr(true)) else (ConstantExpr(true), x)
+        case x => if (p(x)) x else ConstantExpr(true)
       }
     }
 
-    val (a, b) = doSplit(c)
+    val a = doFilter(c)
 
-    (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
+    QueryOptimizer.simplifyCondition(a)
   }
 
   def transform(tbc: TimeBoundedCondition, transform: TransformCondition): TimeBoundedCondition = {

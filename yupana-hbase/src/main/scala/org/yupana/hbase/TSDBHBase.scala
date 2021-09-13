@@ -21,7 +21,6 @@ import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.DictionaryProviderImpl
 import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ TSDB, TsdbConfig }
 import java.util.Properties
@@ -59,13 +58,11 @@ object TSDBHBase {
 
     CacheFactory.init(properties, namespace)
 
-    val dictDao = new DictionaryDaoHBase(connection, namespace)
-    val dictProvider = new DictionaryProviderImpl(dictDao)
     val dao =
-      new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize, tsdbConfig.reduceLimit)
+      new TSDaoHBase(schema, connection, namespace, tsdbConfig.putBatchSize, tsdbConfig.reduceLimit)
     val changelogDao = new ChangelogDaoHBase(connection, namespace)
 
-    new TSDB(schema, dao, changelogDao, dictProvider, prepareQuery, tsdbConfig, metricCollectorCreator)
+    new TSDB(schema, dao, changelogDao, prepareQuery, tsdbConfig, metricCollectorCreator)
   }
 
   def apply(

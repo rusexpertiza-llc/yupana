@@ -20,7 +20,6 @@ import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.{ MapReducible, IteratorMapReducible }
-import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.hbase.HBaseUtils._
@@ -29,7 +28,6 @@ class TSDaoHBase(
     override val schema: Schema,
     connection: Connection,
     namespace: String,
-    override val dictionaryProvider: DictionaryProvider,
     putsBatchSize: Int = TSDaoHBaseBase.PUTS_BATCH_SIZE,
     reduceLimit: Int
 ) extends TSDaoHBaseBase[Iterator] {
@@ -60,6 +58,6 @@ class TSDaoHBase(
   }
 
   override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
-    doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
+    doPutBatch(connection, namespace, username, putsBatchSize, dataPointsBatch)
   }
 }

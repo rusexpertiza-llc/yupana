@@ -17,7 +17,7 @@
 package org.yupana.hbase
 
 import org.yupana.api.Time
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, RawDimension }
+import org.yupana.api.schema.{ Dimension, HashDimension, RawDimension }
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 
 class Filters(
@@ -164,16 +164,10 @@ object Filters {
       }
     }
 
-    def includeFilter(
-        valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
-    ): Map[Dimension, SortedSetIterator[_]] = {
+    def includeFilter(): Map[Dimension, SortedSetIterator[_]] = {
       val dims = incValues.keySet ++ incIds.keySet
 
       dims.flatMap {
-        case d: DictionaryDimension =>
-          val valueIds = getIncValues(d).map(vs => valuesToIds(d, vs))
-          val ids = getIncIds(d)
-          intersectIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
           intersectIds(getIncIds(r), getIncValues(r)).map(vs => r -> vs)
@@ -198,15 +192,9 @@ object Filters {
       }
     }
 
-    def excludeFilter(
-        valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
-    ): Map[Dimension, SortedSetIterator[_]] = {
+    def excludeFilter(): Map[Dimension, SortedSetIterator[_]] = {
       val dims = excValues.keySet ++ excIds.keySet
       dims.flatMap {
-        case d: DictionaryDimension =>
-          val valueIds = getExcValues(d).map(vs => valuesToIds(d, vs))
-          val ids = getExcIds(d)
-          unionIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
           unionIds(getExcIds(r), getExcValues(r)).map(vs => r -> vs)
@@ -218,8 +206,8 @@ object Filters {
       }.toMap
     }
 
-    def build(valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]): Filters = {
-      new Filters(includeFilter(valuesToIds), excludeFilter(valuesToIds), incTime, excTime)
+    def build(): Filters = {
+      new Filters(includeFilter(), excludeFilter(), incTime, excTime)
     }
 
     private def intersect[T](cur: Option[SortedSetIterator[T]], vs: SortedSetIterator[T]): SortedSetIterator[T] = {
