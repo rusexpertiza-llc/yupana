@@ -69,9 +69,9 @@ trait ExternalLinkService[T <: ExternalLink] {
     * as a context for catalog).
     *
     * @param condition condition to be transformed
-    * @return transformed condition. It should preserve time bounds even if there no conditions supported by this catalog.
+    * @return sequence of transformations applied to the initial condition, basically each transformation is a mapping from one expression to another. It should preserve time bounds even if there no conditions supported by this catalog.
     */
-  def condition(condition: Condition): Condition
+  def transformCondition(condition: Condition): Seq[TransformCondition]
 
   /**
     * Checks what passed simple condition can be handled by this catalog
