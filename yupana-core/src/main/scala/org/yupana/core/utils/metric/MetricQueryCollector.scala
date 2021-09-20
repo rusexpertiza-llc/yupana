@@ -18,6 +18,8 @@ package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
 
+import java.util.concurrent.atomic.AtomicReference
+
 trait MetricQueryCollector extends MetricCollector {
   def query: Query
   override def id: String = query.id
@@ -34,4 +36,6 @@ trait MetricQueryCollector extends MetricCollector {
   def reduceOperation: Metric
   def postFilter: Metric
   def collectResultRows: Metric
+
+  def queryStatus: AtomicReference[QueryStatus]
 }

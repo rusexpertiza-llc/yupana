@@ -16,7 +16,6 @@
 
 package org.yupana.core
 
-import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -24,9 +23,10 @@ import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.language.higherKinds
 
 /**
@@ -135,7 +135,9 @@ trait TsdbBase extends StrictLogging {
             dao.query(internalQuery, new InternalRowBuilder(queryContext), metricCollector)
 
           case None =>
-            throw new IllegalArgumentException("Empty condition")
+            val th = new IllegalArgumentException("Empty condition")
+            metricCollector.queryStatus.set(Failed(th))
+            throw th
         }
       case None =>
         val rb = new InternalRowBuilder(queryContext)
@@ -156,13 +158,14 @@ trait TsdbBase extends StrictLogging {
     val resultRows = new AtomicInteger(0)
 
     val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
-
+    import org.yupana.core.utils.metric.MetricUtils._
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
       val batchSize = batch.size
       val c = processedRows.incrementAndGet()
       if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
       val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
         readExternalLinks(queryContext, batch)
+          .withSavedMetrics(metricCollector)
       }
 
       metricCollector.extractDataComputation.measure(batchSize) {
@@ -236,18 +239,21 @@ trait TsdbBase extends StrictLogging {
 
     val limited = queryContext.query.limit.map(mr.limit(postFiltered)).getOrElse(postFiltered)
 
-    val result = mr.batchFlatMap(limited, extractBatchSize) { batch =>
-      metricCollector.collectResultRows.measure(batch.size) {
-        batch.iterator.map { row =>
-          val c = resultRows.incrementAndGet()
-          val d = if (c <= 100000) 10000 else 100000
-          if (c % d == 0) {
-            logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
+    val result = mr
+      .batchFlatMap(limited, extractBatchSize) { batch =>
+        metricCollector.collectResultRows.measure(batch.size) {
+          batch.iterator.map { row =>
+            {
+              val c = resultRows.incrementAndGet()
+              val d = if (c <= 100000) 10000 else 100000
+              if (c % d == 0) {
+                logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
+              }
+              row.data
+            }.withSavedMetrics(metricCollector)
           }
-          row.data
         }
       }
-    }
 
     finalizeQuery(queryContext, result, metricCollector)
   }
