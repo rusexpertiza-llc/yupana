@@ -16,6 +16,8 @@
 
 package org.yupana.core.utils.metric
 
+import java.util.concurrent.atomic.AtomicReference
+
 trait MetricCollector extends Serializable {
   def id: String
   def operationName: String
@@ -41,9 +43,11 @@ trait MetricCollector extends Serializable {
 
   def startTime: Long = startAt
   def resultDuration: Long = finishAt - startAt
+
+  def queryStatus: AtomicReference[QueryStatus]
 }
 
 object MetricCollector {
   def asSeconds(nanoTime: Long): Double = nanoTime / 1000000000.0
-  def asMillis(nanoTime: Long): Double = nanoTime / 1000.0
+  def asMillis(nanoTime: Long): Double = nanoTime / 1000000.0
 }

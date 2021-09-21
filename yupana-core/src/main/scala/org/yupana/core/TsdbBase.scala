@@ -158,14 +158,12 @@ trait TsdbBase extends StrictLogging {
     val resultRows = new AtomicInteger(0)
 
     val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
-    import org.yupana.core.utils.metric.MetricUtils._
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
       val batchSize = batch.size
       val c = processedRows.incrementAndGet()
       if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
       val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
         readExternalLinks(queryContext, batch)
-          .withSavedMetrics(metricCollector)
       }
 
       metricCollector.extractDataComputation.measure(batchSize) {
@@ -250,7 +248,7 @@ trait TsdbBase extends StrictLogging {
                 logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
               }
               row.data
-            }.withSavedMetrics(metricCollector)
+            }
           }
         }
       }
