@@ -44,5 +44,6 @@ trait MetricCollector extends Serializable {
 }
 
 object MetricCollector {
-  def asSeconds(n: Long): Double = n / 1000000000.0
+  def asSeconds(nanoTime: Long): Double = nanoTime / 1000000000.0
+  def asMillis(nanoTime: Long): Double = nanoTime / 1000.0
 }
