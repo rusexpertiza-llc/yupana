@@ -19,7 +19,7 @@ package org.yupana.core.utils.metric
 sealed trait QueryStatus extends Serializable {
   override def toString: String =
     this.getClass.getSimpleName
-      .replaceAll("$", "")
+      .replaceAll("[$]", "")
       .toUpperCase
 }
 
