@@ -386,15 +386,15 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.2.23"
 
-  val scalaTest = "3.2.9"
+  val scalaTest = "3.2.10"
   val scalaCheck = "1.15.4"
-  val scalaTestCheck = "3.2.9.0"
+  val scalaTestCheck = "3.2.10.0"
   val scalaMock = "5.1.0"
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.14",
+  scalaVersion := "2.12.15",
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.12",

@@ -36,6 +36,8 @@ trait MapReducible[Collection[_]] extends Serializable {
   def reduce[A: ClassTag](c: Collection[A])(f: (A, A) => A): A
   def reduceByKey[K: ClassTag, V: ClassTag](c: Collection[(K, V)])(f: (V, V) => V): Collection[(K, V)]
 
+  def distinct[A: ClassTag](c: Collection[A]): Collection[A]
+
   def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
 
   def materialize[A: ClassTag](c: Collection[A]): Seq[A]
