@@ -41,6 +41,7 @@ class TSDB(
   override type Result = TsdbServerResult
 
   override lazy val extractBatchSize: Int = config.extractBatchSize
+  override lazy val putBatchSize: Int = config.putBatchSize
 
   private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 
@@ -123,4 +124,6 @@ class TSDB(
       throw new Exception(s"Can't find catalog ${catalog.linkName}: ${catalog.fields}")
     )
   }
+
+  override def externalLinkServices: Iterable[ExternalLinkService[_]] = externalLinks.values
 }
