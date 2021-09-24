@@ -58,11 +58,15 @@ trait TsdbBase extends StrictLogging {
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
 
+  /** Batch size for writing values to external links */
+  val putBatchSize: Int
+
   def dictionary(dimension: DictionaryDimension): Dictionary = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 
   def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink]
+  def externalLinkServices: Iterable[ExternalLinkService[_]]
 
   def prepareQuery: Query => Query
 
@@ -285,7 +289,13 @@ trait TsdbBase extends StrictLogging {
   }
 
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
-    val updatedIntervals = dao.put(mapReduceEngine(NoMetricCollector), dataPoints, user.name)
+    val mr = mapReduceEngine(NoMetricCollector)
+    val withExternalLinks = mr.batchFlatMap(dataPoints, putBatchSize) { seq =>
+      externalLinkServices.foreach(_.put(seq))
+      seq
+    }
+    val updatedIntervals = dao.put(mr, withExternalLinks, user.name)
+
     changelogDao.putUpdatesIntervals(updatedIntervals)
   }
 }
