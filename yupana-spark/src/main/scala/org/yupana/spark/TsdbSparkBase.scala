@@ -82,6 +82,7 @@ abstract class TsdbSparkBase(
   override type Result = DataRowRDD
 
   override val extractBatchSize: Int = conf.extractBatchSize
+  override val putBatchSize: Int = conf.putBatchSize
 
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),

@@ -59,6 +59,8 @@ class TsdbTest
       SimpleTsdbConfig(putEnabled = true),
       { _: Query => NoMetricCollector }
     )
+    val externalLinkServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
+    tsdb.registerExternalLink(TestLinks.TEST_LINK, externalLinkServiceMock)
 
     val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
     val dims = Map[Dimension, Any](TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
@@ -77,6 +79,8 @@ class TsdbTest
       .returning(Seq.empty[UpdateInterval])
 
     (changelogDaoMock.putUpdatesIntervals _).expects(Seq.empty)
+
+    (externalLinkServiceMock.put _).expects(Seq(dp1, dp2, dp3))
 
     tsdb.put(Iterator(dp1, dp2, dp3))
   }
