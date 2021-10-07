@@ -25,7 +25,7 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.utils.{ CollectionUtils, ConditionUtils }
+import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
 
 import scala.language.higherKinds
 
@@ -58,11 +58,15 @@ trait TsdbBase extends StrictLogging {
   /** Batch size for reading values from external links */
   val extractBatchSize: Int
 
+  /** Batch size for writing values to external links */
+  val putBatchSize: Int
+
   def dictionary(dimension: DictionaryDimension): Dictionary = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 
   def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink]
+  def externalLinkServices: Iterable[ExternalLinkService[_]]
 
   def prepareQuery: Query => Query
 
@@ -266,22 +270,32 @@ trait TsdbBase extends StrictLogging {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val substituted = linkServices.map(service =>
+    val transformations = linkServices.flatMap(service =>
       metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.condition(condition)
+        service.transformCondition(condition)
       }
     )
 
-    if (substituted.nonEmpty) {
-      val merged = substituted.reduceLeft(ConditionUtils.merge)
-      ConditionUtils.split(merged)(c => linkServices.exists(_.isSupportedCondition(c)))._2
+    if (transformations.nonEmpty) {
+      val tbc = TimeBoundedCondition.single(constantCalculator, condition)
+      val transformed = transformations.foldLeft(tbc) {
+        case (c, transform) =>
+          ConditionUtils.transform(c, transform)
+      }
+      transformed.toCondition
     } else {
       condition
     }
   }
 
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
-    val updatedIntervals = dao.put(mapReduceEngine(NoMetricCollector), dataPoints, user.name)
+    val mr = mapReduceEngine(NoMetricCollector)
+    val withExternalLinks = mr.batchFlatMap(dataPoints, putBatchSize) { seq =>
+      externalLinkServices.foreach(_.put(seq))
+      seq
+    }
+    val updatedIntervals = dao.put(mr, withExternalLinks, user.name)
+
     changelogDao.putUpdatesIntervals(updatedIntervals)
   }
 }

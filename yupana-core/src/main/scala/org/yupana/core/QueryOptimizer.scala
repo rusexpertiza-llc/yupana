@@ -51,16 +51,18 @@ object QueryOptimizer {
 
   def simplifyCondition(condition: Condition): Condition = {
     condition match {
-      case AndExpr(cs) => and(cs.flatMap(optimizeAnd))
+      case AndExpr(cs) => or(optimizeAnd(List.empty, cs.toList))
       case OrExpr(cs)  => or(cs.flatMap(optimizeOr))
       case c           => c
     }
   }
 
-  private def optimizeAnd(c: Condition): Seq[Condition] = {
-    c match {
-      case AndExpr(cs) => cs.flatMap(optimizeAnd)
-      case x           => Seq(simplifyCondition(x))
+  private def optimizeAnd(topAnd: List[Condition], cs: List[Condition]): List[Condition] = {
+    cs match {
+      case Nil                 => List(and(topAnd.reverse))
+      case AndExpr(as) :: rest => optimizeAnd(topAnd, as.toList ::: rest)
+      case OrExpr(os) :: rest  => os.flatMap(optimizeOr).flatMap(o => optimizeAnd(o :: topAnd, rest)).toList
+      case x :: rest           => optimizeAnd(x :: topAnd, rest)
     }
   }
 

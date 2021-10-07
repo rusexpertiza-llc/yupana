@@ -81,7 +81,7 @@ trait TsdbMocks extends MockFactory {
 
     (tsdbDaoMock.mapReduceEngine _)
       .expects(*)
-      .onCall((_: MetricQueryCollector) => MapReducible.iteratorMR)
+      .onCall((_: MetricQueryCollector) => IteratorMapReducible.iteratorMR)
       .anyNumberOfTimes()
 
     val dictionaryDaoMock = mock[DictionaryDao]
