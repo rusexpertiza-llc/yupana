@@ -182,11 +182,10 @@ lazy val spark = (project in file("yupana-spark"))
   .settings(
     name := "yupana-spark",
     allSettings,
-    resolvers += "Spark 3.2.0 staging" at "https://repository.apache.org/content/repositories/orgapachespark-1388",
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
     )
@@ -265,9 +264,9 @@ lazy val examples = (project in file("yupana-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark.value          % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark.value          % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
       "com.zaxxer"                  %  "HikariCP"                       % versions.hikariCP,
       "org.postgresql"              %  "postgresql"                     % versions.postgresqlJdbc       % Runtime,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
@@ -344,7 +343,7 @@ lazy val docs = project
       "SCALA_VERSION" -> minMaj(scalaVersion.value, "2.12"),
       "HBASE_VERSION" -> minMaj(versions.hbase, "1.3"),
       "HADOOP_VERSION" -> minMaj(versions.hadoop, "3.0"),
-      "SPARK_VERSION" -> minMaj(versions.spark_212, "2.4"),
+      "SPARK_VERSION" -> minMaj(versions.spark, "2.4"),
       "IGNITE_VERSION" -> versions.ignite
     )
   )
@@ -361,16 +360,7 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val colCompat = "2.5.0"
 
-  val spark_212 = "3.1.2"
-  val spark_213 = "3.2.0"
-
-  val spark = Def.setting(
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 12)) => spark_212
-      case Some((2, 13)) => spark_213
-      case _             => sys.error(s"Unsupported Scala version ${scalaVersion.value}")
-    }
-  )
+  val spark = "3.2.0"
 
   val joda = "2.10.10"
 
