@@ -17,8 +17,6 @@
 package org.yupana.externallinks.universal
 
 import com.typesafe.scalalogging.StrictLogging
-
-import javax.sql.DataSource
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr, Replace, TransformCondition }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
@@ -30,6 +28,8 @@ import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
+
+import javax.sql.DataSource
 
 class SQLSourcedExternalLinkService[DimensionValue](
     override val schema: Schema,
@@ -67,7 +67,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
 
   override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      expressionCalculator,
+      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,

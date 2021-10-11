@@ -111,7 +111,7 @@ class ItemsInvertedIndexImpl(
 
   override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      expressionCalculator,
+      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,

@@ -47,12 +47,12 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(DateTimeFieldType.minuteOfHour()))
       case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(DateTimeFieldType.secondOfMinute()))
 
-      case ExtractYearExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getYear)
-      case ExtractMonthExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMonthOfYear)
-      case ExtractDayExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getDayOfMonth)
-      case ExtractHourExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getHourOfDay)
-      case ExtractMinuteExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getMinuteOfHour)
-      case ExtractSecondExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getSecondOfMinute)
+      case ExtractYearExpr(e)   => evaluateUnary(e)(_.localDateTime.getYear)
+      case ExtractMonthExpr(e)  => evaluateUnary(e)(_.localDateTime.getMonthOfYear)
+      case ExtractDayExpr(e)    => evaluateUnary(e)(_.localDateTime.getDayOfMonth)
+      case ExtractHourExpr(e)   => evaluateUnary(e)(_.localDateTime.getHourOfDay)
+      case ExtractMinuteExpr(e) => evaluateUnary(e)(_.localDateTime.getMinuteOfHour)
+      case ExtractSecondExpr(e) => evaluateUnary(e)(_.localDateTime.getSecondOfMinute)
 
       case p @ PlusExpr(a, b)    => evaluateBinary(a, b)(p.numeric.plus)
       case m @ MinusExpr(a, b)   => evaluateBinary(a, b)(m.numeric.minus)
@@ -102,8 +102,8 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case NotExpr(e) => evaluateUnary(e)(x => !x)
 
       case TimeMinusExpr(a, b)        => evaluateBinary(a, b)((x, y) => math.abs(x.millis - y.millis))
-      case TimeMinusPeriodExpr(a, b)  => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
-      case TimePlusPeriodExpr(a, b)   => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.plus(p).getMillis))
+      case TimeMinusPeriodExpr(a, b)  => evaluateBinary(a, b)((t, p) => Time(t.dateTime.minus(p).getMillis))
+      case TimePlusPeriodExpr(a, b)   => evaluateBinary(a, b)((t, p) => Time(t.dateTime.plus(p).getMillis))
       case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b)((x, y) => x plus y)
 
       case ArrayTokensExpr(e)   => evaluateUnary(e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))

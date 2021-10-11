@@ -75,7 +75,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
 
   override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformCondition(
-      expressionCalculator,
+      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,

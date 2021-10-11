@@ -2680,10 +2680,10 @@ class TsdbTest
     forAll(t) { (time, lagTime, testField, tagA, tagB) =>
       val r = results.next()
 
-      r.get[Time]("time_time").toLocalDateTime.withMillisOfSecond(0) shouldBe time
+      r.get[Time]("time_time").localDateTime.withMillisOfSecond(0) shouldBe time
       val rowLagTime = r.get[Time]("lag_time_time")
       if (rowLagTime != null) {
-        rowLagTime.toLocalDateTime.withMillisOfSecond(0) shouldBe lagTime
+        rowLagTime.localDateTime.withMillisOfSecond(0) shouldBe lagTime
       }
       r.get[Double]("testField") shouldBe testField
       r.get[String]("A") shouldBe tagA

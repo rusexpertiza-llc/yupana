@@ -16,8 +16,11 @@
 
 package org.yupana.core.utils
 
+import org.yupana.api.Time
+import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ DimensionExpr, Expression, LinkExpr, MetricExpr }
 import org.yupana.api.schema.{ Dimension, Metric }
+import org.yupana.core.ConstantCalculator
 
 object QueryUtils {
   def requiredMetrics(e: Expression[_]): Set[Metric] = {
@@ -39,6 +42,18 @@ object QueryUtils {
     e.fold(Set.empty[LinkExpr[_]]) {
       case (s, l: LinkExpr[_]) => s + l
       case (s, _)              => s
+    }
+  }
+
+  def getFromTo(filterOpt: Option[Condition], constantCalculator: ConstantCalculator): (Time, Time) = {
+    filterOpt match {
+      case Some(filter) =>
+        val tbc = TimeBoundedCondition.single(constantCalculator, filter)
+        val from = tbc.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
+        val to = tbc.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
+        Time(from) -> Time(to)
+      case None =>
+        throw new IllegalArgumentException("Filter cannot be empty!")
     }
   }
 

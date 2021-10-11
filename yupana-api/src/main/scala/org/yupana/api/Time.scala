@@ -23,11 +23,13 @@ import org.yupana.api.utils.DimOrdering
   * Simple time value implementation.
   * @param millis epoch milliseconds in UTC.
   */
-case class Time(millis: Long) {
-  def toLocalDateTime: LocalDateTime = new LocalDateTime(millis, DateTimeZone.UTC)
-  def toDateTime: DateTime = new DateTime(millis, DateTimeZone.UTC)
+case class Time(millis: Long) extends Ordered[Time] {
+  lazy val localDateTime: LocalDateTime = new LocalDateTime(millis, DateTimeZone.UTC)
+  lazy val dateTime: DateTime = new DateTime(millis, DateTimeZone.UTC)
 
-  override def toString: String = toDateTime.toString
+  override def toString: String = dateTime.toString
+
+  override def compare(that: Time): Int = this.millis.compare(that.millis)
 }
 
 object Time {

@@ -16,7 +16,6 @@
 
 package org.yupana.core
 
-import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -27,6 +26,7 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, K
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.language.higherKinds
 
 /**
@@ -259,8 +259,8 @@ trait TsdbBase extends StrictLogging {
   def readExternalLinks(queryContext: QueryContext, rows: Seq[InternalRow]): Seq[InternalRow] = {
     queryContext.linkExprs.groupBy(_.link).foreach {
       case (c, exprs) =>
-        val catalog = linkService(c)
-        catalog.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet)
+        val externalLink = linkService(c)
+        externalLink.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet)
     }
     rows
   }
