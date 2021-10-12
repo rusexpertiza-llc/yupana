@@ -883,7 +883,7 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
-    Time(time.dateTime.property(fieldType).roundFloorCopy().getMillis)
+    Time(time.toDateTime.property(fieldType).roundFloorCopy().getMillis)
   }
 
   def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {

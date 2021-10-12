@@ -45,16 +45,11 @@ object QueryUtils {
     }
   }
 
-  def getFromTo(filterOpt: Option[Condition], constantCalculator: ConstantCalculator): (Time, Time) = {
-    filterOpt match {
-      case Some(filter) =>
-        val tbc = TimeBoundedCondition.single(constantCalculator, filter)
-        val from = tbc.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-        val to = tbc.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
-        Time(from) -> Time(to)
-      case None =>
-        throw new IllegalArgumentException("Filter cannot be empty!")
-    }
+  def getFromTo(filter: Condition, constantCalculator: ConstantCalculator): (Time, Time) = {
+    val tbc = TimeBoundedCondition.single(constantCalculator, filter)
+    val from = tbc.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
+    val to = tbc.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
+    Time(from) -> Time(to)
   }
 
 }
