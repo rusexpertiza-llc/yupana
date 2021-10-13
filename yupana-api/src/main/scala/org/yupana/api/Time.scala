@@ -18,7 +18,6 @@ package org.yupana.api
 
 import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.yupana.api.utils.DimOrdering
-import scala.language.implicitConversions
 
 /**
   * Simple time value implementation.
@@ -34,10 +33,7 @@ case class Time(millis: Long) extends Ordered[Time] {
 }
 
 object Time {
-  implicit val ordering: Ordering[Time] = Ordering.by(_.millis)
-  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(ordering.compare)
-
-  implicit def ordered(value: Time): Ordered[Time] = Ordered.orderingToOrdered(value)
+  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(Ordering.by[Time, Long](_.millis).compare)
 
   implicit class TimeOps(t: Time) {
     def plus(value: Long): Time = t.copy(t.millis + value)
