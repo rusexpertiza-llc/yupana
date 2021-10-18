@@ -65,6 +65,11 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
+  override def distinct[A: ClassTag](rdd: RDD[A]): RDD[A] = {
+    val r = rdd.distinct()
+    saveMetricOnCompleteRdd(r)
+  }
+
   override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {
     val rdd = saveMetricOnCompleteRdd(c)
     val r = sparkContext.parallelize(ArraySeq.unsafeWrapArray(rdd.take(n)))

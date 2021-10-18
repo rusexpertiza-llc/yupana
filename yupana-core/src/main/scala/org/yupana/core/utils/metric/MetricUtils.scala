@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.core.utils.metric
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
-  val reduceLimit: Int
+object MetricUtils {
+
+  implicit class SavedMetrics[T](func: => T) {
+    def withSavedMetrics(metricCollector: MetricQueryCollector): T =
+      try func
+      catch {
+        case throwable: Throwable =>
+          metricCollector.queryStatus.lazySet(Failed(throwable))
+          metricCollector.finish()
+          throw throwable
+      }
+  }
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50,
-    reduceLimit: Int = Int.MaxValue
-) extends TsdbConfig

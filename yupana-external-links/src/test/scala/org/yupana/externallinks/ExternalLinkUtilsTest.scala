@@ -3,7 +3,7 @@ package org.yupana.externallinks
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.yupana.api.Time
-import org.yupana.api.query.Expression
+import org.yupana.api.query.{ ConstantExpr, Expression, Original, Replace, TransformCondition }
 import org.yupana.api.query.Expression.Condition
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.InternalRowBuilder
@@ -20,76 +20,87 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
 
   val calculator = new ConstantCalculator(RussianTokenizer)
 
-  private def condition(condition: Condition): Condition = {
+  private def transform(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils
-      .transformConditionT[String](calculator, TestLink.linkName, condition, includeCondition, excludeCondition)
+      .transformConditionT[String](calculator, TestLink.linkName, condition, includeTransform, excludeTransform)
   }
 
-  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
-    and(values.map {
-      case (field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
-    }: _*)
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+    Replace(
+      values.map(_._1).toSet,
+      and(values.map {
+        case (_, field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
+      }: _*)
+    )
   }
 
-  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
-    and(values.map {
-      case (field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
-    }: _*)
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+    Replace(
+      values.map(_._1).toSet,
+      and(values.map {
+        case (_, field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
+      }: _*)
+    )
   }
 
   "ExternalLinkUtils" should "support == condition" in {
-    condition(
-      and(
-        gt(time, const(Time(1000))),
-        lt(time, const(Time(2000))),
-        equ(lower(link(TestLink, TestLink.field1)), const("foo"))
+    val c = equ(lower(link(TestLink, TestLink.field1)), const("foo"))
+    transform(c) shouldEqual Seq(
+      Replace(
+        Set(c),
+        and(in(dimension(xDim), Set("field1_foo")))
       )
-    ) shouldEqual and(
-      ge(time, const(Time(1001))),
-      lt(time, const(Time(2000))),
-      in(dimension(xDim), Set("field1_foo"))
     )
   }
 
   it should "support IN condition" in {
-    condition(
+    val c1 = equ(lower(link(TestLink, TestLink.field2)), const("bar"))
+    val c2 = in(lower(link(TestLink, TestLink.field3)), Set("aaa", "bbb"))
+    val conditions = transform(
       and(
-        equ(lower(link(TestLink, TestLink.field2)), const("bar")),
-        in(lower(link(TestLink, TestLink.field3)), Set("aaa", "bbb")),
-        neq(dimension(yDim), const(4))
+        c1,
+        c2
       )
-    ) shouldEqual and(
-      in(dimension(xDim), Set("field2_bar")),
-      in(dimension(xDim), Set("field3_aaa", "field3_bbb")),
-      neq(dimension(yDim), const(4))
+    )
+    conditions shouldEqual Seq(
+      Replace(
+        Set(c1, c2),
+        and(
+          in(dimension(xDim), Set("field2_bar")),
+          in(dimension(xDim), Set("field3_aaa", "field3_bbb"))
+        )
+      )
     )
   }
 
   it should "support != condition" in {
-    condition(
-      and(
-        ge(time, const(Time(1000))),
-        lt(time, const(Time(2000))),
-        neq(lower(link(TestLink, TestLink.field1)), const("foo"))
+    val c = neq(lower(link(TestLink, TestLink.field1)), const("foo"))
+    transform(c) shouldEqual Seq(
+      Replace(
+        Set(c),
+        and(
+          notIn(dimension(xDim), Set("field1_foo"))
+        )
       )
-    ) shouldEqual and(
-      ge(time, const(Time(1000))),
-      lt(time, const(Time(2000))),
-      notIn(dimension(xDim), Set("field1_foo"))
     )
   }
 
   it should "support NOT IN condition" in {
-    condition(
+    val conditions = transform(
       and(
         in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
-        notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb")),
-        neq(dimension(yDim), const(33))
+        notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))
       )
-    ) shouldEqual and(
-      in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")),
-      notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")),
-      neq(dimension(yDim), const(33))
+    )
+
+    conditions shouldEqual Seq(
+      Replace(
+        Set(notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))),
+        and(notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")))
+      ),
+      Original(
+        Set(in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")))
+      )
     )
   }
 
@@ -138,10 +149,10 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
   it should "cross join multiple values" in {
     ExternalLinkUtils.crossJoinFieldValues(
       Seq(
-        "foo" -> Set(1, 2, 3),
-        "bar" -> Set(3, 4),
-        "foo" -> Set(2, 3, 4, 5),
-        "baz" -> Set(42)
+        (ConstantExpr(true), "foo", Set(1, 2, 3)),
+        (ConstantExpr(true), "bar", Set(3, 4)),
+        (ConstantExpr(true), "foo", Set(2, 3, 4, 5)),
+        (ConstantExpr(true), "baz", Set(42))
       )
     ) should contain theSameElementsAs Seq(
       Map("foo" -> 2, "bar" -> 3, "baz" -> 42),

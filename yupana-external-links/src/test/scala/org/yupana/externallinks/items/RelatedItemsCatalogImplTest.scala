@@ -1,15 +1,15 @@
 package org.yupana.externallinks.items
 
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.Query
-import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.api.query.{ Query, Replace }
 import org.yupana.core._
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 import org.yupana.schema.{ Dimensions, Tables }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
@@ -31,7 +31,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val qc1 = QueryContext(expQuery1, None)
 
-    (tsdb.mapReduceEngine _).expects(*).returning(MapReducible.iteratorMR).anyNumberOfTimes()
+    (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery1)
@@ -68,25 +68,32 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
         )
       )
 
-    val condition = catalog.condition(
+    val c1 = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("хлеб ржаной"))
+    val c2 = notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
+
+    val conditions = catalog.transformCondition(
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("хлеб ржаной")),
-        notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
+        c1,
+        c2
       )
     )
 
-    condition shouldEqual and(
-      ge(time, const(Time(100L))),
-      lt(time, const(Time(500L))),
-      in(
-        tuple(time, dimension(Dimensions.KKM_ID)),
-        Set((Time(120L), 123456), (Time(150L), 123456), (Time(120L), 345112))
+    conditions shouldEqual Seq(
+      Replace(
+        Set(c1),
+        in(
+          tuple(time, dimension(Dimensions.KKM_ID)),
+          Set((Time(120L), 123456), (Time(150L), 123456), (Time(120L), 345112))
+        )
       ),
-      notIn(
-        tuple(time, dimension(Dimensions.KKM_ID)),
-        Set((Time(125L), 123456), (Time(120L), 123456))
+      Replace(
+        Set(c2),
+        notIn(
+          tuple(time, dimension(Dimensions.KKM_ID)),
+          Set((Time(125L), 123456), (Time(120L), 123456))
+        )
       )
     )
   }
@@ -105,7 +112,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val qc = QueryContext(expQuery, None)
 
-    (tsdb.mapReduceEngine _).expects(*).returning(MapReducible.iteratorMR).anyNumberOfTimes()
+    (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery)
@@ -119,20 +126,22 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
         )
       )
 
-    val condition = catalog.condition(
+    val c = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
+    val conditions = catalog.transformCondition(
       and(
         ge(time, const(Time(100L))),
         lt(time, const(Time(500L))),
-        in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
+        c
       )
     )
 
-    condition shouldEqual and(
-      ge(time, const(Time(100L))),
-      lt(time, const(Time(500L))),
-      in(
-        tuple(time, dimension(Dimensions.KKM_ID)),
-        Set((Time(220L), 123456), (Time(330L), 654321))
+    conditions shouldEqual Seq(
+      Replace(
+        Set(c),
+        in(
+          tuple(time, dimension(Dimensions.KKM_ID)),
+          Set((Time(220L), 123456), (Time(330L), 654321))
+        )
       )
     )
   }

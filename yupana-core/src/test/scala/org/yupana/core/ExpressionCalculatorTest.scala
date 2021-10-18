@@ -411,4 +411,32 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         .buildAndReset()
     ) shouldBe false
   }
+
+  it should "handle large input data arrays" in {
+    val now = DateTime.now()
+    val cond = in(metric(TestTableFields.TEST_LONG_FIELD), (1L to 1000000L).toSet)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        metric(TestTableFields.TEST_FIELD) as "F"
+      )
+    )
+
+    val qc = QueryContext(query, Some(cond))
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    calc.evaluateFilter(
+      RussianTokenizer,
+      builder
+        .set(Time(now.minusDays(1)))
+        .set(metric(TestTableFields.TEST_FIELD), 42d)
+        .set(metric(TestTableFields.TEST_LONG_FIELD), 2234512L)
+        .buildAndReset()
+    ) shouldBe false
+  }
 }

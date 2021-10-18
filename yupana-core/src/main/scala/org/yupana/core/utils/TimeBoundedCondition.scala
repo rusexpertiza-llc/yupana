@@ -48,19 +48,12 @@ object TimeBoundedCondition {
     }
   }
 
-  def apply(from: Long, to: Long, condition: Condition): TimeBoundedCondition = {
-    QueryOptimizer.simplifyCondition(condition) match {
-      case AndExpr(cs) => TimeBoundedCondition(Some(from), Some(to), cs)
-      case o: OrExpr   => throw new IllegalArgumentException(s"Or not supported yet $o")
-      case c           => TimeBoundedCondition(Some(from), Some(to), Seq(c))
-    }
-  }
-
-  def toCondition(conditions: Seq[TimeBoundedCondition]): Condition = {
-    conditions.map(_.toCondition) match {
-      case Nil    => ConstantExpr(true)
-      case Seq(x) => x
-      case xs     => OrExpr(xs)
+  def single(expressionCalculator: ConstantCalculator, condition: Condition): TimeBoundedCondition = {
+    TimeBoundedCondition(expressionCalculator, condition) match {
+      case Seq(tbc) =>
+        tbc
+      case _ =>
+        throw new IllegalArgumentException("Using of several TimeBoundedCondition are unsupported!")
     }
   }
 
