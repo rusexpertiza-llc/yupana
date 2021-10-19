@@ -323,6 +323,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
+    scalaVersion := "2.13.6",
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -384,7 +385,7 @@ lazy val versions = new {
   val ehcache = "3.3.2"
   val caffeine = "2.8.6"
 
-  val json4s = "3.6.6"
+  val json4s = "3.7.0-M11" // Same version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
