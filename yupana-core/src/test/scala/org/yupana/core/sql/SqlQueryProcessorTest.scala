@@ -1119,6 +1119,18 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "fail if field name is ambiguous" in {
+    val q =
+      """SELECT sum(testField) as testField
+        |  FROM test_table
+        |  WHERE time >= timestamp '2021-10-21' and time <= timestamp '2021-10-22'
+        |       AND testField = 'a'""".stripMargin
+
+    inside(createQuery(q)) {
+      case Left(msg) => msg shouldEqual "Ambiguous field testField"
+    }
+  }
+
   it should "handle standard health check" in {
     testQuery("SELECT 1 as one") { q =>
       q.table shouldBe empty
