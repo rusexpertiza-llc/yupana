@@ -15,6 +15,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 class TsdbDataFilterTest
     extends AnyFlatSpec
@@ -519,7 +520,7 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.get[Time]("t") shouldBe Time(from.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("testField") shouldBe 10d
     r1.get[String]("A") shouldBe "test1a"
     r1.get[String]("B") shouldBe "test2b"
@@ -528,7 +529,7 @@ class TsdbDataFilterTest
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val sql = "SELECT day(time) AS t, testField, A, B, TestLink_testField AS ctf " +
+    val sql = "SELECT hour(time) AS t, testField, A, B, TestLink_testField AS ctf " +
       "FROM test_table WHERE ctf IS NOT NULL" + timeBounds()
     val query = createQuery(sql)
 
@@ -587,7 +588,7 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.get[Time]("t") shouldBe Time(from.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.HOURS).toInstant.toEpochMilli)
     r1.get[Double]("testField") shouldBe 30d
     r1.get[String]("A") shouldBe "test2a"
     r1.get[String]("B") shouldBe "test3b"
@@ -693,7 +694,7 @@ class TsdbDataFilterTest
       results should have size 1
 
       val r1 = results.head
-      r1.get[Time]("t") shouldBe Time(from.withNano(0).toInstant.toEpochMilli)
+      r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       r1.get[Double]("testField") shouldBe 1003d
       r1.get[String]("A") shouldBe "test1a"
       r1.get[Short]("B") shouldBe 15.toShort
@@ -769,7 +770,7 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.get[Time]("d") shouldBe Time(from.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("d") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("quantity") shouldBe 1011d
   }
 

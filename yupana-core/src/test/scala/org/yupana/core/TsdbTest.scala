@@ -567,7 +567,7 @@ class TsdbTest
 
     val row = tsdb.query(query).head
 
-    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.SECONDS).toInstant.toEpochMilli)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test1"
     row.get[String]("B") shouldBe "test2"
@@ -640,12 +640,12 @@ class TsdbTest
     results should have size (2)
 
     val group1 = results(0)
-    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.SECONDS).toInstant.toEpochMilli)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[Double]("sum_testField") shouldBe 2d
     group1.get[String]("A") shouldBe "test12"
 
     val group2 = results(1)
-    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.SECONDS).toInstant.toEpochMilli)
+    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group2.get[Double]("sum_testField") shouldBe 4d
     group2.get[String]("A") shouldBe "test1"
   }
@@ -718,12 +718,12 @@ class TsdbTest
     results should have size 2
 
     val group1 = results(0)
-    group1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[Double]("testField") shouldBe 1d
     group1.get[Int]("A") shouldBe 4
 
     val group2 = results(1)
-    group2.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group2.get[Double]("testField") shouldBe 2d
     group2.get[Int]("A") shouldBe 2
   }
@@ -884,14 +884,14 @@ class TsdbTest
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("A") shouldBe "test1"
     r1.get[String]("B") shouldBe "test2"
     r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 2d
     r2.get[String]("A") shouldBe "test12"
     r2.get[String]("B") shouldBe "test2"
@@ -1122,7 +1122,7 @@ class TsdbTest
     rows should have size 1
     val row = rows.head
 
-    row.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test13"
     row.get[String]("B") shouldBe "test21"
@@ -1222,7 +1222,7 @@ class TsdbTest
       rows should have size 1
       val row = rows.head
 
-      row.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+      row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       row.get[Double]("sum_testField") shouldBe 2d
       row.get[String]("A") shouldBe "test13"
       row.get[String]("B") shouldBe "test21"
@@ -1361,7 +1361,7 @@ class TsdbTest
       rows should have size 1
       val row = rows.head
 
-      row.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+      row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       row.get[Double]("sum_testField") shouldBe 2d
       row.get[String]("A") shouldBe "test13"
       row.get[String]("B") shouldBe "test21"
@@ -1586,7 +1586,7 @@ class TsdbTest
 
       val result = tsdb.query(query).toList
       val r1 = result.head
-      r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+      r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       r1.get[Double]("sum_testField") shouldBe 2d
       r1.get[String]("A") shouldBe "test12"
       r1.get[String]("B") shouldBe "test2"
@@ -1704,7 +1704,7 @@ class TsdbTest
 
     val result = tsdb.query(query).toList
     val r1 = result.head
-    r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 6d
     r1.get[String]("A") shouldBe "test12"
     r1.get[Short]("B") shouldBe 23.toShort
@@ -2015,12 +2015,12 @@ class TsdbTest
     results should have size 2
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 4d
     r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue1"
   }
@@ -2086,7 +2086,7 @@ class TsdbTest
       )
       .repeated(3)
 
-    val startDay = Time(qtime.withNano(0).toInstant.toEpochMilli)
+    val startDay = Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
 
     val r1 = tsdb.query(query1).head
     r1.get[Time]("time") shouldBe startDay
@@ -2211,14 +2211,14 @@ class TsdbTest
     rs should have size 2
 
     val r1 = rs(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
     r1.get[String]("TestCatalog3_testField3-2") shouldBe "Value1"
     r1.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
 
     val r2 = rs(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 3d
     r2.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
     r2.get[String]("TestCatalog3_testField3-2") shouldBe "Value2"
@@ -2281,7 +2281,7 @@ class TsdbTest
       )
 
     val r = tsdb.query(query).head
-    r.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r.get[Time]("min_time") shouldBe Time(pointTime1)
     r.get[Time]("max_time") shouldBe Time(pointTime3)
     r.get[Double]("sum_testField") shouldBe 3d
@@ -2340,7 +2340,7 @@ class TsdbTest
     val row = tsdb.query(query).head
 
     row.get[BigDecimal]("dummy") shouldEqual BigDecimal(1)
-    row.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test1"
     row.get[String]("B") shouldBe "test2"
@@ -2395,7 +2395,7 @@ class TsdbTest
 
     val row = tsdb.query(query).head
 
-    row.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[Long]("count_A") shouldBe 2L
     row.get[String]("B") shouldBe "test2"
@@ -2495,13 +2495,13 @@ class TsdbTest
     results should have size 2
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("A") shouldBe "test1"
     r1.get[Long]("count_TestCatalog_testField") shouldBe 2L
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 2d
     r2.get[String]("A") shouldBe "test12"
     r2.get[Long]("count_TestCatalog_testField") shouldBe 2L
@@ -2580,14 +2580,14 @@ class TsdbTest
     results should have size (2)
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[Long]("count_A") shouldBe 2L
     r1.get[Int]("distinct_count_A") shouldBe 1
     r1.get[String]("B") shouldBe "testB2"
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 4d
     r2.get[Long]("count_A") shouldBe 4L
     r2.get[Int]("distinct_count_A") shouldBe 2
@@ -2765,7 +2765,7 @@ class TsdbTest
     val results = tsdb.query(query).iterator
 
     val group1 = results.next()
-    group1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[BigDecimal]("between_10_20") shouldBe BigDecimal(2)
     group1.get[String]("A") shouldBe "test1"
   }
@@ -2830,7 +2830,7 @@ class TsdbTest
     val results = tsdb.query(query).iterator
 
     val group1 = results.next()
-    group1.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[BigDecimal]("between_10_20") shouldBe BigDecimal(0)
     group1.get[String]("A") shouldBe "test1"
   }
@@ -2901,7 +2901,7 @@ class TsdbTest
     results should have size 1
 
     val r = results.head
-    r.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    r.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r.get[Double]("sum_testField") shouldBe 4d
     r.get[String]("A") shouldBe "test1"
   }
@@ -3112,7 +3112,7 @@ class TsdbTest
 
     val row = tsdb.query(query).head
 
-    row.get[Time]("time") shouldBe Time(qtime.withNano(0).toInstant.toEpochMilli)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 0
     row.get[Long]("count_testField") shouldBe 0
     row.get[Long]("distinct_count_testField") shouldBe 0

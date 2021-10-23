@@ -20,14 +20,14 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 
-import java.time.temporal.ChronoUnit
+import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 
 class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
   def evaluateConstant[T](expr: Expression[T]): T = {
     assert(expr.kind == Const)
 
-    import ExpressionCalculator.truncateTime
+    import ExpressionCalculator.{ truncateTime, firstDayOfWeek }
 
     expr match {
       case ConstantExpr(x) => x
@@ -40,10 +40,10 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
           evaluateConstant(negative)
         }
 
-      case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.YEARS))
-      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(ChronoUnit.MONTHS))
+      case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear()))
+      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth()))
+      case TruncWeekExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.previousOrSame(firstDayOfWeek)))
       case TruncDayExpr(e)    => evaluateUnary(e)(truncateTime(ChronoUnit.DAYS))
-      case TruncWeekExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.WEEKS))
       case TruncHourExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.HOURS))
       case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.MINUTES))
       case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.SECONDS))

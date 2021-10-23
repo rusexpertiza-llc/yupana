@@ -8,7 +8,7 @@ import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
-import java.time.temporal.ChronoUnit
+import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
@@ -61,7 +61,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       const(Time(now)),
       Seq(
         metric(TestTableFields.TEST_FIELD) as "F",
-        truncDay(time) as "T",
+        truncMonth(time) as "T",
         divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)) as "PRICE",
         plus(dimension(TestDims.DIM_B), const(1.toShort)) as "B_PLUS_1",
         divInt(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb",
@@ -82,8 +82,12 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     calc.evaluateExpressions(RussianTokenizer, row)
     row.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
-    row.get(qc, truncDay(time)) shouldEqual Time(
-      now.withOffsetSameInstant(ZoneOffset.UTC).minusDays(2).truncatedTo(ChronoUnit.DAYS)
+    row.get(qc, truncMonth(time)) shouldEqual Time(
+      now
+        .withOffsetSameInstant(ZoneOffset.UTC)
+        .minusDays(2)
+        .`with`(TemporalAdjusters.firstDayOfMonth())
+        .truncatedTo(ChronoUnit.DAYS)
     )
 
     val rowWithNulls = builder

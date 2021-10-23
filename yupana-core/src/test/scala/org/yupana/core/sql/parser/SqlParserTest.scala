@@ -88,7 +88,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       ("SQL", "period"),
       ("INTERVAL '1-10' YEAR TO MONTH", PeriodDuration.of(Period.ofYears(1).plusMonths(10))),
       ("INTERVAL '10:15' HOUR TO MINUTE", PeriodDuration.of(Duration.ofHours(10).plusMinutes(15))),
-      ("INTERVAL '400 5' DAY TO HOUR", PeriodDuration.of(Duration.ofDays(400).plusHours(5))),
+      ("INTERVAL '400 5' DAY TO HOUR", PeriodDuration.of(Period.ofDays(400), Duration.ofHours(5))),
       ("INTERVAL '10:22' MINUTE TO SECOND", PeriodDuration.of(Duration.ofMinutes(10).plusSeconds(22))),
       (
         "INTERVAL '5:10:22.6' hour to second",

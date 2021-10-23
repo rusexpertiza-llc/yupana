@@ -26,7 +26,9 @@ import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
 import java.sql.Types
-import java.time.temporal.TemporalUnit
+import java.time.DayOfWeek
+import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit, WeekFields }
+import java.util.Locale
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
@@ -434,7 +436,9 @@ object ExpressionCalculator extends StrictLogging {
   )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
+  private val fdw = q"_root_.org.yupana.core.ExpressionCalculator.firstDayOfWeek"
   private val cru = q"_root_.java.time.temporal.ChronoUnit"
+  private val adj = q"_root_.java.time.temporal.TemporalAdjusters"
 
   private def ordValName(dt: DataType): TermName = {
     TermName(s"ord_${dt.toString}")
@@ -515,11 +519,11 @@ object ExpressionCalculator extends StrictLogging {
 
         case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
 
-        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.YEARS)($x)""")
+        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.firstDayOfYear)($x)""")
         case TruncMonthExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.MONTHS)($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.firstDayOfMonth)($x)""")
         case TruncWeekExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.WEEKS)($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.previousOrSame($fdw))($x)""")
         case TruncDayExpr(a) =>
           mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.DAYS)($x)""")
         case TruncHourExpr(a) =>
@@ -882,8 +886,14 @@ object ExpressionCalculator extends StrictLogging {
       .replaceAll("\\.\\$less", " < ")
   }
 
-  def truncateTime(fieldType: TemporalUnit)(time: Time): Time = {
-    Time(time.toDateTime.truncatedTo(fieldType).toInstant.toEpochMilli)
+  val firstDayOfWeek: DayOfWeek = WeekFields.of(Locale.getDefault).getFirstDayOfWeek
+
+  def truncateTime(adjuster: TemporalAdjuster)(time: Time): Time = {
+    Time(time.toDateTime.`with`(adjuster).truncatedTo(ChronoUnit.DAYS))
+  }
+
+  def truncateTime(unit: TemporalUnit)(time: Time): Time = {
+    Time(time.toDateTime.truncatedTo(unit))
   }
 
   def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {
