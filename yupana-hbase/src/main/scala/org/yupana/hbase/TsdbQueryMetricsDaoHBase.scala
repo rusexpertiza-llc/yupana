@@ -21,7 +21,6 @@ import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableName }
-import org.joda.time.DateTime
 import org.yupana.api.query.Query
 import org.yupana.api.utils.GroupByIterator
 import org.yupana.api.utils.ResourceUtils.using
@@ -32,6 +31,7 @@ import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core.utils.metric.{ MetricCollector, NoMetricCollector }
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
+import java.time.{ Duration, Instant, OffsetDateTime, ZoneOffset }
 import scala.collection.JavaConverters._
 
 object TsdbQueryMetricsDaoHBase {
@@ -171,23 +171,30 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       state = QueryStates.getByName(Bytes.toString(result.getValue(FAMILY, STATE_QUALIFIER))),
       engine = Bytes.toString(result.getValue(FAMILY, ENGINE_QUALIFIER)),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
-      startDate = new DateTime(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
+      startDate = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
       totalDuration = Bytes.toLong(result.getValue(FAMILY, TOTAL_DURATION_QUALIFIER)),
       metrics = metrics
     )
   }
 
   private def joinMetrics(metrics: Seq[TsdbQueryMetrics]): TsdbQueryMetrics = {
-    case class Info(startTime: DateTime, stopTime: DateTime, state: QueryState, metrics: Map[String, MetricData])
+    case class Info(
+        startTime: OffsetDateTime,
+        stopTime: OffsetDateTime,
+        state: QueryState,
+        metrics: Map[String, MetricData]
+    )
     val h = metrics.head
 
     if (metrics.size > 1) {
-      // FIXME: Use plusNanos after switch to Java time
       val merged =
         metrics.tail.foldLeft(
-          Info(h.startDate, h.startDate.plusMillis((h.totalDuration / 1000000).toInt), h.state, h.metrics)
+          Info(h.startDate, h.startDate.plusNanos(h.totalDuration.toInt), h.state, h.metrics)
         ) { (i, m) =>
-          val end = m.startDate.plusMillis((m.totalDuration / 1000000).toInt)
+          val end = m.startDate.plusNanos(m.totalDuration.toInt)
           i.copy(
             startTime = if (i.startTime.isBefore(m.startDate)) i.startTime else m.startDate,
             stopTime = if (i.stopTime.isAfter(end)) i.stopTime else end,
@@ -196,7 +203,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
           )
         }
 
-      val duration = (merged.stopTime.getMillis - merged.startTime.getMillis) * 1000000
+      val duration = Duration.between(merged.startTime, merged.stopTime).toNanos
       val ms = merged.metrics.map {
         case (k, v) =>
           (k, v.copy(speed = if (duration != 0d) v.count.toDouble / MetricCollector.asSeconds(duration) else 0d))

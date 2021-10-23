@@ -1,12 +1,14 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.joda.time.DateTime
 import org.scalatest.GivenWhenThen
 import org.yupana.core.model.UpdateInterval
 import org.yupana.hbase.HBaseUtilsTest.TestTable
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
+import java.time.temporal.ChronoUnit
 
 trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
 
@@ -16,25 +18,25 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
     val dao = new ChangelogDaoHBase(hbaseConnection, "test")
 
     val baseTimes = Set(
-      HBaseUtils.baseTime(DateTime.now().minusDays(4).getMillis, TestTable),
-      HBaseUtils.baseTime(DateTime.now().minusDays(3).getMillis, TestTable)
+      HBaseUtils.baseTime(OffsetDateTime.now().minusDays(4).toInstant.toEpochMilli, TestTable),
+      HBaseUtils.baseTime(OffsetDateTime.now().minusDays(3).toInstant.toEpochMilli, TestTable)
     )
 
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
 
     def invalidatedIntervals(table: String) =
       baseTimes.map { baseTime =>
         UpdateInterval(
           table,
-          from = new DateTime(baseTime),
-          to = new DateTime(baseTime + TestTable.rowTimeSpan),
+          from = OffsetDateTime.ofInstant(Instant.ofEpochMilli(baseTime), ZoneOffset.UTC),
+          to = OffsetDateTime.ofInstant(Instant.ofEpochMilli(baseTime + TestTable.rowTimeSpan), ZoneOffset.UTC),
           now,
           "test"
         )
       }.toSeq
 
-    val from = now.minusDays(1).getMillis
-    val to = now.plusDays(1).getMillis
+    val from = now.minusDays(1).toInstant.toEpochMilli
+    val to = now.plusDays(1).toInstant.toEpochMilli
 
     When("invalid baseTimes was put")
     dao.putUpdatesIntervals(invalidatedIntervals("receipt"))
@@ -53,18 +55,22 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
     val result = dao.getUpdatesIntervals(Some("rollup_by_day"), Some(from), Some(to))
     result should have size 2
     val period = result.head
-    val t = new DateTime(baseTimes.head)
+    val t = OffsetDateTime.ofInstant(Instant.ofEpochMilli(baseTimes.head), ZoneOffset.UTC)
     period.from shouldEqual t
-    period.to shouldEqual t.plusMillis(TestTable.rowTimeSpan.toInt)
+    period.to shouldEqual t.plus(TestTable.rowTimeSpan.toInt, ChronoUnit.MILLIS)
 
     And("invalid periods still here")
     dao.getUpdatesIntervals(Some("receipt"), Some(from), Some(to)) should have size 2
 
     And("no new invalid periods")
-    dao.getUpdatesIntervals(Some("receipt"), Some(to), Some(DateTime.now().plusDays(2).getMillis)) should have size 0
+    dao.getUpdatesIntervals(Some("receipt"), Some(to), Some(OffsetDateTime.now().plusDays(2).toInstant.toEpochMilli)) should have size 0
 
     And("no new recalculated periods")
-    dao.getUpdatesIntervals(Some("rollup_by_day"), Some(to), Some(DateTime.now().plusDays(2).getMillis)) should have size 0
+    dao.getUpdatesIntervals(
+      Some("rollup_by_day"),
+      Some(to),
+      Some(OffsetDateTime.now().plusDays(2).toInstant.toEpochMilli)
+    ) should have size 0
   }
 
 }

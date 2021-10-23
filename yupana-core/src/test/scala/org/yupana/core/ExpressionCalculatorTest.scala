@@ -1,6 +1,5 @@
 package org.yupana.core
 
-import org.joda.time.{ DateTime, DateTimeZone }
 import org.scalatest.GivenWhenThen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -8,6 +7,9 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
+
+import java.time.temporal.ChronoUnit
+import java.time.{ OffsetDateTime, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
@@ -35,7 +37,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     calc.evaluateFilter(
       RussianTokenizer,
       builder
-        .set(Time(DateTime.now()))
+        .set(Time(OffsetDateTime.now()))
         .set(dimension(TestDims.DIM_A), "значение")
         .set(dimension(TestDims.DIM_B), 12.toShort)
         .buildAndReset()
@@ -44,7 +46,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     calc.evaluateFilter(
       RussianTokenizer,
       builder
-        .set(Time(DateTime.now()))
+        .set(Time(OffsetDateTime.now()))
         .set(dimension(TestDims.DIM_A), "value")
         .set(dimension(TestDims.DIM_B), 42.toShort)
         .buildAndReset()
@@ -52,7 +54,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "evaluate row values" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -80,7 +82,9 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     calc.evaluateExpressions(RussianTokenizer, row)
     row.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
-    row.get(qc, truncDay(time)) shouldEqual Time(now.withZone(DateTimeZone.UTC).minusDays(2).withTimeAtStartOfDay())
+    row.get(qc, truncDay(time)) shouldEqual Time(
+      now.withOffsetSameInstant(ZoneOffset.UTC).minusDays(2).truncatedTo(ChronoUnit.DAYS)
+    )
 
     val rowWithNulls = builder
       .set(Time(now.minusDays(1)))
@@ -95,7 +99,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   it should "calculate aggregation" in {
     Given("Query with aggregate expressions")
 
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -204,7 +208,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "evaluate string functions" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -246,7 +250,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "evaluate array functions" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -281,7 +285,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "support comparing of non-numeric types" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -335,7 +339,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "support arrays" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val ce = condition(
       containsAny(tokens(dimension(TestDims.DIM_A)), const(Seq("aaa", "bbb"))),
       const("X"),
@@ -383,7 +387,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "handle nulls properly" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
 
     val exp = divFrac(plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)), const(2d))
     val cond = equ(exp, const(0d))
@@ -413,7 +417,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "handle large input data arrays" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val cond = in(metric(TestTableFields.TEST_LONG_FIELD), (1L to 1000000L).toSet)
 
     val query = Query(

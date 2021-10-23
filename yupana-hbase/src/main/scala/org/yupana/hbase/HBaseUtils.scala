@@ -25,7 +25,6 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
@@ -36,6 +35,8 @@ import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
+import java.time.temporal.TemporalAdjusters
+import java.time.{ Instant, LocalDate, OffsetDateTime, ZoneOffset }
 import scala.collection.AbstractIterator
 import scala.collection.JavaConverters._
 import scala.collection.immutable.NumericRange
@@ -84,7 +85,7 @@ object HBaseUtils extends StrictLogging {
       dictionaryProvider: DictionaryProvider,
       username: String
   ): Seq[(Table, Seq[Put], Seq[UpdateInterval])] = {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     dataPoints
       .groupBy(_.table)
       .map {
@@ -100,8 +101,8 @@ object HBaseUtils extends StrictLogging {
                   createPutOperation(table, key, dps),
                   UpdateInterval(
                     table.name,
-                    new DateTime(baseTime),
-                    new DateTime(baseTime + table.rowTimeSpan),
+                    OffsetDateTime.ofInstant(Instant.ofEpochMilli(baseTime), ZoneOffset.UTC),
+                    OffsetDateTime.ofInstant(Instant.ofEpochMilli(baseTime + table.rowTimeSpan), ZoneOffset.UTC),
                     now,
                     username
                   )
@@ -428,13 +429,12 @@ object HBaseUtils extends StrictLogging {
           .newBuilder(hbaseTable)
           .setColumnFamilies(families.asJavaCollection)
           .build()
-        val endTime = new LocalDateTime()
-          .plusYears(1)
-          .withMonthOfYear(1)
-          .withDayOfMonth(1)
-          .withTime(0, 0, 0, 0)
-          .toDateTime(DateTimeZone.UTC)
-          .getMillis
+        val endTime = LocalDate
+          .now()
+          .`with`(TemporalAdjusters.firstDayOfNextYear())
+          .atStartOfDay(ZoneOffset.UTC)
+          .toInstant
+          .toEpochMilli
         val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
         val regions = math.min(r, maxRegions)
         admin.createTable(

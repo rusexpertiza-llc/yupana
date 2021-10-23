@@ -22,13 +22,13 @@ import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.DateTime
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.model.UpdateInterval._
 import org.yupana.hbase.ChangelogDaoHBase._
 
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 import scala.collection.JavaConverters._
 
 object ChangelogDaoHBase {
@@ -46,14 +46,15 @@ object ChangelogDaoHBase {
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 
   def createChangelogPut(updateInterval: UpdateInterval): Put = {
-    val rowKey = Bytes.toBytes(updateInterval.table) ++
-      Bytes.toBytes(updateInterval.from.getMillis) ++
-      Bytes.toBytes(updateInterval.to.getMillis)
+    val fromBytes = Bytes.toBytes(updateInterval.from.toInstant.toEpochMilli)
+    val toBytes = Bytes.toBytes(updateInterval.to.toInstant.toEpochMilli)
+    val rowKey = Bytes.toBytes(updateInterval.table) ++ fromBytes ++ toBytes
+
     val put = new Put(rowKey)
-    put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(updateInterval.from.getMillis))
-    put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(updateInterval.to.getMillis))
+    put.addColumn(FAMILY, FROM_QUALIFIER, fromBytes)
+    put.addColumn(FAMILY, TO_QUALIFIER, toBytes)
     put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(updateInterval.table))
-    put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updateInterval.updatedAt.getMillis))
+    put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updateInterval.updatedAt.toInstant.toEpochMilli))
     put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, updateInterval.updatedBy.getBytes(StandardCharsets.UTF_8))
     put
   }
@@ -134,9 +135,18 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
     val by = if (byBytes != null) new String(byBytes, StandardCharsets.UTF_8) else ChangelogDaoHBase.UPDATER_UNKNOWN
     UpdateInterval(
       table = new String(result.getValue(FAMILY, TABLE_QUALIFIER), StandardCharsets.UTF_8),
-      from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
-      to = new DateTime(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
-      updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
+      from = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
+      to = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
+      updatedAt = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
       updatedBy = by
     )
   }

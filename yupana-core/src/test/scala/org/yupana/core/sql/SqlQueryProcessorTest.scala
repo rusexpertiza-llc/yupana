@@ -1,6 +1,5 @@
 package org.yupana.core.sql
 
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime, Period }
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
@@ -10,6 +9,9 @@ import org.yupana.core.sql.parser.SqlParser
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.threeten.extra.PeriodDuration
+
+import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
 class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with OptionValues {
 
@@ -25,8 +27,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |   GROUP BY day(time)""".stripMargin) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldEqual and(
-        ge[Time](time, const(Time(new DateTime(2017, 6, 12, 0, 0, DateTimeZone.UTC)))),
-        lt[Time](time, const(Time(new DateTime(2017, 6, 30, 0, 0, DateTimeZone.UTC)))),
+        ge[Time](time, const(Time(OffsetDateTime.of(2017, 6, 12, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt[Time](time, const(Time(OffsetDateTime.of(2017, 6, 30, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(lower(dimension(DIM_A)), const("abracadabra"))
       )
       x.groupBy should contain theSameElementsAs Seq(truncDay(time))
@@ -44,8 +46,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         | """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 1, 30, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 1, 30, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_B), truncDay(time))
       q.fields should contain theSameElementsInOrderAs List(
@@ -66,8 +68,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldBe and(
-        gt(time, const(Time(new DateTime(2017, 6, 12, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2017, 6, 13, 0, 0, DateTimeZone.UTC))))
+        gt(time, const(Time(OffsetDateTime.of(2017, 6, 12, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2017, 6, 13, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       x.groupBy shouldBe empty
       x.fields should contain theSameElementsInOrderAs List(
@@ -81,8 +83,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |  where time >= TIMESTAMP '2017-08-23' and time < TIMESTAMP '2017-08-23 17:41:00.123'""".stripMargin) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2017, 8, 23, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 8, 23, 17, 41, 0, 123, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2017, 8, 23, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 8, 23, 17, 41, 0, 123, ZoneOffset.UTC))))
       )
       x.fields should contain theSameElementsInOrderAs List(
         metric(TestTableFields.TEST_FIELD) as "testField"
@@ -97,8 +99,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2017, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 8, 8, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(dimension(DIM_B), const(27.toShort))
       )
       x.groupBy should contain theSameElementsAs Seq(truncDay(time))
@@ -119,8 +121,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 10, 18, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2017, 10, 28, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2017, 10, 18, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2017, 10, 28, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs Seq(truncDay(time))
       q.fields should contain theSameElementsInOrderAs List(
@@ -142,8 +144,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 10, 30, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2017, 10, 30, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       x.groupBy should contain theSameElementsAs Seq(time, dimension(DIM_A))
       x.fields should contain theSameElementsAs Seq(
@@ -162,8 +164,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 8, 8, 10, 30, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2017, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 8, 8, 10, 30, 0, 0, ZoneOffset.UTC))))
       )
       x.groupBy should contain theSameElementsAs Seq(dimension(DIM_A), truncDay(time))
       x.fields should contain theSameElementsInOrderAs List(
@@ -182,8 +184,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { x =>
       x.table.value.name shouldEqual "test_table"
       x.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2017, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 8, 8, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(lower(link(TestLinks.TEST_LINK, "testField")), const("простокваша")),
         equ(lower(dimension(DIM_A)), const("12345"))
       )
@@ -203,8 +205,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2017, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 8, 8, 0, 0, 0, 0, ZoneOffset.UTC)))),
         gt(metric(TestTableFields.TEST_LONG_FIELD), const(1000L))
       )
       q.groupBy should contain theSameElementsAs Seq(truncDay(time))
@@ -222,8 +224,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 8, 8, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2017, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 8, 8, 0, 0, 0, 0, ZoneOffset.UTC)))),
         gt(metric(TestTableFields.TEST_FIELD), const(10d))
       )
       q.groupBy should contain theSameElementsAs Seq(truncDay(time))
@@ -244,8 +246,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 3, 26, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 3, 27, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 3, 26, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 3, 27, 0, 0, 0, 0, ZoneOffset.UTC)))),
         in(lower(dimension(DIM_A)), Set("123", "aaa", "bbb"))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_B), truncDay(time))
@@ -267,8 +269,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 3, 26, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 3, 27, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 3, 26, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 3, 27, 0, 0, 0, 0, ZoneOffset.UTC)))),
         in(metric(TestTableFields.TEST_FIELD2), Set(123d, 456d, 789d))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_B), truncDay(time))
@@ -288,8 +290,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2019, 3, 30, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2019, 3, 31, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2019, 3, 30, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2019, 3, 31, 0, 0, 0, 0, ZoneOffset.UTC)))),
         notIn(metric(TestTableFields.TEST_FIELD2), Set(5d, 6d, 7d))
       )
       q.fields should contain theSameElementsInOrderAs List(
@@ -310,8 +312,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldEqual and(
         and(
-          ge(time, const(Time(new DateTime(2019, 3, 30, 0, 0, DateTimeZone.UTC)))),
-          le(time, const(Time(new DateTime(2019, 3, 31, 0, 0, DateTimeZone.UTC))))
+          ge(time, const(Time(OffsetDateTime.of(2019, 3, 30, 0, 0, 0, 0, ZoneOffset.UTC)))),
+          le(time, const(Time(OffsetDateTime.of(2019, 3, 31, 0, 0, 0, 0, ZoneOffset.UTC))))
         ),
         and(
           ge(metric(TestTableFields.TEST_FIELD2), const(5d)),
@@ -335,8 +337,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         arrayToString(tokens(dimension(DIM_A))) as "array_to_string(tokens(a))"
       )
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2019, 3, 14, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2019, 3, 15, 0, 0, 0, 0, ZoneOffset.UTC)))),
         containsAny(
           tokens(lower(dimension(DIM_A))),
           tokens(const("вода"))
@@ -393,8 +395,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       )
 
       q.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2019, 3, 26, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2019, 3, 14, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2019, 3, 26, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(lower(link(TestLinks.TEST_LINK, "testField")), const("ягода"))
       )
 
@@ -409,8 +411,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         | GROUP BY m, b
       """.stripMargin
 
-    val from = new DateTime(2017, 9, 1, 0, 0, DateTimeZone.UTC)
-    val to = new DateTime(2017, 9, 15, 0, 0, DateTimeZone.UTC)
+    val from = OffsetDateTime.of(2017, 9, 1, 0, 0, 0, 0, ZoneOffset.UTC)
+    val to = OffsetDateTime.of(2017, 9, 15, 0, 0, 0, 0, ZoneOffset.UTC)
 
     inside(
       createQuery(
@@ -451,8 +453,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     ) { q =>
       q.table.value.name shouldEqual "test_table_2"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 10, 23, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2017, 11, 2, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2017, 10, 23, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2017, 11, 2, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(lower(dimension(DIM_X)), const("0001388410039121"))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_X), time)
@@ -479,8 +481,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2017, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 2, 1, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2017, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 2, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_A), truncDay(time))
       q.fields should contain theSameElementsInOrderAs List(
@@ -504,15 +506,15 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         statement,
         Map(
           1 -> parser.StringValue("Test me"),
-          2 -> parser.TimestampValue(new DateTime(2018, 1, 23, 16, 44, 20, DateTimeZone.UTC))
+          2 -> parser.TimestampValue(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC))
         )
       )
     ) {
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
-          ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-          lt(time, const(Time(new DateTime(2018, 1, 23, 16, 44, 20, DateTimeZone.UTC))))
+          ge(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+          lt(time, const(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC))))
         )
         q.groupBy shouldBe empty
         q.fields should contain theSameElementsInOrderAs List(
@@ -534,8 +536,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        gt(time, const(Time(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 12, 1, 0, 0, DateTimeZone.UTC))))
+        gt(time, const(Time(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs Seq(truncDay(time))
       q.fields should contain theSameElementsInOrderAs List(
@@ -562,8 +564,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         ) as "is_water"
       )
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2019, 3, 14, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2019, 3, 15, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2019, 3, 14, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2019, 3, 15, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
     }
   }
@@ -577,8 +579,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        gt(time, const(Time(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2017, 12, 1, 0, 0, DateTimeZone.UTC))))
+        gt(time, const(Time(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2017, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs Set(dimension(DIM_A))
       q.fields should contain theSameElementsInOrderAs List(
@@ -603,8 +605,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table_2"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 2, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(lower(dimension(DIM_X)), const("1234567890"))
       )
       q.groupBy shouldBe empty
@@ -637,8 +639,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 2, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy shouldBe Seq(time)
       q.fields should contain theSameElementsInOrderAs List(
@@ -672,8 +674,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table_2"
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC))))
+        ge(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 2, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy shouldBe Seq(time)
       q.fields should contain theSameElementsInOrderAs List(
@@ -711,8 +713,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        lt(time, const(Time(new DateTime(2018, 2, 1, 0, 0, DateTimeZone.UTC)))),
-        gt(time, const(Time(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC))))
+        lt(time, const(Time(OffsetDateTime.of(2018, 2, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        gt(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_A))
 
@@ -768,8 +770,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
       q.filter.value shouldBe and(
-        lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, 0, 0, DateTimeZone.UTC)))),
-        ge(time, const(Time(new DateTime(2018, 7, 1, 0, 0, 0, 0, DateTimeZone.UTC))))
+        lt(time, const(Time(OffsetDateTime.of(2018, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 7, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs List(dimension(DIM_A))
 
@@ -795,7 +797,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   object LtTime extends LtMatcher[Time]
 
   it should "handle period arithmetic" in {
-    val now = new DateTime(DateTimeZone.UTC).getMillis
+    val now = OffsetDateTime.now(ZoneOffset.UTC).toInstant.toEpochMilli
     testQuery("""
         |SELECT SUM(testField) as sum, day(time) as d FROM test_table
         |  WHERE time >= trunc_day(now() - INTERVAL '3' MONTH) AND TIME < trunc_day(now())
@@ -811,7 +813,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
                 ) =>
               te shouldEqual TimeExpr
               t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
-              p shouldEqual Period.months(3)
+              p shouldEqual PeriodDuration.of(Period.ofMonths(3))
           }
           inside(to) {
             case LtTime(te, TruncDayExpr(ConstantExpr(t))) =>
@@ -867,8 +869,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.filter.value shouldEqual and(
         isNull(link(TestLinks.TEST_LINK, "testField")),
         isNotNull(metric(TestTableFields.TEST_FIELD2)),
-        lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        ge(time, const(Time(new DateTime(2018, 7, 1, 0, 0, DateTimeZone.UTC))))
+        lt(time, const(Time(OffsetDateTime.of(2018, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 7, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs Seq(
         truncDay(time),
@@ -898,8 +900,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       )
       q.filter.value shouldBe and(
         equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("464")),
-        lt(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        ge(time, const(Time(new DateTime(2018, 7, 1, 0, 0, DateTimeZone.UTC))))
+        lt(time, const(Time(OffsetDateTime.of(2018, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 7, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
       )
       q.groupBy should contain theSameElementsAs Seq(
         truncDay(time)
@@ -933,8 +935,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       )
 
       q.filter.value shouldBe and(
-        ge(time, const(Time(new DateTime(2018, 8, 1, 0, 0, DateTimeZone.UTC)))),
-        lt(time, const(Time(new DateTime(2018, 9, 1, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2018, 8, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        lt(time, const(Time(OffsetDateTime.of(2018, 9, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
         lt(metric(TestTableFields.TEST_FIELD), const(50000d)),
         equ(lower(dimension(DIM_A)), const("0000348521023155"))
       )
@@ -1062,8 +1064,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       )
 
       q.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2019, 4, 10, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2019, 4, 11, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2019, 4, 10, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2019, 4, 11, 0, 0, 0, 0, ZoneOffset.UTC)))),
         lt(minus(metric(TestTableFields.TEST_LONG_FIELD)), const(-100L))
       )
     }
@@ -1081,8 +1083,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         DimensionExpr(DIM_A) as "a"
       )
       q.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2020, 7, 3, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2020, 7, 6, 0, 0, 0, 0, ZoneOffset.UTC)))),
         in(DimensionIdExpr(DIM_A), Set("1", "2f", "fa"))
       )
     }
@@ -1099,8 +1101,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         DimensionExpr(DIM_A).toField
       )
       q.filter.value shouldEqual and(
-        ge(time, const(Time(new DateTime(2020, 7, 3, 0, 0, DateTimeZone.UTC)))),
-        le(time, const(Time(new DateTime(2020, 7, 6, 0, 0, DateTimeZone.UTC)))),
+        ge(time, const(Time(OffsetDateTime.of(2020, 7, 3, 0, 0, 0, 0, ZoneOffset.UTC)))),
+        le(time, const(Time(OffsetDateTime.of(2020, 7, 6, 0, 0, 0, 0, ZoneOffset.UTC)))),
         equ(DimensionIdExpr(DIM_A), const("ab"))
       )
     }
@@ -1148,7 +1150,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         dps should have size 1
         val dp = dps.head
         dp.table shouldEqual TestSchema.testTable
-        dp.time shouldEqual new DateTime(2020, 1, 2, 23, 25, 40, DateTimeZone.UTC).getMillis
+        dp.time shouldEqual OffsetDateTime.of(2020, 1, 2, 23, 25, 40, 0, ZoneOffset.UTC).toInstant.toEpochMilli
         dp.dimensions shouldEqual Map(TestDims.DIM_B -> 21.toShort, TestDims.DIM_A -> "bar")
         dp.metrics should contain theSameElementsAs Seq(
           MetricValue(TestTableFields.TEST_FIELD, 55d),
@@ -1175,7 +1177,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "handle upsert in batch" in {
-    val t1 = DateTime.now().minusDays(1)
+    val t1 = OffsetDateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
@@ -1198,13 +1200,13 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         dps should have size 2
         val dp1 = dps(0)
         dp1.table shouldEqual TestSchema.testTable
-        dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
+        dp1.time shouldEqual t1.toInstant.toEpochMilli
         dp1.dimensions shouldEqual Map(TestDims.DIM_B -> 12, TestDims.DIM_A -> "aaa")
         dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.1d))
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
-        dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
+        dp2.time shouldEqual t2.toInstant.toEpochMilli
         dp2.dimensions shouldEqual Map(TestDims.DIM_B -> 34, TestDims.DIM_A -> "ccc")
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 2.2d))
 
@@ -1213,9 +1215,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "support upsert with multiple values" in {
-    val t1 = new LocalDateTime(2020, 1, 19, 23, 10, 31)
-    val t2 = new LocalDateTime(2020, 1, 19, 23, 11, 2)
-    val t3 = new LocalDateTime(2020, 1, 19, 23, 11, 33)
+    val t1 = LocalDateTime.of(2020, 1, 19, 23, 10, 31)
+    val t2 = LocalDateTime.of(2020, 1, 19, 23, 11, 2)
+    val t3 = LocalDateTime.of(2020, 1, 19, 23, 11, 33)
     createUpsert("""UPSERT INTO test_table (a, b, time, testField) VALUES
         |  ('a', 12, TIMESTAMP '2020-01-19 23:10:31', 1.5),
         |  ('c', 34, TIMESTAMP '2020-01-19 23:11:02', 3),
@@ -1225,19 +1227,19 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
 
         val dp1 = dps(0)
         dp1.table shouldEqual TestSchema.testTable
-        dp1.time shouldEqual t1.toDateTime(DateTimeZone.UTC).getMillis
+        dp1.time shouldEqual t1.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
         dp1.dimensions shouldEqual Map(TestDims.DIM_B -> 12, TestDims.DIM_A -> "a")
         dp1.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 1.5d))
 
         val dp2 = dps(1)
         dp2.table shouldEqual TestSchema.testTable
-        dp2.time shouldEqual t2.toDateTime(DateTimeZone.UTC).getMillis
+        dp2.time shouldEqual t2.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
         dp2.dimensions shouldEqual Map(TestDims.DIM_B -> 34, TestDims.DIM_A -> "c")
         dp2.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 3d))
 
         val dp3 = dps(2)
         dp3.table shouldEqual TestSchema.testTable
-        dp3.time shouldEqual t3.toDateTime(DateTimeZone.UTC).getMillis
+        dp3.time shouldEqual t3.atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
         dp3.dimensions shouldEqual Map(TestDims.DIM_B -> 56, TestDims.DIM_A -> "e")
         dp3.metrics shouldEqual Seq(MetricValue(TestTableFields.TEST_FIELD, 321.5d))
 
@@ -1246,7 +1248,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "fail whole batch if there is incorrect element" in {
-    val t1 = DateTime.now().minusDays(1)
+    val t1 = OffsetDateTime.now().minusDays(1)
     val t2 = t1.plusMinutes(15)
     createUpsert(
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
@@ -1277,7 +1279,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         Map(
           1 -> parser.StringValue("aaa"),
           2 -> parser.StringValue("bbb"),
-          3 -> parser.TimestampValue(DateTime.now()),
+          3 -> parser.TimestampValue(OffsetDateTime.now()),
           4 -> parser.NumericValue(1.1),
           5 -> parser.StringValue("ccc")
         )

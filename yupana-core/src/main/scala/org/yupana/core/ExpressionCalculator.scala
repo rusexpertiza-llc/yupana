@@ -17,7 +17,6 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
-import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -27,6 +26,7 @@ import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
 import java.sql.Types
+import java.time.temporal.TemporalUnit
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
@@ -434,7 +434,7 @@ object ExpressionCalculator extends StrictLogging {
   )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
-  private val dtft = q"_root_.org.joda.time.DateTimeFieldType"
+  private val cru = q"_root_.java.time.temporal.ChronoUnit"
 
   private def ordValName(dt: DataType): TermName = {
     TermName(s"ord_${dt.toString}")
@@ -515,19 +515,19 @@ object ExpressionCalculator extends StrictLogging {
 
         case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
 
-        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.year())($x)""")
+        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.YEARS)($x)""")
         case TruncMonthExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.monthOfYear())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.MONTHS)($x)""")
         case TruncWeekExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.weekOfWeekyear())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.WEEKS)($x)""")
         case TruncDayExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.dayOfMonth())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.DAYS)($x)""")
         case TruncHourExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.hourOfDay())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.HOURS)($x)""")
         case TruncMinuteExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.minuteOfHour())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.MINUTES)($x)""")
         case TruncSecondExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.secondOfMinute())($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.SECONDS)($x)""")
         case ExtractYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
         case ExtractMonthExpr(a) =>
           mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthOfYear")
@@ -882,8 +882,8 @@ object ExpressionCalculator extends StrictLogging {
       .replaceAll("\\.\\$less", " < ")
   }
 
-  def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
-    Time(time.toDateTime.property(fieldType).roundFloorCopy().getMillis)
+  def truncateTime(fieldType: TemporalUnit)(time: Time): Time = {
+    Time(time.toDateTime.truncatedTo(fieldType).toInstant.toEpochMilli)
   }
 
   def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {

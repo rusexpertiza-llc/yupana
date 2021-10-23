@@ -16,13 +16,14 @@
 
 package org.yupana.core.model
 
-import org.joda.time.DateTime
 import org.yupana.core.model.QueryStates.QueryState
+
+import java.time.OffsetDateTime
 
 case class TsdbQueryMetrics(
     queryId: String,
     partitionId: Option[String],
-    startDate: DateTime,
+    startDate: OffsetDateTime,
     totalDuration: Long = 0L,
     query: String,
     state: QueryState,

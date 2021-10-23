@@ -33,7 +33,7 @@ lazy val api = (project in file("yupana-api"))
     name := "yupana-api",
     allSettings,
     libraryDependencies ++= Seq(
-      "joda-time"              %  "joda-time"            % versions.joda,
+      "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
       "org.scalatestplus"      %% "scalacheck-1-15"      % versions.scalaTestCheck    % Test
@@ -358,8 +358,7 @@ def minMaj(v: String, default: String): String = {
 
 lazy val versions = new {
   val spark =  "3.1.2"
-
-  val joda = "2.10.10"
+  val threeTenExtra = "1.7.0"
 
   val protobufJava = "2.6.1"
 

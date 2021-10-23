@@ -16,7 +16,6 @@
 
 package org.yupana.benchmarks
 
-import org.joda.time.LocalDateTime
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, Query }
@@ -38,6 +37,8 @@ import org.yupana.api.query.syntax.All.{
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
+
+import java.time.LocalDateTime
 
 class ProcessRowsWithAggBenchmark {
 

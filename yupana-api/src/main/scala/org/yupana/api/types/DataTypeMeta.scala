@@ -16,9 +16,9 @@
 
 package org.yupana.api.types
 
-import java.sql.Types
+import org.threeten.extra.PeriodDuration
 
-import org.joda.time.Period
+import java.sql.Types
 import org.yupana.api.{ Blob, Time }
 
 /**
@@ -65,7 +65,7 @@ object DataTypeMeta {
   implicit val decimalMeta: DataTypeMeta[BigDecimal] = scaledDecimalMeta(MONEY_SCALE)
   implicit val timestampMeta: DataTypeMeta[Time] =
     DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
-  implicit val periodMeta: DataTypeMeta[Period] =
+  implicit val periodMeta: DataTypeMeta[PeriodDuration] =
     DataTypeMeta(Types.VARCHAR, 20, "PERIOD", classOf[java.lang.String], 20, 0)
 
   implicit val nullMeta: DataTypeMeta[Null] = DataTypeMeta(Types.NULL, 4, "NULL", null, 0, 0)

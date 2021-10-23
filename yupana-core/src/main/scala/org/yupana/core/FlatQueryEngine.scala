@@ -25,8 +25,8 @@ class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, changelogDao: ChangelogDa
   def getUpdatesIntervals(filter: UpdatesIntervalsFilter = UpdatesIntervalsFilter.empty): Iterable[UpdateInterval] = {
     changelogDao.getUpdatesIntervals(
       filter.maybeTableName,
-      filter.maybeFrom.map(_.getMillis),
-      filter.maybeTo.map(_.getMillis),
+      filter.maybeFrom.map(_.toInstant.toEpochMilli),
+      filter.maybeTo.map(_.toInstant.toEpochMilli),
       filter.maybeBy
     )
   }

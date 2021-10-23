@@ -16,7 +16,7 @@
 
 package org.yupana.api.types
 
-import org.joda.time.Period
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Blob, Time }
 
@@ -131,7 +131,7 @@ object DataType {
 
   implicit val blobDt: DataType.Aux[Blob] = create[Blob](None, None, None)
 
-  implicit val periodDt: DataType.Aux[Period] = create[Period](None, None, None)
+  implicit val periodDt: DataType.Aux[PeriodDuration] = create[PeriodDuration](None, None, None)
 
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
