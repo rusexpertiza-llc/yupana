@@ -26,9 +26,7 @@ import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
 import java.sql.Types
-import java.time.DayOfWeek
-import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit, WeekFields }
-import java.util.Locale
+import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit }
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
@@ -48,8 +46,8 @@ trait ExpressionCalculator {
 }
 
 object ExpressionCalculator extends StrictLogging {
-  import scala.reflect.runtime.universe._
   import scala.reflect.runtime.currentMirror
+  import scala.reflect.runtime.universe._
   import scala.tools.reflect.ToolBox
 
   private val tokenizer = TermName("tokenizer")
@@ -436,7 +434,7 @@ object ExpressionCalculator extends StrictLogging {
   )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
-  private val fdw = q"_root_.org.yupana.core.ExpressionCalculator.firstDayOfWeek"
+  private val monday = q"_root_.org.java.time.DayOfWeek.MONDAY"
   private val cru = q"_root_.java.time.temporal.ChronoUnit"
   private val adj = q"_root_.java.time.temporal.TemporalAdjusters"
 
@@ -523,7 +521,7 @@ object ExpressionCalculator extends StrictLogging {
         case TruncMonthExpr(a) =>
           mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.firstDayOfMonth)($x)""")
         case TruncWeekExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.previousOrSame($fdw))($x)""")
+          mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.previousOrSame($monday))($x)""")
         case TruncDayExpr(a) =>
           mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.DAYS)($x)""")
         case TruncHourExpr(a) =>
@@ -885,8 +883,6 @@ object ExpressionCalculator extends StrictLogging {
       .replaceAll("\\.\\$less\\$eq", " <= ")
       .replaceAll("\\.\\$less", " < ")
   }
-
-  val firstDayOfWeek: DayOfWeek = WeekFields.of(Locale.getDefault).getFirstDayOfWeek
 
   def truncateTime(adjuster: TemporalAdjuster)(time: Time): Time = {
     Time(time.toDateTime.`with`(adjuster).truncatedTo(ChronoUnit.DAYS))
