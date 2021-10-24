@@ -392,7 +392,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getDouble(3) shouldEqual 0d
     resultSet.wasNull shouldBe true
 
-    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.toInstant(ZoneOffset.UTC).toEpochMilli)
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
     resultSet.wasNull shouldBe false
 
     resultSet.next
