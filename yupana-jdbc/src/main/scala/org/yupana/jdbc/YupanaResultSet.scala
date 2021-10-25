@@ -283,7 +283,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def toZonedDateTime(a: Any, c: Calendar): ZonedDateTime = {
     a match {
-      case t: ApiTime => Instant.ofEpochMilli(t.millis).atZone(c.getTimeZone.toZoneId)
+      case t: ApiTime => t.toLocalDateTime.atZone(c.getTimeZone.toZoneId)
       case x          => throw new SQLException(s"Cannot cast $x to Time")
     }
   }
@@ -527,12 +527,12 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def getTimestamp(columnIndex: Int, cal: Calendar): Timestamp = {
-    getReference(columnIndex, a => Timestamp.valueOf(toZonedDateTime(a, cal).toLocalDateTime))
+    getReference(columnIndex, a => new Timestamp(toZonedDateTime(a, cal).toInstant.toEpochMilli))
   }
 
   @throws[SQLException]
   override def getTimestamp(columnName: String, cal: Calendar): Timestamp =
-    getReferenceByName(columnName, a => Timestamp.valueOf(toZonedDateTime(a, cal).toLocalDateTime))
+    getReferenceByName(columnName, a => new Timestamp(toZonedDateTime(a, cal).toInstant.toEpochMilli))
 
   @throws[SQLException]
   override def getURL(i: Int) = throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getURL(int)")
