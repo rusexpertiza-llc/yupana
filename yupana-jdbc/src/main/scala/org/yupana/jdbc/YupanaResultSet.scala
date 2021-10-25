@@ -27,7 +27,7 @@ import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
 
-import java.time.{ Instant, LocalDateTime, ZoneOffset, ZonedDateTime }
+import java.time.{ LocalDateTime, ZonedDateTime }
 
 class YupanaResultSet protected[jdbc] (
     statement: Statement,
@@ -276,7 +276,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def toLocalDateTime(a: Any): LocalDateTime = {
     a match {
-      case t: ApiTime => LocalDateTime.ofInstant(Instant.ofEpochMilli(t.millis), ZoneOffset.UTC)
+      case t: ApiTime => t.toLocalDateTime
       case x          => throw new SQLException(s"Cannot cast $x to Time")
     }
   }
