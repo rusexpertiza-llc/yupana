@@ -9,6 +9,7 @@ import org.yupana.core.model.{ MetricData, QueryStates }
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.time.temporal.ChronoUnit
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
@@ -26,7 +27,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
       None
     )
 
-    val startTime = OffsetDateTime.now(ZoneOffset.UTC)
+    val startTime = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
 
     When("metric dao initialized")
     dao.saveQueryMetrics(
@@ -87,7 +88,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
       None
     )
 
-    val startTime = OffsetDateTime.now(ZoneOffset.UTC)
+    val startTime = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
 
     When("metric dao initialized")
     dao.saveQueryMetrics(
