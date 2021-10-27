@@ -251,7 +251,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
       )
     } else {
       val err = incorrectType.map(e => s"$e has type ${e.dataType}").mkString(", ")
-      Left(s"All expressions must have same type but: $err}")
+      Left(s"All expressions must have same type but: $err")
     }
   }
 
@@ -441,7 +441,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     CollectionUtils.collectErrors(groupBy)
   }
 
-  private val constOnly: NameResolver = _ => Left("Only constants are supported")
+  private val constOnly: NameResolver = name => Left(s"Unknown field $name")
 
   private def fieldByName(table: Table)(name: String): Either[String, Expression[_]] = {
     val lowerName = name.toLowerCase
