@@ -18,6 +18,8 @@ package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
 
+import java.util.concurrent.atomic.AtomicReference
+
 object NoMetricCollector extends MetricQueryCollector {
   override val createDimensionFilters: Metric = NoMetric
   override val createScans: Metric = NoMetric
@@ -31,6 +33,8 @@ object NoMetricCollector extends MetricQueryCollector {
   override val collectResultRows: Metric = NoMetric
 
   override def dynamicMetric(name: String): Metric = NoMetric
+
+  override val queryStatus: AtomicReference[QueryStatus] = new AtomicReference[QueryStatus](Unknown)
 
   override val partitionId: Option[String] = None
 

@@ -123,12 +123,18 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     createExpr(state, resolver, field.expr, ExprType.Math).right.map(_.as(fieldName))
   }
 
-  private def fieldByRef(table: Table, fields: Seq[QueryField])(name: String): Option[Expression[_]] = {
-    fields.find(_.name == name).map(f => f.expr).orElse(fieldByName(table)(name))
+  private def fieldByRef(table: Table, fields: Seq[QueryField]): NameResolver = { name =>
+    val byRef = fields.find(_.name == name).map(f => f.expr)
+    val byName = fieldByName(table)(name)
+    (byRef, byName) match {
+      case (Some(a), Right(b)) if a != b => Left(s"Ambiguous field $name")
+      case (Some(e), _)                  => Right(e)
+      case (None, x)                     => x
+    }
   }
 
-  private def constOrRef(fields: Seq[QueryField])(name: String): Option[Expression[_]] = {
-    fields.find(_.name == name).map(f => f.expr).orElse(constOnly(name))
+  private def constOrRef(fields: Seq[QueryField]): NameResolver = { name =>
+    fields.find(_.name == name).map(f => f.expr).toRight(s"Unknown field $name")
   }
 
   private def createExpr(
@@ -161,8 +167,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
           }
         )
 
-      case parser.FieldName(name) =>
-        nameResolver(name) toRight s"Unknown field $name"
+      case parser.FieldName(name) => nameResolver(name)
 
       case parser.Constant(v) => convertValue(state, v, exprType)
 
@@ -246,7 +251,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
       )
     } else {
       val err = incorrectType.map(e => s"$e has type ${e.dataType}").mkString(", ")
-      Left(s"All expressions must have same type but: $err}")
+      Left(s"All expressions must have same type but: $err")
     }
   }
 
@@ -436,14 +441,14 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     CollectionUtils.collectErrors(groupBy)
   }
 
-  private val constOnly: String => Option[Expression[_]] = _ => None
+  private val constOnly: NameResolver = name => Left(s"Unknown field $name")
 
-  private def fieldByName(table: Table)(name: String): Option[Expression[_]] = {
+  private def fieldByName(table: Table)(name: String): Either[String, Expression[_]] = {
     val lowerName = name.toLowerCase
     if (lowerName == TIME_FIELD) {
-      Some(TimeExpr)
+      Right(TimeExpr)
     } else {
-      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(table, name)
+      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(table, name) toRight s"Unknown field $name"
     }
   }
 
@@ -475,9 +480,9 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     val exprs = CollectionUtils.collectErrors[Expression[_]](
       fieldNames.map { name =>
         fieldByName(table)(name) match {
-          case Some(LinkExpr(_, _)) => Left(s"External link field $name cannot be upserted")
-          case Some(x)              => Right(x)
-          case None                 => Left(s"Unknown field $name")
+          case Right(LinkExpr(_, _)) => Left(s"External link field $name cannot be upserted")
+          case Right(x)              => Right(x)
+          case err                   => err
         }
       }
     )
@@ -540,7 +545,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 }
 
 object SqlQueryProcessor {
-  type NameResolver = String => Option[Expression[_]]
+  type NameResolver = String => Either[String, Expression[_]]
   val TIME_FIELD: String = Table.TIME_FIELD_NAME
 
   object ExprType extends Enumeration {

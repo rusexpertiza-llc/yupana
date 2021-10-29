@@ -34,13 +34,19 @@ class MetricImpl(
     timeAdder.reset()
   }
 
-  override def measure[T](cnt: Int)(f: => T): T = {
-    val start = System.nanoTime()
-    val result = f
-    countAdder.add(cnt)
-    val end = System.nanoTime()
-    timeAdder.add(end - start)
-    metricCollector.metricUpdated(this, end)
-    result
-  }
+  override def measure[T](cnt: Int)(f: => T): T =
+    try {
+      val start = System.nanoTime()
+      val result = f
+      countAdder.add(cnt)
+      val end = System.nanoTime()
+      timeAdder.add(end - start)
+      metricCollector.metricUpdated(this, end)
+      result
+    } catch {
+      case throwable: Throwable =>
+        metricCollector.queryStatus.lazySet(Failed(throwable))
+        metricCollector.finish()
+        throw throwable
+    }
 }
