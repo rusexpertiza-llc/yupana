@@ -129,14 +129,13 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     import org.yupana.core.utils.metric.MetricUtils._
     val table = query.table
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-        val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-          rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
-        }
-
-        new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-          .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
       }
-      .withSavedMetrics(context.metricsCollector)
+
+      new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
+        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+    }.withSavedMetrics(context.metricsCollector)
   }
 
   def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {

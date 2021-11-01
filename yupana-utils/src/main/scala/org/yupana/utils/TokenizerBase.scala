@@ -106,7 +106,9 @@ trait TokenizerBase extends Tokenizer {
           // Разделители с сохранением оригинала и разделителя
           sliceStemAppend(from, i, offset, updated)
           from = i
-        } else if (ch == '/' || ch == '%' || ch == '\\' || (ch == ',' && !(prevIsDigit && nextIsDigit)) || (ch == '*' && prevIsDigit && nextIsDigit)) {
+        } else if (
+          ch == '/' || ch == '%' || ch == '\\' || (ch == ',' && !(prevIsDigit && nextIsDigit)) || (ch == '*' && prevIsDigit && nextIsDigit)
+        ) {
           // Разделители с сохранением оригинала и исключением самого разделителя
           sliceStemAppend(from, i, offset, updated)
           if (from != originFrom) {

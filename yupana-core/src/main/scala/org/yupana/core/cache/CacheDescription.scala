@@ -44,8 +44,7 @@ object CacheDescription {
   type Aux[K, V] = CacheDescription { type Key = K; type Value = V }
 
   def apply[K, V](name: String, suffix: String, engine: String)(
-      implicit
-      kTag: BoxingTag[K],
+      implicit kTag: BoxingTag[K],
       vTag: BoxingTag[V]
   ): CacheDescription.Aux[K, V] = {
     new CacheDescription(name, suffix, engine) {

@@ -64,7 +64,11 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
     dao.getUpdatesIntervals(Some("receipt"), Some(to), Some(DateTime.now().plusDays(2).getMillis)) should have size 0
 
     And("no new recalculated periods")
-    dao.getUpdatesIntervals(Some("rollup_by_day"), Some(to), Some(DateTime.now().plusDays(2).getMillis)) should have size 0
+    dao.getUpdatesIntervals(
+      Some("rollup_by_day"),
+      Some(to),
+      Some(DateTime.now().plusDays(2).getMillis)
+    ) should have size 0
   }
 
 }

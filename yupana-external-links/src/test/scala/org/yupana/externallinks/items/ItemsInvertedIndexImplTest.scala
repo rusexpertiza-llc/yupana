@@ -92,7 +92,11 @@ class ItemsInvertedIndexImplTest
     inside(res) {
       case Seq(Replace(_, DimIdInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
-        vs.toList should contain theSameElementsInOrderAs si("красное яблоко", "еще красное яблоко", "желтый банан").toList
+        vs.toList should contain theSameElementsInOrderAs si(
+          "красное яблоко",
+          "еще красное яблоко",
+          "желтый банан"
+        ).toList
     }
   }
 

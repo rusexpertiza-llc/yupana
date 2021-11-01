@@ -159,8 +159,7 @@ object DataType {
   }
 
   private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
-      implicit
-      s: Storable[TT],
+      implicit s: Storable[TT],
       m: DataTypeMeta[TT],
       ct: ClassTag[TT],
       bt: BoxingTag[TT]
@@ -176,8 +175,7 @@ object DataType {
   }
 
   def scaledDecimalDt(scale: Int)(
-      implicit
-      s: Storable[BigDecimal],
+      implicit s: Storable[BigDecimal],
       ct: ClassTag[BigDecimal],
       bt: BoxingTag[BigDecimal]
   ): DataType.Aux[BigDecimal] = new DataType {
