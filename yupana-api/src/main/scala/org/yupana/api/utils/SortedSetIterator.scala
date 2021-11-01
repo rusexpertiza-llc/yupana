@@ -188,8 +188,8 @@ private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(imp
   }
 }
 
-private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: SortedSetIterator[A])(implicit
-    ord: DimOrdering[A]
+private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: SortedSetIterator[A])(
+    implicit ord: DimOrdering[A]
 ) extends SortedSetIterator[A] {
 
   private val bIt = it.buffered
@@ -219,8 +219,8 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
   }
 }
 
-class PrefetchedSortedSetIterator[T] private[utils] (it: SortedSetIterator[T], prefetchElements: Int)(implicit
-    val ord: DimOrdering[T],
+class PrefetchedSortedSetIterator[T] private[utils] (it: SortedSetIterator[T], prefetchElements: Int)(
+    implicit val ord: DimOrdering[T],
     ct: ClassTag[T]
 ) extends SortedSetIterator[T] {
 

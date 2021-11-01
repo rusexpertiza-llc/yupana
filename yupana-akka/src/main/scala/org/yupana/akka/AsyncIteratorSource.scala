@@ -22,8 +22,8 @@ import akka.stream.stage.{ GraphStage, GraphStageLogic, OutHandler }
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.util.{ Failure, Success, Try }
 
-class AsyncIteratorSource[T](val iterator: Iterator[T], bufferCapacity: Int)(implicit
-    val executionContext: ExecutionContext
+class AsyncIteratorSource[T](val iterator: Iterator[T], bufferCapacity: Int)(
+    implicit val executionContext: ExecutionContext
 ) extends GraphStage[SourceShape[T]] {
   val out: Outlet[T] = Outlet("AsyncIteratorSource")
   override val shape: SourceShape[T] = SourceShape(out)

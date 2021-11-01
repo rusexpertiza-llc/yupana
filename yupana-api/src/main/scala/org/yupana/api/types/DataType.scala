@@ -158,34 +158,33 @@ object DataType {
     override val fractional: Option[Fractional[Null]] = None
   }
 
-  private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(implicit
-      s: Storable[TT],
-      m: DataTypeMeta[TT],
-      ct: ClassTag[TT],
-      bt: BoxingTag[TT]
-  ): DataType.Aux[TT] = new DataType {
-    override type T = TT
-    override val meta: DataTypeMeta[T] = m
-    override val storable: Storable[T] = s
-    override val classTag: ClassTag[T] = ct
-    override val boxingTag: BoxingTag[T] = bt
-    override val ordering: Option[Ordering[TT]] = o
-    override val integral: Option[Integral[TT]] = i
-    override val fractional: Option[Fractional[TT]] = f
-  }
+  private def create[TT](
+      o: Option[Ordering[TT]],
+      i: Option[Integral[TT]],
+      f: Option[Fractional[TT]]
+  )(implicit s: Storable[TT], m: DataTypeMeta[TT], ct: ClassTag[TT], bt: BoxingTag[TT]): DataType.Aux[TT] =
+    new DataType {
+      override type T = TT
+      override val meta: DataTypeMeta[T] = m
+      override val storable: Storable[T] = s
+      override val classTag: ClassTag[T] = ct
+      override val boxingTag: BoxingTag[T] = bt
+      override val ordering: Option[Ordering[TT]] = o
+      override val integral: Option[Integral[TT]] = i
+      override val fractional: Option[Fractional[TT]] = f
+    }
 
-  def scaledDecimalDt(scale: Int)(implicit
-      s: Storable[BigDecimal],
-      ct: ClassTag[BigDecimal],
-      bt: BoxingTag[BigDecimal]
-  ): DataType.Aux[BigDecimal] = new DataType {
-    override type T = BigDecimal
-    override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
-    override val storable: Storable[T] = s
-    override val classTag: ClassTag[T] = ct
-    override val boxingTag: BoxingTag[T] = bt
-    override val ordering: Option[Ordering[T]] = Some(implicitly[Ordering[BigDecimal]])
-    override val integral: Option[Integral[T]] = None
-    override val fractional: Option[Fractional[T]] = Some(implicitly[Fractional[BigDecimal]])
-  }
+  def scaledDecimalDt(
+      scale: Int
+  )(implicit s: Storable[BigDecimal], ct: ClassTag[BigDecimal], bt: BoxingTag[BigDecimal]): DataType.Aux[BigDecimal] =
+    new DataType {
+      override type T = BigDecimal
+      override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
+      override val storable: Storable[T] = s
+      override val classTag: ClassTag[T] = ct
+      override val boxingTag: BoxingTag[T] = bt
+      override val ordering: Option[Ordering[T]] = Some(implicitly[Ordering[BigDecimal]])
+      override val integral: Option[Integral[T]] = None
+      override val fractional: Option[Fractional[T]] = Some(implicitly[Fractional[BigDecimal]])
+    }
 }

@@ -311,8 +311,8 @@ object FunctionRegistry {
   private def uAny(fn: String, create: Expression[_] => Expression[_]): FunctionDesc =
     FunctionDesc(fn, AnyParam, e => Right(create(e)))
 
-  private def uTyped[T](fn: String, create: Expression[T] => Expression[_])(implicit
-      dt: DataType.Aux[T]
+  private def uTyped[T](fn: String, create: Expression[T] => Expression[_])(
+      implicit dt: DataType.Aux[T]
   ): FunctionDesc = {
     FunctionDesc(
       fn,
@@ -372,8 +372,8 @@ object FunctionRegistry {
     )
   }
 
-  private def biTyped[T, U](fn: String, create: (Expression[T], Expression[U]) => Expression[_])(implicit
-      dtt: DataType.Aux[T],
+  private def biTyped[T, U](fn: String, create: (Expression[T], Expression[U]) => Expression[_])(
+      implicit dtt: DataType.Aux[T],
       dtu: DataType.Aux[U]
   ): Function2Desc = Function2Desc(
     fn,

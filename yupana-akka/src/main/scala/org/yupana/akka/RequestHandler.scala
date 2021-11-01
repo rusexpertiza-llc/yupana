@@ -28,9 +28,9 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging {
 
-  def handleQuery(sqlQuery: proto.SqlQuery)(implicit
-      ec: ExecutionContext
-  ): Future[Either[String, Iterator[proto.Response]]] = {
+  def handleQuery(
+      sqlQuery: proto.SqlQuery
+  )(implicit ec: ExecutionContext): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"""Processing SQL query: "${sqlQuery.sql}"; parameters: ${sqlQuery.parameters}""")
 
     Future {
@@ -39,9 +39,9 @@ class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging
     }
   }
 
-  def handleBatchQuery(batchSqlQuery: proto.BatchSqlQuery)(implicit
-      ec: ExecutionContext
-  ): Future[Either[String, Iterator[proto.Response]]] = {
+  def handleBatchQuery(
+      batchSqlQuery: proto.BatchSqlQuery
+  )(implicit ec: ExecutionContext): Future[Either[String, Iterator[proto.Response]]] = {
     logger.debug(s"Processing batch SQL ${batchSqlQuery.sql} with ${batchSqlQuery.batch.size}")
 
     Future {
