@@ -126,6 +126,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     val mr = mapReduceEngine(metricCollector)
 
+    import org.yupana.core.utils.metric.MetricUtils._
     val table = query.table
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
       val filtered = context.metricsCollector.filterRows.measure(rs.size) {
@@ -134,7 +135,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
       new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
         .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
-    }
+    }.withSavedMetrics(context.metricsCollector)
   }
 
   def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {

@@ -33,8 +33,6 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def fillKeyValues(indexMap: scala.collection.Map[Expression[_], Int], valueData: Seq[InternalRow]): Unit
 
-  def conditionForKeyValues(condition: Condition): Condition
-
   def keyExpr: Expression[String]
 
   def validate(): Unit = {
@@ -91,36 +89,40 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     }
   }
 
-  override def condition(condition: Condition): Condition = {
-    val keyCondition = ExternalLinkUtils.transformConditionT[String](
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+    ExternalLinkUtils.transformConditionT[String](
       expressionCalculator,
       externalLink.linkName,
       condition,
-      includeCondition,
-      excludeCondition
+      includeTransform,
+      excludeTransform
     )
-
-    conditionForKeyValues(keyCondition)
   }
 
-  private def includeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
-    in(lower(keyExpr), keyValues)
+    Replace(
+      values.map(_._1).toSet,
+      in(lower(keyExpr), keyValues)
+    )
   }
 
-  private def excludeCondition(values: Seq[(String, Set[String])]): Condition = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
-    notIn(lower(keyExpr), keyValues)
+    Replace(
+      values.map(_._1).toSet,
+      notIn(lower(keyExpr), keyValues)
+    )
   }
 
   private def keyValuesForFieldValues(
-      fieldValues: Seq[(String, Set[String])],
+      fieldValues: Seq[(Condition, String, Set[String])],
       reducer: (Set[Int], Set[Int]) => Set[Int]
   ): Set[String] = {
     if (fieldValues.nonEmpty) {
       val rows = fieldValues
         .map {
-          case (field, values) =>
+          case (_, field, values) =>
             val idx = getFieldIndex(field)
             values.flatMap(value => multiIndex(idx).getOrElse(value, Set.empty))
         }

@@ -14,24 +14,12 @@
  * limitations under the License.
  */
 
-package org.yupana.core
+package org.yupana.core.utils.metric
 
-trait TsdbConfig {
-  val collectMetrics: Boolean
-  val metricsUpdateInterval: Int
-  val extractBatchSize: Int
-  val putBatchSize: Int
-  val putEnabled: Boolean
-  val maxRegions: Int
-  val reduceLimit: Int
+sealed trait QueryStatus extends Serializable
+
+case object Unknown extends QueryStatus
+case object Success extends QueryStatus
+case class Failed(throwable: Throwable) extends QueryStatus {
+  override def toString: String = s"Failed: ${throwable.getMessage}"
 }
-
-case class SimpleTsdbConfig(
-    collectMetrics: Boolean = false,
-    metricsUpdateInterval: Int = 30000,
-    extractBatchSize: Int = 10000,
-    putBatchSize: Int = 1000,
-    putEnabled: Boolean = false,
-    maxRegions: Int = 50,
-    reduceLimit: Int = Int.MaxValue
-) extends TsdbConfig

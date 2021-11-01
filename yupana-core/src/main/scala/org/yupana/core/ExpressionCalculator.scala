@@ -51,16 +51,25 @@ object ExpressionCalculator extends StrictLogging {
   import scala.tools.reflect.ToolBox
 
   private val tokenizer = TermName("tokenizer")
+  private val params = TermName("params")
   private val calculator = q"_root_.org.yupana.core.ExpressionCalculator"
 
   case class Decl(name: TermName, tpe: Tree, value: Tree)
+  case class LocalDecl(e: Expression[_], name: TermName, value: Tree, defTree: Option[Tree]) {
+    val defName: TermName = TermName(name.toString + "_def")
+
+    val isDefined: Option[Tree] = {
+      if (defTree.isDefined) Some(q"$defName") else None
+    }
+  }
 
   case class State(
       index: Map[Expression[_], Int],
       required: Set[Expression[_]],
       unfinished: Set[Expression[_]],
-      globalDecls: Map[Any, Decl],
-      localDecls: Seq[(Expression[_], TermName, Tree)],
+      refs: Seq[(AnyRef, Decl)],
+      globalDecls: Seq[(Any, Decl)],
+      localDecls: Seq[LocalDecl],
       trees: Seq[Tree],
       exprId: Int
   ) {
@@ -75,9 +84,9 @@ object ExpressionCalculator extends StrictLogging {
         val newState = withExpr(e)
         val idx = newState.index(e)
         newState.copy(trees = q"$row.set($idx, $v)" +: trees)
-      } else if (!localDecls.exists(_._1 == e)) {
-        val entry: (Expression[_], TermName, Tree) = (e, nextLocalName, v)
-        copy(localDecls = entry +: localDecls)
+      } else if (!localDecls.exists(_.e == e)) {
+        val decl = LocalDecl(e, nextLocalName, v, None)
+        copy(localDecls = decl +: localDecls)
       } else {
         this
       }
@@ -91,29 +100,39 @@ object ExpressionCalculator extends StrictLogging {
         val idx = newState.index(e)
         val tree = q"if ($cond) $row.set($idx, $v)"
         newState.withExpr(e).copy(trees = tree +: trees)
-      } else if (!localDecls.exists(_._1 == e)) {
-        val tpe = mkType(e)
-        val tree = q"if ($cond) $v else null.asInstanceOf[$tpe]"
-        val entry: (Expression[_], TermName, Tree) = (e, nextLocalName, tree)
-        copy(localDecls = entry +: localDecls)
+      } else if (!localDecls.exists(_.e == e)) {
+        val decl = LocalDecl(e, nextLocalName, v, Some(cond))
+        copy(localDecls = decl +: localDecls)
       } else {
         this
       }
     }
 
     def withNamedGlobal(name: TermName, tpe: Tree, tree: Tree): State = {
-      if (!globalDecls.contains(name))
-        copy(globalDecls = globalDecls + (name -> Decl(name, tpe, tree)))
+      if (!globalDecls.exists(_._1 == name))
+        copy(globalDecls = globalDecls :+ (name -> Decl(name, tpe, tree)))
       else this
     }
 
+    def withRef(ref: AnyRef, tpe: Tree): (TermName, State) = {
+      refs.find(_._1 == ref) match {
+        case Some((_, Decl(name, _, _))) => name -> this
+        case None =>
+          val name = TermName(s"e_$exprId")
+          val refId = refs.size
+          val tree = q"$params($refId)"
+          val ns = copy(refs = refs :+ (ref -> Decl(name, tpe, tree)), exprId = exprId + 1)
+          name -> ns
+      }
+    }
+
     def withGlobal(key: Any, tpe: Tree, tree: Tree): (TermName, State) = {
-      globalDecls.get(key) match {
-        case Some(Decl(name, _, _)) => name -> this
+      globalDecls.find(_._1 == key) match {
+        case Some((_, Decl(name, _, _))) => name -> this
         case None =>
           val name = TermName(s"e_$exprId")
           val ns =
-            copy(globalDecls = globalDecls + (key -> Decl(name, tpe, tree)), exprId = exprId + 1)
+            copy(globalDecls = globalDecls :+ (key -> Decl(name, tpe, tree)), exprId = exprId + 1)
           name -> ns
       }
     }
@@ -121,10 +140,14 @@ object ExpressionCalculator extends StrictLogging {
     def appendLocal(ts: Tree*): State = copy(trees = ts.reverse ++ trees)
 
     def fresh: (Tree, State) = {
-      val locals = localDecls.reverse.map {
-        case (e, n, v) =>
+      val locals = localDecls.reverse.flatMap {
+        case decl @ LocalDecl(e, n, v, d) =>
           val tpe = mkType(e)
-          q"val $n: $tpe = $v"
+          val defTree = d.map(t => q"val ${decl.defName}: Boolean = $t")
+          val default = mkDefault(e.dataType)
+          val tree = if (defTree.isDefined) q"if (${decl.defName}) $v else $default.asInstanceOf[$tpe]" else v
+
+          Seq(defTree, Some(q"val $n: $tpe = $tree")).flatten
       }
 
       val res =
@@ -133,7 +156,7 @@ object ExpressionCalculator extends StrictLogging {
             ..${trees.reverse}
           """
 
-      val newState = State(index, required, unfinished, globalDecls, Seq.empty, Seq.empty, exprId)
+      val newState = State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
 
       res -> newState
     }
@@ -176,21 +199,23 @@ object ExpressionCalculator extends StrictLogging {
     }
   }
 
+  private def mkDefault(dataType: DataType): Tree = {
+    if (dataType.classTag.runtimeClass.isPrimitive) {
+      if (dataType == DataType[Boolean]) q"false"
+      else
+        dataType.numeric
+          .map(_ => q"0")
+          .getOrElse(throw new IllegalArgumentException(s"Unexpected primitive type $dataType"))
+    } else q"null"
+  }
+
   private def mapValue(state: State, tpe: DataType)(v: Any): (Tree, State) = {
     import scala.reflect.classTag
 
     tpe.kind match {
-      case TypeKind.Regular if tpe.classTag == classTag[Time] =>
-        val t = v.asInstanceOf[Time]
-        val tVal = TermName(s"TIME_${t.millis}")
-        val ns = state.withNamedGlobal(tVal, mkType(tpe), q"_root_.org.yupana.api.Time(${t.millis})")
-        q"$tVal" -> ns
-
-      case TypeKind.Regular if tpe.classTag == classTag[BigDecimal] =>
-        val str = v.asInstanceOf[BigDecimal].toString()
-        val bdVal = TermName(s"DECIMAL_${str.replace(".", "_")}")
-        val ns = state.withNamedGlobal(bdVal, mkType(tpe), q"""_root_.scala.math.BigDecimal($str)""")
-        q"$bdVal" -> ns
+      case TypeKind.Regular if tpe.classTag == classTag[Time] || tpe.classTag == classTag[BigDecimal] =>
+        val (name, ns) = state.withRef(v.asInstanceOf[AnyRef], mkType(tpe))
+        q"$name" -> ns
 
       case TypeKind.Regular => Literal(Constant(v)) -> state
 
@@ -203,7 +228,7 @@ object ExpressionCalculator extends StrictLogging {
 
       case TypeKind.Array =>
         val (c, s) =
-          mkCollectionValue(state, tpe.asInstanceOf[ArrayDataType[_]].valueType, v.asInstanceOf[Traversable[_]], "Seq")
+          mkSeqValue(state, tpe.asInstanceOf[ArrayDataType[_]].valueType, v.asInstanceOf[Traversable[_]])
         val (name, ns) = s.withGlobal(v, mkType(tpe), c)
         q"$name" -> ns
     }
@@ -233,8 +258,8 @@ object ExpressionCalculator extends StrictLogging {
 
       case x =>
         state.localDecls
-          .find(_._1 == x)
-          .map(x => q"${x._2}" -> state)
+          .find(_.e == x)
+          .map(x => q"${x.name}" -> state)
     }
   }
 
@@ -247,11 +272,20 @@ object ExpressionCalculator extends StrictLogging {
       case ConstantExpr(_)  => None
       case TimeExpr         => None
       case DimensionExpr(_) => None
+      case TupleExpr(e1, e2) =>
+        val d1 = mkIsDefined(state, row, e1)
+        val d2 = mkIsDefined(state, row, e2)
+
+        (d1, d2) match {
+          case (Some(t1), Some(t2)) => Some(q"$t1 && $t2")
+          case _                    => d1 orElse d2
+        }
+
       case _ =>
         state.index
           .get(e)
           .map(idx => q"$row.isDefined($idx)")
-          .orElse(state.localDecls.find(_._1 == e).map(x => q"${x._2} != null"))
+          .orElse(state.localDecls.find(_.e == e).flatMap(_.isDefined))
     }
   }
 
@@ -466,13 +500,11 @@ object ExpressionCalculator extends StrictLogging {
         case NeqExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x != $y""")
 
         case InExpr(v, vs) =>
-          val (t, s) = mkCollectionValue(state, v.dataType, vs, "Set")
-          val (n, ns) = s.withGlobal(vs, tq"Set[${mkType(v)}]", t)
+          val (n, ns) = state.withRef(vs, tq"Set[${mkType(v)}]")
           mkSetUnary(ns, row, e, v, x => q"""$n.contains($x)""")
 
         case NotInExpr(v, vs) =>
-          val (t, s) = mkCollectionValue(state, v.dataType, vs, "Set")
-          val (n, ns) = s.withGlobal(vs, tq"Set[${mkType(v)}]", t)
+          val (n, ns) = state.withRef(vs, tq"Set[${mkType(v)}]")
           mkSetUnary(ns, row, e, v, x => q"""!$n.contains($x)""")
 
         case PlusExpr(a, b)    => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x + $y""")
@@ -719,28 +751,28 @@ object ExpressionCalculator extends StrictLogging {
     mkSetExprs(state, row, query.fields.map(_.expr))
   }
 
-  private def mkCollectionValue[T: TypeTag](
+  private def mkSeqValue[T: TypeTag](
       state: State,
       tpe: DataType,
-      values: Traversable[T],
-      collectionName: String
+      values: Traversable[T]
   ): (Tree, State) = {
     val (literals, newState) = values.toList.foldLeft((List.empty[Tree], state)) {
       case ((ts, s), v) =>
         val (t, ns) = mapValue(s, tpe)(v)
         (ts :+ t, ns)
     }
-    Apply(Ident(TermName(collectionName)), literals) -> newState
+    Apply(Ident(TermName("Seq")), literals) -> newState
   }
 
-  def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int]) = {
+  def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int], Array[Any]) = {
     val internalRow = TermName("internalRow")
     val initialState =
       State(
         Map.empty,
-        query.fields.map(_.expr).toSet ++ query.groupBy ++ condition ++ query.postFilter + TimeExpr,
+        query.fields.map(_.expr).toSet ++ query.groupBy ++ query.postFilter + TimeExpr,
         Set.empty,
-        Map.empty,
+        Seq.empty,
+        Seq.empty,
         Seq.empty,
         Seq.empty,
         0
@@ -769,14 +801,16 @@ object ExpressionCalculator extends StrictLogging {
     val (postFilter, finalState) = mkFilter(postAggregateState, internalRow, query.postFilter).fresh
     assert(finalState.unfinished.isEmpty)
 
-    val defs = finalState.globalDecls.values.map(d => q"private val ${d.name}: ${d.tpe} = ${d.value}")
+    val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
+      finalState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
 
     val tree = q"""
-        import _root_.org.yupana.api.Time
-        import _root_.org.yupana.api.types.DataType
-        import _root_.org.yupana.api.utils.Tokenizer
-        import _root_.org.yupana.core.model.InternalRow
-        
+      import _root_.org.yupana.api.Time
+      import _root_.org.yupana.api.types.DataType
+      import _root_.org.yupana.api.utils.Tokenizer
+      import _root_.org.yupana.core.model.InternalRow
+
+      ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {
           ..$defs
         
@@ -814,13 +848,13 @@ object ExpressionCalculator extends StrictLogging {
     val finalRequirements = finalState.required -- finalState.index.keySet
     val index = finalRequirements.foldLeft(finalState.index)((i, e) => i + (e -> i.size))
 
-    tree -> index
+    (tree, index, finalState.refs.map(_._1).toArray)
   }
 
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {
     val tb = currentMirror.mkToolBox()
 
-    val (tree, known) = generateCalculator(query, condition)
+    val (tree, known, params) = generateCalculator(query, condition)
 
     logger.whenTraceEnabled {
       val index = known.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
@@ -829,7 +863,7 @@ object ExpressionCalculator extends StrictLogging {
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
-    (tb.eval(tree).asInstanceOf[ExpressionCalculator], known)
+    (tb.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator](params), known)
   }
 
   private def prettyTree(tree: Tree): String = {

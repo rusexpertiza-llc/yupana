@@ -111,7 +111,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 
       override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] = {
-        MapReducible.iteratorMR
+        IteratorMapReducible.iteratorMR
       }
 
       override def dictionaryProvider: DictionaryProvider = dictProvider

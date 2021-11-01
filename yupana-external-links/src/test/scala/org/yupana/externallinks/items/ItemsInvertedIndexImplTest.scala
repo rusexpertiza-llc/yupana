@@ -1,10 +1,9 @@
 package org.yupana.externallinks.items
 
 import java.util.Properties
-
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr }
+import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Replace }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
@@ -43,22 +42,30 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("hol").returning(si("мясо хол", "колбаса хол копчения"))
     (dao.values _).expects("kopchen").returning(si("колбаса хол копчения", "рыба копченая"))
 
-    val actual = index.condition(
+    val c1 = in(
+      lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
+      Set("колбаса вареная", "щупальца кальмара")
+    )
+    val c2 = neq(
+      lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
+      const("хол копчения")
+    )
+    val actual = index.transformCondition(
       and(
-        in(
-          lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
-          Set("колбаса вареная", "щупальца кальмара")
-        ),
-        neq(
-          lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
-          const("хол копчения")
-        )
+        c1,
+        c2
       )
     )
 
-    actual shouldEqual and(
-      DimIdInExpr(Dimensions.ITEM, si("колбаса вареная", "колбаса вареная молочная", "щупальца кальмара")),
-      DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения"))
+    actual shouldEqual Seq(
+      Replace(
+        Set(c1),
+        DimIdInExpr(Dimensions.ITEM, si("колбаса вареная", "колбаса вареная молочная", "щупальца кальмара"))
+      ),
+      Replace(
+        Set(c2),
+        DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения"))
+      )
     )
   }
 
@@ -78,12 +85,12 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("yablok").returning(si("еще красное яблоко", "красное яблоко", "сок яблоко"))
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
-    val res = index.condition(
+    val res = index.transformCondition(
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
     )
 
     inside(res) {
-      case DimIdInExpr(d, vs) =>
+      case Seq(Replace(_, DimIdInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
         vs.toList should contain theSameElementsInOrderAs si(
           "красное яблоко",
@@ -98,12 +105,12 @@ class ItemsInvertedIndexImplTest
 
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
-    val res = index.condition(
+    val res = index.transformCondition(
       notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
     )
 
     inside(res) {
-      case DimIdNotInExpr(d, vs) =>
+      case Seq(Replace(_, DimIdNotInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs si("сигареты винстон", "сигареты бонд").toList
     }

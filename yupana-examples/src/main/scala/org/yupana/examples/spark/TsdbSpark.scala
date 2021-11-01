@@ -57,6 +57,8 @@ class TsdbSpark(
       .getOrElse(el.linkName, throw new Exception(s"Can't find catalog ${el.linkName}: ${el.fields}"))
   }
 
+  override def externalLinkServices: Iterable[ExternalLinkService[_]] = TsdbSpark.externalLinks.values
+
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
     TsdbSpark.externalLinks += (catalog.linkName -> catalogService)
   }
