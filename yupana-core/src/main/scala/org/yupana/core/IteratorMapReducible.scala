@@ -45,7 +45,7 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
 
   override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)
 
-  override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toSeq
+  override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toList
 
 }
 

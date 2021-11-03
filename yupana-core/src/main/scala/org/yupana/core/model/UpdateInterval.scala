@@ -22,6 +22,8 @@ import org.joda.time.Interval
 case class UpdateInterval(table: String, from: DateTime, to: DateTime, updatedAt: DateTime, updatedBy: String) {
 
   lazy val interval: Interval = new Interval(from, to)
+
+  def whatUpdated: (String, DateTime, DateTime) = (table, from, to)
 }
 
 object UpdateInterval {
