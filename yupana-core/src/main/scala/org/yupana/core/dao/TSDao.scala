@@ -20,8 +20,6 @@ import org.yupana.api.query.DataPoint
 import org.yupana.core.MapReducible
 import org.yupana.core.model.UpdateInterval
 
-import scala.language.higherKinds
-
 trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
 
   val dataPointsBatchSize: Int

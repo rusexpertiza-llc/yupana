@@ -26,7 +26,8 @@ import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.utils.CloseableIterator
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.reflect.ClassTag
 
 object InvertedIndexDaoHBase {
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
@@ -58,7 +59,7 @@ object InvertedIndexDaoHBase {
   }
 }
 
-class InvertedIndexDaoHBase[K, V: DimOrdering](
+class InvertedIndexDaoHBase[K, V: DimOrdering: ClassTag](
     connection: ExternalLinkHBaseConnection,
     tableName: String,
     keySerializer: K => Array[Byte],
@@ -150,7 +151,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering](
 
     val fetchedIterator = SortedSetIterator(seq: _*)
 
-    SortedSetIterator.unionAll(fetchedIterator +: iterators)
+    SortedSetIterator.unionAll(fetchedIterator +: iterators.toSeq)
   }
 
   private def scanValues(key: K): SortedSetIterator[V] = {

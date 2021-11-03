@@ -113,7 +113,7 @@ object HdfsFileUtils {
   }
 
   def addHdfsPathToConfiguration(configuration: Configuration, properties: Properties): Unit = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     configuration.set("fs.defaultFS", properties.getProperty("fs.defaultFS"))
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
     properties.asScala.foreach {

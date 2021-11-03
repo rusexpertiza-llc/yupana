@@ -21,7 +21,7 @@ import io.prometheus.client.exporter.PushGateway
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.CommandLineOptions
 
-import scala.collection.JavaConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters._
 
 /**
   * Entry point for pushing benchmark results into prometheus. Pass all incoming arguments into JMH benchmark
@@ -37,7 +37,7 @@ object BenchmarksRunner {
     val results = runner.run()
     val gateway = new PushGateway(params.pushGatewayUrl)
 
-    results.asScala.foreach { result ⇒
+    results.asScala.foreach { result =>
       val benchmark = result.getParams.getBenchmark.split("\\.").takeRight(2).mkString("_")
       val score = result.getAggregatedResult.getPrimaryResult.getScore
       observe(benchmark, "score", score)

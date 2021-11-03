@@ -27,7 +27,6 @@ import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricColl
 import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.language.higherKinds
 
 /**
   * Core of time series database processing pipeline.

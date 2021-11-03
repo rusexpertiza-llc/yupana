@@ -28,6 +28,8 @@ import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 
+//import scala.collection.compat._
+
 object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
@@ -73,7 +75,7 @@ class ItemsInvertedIndexImpl(
   def putItemNames(names: Set[String]): Unit = {
     val items = names.map(n => Dimensions.ITEM.hashFunction(n) -> n).toSeq
     val wordIdMap = indexItems(schema)(items)
-    invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
+    invertedIndexDao.batchPut(wordIdMap.map { case (k, v) => k -> v.toSet })
   }
 
   def dimIdsForStemmedWord(word: String): SortedSetIterator[ItemDimension.KeyType] = {
@@ -140,6 +142,6 @@ class ItemsInvertedIndexImpl(
       .filter(_.nonEmpty)
       .map(schema.transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
-    SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
+    SortedSetIterator.intersectAll(idsPerWord.toSeq ++ idsPerPrefix)
   }
 }

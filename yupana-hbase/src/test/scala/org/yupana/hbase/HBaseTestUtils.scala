@@ -8,7 +8,7 @@ import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.types.DataType
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.reflect.api
 import scala.reflect.api.{ TypeCreator, Universe }
 import scala.reflect.runtime.universe._
@@ -55,7 +55,7 @@ object HBaseTestUtils {
       case x: Byte  => Bytes.toBytes(x)
       case x: Int   => Bytes.toBytes(x)
       case x: (_, _) =>
-        val List(aTpe, bTpe) = typeTag.tpe.typeArgs
+        val List(aTpe, bTpe) = typeTag.tpe.typeArgs: @unchecked
         toBytes(x._1)(typeToTag(aTpe)) ++ toBytes(x._2)(typeToTag(bTpe))
       case _ => throw new IllegalArgumentException(s"Unsupported type ${typeTag.tpe}")
     }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.jdbc.model
 
 sealed trait ParameterValue
 

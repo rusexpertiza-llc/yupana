@@ -20,8 +20,8 @@ import java.sql.{ Array => _, _ }
 import java.util
 import java.util.Properties
 import java.util.concurrent.Executor
-
 import org.yupana.api.query.Result
+import org.yupana.jdbc.model.ParameterValue
 import org.yupana.proto.Version
 
 class YupanaConnectionImpl(override val url: String, properties: Properties) extends YupanaConnection {

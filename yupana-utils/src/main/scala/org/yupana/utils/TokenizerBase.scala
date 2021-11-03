@@ -145,6 +145,6 @@ trait TokenizerBase extends Tokenizer {
     if (originFrom < item.length && originFrom != from) {
       sliceStemAppend(originFrom, item.length, offset, updated)
     }
-    wordsList
+    wordsList.toSeq
   }
 }

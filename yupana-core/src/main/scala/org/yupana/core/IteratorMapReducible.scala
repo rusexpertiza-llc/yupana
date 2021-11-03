@@ -17,7 +17,7 @@
 package org.yupana.core
 
 import org.yupana.core.utils.CollectionUtils
-
+import scala.collection.compat.IterableOnce
 import scala.reflect.ClassTag
 
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
@@ -28,7 +28,7 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
   override def flatMap[A: ClassTag, B: ClassTag](it: Iterator[A])(f: A => Iterable[B]): Iterator[B] = it.flatMap(f)
 
   override def batchFlatMap[A, B: ClassTag](it: Iterator[A], size: Int)(
-      f: Seq[A] => TraversableOnce[B]
+      f: Seq[A] => IterableOnce[B]
   ): Iterator[B] = {
     it.grouped(size).flatMap(f)
   }
