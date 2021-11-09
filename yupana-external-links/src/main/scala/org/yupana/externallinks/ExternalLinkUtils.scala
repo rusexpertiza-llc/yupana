@@ -194,7 +194,7 @@ object ExternalLinkUtils {
               var found = false
               while (!found && i < timeSensitiveFieldValues.length - 1) {
                 if (timeSensitiveFieldValues(i).time <= time
-                  && i < timeSensitiveFieldValues.length && timeSensitiveFieldValues(i + 1).time > time)
+                    && i < timeSensitiveFieldValues.length && timeSensitiveFieldValues(i + 1).time > time)
                   found = true
                 else
                   i += 1
