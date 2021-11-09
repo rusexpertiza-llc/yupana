@@ -56,9 +56,9 @@ object QueryRunner {
   }
 
   def executeQuery(sql: String, tsdbSpark: TsdbSpark): Either[String, DataRowRDD] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case s: Select =>
-        new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).right.map { q =>
+        new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).map { q =>
           tsdbSpark.query(q)
         }
       case _ => Left(s"Unsupported query: $sql")

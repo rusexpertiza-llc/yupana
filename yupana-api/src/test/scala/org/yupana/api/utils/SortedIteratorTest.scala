@@ -41,10 +41,10 @@ class SortedIteratorTest extends AnyFlatSpec with Matchers with ScalaCheckDriven
   it should "union any sorted iterators" in {
 
     forAll { (xs: List[Long], ys: List[Long]) =>
-      val xit = xs.sorted.toIterator
-      val yit = ys.sorted.toIterator
+      val xit = xs.sorted.iterator
+      val yit = ys.sorted.iterator
 
-      val expected = xs.union(ys).distinct.sorted
+      val expected = (xs ++ ys).distinct.sorted
       SortedSetIterator[Long](xit).union(SortedSetIterator[Long](yit)).toList shouldBe expected
     }
   }
@@ -61,8 +61,8 @@ class SortedIteratorTest extends AnyFlatSpec with Matchers with ScalaCheckDriven
 
   it should "intersect any sorted iterators" in {
     forAll { (xs: List[Long], ys: List[Long]) =>
-      val xit = xs.sorted.toIterator
-      val yit = ys.sorted.toIterator
+      val xit = xs.sorted.iterator
+      val yit = ys.sorted.iterator
 
       val expected = xs.toSet.intersect(ys.toSet).toList.sorted
       SortedSetIterator[Long](xit).intersect(SortedSetIterator(yit)).toList shouldBe expected
@@ -83,8 +83,8 @@ class SortedIteratorTest extends AnyFlatSpec with Matchers with ScalaCheckDriven
 
   it should "exclude any sorted iterator" in {
     forAll { (xs: List[Long], ys: List[Long]) =>
-      val xit = xs.sorted.toIterator
-      val yit = ys.sorted.toIterator
+      val xit = xs.sorted.iterator
+      val yit = ys.sorted.iterator
 
       val expected = (xs.toSet -- ys.toSet).toList.sorted
       SortedSetIterator(xit).exclude(SortedSetIterator(yit)).toList shouldBe expected

@@ -31,8 +31,8 @@ object RussianTokenizer extends TokenizerBase {
       ('a' to 'z') ++
       ('A' to 'Z') ++
       ('а' to 'я') ++
-      ('А' to 'Я') +
-      'ё' + 'Ё'
+      ('А' to 'Я') ++
+      mutable.Set('ё', 'Ё')
 
     val chars = Array.fill[Boolean](charSet.max + 1)(false)
 

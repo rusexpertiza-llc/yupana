@@ -21,8 +21,6 @@ import org.yupana.core.MapReducible
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.language.higherKinds
-
 trait TSReadingDao[Collection[_], IdType] {
   def query(
       query: InternalQuery,

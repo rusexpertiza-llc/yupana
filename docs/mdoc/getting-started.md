@@ -57,7 +57,9 @@ sbt examples/flywayMigrate
 Для запуска миграций с альтернативным адресом сервера PostgreSQL можно использовать команду:
 
 ```
-sbt -Dflyway.url=jdbc:postgresql://server:port/db_name -Dflyway.user=db_user examples/flywayMigrate
+sbt -Dflyway.url=jdbc:postgresql://server:port/db_name \
+    -Dflyway.user=db_user \
+    examples/flywayMigrate
 ```
 
 ### 1. Server
@@ -74,7 +76,7 @@ examples/runMain org.yupana.examples.server.Main
 `10101`.
 
 Для подключения к серверу нужен JDBC драйвер.  Его можно собрать командой `sbt jdbc/assembly`.  Пакет с драйвером будет
-сохранен в файл: `yupana/yupana-jdbc/target/scala-2.12/yupana-jdbc-assembly-{версия_проекта}-SNAPSHOT.jar`.
+сохранен в файл: `yupana/yupana-jdbc/target/scala-@SCALA_VERSION@/yupana-jdbc-assembly-{версия_проекта}-SNAPSHOT.jar`.
 Для соединения с сервером с использованием Yupana JDBC нужно указать следующие параметры: 
 
   - URL: `jdbc:yupana://localhost:10101`

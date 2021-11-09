@@ -4,11 +4,11 @@ import java.io.{ ByteArrayInputStream, CharArrayReader }
 import java.net.URL
 import java.sql.{ SQLException, SQLFeatureNotSupportedException, Time, Timestamp, Types }
 import java.util.Calendar
-
 import org.scalamock.scalatest.MixedMockFactory
 import org.yupana.api.query.SimpleResult
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
 
 class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMockFactory {
 

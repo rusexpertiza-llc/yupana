@@ -32,7 +32,7 @@ import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core.utils.metric.{ MetricCollector, NoMetricCollector }
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object TsdbQueryMetricsDaoHBase {
   val TABLE_NAME: String = "ts_query_metrics"

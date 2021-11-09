@@ -40,6 +40,10 @@ jobs:
 
   build:
     name: Compile and test
+    strategy:
+      matrix:
+        scala: [2.12.15, 2.13.6]
+
     runs-on: ubuntu-latest
 
     steps:
@@ -67,6 +71,6 @@ jobs:
         echo -e "realm=Dummy\nhost=example.com\nuser=user\npassword=password" > "$HOME/.ivy2/.credentials_nexus"
 
     - name: Run tests
-      run: sbt clean coverage test coverageReport
+      run: sbt ++${{ matrix.scala }} clean coverage test coverageReport
 
     - uses: codecov/codecov-action@v2.1.0

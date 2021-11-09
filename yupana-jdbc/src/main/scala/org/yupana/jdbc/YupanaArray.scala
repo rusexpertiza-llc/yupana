@@ -18,9 +18,10 @@ package org.yupana.jdbc
 
 import java.sql.{ ResultSet, Array => SqlArray }
 import java.util
-
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
+
+import scala.collection.compat.immutable.LazyList
 
 class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T]) extends SqlArray {
   override def getBaseTypeName: String = valueType.meta.sqlTypeName
@@ -65,7 +66,7 @@ class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T])
   override def free(): Unit = {}
 
   private def createResultSet(array: Array[T], startIndex: Int): ResultSet = {
-    val it = array.zip(Stream.from(startIndex)).map { case (v, i) => Array[Any](i, v) }.toIterator
+    val it = array.zip(LazyList.from(startIndex)).map { case (v, i) => Array[Any](i, v) }.iterator
     new YupanaResultSet(null, new SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
   }
 }

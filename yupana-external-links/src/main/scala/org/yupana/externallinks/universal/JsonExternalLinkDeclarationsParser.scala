@@ -21,6 +21,8 @@ import org.yupana.api.schema.Schema
 
 import scala.collection.mutable.ListBuffer
 
+import scala.collection.compat._
+
 object JsonExternalLinkDeclarationsParser {
 
   import JsonCatalogs._
@@ -31,11 +33,11 @@ object JsonExternalLinkDeclarationsParser {
   def parse(schema: Schema, declaration: String): Either[String, Seq[SQLExternalLinkConfig]] = {
     JsonMethods.parse(declaration) \\ "externalLinks" match {
       case jCatalogs: JArray =>
-        val (errors, catalogs) = jCatalogs.arr map extractCatalog(schema) partition (_.isLeft)
+        val (errors, catalogs) = jCatalogs.arr.map(extractCatalog(schema)).partitionMap(identity)
         if (errors.isEmpty) {
-          Right(catalogs.map(_.right.get))
+          Right(catalogs)
         } else {
-          Left(errors.map(_.left.get).mkString(", "))
+          Left(errors.mkString(", "))
         }
       case _ => Left(s"No 'externalLinks' array was found in $declaration")
     }

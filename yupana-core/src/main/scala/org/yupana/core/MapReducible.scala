@@ -16,8 +16,9 @@
 
 package org.yupana.core
 
-import scala.language.higherKinds
 import scala.reflect.ClassTag
+
+import scala.collection.compat.IterableOnce
 
 /**
   * Defines basic operations on `Collection`
@@ -30,7 +31,7 @@ trait MapReducible[Collection[_]] extends Serializable {
   def map[A: ClassTag, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
   def flatMap[A: ClassTag, B: ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
 
-  def batchFlatMap[A, B: ClassTag](c: Collection[A], size: Int)(f: Seq[A] => TraversableOnce[B]): Collection[B]
+  def batchFlatMap[A, B: ClassTag](c: Collection[A], size: Int)(f: Seq[A] => IterableOnce[B]): Collection[B]
 
   def fold[A: ClassTag](c: Collection[A])(zero: A)(f: (A, A) => A): A
   def reduce[A: ClassTag](c: Collection[A])(f: (A, A) => A): A

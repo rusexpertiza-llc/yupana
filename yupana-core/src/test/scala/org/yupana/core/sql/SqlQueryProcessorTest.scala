@@ -1020,9 +1020,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
               |    d
             """.stripMargin
 
-    inside(createQuery(q)) {
-      case Left(msg) =>
-        msg shouldBe "Invalid expression 'max(metric(testField)) - const(2:BigDecimal) * metric(testField3)' for field strange_result"
+    testError(q) {
+      _ shouldBe "Invalid expression 'max(metric(testField)) - const(2:BigDecimal) * metric(testField3)' for field strange_result"
     }
   }
 
@@ -1113,10 +1112,49 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
               |        AND id(A) IN ('1','2','3')
               |""".stripMargin
 
-    inside(createQuery(q)) {
-      case Left(msg) =>
-        msg shouldEqual "Function id is applicable only to dimensions"
-    }
+    testError(q) { _ shouldEqual "Function id is applicable only to dimensions" }
+  }
+
+  it should "fail if field name is unknown" in {
+    val q =
+      "SELECT foo, id(bar) as b FROM test_table WHERE time >= timestamp '2021-10-27' and time < timestamp '2021-10-28'"
+
+    testError(q) { _ shouldEqual "Unknown field foo. Unknown field bar" }
+  }
+
+  it should "fail on field names without table" in {
+    testError("SELECT foo as f, 5+6 as b") { _ shouldEqual "Unknown field foo" }
+  }
+
+  it should "fail if field name is ambiguous" in {
+    val q =
+      """SELECT sum(testField) as testField
+        |  FROM test_table
+        |  WHERE time >= timestamp '2021-10-21' and time <= timestamp '2021-10-22'
+        |       AND testField = 'a'""".stripMargin
+
+    testError(q) { _ shouldEqual "Ambiguous field testField" }
+  }
+
+  it should "fail if unknown function is used" in {
+    testError("SELECT reverse('foo')") { _ shouldEqual "Undefined function reverse" }
+  }
+
+  it should "fail if array contains different types" in {
+    val q =
+      """SELECT testField FROM test_table
+        |  WHERE time > timestamp '2021-10-21' and time < timestamp '2021-10-30'
+        |  AND containsAny(tokens(testStringField), { 'a', 'b', 3 })""".stripMargin
+
+    testError(q) { _ shouldEqual "All expressions must have same type but: const(3:BigDecimal) has type DECIMAL" }
+  }
+
+  it should "fail if non boolean expression in where" in {
+    val q =
+      """SELECT testField from test_table
+        |  WHERE time > timestamp '2021-10-21' and time < timestamp '2021-10-30' and testField + 1""".stripMargin
+
+    testError(q) { _ shouldEqual "metric(testField) + const(1.0:Double) has type DOUBLE, but BOOLEAN is required" }
   }
 
   it should "handle standard health check" in {
@@ -1289,7 +1327,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
       case x                => Left(s"Select expected but got $x")
     }
@@ -1299,7 +1337,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       sql: String,
       params: Seq[Map[Int, parser.Value]] = Seq.empty
   ): Either[String, Seq[DataPoint]] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case u: parser.Upsert => sqlQueryProcessor.createDataPoints(u, params)
       case x                => Left(s"Upsert expected but got $x")
     }
@@ -1310,6 +1348,13 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       case Right(q: Query) => check(q)
       case Right(s)        => fail(s"Query expected but got $s")
       case Left(msg)       => fail(msg)
+    }
+  }
+
+  private def testError(query: String)(check: String => Any) = {
+    inside(createQuery(query)) {
+      case Left(msg) => check(msg)
+      case Right(s)  => fail(s"Error expected but got ${s}")
     }
   }
 }

@@ -20,7 +20,7 @@ trait TsdbMocks extends MockFactory {
     tsdb.registerExternalLink(catalog, catalogService)
 
     val externalLink = new TestLinks.TestLink
-    (catalogService.externalLink _)
+    (() => catalogService.externalLink)
       .expects()
       .returning(externalLink)
       .anyNumberOfTimes()
@@ -122,12 +122,10 @@ trait TsdbMocks extends MockFactory {
   def createQuery(sql: String): Query = {
     SqlParser
       .parse(sql)
-      .right
       .flatMap {
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
-      .right
       .map(QueryOptimizer.optimize(calculator))
       .fold(fail(_), identity)
   }

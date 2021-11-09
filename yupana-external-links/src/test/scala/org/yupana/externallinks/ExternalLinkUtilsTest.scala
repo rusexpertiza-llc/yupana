@@ -154,7 +154,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
         (ConstantExpr(true), "foo", Set(2, 3, 4, 5)),
         (ConstantExpr(true), "baz", Set(42))
       )
-    ) shouldEqual Seq(
+    ) should contain theSameElementsAs Seq(
       Map("foo" -> 2, "bar" -> 3, "baz" -> 42),
       Map("foo" -> 2, "bar" -> 4, "baz" -> 42),
       Map("foo" -> 3, "bar" -> 3, "baz" -> 42),

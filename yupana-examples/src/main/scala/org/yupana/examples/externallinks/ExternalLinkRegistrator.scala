@@ -65,6 +65,7 @@ class ExternalLinkRegistrator(
       case OrganisationCatalog =>
         val dataSource = createConnection(OrganisationCatalogImpl.connection(properties))
         new OrganisationCatalogImpl(tsdb.schema, dataSource)
+      case _ => throw new IllegalArgumentException(s"Unknown external link ${link.linkName}")
     }
 
     tsdb.registerExternalLink(link, service)
