@@ -22,8 +22,10 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.model.InternalRow
+import org.yupana.core.model.{ InternalRow, TimeSensitiveFieldValues }
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
+
+import scala.collection.mutable
 
 object ExternalLinkUtils {
 
@@ -172,22 +174,68 @@ object ExternalLinkUtils {
       exprIndex: scala.collection.Map[Expression[_], Int],
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr[_]],
-      fieldValuesForDimValuesAndTimes: (Set[String], Set[(R, Time)]) => Table[(R, Time), String, Any]
+      fieldValuesForDimValues: (Set[String], Set[R], Time, Time) => Map[R, Array[TimeSensitiveFieldValues]]
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField.name)
+
+    def findFieldValuesByTime(
+        allFieldsValues: Map[R, Array[TimeSensitiveFieldValues]],
+        dimId: R,
+        time: Time
+    ): Map[String, Any] = {
+      allFieldsValues.get(dimId) match {
+        case Some(timeSensitiveFieldValues) =>
+          var i = 0
+          if (timeSensitiveFieldValues.length > 1) {
+            if (timeSensitiveFieldValues.last.time < time)
+              i = timeSensitiveFieldValues.length - 1
+            else if (timeSensitiveFieldValues(0).time < time) {
+              var found = false
+              while (!found && i < timeSensitiveFieldValues.length - 1) {
+                if (timeSensitiveFieldValues(i).time <= time
+                  && i < timeSensitiveFieldValues.length && timeSensitiveFieldValues(i + 1).time > time)
+                  found = true
+                else
+                  i += 1
+              }
+            }
+          }
+          timeSensitiveFieldValues(i).fieldValues
+        case None =>
+          Map.empty
+      }
+    }
 
     def extractDimValueWithTime(r: InternalRow): (R, Time) = {
       (r.get[R](exprIndex, dimExpr), r.get[Time](exprIndex, TimeExpr))
     }
 
-    val dimValuesWithTimes = rows.map(extractDimValueWithTime)
-    val allFieldsValues = fieldValuesForDimValuesAndTimes(fields, dimValuesWithTimes.toSet)
+    def getDimValuesAndPeriod: (Set[R], Time, Time) = {
+      val dimValues = mutable.Set.empty[R]
+      var from = Time(Long.MaxValue)
+      var to = Time(Long.MinValue)
+      rows.foreach { row =>
+        val (dimId, time) = extractDimValueWithTime(row)
+        dimValues += dimId
+        if (time < from) {
+          from = time
+        }
+        if (time > to) {
+          to = time
+        }
+      }
+      (dimValues.toSet, from, to)
+    }
+
+    val (dimValues, from, to) = getDimValuesAndPeriod
+
+    val allFieldsValues = fieldValuesForDimValues(fields, dimValues, from, to)
     val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
 
     rows.foreach { row =>
-      val dimValueAtTime = extractDimValueWithTime(row)
-      val values = allFieldsValues.row(dimValueAtTime)
+      val (dimId, time) = extractDimValueWithTime(row)
+      val values = findFieldValuesByTime(allFieldsValues, dimId, time)
       updateRow(row, linkExprsIdx, values)
     }
   }
