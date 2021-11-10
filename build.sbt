@@ -376,7 +376,7 @@ lazy val versions = new {
   val prometheus = "0.9.0"
 
   val hbase = "2.4.1"
-  val hadoop = "3.3.1"
+  val hadoop = "3.0.3"
 
   val akka = "2.5.32"
 
