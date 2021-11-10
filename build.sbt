@@ -401,7 +401,7 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.15",
+  scalaVersion := "2.13.6",
   crossScalaVersions := Seq("2.12.15", "2.13.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
