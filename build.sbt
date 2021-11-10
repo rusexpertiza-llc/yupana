@@ -376,7 +376,7 @@ lazy val versions = new {
   val prometheus = "0.9.0"
 
   val hbase = "2.4.1"
-  val hadoop = "3.0.3"
+  val hadoop = "3.3.1"
 
   val akka = "2.5.32"
 
@@ -401,7 +401,7 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.6",
+  scalaVersion := "2.12.15",
   crossScalaVersions := Seq("2.12.15", "2.13.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
