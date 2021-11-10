@@ -90,7 +90,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       filter: Option[QueryMetricsFilter],
       limit: Option[Int] = None
   ): Iterator[TsdbQueryMetrics] = withTables {
-    val results = rowsForFilter(filter).map(toMetric)
+    val results = rowsForFilter(filter, limit).map(toMetric)
 
     val grouped = new GroupByIterator[TsdbQueryMetrics, String](_.queryId, results)
       .map(x => joinMetrics(x._2))
@@ -111,7 +111,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     n
   }
 
-  private def rowsForFilter(filter: Option[QueryMetricsFilter]): Iterator[Result] = {
+  private def rowsForFilter(filter: Option[QueryMetricsFilter], limit: Option[Int] = None): Iterator[Result] = {
     def setFilters(scan: Scan): Unit = {
       val filterList = new FilterList(FilterList.Operator.MUST_PASS_ALL)
       filter.foreach { f =>
@@ -149,6 +149,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       case None =>
         new Scan().addFamily(FAMILY).setReversed(true)
     }
+    limit.foreach(scan.setLimit)
 
     HBaseUtils.executeScan(connection, getTableName(namespace), scan, NoMetricCollector, BATCH_SIZE)
   }
