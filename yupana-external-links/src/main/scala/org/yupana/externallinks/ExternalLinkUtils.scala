@@ -178,37 +178,35 @@ object ExternalLinkUtils {
   ): Unit = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField.name)
+    val dimIdIdx = exprIndex(dimExpr)
+    val timeIdx = exprIndex(TimeExpr)
 
     def findFieldValuesByTime(
         allFieldsValues: Map[R, Array[TimeSensitiveFieldValues]],
         dimId: R,
         time: Time
     ): Map[String, Any] = {
-      allFieldsValues.get(dimId) match {
-        case Some(timeSensitiveFieldValues) =>
-          var i = 0
-          if (timeSensitiveFieldValues.length > 1) {
-            if (timeSensitiveFieldValues.last.time < time)
-              i = timeSensitiveFieldValues.length - 1
-            else if (timeSensitiveFieldValues(0).time < time) {
-              var found = false
-              while (!found && i < timeSensitiveFieldValues.length - 1) {
-                if (timeSensitiveFieldValues(i).time <= time
-                    && i < timeSensitiveFieldValues.length && timeSensitiveFieldValues(i + 1).time > time)
-                  found = true
-                else
-                  i += 1
+      if (allFieldsValues.contains(dimId)) {
+        val timeSensitiveFieldValues = allFieldsValues(dimId)
+        var i = 0
+        if (timeSensitiveFieldValues.length > 1) {
+          if (timeSensitiveFieldValues.last.time < time) {
+            i = timeSensitiveFieldValues.length - 1
+          } else if (timeSensitiveFieldValues(0).time < time) {
+            var found = false
+            while (!found && i < timeSensitiveFieldValues.length - 1) {
+              if (timeSensitiveFieldValues(i).time <= time && timeSensitiveFieldValues(i + 1).time > time) {
+                found = true
+              } else {
+                i += 1
               }
             }
           }
-          timeSensitiveFieldValues(i).fieldValues
-        case None =>
-          Map.empty
+        }
+        timeSensitiveFieldValues(i).fieldValues
+      } else {
+        Map.empty
       }
-    }
-
-    def extractDimValueWithTime(r: InternalRow): (R, Time) = {
-      (r.get[R](exprIndex, dimExpr), r.get[Time](exprIndex, TimeExpr))
     }
 
     def getDimValuesAndPeriod: (Set[R], Time, Time) = {
@@ -216,7 +214,8 @@ object ExternalLinkUtils {
       var from = Time(Long.MaxValue)
       var to = Time(Long.MinValue)
       rows.foreach { row =>
-        val (dimId, time) = extractDimValueWithTime(row)
+        val dimId = row.get[R](dimIdIdx)
+        val time = row.get[Time](timeIdx)
         dimValues += dimId
         if (time < from) {
           from = time
@@ -234,7 +233,8 @@ object ExternalLinkUtils {
     val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
 
     rows.foreach { row =>
-      val (dimId, time) = extractDimValueWithTime(row)
+      val dimId = row.get[R](dimIdIdx)
+      val time = row.get[Time](timeIdx)
       val values = findFieldValuesByTime(allFieldsValues, dimId, time)
       updateRow(row, linkExprsIdx, values)
     }
