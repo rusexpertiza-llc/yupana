@@ -96,8 +96,8 @@ object QueryStates {
   def combine(a: QueryState, b: QueryState): QueryState = {
     if (a == b) a
     else if (a == Cancelled || b == Cancelled) Cancelled
-    else if (a == Running || b == Running) Running
-    else Finished
+    else if (a == Finished || b == Finished) Finished
+    else Running
   }
 
   val states = List(Running, Finished, Cancelled)
