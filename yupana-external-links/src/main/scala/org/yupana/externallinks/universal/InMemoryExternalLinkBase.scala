@@ -91,7 +91,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      expressionCalculator,
+      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,
