@@ -37,7 +37,7 @@ object QueryInfoProvider {
   def handleShowQueries(
       flatQueryEngine: FlatQueryEngine,
       sqlFilter: Option[MetricsFilter],
-      limit: Option[Int] = Some(1000)
+      limit: Option[Int]
   ): Result = {
     import org.yupana.core.model.TsdbQueryMetrics._
 

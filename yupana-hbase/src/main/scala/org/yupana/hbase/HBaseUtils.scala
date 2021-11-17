@@ -217,6 +217,32 @@ object HBaseUtils extends StrictLogging {
       metricsCollector: MetricQueryCollector,
       batchSize: Int
   ): Iterator[Result] = {
+    withIterator(connection, table, scan, metricsCollector) {
+      _.iterator().asScala.grouped(batchSize)
+    } {
+      _.flatten
+    }
+  }
+
+  def executeScan(
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector
+  ): Iterator[Result] = {
+    withIterator(connection, table, scan, metricsCollector) {
+      _.iterator().asScala
+    } {
+      identity
+    }
+  }
+
+  def withIterator[R, O](
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector
+  )(getIterator: ResultScanner => Iterator[R])(finalizeResult: Iterator[R] => Iterator[O]): Iterator[O] = {
 
     val htable = connection.getTable(table)
     scan.setScanMetricsEnabled(metricsCollector.isEnabled)
@@ -227,13 +253,12 @@ object HBaseUtils extends StrictLogging {
       htable.close()
     }
 
-    val scannerIterator = scanner.iterator()
-    val batchIterator = scannerIterator.asScala.grouped(batchSize)
+    val it = getIterator(scanner)
 
-    val resultIterator = new AbstractIterator[Seq[Result]] {
+    val resultIterator = new AbstractIterator[R] {
       override def hasNext: Boolean = {
         metricsCollector.scan.measure(1) {
-          val hasNext = batchIterator.hasNext
+          val hasNext = it.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
               s"query_uuid: ${metricsCollector.query.id}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
@@ -243,12 +268,12 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): Seq[Result] = {
-        batchIterator.next()
+      override def next(): R = {
+        it.next()
       }
     }
 
-    CloseableIterator(resultIterator.flatten, close())
+    CloseableIterator(finalizeResult(resultIterator), close())
   }
 
   def multiRowRangeFilter(
