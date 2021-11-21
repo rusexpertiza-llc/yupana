@@ -19,8 +19,8 @@ package org.yupana.core
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
-import org.yupana.core.model.InternalRow
 import org.yupana.api.utils.ConditionMatchers._
+import org.yupana.core.model.InternalRow
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -28,7 +28,7 @@ trait ExternalLinkService[T <: ExternalLink] {
 
   def schema: Schema
 
-  lazy val expressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  lazy val constantCalculator = new ConstantCalculator(schema.tokenizer)
 
   val putEnabled: Boolean = false
 
@@ -69,9 +69,9 @@ trait ExternalLinkService[T <: ExternalLink] {
     * as a context for catalog).
     *
     * @param condition condition to be transformed
-    * @return transformed condition. It should preserve time bounds even if there no conditions supported by this catalog.
+    * @return sequence of transformations applied to the initial condition, basically each transformation is a mapping from one expression to another. It should preserve time bounds even if there no conditions supported by this catalog.
     */
-  def condition(condition: Condition): Condition
+  def transformCondition(condition: Condition): Seq[TransformCondition]
 
   /**
     * Checks what passed simple condition can be handled by this catalog

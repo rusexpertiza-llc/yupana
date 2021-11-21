@@ -19,67 +19,14 @@ package org.yupana.spark
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.streaming.dstream.DStream
-import org.joda.time.DateTime
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{ Schema, Table }
-import org.yupana.core.dao.RollupMetaDao
-import org.yupana.core.model.UpdateInterval
-import org.yupana.hbase.HBaseUtils
 
 import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(
-      context: EtlContext,
-      schema: Schema,
-      dataPoints: RDD[DataPoint],
-      doInvalidateRollups: Boolean
-  ): Unit = {
-
-    dataPoints.foreachPartition { ls =>
-      ls.sliding(5000, 5000).foreach { batch =>
-        val dps = batch.toList
-
-        logger.trace(s"Put ${dps.size} datapoints")
-        context.tsdb.put(dps)
-
-        val byTable = dps.groupBy(_.table)
-
-        if (doInvalidateRollups) {
-          byTable.foreach {
-            case (t, ps) =>
-              if (schema.rollups.exists(_.fromTable.name == t.name)) {
-                invalidateRollups(context.rollupMetaDao, ps, t)
-              }
-          }
-        }
-      }
-    }
-  }
-
-  def invalidateRollups(rollupMetaDao: RollupMetaDao, dps: Seq[DataPoint], table: Table): Unit = {
-    rollupMetaDao.getRollupSpecialField("etl", table).foreach { etlObligatoryRecalc =>
-      val rollupStatuses = dps
-        .filter(_.time < etlObligatoryRecalc)
-        .groupBy(dp => HBaseUtils.baseTime(dp.time, table))
-        .mapValues(dps => invalidationMark(dps.head))
-        .toSeq
-
-      rollupMetaDao.putRollupStatuses(rollupStatuses, table)
-      val now = DateTime.now
-      val invalidatedPeriods = rollupStatuses.map {
-        case (baseTime, _) =>
-          UpdateInterval(from = new DateTime(baseTime), to = new DateTime(baseTime + table.rowTimeSpan), now)
-      }
-      rollupMetaDao.putUpdatesIntervals(table.name, invalidatedPeriods)
-    }
-  }
-
-  private def invalidationMark(dataPoint: DataPoint): String = {
-    dataPoint.dimensions.foldLeft(dataPoint.time.toString) {
-      case (acc, (_, v)) => acc + v
-    }
+  def processTransactions(context: EtlContext, dataPoints: RDD[DataPoint]): Unit = {
+    dataPoints.foreachPartition({ ls => context.tsdb.put(ls) })
   }
 
   implicit def dStream2Functions(stream: DStream[DataPoint]): DataPointStreamFunctions =
@@ -88,9 +35,9 @@ object ETLFunctions extends StrictLogging {
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema, invalidateRollups: Boolean = true): DStream[DataPoint] = {
+  def saveDataPoints(context: EtlContext): DStream[DataPoint] = {
     stream.foreachRDD { rdd =>
-      ETLFunctions.processTransactions(context, schema, rdd, invalidateRollups)
+      ETLFunctions.processTransactions(context, rdd)
     }
 
     stream
@@ -98,7 +45,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 }
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext, schema: Schema, invalidateRollups: Boolean = false): Unit = {
-    ETLFunctions.processTransactions(context, schema, rdd, invalidateRollups)
+  def saveDataPoints(context: EtlContext): Unit = {
+    ETLFunctions.processTransactions(context, rdd)
   }
 }

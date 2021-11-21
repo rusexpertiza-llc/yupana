@@ -25,7 +25,7 @@ import org.yupana.api.schema.Dimension
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.DictionaryDao
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object DictionaryDaoHBase {
 

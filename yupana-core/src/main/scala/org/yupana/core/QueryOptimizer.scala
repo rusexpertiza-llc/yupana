@@ -23,23 +23,24 @@ import org.yupana.core.utils.ExpressionUtils.Transformer
 
 object QueryOptimizer {
 
-  def optimize(expressionCalculator: ExpressionCalculator)(query: Query): Query = {
+  def optimize(expressionCalculator: ConstantCalculator)(query: Query): Query = {
     query.copy(
       fields = query.fields.map(optimizeField(expressionCalculator)),
       filter = query.filter.map(optimizeCondition(expressionCalculator)),
-      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator))
+      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator)),
+      groupBy = query.groupBy.map(e => optimizeExpr(expressionCalculator)(e))
     )
   }
 
-  def optimizeCondition(expressionCalculator: ExpressionCalculator)(c: Condition): Condition = {
+  def optimizeCondition(expressionCalculator: ConstantCalculator)(c: Condition): Condition = {
     simplifyCondition(optimizeExpr(expressionCalculator)(c))
   }
 
-  def optimizeField(expressionCalculator: ExpressionCalculator)(field: QueryField): QueryField = {
+  def optimizeField(expressionCalculator: ConstantCalculator)(field: QueryField): QueryField = {
     field.copy(expr = optimizeExpr(expressionCalculator)(field.expr))
   }
 
-  def optimizeExpr[T](expressionCalculator: ExpressionCalculator)(expr: Expression[T]): Expression[T] = {
+  def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
     val transformer = new Transformer {
       override def apply[U](e: Expression[U]): Option[Expression[U]] = {
         if (e.kind == Const) Some(evaluateConstant(expressionCalculator)(e)) else None
@@ -50,16 +51,18 @@ object QueryOptimizer {
 
   def simplifyCondition(condition: Condition): Condition = {
     condition match {
-      case AndExpr(cs) => and(cs.flatMap(optimizeAnd))
+      case AndExpr(cs) => or(optimizeAnd(List.empty, cs.toList))
       case OrExpr(cs)  => or(cs.flatMap(optimizeOr))
       case c           => c
     }
   }
 
-  private def optimizeAnd(c: Condition): Seq[Condition] = {
-    c match {
-      case AndExpr(cs) => cs.flatMap(optimizeAnd)
-      case x           => Seq(simplifyCondition(x))
+  private def optimizeAnd(topAnd: List[Condition], cs: List[Condition]): List[Condition] = {
+    cs match {
+      case Nil                 => List(and(topAnd.reverse))
+      case AndExpr(as) :: rest => optimizeAnd(topAnd, as.toList ::: rest)
+      case OrExpr(os) :: rest  => os.flatMap(optimizeOr).flatMap(o => optimizeAnd(o :: topAnd, rest)).toList
+      case x :: rest           => optimizeAnd(x :: topAnd, rest)
     }
   }
 
@@ -93,7 +96,7 @@ object QueryOptimizer {
   }
 
   private def evaluateConstant[T](
-      expressionCalculator: ExpressionCalculator
+      expressionCalculator: ConstantCalculator
   )(e: Expression[T]): Expression[T] = {
     assert(e.kind == Const)
     val eval = expressionCalculator.evaluateConstant(e)

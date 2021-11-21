@@ -10,6 +10,7 @@ import org.yupana.core.QueryContext
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.model.InternalRowBuilder
 
 trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSession {
 
@@ -29,16 +30,18 @@ trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSessi
     )
     val queryContext = QueryContext(query, None)
 
+    val builder = new InternalRowBuilder(queryContext)
+
     val theTime = LocalDateTime.now().minusHours(1)
 
     val rdd = spark.sparkContext.parallelize(
       Seq(
-        Array(
-          Time(theTime),
-          "болт М6",
-          42d,
-          null
-        )
+        builder
+          .set(Time(theTime))
+          .set(dimension(Dimensions.ITEM), "болт М6")
+          .set(metric(ItemTableMetrics.quantityField), 42d)
+          .buildAndReset()
+          .data
       )
     )
 

@@ -10,7 +10,6 @@
     </root>
 
     <logger name="org.apache" level="error"/>
-    <logger name="org.epicsquad.kkm" level="info"/>
     <logger name="org.yupana.core" level="info"/>
     <logger name="org.yupana.hbase" level="info"/>
 </configuration>

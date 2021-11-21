@@ -80,7 +80,7 @@ class JdbcMetadataProvider(schema: Schema) {
         columnFieldNames.map(toColumnType),
         data
       )
-    } toRight s"Unknown schema '$tableName'"
+    } toRight s"Unknown table '$tableName'"
 
   def listFunctions(typeName: String): Either[String, Result] = {
     DataType.bySqlName(typeName).map { t =>

@@ -17,7 +17,7 @@
 package org.yupana.schema
 
 import org.yupana.api.{ Blob, Time }
-import org.yupana.api.schema.Metric
+import org.yupana.api.schema.{ Metric, QueryFieldToDimension, QueryFieldToMetric }
 
 trait ItemTableMetrics {
 
@@ -73,6 +73,8 @@ trait ItemTableMetrics {
   val documentNameField: Metric.Aux[Int] = Metric[Int]("documentName", 52, rarelyQueried)
   val acceptedAtField: Metric.Aux[Time] = Metric[Time]("acceptedAt", 53, rarelyQueried)
 
+  val itemCountField: Metric.Aux[Long] = Metric[Long]("itemCount", 54)
+
   val metrics: Seq[Metric] = Seq(
     quantityField,
     sumField,
@@ -117,6 +119,23 @@ trait ItemTableMetrics {
     documentNameField,
     acceptedAtField
   )
+
+  import org.yupana.api.query.syntax.All._
+
+  object ItemRollupFields {
+    val baseFields = Seq(
+      QueryFieldToDimension(dimension(Dimensions.ITEM) as Dimensions.ITEM.name, Dimensions.ITEM),
+      QueryFieldToDimension(
+        dimension(Dimensions.OPERATION_TYPE) as Dimensions.OPERATION_TYPE.name,
+        Dimensions.OPERATION_TYPE
+      ),
+      QueryFieldToMetric(sum(metric(sumField)) as sumField.name, sumField),
+      QueryFieldToMetric(sum(metric(quantityField)) as quantityField.name, quantityField)
+    )
+    val kkmIdDim = QueryFieldToDimension(dimension(Dimensions.KKM_ID) as Dimensions.KKM_ID.name, Dimensions.KKM_ID)
+    val countFromRawData = QueryFieldToMetric(count(time) as itemCountField.name, itemCountField)
+    val countFromRollup = QueryFieldToMetric(sum(metric(itemCountField)) as itemCountField.name, itemCountField)
+  }
 }
 
 object ItemTableMetrics extends ItemTableMetrics

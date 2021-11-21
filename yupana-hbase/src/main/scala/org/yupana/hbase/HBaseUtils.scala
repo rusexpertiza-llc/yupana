@@ -25,17 +25,19 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTimeZone, LocalDateTime }
+import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
+import org.yupana.core.model.UpdateInterval
+import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.NumericRange
 
 object HBaseUtils extends StrictLogging {
@@ -45,11 +47,8 @@ object HBaseUtils extends StrictLogging {
   type ValuesByGroup = Map[Int, TimeShiftedValues]
 
   val tableNamePrefix: String = "ts_"
-  val rollupStatusFamily: Array[Byte] = "v".getBytes
   val tsdbSchemaFamily: Array[Byte] = "m".getBytes
-  val rollupStatusField: Array[Byte] = "st".getBytes
   val tsdbSchemaField: Array[Byte] = "meta".getBytes
-  val rollupSpecialKey: Array[Byte] = "\u0000".getBytes
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
@@ -69,19 +68,48 @@ object HBaseUtils extends StrictLogging {
     startBaseTime to stopBaseTime by table.rowTimeSpan
   }
 
+  def loadDimIds(dictionaryProvider: DictionaryProvider, table: Table, dataPoints: Seq[DataPoint]): Unit = {
+    table.dimensionSeq.foreach {
+      case dimension: DictionaryDimension =>
+        val values = dataPoints.flatMap { dp =>
+          dp.dimensionValue(dimension).filter(_.trim.nonEmpty)
+        }
+        dictionaryProvider.dictionary(dimension).findIdsByValues(values.toSet)
+      case _ =>
+    }
+  }
+
   def createPuts(
       dataPoints: Seq[DataPoint],
-      dictionaryProvider: DictionaryProvider
-  ): Seq[(Table, Seq[Put])] = {
+      dictionaryProvider: DictionaryProvider,
+      username: String
+  ): Seq[(Table, Seq[Put], Seq[UpdateInterval])] = {
+    val now = DateTime.now()
     dataPoints
       .groupBy(_.table)
       .map {
         case (table, points) =>
+          loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
           val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
-          table -> grouped.map {
-            case (key, dps) => createPutOperation(table, key, dps)
-          }.toSeq
+          val (puts, intervals) = grouped
+            .map {
+              case (key, dps) =>
+                val baseTime = Bytes.toLong(key)
+                (
+                  createPutOperation(table, key, dps),
+                  UpdateInterval(
+                    table.name,
+                    new DateTime(baseTime),
+                    new DateTime(baseTime + table.rowTimeSpan),
+                    now,
+                    username
+                  )
+                )
+            }
+            .toSeq
+            .unzip
+          (table, puts, intervals.distinct)
       }
       .toSeq
   }
@@ -97,6 +125,30 @@ object HBaseUtils extends StrictLogging {
         }
     }
     put
+  }
+
+  def doPutBatch(
+      connection: Connection,
+      dictionaryProvider: DictionaryProvider,
+      namespace: String,
+      username: String,
+      putsBatchSize: Int,
+      dataPointsBatch: Seq[DataPoint]
+  ): Seq[UpdateInterval] = {
+    logger.trace(s"Put ${dataPointsBatch.size} dataPoints to tsdb")
+    logger.trace(s" -- DETAIL DATAPOINTS: \r\n ${dataPointsBatch.mkString("\r\n")}")
+
+    val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
+    putsWithIntervalsByTable.flatMap {
+      case (table, puts, updateIntervals) =>
+        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+          puts
+            .sliding(putsBatchSize, putsBatchSize)
+            .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
+          logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
+          updateIntervals
+        }
+    }
   }
 
   def createScan(
@@ -155,9 +207,45 @@ object HBaseUtils extends StrictLogging {
       context: InternalQueryContext,
       batchSize: Int
   ): Iterator[Result] = {
+    executeScan(connection, tableName(namespace, context.table), scan, context.metricsCollector, batchSize)
+  }
 
-    val htable = connection.getTable(tableName(namespace, context.table))
-    scan.setScanMetricsEnabled(context.metricsCollector.isEnabled)
+  def executeScan(
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector,
+      batchSize: Int
+  ): Iterator[Result] = {
+    withIterator(connection, table, scan, metricsCollector) {
+      _.iterator().asScala.grouped(batchSize)
+    } {
+      _.flatten
+    }
+  }
+
+  def executeScan(
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector
+  ): Iterator[Result] = {
+    withIterator(connection, table, scan, metricsCollector) {
+      _.iterator().asScala
+    } {
+      identity
+    }
+  }
+
+  def withIterator[R, O](
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector
+  )(getIterator: ResultScanner => Iterator[R])(finalizeResult: Iterator[R] => Iterator[O]): Iterator[O] = {
+
+    val htable = connection.getTable(table)
+    scan.setScanMetricsEnabled(metricsCollector.isEnabled)
     val scanner = htable.getScanner(scan)
 
     def close(): Unit = {
@@ -165,28 +253,27 @@ object HBaseUtils extends StrictLogging {
       htable.close()
     }
 
-    val scannerIterator = scanner.iterator()
-    val batchIterator = scannerIterator.asScala.grouped(batchSize)
+    val it = getIterator(scanner)
 
-    val resultIterator = new AbstractIterator[List[Result]] {
+    val resultIterator = new AbstractIterator[R] {
       override def hasNext: Boolean = {
-        context.metricsCollector.scan.measure(1) {
-          val hasNext = batchIterator.hasNext
+        metricsCollector.scan.measure(1) {
+          val hasNext = it.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
-              s"query_uuid: ${context.metricsCollector.queryId}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
+              s"query_uuid: ${metricsCollector.query.id}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
             )
           }
           hasNext
         }
       }
 
-      override def next(): List[Result] = {
-        batchIterator.next()
+      override def next(): R = {
+        it.next()
       }
     }
 
-    CloseableIterator(resultIterator.flatten, close())
+    CloseableIterator(finalizeResult(resultIterator), close())
   }
 
   def multiRowRangeFilter(
@@ -332,7 +419,6 @@ object HBaseUtils extends StrictLogging {
 
     schema.tables.values.foreach { t =>
       checkTableExistsElseCreate(connection, namespace, t, config.maxRegions, config.compression)
-      checkRollupStatusFamilyExistsElseCreate(connection, namespace, t)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
     checkSchemaDefinition(connection, namespace, schema) match {
@@ -393,28 +479,6 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkRollupStatusFamilyExistsElseCreate(connection: Connection, namespace: String, table: Table): Unit = {
-    val name = tableName(namespace, table)
-    using(connection.getTable(name)) { hbaseTable =>
-      val tableDesc = hbaseTable.getDescriptor
-      if (!tableDesc.hasColumnFamily(rollupStatusFamily)) {
-        using(connection.getAdmin) {
-          _.addColumnFamily(
-            name,
-            ColumnFamilyDescriptorBuilder
-              .newBuilder(rollupStatusFamily)
-              .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-              .build()
-          )
-        }
-      }
-    }
-  }
-
-  def createRollupStatusPut(time: Long, status: String): Put = {
-    new Put(Bytes.toBytes(time)).addColumn(rollupStatusFamily, rollupStatusField, status.getBytes)
-  }
-
   private[hbase] def tableKeySize(table: Table): Int = {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map(_.rStorable.size).sum
   }
@@ -460,21 +524,20 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def scanMetricsToString(metrics: ScanMetrics): String = {
-    import scala.collection.JavaConverters._
     metrics.getMetricsMap.asScala.map { case (k, v) => s""""$k":"$v"""" }.mkString("{", ",", "}")
   }
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
   def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
-    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).mapValues(_.toArray)
+    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).map { case (k, v) => k -> v.toArray }
   }
 
   private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
     val timeShift = HBaseUtils.restTime(dp.time, table)
     dp.metrics
       .groupBy(_.metric.group)
-      .mapValues(metricValues => Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))))
+      .map { case (k, metricValues) => k -> Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))) }
   }
 
   private def mergeMaps(

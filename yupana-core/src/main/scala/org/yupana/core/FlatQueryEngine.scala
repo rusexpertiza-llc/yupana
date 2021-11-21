@@ -16,18 +16,19 @@
 
 package org.yupana.core
 
-import org.joda.time.Interval
-import org.yupana.api.schema.Table
-import org.yupana.core.dao.{ QueryMetricsFilter, RollupMetaDao, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ QueryMetricsFilter, ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.core.model.{ UpdateInterval, TsdbQueryMetrics }
+import org.yupana.core.model.{ TsdbQueryMetrics, UpdateInterval }
+import org.yupana.core.providers.UpdatesIntervalsProvider.UpdatesIntervalsFilter
 
-class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMetaDao) {
-  def getUpdatesIntervals(
-      tableName: String,
-      rollupInterval: Interval
-  ): Iterable[UpdateInterval] = {
-    rollupMetaDao.getUpdatesIntervals(tableName, rollupInterval)
+class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, changelogDao: ChangelogDao) {
+  def getUpdatesIntervals(filter: UpdatesIntervalsFilter = UpdatesIntervalsFilter.empty): Iterable[UpdateInterval] = {
+    changelogDao.getUpdatesIntervals(
+      filter.maybeTableName,
+      filter.maybeFrom.map(_.getMillis),
+      filter.maybeTo.map(_.getMillis),
+      filter.maybeBy
+    )
   }
 
   def deleteMetrics(filter: QueryMetricsFilter): Int = {
@@ -35,18 +36,10 @@ class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, rollupMetaDao: RollupMeta
   }
 
   def setQueryState(filter: QueryMetricsFilter, queryState: QueryState): Unit = {
-    metricsDao.setQueryState(filter, queryState)
+//    metricsDao.setQueryState(filter, queryState)
   }
 
-  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterable[TsdbQueryMetrics] = {
+  def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterator[TsdbQueryMetrics] = {
     metricsDao.queriesByFilter(filter, limit)
-  }
-
-  def putRollupStatuses(statuses: Seq[(Long, String)], table: Table): Unit = {
-    rollupMetaDao.putRollupStatuses(statuses, table)
-  }
-
-  def getRollupSpecialField(fieldName: String, table: Table): Option[Long] = {
-    rollupMetaDao.getRollupSpecialField(fieldName, table)
   }
 }

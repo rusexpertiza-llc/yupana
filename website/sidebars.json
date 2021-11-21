@@ -1,0 +1,20 @@
+{
+  "docs": {
+    "Установка" : [
+       "installation"
+    ],
+    "Документация": [
+       "architecture",
+       "external-links",
+       "benchmarks"
+    ],
+    "Язык запросов": [
+       "yupanaql",
+       "select",
+       "upsert",
+       "show",
+       "kill",
+       "delete"
+    ]
+  }
+}

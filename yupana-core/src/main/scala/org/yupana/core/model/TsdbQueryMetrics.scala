@@ -21,8 +21,9 @@ import org.yupana.core.model.QueryStates.QueryState
 
 case class TsdbQueryMetrics(
     queryId: String,
+    partitionId: Option[String],
     startDate: DateTime,
-    totalDuration: Double = 0.0,
+    totalDuration: Long = 0L,
     query: String,
     state: QueryState,
     engine: String,
@@ -80,8 +81,6 @@ object TsdbQueryMetrics {
   )
 }
 
-case class MetricData(count: Long, time: Double, speed: Double)
-
 object QueryStates {
 
   sealed abstract class QueryState(val name: String) {
@@ -93,6 +92,13 @@ object QueryStates {
   case object Finished extends QueryState("FINISHED")
 
   case object Cancelled extends QueryState("CANCELLED")
+
+  def combine(a: QueryState, b: QueryState): QueryState = {
+    if (a == b) a
+    else if (a == Cancelled || b == Cancelled) Cancelled
+    else if (a == Finished || b == Finished) Finished
+    else Running
+  }
 
   val states = List(Running, Finished, Cancelled)
 

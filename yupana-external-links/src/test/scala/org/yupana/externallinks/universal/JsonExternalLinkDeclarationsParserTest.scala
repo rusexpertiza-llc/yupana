@@ -1,6 +1,6 @@
 package org.yupana.externallinks.universal
 
-import org.scalatest.Inside
+import org.scalatest.{ EitherValues, Inside }
 import org.yupana.api.schema.Schema
 import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLinkConfig,
@@ -12,7 +12,7 @@ import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers with Inside {
+class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers with Inside with EitherValues {
 
   val testSchema = Schema(
     Seq(Tables.itemsKkmTable, Tables.kkmItemsTable, Tables.receiptTable),
@@ -72,7 +72,7 @@ class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers w
 
     val noArray = "{}".stripMargin
 
-    val e = JsonExternalLinkDeclarationsParser.parse(testSchema, noArray).left.get
+    val e = JsonExternalLinkDeclarationsParser.parse(testSchema, noArray).left.value
     e shouldEqual s"No 'externalLinks' array was found in $noArray"
   }
 
@@ -97,7 +97,7 @@ class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers w
                               |    }
                               |}""".stripMargin
 
-    val e2 = JsonExternalLinkDeclarationsParser.parse(testSchema, notArray).left.get
+    val e2 = JsonExternalLinkDeclarationsParser.parse(testSchema, notArray).left.value
     e2 shouldEqual s"No 'externalLinks' array was found in $notArray"
   }
 
@@ -197,7 +197,7 @@ class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers w
                           |  ]
                           |}""".stripMargin
 
-    val e3 = JsonExternalLinkDeclarationsParser.parse(testSchema, badLinks).left.get
+    val e3 = JsonExternalLinkDeclarationsParser.parse(testSchema, badLinks).left.value
     e3 shouldEqual Seq(
       """Bad source field in {"description":{"source":"bad source"}}""",
       """Can not parse external link {"description":{"source":"sql","linkName":"CaseClassExtractionError"}}: """ +

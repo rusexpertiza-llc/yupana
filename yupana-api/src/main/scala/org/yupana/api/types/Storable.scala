@@ -157,7 +157,7 @@ object Storable {
       result += storable.read(bb)
     }
 
-    result
+    result.toSeq
   }
 
   private def bigDecimalToBytes(x: BigDecimal): Array[Byte] = {

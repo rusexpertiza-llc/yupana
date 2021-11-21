@@ -31,10 +31,10 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     import scala.util.hashing.MurmurHash3._
 
     if (queryContext != null) {
-      val h = queryContext.groupByExprs.foldLeft(MurmurHash3.arraySeed) { (h, e) =>
-        mix(h, row.get(queryContext, e).##)
+      val h = queryContext.groupByIndices.foldLeft(MurmurHash3.arraySeed) { (h, idx) =>
+        mix(h, row.get[Any](idx).##)
       }
-      finalizeHash(h, queryContext.groupByExprs.length)
+      finalizeHash(h, queryContext.groupByIndices.length)
     } else {
       arrayHash(data)
     }
@@ -46,16 +46,13 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
         if (this eq that) {
           true
         } else if (this.queryContext != null && that.queryContext != null) {
-          queryContext.groupByExprs.foldLeft(true) { (a, e) =>
-            val i = queryContext.exprsIndex(e)
-            a && this.row.get[Any](i) == that.row.get[Any](i)
-          }
+          queryContext.groupByIndices.forall(i => this.row.get[Any](i) == that.row.get[Any](i))
         } else if (this.queryContext != null) {
-          queryContext.groupByExprs.indices
-            .forall(idx => this.row.get(queryContext, queryContext.groupByExprs(idx)) == that.data(idx))
+          queryContext.groupByIndices.indices
+            .forall(idx => this.row.get[Any](queryContext.groupByIndices(idx)) == that.data(idx))
         } else if (that.queryContext != null) {
-          that.queryContext.groupByExprs.indices
-            .forall(idx => that.row.get(that.queryContext, that.queryContext.groupByExprs(idx)) == this.data(idx))
+          that.queryContext.groupByIndices.indices
+            .forall(idx => that.row.get[Any](that.queryContext.groupByIndices(idx)) == this.data(idx))
         } else {
           this.data sameElements that.data
         }
@@ -65,10 +62,10 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
   }
 
   private def calcData: Array[Any] = {
-    val keyData = Array.ofDim[Any](queryContext.groupByExprs.length)
+    val keyData = Array.ofDim[Any](queryContext.groupByIndices.length)
 
     keyData.indices foreach { i =>
-      keyData(i) = row.get(queryContext, queryContext.groupByExprs(i))
+      keyData(i) = row.get[Any](queryContext.groupByIndices(i))
     }
 
     keyData

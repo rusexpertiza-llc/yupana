@@ -25,7 +25,7 @@ import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import org.apache.ignite.{ Ignite, Ignition }
 import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class IgniteCacheFactory extends CacheFactory with StrictLogging {
   private var ignite: Option[Ignite] = None

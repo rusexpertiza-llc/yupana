@@ -5,12 +5,12 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl, TsdbQueryMetricsDao }
+import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
-import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.utils.RussianTokenizer
 
 trait TsdbMocks extends MockFactory {
@@ -20,7 +20,7 @@ trait TsdbMocks extends MockFactory {
     tsdb.registerExternalLink(catalog, catalogService)
 
     val externalLink = new TestLinks.TestLink
-    (catalogService.externalLink _)
+    (() => catalogService.externalLink)
       .expects()
       .returning(externalLink)
       .anyNumberOfTimes()
@@ -42,7 +42,6 @@ trait TsdbMocks extends MockFactory {
 
   def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
     val tsdbDaoMock = mock[TSTestDao]
-    val metricsDaoMock = mock[TsdbQueryMetricsDao]
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
       .onCall((c: Condition) =>
@@ -82,19 +81,21 @@ trait TsdbMocks extends MockFactory {
 
     (tsdbDaoMock.mapReduceEngine _)
       .expects(*)
-      .onCall((_: MetricQueryCollector) => MapReducible.iteratorMR)
+      .onCall((_: MetricQueryCollector) => IteratorMapReducible.iteratorMR)
       .anyNumberOfTimes()
 
     val dictionaryDaoMock = mock[DictionaryDao]
+    val changelogDaoMock = mock[ChangelogDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
-        metricsDaoMock,
+        changelogDaoMock,
         dictionaryProvider,
         identity,
-        SimpleTsdbConfig()
+        SimpleTsdbConfig(),
+        { _: Query => NoMetricCollector }
       )
     body(tsdb, tsdbDaoMock)
   }
@@ -114,19 +115,17 @@ trait TsdbMocks extends MockFactory {
     }
   }
 
-  private val calculator = new ExpressionCalculator(RussianTokenizer)
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   def createQuery(sql: String): Query = {
     SqlParser
       .parse(sql)
-      .right
       .flatMap {
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
-      .right
       .map(QueryOptimizer.optimize(calculator))
       .fold(fail(_), identity)
   }

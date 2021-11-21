@@ -22,11 +22,13 @@ import java.nio.charset.{ Charset, StandardCharsets }
 import java.sql.{ Array => SqlArray, _ }
 import java.util
 import java.util.Calendar
-
 import org.joda.time.DateTimeZone
 import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.ArrayDataType
+import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
+
+import scala.collection.compat.immutable.LazyList
 
 class YupanaResultSet protected[jdbc] (
     statement: Statement,
@@ -34,7 +36,7 @@ class YupanaResultSet protected[jdbc] (
 ) extends ResultSet
     with ResultSetMetaData {
 
-  private val columnNameIndex = result.fieldNames.zip(Stream.from(1)).toMap
+  private val columnNameIndex = result.fieldNames.zip(LazyList.from(1)).toMap
   private val columns = result.fieldNames.toArray
   private val dataTypes = result.dataTypes.toArray
 
@@ -455,7 +457,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def createArray(i: Int, name: String, v: Any): YupanaArray[_] = {
     val dt = dataTypes(i - 1)
-    if (dt.isArray) {
+    if (dt.kind == TypeKind.Array) {
       val dtt = dt.asInstanceOf[ArrayDataType[_]]
       new YupanaArray(name, v.asInstanceOf[Seq[dtt.valueType.T]].toArray, dtt.valueType)
     } else {

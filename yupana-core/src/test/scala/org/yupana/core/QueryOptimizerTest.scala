@@ -10,7 +10,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 
-  private val calculator = new ExpressionCalculator(RussianTokenizer)
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   "QueryOptimizer.simplifyCondition" should "keep simple condition as is" in {
     val c = equ[String](dimension(DictionaryDimension("foo")), const("bar"))
@@ -87,19 +87,23 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
     )
   }
 
-  ignore should "handle OR in AND" in {
+  it should "handle OR in AND" in {
     val c = and(
       or(
-        equ[String](dimension(DictionaryDimension("a")), const("a")),
+        or(equ[String](dimension(DictionaryDimension("a")), const("a"))),
         equ[String](dimension(DictionaryDimension("b")), const("b"))
       ),
       or(
-        equ[String](dimension(DictionaryDimension("c")), const("c")),
-        equ[String](dimension(DictionaryDimension("d")), const("d"))
+        or(
+          equ[String](dimension(DictionaryDimension("c")), const("c")),
+          equ[String](dimension(DictionaryDimension("d")), const("d"))
+        )
       )
     )
 
-    QueryOptimizer.simplifyCondition(c) shouldEqual or(
+    val actual = QueryOptimizer.simplifyCondition(c)
+
+    actual shouldEqual or(
       and(
         equ[String](dimension(DictionaryDimension("a")), const("a")),
         equ[String](dimension(DictionaryDimension("c")), const("c"))

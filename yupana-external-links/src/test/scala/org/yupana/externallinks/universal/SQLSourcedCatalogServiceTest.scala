@@ -1,19 +1,25 @@
 package org.yupana.externallinks.universal
 
-import java.util.Properties
-
 import org.flywaydb.core.Flyway
 import org.h2.jdbcx.JdbcDataSource
 import org.scalatest.exceptions.TestFailedException
-import org.scalatest.{ BeforeAndAfterAll, OptionValues }
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{ BeforeAndAfterAll, EitherValues, OptionValues }
+import org.yupana.api.query.Replace
 import org.yupana.core.cache.CacheFactory
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with OptionValues with BeforeAndAfterAll {
+import java.util.Properties
+
+class SQLSourcedCatalogServiceTest
+    extends AnyFlatSpec
+    with Matchers
+    with OptionValues
+    with EitherValues
+    with BeforeAndAfterAll {
   val dbUrl = "jdbc:h2:mem:yupana;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"
   val dbUser = "test"
   val dbPass = "secret"
@@ -56,7 +62,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
       case Left(err) => throw new TestFailedException(err, 3)
       case _         =>
     }
-    val externalLinkConfig = parsed.right.get.head
+    val externalLinkConfig = parsed.value.head
     val externalLinkService = createService(externalLinkConfig)
     val externalLink = externalLinkService.externalLink
 
@@ -71,25 +77,38 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
     values.get(12345657, "f1").value shouldEqual "rty"
     values.get(12345657, "f2").value shouldEqual "fgh"
 
-    val inCondition = externalLinkService.condition(
+    val c1 = in(lower(link(externalLink, "f1")), Set("qwe", "ert"))
+    val c1_2 = in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
+    val inCondition = externalLinkService.transformCondition(
       and(
-        in(lower(link(externalLink, "f1")), Set("qwe", "ert")),
-        in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
+        c1,
+        c1_2
+      )
+    )
+    inCondition shouldEqual Seq(
+      Replace(
+        Set(c1, c1_2),
+        in(dimension(externalLink.dimension.aux), Set(12345654))
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345654))
-
-    val notInCondition = externalLinkService.condition(
+    val c2 = notIn(lower(link(externalLink, "f1")), Set("qwe", "ert"))
+    val c2_2 = notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
+    val notInCondition = externalLinkService.transformCondition(
       and(
-        notIn(lower(link(externalLink, "f1")), Set("qwe", "ert")),
-        notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
+        c2,
+        c2_2
       )
     )
 
-    notInCondition shouldEqual notIn(
-      dimension(externalLink.dimension.aux),
-      Set(12345654, 12345656, 12345657)
+    notInCondition shouldEqual Seq(
+      Replace(
+        Set(c2, c2_2),
+        notIn(
+          dimension(externalLink.dimension.aux),
+          Set(12345654, 12345656, 12345657)
+        )
+      )
     )
   }
 
@@ -119,7 +138,7 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
                                |  ]
                                |}""".stripMargin
     val externalLinkConfig =
-      JsonExternalLinkDeclarationsParser.parse(SchemaRegistry.defaultSchema, complicatedCatalogJson).right.get.head
+      JsonExternalLinkDeclarationsParser.parse(SchemaRegistry.defaultSchema, complicatedCatalogJson).value.head
     val externalLinkService = createService(externalLinkConfig)
     val externalLink = externalLinkService.externalLink
 
@@ -134,25 +153,39 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
     values.get(12345657, "f1").value shouldEqual "hhh3"
     values.get(12345657, "f2").value shouldEqual "ggg3"
 
-    val inCondition = externalLinkService.condition(
+    val c1 = in(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
+    val c1_2 = in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
+    val inCondition = externalLinkService.transformCondition(
       and(
-        in(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
-        in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
+        c1,
+        c1_2
       )
     )
 
-    inCondition shouldEqual in(dimension(externalLink.dimension.aux), Set(12345657))
-
-    val notInCondition = externalLinkService.condition(
-      and(
-        notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3")),
-        notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
+    inCondition shouldEqual Seq(
+      Replace(
+        Set(c1, c1_2),
+        in(dimension(externalLink.dimension.aux), Set(12345657))
       )
     )
 
-    notInCondition shouldEqual notIn(
-      dimension(externalLink.dimension.aux),
-      Set(12345654, 12345656, 12345657)
+    val c2 = notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
+    val c2_2 = notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
+    val notInCondition = externalLinkService.transformCondition(
+      and(
+        c2,
+        c2_2
+      )
+    )
+
+    notInCondition shouldEqual Seq(
+      Replace(
+        Set(c2, c2_2),
+        notIn(
+          dimension(externalLink.dimension.aux),
+          Set(12345654, 12345656, 12345657)
+        )
+      )
     )
   }
 
@@ -163,5 +196,11 @@ class SQLSourcedCatalogServiceTest extends AnyFlatSpec with Matchers with Option
     val props = new Properties()
     props.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
     CacheFactory.init(props, "ns")
+  }
+
+  import JsonExternalLinkCachingTest._
+
+  override protected def afterAll(): Unit = {
+    resetCacheFactory()
   }
 }

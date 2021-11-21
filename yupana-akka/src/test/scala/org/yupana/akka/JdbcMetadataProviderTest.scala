@@ -15,14 +15,14 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   val metadataProvider = new JdbcMetadataProvider(TS.schema)
 
   "JdbcMetadataProvider" should "return None when unknown table description has been requested" in {
-    metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown schema 'unknown_talbe'")
+    metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown table 'unknown_talbe'")
   }
 
   it should "list tables" in {
     val res = metadataProvider.listTables
     res.fieldNames should contain theSameElementsAs metadataProvider.tableFieldNames
     res.dataTypes should contain only DataType[String]
-    val r = res.iterator.next
+    val r = res.iterator.next()
     val cols = metadataProvider.tableFieldNames.map(r.get[String])
     cols should contain theSameElementsInOrderAs Seq(
       null,

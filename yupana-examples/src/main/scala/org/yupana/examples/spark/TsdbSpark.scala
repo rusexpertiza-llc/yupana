@@ -17,10 +17,12 @@
 package org.yupana.examples.spark
 
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 import org.yupana.api.query.Query
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.CacheFactory
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }
 
@@ -29,11 +31,14 @@ object TsdbSpark {
 }
 
 class TsdbSpark(
+    override val dao: TSDao[RDD, Long],
+    val changelogDao: ChangelogDao,
     sparkContext: SparkContext,
     prepareQuery: Query => Query,
     conf: Config,
     schema: Schema
-) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema) {
+) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
+
   @transient lazy val elRegistrator =
     new ExternalLinkRegistrator(
       this,
@@ -51,6 +56,8 @@ class TsdbSpark(
     TsdbSpark.externalLinks
       .getOrElse(el.linkName, throw new Exception(s"Can't find catalog ${el.linkName}: ${el.fields}"))
   }
+
+  override def externalLinkServices: Iterable[ExternalLinkService[_]] = TsdbSpark.externalLinks.values
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit = {
     TsdbSpark.externalLinks += (catalog.linkName -> catalogService)

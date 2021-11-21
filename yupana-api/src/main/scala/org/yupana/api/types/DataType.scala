@@ -17,6 +17,7 @@
 package org.yupana.api.types
 
 import org.joda.time.Period
+import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Blob, Time }
 
 import scala.reflect.ClassTag
@@ -31,7 +32,7 @@ trait DataType extends Serializable {
   val storable: Storable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
-  val isArray: Boolean = false
+  val kind: TypeKind = TypeKind.Regular
   val ordering: Option[Ordering[T]]
   val integral: Option[Integral[T]]
   val fractional: Option[Fractional[T]]
@@ -54,7 +55,7 @@ trait DataType extends Serializable {
 class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override type T = Seq[TT]
 
-  override val isArray: Boolean = true
+  override val kind: TypeKind = TypeKind.Array
   override val meta: DataTypeMeta[T] = DataTypeMeta.seqMeta(valueType.meta)
   override val storable: Storable[T] = Storable.seqStorable(valueType.storable, valueType.classTag)
   override val classTag: ClassTag[T] = implicitly[ClassTag[Seq[TT]]]
@@ -74,7 +75,27 @@ class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override def hashCode(): Int = (37 * 17 + classTag.hashCode()) * 17 + valueType.classTag.hashCode()
 }
 
+class TupleDataType[A, B](val aType: DataType.Aux[A], val bType: DataType.Aux[B]) extends DataType {
+  override type T = (A, B)
+  override val kind: TypeKind = TypeKind.Tuple
+  override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(aType.meta, bType.meta)
+  override val storable: Storable[T] = Storable.noop
+  override val classTag: ClassTag[T] = implicitly[ClassTag[(A, B)]]
+  override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(A, B)]]
+  override val ordering: Option[Ordering[(A, B)]] = None
+  override val integral: Option[Integral[(A, B)]] = None
+  override val fractional: Option[Fractional[(A, B)]] = None
+}
+
 object DataType {
+
+  sealed trait TypeKind
+  object TypeKind {
+    case object Regular extends TypeKind
+    case object Array extends TypeKind
+    case object Tuple extends TypeKind
+  }
+
   private lazy val types = Seq(
     DataType[String],
     DataType[Double],
@@ -121,16 +142,7 @@ object DataType {
     create[T](Some(Ordering[T]), None, Some(implicitly[Fractional[T]]))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
-    new DataType {
-      override type T = (TT, UU)
-      override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(dtt.meta, dtu.meta)
-      override val storable: Storable[T] = Storable.noop
-      override val classTag: ClassTag[T] = implicitly[ClassTag[(TT, UU)]]
-      override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(TT, UU)]]
-      override val ordering: Option[Ordering[(TT, UU)]] = None
-      override val integral: Option[Integral[(TT, UU)]] = None
-      override val fractional: Option[Fractional[(TT, UU)]] = None
-    }
+    new TupleDataType(dtt, dtu).aux
   }
 
   implicit def arrayDt[TT](implicit dtt: DataType.Aux[TT]): DataType.Aux[Seq[TT]] = {

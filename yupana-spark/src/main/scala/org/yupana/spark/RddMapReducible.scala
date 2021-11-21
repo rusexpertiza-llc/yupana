@@ -19,10 +19,11 @@ package org.yupana.spark
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.core.MapReducible
-import org.yupana.core.model.QueryStates
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
 
+import scala.collection.compat.IterableOnce
+import scala.collection.compat.immutable.ArraySeq
 import scala.reflect.ClassTag
 
 class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector: MetricQueryCollector)
@@ -46,7 +47,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
-  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => Iterator[B]): RDD[B] = {
+  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => IterableOnce[B]): RDD[B] = {
     val r = rdd.mapPartitions(_.grouped(size).flatMap(f))
     saveMetricOnCompleteRdd(r)
   }
@@ -64,15 +65,22 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
-  override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {
-    val rdd = saveMetricOnCompleteRdd(c)
-    val r = sparkContext.parallelize(rdd.take(n))
+  override def distinct[A: ClassTag](rdd: RDD[A]): RDD[A] = {
+    val r = rdd.distinct()
     saveMetricOnCompleteRdd(r)
   }
 
-  private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]) = {
-    rdd.mapPartitions { it =>
-      CloseableIterator[A](it, metricCollector.saveQueryMetrics(QueryStates.Running))
+  override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {
+    val rdd = saveMetricOnCompleteRdd(c)
+    val r = sparkContext.parallelize(ArraySeq.unsafeWrapArray(rdd.take(n)))
+    saveMetricOnCompleteRdd(r)
+  }
+
+  override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = ArraySeq.unsafeWrapArray(c.collect())
+
+  private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]): RDD[A] = {
+    rdd.mapPartitionsWithIndex { (id, it) =>
+      CloseableIterator[A](it, metricCollector.checkpoint())
     }
   }
 }

@@ -23,6 +23,6 @@ class TimeSeriesQueryEngine(tsdb: TSDB) {
   }
 
   def put(dps: Seq[DataPoint]): Unit = {
-    tsdb.put(dps)
+    tsdb.put(dps.iterator)
   }
 }

@@ -73,35 +73,43 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  override def condition(condition: Condition): Condition = {
+  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformCondition(
-      expressionCalculator,
+      constantCalculator,
       externalLink.linkName,
       condition,
-      createInclude,
-      createExclude
+      includeTransform,
+      excludeTransform
     )
   }
 
-  private def idsForValues(values: Seq[(String, Set[Any])]): Seq[Set[Int]] = {
+  private def idsForValues(values: Seq[(Condition, String, Set[Any])]): Seq[Set[Int]] = {
     values.map {
-      case (AddressCatalog.CITY, cities)    => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
-      case (AddressCatalog.LAT, latitudes)  => kkmAddressData.filter(x => latitudes.contains(x._2.lat)).map(_._1).toSet
-      case (AddressCatalog.LON, longitudes) => kkmAddressData.filter(x => longitudes.contains(x._2.lon)).map(_._1).toSet
-      case (f, _)                           => throw new IllegalArgumentException(s"Unknown field $f")
+      case (_, AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
+      case (_, AddressCatalog.LAT, latitudes) =>
+        kkmAddressData.collect { case (value, coord) if latitudes.contains(coord.lat) => value }.toSet
+      case (_, AddressCatalog.LON, longitudes) =>
+        kkmAddressData.collect { case (value, coord) if longitudes.contains(coord.lon) => value }.toSet
+      case (_, f, _) => throw new IllegalArgumentException(s"Unknown field $f")
     }
   }
 
-  private def createInclude(values: Seq[(String, Set[Any])]): Condition = {
+  private def includeTransform(values: Seq[(Condition, String, Set[Any])]): TransformCondition = {
     val ids = idsForValues(values)
     val dimValues = CollectionUtils.intersectAll(ids)
-    in(dimension(externalLink.dimension.aux), dimValues)
+    Replace(
+      values.map(_._1).toSet,
+      in(dimension(externalLink.dimension.aux), dimValues)
+    )
   }
 
-  private def createExclude(values: Seq[(String, Set[Any])]): Condition = {
+  private def excludeTransform(values: Seq[(Condition, String, Set[Any])]): TransformCondition = {
     val ids = idsForValues(values)
     val dimValues = ids.fold(Set.empty)(_ union _)
-    notIn(dimension(externalLink.dimension.aux), dimValues)
+    Replace(
+      values.map(_._1).toSet,
+      notIn(dimension(externalLink.dimension.aux), dimValues)
+    )
   }
 
   private def fieldValuesForDimValues(fields: Set[String], kkmIds: Set[Int]): Table[Int, String, Any] = {
@@ -110,7 +118,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
 
     val values = kkmAddressData
       .filter(x => kkmIds.contains(x._1))
-      .map { case (kkmId, addr) => kkmId -> addr.asMap.filterKeys(fields.contains) }
+      .map { case (kkmId, addr) => kkmId -> addr.asMap.filter { case (k, _) => fields.contains(k) } }
       .toMap
     SparseTable(values)
   }

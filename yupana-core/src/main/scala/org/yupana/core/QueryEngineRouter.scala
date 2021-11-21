@@ -30,10 +30,10 @@ class QueryEngineRouter(
 ) {
 
   def query(sql: String, params: Map[Int, Value]): Either[String, Result] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case select: Select =>
         val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
-        tsdbQuery.right flatMap { query =>
+        tsdbQuery flatMap { query =>
           Right(timeSeriesQueryEngine.query(query))
         }
 
@@ -55,19 +55,13 @@ class QueryEngineRouter(
       case DeleteQueryMetrics(filter) =>
         Right(QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
 
-      case ShowUpdatesIntervals(tableName, updatedAtPeriod) =>
-        Right(
-          UpdatesIntervalsProvider.handleGetUpdatesIntervals(
-            flatQueryEngine,
-            tableName,
-            updatedAtPeriod
-          )
-        )
+      case ShowUpdatesIntervals(condition) =>
+        Right(UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition))
     }
   }
 
   def batchQuery(sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
-    SqlParser.parse(sql).right.flatMap {
+    SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
         doUpsert(upsert, params)
       case _ => Left(s"Only UPSERT can have batch parameters, but got ${sql}")
@@ -78,7 +72,7 @@ class QueryEngineRouter(
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
   ): Either[String, Result] = {
-    sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
+    sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       timeSeriesQueryEngine.put(dps)
       Right(
         SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))

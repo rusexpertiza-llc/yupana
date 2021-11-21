@@ -25,30 +25,38 @@ import org.yupana.api.query._
 import org.yupana.api.schema._
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
-import org.yupana.core.ExpressionCalculator
+import org.yupana.core.ConstantCalculator
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.language.higherKinds
 import scala.util.Try
 
-trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with StrictLogging {
+object TSDaoHBaseBase {
+  val CROSS_JOIN_LIMIT = 500000
+  val RANGE_FILTERS_LIMIT = 100000
+  val FUZZY_FILTERS_LIMIT = 20
+  val EXTRACT_BATCH_SIZE = 10000
+  val INSERT_BATCH_SIZE = 5000
+  val PUTS_BATCH_SIZE = 1000
+}
+
+trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
+
+  import TSDaoHBaseBase._
+
   type IdType = Long
   type TimeFilter = Long => Boolean
   type RowFilter = TSDRowKey => Boolean
 
   val schema: Schema
 
-  protected lazy val expressionCalculator: ExpressionCalculator = new ExpressionCalculator(schema.tokenizer)
+  protected lazy val expressionCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
   val TIME: RawDimension[Time] = RawDimension[Time]("time")
 
-  val CROSS_JOIN_LIMIT = 500000
-  val RANGE_FILTERS_LIMIT = 100000
-  val FUZZY_FILTERS_LIMIT = 20
-  val EXTRACT_BATCH_SIZE = 10000
+  override val dataPointsBatchSize: Int = INSERT_BATCH_SIZE
 
   def dictionaryProvider: DictionaryProvider
 
@@ -103,9 +111,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val rows = executeScans(context, from, to, rangeScanDimIds)
 
-    val includeRowFilter = prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
-    val excludeRowFilter = filters.allExcludes.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
     val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
@@ -117,15 +125,17 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
 
     val mr = mapReduceEngine(metricCollector)
 
+    import org.yupana.core.utils.metric.MetricUtils._
     val table = query.table
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
-      }
+        val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+          rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
+        }
 
-      new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
-    }
+        new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
+          .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+      }
+      .withSavedMetrics(context.metricsCollector)
   }
 
   def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
@@ -210,8 +220,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSReadingDao[Collection, Long] with 
       exclude: Map[Dimension, SortedSetIterator[_]]
   ): RowFilter = {
 
-    val includeMap = include.map { case (k, v) => k -> v.toSet }
-    val excludeMap = exclude.map { case (k, v) => k -> v.toSet }
+    val includeMap: Map[Dimension, Set[Any]] = include.map { case (k, v) => k -> v.toSet }
+    val excludeMap: Map[Dimension, Set[Any]] = exclude.map { case (k, v) => k -> v.toSet }
 
     if (excludeMap.nonEmpty) {
       if (includeMap.nonEmpty) {

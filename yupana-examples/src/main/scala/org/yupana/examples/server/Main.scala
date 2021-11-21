@@ -22,6 +22,13 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
+import org.yupana.api.query.Query
+import org.yupana.core.utils.metric.{
+  CombinedMetricReporter,
+  ConsoleMetricReporter,
+  PersistentMetricQueryReporter,
+  StandaloneMetricCollector
+}
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
@@ -58,7 +65,6 @@ object Main extends StrictLogging {
       .map(json =>
         JsonExternalLinkDeclarationsParser
           .parse(schema, json)
-          .right
           .map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
       )
       .getOrElse(Right(schema))
@@ -67,24 +73,34 @@ object Main extends StrictLogging {
     val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
 
-    val rollupMetaDao = new RollupMetaDaoHBase(connection, config.hbaseNamespace)
+    val changelogDao = new ChangelogDaoHBase(connection, config.hbaseNamespace)
     val metricsDao = new TsdbQueryMetricsDaoHBase(connection, config.hbaseNamespace)
     HBaseUtils.initStorage(connection, config.hbaseNamespace, schema, tsdbConfig)
 
+    logger.info("TsdbQueryMetricsDao initialization...")
+    lazy val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration)
+    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
+
+    val metricCreator = { query: Query =>
+      new StandaloneMetricCollector(
+        query,
+        "query",
+        tsdbConfig.metricsUpdateInterval,
+        new CombinedMetricReporter(
+          new ConsoleMetricReporter,
+          new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
+        )
+      )
+    }
+
     val tsdb =
-      TSDBHBase(
-        connection,
-        config.hbaseNamespace,
-        schemaWithJson,
-        identity,
-        config.properties,
-        tsdbConfig,
-        metricsDao
+      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(
+        metricCreator
       )
 
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
-      new FlatQueryEngine(metricsDao, rollupMetaDao),
+      new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson),
       new SqlQueryProcessor(schemaWithJson)
     )

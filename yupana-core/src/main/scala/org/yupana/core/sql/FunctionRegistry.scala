@@ -18,10 +18,10 @@ package org.yupana.core.sql
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
 
 object FunctionRegistry {
-  import scala.language.higherKinds
 
   type ArrayExpr[T] = Expression[Seq[T]]
 
@@ -239,7 +239,7 @@ object FunctionRegistry {
     val num = if (t.numeric.isDefined) unaryFunctions.filter(_.t == NumberParam) else Seq.empty
     val ord = if (t.ordering.isDefined) unaryFunctions.filter(_.t == OrdParam) else Seq.empty
     val tpe = unaryFunctions.filter(_.t == DataTypeParam(t))
-    val array = if (t.isArray) unaryFunctions.filter(_.t == ArrayParam) else Seq.empty
+    val array = if (t.kind == TypeKind.Array) unaryFunctions.filter(_.t == ArrayParam) else Seq.empty
     val any = unaryFunctions.filter(_.t == AnyParam)
 
     (num ++ ord ++ tpe ++ array ++ any).map(_.name).distinct.sorted
@@ -295,7 +295,7 @@ object FunctionRegistry {
       fn,
       ArrayParam,
       e =>
-        if (e.dataType.isArray) Right(create(e.asInstanceOf[ArrayExpr[T]]))
+        if (e.dataType.kind == TypeKind.Array) Right(create(e.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires array, but got $e")
     )
   }
@@ -335,7 +335,7 @@ object FunctionRegistry {
   private def biSame(fn: String, create: Bind2[Expression, Expression, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) => ExprPair.alignTypes(a, b).right.map(pair => create(pair.a, pair.b))
+      (a, b) => ExprPair.alignTypes(a, b).map(pair => create(pair.a, pair.b))
     )
   }
 
@@ -354,7 +354,7 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        if (a.dataType.isArray && a.dataType == b.dataType)
+        if (a.dataType.kind == TypeKind.Array && a.dataType == b.dataType)
           Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires two arrays of same type, but got $a, $b")
     )
@@ -364,7 +364,7 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        if (a.dataType.isArray) {
+        if (a.dataType.kind == TypeKind.Array) {
           val adt = a.dataType.asInstanceOf[ArrayDataType[T]]
           if (adt.valueType == b.dataType) {
             Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[Expression[T]]))
