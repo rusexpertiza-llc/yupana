@@ -20,8 +20,7 @@ import java.sql.{ ResultSet, Array => SqlArray }
 import java.util
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
-
-import scala.collection.compat.immutable.LazyList
+import org.yupana.jdbc.compat.LazyList
 
 class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T]) extends SqlArray {
   override def getBaseTypeName: String = valueType.meta.sqlTypeName

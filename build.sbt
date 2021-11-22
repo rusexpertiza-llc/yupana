@@ -58,7 +58,6 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % versions.colCompat,
       "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
@@ -210,7 +209,6 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
-      "org.scala-lang.modules"      %% "scala-collection-compat"    % versions.colCompat,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -362,7 +360,7 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val colCompat = "2.5.0"
+  val colCompat = "2.1.1" // Same version with Spark
 
   val spark = "3.2.0"
 
