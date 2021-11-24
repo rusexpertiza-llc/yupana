@@ -2,12 +2,13 @@ package org.yupana.jdbc
 
 import java.io.{ ByteArrayInputStream, CharArrayReader }
 import java.net.URL
-import java.sql.{ SQLException, SQLFeatureNotSupportedException, Time, Timestamp, Types }
+import java.sql.{ Date, SQLException, SQLFeatureNotSupportedException, Time, Timestamp, Types }
 import java.util.Calendar
 import org.scalamock.scalatest.MixedMockFactory
 import org.yupana.api.query.SimpleResult
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.types.DataType
 import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
 
 class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMockFactory {
@@ -67,18 +68,22 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
 
   it should "create batches" in {
     val conn = mock[YupanaConnection]
-    val q = "UPSERT INTO (item, kkmId, time) FROM kkm_items VALUES (?, ?, ?)"
+    val q = "UPSERT INTO (item, kkmId, time, sum, quantity) FROM kkm_items VALUES (?, ?, ?, ?, ?)"
 
     val statement = new YupanaPreparedStatement(conn, q)
 
     statement.setString(1, "молоко 1 пакет")
     statement.setString(2, "12345")
     statement.setTimestamp(3, new Timestamp(1578584211000L))
+    statement.setFloat(4, 2.5f)
+    statement.setLong(5, 2L)
     statement.addBatch()
 
     statement.setString(1, "колбаса докторская")
     statement.setString(2, "54321")
-    statement.setTimestamp(3, new Timestamp(1578584212000L))
+    statement.setDate(3, new Date(1578584212000L))
+    statement.setDouble(4, 3.5d)
+    statement.setShort(5, 3)
     statement.addBatch()
 
     (conn.runBatchQuery _)
@@ -88,12 +93,16 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
           Map(
             1 -> StringValue("молоко 1 пакет"),
             2 -> StringValue("12345"),
-            3 -> TimestampValue(1578584211000L)
+            3 -> TimestampValue(1578584211000L),
+            4 -> NumericValue(2.5f),
+            5 -> NumericValue(2)
           ),
           Map(
             1 -> StringValue("колбаса докторская"),
             2 -> StringValue("54321"),
-            3 -> TimestampValue(1578584212000L)
+            3 -> TimestampValue(1578584212000L),
+            4 -> NumericValue(3.5d),
+            5 -> NumericValue(3)
           )
         )
       )
@@ -168,6 +177,12 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
       Calendar.getInstance()
     )
 
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setDate(
+      1,
+      new Date(123467L),
+      Calendar.getInstance()
+    )
+
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setObject(1, "test")
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setObject(1, "test", Types.VARCHAR)
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setObject(
@@ -225,6 +240,8 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
       100
     )
 
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setBlob(1, new YupanaBlob(Array.empty))
+
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setCharacterStream(
       1,
       new CharArrayReader("Test me".toCharArray)
@@ -263,6 +280,21 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
       2,
       new CharArrayReader("Test me".toCharArray),
       10L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setClob(
+      1,
+      new CharArrayReader("Test me".toCharArray)
+    )
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setClob(
+      2,
+      new CharArrayReader("Test me".toCharArray),
+      10L
+    )
+
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setArray(
+      2,
+      new YupanaArray[Int]("Test", Array(1, 2, 3), DataType[Int])
     )
 
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setBoolean(1, x = true)
