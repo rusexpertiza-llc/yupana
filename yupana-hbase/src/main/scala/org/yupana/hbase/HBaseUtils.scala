@@ -546,6 +546,10 @@ object HBaseUtils extends StrictLogging {
       metricValues: Seq[MetricValue]
   ): Array[Byte] = {
     val metricFieldBytes = metricValues.map { f =>
+      require(
+        table.metricTagsSet.contains(f.metric.tag),
+        s"Bad metric value $f: such metric is not defined for table ${table.name}"
+      )
       val bytes = f.metric.dataType.storable.write(f.value)
       (f.metric.tag, bytes)
     }
