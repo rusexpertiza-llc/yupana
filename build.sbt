@@ -380,7 +380,7 @@ lazy val versions = new {
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
-  val ehcache = "3.3.2"
+  val ehcache = "3.9.7"
   val caffeine = "2.8.6"
 
   val json4s = "3.7.0-M11" // Same version with Spark
