@@ -106,7 +106,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
 
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 

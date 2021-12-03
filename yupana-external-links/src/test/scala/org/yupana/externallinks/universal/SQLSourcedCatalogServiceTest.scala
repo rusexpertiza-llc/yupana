@@ -195,7 +195,7 @@ class SQLSourcedCatalogServiceTest
 
     val props = new Properties()
     props.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(props, "ns")
+    CacheFactory.init(props)
   }
 
   import JsonExternalLinkCachingTest._
