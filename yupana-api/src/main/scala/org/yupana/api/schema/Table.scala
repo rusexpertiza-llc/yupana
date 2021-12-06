@@ -56,7 +56,7 @@ class Table(
     tagFields
   }
 
-  lazy val metricTagsSet: Set[Byte] = metrics.map(_.tag).toSet
+  @transient lazy val metricTagsSet: Set[Byte] = metrics.map(_.tag).toSet
 
   @inline
   final def fieldForTag(tag: Byte): Option[Either[Metric, Dimension]] = tagFields(tag & 0xFF)
