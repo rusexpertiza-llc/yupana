@@ -21,7 +21,7 @@ import org.yupana.api.schema.{ Metric, QueryFieldToDimension, QueryFieldToMetric
 
 trait ItemTableMetrics {
 
-  private val rarelyQueried = 2
+  import Metric.Groups._
 
   val quantityField: Metric.Aux[Double] = Metric[Double]("quantity", 2)
   val sumField: Metric.Aux[BigDecimal] = Metric[BigDecimal]("sum", 3)
