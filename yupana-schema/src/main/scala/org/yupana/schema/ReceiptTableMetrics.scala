@@ -20,7 +20,8 @@ import org.yupana.api.Time
 import org.yupana.api.schema.{ Metric, QueryFieldToDimension, QueryFieldToMetric }
 
 trait ReceiptTableMetrics {
-  private val rarelyQueried = 2
+
+  import Metric.Groups._
 
   val totalSumField = Metric[BigDecimal]("totalSum", 1)
   val cashSumField = Metric[BigDecimal]("cashSum", 2, rarelyQueried)

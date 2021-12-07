@@ -336,7 +336,7 @@ object HBaseUtils extends StrictLogging {
     if (groups.nonEmpty) {
       groups
     } else {
-      Seq(Metric.defaultGroup)
+      Seq(Metric.Groups.default)
     }
   }
 
