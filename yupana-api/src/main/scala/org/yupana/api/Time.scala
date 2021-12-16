@@ -23,16 +23,22 @@ import org.yupana.api.utils.DimOrdering
   * Simple time value implementation.
   * @param millis epoch milliseconds in UTC.
   */
-case class Time(millis: Long) {
+case class Time(millis: Long) extends Ordered[Time] {
   def toLocalDateTime: LocalDateTime = new LocalDateTime(millis, DateTimeZone.UTC)
   def toDateTime: DateTime = new DateTime(millis, DateTimeZone.UTC)
 
   override def toString: String = toDateTime.toString
+
+  override def compare(that: Time): Int = this.millis.compare(that.millis)
 }
 
 object Time {
-  implicit val ordering: Ordering[Time] = Ordering.by(_.millis)
-  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(ordering.compare)
+  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(Ordering.by[Time, Long](_.millis).compare)
+
+  implicit class TimeOps(t: Time) {
+    def plus(value: Long): Time = t.copy(t.millis + value)
+    def minus(value: Long): Time = t.copy(t.millis - value)
+  }
 
   def apply(localDateTime: LocalDateTime): Time = new Time(localDateTime.toDateTime(DateTimeZone.UTC).getMillis)
   def apply(dateTime: DateTime): Time = new Time(dateTime.getMillis)

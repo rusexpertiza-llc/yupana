@@ -31,7 +31,6 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.language.higherKinds
 import scala.util.Try
 
 object TSDaoHBaseBase {
@@ -112,9 +111,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     val rows = executeScans(context, from, to, rangeScanDimIds)
 
-    val includeRowFilter = prefetchedDimIterators.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
-    val excludeRowFilter = filters.allExcludes.filterKeys(d => !sizeLimitedRangeScanDims.contains(d))
+    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
     val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
@@ -221,8 +220,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       exclude: Map[Dimension, SortedSetIterator[_]]
   ): RowFilter = {
 
-    val includeMap = include.map { case (k, v) => k -> v.toSet }
-    val excludeMap = exclude.map { case (k, v) => k -> v.toSet }
+    val includeMap: Map[Dimension, Set[Any]] = include.map { case (k, v) => k -> v.toSet }
+    val excludeMap: Map[Dimension, Set[Any]] = exclude.map { case (k, v) => k -> v.toSet }
 
     if (excludeMap.nonEmpty) {
       if (includeMap.nonEmpty) {

@@ -32,7 +32,7 @@ import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
 import org.yupana.core.utils.metric.{ MetricCollector, NoMetricCollector }
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object TsdbQueryMetricsDaoHBase {
   val TABLE_NAME: String = "ts_query_metrics"
@@ -45,6 +45,7 @@ object TsdbQueryMetricsDaoHBase {
   val ENGINE_QUALIFIER: Array[Byte] = Bytes.toBytes(engineColumn)
   val RUNNING_PARTITIONS_QUALIFIER: Array[Byte] = Bytes.toBytes("runningPartitions")
   val BATCH_SIZE = 10000
+  val DEFAULT_LIMIT = 1000
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 }
@@ -95,10 +96,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val grouped = new GroupByIterator[TsdbQueryMetrics, String](_.queryId, results)
       .map(x => joinMetrics(x._2))
 
-    limit match {
-      case Some(lim) => grouped.take(lim)
-      case None      => grouped
-    }
+    grouped.take(limit.getOrElse(DEFAULT_LIMIT))
   }
 
   override def deleteMetrics(filter: QueryMetricsFilter): Int = {
@@ -150,7 +148,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
         new Scan().addFamily(FAMILY).setReversed(true)
     }
 
-    HBaseUtils.executeScan(connection, getTableName(namespace), scan, NoMetricCollector, BATCH_SIZE)
+    HBaseUtils.executeScan(connection, getTableName(namespace), scan, NoMetricCollector)
   }
 
   private def toMetric(result: Result): TsdbQueryMetrics = {

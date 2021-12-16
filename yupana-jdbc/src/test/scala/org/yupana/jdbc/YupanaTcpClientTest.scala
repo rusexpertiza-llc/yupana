@@ -1,7 +1,6 @@
 package org.yupana.jdbc
 
 import java.io.IOException
-
 import com.google.protobuf.ByteString
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
@@ -14,6 +13,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -145,7 +145,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     result.name shouldEqual "items_kkm"
 
-    val rows = result.toIterator.toList
+    val rows = result.iterator.toList
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
@@ -231,7 +231,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     result.name shouldEqual "items_kkm"
 
-    val rows = result.toIterator.toList
+    val rows = result.iterator.toList
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"

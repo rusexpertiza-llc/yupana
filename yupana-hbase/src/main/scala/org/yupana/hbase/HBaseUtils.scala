@@ -37,7 +37,7 @@ import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.NumericRange
 
 object HBaseUtils extends StrictLogging {
@@ -217,6 +217,32 @@ object HBaseUtils extends StrictLogging {
       metricsCollector: MetricQueryCollector,
       batchSize: Int
   ): Iterator[Result] = {
+    withIterator(connection, table, scan, metricsCollector) {
+      _.iterator().asScala.grouped(batchSize)
+    } {
+      _.flatten
+    }
+  }
+
+  def executeScan(
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector
+  ): Iterator[Result] = {
+    withIterator(connection, table, scan, metricsCollector) {
+      _.iterator().asScala
+    } {
+      identity
+    }
+  }
+
+  def withIterator[R, O](
+      connection: Connection,
+      table: TableName,
+      scan: Scan,
+      metricsCollector: MetricQueryCollector
+  )(getIterator: ResultScanner => Iterator[R])(finalizeResult: Iterator[R] => Iterator[O]): Iterator[O] = {
 
     val htable = connection.getTable(table)
     scan.setScanMetricsEnabled(metricsCollector.isEnabled)
@@ -227,13 +253,12 @@ object HBaseUtils extends StrictLogging {
       htable.close()
     }
 
-    val scannerIterator = scanner.iterator()
-    val batchIterator = scannerIterator.asScala.grouped(batchSize)
+    val it = getIterator(scanner)
 
-    val resultIterator = new AbstractIterator[List[Result]] {
+    val resultIterator = new AbstractIterator[R] {
       override def hasNext: Boolean = {
         metricsCollector.scan.measure(1) {
-          val hasNext = batchIterator.hasNext
+          val hasNext = it.hasNext
           if (!hasNext && scan.isScanMetricsEnabled) {
             logger.info(
               s"query_uuid: ${metricsCollector.query.id}, scans: ${scanMetricsToString(scanner.getScanMetrics)}"
@@ -243,12 +268,12 @@ object HBaseUtils extends StrictLogging {
         }
       }
 
-      override def next(): List[Result] = {
-        batchIterator.next()
+      override def next(): R = {
+        it.next()
       }
     }
 
-    CloseableIterator(resultIterator.flatten, close())
+    CloseableIterator(finalizeResult(resultIterator), close())
   }
 
   def multiRowRangeFilter(
@@ -311,7 +336,7 @@ object HBaseUtils extends StrictLogging {
     if (groups.nonEmpty) {
       groups
     } else {
-      Seq(Metric.defaultGroup)
+      Seq(Metric.Groups.default)
     }
   }
 
@@ -492,21 +517,20 @@ object HBaseUtils extends StrictLogging {
   }
 
   private def scanMetricsToString(metrics: ScanMetrics): String = {
-    import scala.collection.JavaConverters._
     metrics.getMetricsMap.asScala.map { case (k, v) => s""""$k":"$v"""" }.mkString("{", ",", "}")
   }
 
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
   def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
-    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).mapValues(_.toArray)
+    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).map { case (k, v) => k -> v.toArray }
   }
 
   private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
     val timeShift = HBaseUtils.restTime(dp.time, table)
     dp.metrics
       .groupBy(_.metric.group)
-      .mapValues(metricValues => Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))))
+      .map { case (k, metricValues) => k -> Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))) }
   }
 
   private def mergeMaps(
@@ -522,6 +546,10 @@ object HBaseUtils extends StrictLogging {
       metricValues: Seq[MetricValue]
   ): Array[Byte] = {
     val metricFieldBytes = metricValues.map { f =>
+      require(
+        table.metricTagsSet.contains(f.metric.tag),
+        s"Bad metric value $f: such metric is not defined for table ${table.name}"
+      )
       val bytes = f.metric.dataType.storable.write(f.value)
       (f.metric.tag, bytes)
     }

@@ -49,7 +49,7 @@ object SortedSetIterator {
   }
 
   def apply[A: DimOrdering](seq: A*): SortedSetIterator[A] = {
-    new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](seq.toIterator))
+    new SortedSetIteratorImpl(new SingleSortedIteratorImpl[A](seq.iterator))
   }
 
   def apply[A: DimOrdering](it: Iterator[A]): SortedSetIterator[A] = {
@@ -203,7 +203,7 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
       }
 
       if (bIt.hasNext && bSub.hasNext && bIt.head == bSub.head) {
-        bIt.next
+        bIt.next()
       }
     } while (bIt.hasNext && bSub.hasNext && ord.lte(bSub.head, bIt.head))
 

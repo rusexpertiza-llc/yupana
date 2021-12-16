@@ -41,15 +41,15 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
 object TimeBoundedCondition {
 
-  def apply(expressionCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
+  def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
-      case a: AndExpr => andToTimeBounded(expressionCalculator)(a)
+      case a: AndExpr => andToTimeBounded(constantCalculator)(a)
       case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
     }
   }
 
-  def single(expressionCalculator: ConstantCalculator, condition: Condition): TimeBoundedCondition = {
-    TimeBoundedCondition(expressionCalculator, condition) match {
+  def single(constantCalculator: ConstantCalculator, condition: Condition): TimeBoundedCondition = {
+    TimeBoundedCondition(constantCalculator, condition) match {
       case Seq(tbc) =>
         tbc
       case _ =>

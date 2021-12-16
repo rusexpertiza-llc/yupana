@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.core.model
 
-sealed trait ParameterValue
+import org.yupana.api.Time
 
-case class NumericValue(value: BigDecimal) extends ParameterValue
-
-case class StringValue(value: String) extends ParameterValue
-
-case class TimestampValue(millis: Long) extends ParameterValue
+case class TimeSensitiveFieldValues(time: Time, fieldValues: Map[String, Any])

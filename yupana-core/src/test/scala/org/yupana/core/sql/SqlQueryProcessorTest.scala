@@ -1327,7 +1327,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   private def createQuery(sql: String, params: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case s: parser.Select => sqlQueryProcessor.createQuery(s, params)
       case x                => Left(s"Select expected but got $x")
     }
@@ -1337,7 +1337,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       sql: String,
       params: Seq[Map[Int, parser.Value]] = Seq.empty
   ): Either[String, Seq[DataPoint]] = {
-    SqlParser.parse(sql).right flatMap {
+    SqlParser.parse(sql) flatMap {
       case u: parser.Upsert => sqlQueryProcessor.createDataPoints(u, params)
       case x                => Left(s"Upsert expected but got $x")
     }

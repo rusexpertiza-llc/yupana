@@ -22,7 +22,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
 import org.yupana.core.QueryContext
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
@@ -70,10 +70,14 @@ class ExternalLinkBenchmarks {
 
   def fieldValuesForDimValuesTimeSensitive(
       fields: Set[String],
-      dimValuesWithTimes: Set[(Int, Time)]
-  ): Table[(Int, Time), String, String] = {
-    // [(dim, time) field, value]
-    SparseTable(dimValuesWithTimes.map { case (i, t) => ((i, t), BenchLink.F1, s"$i-f1-val") })
+      dimIds: Set[Int],
+      from: Time,
+      to: Time
+  ): Map[Int, Array[TimeSensitiveFieldValues]] = {
+    val times = for (t <- from.millis to to.millis by 1) yield Time(t)
+    dimIds.map { dimId =>
+      dimId -> times.map(t => TimeSensitiveFieldValues(t, Map(BenchLink.F1 -> s"$dimId-f1-val"))).toArray
+    }.toMap
   }
 }
 

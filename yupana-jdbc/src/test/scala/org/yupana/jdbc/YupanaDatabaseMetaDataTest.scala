@@ -1,7 +1,6 @@
 package org.yupana.jdbc
 
 import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, Types }
-
 import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
@@ -9,6 +8,7 @@ import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto.Version
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.model.ParameterValue
 
 class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -218,10 +218,10 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
-    (conn.url _).expects().returning("jdbc:yupana://example.com:10101")
+    (() => conn.url).expects().returning("jdbc:yupana://example.com:10101")
     m.getURL shouldEqual "jdbc:yupana://example.com:10101"
 
-    (conn.serverVersion _).expects().returning(Some(Version(9, 1, 2, "1.2.3"))).anyNumberOfTimes()
+    (() => conn.serverVersion).expects().returning(Some(Version(9, 1, 2, "1.2.3"))).anyNumberOfTimes()
     m.getDatabaseMajorVersion shouldEqual 1
     m.getDatabaseMinorVersion shouldEqual 2
     m.getDatabaseProductVersion shouldEqual "1.2.3"
@@ -244,7 +244,7 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
       ).iterator
     )
 
-    (conn.createStatement _).expects().returning(new YupanaStatement(conn))
+    (() => conn.createStatement).expects().returning(new YupanaStatement(conn))
     (conn.runQuery _).expects("SHOW TABLES", Map.empty[Int, ParameterValue]).returning(tables)
 
     val rs = m.getTables("", "", "", Array.empty)
@@ -266,7 +266,7 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
       ).iterator
     )
 
-    (conn.createStatement _).expects().returning(new YupanaStatement(conn))
+    (() => conn.createStatement).expects().returning(new YupanaStatement(conn))
     (conn.runQuery _).expects("SHOW COLUMNS FROM EMPLOYEES", Map.empty[Int, ParameterValue]).returning(tables)
 
     val rs = m.getColumns("", "", "EMPLOYEES", "")

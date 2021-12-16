@@ -29,7 +29,7 @@ import org.yupana.core.model.UpdateInterval
 import org.yupana.core.model.UpdateInterval._
 import org.yupana.hbase.ChangelogDaoHBase._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ChangelogDaoHBase {
 

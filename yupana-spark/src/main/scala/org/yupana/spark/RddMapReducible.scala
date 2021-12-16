@@ -22,6 +22,8 @@ import org.yupana.core.MapReducible
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
 
+import scala.collection.compat.IterableOnce
+import scala.collection.compat.immutable.ArraySeq
 import scala.reflect.ClassTag
 
 class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector: MetricQueryCollector)
@@ -45,7 +47,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
-  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => TraversableOnce[B]): RDD[B] = {
+  override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => IterableOnce[B]): RDD[B] = {
     val r = rdd.mapPartitions(_.grouped(size).flatMap(f))
     saveMetricOnCompleteRdd(r)
   }
@@ -70,13 +72,13 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
 
   override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {
     val rdd = saveMetricOnCompleteRdd(c)
-    val r = sparkContext.parallelize(rdd.take(n))
+    val r = sparkContext.parallelize(ArraySeq.unsafeWrapArray(rdd.take(n)))
     saveMetricOnCompleteRdd(r)
   }
 
-  override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = c.collect()
+  override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = ArraySeq.unsafeWrapArray(c.collect())
 
-  private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]) = {
+  private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]): RDD[A] = {
     rdd.mapPartitionsWithIndex { (id, it) =>
       CloseableIterator[A](it, metricCollector.checkpoint())
     }

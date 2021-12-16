@@ -58,8 +58,8 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalamock"          %% "scalamock"            % versions.scalaMock         % Test
+      "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
+      "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
     buildInfoKeys := {
       val vn = VersionNumber(version.value)
@@ -98,6 +98,7 @@ lazy val core = (project in file("yupana-core"))
     libraryDependencies ++= Seq(
       "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
+      "org.scala-lang.modules"        %% "scala-collection-compat"      % versions.colCompat,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
@@ -115,6 +116,7 @@ lazy val hbase = (project in file("yupana-hbase"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
+      "org.scala-lang.modules"      %% "scala-collection-compat"      % versions.colCompat,
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
       "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
@@ -319,6 +321,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
+    scalaVersion := "2.13.6",
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -357,7 +360,9 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val spark =  "3.1.2"
+  val colCompat = "2.1.1" // Same version with Spark
+
+  val spark = "3.2.0"
 
   val joda = "2.10.10"
 
@@ -378,7 +383,7 @@ lazy val versions = new {
   val ehcache = "3.3.2"
   val caffeine = "2.8.6"
 
-  val json4s = "3.6.6"
+  val json4s = "3.7.0-M11" // Same version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
@@ -394,18 +399,24 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.12.15",
+  scalaVersion := "2.13.6",
+  crossScalaVersions := Seq("2.12.15", "2.13.6"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
-    "-Xsource:2.12",
+    "-Xsource:2.13",
     "-deprecation",
     "-unchecked",
     "-feature",
+    "-language:higherKinds",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Ywarn-unused-import"
-  ),
+    "-Ywarn-dead-code"
+  ) ++ {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
+      case _ => Seq.empty
+    }
+  },
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,

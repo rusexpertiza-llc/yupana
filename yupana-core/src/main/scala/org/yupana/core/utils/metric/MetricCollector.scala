@@ -41,7 +41,7 @@ trait MetricCollector extends Serializable {
 
   def allMetrics: Seq[Metric]
 
-  def startTime: Long = startAt
+  def startTime: Long = System.currentTimeMillis()
   def resultDuration: Long = finishAt - startAt
 
   def queryStatus: AtomicReference[QueryStatus]

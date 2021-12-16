@@ -21,7 +21,7 @@ import java.util.{ Properties, ServiceLoader }
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.types.BoxingTag
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait CacheFactory {
 
