@@ -32,7 +32,7 @@ class RussianTokenizerTest extends AnyFlatSpec with Matchers with TableDrivenPro
   }
 
   it should "keep the space" in {
-    RussianTokenizer.stemmedTokens(" лаки дейз ж/р арбуз подушечки 14г (c") should contain allOf ("дейз", "ж/р")
+    RussianTokenizer.stemmedTokens(" лаки дейз ж/р арбуз подушечки 14г (c") should contain.allOf("дейз", "ж/р")
 
     RussianTokenizer.stemmedTokens("мясн/пр сос.классич с сливк. и/о вар 0,4кг пл/у(аг") should contain("и/о")
   }

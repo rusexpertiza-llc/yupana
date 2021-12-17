@@ -73,7 +73,7 @@ class ItemsInvertedIndexImpl(
   def putItemNames(names: Set[String]): Unit = {
     val items = names.map(n => Dimensions.ITEM.hashFunction(n) -> n).toSeq
     val wordIdMap = indexItems(schema)(items)
-    invertedIndexDao.batchPut(wordIdMap.mapValues(_.toSet))
+    invertedIndexDao.batchPut(wordIdMap.map { case (k, v) => k -> v.toSet })
   }
 
   def dimIdsForStemmedWord(word: String): SortedSetIterator[ItemDimension.KeyType] = {
@@ -111,7 +111,7 @@ class ItemsInvertedIndexImpl(
 
   override def transformCondition(condition: Condition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      expressionCalculator,
+      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,
@@ -140,6 +140,6 @@ class ItemsInvertedIndexImpl(
       .filter(_.nonEmpty)
       .map(schema.transliterator.transliterate)
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
-    SortedSetIterator.intersectAll(idsPerWord ++ idsPerPrefix)
+    SortedSetIterator.intersectAll(idsPerWord.toSeq ++ idsPerPrefix)
   }
 }

@@ -61,7 +61,7 @@ class QueryEngineRouter(
   }
 
   def batchQuery(sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
-    SqlParser.parse(sql).right.flatMap {
+    SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
         doUpsert(upsert, params)
       case _ => Left(s"Only UPSERT can have batch parameters, but got ${sql}")
@@ -72,7 +72,7 @@ class QueryEngineRouter(
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
   ): Either[String, Result] = {
-    sqlQueryProcessor.createDataPoints(upsert, params).right.flatMap { dps =>
+    sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       timeSeriesQueryEngine.put(dps)
       Right(
         SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))

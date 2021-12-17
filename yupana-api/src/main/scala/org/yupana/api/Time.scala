@@ -24,16 +24,22 @@ import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
   * Simple time value implementation.
   * @param millis epoch milliseconds in UTC.
   */
-case class Time(millis: Long) {
+case class Time(millis: Long) extends Ordered[Time] {
   def toLocalDateTime: LocalDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC)
   def toDateTime: OffsetDateTime = Instant.ofEpochMilli(millis).atOffset(ZoneOffset.UTC)
 
   override def toString: String = toDateTime.toString
+
+  override def compare(that: Time): Int = this.millis.compare(that.millis)
 }
 
 object Time {
-  implicit val ordering: Ordering[Time] = Ordering.by(_.millis)
-  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(ordering.compare)
+  implicit val dimOrdering: DimOrdering[Time] = DimOrdering.fromCmp(Ordering.by[Time, Long](_.millis).compare)
+
+  implicit class TimeOps(t: Time) {
+    def plus(value: Long): Time = t.copy(t.millis + value)
+    def minus(value: Long): Time = t.copy(t.millis - value)
+  }
 
   def apply(localDateTime: LocalDateTime): Time = new Time(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli)
   def apply(dateTime: OffsetDateTime): Time = new Time(dateTime.toInstant.toEpochMilli)

@@ -18,7 +18,7 @@ import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.{ MapReducible, IteratorMapReducible, TestDims, TestSchema, TestTableFields }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -39,7 +39,7 @@ class TSDaoHBaseTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
   }
 
   override protected def beforeEach(): Unit = {

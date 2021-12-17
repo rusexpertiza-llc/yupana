@@ -17,8 +17,9 @@
 package org.yupana.akka
 
 import akka.actor.ActorSystem
+import akka.stream.Attributes.CancellationStrategy
 import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
-import akka.stream.{ ActorAttributes, Supervision }
+import akka.stream.{ ActorAttributes, Attributes, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.proto.{ Request, Response }
@@ -70,6 +71,9 @@ class TsdbTcp(
         }
 
     val requestFlow = Flow[ByteString]
+      .addAttributes(
+        Attributes(CancellationStrategy(CancellationStrategy.AfterDelay(1.second, CancellationStrategy.FailStage)))
+      )
       .map { b =>
         val r = Try(Request.parseFrom(b.toArray)) match {
           case Success(message) =>
@@ -151,7 +155,7 @@ class TsdbTcp(
     if (fileSize <= 0) return "0 B"
     // kilo, Mega, Giga, Tera, Peta, Exa, Zetta, Yotta
     val units: Array[String] = Array("B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
-    val digitGroup: Int = (Math.log10(fileSize) / Math.log10(1024)).toInt
+    val digitGroup: Int = (Math.log10(fileSize.toDouble) / Math.log10(1024)).toInt
     f"${fileSize / Math.pow(1024, digitGroup)}%3.3f ${units(digitGroup)}"
   }
 }

@@ -33,9 +33,9 @@ object JsonExternalLinkDeclarationsParser {
       case jCatalogs: JArray =>
         val (errors, catalogs) = jCatalogs.arr map extractCatalog(schema) partition (_.isLeft)
         if (errors.isEmpty) {
-          Right(catalogs.map(_.right.get))
+          Right(catalogs.map(_.toOption.get))
         } else {
-          Left(errors.map(_.left.get).mkString(", "))
+          Left(errors.map(_.swap.toOption.get).mkString(", "))
         }
       case _ => Left(s"No 'externalLinks' array was found in $declaration")
     }

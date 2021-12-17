@@ -17,8 +17,8 @@
 package org.yupana.jdbc
 
 import java.sql.Connection
-
 import org.yupana.api.query.Result
+import org.yupana.jdbc.model.ParameterValue
 import org.yupana.proto.Version
 
 trait YupanaConnection extends Connection {

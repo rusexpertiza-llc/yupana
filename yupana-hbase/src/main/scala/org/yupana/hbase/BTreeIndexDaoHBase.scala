@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.utils.ResourceUtils.using
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class BTreeIndexDaoHBase[K, V](
     connection: ExternalLinkHBaseConnection,
@@ -99,7 +99,7 @@ class BTreeIndexDaoHBase[K, V](
     keys.map(k => k -> result.contains(k)).toMap
   }
 
-  private def checkTableExistsElseCreate() {
+  private def checkTableExistsElseCreate(): Unit = {
     val descriptor = TableDescriptorBuilder
       .newBuilder(connection.getTableName(tableName))
       .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))

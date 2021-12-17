@@ -25,7 +25,7 @@ class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFac
     props.put("analytics.caches.default.engine", "EhCache")
     props.put("analytics.caches.TestLink_fields.maxElements", "100")
     props.put("analytics.caches.TestLink_fields.heapSize", "1024")
-    CacheFactory.init(props, "ns")
+    CacheFactory.init(props)
   }
 
   override def afterAll(): Unit = {
@@ -46,11 +46,11 @@ class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFac
     val statement = mock[PreparedStatement]
     val resultSet = mock[ResultSet]
 
-    (dataSource.getConnection _).expects().returning(conn)
+    (() => dataSource.getConnection).expects().returning(conn)
     (conn.prepareStatement(_: String)).expects(*).returning(statement)
 
     (statement.setObject(_: Int, _: Any)).expects(1, Integer.valueOf(578941516))
-    (statement.executeQuery _).expects().returning(resultSet)
+    (() => statement.executeQuery).expects().returning(resultSet)
 
     (resultSet.next _).expects().returning(true)
     (resultSet.findColumn _).expects("f1").returning(1)

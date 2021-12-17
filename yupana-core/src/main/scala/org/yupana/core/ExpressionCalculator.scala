@@ -228,7 +228,7 @@ object ExpressionCalculator extends StrictLogging {
 
       case TypeKind.Array =>
         val (c, s) =
-          mkSeqValue(state, tpe.asInstanceOf[ArrayDataType[_]].valueType, v.asInstanceOf[Traversable[_]])
+          mkSeqValue(state, tpe.asInstanceOf[ArrayDataType[_]].valueType, v.asInstanceOf[Iterable[_]])
         val (name, ns) = s.withGlobal(v, mkType(tpe), c)
         q"$name" -> ns
     }
@@ -756,7 +756,7 @@ object ExpressionCalculator extends StrictLogging {
   private def mkSeqValue[T: TypeTag](
       state: State,
       tpe: DataType,
-      values: Traversable[T]
+      values: Iterable[T]
   ): (Tree, State) = {
     val (literals, newState) = values.toList.foldLeft((List.empty[Tree], state)) {
       case ((ts, s), v) =>

@@ -12,7 +12,7 @@ import org.yupana.api.schema._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -157,7 +157,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
     super.beforeAll()
   }
 }

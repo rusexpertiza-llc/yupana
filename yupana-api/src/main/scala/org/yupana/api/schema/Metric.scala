@@ -49,9 +49,12 @@ trait Metric extends Serializable {
 object Metric {
   type Aux[T0] = Metric { type T = T0 }
 
-  val defaultGroup: Int = 1
+  object Groups {
+    val default = 1
+    val rarelyQueried = 2
+  }
 
-  def apply[T0](name: String, tag: Byte, group: Int = defaultGroup)(implicit dt: DataType.Aux[T0]): Aux[T0] = {
+  def apply[T0](name: String, tag: Byte, group: Int = Groups.default)(implicit dt: DataType.Aux[T0]): Aux[T0] = {
     val (n, t, g) = (name, tag, group)
 
     new Metric {

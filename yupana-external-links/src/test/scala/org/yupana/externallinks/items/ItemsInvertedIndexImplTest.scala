@@ -25,7 +25,7 @@ class ItemsInvertedIndexImplTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
   }
 
   override protected def beforeEach(): Unit = {
@@ -114,7 +114,7 @@ class ItemsInvertedIndexImplTest
 
   private def si(ls: String*): SortedSetIterator[ItemDimension.KeyType] = {
     val s = ls.map(Dimensions.ITEM.hashFunction).sortWith(Dimensions.ITEM.rOrdering.lt)
-    SortedSetIterator(s.toIterator)
+    SortedSetIterator(s.iterator)
   }
 
   def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, ItemDimension.KeyType], TSDB) => Unit): Unit = {

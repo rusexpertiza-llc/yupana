@@ -32,7 +32,7 @@ trait DataType extends Serializable {
   val storable: Storable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
-  val kind: TypeKind.TypeKind = TypeKind.Regular
+  val kind: TypeKind = TypeKind.Regular
   val ordering: Option[Ordering[T]]
   val integral: Option[Integral[T]]
   val fractional: Option[Fractional[T]]
@@ -55,7 +55,7 @@ trait DataType extends Serializable {
 class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override type T = Seq[TT]
 
-  override val kind: TypeKind.TypeKind = TypeKind.Array
+  override val kind: TypeKind = TypeKind.Array
   override val meta: DataTypeMeta[T] = DataTypeMeta.seqMeta(valueType.meta)
   override val storable: Storable[T] = Storable.seqStorable(valueType.storable, valueType.classTag)
   override val classTag: ClassTag[T] = implicitly[ClassTag[Seq[TT]]]
@@ -77,7 +77,7 @@ class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
 
 class TupleDataType[A, B](val aType: DataType.Aux[A], val bType: DataType.Aux[B]) extends DataType {
   override type T = (A, B)
-  override val kind: TypeKind.TypeKind = TypeKind.Tuple
+  override val kind: TypeKind = TypeKind.Tuple
   override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(aType.meta, bType.meta)
   override val storable: Storable[T] = Storable.noop
   override val classTag: ClassTag[T] = implicitly[ClassTag[(A, B)]]
@@ -89,9 +89,11 @@ class TupleDataType[A, B](val aType: DataType.Aux[A], val bType: DataType.Aux[B]
 
 object DataType {
 
-  object TypeKind extends Enumeration {
-    type TypeKind = Value
-    val Regular, Array, Tuple = Value
+  sealed trait TypeKind
+  object TypeKind {
+    case object Regular extends TypeKind
+    case object Array extends TypeKind
+    case object Tuple extends TypeKind
   }
 
   private lazy val types = Seq(

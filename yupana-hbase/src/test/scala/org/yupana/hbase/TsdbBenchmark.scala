@@ -48,7 +48,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 //    scan.setCacheBlocks(false)
     scan.setScanMetricsEnabled(true)
 
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     val start = System.currentTimeMillis()
     val scanner = table.getScanner(scan)
@@ -107,7 +107,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
 
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 

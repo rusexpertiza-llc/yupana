@@ -22,7 +22,6 @@ import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
 
 object FunctionRegistry {
-  import scala.language.higherKinds
 
   type ArrayExpr[T] = Expression[Seq[T]]
 
@@ -336,7 +335,7 @@ object FunctionRegistry {
   private def biSame(fn: String, create: Bind2[Expression, Expression, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) => ExprPair.alignTypes(a, b).right.map(pair => create(pair.a, pair.b))
+      (a, b) => ExprPair.alignTypes(a, b).map(pair => create(pair.a, pair.b))
     )
   }
 

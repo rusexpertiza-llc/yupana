@@ -19,8 +19,8 @@ package org.yupana.core
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
-import org.yupana.core.model.InternalRow
 import org.yupana.api.utils.ConditionMatchers._
+import org.yupana.core.model.InternalRow
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -28,7 +28,7 @@ trait ExternalLinkService[T <: ExternalLink] {
 
   def schema: Schema
 
-  lazy val expressionCalculator = new ConstantCalculator(schema.tokenizer)
+  lazy val constantCalculator = new ConstantCalculator(schema.tokenizer)
 
   val putEnabled: Boolean = false
 

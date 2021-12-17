@@ -96,7 +96,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
           qc,
           Seq(
             Array[Any]("деталь от паровоза")
-          ).toIterator
+          ).iterator
         )
       )
 

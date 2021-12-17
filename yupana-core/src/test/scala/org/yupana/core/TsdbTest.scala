@@ -37,7 +37,7 @@ class TsdbTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
   }
 
   override protected def beforeEach(): Unit = {
@@ -2992,7 +2992,7 @@ class TsdbTest
     val sql = s"SELECT sum(CASE WHEN A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
       s"WHERE time >= TIMESTAMP '${from.format(format)}' AND time < TIMESTAMP '${to.format(format)}' GROUP BY d"
 
-    val query = SqlParser.parse(sql).right.flatMap {
+    val query = SqlParser.parse(sql).flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
       case x         => Left(s"SELECT statement expected, but got $x")
     } match {

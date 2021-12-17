@@ -29,6 +29,8 @@ case class UpdateInterval(
 ) {
 
   lazy val interval: Interval = Interval.of(from.toInstant, to.toInstant)
+
+  def whatUpdated: (String, OffsetDateTime, OffsetDateTime) = (table, from, to)
 }
 
 object UpdateInterval {

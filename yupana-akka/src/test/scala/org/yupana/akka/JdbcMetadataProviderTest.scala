@@ -23,7 +23,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
     val res = metadataProvider.listTables
     res.fieldNames should contain theSameElementsAs metadataProvider.tableFieldNames
     res.dataTypes should contain only DataType[String]
-    val r = res.iterator.next
+    val r = res.iterator.next()
     val cols = metadataProvider.tableFieldNames.map(r.get[String])
     cols should contain theSameElementsInOrderAs Seq(
       null,

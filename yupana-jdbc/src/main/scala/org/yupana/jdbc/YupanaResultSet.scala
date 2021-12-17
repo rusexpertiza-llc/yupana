@@ -26,6 +26,7 @@ import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
+import org.yupana.jdbc.compat.LazyList
 
 import java.time.{ LocalDateTime, ZonedDateTime }
 
@@ -35,7 +36,7 @@ class YupanaResultSet protected[jdbc] (
 ) extends ResultSet
     with ResultSetMetaData {
 
-  private val columnNameIndex = result.fieldNames.zip(Stream.from(1)).toMap
+  private val columnNameIndex = result.fieldNames.zip(LazyList.from(1)).toMap
   private val columns = result.fieldNames.toArray
   private val dataTypes = result.dataTypes.toArray
 

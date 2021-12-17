@@ -41,13 +41,13 @@ case class Query(
     postFilter: Option[Condition] = None
 ) {
 
-  val id: String = System.nanoTime() + UUID.randomUUID().toString
+  val id: String = System.nanoTime().toString + UUID.randomUUID().toString
   val uuidLog: String = s"query_id: $id"
 
   override def toString: String = {
     val fs = fields.mkString("\n    ")
 
-    val builder = StringBuilder.newBuilder
+    val builder = new StringBuilder()
     builder.append(s"""Query(
          |  $uuidLog
          |  FIELDS:

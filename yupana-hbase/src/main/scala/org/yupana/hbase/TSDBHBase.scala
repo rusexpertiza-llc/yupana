@@ -57,7 +57,7 @@ object TSDBHBase {
         createDefaultMetricCollector(tsdbConfig, connection, namespace)
   ): TSDB = {
 
-    CacheFactory.init(properties, namespace)
+    CacheFactory.init(properties)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
