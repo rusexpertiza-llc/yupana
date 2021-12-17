@@ -18,14 +18,14 @@ package org.yupana.core.cache
 
 import org.yupana.api.types.BoxingTag
 
-abstract class CacheDescription(val name: String, val suffix: String, val engine: String) {
+abstract class CacheDescription(val name: String, val suffix: Option[String], val engine: String) {
   type Key
   def keyBoxing: BoxingTag[Key]
 
   type Value
   def valueBoxing: BoxingTag[Value]
 
-  val fullName: String = s"${name}_$suffix"
+  val fullName: String = suffix.map(s => s"${name}_$s").getOrElse(name)
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -43,7 +43,7 @@ abstract class CacheDescription(val name: String, val suffix: String, val engine
 object CacheDescription {
   type Aux[K, V] = CacheDescription { type Key = K; type Value = V }
 
-  def apply[K, V](name: String, suffix: String, engine: String)(
+  def apply[K, V](name: String, suffix: Option[String], engine: String)(
       implicit
       kTag: BoxingTag[K],
       vTag: BoxingTag[V]

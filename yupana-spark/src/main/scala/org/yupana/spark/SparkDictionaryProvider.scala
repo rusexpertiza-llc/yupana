@@ -28,7 +28,7 @@ class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Se
     SparkDictionaryProvider.dictionaries.get(dimension) match {
       case Some(d) => d
       case None =>
-        CacheFactory.init(config.properties, config.hbaseNamespace)
+        CacheFactory.init(config.properties)
         val d = new Dictionary(dimension, localDictionaryDao)
         SparkDictionaryProvider.dictionaries += dimension -> d
         d

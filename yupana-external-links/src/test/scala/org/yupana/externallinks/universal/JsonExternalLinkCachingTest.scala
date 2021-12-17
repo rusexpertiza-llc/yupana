@@ -25,7 +25,7 @@ class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFac
     props.put("analytics.caches.default.engine", "EhCache")
     props.put("analytics.caches.TestLink_fields.maxElements", "100")
     props.put("analytics.caches.TestLink_fields.heapSize", "1024")
-    CacheFactory.init(props, "ns")
+    CacheFactory.init(props)
   }
 
   override def afterAll(): Unit = {

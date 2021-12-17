@@ -31,7 +31,7 @@ class TsdbDataFilterTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
   }
 
   override def beforeEach(): Unit = {
