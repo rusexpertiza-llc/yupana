@@ -1,7 +1,5 @@
 package org.yupana.core
 
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
@@ -20,6 +18,10 @@ import java.util.Properties
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.auth.YupanaUser
+
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+import java.time.{ LocalDateTime, ZoneOffset }
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -62,7 +64,7 @@ class TsdbTest
     val externalLinkServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, externalLinkServiceMock)
 
-    val time = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC).getMillis
+    val time = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
     val dims = Map[Dimension, Any](TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
     val dp1 = DataPoint(TestSchema.testTable, time, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
     val dp2 = DataPoint(TestSchema.testTable, time + 1, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
@@ -112,9 +114,9 @@ class TsdbTest
   }
 
   it should "execute query with filter by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -129,7 +131,7 @@ class TsdbTest
       EqExpr(dimension(TestDims.DIM_A), const("test1"))
     )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -171,9 +173,9 @@ class TsdbTest
   }
 
   it should "execute query with filter by tag ids" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -188,7 +190,7 @@ class TsdbTest
       DimIdInExpr(TestDims.DIM_A, SortedSetIterator((123, 456L)))
     )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -225,9 +227,9 @@ class TsdbTest
   }
 
   it should "execute query with filter by exact time values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val pointTime = qtime.plusHours(2)
 
@@ -276,9 +278,9 @@ class TsdbTest
   }
 
   it should "support filter by tuples" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val pointTime1 = qtime.plusMinutes(10)
     val pointTime2 = qtime.plusHours(2)
@@ -336,9 +338,9 @@ class TsdbTest
   }
 
   it should "support exclude filter by tuples" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val pointTime1 = qtime.plusMinutes(10)
     val pointTime2 = qtime.plusHours(2)
@@ -407,9 +409,9 @@ class TsdbTest
   }
 
   it should "support filter not equal for tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -425,7 +427,7 @@ class TsdbTest
       Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -462,9 +464,9 @@ class TsdbTest
   }
 
   it should "execute query" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -480,7 +482,7 @@ class TsdbTest
       Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -514,9 +516,9 @@ class TsdbTest
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -532,7 +534,7 @@ class TsdbTest
       Seq(TruncDayExpr(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -565,16 +567,16 @@ class TsdbTest
 
     val row = tsdb.query(query).head
 
-    row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test1"
     row.get[String]("B") shouldBe "test2"
   }
 
   it should "execute query with aggregation by tag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -589,7 +591,7 @@ class TsdbTest
       Seq(dimension(TestDims.DIM_A))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -638,20 +640,20 @@ class TsdbTest
     results should have size (2)
 
     val group1 = results(0)
-    group1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[Double]("sum_testField") shouldBe 2d
     group1.get[String]("A") shouldBe "test12"
 
     val group2 = results(1)
-    group2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group2.get[Double]("sum_testField") shouldBe 4d
     group2.get[String]("A") shouldBe "test1"
   }
 
   it should "execute query with aggregation by expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -666,7 +668,7 @@ class TsdbTest
       Seq(metric(TestTableFields.TEST_FIELD))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -716,20 +718,20 @@ class TsdbTest
     results should have size 2
 
     val group1 = results(0)
-    group1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[Double]("testField") shouldBe 1d
     group1.get[Int]("A") shouldBe 4
 
     val group2 = results(1)
-    group2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group2.get[Double]("testField") shouldBe 2d
     group2.get[Int]("A") shouldBe 2
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 12, 18, 11, 26).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 12, 18, 11, 26).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       filter = Some(
@@ -748,7 +750,7 @@ class TsdbTest
       table = Some(TestSchema.testTable)
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -784,9 +786,9 @@ class TsdbTest
   it should "execute query with filter values by external link field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -826,7 +828,7 @@ class TsdbTest
         )
       )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -882,14 +884,14 @@ class TsdbTest
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("A") shouldBe "test1"
     r1.get[String]("B") shouldBe "test2"
     r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 2d
     r2.get[String]("A") shouldBe "test12"
     r2.get[String]("B") shouldBe "test2"
@@ -900,9 +902,9 @@ class TsdbTest
     (tsdb, tsdbDaoMock) =>
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-      val from = qtime.getMillis
-      val to = qtime.plusDays(1).getMillis
+      val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+      val from = qtime.toInstant.toEpochMilli
+      val to = qtime.plusDays(1).toInstant.toEpochMilli
 
       val query = Query(
         TestSchema.testTable,
@@ -961,9 +963,9 @@ class TsdbTest
     (tsdb, tsdbDaoMock) =>
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-      val from = qtime.getMillis
-      val to = qtime.plusDays(1).getMillis
+      val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+      val from = qtime.toInstant.toEpochMilli
+      val to = qtime.plusDays(1).toInstant.toEpochMilli
 
       val query = Query(
         TestSchema.testTable,
@@ -1026,9 +1028,9 @@ class TsdbTest
   it should "execute query with exclude filter by external link field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -1073,7 +1075,7 @@ class TsdbTest
         )
       )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -1120,7 +1122,7 @@ class TsdbTest
     rows should have size 1
     val row = rows.head
 
-    row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test13"
     row.get[String]("B") shouldBe "test21"
@@ -1131,9 +1133,9 @@ class TsdbTest
     (tsdb, tsdbDaoMock) =>
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-      val from = qtime.getMillis
-      val to = qtime.plusDays(1).getMillis
+      val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+      val from = qtime.toInstant.toEpochMilli
+      val to = qtime.plusDays(1).toInstant.toEpochMilli
 
       val query = Query(
         TestSchema.testTable,
@@ -1184,7 +1186,7 @@ class TsdbTest
           )
         })
 
-      val pointTime1 = qtime.getMillis + 10
+      val pointTime1 = qtime.toInstant.toEpochMilli + 10
       val pointTime2 = pointTime1 + 1
 
       (tsdbDaoMock.query _)
@@ -1220,7 +1222,7 @@ class TsdbTest
       rows should have size 1
       val row = rows.head
 
-      row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+      row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       row.get[Double]("sum_testField") shouldBe 2d
       row.get[String]("A") shouldBe "test13"
       row.get[String]("B") shouldBe "test21"
@@ -1232,9 +1234,9 @@ class TsdbTest
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
       val testCatalog2ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-      val from = qtime.getMillis
-      val to = qtime.plusDays(1).getMillis
+      val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+      val from = qtime.toInstant.toEpochMilli
+      val to = qtime.plusDays(1).toInstant.toEpochMilli
 
       val query = Query(
         TestSchema.testTable,
@@ -1322,7 +1324,7 @@ class TsdbTest
           )
         })
 
-      val pointTime1 = qtime.getMillis + 10
+      val pointTime1 = qtime.toInstant.toEpochMilli + 10
       val pointTime2 = pointTime1 + 1
 
       (tsdbDaoMock.query _)
@@ -1359,7 +1361,7 @@ class TsdbTest
       rows should have size 1
       val row = rows.head
 
-      row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+      row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       row.get[Double]("sum_testField") shouldBe 2d
       row.get[String]("A") shouldBe "test13"
       row.get[String]("B") shouldBe "test21"
@@ -1369,9 +1371,9 @@ class TsdbTest
   it should "handle not equal filters with both tags and external link fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK3)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -1432,7 +1434,7 @@ class TsdbTest
         )
       )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -1476,9 +1478,9 @@ class TsdbTest
       val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
       val testCatalog2ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-      val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-      val from = qtime.getMillis
-      val to = qtime.plusDays(1).getMillis
+      val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+      val from = qtime.toInstant.toEpochMilli
+      val to = qtime.plusDays(1).toInstant.toEpochMilli
 
       val query = Query(
         TestSchema.testTable,
@@ -1549,7 +1551,7 @@ class TsdbTest
           )
         )
 
-      val pointTime1 = qtime.getMillis + 10
+      val pointTime1 = qtime.toInstant.toEpochMilli + 10
       val pointTime2 = pointTime1 + 1
 
       (tsdbDaoMock.query _)
@@ -1584,7 +1586,7 @@ class TsdbTest
 
       val result = tsdb.query(query).toList
       val r1 = result.head
-      r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+      r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       r1.get[Double]("sum_testField") shouldBe 2d
       r1.get[String]("A") shouldBe "test12"
       r1.get[String]("B") shouldBe "test2"
@@ -1595,9 +1597,9 @@ class TsdbTest
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
     val testCatalog4ServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK4)
 
-    val qtime = new LocalDateTime(2018, 7, 20, 11, 49).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2018, 7, 20, 11, 49).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -1667,7 +1669,7 @@ class TsdbTest
         )
       )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -1702,7 +1704,7 @@ class TsdbTest
 
     val result = tsdb.query(query).toList
     val r1 = result.head
-    r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 6d
     r1.get[String]("A") shouldBe "test12"
     r1.get[Short]("B") shouldBe 23.toShort
@@ -1712,9 +1714,9 @@ class TsdbTest
   it should "support IN for catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -1750,7 +1752,7 @@ class TsdbTest
         )
       )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -1805,9 +1807,9 @@ class TsdbTest
   it should "intersect values for IN filter for tags and catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -1849,7 +1851,7 @@ class TsdbTest
         )
       )
 
-    val pointTime = qtime.getMillis + 10
+    val pointTime = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -1929,9 +1931,9 @@ class TsdbTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -1964,7 +1966,7 @@ class TsdbTest
         )
       })
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2013,20 +2015,20 @@ class TsdbTest
     results should have size 2
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 4d
     r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue1"
   }
 
   it should "execute query with aggregate functions on string field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query1 = Query(
       TestSchema.testTable,
@@ -2041,7 +2043,7 @@ class TsdbTest
       Seq(truncDay(time), dimension(TestDims.DIM_A))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -2084,7 +2086,7 @@ class TsdbTest
       )
       .repeated(3)
 
-    val startDay = Time(qtime.withMillisOfDay(0).getMillis)
+    val startDay = Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
 
     val r1 = tsdb.query(query1).head
     r1.get[Time]("time") shouldBe startDay
@@ -2122,9 +2124,9 @@ class TsdbTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK3, testCatalogServiceMock)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2170,7 +2172,7 @@ class TsdbTest
         )
       })
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2209,14 +2211,14 @@ class TsdbTest
     rs should have size 2
 
     val r1 = rs(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
     r1.get[String]("TestCatalog3_testField3-2") shouldBe "Value1"
     r1.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
 
     val r2 = rs(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 3d
     r2.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
     r2.get[String]("TestCatalog3_testField3-2") shouldBe "Value2"
@@ -2224,9 +2226,9 @@ class TsdbTest
   }
 
   it should "calculate min and max time" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2244,7 +2246,7 @@ class TsdbTest
       Seq(truncDay(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 5
     val pointTime3 = pointTime1 + 10
 
@@ -2279,7 +2281,7 @@ class TsdbTest
       )
 
     val r = tsdb.query(query).head
-    r.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r.get[Time]("min_time") shouldBe Time(pointTime1)
     r.get[Time]("max_time") shouldBe Time(pointTime3)
     r.get[Double]("sum_testField") shouldBe 3d
@@ -2288,9 +2290,9 @@ class TsdbTest
   }
 
   it should "preserve const fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2307,7 +2309,7 @@ class TsdbTest
       Seq(truncDay(time), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2338,16 +2340,16 @@ class TsdbTest
     val row = tsdb.query(query).head
 
     row.get[BigDecimal]("dummy") shouldEqual BigDecimal(1)
-    row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test1"
     row.get[String]("B") shouldBe "test2"
   }
 
   it should "be possible to make aggregations by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2363,7 +2365,7 @@ class TsdbTest
       Seq(truncDay(time), dimension(TestDims.DIM_B))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2393,7 +2395,7 @@ class TsdbTest
 
     val row = tsdb.query(query).head
 
-    row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[Long]("count_A") shouldBe 2L
     row.get[String]("B") shouldBe "test2"
@@ -2402,9 +2404,9 @@ class TsdbTest
   it should "be possible to make aggregations on catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2451,7 +2453,7 @@ class TsdbTest
         )
       })
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2493,22 +2495,22 @@ class TsdbTest
     results should have size 2
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[String]("A") shouldBe "test1"
     r1.get[Long]("count_TestCatalog_testField") shouldBe 2L
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 2d
     r2.get[String]("A") shouldBe "test12"
     r2.get[Long]("count_TestCatalog_testField") shouldBe 2L
   }
 
   it should "calculate distinct count" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2525,7 +2527,7 @@ class TsdbTest
       Seq(truncDay(time), dimension(TestDims.DIM_B))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2578,14 +2580,14 @@ class TsdbTest
     results should have size (2)
 
     val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("sum_testField") shouldBe 2d
     r1.get[Long]("count_A") shouldBe 2L
     r1.get[Int]("distinct_count_A") shouldBe 1
     r1.get[String]("B") shouldBe "testB2"
 
     val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r2.get[Double]("sum_testField") shouldBe 4d
     r2.get[Long]("count_A") shouldBe 4L
     r2.get[Int]("distinct_count_A") shouldBe 2
@@ -2593,9 +2595,9 @@ class TsdbTest
   }
 
   it should "calculate lag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       Some(TestSchema.testTable),
@@ -2618,7 +2620,7 @@ class TsdbTest
       None
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2680,10 +2682,10 @@ class TsdbTest
     forAll(t) { (time, lagTime, testField, tagA, tagB) =>
       val r = results.next()
 
-      r.get[Time]("time_time").toLocalDateTime.withMillisOfSecond(0) shouldBe time
+      r.get[Time]("time_time").toLocalDateTime.withNano(0) shouldBe time
       val rowLagTime = r.get[Time]("lag_time_time")
       if (rowLagTime != null) {
-        rowLagTime.toLocalDateTime.withMillisOfSecond(0) shouldBe lagTime
+        rowLagTime.toLocalDateTime.withNano(0) shouldBe lagTime
       }
       r.get[Double]("testField") shouldBe testField
       r.get[String]("A") shouldBe tagA
@@ -2692,9 +2694,9 @@ class TsdbTest
   }
 
   it should "calculate conditional expressions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2718,7 +2720,7 @@ class TsdbTest
       Seq(truncDay(time), dimension(TestDims.DIM_A))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2763,7 +2765,7 @@ class TsdbTest
     val results = tsdb.query(query).iterator
 
     val group1 = results.next()
-    group1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[BigDecimal]("between_10_20") shouldBe BigDecimal(2)
     group1.get[String]("A") shouldBe "test1"
   }
@@ -2772,9 +2774,9 @@ class TsdbTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2801,7 +2803,7 @@ class TsdbTest
         setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable.empty)
       })
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2828,15 +2830,15 @@ class TsdbTest
     val results = tsdb.query(query).iterator
 
     val group1 = results.next()
-    group1.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group1.get[BigDecimal]("between_10_20") shouldBe BigDecimal(0)
     group1.get[String]("A") shouldBe "test1"
   }
 
   it should "perform post filtering" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2853,7 +2855,7 @@ class TsdbTest
       Some(ge(sum(metric(TestTableFields.TEST_FIELD)), const[Double](3d)))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -2899,7 +2901,7 @@ class TsdbTest
     results should have size 1
 
     val r = results.head
-    r.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    r.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r.get[Double]("sum_testField") shouldBe 4d
     r.get[String]("A") shouldBe "test1"
   }
@@ -2908,9 +2910,9 @@ class TsdbTest
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)
 
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -2980,15 +2982,15 @@ class TsdbTest
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
-    val format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
-    val from: DateTime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val to: DateTime = from.plusDays(1)
+    val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    val from = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val to = from.plusDays(1)
 
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK2, testCatalogServiceMock)
 
     val sql = s"SELECT sum(CASE WHEN A = '2' THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d FROM test_table " +
-      s"WHERE time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}' GROUP BY d"
+      s"WHERE time >= TIMESTAMP '${from.format(format)}' AND time < TIMESTAMP '${to.format(format)}' GROUP BY d"
 
     val query = SqlParser.parse(sql).flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
@@ -2998,8 +3000,8 @@ class TsdbTest
       case Left(e)  => fail(e)
     }
 
-    val pointTime1 = from.getMillis + 10
-    val pointTime2 = from.getMillis + 100
+    val pointTime1 = from.toInstant.toEpochMilli + 10
+    val pointTime2 = from.toInstant.toEpochMilli + 100
 
     (tsdbDaoMock.query _)
       .expects(
@@ -3062,9 +3064,9 @@ class TsdbTest
   }
 
   it should "handle None aggregate results" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-    val from = qtime.getMillis
-    val to = qtime.plusDays(1).getMillis
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
 
     val query = Query(
       TestSchema.testTable,
@@ -3081,7 +3083,7 @@ class TsdbTest
       Seq(truncDay(time))
     )
 
-    val pointTime1 = qtime.getMillis + 10
+    val pointTime1 = qtime.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -3110,7 +3112,7 @@ class TsdbTest
 
     val row = tsdb.query(query).head
 
-    row.get[Time]("time") shouldBe Time(qtime.withMillisOfDay(0).getMillis)
+    row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 0
     row.get[Long]("count_testField") shouldBe 0
     row.get[Long]("distinct_count_testField") shouldBe 0

@@ -16,10 +16,12 @@
 
 package org.yupana.core
 
-import org.joda.time.DateTimeFieldType
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
+
+import java.time.DayOfWeek
+import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 
 class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
@@ -39,20 +41,20 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
           evaluateConstant(negative)
         }
 
-      case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(DateTimeFieldType.year()))
-      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(DateTimeFieldType.monthOfYear()))
-      case TruncDayExpr(e)    => evaluateUnary(e)(truncateTime(DateTimeFieldType.dayOfMonth()))
-      case TruncWeekExpr(e)   => evaluateUnary(e)(truncateTime(DateTimeFieldType.weekOfWeekyear()))
-      case TruncHourExpr(e)   => evaluateUnary(e)(truncateTime(DateTimeFieldType.hourOfDay()))
-      case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(DateTimeFieldType.minuteOfHour()))
-      case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(DateTimeFieldType.secondOfMinute()))
+      case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear()))
+      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth()))
+      case TruncWeekExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
+      case TruncDayExpr(e)    => evaluateUnary(e)(truncateTime(ChronoUnit.DAYS))
+      case TruncHourExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.HOURS))
+      case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.MINUTES))
+      case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.SECONDS))
 
       case ExtractYearExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getYear)
-      case ExtractMonthExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMonthOfYear)
+      case ExtractMonthExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMonthValue)
       case ExtractDayExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getDayOfMonth)
-      case ExtractHourExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getHourOfDay)
-      case ExtractMinuteExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getMinuteOfHour)
-      case ExtractSecondExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getSecondOfMinute)
+      case ExtractHourExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getHour)
+      case ExtractMinuteExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getMinute)
+      case ExtractSecondExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getSecond)
 
       case p @ PlusExpr(a, b)    => evaluateBinary(a, b)(p.numeric.plus)
       case m @ MinusExpr(a, b)   => evaluateBinary(a, b)(m.numeric.minus)
@@ -101,9 +103,10 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
       case NotExpr(e) => evaluateUnary(e)(x => !x)
 
-      case TimeMinusExpr(a, b)        => evaluateBinary(a, b)((x, y) => math.abs(x.millis - y.millis))
-      case TimeMinusPeriodExpr(a, b)  => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.minus(p).getMillis))
-      case TimePlusPeriodExpr(a, b)   => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.plus(p).getMillis))
+      case TimeMinusExpr(a, b) => evaluateBinary(a, b)((x, y) => math.abs(x.millis - y.millis))
+      case TimeMinusPeriodExpr(a, b) =>
+        evaluateBinary(a, b)((t, p) => Time(t.toDateTime.minus(p).toInstant.toEpochMilli))
+      case TimePlusPeriodExpr(a, b)   => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
       case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b)((x, y) => x plus y)
 
       case ArrayTokensExpr(e)   => evaluateUnary(e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))

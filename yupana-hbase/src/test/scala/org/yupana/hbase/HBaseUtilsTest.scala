@@ -3,10 +3,8 @@ package org.yupana.hbase
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.Properties
-
 import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.yupana.api.query.DataPoint
@@ -18,6 +16,8 @@ import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
+
 class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with OptionValues with BeforeAndAfterAll {
 
   import HBaseUtilsTest._
@@ -27,7 +27,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
 
-    val time = new DateTime(2020, 4, 22, 11, 21, 55, DateTimeZone.UTC).getMillis
+    val time = OffsetDateTime.of(2020, 4, 22, 11, 21, 55, 0, ZoneOffset.UTC).toInstant.toEpochMilli
     val dp = DataPoint(TestTable, time, Map(DIM_B -> "b value", DIM_A -> 4, DIM_C -> "c value"), Seq.empty)
 
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
@@ -41,7 +41,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
   }
 
   it should "create TSDRows from datapoints" in {
-    val time = new DateTime(2017, 10, 15, 12, 57, DateTimeZone.UTC).getMillis
+    val time = OffsetDateTime.of(2017, 10, 15, 12, 57, 0, 0, ZoneOffset.UTC).toInstant.toEpochMilli
     val dims: Map[Dimension, Any] = Map(DIM_A -> 1111, DIM_B -> "test2", DIM_C -> "test3")
     val dp1 = DataPoint(TestTable, time, dims, Seq(MetricValue(TEST_FIELD, 1.0)))
     val dp2 = DataPoint(TestTable2, time + 1, dims, Seq(MetricValue(TEST_FIELD, 2.0)))
@@ -174,7 +174,7 @@ object HBaseUtilsTest {
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C),
     metrics = Seq(TEST_FIELD),
     externalLinks = Seq.empty,
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val TestTable2 = new Table(
@@ -183,6 +183,6 @@ object HBaseUtilsTest {
     dimensionSeq = Seq(DIM_B, DIM_A, DIM_C),
     metrics = Seq(TEST_FIELD),
     externalLinks = Seq.empty,
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 }

@@ -16,13 +16,14 @@
 
 package org.yupana.schema
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Table }
 import org.yupana.schema.externallinks._
 
+import java.time.{ LocalDateTime, ZoneOffset }
+
 object Tables {
 
-  val epochTime = new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+  val epochTime: Long = LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
 
   val itemExternalLinks: Seq[ExternalLink] = Seq(ItemsInvertedIndex, RelatedItemsCatalog)
   val itemRollupsExternalLinks: Seq[ExternalLink] = itemExternalLinks.filterNot(_ == RelatedItemsCatalog)

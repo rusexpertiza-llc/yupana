@@ -17,12 +17,13 @@
 package org.yupana.core.providers
 
 import com.typesafe.scalalogging.StrictLogging
-import org.joda.time.DateTime
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.FlatQueryEngine
 import org.yupana.core.sql.parser._
+
+import java.time.OffsetDateTime
 
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
@@ -61,13 +62,13 @@ object UpdatesIntervalsProvider extends StrictLogging {
 
   case class UpdatesIntervalsFilter(
       maybeTableName: Option[String] = None,
-      maybeFrom: Option[DateTime] = None,
-      maybeTo: Option[DateTime] = None,
+      maybeFrom: Option[OffsetDateTime] = None,
+      maybeTo: Option[OffsetDateTime] = None,
       maybeBy: Option[String] = None
   ) {
     def withTableName(tn: String): UpdatesIntervalsFilter = this.copy(maybeTableName = Some(tn))
-    def withFrom(f: DateTime): UpdatesIntervalsFilter = this.copy(maybeFrom = Some(f))
-    def withTo(t: DateTime): UpdatesIntervalsFilter = this.copy(maybeTo = Some(t))
+    def withFrom(f: OffsetDateTime): UpdatesIntervalsFilter = this.copy(maybeFrom = Some(f))
+    def withTo(t: OffsetDateTime): UpdatesIntervalsFilter = this.copy(maybeTo = Some(t))
     def withBy(ub: String): UpdatesIntervalsFilter = this.copy(maybeBy = Some(ub))
   }
 

@@ -16,7 +16,6 @@
 
 package org.yupana.core.sql
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -26,6 +25,8 @@ import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 class SqlQueryProcessor(schema: Schema) extends QueryValidator {
 
@@ -371,8 +372,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         Right(ConstantExpr(Time(t)))
 
       case parser.PeriodValue(p) if exprType == ExprType.Cmp =>
-        if (p.getYears == 0 && p.getMonths == 0) {
-          Right(ConstantExpr(p.toStandardDuration.getMillis))
+        if (p.getPeriod.getYears == 0 && p.getPeriod.getMonths == 0) {
+          Right(ConstantExpr(p.getDuration.plusDays(p.getPeriod.getDays).toMillis))
         } else {
           Left(s"Period $p cannot be used as duration, because it has months or years")
         }
@@ -553,7 +554,7 @@ object SqlQueryProcessor {
     private var fieldNames = Map.empty[String, Int]
     private var nextPlaceholder = 1
 
-    val queryStartTime: LocalDateTime = new LocalDateTime(DateTimeZone.UTC)
+    val queryStartTime: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
 
     def fieldName(field: parser.SqlField): String = {
       val name = field.alias orElse field.expr.proposedName getOrElse "field"

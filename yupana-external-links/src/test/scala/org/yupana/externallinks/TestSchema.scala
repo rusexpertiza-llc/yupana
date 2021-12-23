@@ -1,8 +1,9 @@
 package org.yupana.externallinks
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, LinkField, RawDimension, Schema, Table }
 import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 object TestSchema {
   val xDim = DictionaryDimension("X")
@@ -26,7 +27,7 @@ object TestSchema {
     Seq(xDim, yDim),
     Seq.empty,
     Seq(TestLink),
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val schema: Schema =

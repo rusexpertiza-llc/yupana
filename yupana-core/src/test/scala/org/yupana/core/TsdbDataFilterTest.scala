@@ -1,8 +1,6 @@
 package org.yupana.core
 
 import java.util.Properties
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
@@ -15,6 +13,10 @@ import org.yupana.core.utils.SparseTable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
 class TsdbDataFilterTest
     extends AnyFlatSpec
     with Matchers
@@ -26,7 +28,7 @@ class TsdbDataFilterTest
 
   import org.yupana.api.query.syntax.All._
 
-  private val format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
+  private val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -38,16 +40,16 @@ class TsdbDataFilterTest
     CacheFactory.flushCaches()
   }
 
-  val from: DateTime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-  val to: DateTime = from.plusDays(1)
-  private def timeBounds(from: DateTime = from, to: DateTime = to) =
-    s" AND time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}'"
+  val from: OffsetDateTime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+  val to: OffsetDateTime = from.plusDays(1)
+  private def timeBounds(from: OffsetDateTime = from, to: OffsetDateTime = to) =
+    s" AND time >= TIMESTAMP '${from.format(format)}' AND time < TIMESTAMP '${to.format(format)}'"
 
   "TSDB" should "execute query with filter by values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT time AS time_time, testField, A, B FROM test_table WHERE testField = 1012" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -98,7 +100,7 @@ class TsdbDataFilterTest
       "WHERE testField = 1012 AND B = 31" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -149,7 +151,7 @@ class TsdbDataFilterTest
     val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField <= 1012" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -199,7 +201,7 @@ class TsdbDataFilterTest
     val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField != testField2" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -252,7 +254,7 @@ class TsdbDataFilterTest
     val sql = "SELECT time, A, B, testField as F1 FROM test_table WHERE F1 IN (1012, 1014)" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -311,7 +313,7 @@ class TsdbDataFilterTest
     val sql = "SELECT time, A, B, testField as F1 FROM test_table WHERE F1 NOT IN (123, 456)" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -394,7 +396,7 @@ class TsdbDataFilterTest
         )
       )
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -482,7 +484,7 @@ class TsdbDataFilterTest
         )
       )
 
-    val pointTime1 = from.getMillis + 10
+    val pointTime1 = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -518,7 +520,7 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("testField") shouldBe 10d
     r1.get[String]("A") shouldBe "test1a"
     r1.get[String]("B") shouldBe "test2b"
@@ -527,7 +529,7 @@ class TsdbDataFilterTest
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
 
-    val sql = "SELECT day(time) AS t, testField, A, B, TestLink_testField AS ctf " +
+    val sql = "SELECT hour(time) AS t, testField, A, B, TestLink_testField AS ctf " +
       "FROM test_table WHERE ctf IS NOT NULL" + timeBounds()
     val query = createQuery(sql)
 
@@ -550,7 +552,7 @@ class TsdbDataFilterTest
         )
       )
 
-    val pointTime1 = from.getMillis + 10
+    val pointTime1 = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(
@@ -586,7 +588,7 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.HOURS).toInstant.toEpochMilli)
     r1.get[Double]("testField") shouldBe 30d
     r1.get[String]("A") shouldBe "test2a"
     r1.get[String]("B") shouldBe "test3b"
@@ -646,7 +648,7 @@ class TsdbDataFilterTest
           )
         )
 
-      val pointTime1 = from.getMillis + 10
+      val pointTime1 = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
@@ -692,7 +694,7 @@ class TsdbDataFilterTest
       results should have size 1
 
       val r1 = results.head
-      r1.get[Time]("t") shouldBe Time(from.withMillisOfDay(0).getMillis)
+      r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       r1.get[Double]("testField") shouldBe 1003d
       r1.get[String]("A") shouldBe "test1a"
       r1.get[Short]("B") shouldBe 15.toShort
@@ -734,7 +736,7 @@ class TsdbDataFilterTest
         )
       )
 
-    val pointTime1 = from.getMillis + 10
+    val pointTime1 = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime1 + 1
 
     (tsdbDaoMock.query _)
@@ -768,7 +770,7 @@ class TsdbDataFilterTest
     results should have size 1
 
     val r1 = results.head
-    r1.get[Time]("d") shouldBe Time(from.withMillisOfDay(0).getMillis)
+    r1.get[Time]("d") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("quantity") shouldBe 1011d
   }
 
@@ -776,7 +778,7 @@ class TsdbDataFilterTest
     val sql = "SELECT time, testField3 / testField2 as div FROM test_table_2 WHERE testField2 <> 0" + timeBounds()
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
       .expects(

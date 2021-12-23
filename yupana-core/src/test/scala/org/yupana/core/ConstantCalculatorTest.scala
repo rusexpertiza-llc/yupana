@@ -1,13 +1,13 @@
 package org.yupana.core
 
-import org.joda.time.LocalDateTime
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.utils.RussianTokenizer
-
 import org.scalatest.matchers.should.Matchers
+
+import java.time.LocalDateTime
 
 class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues {
 
@@ -24,7 +24,7 @@ class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues
   }
 
   it should "Evaluate different time functions" in {
-    val t = const(Time(new LocalDateTime(2020, 10, 21, 11, 36, 42)))
+    val t = const(Time(LocalDateTime.of(2020, 10, 21, 11, 36, 42)))
 
     calculator.evaluateConstant(extractYear(t)) shouldEqual 2020
     calculator.evaluateConstant(extractMonth(t)) shouldEqual 10
@@ -33,16 +33,16 @@ class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues
     calculator.evaluateConstant(extractMinute(t)) shouldEqual 36
     calculator.evaluateConstant(extractSecond(t)) shouldEqual 42
 
-    calculator.evaluateConstant(truncYear(t)) shouldEqual Time(new LocalDateTime(2020, 1, 1, 0, 0))
-    calculator.evaluateConstant(truncMonth(t)) shouldEqual Time(new LocalDateTime(2020, 10, 1, 0, 0))
-    calculator.evaluateConstant(truncDay(t)) shouldEqual Time(new LocalDateTime(2020, 10, 21, 0, 0))
-    calculator.evaluateConstant(truncWeek(t)) shouldEqual Time(new LocalDateTime(2020, 10, 19, 0, 0))
-    calculator.evaluateConstant(truncHour(t)) shouldEqual Time(new LocalDateTime(2020, 10, 21, 11, 0))
+    calculator.evaluateConstant(truncYear(t)) shouldEqual Time(LocalDateTime.of(2020, 1, 1, 0, 0))
+    calculator.evaluateConstant(truncMonth(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 1, 0, 0))
+    calculator.evaluateConstant(truncDay(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 21, 0, 0))
+    calculator.evaluateConstant(truncWeek(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 19, 0, 0))
+    calculator.evaluateConstant(truncHour(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 21, 11, 0))
     calculator.evaluateConstant(truncMinute(t)) shouldEqual Time(
-      new LocalDateTime(2020, 10, 21, 11, 36)
+      LocalDateTime.of(2020, 10, 21, 11, 36)
     )
     calculator.evaluateConstant(truncSecond(t)) shouldEqual Time(
-      new LocalDateTime(2020, 10, 21, 11, 36, 42)
+      LocalDateTime.of(2020, 10, 21, 11, 36, 42)
     )
   }
 
