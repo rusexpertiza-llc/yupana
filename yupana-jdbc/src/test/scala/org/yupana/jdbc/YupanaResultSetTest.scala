@@ -293,7 +293,10 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getTimestamp(1, Calendar.getInstance()) shouldEqual new Timestamp(
       time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli
     )
-    resultSet.getTimestamp("time", Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"))) shouldEqual new Timestamp(
+    resultSet.getTimestamp(
+      "time",
+      Calendar.getInstance(TimeZone.getTimeZone("Europe/Helsinki"))
+    ) shouldEqual new Timestamp(
       time.atZone(ZoneId.of("Europe/Helsinki")).toInstant.toEpochMilli
     )
 

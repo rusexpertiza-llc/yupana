@@ -251,7 +251,10 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
           val desc = TableDescriptorBuilder
             .newBuilder(tableName)
             .setColumnFamilies(
-              Seq(ColumnFamilyDescriptorBuilder.of(FAMILY), ColumnFamilyDescriptorBuilder.of(ID_FAMILY)).asJavaCollection
+              Seq(
+                ColumnFamilyDescriptorBuilder.of(FAMILY),
+                ColumnFamilyDescriptorBuilder.of(ID_FAMILY)
+              ).asJavaCollection
             )
             .build()
           admin.createTable(desc)

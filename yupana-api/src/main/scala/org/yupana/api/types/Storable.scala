@@ -139,7 +139,7 @@ object Storable {
       0 until (len - 1) foreach { _ =>
         val b = bb.get()
         result <<= 8
-        result |= (b & 0xff)
+        result |= (b & 0xFF)
       }
 
       if (first >= -120) result else result ^ -1L

@@ -63,7 +63,11 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
     dao.getUpdatesIntervals(Some("receipt"), Some(from), Some(to)) should have size 2
 
     And("no new invalid periods")
-    dao.getUpdatesIntervals(Some("receipt"), Some(to), Some(OffsetDateTime.now().plusDays(2).toInstant.toEpochMilli)) should have size 0
+    dao.getUpdatesIntervals(
+      Some("receipt"),
+      Some(to),
+      Some(OffsetDateTime.now().plusDays(2).toInstant.toEpochMilli)
+    ) should have size 0
 
     And("no new recalculated periods")
     dao.getUpdatesIntervals(

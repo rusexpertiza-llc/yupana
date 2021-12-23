@@ -241,14 +241,22 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
   }
 
   class MockedTsdb
-      extends TSDB(SchemaRegistry.defaultSchema, null, null, null, identity, SimpleTsdbConfig(), { q: Query =>
-        new StandaloneMetricCollector(
-          q,
-          "test",
-          5,
-          new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
-        )
-      })
+      extends TSDB(
+        SchemaRegistry.defaultSchema,
+        null,
+        null,
+        null,
+        identity,
+        SimpleTsdbConfig(),
+        { q: Query =>
+          new StandaloneMetricCollector(
+            q,
+            "test",
+            5,
+            new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
+          )
+        }
+      )
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
@@ -302,7 +310,9 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     resp should have size 3
     val fields = resp(0).getResultHeader.fields.map(_.name)
 
-    fields should contain theSameElementsAs metrics.flatMap(m => Seq(s"${m}_count", s"${m}_time", s"${m}_speed")) ++ Seq(
+    fields should contain theSameElementsAs metrics.flatMap(m =>
+      Seq(s"${m}_count", s"${m}_time", s"${m}_speed")
+    ) ++ Seq(
       "query_id",
       "engine",
       "state",
