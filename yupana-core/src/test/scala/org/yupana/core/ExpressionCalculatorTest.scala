@@ -96,7 +96,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .buildAndReset()
 
     calc.evaluateExpressions(RussianTokenizer, rowWithNulls)
-    rowWithNulls.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual null
+    rowWithNulls.get(
+      qc,
+      divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
+    ) shouldEqual null
       .asInstanceOf[java.lang.Double]
   }
 
@@ -117,7 +120,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         distinctRandom(metric(TestTableFields.TEST_FIELD)) as "RANDOM",
         truncDay(time) as "T",
         min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) as "MIN_PRICE",
-        divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d)) as "MIDDLE"
+        divFrac(
+          plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))),
+          const(2d)
+        ) as "MIDDLE"
       ),
       None,
       Seq(truncDay(time))
@@ -151,7 +157,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
     mapped1.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     mapped1.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
-    mapped1.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    mapped1.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 2d
     mapped1.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -164,7 +173,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped2.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     mapped2.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
     mapped2.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
-    mapped2.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 3d
+    mapped2.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 3d
     mapped2.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -180,7 +192,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     reduced.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
     reduced.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
-    reduced.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    reduced.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 2d
     reduced.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -196,7 +211,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     postMapped.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
     postMapped.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(10d) or equal(12d))
-    postMapped.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    postMapped.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 2d
     postMapped.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -280,12 +298,18 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val result = calc.evaluateExpressions(RussianTokenizer, row)
     result.get(qc, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
     result.get(qc, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
-    result.get(qc, containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual true
+    result.get(
+      qc,
+      containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
+    ) shouldEqual true
     result.get(
       qc,
       containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk")))
     ) shouldEqual true
-    result.get(qc, containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual false
+    result.get(
+      qc,
+      containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
+    ) shouldEqual false
   }
 
   it should "support comparing of non-numeric types" in {
@@ -325,7 +349,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .buildAndReset()
 
     val rows = Seq(row1, row2, row3).groupBy(_.get(qc, dimension(TestDims.DIM_A)))
-    val mapped = rows.map { case (s, rs)    => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
+    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
     val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateReduce(RussianTokenizer, a, b)) }
     val postMapped = reduced.map(r => calc.evaluatePostMap(RussianTokenizer, r))
 

@@ -297,9 +297,12 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   private def createProtoQuery(query: String, params: Map[Int, model.ParameterValue]): Request = {
     Request(
       Request.Req.SqlQuery(
-        SqlQuery(query, params.map {
-          case (i, v) => ParameterValue(i, createProtoValue(v))
-        }.toSeq)
+        SqlQuery(
+          query,
+          params.map {
+            case (i, v) => ParameterValue(i, createProtoValue(v))
+          }.toSeq
+        )
       )
     )
   }

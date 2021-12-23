@@ -166,7 +166,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       case Error(msg) =>
         msg shouldBe
           "In table table_1 2 metrics (metric_b, new_metric) share the same tag: 2\n" +
-            "In table table_1 metric new_metric:BIGINT is unknown (new)"
+          "In table table_1 metric new_metric:BIGINT is unknown (new)"
     }
   }
 }

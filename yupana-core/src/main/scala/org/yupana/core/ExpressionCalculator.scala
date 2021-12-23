@@ -804,7 +804,7 @@ object ExpressionCalculator extends StrictLogging {
     assert(finalState.unfinished.isEmpty)
 
     val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
-      finalState.refs.map { case (_, d)                 => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
+      finalState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
 
     val tree = q"""
       import _root_.org.yupana.api.Time

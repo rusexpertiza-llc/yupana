@@ -446,7 +446,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     if (lowerName == TIME_FIELD) {
       Right(TimeExpr)
     } else {
-      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(table, name) toRight s"Unknown field $name"
+      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(
+        table,
+        name
+      ) toRight s"Unknown field $name"
     }
   }
 

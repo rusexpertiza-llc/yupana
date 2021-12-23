@@ -808,8 +808,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         case AndExpr(Seq(from, to)) =>
           inside(from) {
             case GeTime(
-                te,
-                TruncDayExpr(TimeMinusPeriodExpr(ConstantExpr(t), ConstantExpr(p)))
+                  te,
+                  TruncDayExpr(TimeMinusPeriodExpr(ConstantExpr(t), ConstantExpr(p)))
                 ) =>
               te shouldEqual TimeExpr
               t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)

@@ -68,14 +68,18 @@ class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues
     calculator.evaluateConstant(arrayLength(const(Seq(1, 2, 3)))) shouldEqual 3
     calculator.evaluateConstant(arrayToString(const(Seq(1, 2, 3, 4)))) shouldEqual "1, 2, 3, 4"
     calculator.evaluateConstant(arrayToString(const(Seq("1", "2", "4")))) shouldEqual "1, 2, 4"
-    calculator.evaluateConstant(ArrayTokensExpr(const(Seq("красная вода", "соленые яблоки")))) should contain theSameElementsAs Seq(
+    calculator.evaluateConstant(
+      ArrayTokensExpr(const(Seq("красная вода", "соленые яблоки")))
+    ) should contain theSameElementsAs Seq(
       "krasn",
       "vod",
       "solen",
       "yablok"
     )
 
-    calculator.evaluateConstant(arrayToString(array(const(1), plus(const(2), const(3)), const(4)))) shouldEqual "1, 5, 4"
+    calculator.evaluateConstant(
+      arrayToString(array(const(1), plus(const(2), const(3)), const(4)))
+    ) shouldEqual "1, 5, 4"
 
     calculator.evaluateConstant(containsAll(array(const(1), const(2), const(3)), const(Seq(2, 3)))) shouldBe true
     calculator.evaluateConstant(containsAll(array(const(1), const(2), const(3)), const(Seq(2, 4)))) shouldBe false

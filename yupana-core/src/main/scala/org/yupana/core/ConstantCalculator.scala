@@ -106,7 +106,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case TimeMinusExpr(a, b) => evaluateBinary(a, b)((x, y) => math.abs(x.millis - y.millis))
       case TimeMinusPeriodExpr(a, b) =>
         evaluateBinary(a, b)((t, p) => Time(t.toDateTime.minus(p).toInstant.toEpochMilli))
-      case TimePlusPeriodExpr(a, b)   => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
+      case TimePlusPeriodExpr(a, b) => evaluateBinary(a, b)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
       case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b)((x, y) => x plus y)
 
       case ArrayTokensExpr(e)   => evaluateUnary(e)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))
