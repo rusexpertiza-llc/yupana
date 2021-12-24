@@ -434,7 +434,7 @@ object ExpressionCalculator extends StrictLogging {
   )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
-  private val monday = q"_root_.org.java.time.DayOfWeek.MONDAY"
+  private val monday = q"_root_.java.time.DayOfWeek.MONDAY"
   private val cru = q"_root_.java.time.temporal.ChronoUnit"
   private val adj = q"_root_.java.time.temporal.TemporalAdjusters"
 
@@ -517,28 +517,20 @@ object ExpressionCalculator extends StrictLogging {
 
         case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
 
-        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.firstDayOfYear)($x)""")
-        case TruncMonthExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.firstDayOfMonth)($x)""")
-        case TruncWeekExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($adj.previousOrSame($monday))($x)""")
-        case TruncDayExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.DAYS)($x)""")
-        case TruncHourExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.HOURS)($x)""")
-        case TruncMinuteExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.MINUTES)($x)""")
-        case TruncSecondExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($cru.SECONDS)($x)""")
-        case ExtractYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
-        case ExtractMonthExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthOfYear")
-        case ExtractDayExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
-        case ExtractHourExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHourOfDay")
-        case ExtractMinuteExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMinuteOfHour")
-        case ExtractSecondExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getSecondOfMinute")
+        case TruncYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
+        case TruncMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfMonth)($x)")
+        case TruncWeekExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.previousOrSame($monday))($x)")
+        case TruncDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.DAYS)($x)")
+        case TruncHourExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.HOURS)($x)")
+        case TruncMinuteExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.MINUTES)($x)")
+        case TruncSecondExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.SECONDS)($x)")
+
+        case ExtractYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
+        case ExtractMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthValue")
+        case ExtractDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
+        case ExtractHourExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHour")
+        case ExtractMinuteExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMinute")
+        case ExtractSecondExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getSecond")
 
         case TimeMinusExpr(a, b) =>
           mkSetBinary(state, row, e, a, b, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
