@@ -17,6 +17,7 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -28,6 +29,7 @@ import org.yupana.core.model.InternalRow
 import java.sql.Types
 import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit }
 import scala.collection.AbstractIterator
+import scala.reflect.{ ClassTag, classTag }
 
 trait ExpressionCalculator {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
@@ -53,6 +55,8 @@ object ExpressionCalculator extends StrictLogging {
   private val tokenizer = TermName("tokenizer")
   private val params = TermName("params")
   private val calculator = q"_root_.org.yupana.core.ExpressionCalculator"
+
+  private val byRefTypes: Set[ClassTag[_]] = Set(classTag[Time], classTag[BigDecimal], classTag[PeriodDuration])
 
   case class Decl(name: TermName, tpe: Tree, value: Tree)
   case class LocalDecl(e: Expression[_], name: TermName, value: Tree, defTree: Option[Tree]) {
@@ -210,10 +214,9 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mapValue(state: State, tpe: DataType)(v: Any): (Tree, State) = {
-    import scala.reflect.classTag
 
     tpe.kind match {
-      case TypeKind.Regular if tpe.classTag == classTag[Time] || tpe.classTag == classTag[BigDecimal] =>
+      case TypeKind.Regular if byRefTypes.contains(tpe.classTag) =>
         val (name, ns) = state.withRef(v.asInstanceOf[AnyRef], mkType(tpe))
         q"$name" -> ns
 
@@ -534,10 +537,8 @@ object ExpressionCalculator extends StrictLogging {
 
         case TimeMinusExpr(a, b) =>
           mkSetBinary(state, row, e, a, b, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
-        case TimeMinusPeriodExpr(a, b) =>
-          mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p).getMillis)")
-        case TimePlusPeriodExpr(a, b) =>
-          mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.plus($p).getMillis)")
+        case TimeMinusPeriodExpr(a, b)  => mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p))")
+        case TimePlusPeriodExpr(a, b)   => mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.plus($p))")
         case PeriodPlusPeriodExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"$x plus $y")
 
         case IsNullExpr(a)    => mkSetUnary(state, row, e, a, _ => q"false", Some(q"true"))
@@ -803,6 +804,7 @@ object ExpressionCalculator extends StrictLogging {
       import _root_.org.yupana.api.types.DataType
       import _root_.org.yupana.api.utils.Tokenizer
       import _root_.org.yupana.core.model.InternalRow
+      import _root_.org.threeten.extra.PeriodDuration
 
       ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {

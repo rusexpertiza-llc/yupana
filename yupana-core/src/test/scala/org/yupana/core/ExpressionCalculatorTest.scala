@@ -3,13 +3,14 @@ package org.yupana.core
 import org.scalatest.GivenWhenThen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
@@ -334,7 +335,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         extractDay(time) as "ed",
         extractHour(time) as "eh",
         extractMinute(time) as "em",
-        extractSecond(time) as "es"
+        extractSecond(time) as "es",
+        minus(time, const(Time(pointTime.minusHours(1)))) as "mt",
+        minus(time, const(PeriodDuration.of(Period.ofWeeks(2)))) as "mp",
+        plus(time, const(PeriodDuration.of(Duration.ofHours(12)))) as "pp"
       )
     )
 
@@ -360,6 +364,14 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     result.get(qc, extractHour(time)) shouldEqual 16
     result.get(qc, extractMinute(time)) shouldEqual 52
     result.get(qc, extractSecond(time)) shouldEqual 22
+
+    result.get(qc, minus(time, const(Time(pointTime.minusHours(1))))) shouldEqual 3600000
+    result.get(qc, minus(time, const(PeriodDuration.of(Period.ofWeeks(2))))) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 10, 16, 52, 22, 123, ZoneOffset.UTC)
+    )
+    result.get(qc, plus(time, const(PeriodDuration.of(Duration.ofHours(12))))) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 25, 4, 52, 22, 123, ZoneOffset.UTC)
+    )
   }
 
   it should "handle tuples" in {
