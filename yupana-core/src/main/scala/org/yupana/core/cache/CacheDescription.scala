@@ -20,10 +20,10 @@ import org.yupana.api.types.BoxingTag
 
 abstract class CacheDescription(val name: String, val suffix: String, val engine: String) {
   type Key
-  def keyBoxing: BoxingTag[Key]
+  val keyBoxing: BoxingTag[Key]
 
   type Value
-  def valueBoxing: BoxingTag[Value]
+  val valueBoxing: BoxingTag[Value]
 
   val fullName: String = s"${name}_$suffix"
 
