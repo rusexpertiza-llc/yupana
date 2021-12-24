@@ -3,13 +3,14 @@ package org.yupana.core
 import org.scalatest.GivenWhenThen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
@@ -282,7 +283,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         contains(tokens(dimension(TestDims.DIM_A)), const("vodichk")) as "c1",
         containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c2",
         containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk"))) as "c3",
-        containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c4"
+        containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c4",
+        arrayToString(tokenizeArray(split(dimension(TestDims.DIM_A)))) as "ats"
       )
     )
 
@@ -310,6 +312,97 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       qc,
       containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
     ) shouldEqual false
+
+    result.get(qc, arrayToString(tokenizeArray(split(dimension(TestDims.DIM_A))))) shouldEqual "vkusn, vodichk, 7"
+  }
+
+  it should "calculate time functions" in {
+    val pointTime = OffsetDateTime.of(2021, 12, 24, 16, 52, 22, 123, ZoneOffset.UTC)
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(pointTime.minusDays(1))),
+      const(Time(pointTime.plusDays(1))),
+      Seq(
+        truncYear(time) as "ty",
+        truncMonth(time) as "tM",
+        truncWeek(time) as "tw",
+        truncDay(time) as "td",
+        truncHour(time) as "th",
+        truncMinute(time) as "tm",
+        truncSecond(time) as "ts",
+        extractYear(time) as "ey",
+        extractMonth(time) as "eM",
+        extractDay(time) as "ed",
+        extractHour(time) as "eh",
+        extractMinute(time) as "em",
+        extractSecond(time) as "es",
+        minus(time, const(Time(pointTime.minusHours(1)))) as "mt",
+        minus(time, const(PeriodDuration.of(Period.ofWeeks(2)))) as "mp",
+        plus(time, const(PeriodDuration.of(Duration.ofHours(12)))) as "pp"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder.set(Time(pointTime)).buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+
+    result.get(qc, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncMonth(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncWeek(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncDay(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncHour(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncMinute(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 52, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncSecond(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 52, 22, 0, ZoneOffset.UTC))
+
+    result.get(qc, extractYear(time)) shouldEqual 2021
+    result.get(qc, extractMonth(time)) shouldEqual 12
+    result.get(qc, extractDay(time)) shouldEqual 24
+    result.get(qc, extractHour(time)) shouldEqual 16
+    result.get(qc, extractMinute(time)) shouldEqual 52
+    result.get(qc, extractSecond(time)) shouldEqual 22
+
+    result.get(qc, minus(time, const(Time(pointTime.minusHours(1))))) shouldEqual 3600000
+    result.get(qc, minus(time, const(PeriodDuration.of(Period.ofWeeks(2))))) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 10, 16, 52, 22, 123, ZoneOffset.UTC)
+    )
+    result.get(qc, plus(time, const(PeriodDuration.of(Duration.ofHours(12))))) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 25, 4, 52, 22, 123, ZoneOffset.UTC)
+    )
+  }
+
+  it should "handle tuples" in {
+    val now = OffsetDateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD))) as "tuple"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusHours(1)))
+      .set(dimension(TestDims.DIM_A), "a value")
+      .set(metric(TestTableFields.TEST_FIELD), 42d)
+      .buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+
+    result.get(qc, tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD)))) shouldEqual (
+      (
+        "a value",
+        -42d
+      )
+    )
   }
 
   it should "support comparing of non-numeric types" in {
