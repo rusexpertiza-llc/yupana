@@ -38,4 +38,9 @@ class CaffeineCache[K, V](cache: CCache[K, V]) extends Cache[K, V] {
   override def putAll(batch: Map[K, V]): Unit = cache.putAll(batch.asJava)
 
   override def contains(key: K): Boolean = cache.getIfPresent(key) != null
+
+  override def caching(key: K)(eval: => V): V = cache.get(key, _ => eval)
+
+  override def allCaching(keys: Set[K])(eval: Set[K] => Map[K, V]): Map[K, V] =
+    cache.getAll(keys.asJava, ks => eval(ks.asScala.toSet).asJava).asScala.toMap
 }
