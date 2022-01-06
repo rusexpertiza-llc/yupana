@@ -208,7 +208,8 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     name := "yupana-external-links",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
+      "io.circe"                    %% "circe-parser"               % versions.circe,
+      "io.circe"                    %% "circe-generic"              % versions.circe,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -382,7 +383,7 @@ lazy val versions = new {
   val ehcache = "3.9.7"
   val caffeine = "2.8.6"
 
-  val json4s = "3.7.0-M11" // Same version with Spark
+  val circe = "0.13.0" // To have same cats version wuth Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
@@ -407,13 +408,18 @@ val commonSettings = Seq(
     "-unchecked",
     "-feature",
     "-language:higherKinds",
-    "-Xlint",
     "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ) ++ {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
-      case _ => Seq.empty
+      case Some((2,13)) => Seq(
+          "-Wconf:cat=unused:info",
+          "-Xlint:-byname-implicit,_"
+        )
+      case _ => Seq(
+          "-Xlint",
+          "-Ypartial-unification"
+        )
     }
   },
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),

@@ -98,7 +98,9 @@ class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers w
                               |}""".stripMargin
 
     val e2 = JsonExternalLinkDeclarationsParser.parse(testSchema, notArray).left.value
-    e2 shouldEqual s"No 'externalLinks' array was found in $notArray"
+    val compacted = notArray.replaceAll("\\n *", "").replaceAll("([:,]) ", "$1")
+
+    e2 shouldEqual s"No 'externalLinks' array was found in $compacted"
   }
 
   it should "return errors if externalLinks defined incorrectly" in {
@@ -199,14 +201,15 @@ class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers w
 
     val e3 = JsonExternalLinkDeclarationsParser.parse(testSchema, badLinks).left.value
     e3 shouldEqual Seq(
-      """Bad source field in {"description":{"source":"bad source"}}""",
-      """Can not parse external link {"description":{"source":"sql","linkName":"CaseClassExtractionError"}}: """ +
-        "No usable value for description\nNo usable value for dimensionName\nDid not find value which can be converted into java.lang.String",
+      """Can not parse external link {"description":{"source":"bad source"}}: bad source field.""",
+      """Can not parse external link 'CaseClassExtractionError': """ +
+        "no usable value for description.dimensionName, no usable value for description.fieldsNames, " +
+        "no usable value for description.tables, no usable value for connection.",
       "Fields mapping keys set is not equal to declared external link fields set: " +
-        "Set(kkmId, f2) != Set(f1, f2, kkmId) in 'BadFieldsMapping1'",
-      "Inverse fields mapping contains duplicated keys: List(kkmId, ff2, ff2) in 'BadFieldsMapping2'",
-      "No tables defined for external link NoSchemas",
+        "Set(kkmId, f2) != Set(f1, f2, kkmId) in 'BadFieldsMapping1'.",
+      "Inverse fields mapping contains duplicated keys: List(kkmId, ff2, ff2) in 'BadFieldsMapping2'.",
+      "Can not parse external link 'NoSchemas': no usable value for description.tables.",
       "Unknown table: items_kkms in 'BadSchemas'"
-    ).mkString(", ")
+    ).mkString(" ")
   }
 }
