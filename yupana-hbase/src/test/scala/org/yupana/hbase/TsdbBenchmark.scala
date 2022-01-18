@@ -3,7 +3,6 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin, Scan, Result => HResult }
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableName }
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.tagobjects.Slow
 import org.yupana.api.Time
 import org.yupana.api.query._
@@ -14,12 +13,14 @@ import org.yupana.core._
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
-import java.util.Properties
 
+import java.util.Properties
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.model.UpdateInterval
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
@@ -80,7 +81,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
   }
 
   "TSDB" should "be fast" taggedAs Slow in {
-    val qtime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
 
     val N = 1000000
 //    val in = (1 to N).toArray
@@ -106,7 +107,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
 
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 
@@ -117,7 +118,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       override def dictionaryProvider: DictionaryProvider = dictProvider
 
       val rows = {
-        val time = qtime.toDate.getTime + 24L * 60 * 60 * 1000
+        val time = qtime.toInstant.toEpochMilli + 24L * 60 * 60 * 1000
         (1 to N).map { i =>
           val dimId = i
           HBaseTestUtils
@@ -214,7 +215,8 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
           changelogDao,
           dictProvider,
           identity,
-          SimpleTsdbConfig(putEnabled = true), { _ =>
+          SimpleTsdbConfig(putEnabled = true),
+          { _ =>
             mc
           }
         ) {

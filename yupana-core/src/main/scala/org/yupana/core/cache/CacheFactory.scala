@@ -41,7 +41,7 @@ object CacheFactory extends StrictLogging {
 
   private var defaultEngine: String = _
   private var properties: Properties = _
-  private var nameSuffix: String = _
+  private var nameSuffix: Option[String] = None
 
   def propsForPrefix(prefix: String): Map[String, String] = {
     properties.asScala.filter(_._1.startsWith(prefix + ".")).map { case (k, v) => k.drop(prefix.length + 1) -> v }.toMap
@@ -64,7 +64,7 @@ object CacheFactory extends StrictLogging {
     CacheDescription(name, nameSuffix, engine)
   }
 
-  def init(properties: Properties, hbaseNamespace: String): Unit = {
+  def init(properties: Properties): Unit = {
     if (this.properties == null) {
       loadFactories()
       this.properties = properties
@@ -78,9 +78,9 @@ object CacheFactory extends StrictLogging {
       }
 
       nameSuffix = Option(properties.getProperty("analytics.caches.default.suffix"))
-        .filter(_.trim.nonEmpty)
-        .getOrElse(hbaseNamespace)
-        .trim
+        .map(_.trim)
+        .filter(_.nonEmpty)
+
     } else logger.info("CacheUtils already initialized")
   }
 

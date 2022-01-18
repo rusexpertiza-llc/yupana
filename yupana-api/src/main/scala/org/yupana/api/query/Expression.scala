@@ -16,7 +16,7 @@
 
 package org.yupana.api.query
 
-import org.joda.time.Period
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
@@ -387,19 +387,21 @@ final case class TimeMinusExpr(override val a: Expression[Time], override val b:
   override val dataType: DataType.Aux[Long] = DataType[Long]
 }
 
-final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[Period])
-    extends BinaryOperationExpr[Time, Period, Time](a, b, "-", true) {
+final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
+    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "-", true) {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
-final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[Period])
-    extends BinaryOperationExpr[Time, Period, Time](a, b, "+", true) {
+final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
+    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "+", true) {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
-final case class PeriodPlusPeriodExpr(override val a: Expression[Period], override val b: Expression[Period])
-    extends BinaryOperationExpr[Period, Period, Period](a, b, "+", true) {
-  override val dataType: DataType.Aux[Period] = DataType[Period]
+final case class PeriodPlusPeriodExpr(
+    override val a: Expression[PeriodDuration],
+    override val b: Expression[PeriodDuration]
+) extends BinaryOperationExpr[PeriodDuration, PeriodDuration, PeriodDuration](a, b, "+", true) {
+  override val dataType: DataType.Aux[PeriodDuration] = DataType[PeriodDuration]
 }
 
 final case class ConcatExpr(override val a: Expression[String], override val b: Expression[String])

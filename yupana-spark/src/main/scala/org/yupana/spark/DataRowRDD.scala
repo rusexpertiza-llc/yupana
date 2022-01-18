@@ -21,7 +21,6 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
 import org.apache.spark.sql.types._
 import org.apache.spark.{ Partition, TaskContext }
-import org.joda.time.DateTimeZone
 import org.yupana.api.{ Blob, Time }
 import org.yupana.api.query.{ DataRow, QueryField }
 import org.yupana.api.types.ArrayDataType
@@ -54,7 +53,7 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
   private def createRow(a: Array[Any], fields: Seq[QueryField]): Row = {
     val values = fields.indices.map(idx =>
       a(dataIndexForFieldIndex(idx)) match {
-        case Time(t)     => new Timestamp(DateTimeZone.getDefault.convertLocalToUTC(t, false))
+        case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
         case Blob(bytes) => bytes
         case x           => x
       }

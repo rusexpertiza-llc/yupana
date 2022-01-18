@@ -1,11 +1,12 @@
 package org.yupana.hbase
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.Inside
 import org.yupana.api.schema._
 import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
@@ -27,7 +28,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
     dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
     metrics = metrics,
     externalLinks = Seq.empty,
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val table2 = new Table(
@@ -36,7 +37,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C, DIM_D),
     metrics = metrics,
     externalLinks = Seq.empty,
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val TEST_LINK = new ExternalLink {
@@ -70,7 +71,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       dimensionSeq = Seq(DIM_A, DIM_C),
       metrics = table1.metrics.take(2),
       externalLinks = Seq(TEST_LINK),
-      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+      LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
     )
 
     val mutatedTables = Seq(significantlyDifferentTable1, table2)
@@ -93,7 +94,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B_LOW_PRIORITY, METRIC_C, METRIC_D),
       externalLinks = Seq(TEST_LINK),
-      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+      LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
     )
 
     val mutatedTables = Seq(table1WithChangedGroups, table2)
@@ -115,7 +116,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B_WRONG_TAG, METRIC_C, METRIC_D),
       externalLinks = Seq(TEST_LINK),
-      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+      LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
     )
 
     val mutatedTables = Seq(table1WithChangedTag, table2)
@@ -135,7 +136,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = table1.metrics :+ Metric[BigDecimal]("extra_metric", 8),
       externalLinks = Seq(TEST_LINK),
-      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+      LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
     )
 
     val mutatedTables = Seq(slightlyDifferentTable1, table2)
@@ -156,7 +157,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
       metrics = Seq(METRIC_A, METRIC_B, METRIC_C, METRIC_D, NEW_METRIC),
       externalLinks = Seq(TEST_LINK),
-      new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+      LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
     )
 
     val mutatedTables = Seq(table1WithNewMetric, table2)
@@ -165,7 +166,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
       case Error(msg) =>
         msg shouldBe
           "In table table_1 2 metrics (metric_b, new_metric) share the same tag: 2\n" +
-            "In table table_1 metric new_metric:BIGINT is unknown (new)"
+          "In table table_1 metric new_metric:BIGINT is unknown (new)"
     }
   }
 }

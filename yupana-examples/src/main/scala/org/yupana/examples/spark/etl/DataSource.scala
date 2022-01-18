@@ -16,8 +16,7 @@
 
 package org.yupana.examples.spark.etl
 
-import org.joda.time.LocalDateTime
-
+import java.time.LocalDateTime
 import scala.util.Random
 
 object DataSource {
@@ -48,7 +47,7 @@ object DataSource {
 
   def genReceipt(n: Int): Receipt = {
     val items = 1 to (1 + Random.nextInt(10)) map (_ => genItem)
-    val date = LocalDateTime.now.minusMillis(Random.nextInt(86400000)).minusDays(Random.nextInt(30))
+    val date = LocalDateTime.now.minusSeconds(Random.nextInt(86400)).minusDays(Random.nextInt(30))
     val ts = items.foldLeft(BigDecimal(0))(_ + _.sum)
     val (byCard, byCash) = if (Random.nextBoolean()) (Some(ts), None) else (None, Some(ts))
 

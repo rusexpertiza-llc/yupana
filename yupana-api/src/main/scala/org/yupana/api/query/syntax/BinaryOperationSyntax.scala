@@ -16,13 +16,16 @@
 
 package org.yupana.api.query.syntax
 
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query._
 
 trait BinaryOperationSyntax {
   def minus[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = MinusExpr(a, b)
   def minus(a: Expression[Time], b: Expression[Time]) = TimeMinusExpr(a, b)
+  def minus(a: Expression[Time], b: Expression[PeriodDuration]) = TimeMinusPeriodExpr(a, b)
   def plus[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = PlusExpr(a, b)
+  def plus(a: Expression[Time], b: Expression[PeriodDuration]) = TimePlusPeriodExpr(a, b)
   def times[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = TimesExpr(a, b)
   def divInt[T](a: Expression[T], b: Expression[T])(implicit n: Integral[T]) = DivIntExpr(a, b)
   def divFrac[T](a: Expression[T], b: Expression[T])(implicit n: Fractional[T]) = DivFracExpr(a, b)

@@ -17,7 +17,7 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
-import org.joda.time.DateTimeFieldType
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -27,7 +27,9 @@ import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
 import java.sql.Types
+import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit }
 import scala.collection.AbstractIterator
+import scala.reflect.{ ClassTag, classTag }
 
 trait ExpressionCalculator {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
@@ -46,13 +48,15 @@ trait ExpressionCalculator {
 }
 
 object ExpressionCalculator extends StrictLogging {
-  import scala.reflect.runtime.universe._
   import scala.reflect.runtime.currentMirror
+  import scala.reflect.runtime.universe._
   import scala.tools.reflect.ToolBox
 
   private val tokenizer = TermName("tokenizer")
   private val params = TermName("params")
   private val calculator = q"_root_.org.yupana.core.ExpressionCalculator"
+
+  private val byRefTypes: Set[ClassTag[_]] = Set(classTag[Time], classTag[BigDecimal], classTag[PeriodDuration])
 
   case class Decl(name: TermName, tpe: Tree, value: Tree)
   case class LocalDecl(e: Expression[_], name: TermName, value: Tree, defTree: Option[Tree]) {
@@ -210,10 +214,9 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mapValue(state: State, tpe: DataType)(v: Any): (Tree, State) = {
-    import scala.reflect.classTag
 
     tpe.kind match {
-      case TypeKind.Regular if tpe.classTag == classTag[Time] || tpe.classTag == classTag[BigDecimal] =>
+      case TypeKind.Regular if byRefTypes.contains(tpe.classTag) =>
         val (name, ns) = state.withRef(v.asInstanceOf[AnyRef], mkType(tpe))
         q"$name" -> ns
 
@@ -434,7 +437,9 @@ object ExpressionCalculator extends StrictLogging {
   )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
-  private val dtft = q"_root_.org.joda.time.DateTimeFieldType"
+  private val monday = q"_root_.java.time.DayOfWeek.MONDAY"
+  private val cru = q"_root_.java.time.temporal.ChronoUnit"
+  private val adj = q"_root_.java.time.temporal.TemporalAdjusters"
 
   private def ordValName(dt: DataType): TermName = {
     TermName(s"ord_${dt.toString}")
@@ -515,35 +520,25 @@ object ExpressionCalculator extends StrictLogging {
 
         case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
 
-        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.year())($x)""")
-        case TruncMonthExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.monthOfYear())($x)""")
-        case TruncWeekExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.weekOfWeekyear())($x)""")
-        case TruncDayExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.dayOfMonth())($x)""")
-        case TruncHourExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.hourOfDay())($x)""")
-        case TruncMinuteExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.minuteOfHour())($x)""")
-        case TruncSecondExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"""$truncTime($dtft.secondOfMinute())($x)""")
-        case ExtractYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
-        case ExtractMonthExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthOfYear")
-        case ExtractDayExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
-        case ExtractHourExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHourOfDay")
-        case ExtractMinuteExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMinuteOfHour")
-        case ExtractSecondExpr(a) =>
-          mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getSecondOfMinute")
+        case TruncYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
+        case TruncMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfMonth)($x)")
+        case TruncWeekExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.previousOrSame($monday))($x)")
+        case TruncDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.DAYS)($x)")
+        case TruncHourExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.HOURS)($x)")
+        case TruncMinuteExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.MINUTES)($x)")
+        case TruncSecondExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.SECONDS)($x)")
+
+        case ExtractYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
+        case ExtractMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthValue")
+        case ExtractDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
+        case ExtractHourExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHour")
+        case ExtractMinuteExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMinute")
+        case ExtractSecondExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getSecond")
 
         case TimeMinusExpr(a, b) =>
           mkSetBinary(state, row, e, a, b, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
-        case TimeMinusPeriodExpr(a, b) =>
-          mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p).getMillis)")
-        case TimePlusPeriodExpr(a, b) =>
-          mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.plus($p).getMillis)")
+        case TimeMinusPeriodExpr(a, b)  => mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.minus($p))")
+        case TimePlusPeriodExpr(a, b)   => mkSetBinary(state, row, e, a, b, (t, p) => q"Time($t.toDateTime.plus($p))")
         case PeriodPlusPeriodExpr(a, b) => mkSetBinary(state, row, e, a, b, (x, y) => q"$x plus $y")
 
         case IsNullExpr(a)    => mkSetUnary(state, row, e, a, _ => q"false", Some(q"true"))
@@ -802,13 +797,14 @@ object ExpressionCalculator extends StrictLogging {
     assert(finalState.unfinished.isEmpty)
 
     val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
-      finalState.refs.map { case (_, d)                 => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
+      finalState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
 
     val tree = q"""
       import _root_.org.yupana.api.Time
       import _root_.org.yupana.api.types.DataType
       import _root_.org.yupana.api.utils.Tokenizer
       import _root_.org.yupana.core.model.InternalRow
+      import _root_.org.threeten.extra.PeriodDuration
 
       ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {
@@ -882,8 +878,12 @@ object ExpressionCalculator extends StrictLogging {
       .replaceAll("\\.\\$less", " < ")
   }
 
-  def truncateTime(fieldType: DateTimeFieldType)(time: Time): Time = {
-    Time(time.toDateTime.property(fieldType).roundFloorCopy().getMillis)
+  def truncateTime(adjuster: TemporalAdjuster)(time: Time): Time = {
+    Time(time.toDateTime.`with`(adjuster).truncatedTo(ChronoUnit.DAYS))
+  }
+
+  def truncateTime(unit: TemporalUnit)(time: Time): Time = {
+    Time(time.toDateTime.truncatedTo(unit))
   }
 
   def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {

@@ -18,13 +18,14 @@ package org.yupana.examples.spark.etl
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.{ SparkConf, SparkContext }
-import org.joda.time.DateTimeZone
 import org.yupana.api.Blob
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
 import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
+
+import java.time.ZoneOffset
 
 object ETL extends StrictLogging {
 
@@ -95,7 +96,7 @@ object ETL extends StrictLogging {
 
         val dp = DataPoint(
           Tables.itemsKkmTable,
-          receipt.date.toDateTime(DateTimeZone.UTC).getMillis,
+          receipt.date.toInstant(ZoneOffset.UTC).toEpochMilli,
           dims,
           metrics
         )
@@ -135,7 +136,7 @@ object ETL extends StrictLogging {
 
     val dp = DataPoint(
       Tables.receiptTable,
-      receipt.date.toDateTime(DateTimeZone.UTC).getMillis,
+      receipt.date.toInstant(ZoneOffset.UTC).toEpochMilli,
       dims,
       metrics
     )

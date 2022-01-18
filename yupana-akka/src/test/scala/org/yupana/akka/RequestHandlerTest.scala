@@ -1,7 +1,6 @@
 package org.yupana.akka
 
 import com.google.protobuf.ByteString
-import org.joda.time.DateTime
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ EitherValues, Inside }
 import org.yupana.api.Time
@@ -26,6 +25,8 @@ import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.auth.YupanaUser
+
+import java.time.{ OffsetDateTime, ZoneOffset }
 
 class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with EitherValues with Inside {
 
@@ -240,14 +241,22 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
   }
 
   class MockedTsdb
-      extends TSDB(SchemaRegistry.defaultSchema, null, null, null, identity, SimpleTsdbConfig(), { q: Query =>
-        new StandaloneMetricCollector(
-          q,
-          "test",
-          5,
-          new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
-        )
-      })
+      extends TSDB(
+        SchemaRegistry.defaultSchema,
+        null,
+        null,
+        null,
+        identity,
+        SimpleTsdbConfig(),
+        { q: Query =>
+          new StandaloneMetricCollector(
+            q,
+            "test",
+            5,
+            new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
+          )
+        }
+      )
 
   it should "handle show queries request" in {
     val metricsDao = mock[TsdbQueryMetricsDao]
@@ -285,7 +294,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
           TsdbQueryMetrics(
             "323232",
             None,
-            new DateTime(2019, 11, 13, 0, 0),
+            OffsetDateTime.of(2019, 11, 13, 0, 0, 0, 0, ZoneOffset.UTC),
             0,
             "SELECT kkm FROM kkm_items",
             QueryStates.Running,
@@ -301,7 +310,9 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
     resp should have size 3
     val fields = resp(0).getResultHeader.fields.map(_.name)
 
-    fields should contain theSameElementsAs metrics.flatMap(m => Seq(s"${m}_count", s"${m}_time", s"${m}_speed")) ++ Seq(
+    fields should contain theSameElementsAs metrics.flatMap(m =>
+      Seq(s"${m}_count", s"${m}_time", s"${m}_speed")
+    ) ++ Seq(
       "query_id",
       "engine",
       "state",

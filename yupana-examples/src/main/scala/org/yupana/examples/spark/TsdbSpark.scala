@@ -50,7 +50,7 @@ class TsdbSpark(
   override def linkService(el: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
     if (!TsdbSpark.externalLinks.contains(el.linkName)) {
       logger.info(s"${el.linkName} is not registered yet, so let's create and register it")
-      CacheFactory.init(conf.properties, conf.hbaseNamespace)
+      CacheFactory.init(conf.properties)
       elRegistrator.registerExternalLink(el)
     }
     TsdbSpark.externalLinks

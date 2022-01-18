@@ -4,7 +4,6 @@ import org.apache.spark.sql.SparkSession
 
 import java.sql.Timestamp
 import org.apache.spark.sql.types._
-import org.joda.time.LocalDateTime
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.types.DataTypeMeta
@@ -13,6 +12,8 @@ import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.model.InternalRowBuilder
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 class DataRowRDDTest extends AnyFlatSpec with Matchers {
 
@@ -63,7 +64,7 @@ class DataRowRDDTest extends AnyFlatSpec with Matchers {
 
     df.count() shouldEqual 1
     val row = df.head()
-    row.getTimestamp(0) shouldEqual new Timestamp(theTime.toDateTime.getMillis)
+    row.getTimestamp(0) shouldEqual new Timestamp(theTime.toInstant(ZoneOffset.UTC).toEpochMilli)
     row.getString(1) shouldEqual "болт М6"
     row.getDouble(2) shouldEqual 42d
     row.getDecimal(3) shouldEqual null
