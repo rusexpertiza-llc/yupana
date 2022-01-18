@@ -321,7 +321,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
-    scalaVersion := "2.13.6",
+    scalaVersion := "2.12.15",
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
