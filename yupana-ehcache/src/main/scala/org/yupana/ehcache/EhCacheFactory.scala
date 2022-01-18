@@ -86,8 +86,6 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
   private def createCacheConfig(
       description: CacheDescription
   ): CacheConfiguration[description.Key, description.Value] = {
-    import scala.language.existentials
-
     val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
     val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.ehcache")
 
