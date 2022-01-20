@@ -398,8 +398,8 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.15", "2.13.6"),
+  scalaVersion := "2.13.8",
+  crossScalaVersions := Seq("2.12.15", "2.13.8"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
@@ -412,7 +412,7 @@ val commonSettings = Seq(
     "-Ywarn-dead-code"
   ) ++ {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
+      case Some((2,13)) => Seq("-Wconf:cat=unused:info", "-Wconf:msg=Top-level:s")
       case _ => Seq.empty
     }
   },
