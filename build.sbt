@@ -235,8 +235,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
     name := "yupana-caffeine",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
-      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
   .dependsOn(core)
@@ -380,7 +379,7 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.8.1"
   val ehcache = "3.9.7"
-  val caffeine = "2.8.6"
+  val caffeine = "2.9.3"
 
   val json4s = "3.7.0-M11" // Same version with Spark
 
