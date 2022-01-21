@@ -218,7 +218,7 @@ object SqlParser {
     P(nestedSelectFrom(fields) | normalSelectFrom(fields))
   }
 
-  def select[_: P]: P[Select] = P(selectFields.flatMap(selectFrom))
+  def select[_: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)))
 
   def substituteNested(expr: SqlExpr, nestedFields: Seq[SqlField]): SqlExpr = {
     expr match {

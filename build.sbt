@@ -236,8 +236,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
     name := "yupana-caffeine",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
-      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
   .dependsOn(core)
@@ -322,7 +321,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
-    scalaVersion := "2.13.6",
+    scalaVersion := "2.12.15",
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -381,7 +380,7 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.8.1"
   val ehcache = "3.9.7"
-  val caffeine = "2.8.6"
+  val caffeine = "2.9.3"
 
   val circe = "0.13.0" // To have same cats version wuth Spark
 
@@ -399,8 +398,8 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.15", "2.13.6"),
+  scalaVersion := "2.13.8",
+  crossScalaVersions := Seq("2.12.15", "2.13.8"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
@@ -414,6 +413,7 @@ val commonSettings = Seq(
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2,13)) => Seq(
           "-Wconf:cat=unused:info",
+          "-Wconf:msg=Top-level:s",
           "-Xlint:-byname-implicit,_"
         )
       case _ => Seq(
