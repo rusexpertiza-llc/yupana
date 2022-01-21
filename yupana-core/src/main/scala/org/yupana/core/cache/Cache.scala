@@ -17,7 +17,7 @@
 package org.yupana.core.cache
 
 trait Cache[K, V] {
-  def get(key: K): Option[V]
+  def get(key: K): Option[V] = Option(getNullable(key))
   def getNullable(key: K): V
   def put(key: K, value: V): Unit
   def remove(key: K): Boolean
