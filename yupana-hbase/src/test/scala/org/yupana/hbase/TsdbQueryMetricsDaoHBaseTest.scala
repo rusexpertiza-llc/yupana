@@ -1,7 +1,6 @@
 package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.joda.time.DateTime
 import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
 import org.yupana.core.{ TestDims, TestSchema }
@@ -9,6 +8,9 @@ import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.model.{ MetricData, QueryStates }
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import java.time.temporal.ChronoUnit
+import java.time.{ OffsetDateTime, ZoneOffset }
 
 trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers with GivenWhenThen {
 
@@ -25,10 +27,18 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
       None
     )
 
-    val startTime = DateTime.now
+    val startTime = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
 
     When("metric dao initialized")
-    dao.saveQueryMetrics(query, None, startTime.getMillis, QueryStates.Running, 0L, Map.empty, sparkQuery = false)
+    dao.saveQueryMetrics(
+      query,
+      None,
+      startTime.toInstant.toEpochMilli,
+      QueryStates.Running,
+      0L,
+      Map.empty,
+      sparkQuery = false
+    )
 
     Then("all metrics shall be zero")
     val qs = dao.queriesByFilter(Some(QueryMetricsFilter(queryId = Some(query.id)))).toList
@@ -46,7 +56,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     dao.saveQueryMetrics(
       query,
       None,
-      startTime.getMillis,
+      startTime.toInstant.toEpochMilli,
       QueryStates.Finished,
       10000000000L,
       Map("create_scans" -> MetricData(1, 2, 3)),
@@ -78,13 +88,13 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
       None
     )
 
-    val startTime = DateTime.now
+    val startTime = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
 
     When("metric dao initialized")
     dao.saveQueryMetrics(
       query,
       Some("1"),
-      startTime.getMillis,
+      startTime.toInstant.toEpochMilli,
       QueryStates.Running,
       0L,
       Map.empty,
@@ -93,7 +103,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     dao.saveQueryMetrics(
       query,
       Some("2"),
-      startTime.plusSeconds(3).getMillis,
+      startTime.plusSeconds(3).toInstant.toEpochMilli,
       QueryStates.Running,
       0L,
       Map.empty,
@@ -116,7 +126,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     dao.saveQueryMetrics(
       query,
       Some("1"),
-      startTime.getMillis,
+      startTime.toInstant.toEpochMilli,
       QueryStates.Finished,
       4000000000L,
       Map("create_scans" -> MetricData(1, 2, 3)),
@@ -126,7 +136,7 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
     dao.saveQueryMetrics(
       query,
       Some("2"),
-      startTime.plusSeconds(3).getMillis,
+      startTime.plusSeconds(3).toInstant.toEpochMilli,
       QueryStates.Finished,
       2000000000L,
       Map("create_scans" -> MetricData(2, 3, 1)),

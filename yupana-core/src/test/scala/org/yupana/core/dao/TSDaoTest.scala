@@ -1,6 +1,5 @@
 package org.yupana.core.dao
 
-import org.joda.time.DateTime
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.query.DataPoint
@@ -10,15 +9,17 @@ import org.yupana.core.{ IteratorMapReducible, MapReducible }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, UpdateInterval }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
+import java.time.{ OffsetDateTime, ZoneOffset }
+
 class TSDaoTest extends AnyFlatSpec with Matchers {
 
   "TSDao" should "pick only most recent update interval for each updated object after batch put" in {
     val intervals = (1 to 10).map { _ =>
-      val from = new DateTime("2021-11-01")
-      val to = new DateTime("2021-11-02")
+      val from = OffsetDateTime.of(2021, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)
+      val to = OffsetDateTime.of(2021, 11, 2, 0, 0, 0, 0, ZoneOffset.UTC)
       Seq(
-        UpdateInterval("t1", from, to, DateTime.now(), "test"),
-        UpdateInterval("t2", from, to, DateTime.now(), "test")
+        UpdateInterval("t1", from, to, OffsetDateTime.now(), "test"),
+        UpdateInterval("t2", from, to, OffsetDateTime.now(), "test")
       )
     }
 

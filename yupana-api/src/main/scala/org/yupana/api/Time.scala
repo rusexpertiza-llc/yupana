@@ -16,16 +16,17 @@
 
 package org.yupana.api
 
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.yupana.api.utils.DimOrdering
+
+import java.time.{ Instant, LocalDateTime, OffsetDateTime, ZoneOffset }
 
 /**
   * Simple time value implementation.
   * @param millis epoch milliseconds in UTC.
   */
 case class Time(millis: Long) extends Ordered[Time] {
-  def toLocalDateTime: LocalDateTime = new LocalDateTime(millis, DateTimeZone.UTC)
-  def toDateTime: DateTime = new DateTime(millis, DateTimeZone.UTC)
+  def toLocalDateTime: LocalDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC)
+  def toDateTime: OffsetDateTime = Instant.ofEpochMilli(millis).atOffset(ZoneOffset.UTC)
 
   override def toString: String = toDateTime.toString
 
@@ -40,6 +41,6 @@ object Time {
     def minus(value: Long): Time = t.copy(t.millis - value)
   }
 
-  def apply(localDateTime: LocalDateTime): Time = new Time(localDateTime.toDateTime(DateTimeZone.UTC).getMillis)
-  def apply(dateTime: DateTime): Time = new Time(dateTime.getMillis)
+  def apply(localDateTime: LocalDateTime): Time = new Time(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli)
+  def apply(dateTime: OffsetDateTime): Time = new Time(dateTime.toInstant.toEpochMilli)
 }

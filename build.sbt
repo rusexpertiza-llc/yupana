@@ -33,7 +33,7 @@ lazy val api = (project in file("yupana-api"))
     name := "yupana-api",
     allSettings,
     libraryDependencies ++= Seq(
-      "joda-time"              %  "joda-time"            % versions.joda,
+      "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
       "org.scalatestplus"      %% "scalacheck-1-15"      % versions.scalaTestCheck    % Test
@@ -58,7 +58,6 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % versions.colCompat,
       "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
@@ -241,7 +240,6 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
-      "org.scala-lang.modules"      %% "scala-collection-compat"    % versions.colCompat,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -268,8 +266,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
     name := "yupana-caffeine",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
-      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
   .dependsOn(core)
@@ -354,7 +351,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
-    scalaVersion := "2.13.6",
+    scalaVersion := "2.12.15",
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -393,11 +390,10 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val colCompat = "2.5.0"
-
+  val colCompat = "2.1.1" // Same version with Spark
   val spark = "3.2.0"
 
-  val joda = "2.10.10"
+  val threeTenExtra = "1.7.0"
 
   val protobufJava = "2.6.1"
 
@@ -409,12 +405,12 @@ lazy val versions = new {
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.5.32"
+  val akka = "2.6.17"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
-  val ehcache = "3.3.2"
-  val caffeine = "2.8.6"
+  val ehcache = "3.9.7"
+  val caffeine = "2.9.3"
 
   val json4s = "3.7.0-M11" // Same version with Spark
 
@@ -432,8 +428,8 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.15", "2.13.6"),
+  scalaVersion := "2.13.8",
+  crossScalaVersions := Seq("2.12.15", "2.13.8"),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
@@ -446,7 +442,7 @@ val commonSettings = Seq(
     "-Ywarn-dead-code"
   ) ++ {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
+      case Some((2,13)) => Seq("-Wconf:cat=unused:info", "-Wconf:msg=Top-level:s")
       case _ => Seq.empty
     }
   },

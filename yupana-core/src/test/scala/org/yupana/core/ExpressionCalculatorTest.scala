@@ -1,13 +1,16 @@
 package org.yupana.core
 
-import org.joda.time.{ DateTime, DateTimeZone }
 import org.scalatest.GivenWhenThen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
+
+import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
+import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
@@ -35,7 +38,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     calc.evaluateFilter(
       RussianTokenizer,
       builder
-        .set(Time(DateTime.now()))
+        .set(Time(OffsetDateTime.now()))
         .set(dimension(TestDims.DIM_A), "значение")
         .set(dimension(TestDims.DIM_B), 12.toShort)
         .buildAndReset()
@@ -44,7 +47,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     calc.evaluateFilter(
       RussianTokenizer,
       builder
-        .set(Time(DateTime.now()))
+        .set(Time(OffsetDateTime.now()))
         .set(dimension(TestDims.DIM_A), "value")
         .set(dimension(TestDims.DIM_B), 42.toShort)
         .buildAndReset()
@@ -52,14 +55,14 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "evaluate row values" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
       const(Time(now)),
       Seq(
         metric(TestTableFields.TEST_FIELD) as "F",
-        truncDay(time) as "T",
+        truncMonth(time) as "T",
         divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)) as "PRICE",
         plus(dimension(TestDims.DIM_B), const(1.toShort)) as "B_PLUS_1",
         divInt(dimension(TestDims.DIM_B), plus(dimension(TestDims.DIM_B), const(1.toShort))) as "bbb",
@@ -80,7 +83,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     calc.evaluateExpressions(RussianTokenizer, row)
     row.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
-    row.get(qc, truncDay(time)) shouldEqual Time(now.withZone(DateTimeZone.UTC).minusDays(2).withTimeAtStartOfDay())
+    row.get(qc, truncMonth(time)) shouldEqual Time(
+      now
+        .withOffsetSameInstant(ZoneOffset.UTC)
+        .minusDays(2)
+        .`with`(TemporalAdjusters.firstDayOfMonth())
+        .truncatedTo(ChronoUnit.DAYS)
+    )
 
     val rowWithNulls = builder
       .set(Time(now.minusDays(1)))
@@ -88,14 +97,17 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .buildAndReset()
 
     calc.evaluateExpressions(RussianTokenizer, rowWithNulls)
-    rowWithNulls.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual null
+    rowWithNulls.get(
+      qc,
+      divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
+    ) shouldEqual null
       .asInstanceOf[java.lang.Double]
   }
 
   it should "calculate aggregation" in {
     Given("Query with aggregate expressions")
 
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -109,7 +121,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         distinctRandom(metric(TestTableFields.TEST_FIELD)) as "RANDOM",
         truncDay(time) as "T",
         min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) as "MIN_PRICE",
-        divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d)) as "MIDDLE"
+        divFrac(
+          plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))),
+          const(2d)
+        ) as "MIDDLE"
       ),
       None,
       Seq(truncDay(time))
@@ -143,7 +158,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
     mapped1.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     mapped1.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
-    mapped1.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    mapped1.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 2d
     mapped1.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -156,7 +174,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped2.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     mapped2.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
     mapped2.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
-    mapped2.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 3d
+    mapped2.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 3d
     mapped2.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -172,7 +193,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     reduced.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
     reduced.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
-    reduced.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    reduced.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 2d
     reduced.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -188,7 +212,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     postMapped.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
     postMapped.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(10d) or equal(12d))
-    postMapped.get(qc, min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))) shouldEqual 2d
+    postMapped.get(
+      qc,
+      min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
+    ) shouldEqual 2d
     postMapped.isEmpty(
       qc,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
@@ -204,7 +231,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "evaluate string functions" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -246,7 +273,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "evaluate array functions" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -256,7 +283,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         contains(tokens(dimension(TestDims.DIM_A)), const("vodichk")) as "c1",
         containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c2",
         containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk"))) as "c3",
-        containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c4"
+        containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk"))) as "c4",
+        arrayToString(tokenizeArray(split(dimension(TestDims.DIM_A)))) as "ats"
       )
     )
 
@@ -272,16 +300,113 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val result = calc.evaluateExpressions(RussianTokenizer, row)
     result.get(qc, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
     result.get(qc, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
-    result.get(qc, containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual true
+    result.get(
+      qc,
+      containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
+    ) shouldEqual true
     result.get(
       qc,
       containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk")))
     ) shouldEqual true
-    result.get(qc, containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))) shouldEqual false
+    result.get(
+      qc,
+      containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
+    ) shouldEqual false
+
+    result.get(qc, arrayToString(tokenizeArray(split(dimension(TestDims.DIM_A))))) shouldEqual "vkusn, vodichk, 7"
+  }
+
+  it should "calculate time functions" in {
+    val pointTime = OffsetDateTime.of(2021, 12, 24, 16, 52, 22, 123, ZoneOffset.UTC)
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(pointTime.minusDays(1))),
+      const(Time(pointTime.plusDays(1))),
+      Seq(
+        truncYear(time) as "ty",
+        truncMonth(time) as "tM",
+        truncWeek(time) as "tw",
+        truncDay(time) as "td",
+        truncHour(time) as "th",
+        truncMinute(time) as "tm",
+        truncSecond(time) as "ts",
+        extractYear(time) as "ey",
+        extractMonth(time) as "eM",
+        extractDay(time) as "ed",
+        extractHour(time) as "eh",
+        extractMinute(time) as "em",
+        extractSecond(time) as "es",
+        minus(time, const(Time(pointTime.minusHours(1)))) as "mt",
+        minus(time, const(PeriodDuration.of(Period.ofWeeks(2)))) as "mp",
+        plus(time, const(PeriodDuration.of(Duration.ofHours(12)))) as "pp"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder.set(Time(pointTime)).buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+
+    result.get(qc, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncMonth(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncWeek(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncDay(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncHour(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncMinute(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 52, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncSecond(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 52, 22, 0, ZoneOffset.UTC))
+
+    result.get(qc, extractYear(time)) shouldEqual 2021
+    result.get(qc, extractMonth(time)) shouldEqual 12
+    result.get(qc, extractDay(time)) shouldEqual 24
+    result.get(qc, extractHour(time)) shouldEqual 16
+    result.get(qc, extractMinute(time)) shouldEqual 52
+    result.get(qc, extractSecond(time)) shouldEqual 22
+
+    result.get(qc, minus(time, const(Time(pointTime.minusHours(1))))) shouldEqual 3600000
+    result.get(qc, minus(time, const(PeriodDuration.of(Period.ofWeeks(2))))) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 10, 16, 52, 22, 123, ZoneOffset.UTC)
+    )
+    result.get(qc, plus(time, const(PeriodDuration.of(Duration.ofHours(12))))) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 25, 4, 52, 22, 123, ZoneOffset.UTC)
+    )
+  }
+
+  it should "handle tuples" in {
+    val now = OffsetDateTime.now()
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(
+        tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD))) as "tuple"
+      )
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusHours(1)))
+      .set(dimension(TestDims.DIM_A), "a value")
+      .set(metric(TestTableFields.TEST_FIELD), 42d)
+      .buildAndReset()
+
+    val result = calc.evaluateExpressions(RussianTokenizer, row)
+
+    result.get(qc, tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD)))) shouldEqual (
+      (
+        "a value",
+        -42d
+      )
+    )
   }
 
   it should "support comparing of non-numeric types" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
       const(Time(now.minusDays(3))),
@@ -317,7 +442,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .buildAndReset()
 
     val rows = Seq(row1, row2, row3).groupBy(_.get(qc, dimension(TestDims.DIM_A)))
-    val mapped = rows.map { case (s, rs)    => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
+    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
     val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateReduce(RussianTokenizer, a, b)) }
     val postMapped = reduced.map(r => calc.evaluatePostMap(RussianTokenizer, r))
 
@@ -335,7 +460,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "support arrays" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val ce = condition(
       containsAny(tokens(dimension(TestDims.DIM_A)), const(Seq("aaa", "bbb"))),
       const("X"),
@@ -383,7 +508,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "handle nulls properly" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
 
     val exp = divFrac(plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)), const(2d))
     val cond = equ(exp, const(0d))
@@ -413,7 +538,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "handle large input data arrays" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
     val cond = in(metric(TestTableFields.TEST_LONG_FIELD), (1L to 1000000L).toSet)
 
     val query = Query(

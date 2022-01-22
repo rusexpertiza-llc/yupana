@@ -71,7 +71,7 @@ object ConditionUtils {
         else
           tbc
       case Original(_) =>
-        //TODO: looks like, no need to do anything with 'other' conditions
+        // TODO: looks like, no need to do anything with 'other' conditions
         tbc
     }
   }

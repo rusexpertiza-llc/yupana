@@ -16,7 +16,7 @@
 
 package org.yupana.api.types
 
-import org.joda.time.Period
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Blob, Time }
 
@@ -133,7 +133,7 @@ object DataType {
 
   implicit val blobDt: DataType.Aux[Blob] = create[Blob](None, None, None)
 
-  implicit val periodDt: DataType.Aux[Period] = create[Period](None, None, None)
+  implicit val periodDt: DataType.Aux[PeriodDuration] = create[PeriodDuration](None, None, None)
 
   implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
@@ -161,8 +161,7 @@ object DataType {
   }
 
   private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
-      implicit
-      s: Storable[TT],
+      implicit s: Storable[TT],
       m: DataTypeMeta[TT],
       ct: ClassTag[TT],
       bt: BoxingTag[TT]
@@ -178,8 +177,7 @@ object DataType {
   }
 
   def scaledDecimalDt(scale: Int)(
-      implicit
-      s: Storable[BigDecimal],
+      implicit s: Storable[BigDecimal],
       ct: ClassTag[BigDecimal],
       bt: BoxingTag[BigDecimal]
   ): DataType.Aux[BigDecimal] = new DataType {

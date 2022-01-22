@@ -17,8 +17,9 @@
 package org.yupana.akka
 
 import akka.actor.ActorSystem
+import akka.stream.Attributes.CancellationStrategy
 import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
-import akka.stream.{ ActorAttributes, Supervision }
+import akka.stream.{ ActorAttributes, Attributes, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.proto.{ Request, Response }
@@ -70,6 +71,9 @@ class TsdbTcp(
         }
 
     val requestFlow = Flow[ByteString]
+      .addAttributes(
+        Attributes(CancellationStrategy(CancellationStrategy.AfterDelay(1.second, CancellationStrategy.FailStage)))
+      )
       .map { b =>
         val r = Try(Request.parseFrom(b.toArray)) match {
           case Success(message) =>

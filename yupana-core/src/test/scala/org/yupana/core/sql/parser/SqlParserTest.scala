@@ -1,13 +1,15 @@
 package org.yupana.core.sql.parser
 
-import org.joda.time._
 import org.scalactic.source
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.Inside
-
 import fastparse._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.threeten.extra.PeriodDuration
+
+import java.time.format.DateTimeFormatter
+import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedValues with TableDrivenPropertyChecks {
 
@@ -32,48 +34,48 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
 
   it should "parse timestamps" in {
     parse("TIMESTAMP '2017-08-23 12:44:02.000'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new DateTime(2017, 8, 23, 12, 44, 2, 0, DateTimeZone.UTC)
+      OffsetDateTime.of(2017, 8, 23, 12, 44, 2, 0, ZoneOffset.UTC)
     )
 
     parse("TIMESTAMP '2017-08-23'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new DateTime(2017, 8, 23, 0, 0, DateTimeZone.UTC)
+      OffsetDateTime.of(2017, 8, 23, 0, 0, 0, 0, ZoneOffset.UTC)
     )
 
     parse("TIMESTAMP '2018-08-4 22:25:51.03'", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new DateTime(2018, 8, 4, 22, 25, 51, 30, DateTimeZone.UTC)
+      OffsetDateTime.of(2018, 8, 4, 22, 25, 51, 30, ZoneOffset.UTC)
     )
   }
 
   it should "support alternative timestamp syntax" in {
     parse("{TS '2017-10-31 00:00:00' }", ValueParser.value(_)).value shouldEqual TimestampValue(
-      new DateTime(2017, 10, 31, 0, 0, 0, DateTimeZone.UTC)
+      OffsetDateTime.of(2017, 10, 31, 0, 0, 0, 0, ZoneOffset.UTC)
     )
   }
 
   it should "support simple format intervals" in {
     parse("INTERVAL '3:15:20'", ValueParser.value(_)).value shouldEqual PeriodValue(
-      new Period(3, 15, 20, 0)
+      PeriodDuration.of(Duration.ofHours(3).plusMinutes(15).plusSeconds(20))
     )
 
     parse("INTERVAL '0:6:50.123'", ValueParser.value(_)).value shouldEqual PeriodValue(
-      new Period(0, 6, 50, 123)
+      PeriodDuration.of(Duration.ofMinutes(6).plusSeconds(50).plusMillis(123))
     )
 
     parse("INTERVAL '10 12:00:00'", ValueParser.value(_)).value shouldEqual PeriodValue(
-      new Period(0, 0, 0, 10, 12, 0, 0, 0)
+      PeriodDuration.of(Period.ofDays(10), Duration.ofHours(12))
     )
   }
 
   it should "support single field SQL intervals" in {
     val cases = Table(
       ("SQL", "Period"),
-      ("INTERVAL '2' YEAR", Period.years(2)),
-      ("INTERVAL '3' MONTH", Period.months(3)),
-      ("INTERVAL '6' DAY", Period.days(6)),
-      ("INTERVAL '150' HOUR", Period.hours(150)),
-      ("INTERVAL '5' minute", Period.minutes(5)),
-      ("INTERVAL '33' SECOND", Period.seconds(33)),
-      ("INTERVAL '5.66' SECOND", Period.seconds(5).plusMillis(660))
+      ("INTERVAL '2' YEAR", PeriodDuration.of(Period.ofYears(2))),
+      ("INTERVAL '3' MONTH", PeriodDuration.of(Period.ofMonths(3))),
+      ("INTERVAL '6' DAY", PeriodDuration.of(Period.ofDays(6))),
+      ("INTERVAL '150' HOUR", PeriodDuration.of(Duration.ofHours(150))),
+      ("INTERVAL '5' minute", PeriodDuration.of(Duration.ofMinutes(5))),
+      ("INTERVAL '33' SECOND", PeriodDuration.of(Duration.ofSeconds(33))),
+      ("INTERVAL '5.66' SECOND", PeriodDuration.of(Duration.ofSeconds(5).plusMillis(660)))
     )
 
     forAll(cases) { (sql, period) =>
@@ -84,14 +86,20 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "support multi field SQL intervals" in {
     val cases = Table(
       ("SQL", "period"),
-      ("INTERVAL '1-10' YEAR TO MONTH", Period.years(1).plusMonths(10)),
-      ("INTERVAL '10:15' HOUR TO MINUTE", Period.hours(10).plusMinutes(15)),
-      ("INTERVAL '400 5' DAY TO HOUR", Period.days(400).plusHours(5)),
-      ("INTERVAL '10:22' MINUTE TO SECOND", Period.minutes(10).plusSeconds(22)),
-      ("INTERVAL '5:10:22.6' hour to second", Period.hours(5).plusMinutes(10).plusSeconds(22).plusMillis(600)),
-      ("INTERVAL '8-10 15' MONTH to HOUR", Period.months(8).plusDays(10).plusHours(15)),
-      ("INTERVAL '2-11-15' year to DAY", Period.years(2).plusMonths(11).plusDays(15)),
-      ("INTERVAL '4 5:12:10.222' day to second", new Period(0, 0, 0, 4, 5, 12, 10, 222))
+      ("INTERVAL '1-10' YEAR TO MONTH", PeriodDuration.of(Period.ofYears(1).plusMonths(10))),
+      ("INTERVAL '10:15' HOUR TO MINUTE", PeriodDuration.of(Duration.ofHours(10).plusMinutes(15))),
+      ("INTERVAL '400 5' DAY TO HOUR", PeriodDuration.of(Period.ofDays(400), Duration.ofHours(5))),
+      ("INTERVAL '10:22' MINUTE TO SECOND", PeriodDuration.of(Duration.ofMinutes(10).plusSeconds(22))),
+      (
+        "INTERVAL '5:10:22.6' hour to second",
+        PeriodDuration.of(Duration.ofHours(5).plusMinutes(10).plusSeconds(22).plusMillis(600))
+      ),
+      ("INTERVAL '8-10 15' MONTH to HOUR", PeriodDuration.of(Period.ofMonths(8).plusDays(10), Duration.ofHours(15))),
+      ("INTERVAL '2-11-15' year to DAY", PeriodDuration.of(Period.ofYears(2).plusMonths(11).plusDays(15))),
+      (
+        "INTERVAL '4 5:12:10.222' day to second",
+        PeriodDuration.of(Period.ofDays(4), Duration.ofHours(5).plusMinutes(12).plusSeconds(10).plusMillis(222))
+      )
     )
 
     forAll(cases) { (sql, period) =>
@@ -273,8 +281,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           Seq(
             BetweenCondition(
               FieldName("time"),
-              TimestampValue(new DateTime(2021, 3, 9, 0, 0, DateTimeZone.UTC)),
-              TimestampValue(new DateTime(2021, 3, 10, 0, 0, DateTimeZone.UTC))
+              TimestampValue(OffsetDateTime.of(2021, 3, 9, 0, 0, 0, 0, ZoneOffset.UTC)),
+              TimestampValue(OffsetDateTime.of(2021, 3, 10, 0, 0, 0, 0, ZoneOffset.UTC))
             ),
             BetweenCondition(
               FieldName("sum"),
@@ -497,8 +505,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
 
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 10, 1, 0, 0, DateTimeZone.UTC)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 10, 30, 0, 0, DateTimeZone.UTC))))
+            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Lt(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 10, 30, 0, 0, 0, 0, ZoneOffset.UTC))))
           )
         )
 
@@ -545,8 +553,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 12, 20, 0, 0, DateTimeZone.UTC)))),
+            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Lt(
+              FieldName("time"),
+              Constant(TimestampValue(OffsetDateTime.of(2017, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC)))
+            ),
             Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
           )
         )
@@ -576,8 +587,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 12, 20, 0, 0, DateTimeZone.UTC)))),
+            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Lt(
+              FieldName("time"),
+              Constant(TimestampValue(OffsetDateTime.of(2017, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC)))
+            ),
             Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
           )
         )
@@ -611,8 +625,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 1, 0, 0, DateTimeZone.UTC)))),
-            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2017, 11, 20, 0, 0, DateTimeZone.UTC)))),
+            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2017, 11, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Lt(
+              FieldName("time"),
+              Constant(TimestampValue(OffsetDateTime.of(2017, 11, 20, 0, 0, 0, 0, ZoneOffset.UTC)))
+            ),
             Eq(FieldName("KkmsRetailPlaceOrgCatalog_orgInn"), Constant(StringValue("7706091500")))
           )
         )
@@ -785,8 +802,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Lt(FieldName("time"), Constant(TimestampValue(new DateTime(2018, 1, 11, 0, 0, DateTimeZone.UTC)))),
-            Gt(FieldName("time"), Constant(TimestampValue(new DateTime(2018, 1, 1, 0, 0, DateTimeZone.UTC))))
+            Lt(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2018, 1, 11, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Gt(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))))
           )
         )
         groupings should contain theSameElementsAs List(FieldName("kkmId"))
@@ -837,7 +854,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         condition shouldEqual And(
           Seq(
             Lt(FieldName("time"), FunctionCall("now", Nil)),
-            Ge(FieldName("time"), Minus(FunctionCall("now", Nil), Constant(PeriodValue(Period.months(1))))),
+            Ge(
+              FieldName("time"),
+              Minus(FunctionCall("now", Nil), Constant(PeriodValue(PeriodDuration.of(Period.ofMonths(1)))))
+            ),
             Eq(FieldName("item"), Constant(StringValue("конфета 'Чупа-чупс'")))
           )
         )
@@ -991,12 +1011,13 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "parse SHOW UPDATES_INTERVALS statements" in {
-    val t = DateTime.now(DateTimeZone.UTC).withMillisOfDay(0)
+    val f = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    val t = OffsetDateTime.now(ZoneOffset.UTC).withNano(0)
     SqlParser.parse(
       s"""SHOW UPDATES_INTERVALS
          |  WHERE table = 'receipt'
-         |    AND updated_at BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'
-         |      AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'""".stripMargin
+         |    AND updated_at BETWEEN TIMESTAMP '${t.format(f)}'
+         |      AND TIMESTAMP '${t.format(f)}'""".stripMargin
     ) shouldBe Right(
       ShowUpdatesIntervals(
         Some(
@@ -1018,8 +1039,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       s"""SHOW UPDATES_INTERVALS
          |  WHERE table = 'receipt'
          |    AND 'somebody' = updated_by
-         |    AND updated_at BETWEEN TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'
-         |      AND TIMESTAMP '${t.toString("yyyy-MM-dd HH:mm:ss")}'""".stripMargin
+         |    AND updated_at BETWEEN TIMESTAMP '${t.format(f)}'
+         |      AND TIMESTAMP '${t.format(f)}'""".stripMargin
     ) shouldBe Right(
       ShowUpdatesIntervals(
         Some(
@@ -1125,8 +1146,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("time"), Constant(TimestampValue(new DateTime(2019, 4, 10, 0, 0, DateTimeZone.UTC)))),
-            Le(FieldName("time"), Constant(TimestampValue(new DateTime(2019, 4, 11, 0, 0, DateTimeZone.UTC)))),
+            Ge(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2019, 4, 10, 0, 0, 0, 0, ZoneOffset.UTC)))),
+            Le(FieldName("time"), Constant(TimestampValue(OffsetDateTime.of(2019, 4, 11, 0, 0, 0, 0, ZoneOffset.UTC)))),
             Lt(UMinus(FieldName("quantity")), UMinus(Constant(NumericValue(100))))
           )
         )
@@ -1152,7 +1173,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         )
         condition shouldEqual Gt(
           FieldName("time"),
-          Constant(TimestampValue(new DateTime(2017, 1, 3, 0, 0, DateTimeZone.UTC)))
+          Constant(TimestampValue(OffsetDateTime.of(2017, 1, 3, 0, 0, 0, 0, ZoneOffset.UTC)))
         )
     }
   }
