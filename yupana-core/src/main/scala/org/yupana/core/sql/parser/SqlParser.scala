@@ -56,6 +56,7 @@ object SqlParser {
   private def valuesWord[_: P] = P(IgnoreCase("VALUES"))
   private def functionsWord[_: P] = P(IgnoreCase("FUNCTIONS"))
   private def forWord[_: P] = P(IgnoreCase("FOR"))
+  private def likeWord[_: P] = P(IgnoreCase("LIKE"))
   private val keywords = Set(
     "select",
     "from",
@@ -161,6 +162,8 @@ object SqlParser {
     case (f, t) => e => BetweenCondition(e, f, t)
   }
 
+  def like[_: P]: P[SqlExpr => Condition] = P(likeWord ~/ ValueParser.string).map(p => e => Like(e, p))
+
   def condition[_: P]: P[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => Or(x +: y)
     case (x, _)               => x
@@ -171,7 +174,7 @@ object SqlParser {
     case (x, _)               => x
   }
 
-  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull | between).?).map {
+  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull | between | like).?).map {
     case (e, Some(f)) => f(e)
     case (e, None)    => ExprCondition(e)
   }

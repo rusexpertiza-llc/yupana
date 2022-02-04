@@ -269,6 +269,11 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
       biFunction <- FunctionRegistry.bi(fun, le, re)
     } yield biFunction
 
+  private def castExpression[T](e: Expression[_], dt: DataType.Aux[T]): Either[String, Expression[T]] = {
+    if (e.dataType == dt) Right(e.asInstanceOf[Expression[T]])
+    else Left(s"$e has type ${e.dataType}, but $dt is required")
+  }
+
   def createBooleanExpr(l: Expression[_], r: Expression[_], fun: String): Either[String, Expression[Boolean]] = {
     FunctionRegistry.bi(fun, l, r).flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
@@ -330,13 +335,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
         CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(OrExpr)
 
       case parser.ExprCondition(e) =>
-        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap { ex =>
-          if (ex.dataType == DataType[Boolean]) {
-            Right(ex.asInstanceOf[Expression[Boolean]])
-          } else {
-            Left(s"$ex has type ${ex.dataType}, but BOOLEAN is required")
-          }
-        }
+        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap(ex => castExpression(ex, DataType[Boolean]))
 
       case parser.BetweenCondition(e, f, t) =>
         createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
@@ -348,6 +347,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
               le <- createBooleanExpr(ex, ConstantExpr(to)(ex.dataType), "<=")
             } yield AndExpr(Seq(ge, le))
         }
+
+      case parser.Like(e, p) =>
+        for {
+          ex <- createExpr(state, nameResolver, e, ExprType.Cmp)
+          s <- castExpression(ex, DataType[String])
+        } yield LikeExpr(s, p)
     }
   }
 

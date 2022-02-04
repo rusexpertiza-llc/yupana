@@ -45,6 +45,7 @@ object ExpressionUtils {
       case NotInExpr(e, vs) => NotInExpr(transform(t)(e), vs)
       case IsNullExpr(e)    => IsNullExpr(e)
       case IsNotNullExpr(e) => IsNotNullExpr(e)
+      case LikeExpr(e, p)   => LikeExpr(transform(t)(e), p)
       case AndExpr(es)      => AndExpr(es.map(transform(t)))
       case OrExpr(es)       => OrExpr(es.map(transform(t)))
       case NotExpr(e)       => NotExpr(transform(t)(e))

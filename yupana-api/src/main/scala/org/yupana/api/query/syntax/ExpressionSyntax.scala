@@ -41,6 +41,7 @@ trait ExpressionSyntax {
 
   def in[T](e: Expression[T], consts: Set[T]): Condition = InExpr(e, consts)
   def notIn[T](e: Expression[T], consts: Set[T]): Condition = NotInExpr(e, consts)
+  def like(e: Expression[String], p: String): Condition = LikeExpr(e, p)
 
   def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*))
   def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*))

@@ -512,6 +512,8 @@ object ExpressionCalculator extends StrictLogging {
           val (n, ns) = state.withRef(vs, tq"Set[${mkType(v)}]")
           mkSetUnary(ns, row, e, v, x => q"""!$n.contains($x)""")
 
+        case LikeExpr(e, p) => throw new NotImplementedError("not implemented yet")
+
         case PlusExpr(a, b)    => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x + $y""")
         case MinusExpr(a, b)   => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x - $y""")
         case TimesExpr(a, b)   => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x * $y""")

@@ -347,6 +347,22 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "support like conditions" in {
+    testQuery(
+      """SELECT testField from test_table
+        |  WHERE time > timestamp '2022-01-28' and time < TIMESTAMP '2022-02-01' and a like 'ля%ка'
+      """.stripMargin
+    ) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(metric(TestTableFields.TEST_FIELD).toField)
+      q.filter.value shouldEqual and(
+        gt(time, const(Time(LocalDateTime.of(2022, 1, 28, 0, 0)))),
+        lt(time, const(Time(LocalDateTime.of(2022, 2, 1, 0, 0)))),
+        like(lower(dimension(DIM_A)), "ля%ка")
+      )
+    }
+  }
+
   it should "support functions of arrays" in {
     testQuery("""
         |SELECT

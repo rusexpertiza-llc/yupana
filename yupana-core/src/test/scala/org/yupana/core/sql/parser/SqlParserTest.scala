@@ -1164,6 +1164,21 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
 
   }
 
+  it should "parse LIKE conditions" in {
+    parsed("""SELECT age FROM people WHERE name LIKE 'm%l' AND city like '%nsk' AND age >= 18""") {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "people"
+        fields should contain theSameElementsInOrderAs Seq(SqlField(FieldName("age")))
+        condition shouldEqual And(
+          Seq(
+            Like(FieldName("name"), "m%l"),
+            Like(FieldName("city"), "%nsk"),
+            Ge(FieldName("age"), Constant(NumericValue(18)))
+          )
+        )
+    }
+  }
+
   it should "parse selects without schema" in {
     parsed("""SELECT field, sum(sum) sum WHERE time > TIMESTAMP '2017-01-03'""") {
       case Select(None, SqlFieldList(fields), Some(condition), Nil, None, None) =>

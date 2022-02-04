@@ -25,18 +25,6 @@ trait TsdbMocks extends MockFactory {
       .returning(externalLink)
       .anyNumberOfTimes()
 
-    (catalogService.isSupportedCondition _)
-      .stubs(*)
-      .onCall((condition: Condition) =>
-        condition match {
-          case EqExpr(LinkExpr(c, _), ConstantExpr(_))                        => true
-          case NeqExpr(LinkExpr(c, _), ConstantExpr(_))                       => true
-          case InExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName    => true
-          case NotInExpr(LinkExpr(c, _), _) if c.linkName == catalog.linkName => true
-          case _                                                              => false
-        }
-      )
-
     catalogService
   }
 

@@ -519,6 +519,16 @@ final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedS
   override def toString: String = s"$dim ID NOT IN (Iterator)"
 }
 
+final case class LikeExpr(e: Expression[String], pattern: String) extends Expression[Boolean] {
+  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+  override val kind: ExprKind = e.kind
+
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = e.fold(f(z, this))(f)
+
+  override def encode: String = s"like(${e.encode},$pattern)"
+  override def toString: String = s"$e LIKE $pattern"
+}
+
 final case class AndExpr(conditions: Seq[Condition]) extends Expression[Boolean] {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
   override val kind: ExprKind = conditions.foldLeft(Const: ExprKind)((k, c) => ExprKind.combine(k, c.kind))
