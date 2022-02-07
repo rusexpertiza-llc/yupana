@@ -75,7 +75,9 @@ object ExpressionCalculator extends StrictLogging {
       globalDecls: Seq[(Any, Decl)],
       localDecls: Seq[LocalDecl],
       trees: Seq[Tree],
-      exprId: Int
+      exprId: Int,
+      prefix: String = "",
+      parent: Option[State] = None
   ) {
     def withRequired(e: Expression[_]): State = copy(required = required + e).withExpr(e)
 
@@ -83,12 +85,16 @@ object ExpressionCalculator extends StrictLogging {
       if (index.contains(e)) this else this.copy(index = this.index + (e -> index.size))
     }
 
+    def findLocal(e: Expression[_]): Option[LocalDecl] = {
+      localDecls.find(_.e == e) orElse parent.flatMap(_.findLocal(e))
+    }
+
     def withDefine(row: TermName, e: Expression[_], v: Tree): State = {
       if (required.contains(e)) {
         val newState = withExpr(e)
         val idx = newState.index(e)
         newState.copy(trees = q"$row.set($idx, $v)" +: trees)
-      } else if (!localDecls.exists(_.e == e)) {
+      } else if (findLocal(e).isEmpty) {
         val decl = LocalDecl(e, nextLocalName, v, None)
         copy(localDecls = decl +: localDecls)
       } else {
@@ -104,7 +110,7 @@ object ExpressionCalculator extends StrictLogging {
         val idx = newState.index(e)
         val tree = q"if ($cond) $row.set($idx, $v)"
         newState.withExpr(e).copy(trees = tree +: trees)
-      } else if (!localDecls.exists(_.e == e)) {
+      } else if (findLocal(e).isEmpty) {
         val decl = LocalDecl(e, nextLocalName, v, Some(cond))
         copy(localDecls = decl +: localDecls)
       } else {
@@ -143,7 +149,7 @@ object ExpressionCalculator extends StrictLogging {
 
     def appendLocal(ts: Tree*): State = copy(trees = ts.reverse ++ trees)
 
-    def fresh: (Tree, State) = {
+    def render: Tree = {
       val locals = localDecls.reverse.flatMap {
         case decl @ LocalDecl(e, n, v, d) =>
           val tpe = mkType(e)
@@ -154,18 +160,39 @@ object ExpressionCalculator extends StrictLogging {
           Seq(defTree, Some(q"val $n: $tpe = $tree")).flatten
       }
 
-      val res =
-        q"""
-            ..$locals
-            ..${trees.reverse}
-          """
-
-      val newState = State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
-
-      res -> newState
+      q"""
+        ..$locals
+        ..${trees.reverse}
+      """
     }
 
-    private def nextLocalName: TermName = TermName(s"l_${localDecls.size}")
+    def fresh: (Tree, State) = {
+      render -> State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
+    }
+
+    def nested(prefix: String): State = State(
+      index,
+      required,
+      unfinished,
+      refs,
+      globalDecls,
+      Seq.empty,
+      Seq.empty,
+      exprId,
+      prefix + this.prefix,
+      Some(this)
+    )
+
+    def finishNested: (Tree, State) = {
+      parent match {
+        case Some(p) =>
+          render -> copy(localDecls = p.localDecls, trees = p.trees, prefix = p.prefix, parent = p.parent)
+
+        case None => throw new IllegalStateException("Merge called, but parent is not defined")
+      }
+    }
+
+    private def nextLocalName: TermName = TermName(s"l${prefix}_${localDecls.size}")
   }
 
   private def className(dataType: DataType): String = {
@@ -260,8 +287,8 @@ object ExpressionCalculator extends StrictLogging {
         Some(q"$row.get[$tpe]($idx)" -> state)
 
       case x =>
-        state.localDecls
-          .find(_.e == x)
+        state
+          .findLocal(x)
           .map(x => q"${x.name}" -> state)
     }
   }
@@ -288,7 +315,7 @@ object ExpressionCalculator extends StrictLogging {
         state.index
           .get(e)
           .map(idx => q"$row.isDefined($idx)")
-          .orElse(state.localDecls.find(_.e == e).flatMap(_.isDefined))
+          .orElse(state.findLocal(e).flatMap(_.isDefined))
     }
   }
 
@@ -467,6 +494,16 @@ object ExpressionCalculator extends StrictLogging {
     else newState
   }
 
+  private def mkInner(prefix: String, state: State, row: TermName, e: Expression[_]): (Tree, State) = {
+    val s = mkSet(state.nested(prefix), row, e)
+    val (t, getEState) = mkGetNow(s, row, e)
+    val (tree, updatedState) = getEState.finishNested
+    val result = q"""..$tree
+       $t"""
+
+    result -> updatedState
+  }
+
   private def mkSet(state: State, row: TermName, e: Expression[_]): State = {
 
     if (state.index.contains(e)) {
@@ -548,11 +585,11 @@ object ExpressionCalculator extends StrictLogging {
         case UpperExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toUpperCase")
 
         case ConditionExpr(c, p, n) =>
-          val newState = mkSetExprs(state, row, Seq(c, p, n))
-          val (getC, cState) = mkGetNow(newState, row, c)
-          val (getP, pState) = mkGetNow(cState, row, p)
-          val (getN, nState) = mkGetNow(pState, row, n)
-          nState.withDefine(row, e, q"if ($getC) $getP else $getN")
+          val newState = mkSet(state, row, c)
+          val (getIf, ifState) = mkGetNow(newState, row, c)
+          val (getThen, thenState) = mkInner("t", ifState, row, p)
+          val (getElse, elseState) = mkInner("e", thenState, row, n)
+          elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
 
         case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
         case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
