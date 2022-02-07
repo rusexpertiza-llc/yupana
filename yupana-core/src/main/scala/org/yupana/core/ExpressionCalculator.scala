@@ -495,10 +495,9 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   private def mkInner(prefix: String, state: State, row: TermName, e: Expression[_]): (Tree, State) = {
-    val inner = state.nested(prefix)
-    val s = mkSet(inner, row, e)
-    val (t, fs) = mkGetNow(s, row, e)
-    val (tree, updatedState) = fs.finishNested
+    val s = mkSet(state.nested(prefix), row, e)
+    val (t, getEState) = mkGetNow(s, row, e)
+    val (tree, updatedState) = getEState.finishNested
     val result = q"""..$tree
        $t"""
 
@@ -587,10 +586,10 @@ object ExpressionCalculator extends StrictLogging {
 
         case ConditionExpr(c, p, n) =>
           val newState = mkSet(state, row, c)
-          val (getC, cState) = mkGetNow(newState, row, c)
-          val (getP, pState) = mkInner("p", cState, row, p)
-          val (getN, nState) = mkInner("c", pState, row, n)
-          nState.withDefine(row, e, q"if ($getC) $getP else $getN")
+          val (getIf, ifState) = mkGetNow(newState, row, c)
+          val (getThen, thenState) = mkInner("t", ifState, row, p)
+          val (getElse, elseState) = mkInner("e", thenState, row, n)
+          elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
 
         case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
         case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
