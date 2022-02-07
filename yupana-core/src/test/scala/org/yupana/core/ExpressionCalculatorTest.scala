@@ -564,4 +564,37 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         .buildAndReset()
     ) shouldBe false
   }
+
+  it should "not evaluate conditional branch if not needed" in {
+    val now = OffsetDateTime.now()
+
+    val x = condition(
+      neq(metric(TestTableFields.TEST_LONG_FIELD), const(0L)),
+      divInt(dimension(TestDims.DIM_Y), metric(TestTableFields.TEST_LONG_FIELD)),
+      const(-1L)
+    )
+
+    val query = Query(
+      TestSchema.testTable2,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(x as "x")
+    )
+
+    val qc = QueryContext(query, None)
+    val calc = qc.calculator
+
+    val builder = new InternalRowBuilder(qc)
+
+    val row = calc.evaluateExpressions(
+      RussianTokenizer,
+      builder
+        .set(Time(now.minusHours(5)))
+        .set(metric(TestTableFields.TEST_LONG_FIELD), 0L)
+        .set(dimension(TestDims.DIM_Y), 3L)
+        .buildAndReset()
+    )
+
+    row.get(qc, x) shouldEqual -1L
+  }
 }
