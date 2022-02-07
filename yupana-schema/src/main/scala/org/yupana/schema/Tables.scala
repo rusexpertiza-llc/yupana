@@ -28,6 +28,7 @@ object Tables {
   val itemRollupsExternalLinks: Seq[ExternalLink] = itemExternalLinks.filterNot(_ == RelatedItemsCatalog)
 
   val itemsKkmTable = new Table(
+    id = 1,
     name = "items_kkm",
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE, Dimensions.POSITION),
@@ -37,6 +38,7 @@ object Tables {
   )
 
   val kkmItemsTable = new Table(
+    id = 2,
     name = "kkm_items",
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE, Dimensions.POSITION),
@@ -52,6 +54,7 @@ object Tables {
   val receiptExternalLinks: Seq[ExternalLink] = Seq()
 
   val receiptTable = new Table(
+    id = 3,
     name = "receipt",
     rowTimeSpan = 86400000L,
     dimensionSeq = receiptDimensionSeq,
@@ -69,6 +72,7 @@ object Tables {
   )
 
   val receiptByDayTable = new Table(
+    id = 4,
     name = "receipt_by_day",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = receiptDimensionSeq,
@@ -78,6 +82,7 @@ object Tables {
   )
 
   val receiptByWeekTable = new Table(
+    id = 5,
     name = "receipt_by_week",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
@@ -87,6 +92,7 @@ object Tables {
   )
 
   val receiptByMonthTable = new Table(
+    id = 6,
     name = "receipt_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
@@ -96,6 +102,7 @@ object Tables {
   )
 
   val receiptByDayAllKkmsTable = new Table(
+    id = 7,
     name = "receipt_by_day_all_kkms",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq.empty,
@@ -105,6 +112,7 @@ object Tables {
   )
 
   val itemByDayTable = new Table(
+    id = 8,
     name = "item_by_day",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
@@ -114,6 +122,7 @@ object Tables {
   )
 
   val itemByWeekTable = new Table(
+    id = 9,
     name = "item_by_week",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
@@ -123,6 +132,7 @@ object Tables {
   )
 
   val itemByMonthTable = new Table(
+    id = 10,
     name = "item_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
@@ -132,6 +142,7 @@ object Tables {
   )
 
   val itemKkmsByDayTable = new Table(
+    id = 11,
     name = "item_kkms_by_day",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
@@ -141,6 +152,7 @@ object Tables {
   )
 
   val itemKkmsByWeekTable = new Table(
+    id = 12,
     name = "item_kkms_by_week",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
@@ -150,6 +162,7 @@ object Tables {
   )
 
   val itemKkmsByMonthTable = new Table(
+    id = 13,
     name = "item_kkms_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
@@ -159,6 +172,7 @@ object Tables {
   )
 
   val kkmsItemByDayTable = new Table(
+    id = 14,
     name = "kkms_item_by_day",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
@@ -168,6 +182,7 @@ object Tables {
   )
 
   val kkmsItemByWeekTable = new Table(
+    id = 15,
     name = "kkms_item_by_week",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
@@ -177,6 +192,7 @@ object Tables {
   )
 
   val kkmsItemByMonthTable = new Table(
+    id = 16,
     name = "kkms_item_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),

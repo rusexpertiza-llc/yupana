@@ -16,19 +16,23 @@
 
 package org.yupana.spark
 
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
+import org.yupana.rocks.TSDBRocks
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 
 class EtlContext(
     val cfg: EtlConfig,
     schema: Schema
-) extends Serializable {
+) extends Serializable
+    with StrictLogging {
+
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
@@ -38,8 +42,21 @@ class EtlContext(
   }
 
   private def initTsdb: TSDB = {
-    val tsdb =
-      TSDBHBase(
+
+    val tsdb = if (cfg.dbEngine == "rocks") {
+
+      logger.info("Inti Yupana TSDB with rocks-db engine")
+
+      TSDBRocks(
+        schema,
+        identity,
+        cfg
+      )
+    } else {
+
+      logger.info("Inti Yupana TSDB with HBase engine")
+
+      val t = TSDBHBase(
         hBaseConfiguration,
         cfg.hbaseNamespace,
         schema,
@@ -48,7 +65,10 @@ class EtlContext(
         cfg,
         None
       )
-    setup(tsdb)
+      setup(t)
+      t
+    }
+
     EtlContext.tsdb = Some(tsdb)
     tsdb
   }

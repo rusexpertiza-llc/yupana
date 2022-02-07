@@ -12,6 +12,8 @@ lazy val yupana = (project in file("."))
     utils,
     core,
     hbase,
+    rocks,
+    lmdb,
     akka,
     spark,
     schema,
@@ -161,6 +163,30 @@ lazy val hbase = (project in file("yupana-hbase"))
   .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
+lazy val rocks = (project in file("yupana-rocks"))
+  .settings(
+    name := "yupana-rocks",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.rocksdb" % "rocksdbjni" % versions.rocksdb
+    ),
+    excludeDependencies ++= Seq()
+  )
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val lmdb = (project in file("yupana-lmdb"))
+  .settings(
+    name := "yupana-lmdb",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.lmdbjava" % "lmdbjava" % versions.lmdb
+    ),
+    excludeDependencies ++= Seq()
+  )
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .disablePlugins(AssemblyPlugin)
+
 lazy val akka = (project in file("yupana-akka"))
   .settings(
     name := "yupana-akka",
@@ -190,7 +216,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
     )
   )
-  .dependsOn(core, hbase, externalLinks)
+  .dependsOn(core, hbase, rocks, externalLinks)
   .disablePlugins(AssemblyPlugin)
 
 lazy val schema = (project in file("yupana-schema"))
@@ -377,7 +403,8 @@ lazy val versions = new {
 
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
-
+  val rocksdb = "6.25.3"
+  val lmdb = "0.8.2"
   val akka = "2.5.32"
 
   val lucene = "6.6.0"

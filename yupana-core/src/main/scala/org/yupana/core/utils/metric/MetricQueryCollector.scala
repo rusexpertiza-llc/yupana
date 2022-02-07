@@ -19,17 +19,22 @@ package org.yupana.core.utils.metric
 import org.yupana.api.query.Query
 
 trait MetricQueryCollector extends MetricCollector {
+
   def query: Query
   override def id: String = query.id
   override def meta: String = query.toString
   def isSparkQuery: Boolean
 
+  def initQueryContext: Metric
   def createDimensionFilters: Metric
   def createScans: Metric
   def scan: Metric
   def readExternalLinks: Metric
   def extractDataComputation: Metric
   def filterRows: Metric
+  def filter: Metric
+  def evaluateExpressions: Metric
+  def extractKeyData: Metric
   def windowFunctions: Metric
   def reduceOperation: Metric
   def postFilter: Metric

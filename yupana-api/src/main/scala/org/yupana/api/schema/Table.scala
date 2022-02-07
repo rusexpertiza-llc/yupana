@@ -29,6 +29,7 @@ import scala.collection.mutable
   * @param epochTime milliseconds elapsed since the Unix epoch before the beginning of time series
   */
 class Table(
+    val id: Byte,
     val name: String,
     val rowTimeSpan: Long,
     val dimensionSeq: Seq[Dimension],
@@ -72,7 +73,7 @@ class Table(
   override def toString: String = s"Table($name)"
 
   def withExternalLinks(extraLinks: Seq[ExternalLink]): Table = {
-    new Table(name, rowTimeSpan, dimensionSeq, metrics, externalLinks ++ extraLinks, epochTime)
+    new Table(id, name, rowTimeSpan, dimensionSeq, metrics, externalLinks ++ extraLinks, epochTime)
   }
 
   def withExternalLinkReplaced[O <: ExternalLink, N <: O](oldExternalLink: O, newExternalLink: N): Table = {
@@ -95,6 +96,7 @@ class Table(
     }
 
     new Table(
+      id,
       name,
       rowTimeSpan,
       dimensionSeq,
@@ -105,7 +107,7 @@ class Table(
   }
 
   def withMetrics(extraMetrics: Seq[Metric]): Table = {
-    new Table(name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks, epochTime)
+    new Table(id, name, rowTimeSpan, dimensionSeq, metrics ++ extraMetrics, externalLinks, epochTime)
   }
 
   override def equals(obj: Any): Boolean = {

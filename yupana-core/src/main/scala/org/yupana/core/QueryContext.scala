@@ -18,12 +18,14 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.mutable
 
 class QueryContext(
     val query: Query,
-    val postCondition: Option[Condition]
+    val postCondition: Option[Condition],
+    val metricCollector: MetricQueryCollector
 ) extends Serializable {
   @transient private var calc: ExpressionCalculator = _
   @transient private var idx: mutable.Map[Expression[_], Int] = _
@@ -41,14 +43,16 @@ class QueryContext(
   lazy val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
 
   private def init(): Unit = {
-    val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
-    calc = calculator
-    idx = mutable.HashMap(index.toSeq: _*)
+    metricCollector.initQueryContext.measure(1) {
+      val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
+      calc = calculator
+      idx = mutable.HashMap(index.toSeq: _*)
+    }
   }
 }
 
 object QueryContext {
-  def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
-    new QueryContext(query, postCondition)
+  def apply(query: Query, postCondition: Option[Condition], metricCollector: MetricQueryCollector): QueryContext = {
+    new QueryContext(query, postCondition, metricCollector)
   }
 }

@@ -43,12 +43,16 @@ abstract class StandardMetricCollector(
 
   private def createMetric(qualifier: String): MetricImpl = new MetricImpl(qualifier, this)
 
+  override val initQueryContext: MetricImpl = createMetric(initQueryContextQualifier)
   override val createDimensionFilters: MetricImpl = createMetric(createDimensionFiltersQualifier)
   override val createScans: MetricImpl = createMetric(createScansQualifier)
   override val scan: MetricImpl = createMetric(scanQualifier)
   override val readExternalLinks: MetricImpl = createMetric(readExternalLinksQualifier)
   override val extractDataComputation: MetricImpl = createMetric(extractDataComputationQualifier)
   override val filterRows: MetricImpl = createMetric(filterRowsQualifier)
+  override val filter: MetricImpl = createMetric(filterQualifier)
+  override val evaluateExpressions: MetricImpl = createMetric(evaluateExpressionsQualifier)
+  override val extractKeyData: MetricImpl = createMetric(extractKeyDataQualifier)
   override val windowFunctions: MetricImpl = createMetric(windowFunctionsQualifier)
   override val reduceOperation: MetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: MetricImpl = createMetric(postFilterQualifier)
@@ -77,12 +81,16 @@ abstract class StandardMetricCollector(
 
   def allMetrics: Seq[MetricImpl] =
     Seq(
+      initQueryContext,
       createDimensionFilters,
       createScans,
       scan,
       readExternalLinks,
       extractDataComputation,
       filterRows,
+      filter,
+      evaluateExpressions,
+      extractKeyData,
       windowFunctions,
       reduceOperation,
       postFilter,
