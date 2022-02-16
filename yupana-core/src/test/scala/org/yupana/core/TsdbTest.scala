@@ -21,7 +21,7 @@ import org.yupana.core.auth.YupanaUser
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ LocalDateTime, ZoneOffset }
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -726,6 +726,44 @@ class TsdbTest
     group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     group2.get[Double]("testField") shouldBe 2d
     group2.get[Int]("A") shouldBe 2
+  }
+
+  it should "execute total aggregation" in withTsdbMock { (tsdb, tsDaoMock) =>
+    val qtime = LocalDateTime.of(2022, 2, 16, 15, 7)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        sum(metric(TestTableFields.TEST_FIELD)) as "total_sum",
+        count(metric(TestTableFields.TEST_FIELD)) as "total_count"
+      )
+    )
+
+    (tsDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD)),
+          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
+          b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 10d).buildAndReset(),
+          b.set(Time(qtime.plusHours(3))).set(metric(TestTableFields.TEST_FIELD), 100d).buildAndReset()
+        )
+      )
+
+    val result = tsdb.query(query).toList
+
+    result should have size 1
+    result.head.get[Double]("total_sum") shouldEqual 111d
+    result.head.get[Double]("total_count") shouldEqual 3L
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
