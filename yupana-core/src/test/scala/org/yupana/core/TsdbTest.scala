@@ -21,7 +21,7 @@ import org.yupana.core.auth.YupanaUser
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
+import java.time.{ LocalDateTime, ZoneOffset }
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
