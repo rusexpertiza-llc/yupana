@@ -147,7 +147,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     result.name shouldEqual "items_kkm"
 
-    val rows = result.iterator.toList
+    val rows = result.toList
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
@@ -233,7 +233,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     result.name shouldEqual "items_kkm"
 
-    val rows = result.iterator.toList
+    val rows = result.toList
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
