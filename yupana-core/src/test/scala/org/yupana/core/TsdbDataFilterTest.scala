@@ -290,7 +290,7 @@ class TsdbDataFilterTest
         )
       )
 
-    val iterator = tsdb.query(query).iterator
+    val iterator = tsdb.query(query)
 
     val r1 = iterator.next()
 
@@ -354,7 +354,7 @@ class TsdbDataFilterTest
         )
       )
 
-    val iterator = tsdb.query(query).iterator
+    val iterator = tsdb.query(query)
 
     val r = iterator.next()
 
@@ -835,7 +835,7 @@ class TsdbDataFilterTest
 
     (link5.transformCondition _).expects(*).onCall((c: Condition) => Seq(Original(Set(c))))
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
 
     rows.size shouldEqual 1
     val r1 = rows.head
