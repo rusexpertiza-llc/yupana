@@ -17,6 +17,7 @@
 package org.yupana.schema
 
 import org.yupana.api.Time
+import org.yupana.api.query.UnaryMinusExpr
 import org.yupana.api.schema.{ Metric, QueryFieldToDimension, QueryFieldToMetric }
 
 trait ReceiptTableMetrics {
@@ -151,9 +152,48 @@ trait ReceiptTableMetrics {
       )
 
     val sumRollupFields = Seq(
-      QueryFieldToMetric(sum(metric(totalSumField)) as totalSumField.name, totalSumField),
-      QueryFieldToMetric(sum(metric(cashSumField)) as cashSumField.name, cashSumField),
-      QueryFieldToMetric(sum(metric(cardSumField)) as cardSumField.name, cardSumField)
+      QueryFieldToMetric(
+        sum(
+          condition[BigDecimal](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toShort)),
+            metric(totalSumField),
+            condition[BigDecimal](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toShort)),
+              UnaryMinusExpr(metric(totalSumField)),
+              const(BigDecimal(0))
+            )
+          )
+        ) as totalSumField.name,
+        totalSumField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[BigDecimal](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toShort)),
+            metric(cashSumField),
+            condition[BigDecimal](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toShort)),
+              UnaryMinusExpr(metric(cashSumField)),
+              const(BigDecimal(0))
+            )
+          )
+        ) as cashSumField.name,
+        cashSumField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[BigDecimal](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toShort)),
+            metric(cardSumField),
+            condition[BigDecimal](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toShort)),
+              UnaryMinusExpr(metric(cardSumField)),
+              const(BigDecimal(0))
+            )
+          )
+        ) as cardSumField.name,
+        cardSumField
+      )
     )
   }
 }
