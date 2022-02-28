@@ -149,6 +149,12 @@ trait ReceiptTableMetrics {
         distinctCount(dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name,
         kkmDistinctCountField
       )
+
+    val sumRollupFields = Seq(
+      QueryFieldToMetric(sum(metric(totalSumField)) as totalSumField.name, totalSumField),
+      QueryFieldToMetric(sum(metric(cashSumField)) as cashSumField.name, cashSumField),
+      QueryFieldToMetric(sum(metric(cardSumField)) as cardSumField.name, cardSumField)
+    )
   }
 }
 
