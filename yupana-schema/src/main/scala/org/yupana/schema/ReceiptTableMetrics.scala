@@ -155,10 +155,10 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(
         sum(
           condition[BigDecimal](
-            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toShort)),
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
             metric(totalSumField),
             condition[BigDecimal](
-              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toShort)),
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
               UnaryMinusExpr(metric(totalSumField)),
               const(BigDecimal(0))
             )
@@ -169,10 +169,10 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(
         sum(
           condition[BigDecimal](
-            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toShort)),
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
             metric(cashSumField),
             condition[BigDecimal](
-              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toShort)),
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
               UnaryMinusExpr(metric(cashSumField)),
               const(BigDecimal(0))
             )
@@ -183,10 +183,10 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(
         sum(
           condition[BigDecimal](
-            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toShort)),
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
             metric(cardSumField),
             condition[BigDecimal](
-              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toShort)),
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
               UnaryMinusExpr(metric(cardSumField)),
               const(BigDecimal(0))
             )
