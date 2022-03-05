@@ -82,6 +82,13 @@ trait ReceiptTableMetrics {
     cashReceiptCountField,
     cardReceiptCountField
   )
+
+  val summaryFields = Seq(
+    totalSumField,
+    cashSumField,
+    cardSumField
+  )
+
   import org.yupana.api.query.syntax.All._
 
   object ReceiptRollupFields {
