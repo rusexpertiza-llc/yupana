@@ -192,7 +192,7 @@ trait TsdbBase extends StrictLogging {
       keysAndValues
     }
 
-    val reduced = if (hasAggregates && !hasWindowFunctions) {
+    val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
       val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
         metricCollector.reduceOperation.measure(batch.size) {
           val mapped = batch.iterator.map {
