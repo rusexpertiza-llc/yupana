@@ -586,10 +586,17 @@ object ExpressionCalculator extends StrictLogging {
 
         case ConditionExpr(c, p, n) =>
           val newState = mkSet(state, row, c)
-          val (getIf, ifState) = mkGetNow(newState, row, c)
-          val (getThen, thenState) = mkInner("t", ifState, row, p)
-          val (getElse, elseState) = mkInner("e", thenState, row, n)
-          elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
+          mkGet(newState, row, c) match {
+            case Some((getIf, ifState)) =>
+              val (getThen, thenState) = mkInner("t", ifState, row, p)
+              val (getElse, elseState) = mkInner("e", thenState, row, n)
+              elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
+
+            case None =>
+              val thenState = mkSet(newState, row, p)
+              val elseState = mkSet(thenState, row, n)
+              elseState.withUnfinished(e)
+          }
 
         case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
         case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
