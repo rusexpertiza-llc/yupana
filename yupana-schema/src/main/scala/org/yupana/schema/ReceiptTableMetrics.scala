@@ -84,9 +84,11 @@ trait ReceiptTableMetrics {
   )
 
   val summaryFields = Seq(
+    kkmDistinctCountField,
     totalSumField,
     cashSumField,
-    cardSumField
+    cardSumField,
+    positionsCountField
   )
 
   import org.yupana.api.query.syntax.All._
@@ -152,13 +154,11 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(sum(metric(cardReceiptCountField)) as cardReceiptCountField.name, cardReceiptCountField)
     )
 
-    val kkmDistinctCountRollupField =
+    val summaryRollupFields = Seq(
       QueryFieldToMetric(
         distinctCount(dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name,
         kkmDistinctCountField
-      )
-
-    val sumRollupFields = Seq(
+      ),
       QueryFieldToMetric(
         sum(
           condition[BigDecimal](
@@ -200,7 +200,8 @@ trait ReceiptTableMetrics {
           )
         ) as cardSumField.name,
         cardSumField
-      )
+      ),
+      QueryFieldToMetric(sum(metric(positionsCountField)) as positionsCountField.name, positionsCountField)
     )
   }
 }

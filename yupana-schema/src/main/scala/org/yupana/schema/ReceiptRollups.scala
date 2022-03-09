@@ -36,9 +36,7 @@ object ReceiptRollups {
     name = "receiptByDayAllKkms",
     filter = None,
     groupBy = Seq.empty,
-    fields = Seq(
-      kkmDistinctCountRollupField
-    ) ++ additionalRollupFieldsFromRollups ++ sumRollupFields,
+    fields = summaryRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByDayAllKkmsTable,
     timeExpr = TruncDayExpr(TimeExpr)

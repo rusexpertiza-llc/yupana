@@ -100,7 +100,7 @@ object Tables {
     name = "receipt_by_day_all_kkms",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq.empty,
-    metrics = (kkmDistinctCountField +: rollupFields) ++ summaryFields,
+    metrics = summaryFields ++ rollupFields,
     externalLinks = receiptExternalLinks,
     epochTime
   )
