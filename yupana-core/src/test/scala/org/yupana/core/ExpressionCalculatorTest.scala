@@ -597,4 +597,51 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     row.get(qc, x) shouldEqual -1L
   }
+
+  it should "handle conditions on aggregates" in {
+    val now = OffsetDateTime.now()
+
+    val x = condition(
+      neq(sum(metric(TestTableFields.TEST_LONG_FIELD)), const(0L)),
+      divInt(sum(dimension(TestDims.DIM_Y)), sum(metric(TestTableFields.TEST_LONG_FIELD))),
+      const(-1L)
+    )
+
+    val query = Query(
+      TestSchema.testTable2,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(x as "x")
+    )
+
+    val qc = QueryContext(query, None)
+
+    val builder = new InternalRowBuilder(qc)
+
+    val rows = Seq(
+      builder
+        .set(Time(now.minusHours(1)))
+        .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
+        .set(dimension(TestDims.DIM_Y), 4L)
+        .buildAndReset(),
+      builder
+        .set(Time(now.minusHours(1)))
+        .set(metric(TestTableFields.TEST_LONG_FIELD), -2L)
+        .set(dimension(TestDims.DIM_Y), 2L)
+        .buildAndReset()
+    )
+
+    val evaluated = rows.map(qc.calculator.evaluateExpressions(RussianTokenizer, _))
+
+    val mapped = evaluated.map(qc.calculator.evaluateMap(RussianTokenizer, _))
+    val reduced = mapped.reduce((a, b) => qc.calculator.evaluateReduce(RussianTokenizer, a, b))
+    val postMapped = qc.calculator.evaluatePostMap(RussianTokenizer, reduced)
+
+    postMapped.get(qc, sum(metric(TestTableFields.TEST_LONG_FIELD))) shouldEqual 0L
+    postMapped.get(qc, sum(dimension(TestDims.DIM_Y))) shouldEqual 6L
+
+    val result = qc.calculator.evaluatePostAggregateExprs(RussianTokenizer, postMapped)
+
+    result.get(qc, x) shouldEqual -1L
+  }
 }
