@@ -20,6 +20,12 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 
+trait Rollup {
+  val name: String
+  val timeExpr: Expression[Time]
+  val toTable: Table
+}
+
 /**
   * Definition of persistent rollup
   * @param name name of this rollup to be displayed
@@ -30,15 +36,16 @@ import org.yupana.api.query._
   * @param fromTable table to read data
   * @param toTable table to write data
   */
-case class Rollup(
-    name: String,
-    filter: Option[Condition],
-    groupBy: Seq[Expression[_]],
-    fields: Seq[QueryFieldProjection],
-    timeExpr: Expression[Time],
+case class TsdbRollup(
+    override val name: String,
+    override val timeExpr: Expression[Time],
+    override val toTable: Table,
     fromTable: Table,
-    toTable: Table
-) extends Serializable {
+    fields: Seq[QueryFieldProjection],
+    filter: Option[Condition],
+    groupBy: Seq[Expression[_]]
+) extends Rollup
+    with Serializable {
 
   lazy val timeField: QueryField = timeExpr as Table.TIME_FIELD_NAME
   lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields

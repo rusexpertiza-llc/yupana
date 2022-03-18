@@ -28,7 +28,7 @@ import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class SqlQueryProcessor(schema: Schema) extends QueryValidator {
+class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable {
 
   import SqlQueryProcessor._
 

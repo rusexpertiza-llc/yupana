@@ -18,13 +18,14 @@ package org.yupana.schema
 
 import org.yupana.api.query._
 import org.yupana.api.schema.Rollup
+import org.yupana.api.schema.TsdbRollup
 
 object ItemRollups {
 
   import org.yupana.schema.ItemTableMetrics.ItemRollupFields._
   import org.yupana.schema.Tables._
 
-  val itemDayRollup: Rollup = Rollup(
+  val itemDayRollup: Rollup = TsdbRollup(
     name = "itemByDay",
     filter = None,
     groupBy = itemByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -34,7 +35,7 @@ object ItemRollups {
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
-  val itemWeekRollup: Rollup = Rollup(
+  val itemWeekRollup: Rollup = TsdbRollup(
     name = "itemByWeek",
     filter = None,
     groupBy = itemByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -44,7 +45,7 @@ object ItemRollups {
     timeExpr = TruncWeekExpr(TimeExpr)
   )
 
-  val itemMonthRollup: Rollup = Rollup(
+  val itemMonthRollup: Rollup = TsdbRollup(
     name = "itemByMonth",
     filter = None,
     groupBy = itemByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -54,7 +55,7 @@ object ItemRollups {
     timeExpr = TruncMonthExpr(TimeExpr)
   )
 
-  val itemKkmsDayRollup: Rollup = Rollup(
+  val itemKkmsDayRollup: Rollup = TsdbRollup(
     name = "itemKkmsByDay",
     filter = None,
     groupBy = itemKkmsByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -64,7 +65,7 @@ object ItemRollups {
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
-  val itemKkmsWeekRollup: Rollup = Rollup(
+  val itemKkmsWeekRollup: Rollup = TsdbRollup(
     name = "itemKkmsByWeek",
     filter = None,
     groupBy = itemKkmsByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -74,7 +75,7 @@ object ItemRollups {
     timeExpr = TruncWeekExpr(TimeExpr)
   )
 
-  val itemKkmsMonthRollup: Rollup = Rollup(
+  val itemKkmsMonthRollup: Rollup = TsdbRollup(
     name = "itemKkmsByMonth",
     filter = None,
     groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -84,7 +85,7 @@ object ItemRollups {
     timeExpr = TruncMonthExpr(TimeExpr)
   )
 
-  val kkmsItemDayRollup: Rollup = Rollup(
+  val kkmsItemDayRollup: Rollup = TsdbRollup(
     name = "kkmsItemByDay",
     filter = None,
     groupBy = kkmsItemByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -94,7 +95,7 @@ object ItemRollups {
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
-  val kkmsItemWeekRollup: Rollup = Rollup(
+  val kkmsItemWeekRollup: Rollup = TsdbRollup(
     name = "kkmsItemByWeek",
     filter = None,
     groupBy = kkmsItemByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -104,7 +105,7 @@ object ItemRollups {
     timeExpr = TruncWeekExpr(TimeExpr)
   )
 
-  val kkmsItemMonthRollup: Rollup = Rollup(
+  val kkmsItemMonthRollup: Rollup = TsdbRollup(
     name = "kkmsItemByMonth",
     filter = None,
     groupBy = kkmsItemByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
