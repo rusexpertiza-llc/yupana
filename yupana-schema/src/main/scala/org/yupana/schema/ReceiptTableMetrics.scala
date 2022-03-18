@@ -88,7 +88,8 @@ trait ReceiptTableMetrics {
     totalSumField,
     cashSumField,
     cardSumField,
-    positionsCountField
+    positionsCountField,
+    itemsCountField
   )
 
   import org.yupana.api.query.syntax.All._
@@ -201,7 +202,8 @@ trait ReceiptTableMetrics {
         ) as cardSumField.name,
         cardSumField
       ),
-      QueryFieldToMetric(sum(metric(positionsCountField)) as positionsCountField.name, positionsCountField)
+      QueryFieldToMetric(sum(metric(positionsCountField)) as positionsCountField.name, positionsCountField),
+      QueryFieldToMetric(sum(metric(itemsCountField)) as itemsCountField.name, itemsCountField)
     )
   }
 }
