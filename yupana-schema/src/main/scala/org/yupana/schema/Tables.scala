@@ -105,15 +105,6 @@ object Tables {
     epochTime
   )
 
-  val itemKkmsByDayTable = new Table(
-    name = "item_kkms_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
   val itemKkmsByMonthTable = new Table(
     name = "item_kkms_by_month",
     rowTimeSpan = 86400000L * 30 * 12,

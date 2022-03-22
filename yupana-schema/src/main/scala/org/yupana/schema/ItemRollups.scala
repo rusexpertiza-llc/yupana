@@ -24,22 +24,12 @@ object ItemRollups {
   import org.yupana.schema.ItemTableMetrics.ItemRollupFields._
   import org.yupana.schema.Tables._
 
-  val itemKkmsDayRollup: Rollup = Rollup(
-    name = "itemKkmsByDay",
-    filter = None,
-    groupBy = itemKkmsByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
-    fromTable = itemsKkmTable,
-    toTable = itemKkmsByDayTable,
-    timeExpr = TruncDayExpr(TimeExpr)
-  )
-
   val itemKkmsMonthRollup: Rollup = Rollup(
     name = "itemKkmsByMonth",
     filter = None,
     groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
     fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = itemKkmsByDayTable,
+    fromTable = itemsKkmTable,
     toTable = itemKkmsByMonthTable,
     timeExpr = TruncMonthExpr(TimeExpr)
   )
