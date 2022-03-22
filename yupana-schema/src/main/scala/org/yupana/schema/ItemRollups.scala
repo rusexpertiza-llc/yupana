@@ -34,33 +34,4 @@ object ItemRollups {
     timeExpr = TruncMonthExpr(TimeExpr)
   )
 
-  val kkmsItemDayRollup: Rollup = Rollup(
-    name = "kkmsItemByDay",
-    filter = None,
-    groupBy = kkmsItemByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
-    fromTable = itemsKkmTable,
-    toTable = kkmsItemByDayTable,
-    timeExpr = TruncDayExpr(TimeExpr)
-  )
-
-  val kkmsItemWeekRollup: Rollup = Rollup(
-    name = "kkmsItemByWeek",
-    filter = None,
-    groupBy = kkmsItemByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = kkmsItemByDayTable,
-    toTable = kkmsItemByWeekTable,
-    timeExpr = TruncWeekExpr(TimeExpr)
-  )
-
-  val kkmsItemMonthRollup: Rollup = Rollup(
-    name = "kkmsItemByMonth",
-    filter = None,
-    groupBy = kkmsItemByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = kkmsItemByDayTable,
-    toTable = kkmsItemByMonthTable,
-    timeExpr = TruncMonthExpr(TimeExpr)
-  )
 }

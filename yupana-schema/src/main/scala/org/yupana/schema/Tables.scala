@@ -113,31 +113,4 @@ object Tables {
     externalLinks = itemRollupsExternalLinks,
     epochTime
   )
-
-  val kkmsItemByDayTable = new Table(
-    name = "kkms_item_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByWeekTable = new Table(
-    name = "kkms_item_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByMonthTable = new Table(
-    name = "kkms_item_by_month",
-    rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
 }
