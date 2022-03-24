@@ -88,6 +88,7 @@ trait ReceiptTableMetrics {
   val summaryFields = Seq(
     kkmDistinctCountField,
     totalSumField,
+    totalQuantityField,
     cashSumField,
     cardSumField,
     positionsCountField,
