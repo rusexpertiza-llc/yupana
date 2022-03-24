@@ -17,101 +17,21 @@
 package org.yupana.schema
 
 import org.yupana.api.query._
-import org.yupana.api.schema.Rollup
-import org.yupana.api.schema.TsdbRollup
+import org.yupana.api.schema.{ Rollup, TsdbRollup }
 
 object ItemRollups {
 
   import org.yupana.schema.ItemTableMetrics.ItemRollupFields._
   import org.yupana.schema.Tables._
 
-  val itemDayRollup: Rollup = TsdbRollup(
-    name = "itemByDay",
-    filter = None,
-    groupBy = itemByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRawData,
-    fromTable = itemsKkmTable,
-    toTable = itemByDayTable,
-    timeExpr = TruncDayExpr(TimeExpr)
-  )
-
-  val itemWeekRollup: Rollup = TsdbRollup(
-    name = "itemByWeek",
-    filter = None,
-    groupBy = itemByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRollup,
-    fromTable = itemByDayTable,
-    toTable = itemByWeekTable,
-    timeExpr = TruncWeekExpr(TimeExpr)
-  )
-
-  val itemMonthRollup: Rollup = TsdbRollup(
-    name = "itemByMonth",
-    filter = None,
-    groupBy = itemByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields :+ countFromRollup,
-    fromTable = itemByDayTable,
-    toTable = itemByMonthTable,
-    timeExpr = TruncMonthExpr(TimeExpr)
-  )
-
-  val itemKkmsDayRollup: Rollup = TsdbRollup(
-    name = "itemKkmsByDay",
-    filter = None,
-    groupBy = itemKkmsByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
-    fromTable = itemsKkmTable,
-    toTable = itemKkmsByDayTable,
-    timeExpr = TruncDayExpr(TimeExpr)
-  )
-
-  val itemKkmsWeekRollup: Rollup = TsdbRollup(
-    name = "itemKkmsByWeek",
-    filter = None,
-    groupBy = itemKkmsByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = itemKkmsByDayTable,
-    toTable = itemKkmsByWeekTable,
-    timeExpr = TruncWeekExpr(TimeExpr)
-  )
-
   val itemKkmsMonthRollup: Rollup = TsdbRollup(
     name = "itemKkmsByMonth",
     filter = None,
     groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
     fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = itemKkmsByDayTable,
+    fromTable = itemsKkmTable,
     toTable = itemKkmsByMonthTable,
     timeExpr = TruncMonthExpr(TimeExpr)
   )
 
-  val kkmsItemDayRollup: Rollup = TsdbRollup(
-    name = "kkmsItemByDay",
-    filter = None,
-    groupBy = kkmsItemByDayTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
-    fromTable = itemsKkmTable,
-    toTable = kkmsItemByDayTable,
-    timeExpr = TruncDayExpr(TimeExpr)
-  )
-
-  val kkmsItemWeekRollup: Rollup = TsdbRollup(
-    name = "kkmsItemByWeek",
-    filter = None,
-    groupBy = kkmsItemByWeekTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = kkmsItemByDayTable,
-    toTable = kkmsItemByWeekTable,
-    timeExpr = TruncWeekExpr(TimeExpr)
-  )
-
-  val kkmsItemMonthRollup: Rollup = TsdbRollup(
-    name = "kkmsItemByMonth",
-    filter = None,
-    groupBy = kkmsItemByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRollup),
-    fromTable = kkmsItemByDayTable,
-    toTable = kkmsItemByMonthTable,
-    timeExpr = TruncMonthExpr(TimeExpr)
-  )
 }

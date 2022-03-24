@@ -54,6 +54,7 @@ trait ReceiptTableMetrics {
   val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
   val documentNumberField = Metric[Long]("documentNumber", 30, rarelyQueried)
   val operator = Metric[String]("operator", 31, rarelyQueried)
+  val totalQuantityField = Metric[Double]("totalQuantity", 32, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -72,7 +73,8 @@ trait ReceiptTableMetrics {
     tax18000Field,
     tax20000Field,
     taxNoField,
-    itemsCountField
+    itemsCountField,
+    totalQuantityField
   )
 
   val rollupFields = Seq(
@@ -86,9 +88,11 @@ trait ReceiptTableMetrics {
   val summaryFields = Seq(
     kkmDistinctCountField,
     totalSumField,
+    totalQuantityField,
     cashSumField,
     cardSumField,
-    positionsCountField
+    positionsCountField,
+    itemsCountField
   )
 
   import org.yupana.api.query.syntax.All._
@@ -201,7 +205,48 @@ trait ReceiptTableMetrics {
         ) as cardSumField.name,
         cardSumField
       ),
-      QueryFieldToMetric(sum(metric(positionsCountField)) as positionsCountField.name, positionsCountField)
+      QueryFieldToMetric(
+        sum(
+          condition[Long](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(positionsCountField),
+            condition[Long](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(positionsCountField)),
+              const(0L)
+            )
+          )
+        ) as positionsCountField.name,
+        positionsCountField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[Long](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(itemsCountField),
+            condition[Long](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(itemsCountField)),
+              const(0L)
+            )
+          )
+        ) as itemsCountField.name,
+        itemsCountField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[Double](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(totalQuantityField),
+            condition[Double](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(totalQuantityField)),
+              const(0d)
+            )
+          )
+        ) as totalQuantityField.name,
+        totalQuantityField
+      )
     )
   }
 }
