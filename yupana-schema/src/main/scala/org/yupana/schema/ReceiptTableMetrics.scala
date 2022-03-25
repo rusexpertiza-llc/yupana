@@ -125,7 +125,8 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(sum(metric(tax20000Field)) as tax20000Field.name, tax20000Field),
       QueryFieldToMetric(sum(metric(itemsCountField)) as itemsCountField.name, itemsCountField),
       QueryFieldToMetric(sum(metric(taxNoField)) as taxNoField.name, taxNoField),
-      QueryFieldToMetric(count(metric(documentNumberField)) as documentNumberField.name, receiptCountField)
+      QueryFieldToMetric(count(metric(documentNumberField)) as documentNumberField.name, receiptCountField),
+      QueryFieldToMetric(sum(metric(totalQuantityField)) as totalQuantityField.name, totalQuantityField)
     )
 
     val shiftRollupFields = Seq(
