@@ -17,6 +17,7 @@
 package org.yupana.schema
 
 import org.yupana.api.query._
+import org.yupana.api.query.syntax.All.dimension
 import org.yupana.api.schema.TsdbRollup
 
 object ReceiptRollups {
@@ -45,7 +46,7 @@ object ReceiptRollups {
   val receiptWeekRollup = TsdbRollup(
     name = "receiptByWeek",
     filter = None,
-    groupBy = Seq[Expression[_]](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
+    groupBy = Seq(dimension(Dimensions.KKM_ID), dimension(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByWeekTable,
@@ -55,7 +56,7 @@ object ReceiptRollups {
   val receiptMonthRollup = TsdbRollup(
     name = "receiptByMonth",
     filter = None,
-    groupBy = Seq[Expression[_]](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
+    groupBy = Seq(dimension(Dimensions.KKM_ID), dimension(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,
