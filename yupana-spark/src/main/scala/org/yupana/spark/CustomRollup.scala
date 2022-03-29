@@ -16,7 +16,7 @@ abstract class CustomRollup(
 
   def doRollup(tsdbSpark: TsdbSparkBase, recalcIntervals: Seq[Interval]): RDD[DataPoint]
 
-  protected def toDataPoints(rdd: RDD[Row], time: Long): RDD[DataPoint] = {
+  protected def toDataPoints(rdd: RDD[Row]): RDD[DataPoint] = {
     rdd.map { row =>
       val dimensions = toTable.dimensionSeq.map { dimension =>
         val value = row.getAs[dimension.T](dimension.name)
@@ -28,7 +28,8 @@ abstract class CustomRollup(
         value.map(v => MetricValue[metric.T](metric.asInstanceOf[Metric.Aux[metric.T]], v))
       }
 
-      DataPoint(toTable, time, dimensions, metrics)
+      val timeMillis = row.getAs[Long](Table.TIME_FIELD_NAME)
+      DataPoint(toTable, timeMillis, dimensions, metrics)
     }
   }
 

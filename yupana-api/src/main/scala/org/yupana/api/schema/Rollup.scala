@@ -29,12 +29,12 @@ trait Rollup {
 /**
   * Definition of persistent rollup
   * @param name name of this rollup to be displayed
+  * @param timeExpr time expression to group values
+  * @param toTable table to write data
+  * @param fromTable table to read data
+  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
   * @param filter condition to gather data
   * @param groupBy expressions to group by data
-  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
-  * @param timeExpr time expression to group values
-  * @param fromTable table to read data
-  * @param toTable table to write data
   */
 case class TsdbRollup(
     override val name: String,
