@@ -22,6 +22,8 @@ import org.threeten.extra.Interval
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Expression }
 import org.yupana.api.schema.{ Metric, MetricValue, Rollup, Table }
+import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.core.sql.parser.{ Select, SqlParser }
 
 abstract class CustomRollup(
     override val name: String,
@@ -29,6 +31,8 @@ abstract class CustomRollup(
     override val toTable: Table
 ) extends Rollup
     with Serializable {
+
+  protected val sqlQueryProcessor: SqlQueryProcessor
 
   def doRollup(tsdbSpark: TsdbSparkBase, recalcIntervals: Seq[Interval]): RDD[DataPoint]
 
@@ -46,6 +50,18 @@ abstract class CustomRollup(
 
       val timeMillis = row.getAs[Long](Table.TIME_FIELD_NAME)
       DataPoint(toTable, timeMillis, dimensions, metrics)
+    }
+  }
+
+  protected def executeQuery(tsdbSpark: TsdbSparkBase, sql: String): tsdbSpark.Result = {
+    SqlParser.parse(sql) flatMap {
+      case s: Select => sqlQueryProcessor.createQuery(s)
+      case _         => Left(s"Bad query ($sql), Select expected")
+    } match {
+      case Right(query) =>
+        tsdbSpark.query(query)
+      case Left(msg) =>
+        throw new RuntimeException(s"Bad query ($sql): $msg")
     }
   }
 
