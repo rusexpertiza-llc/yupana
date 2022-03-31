@@ -17,14 +17,14 @@
 package org.yupana.schema
 
 import org.yupana.api.query._
-import org.yupana.api.schema.Rollup
+import org.yupana.api.schema.{ Rollup, TsdbRollup }
 
 object ItemRollups {
 
   import org.yupana.schema.ItemTableMetrics.ItemRollupFields._
   import org.yupana.schema.Tables._
 
-  val itemKkmsMonthRollup: Rollup = Rollup(
+  val itemKkmsMonthRollup: Rollup = TsdbRollup(
     name = "itemKkmsByMonth",
     filter = None,
     groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
