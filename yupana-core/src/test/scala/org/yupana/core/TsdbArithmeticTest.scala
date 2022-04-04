@@ -74,7 +74,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("some_sum") shouldBe 3d
@@ -118,7 +118,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("stf") shouldBe 4d
@@ -185,7 +185,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("totalSum") shouldBe -6d
@@ -225,7 +225,7 @@ class TsdbArithmeticTest
           )
         )
 
-      val rows = tsdb.query(query).iterator
+      val rows = tsdb.query(query)
 
       val r1 = rows.next()
       r1.get[Long]("plus4") shouldBe 4
@@ -257,7 +257,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("plus2") shouldBe 4d
@@ -291,7 +291,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[String]("A") shouldBe "0000270761025003"
@@ -336,7 +336,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
     rows should have size 1
     val row = rows.head
     row.get[String]("operator") shouldBe "Blatov"
@@ -368,7 +368,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
 
     val r1 = rows.head
     r1.get[Double]("testField") shouldBe 5d
@@ -407,7 +407,7 @@ class TsdbArithmeticTest
       .expects(*, *, *)
       .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, 15.23)))
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
 
     val r1 = rows.head
     r1.get[Double]("plus5") shouldBe 20.23

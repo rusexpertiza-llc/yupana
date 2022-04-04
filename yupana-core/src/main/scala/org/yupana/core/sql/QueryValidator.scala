@@ -47,12 +47,13 @@ trait QueryValidator {
         }
       }
     } else {
+      val allAggregates = query.fields.forall(_.expr.kind == Aggregate)
       query.fields.flatMap {
         case QueryField(name, e) =>
           e.kind match {
-            case Aggregate => Some(s"Aggregation is defined for field $name without group by")
-            case Invalid   => Some(s"Invalid expression '$e' for field $name")
-            case _         => None
+            case Aggregate if !allAggregates => Some(s"Aggregation is defined for field $name without group by")
+            case Invalid                     => Some(s"Invalid expression '$e' for field $name")
+            case _                           => None
           }
       }
     }

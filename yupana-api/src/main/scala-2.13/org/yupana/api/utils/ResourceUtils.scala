@@ -14,24 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.schema
+package org.yupana.api.utils
 
-import org.yupana.api.query._
-import org.yupana.api.schema.{ Rollup, TsdbRollup }
+import scala.util.Using
 
-object ItemRollups {
+object ResourceUtils {
 
-  import org.yupana.schema.ItemTableMetrics.ItemRollupFields._
-  import org.yupana.schema.Tables._
-
-  val itemKkmsMonthRollup: Rollup = TsdbRollup(
-    name = "itemKkmsByMonth",
-    filter = None,
-    groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
-    fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
-    fromTable = itemsKkmTable,
-    toTable = itemKkmsByMonthTable,
-    timeExpr = TruncMonthExpr(TimeExpr)
-  )
+  @inline
+  def using[T <: AutoCloseable, R](resource: => T)(body: T => R): R = {
+    Using.resource(resource)(body)
+  }
 
 }

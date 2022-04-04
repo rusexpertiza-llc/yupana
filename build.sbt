@@ -320,7 +320,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
-    scalaVersion := "2.12.15",
+    scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -359,8 +359,11 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
+  val scala212 = "2.12.15"
+  val scala213 = "2.13.8"
+
   val colCompat = "2.1.1" // Same version with Spark
-  val spark = "3.2.0"
+  val spark = "3.2.1"
 
   val threeTenExtra = "1.7.0"
 
@@ -374,7 +377,7 @@ lazy val versions = new {
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.6.17"
+  val akka = "2.6.19"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
@@ -387,7 +390,7 @@ lazy val versions = new {
   val hikariCP = "3.4.5"
   val logback = "1.2.6"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.2.24"
+  val postgresqlJdbc = "42.3.3"
 
   val scalaTest = "3.2.10"
   val scalaCheck = "1.15.4"
@@ -397,8 +400,8 @@ lazy val versions = new {
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.15", "2.13.6"),
+  scalaVersion := versions.scala213,
+  crossScalaVersions := Seq(versions.scala212, versions.scala213),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
@@ -411,7 +414,7 @@ val commonSettings = Seq(
     "-Ywarn-dead-code"
   ) ++ {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
+      case Some((2,13)) => Seq("-Wconf:cat=unused:info", "-Wconf:msg=Top-level:s")
       case _ => Seq.empty
     }
   },

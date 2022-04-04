@@ -41,7 +41,7 @@ class YupanaResultSet protected[jdbc] (
   private val dataTypes = result.dataTypes.toArray
 
   private var currentIdx = -1
-  private var it = result.iterator
+  private var it: Iterator[DataRow] = result
   private var currentRow: DataRow = _
 
   private var wasNullValue = false
@@ -144,7 +144,7 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (row < currentIdx + 1) onlyForwardException()
-    it = result.iterator.drop(row - currentIdx - 2)
+    it = result.drop(row - currentIdx - 2)
     currentRow = it.next()
     currentIdx = row - 1
     true
@@ -155,7 +155,7 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (rows < 0) onlyForwardException()
-    it = result.iterator.drop(rows - 1)
+    it = result.drop(rows - 1)
     currentRow = it.next()
     currentIdx = currentIdx + rows
     true

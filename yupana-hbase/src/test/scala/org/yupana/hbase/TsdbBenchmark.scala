@@ -229,7 +229,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     (1 to 1500) foreach { p =>
       val s = System.nanoTime()
-      val result = tsdb.query(query).iterator
+      val result = tsdb.query(query)
 
       val r1 = result.next()
       r1.get[Double]("sum_testField") shouldBe N.toDouble
