@@ -28,7 +28,7 @@ import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
 import org.yupana.jdbc.compat.LazyList
 
-import java.time.{ LocalDateTime, ZonedDateTime }
+import java.time.ZonedDateTime
 
 class YupanaResultSet protected[jdbc] (
     statement: Statement,
