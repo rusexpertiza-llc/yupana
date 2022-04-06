@@ -28,6 +28,7 @@ import org.yupana.core.sql.parser.{ Select, SqlParser }
 abstract class CustomRollup(
     override val name: String,
     override val timeExpr: Expression[Time],
+    override val fromTable: Table,
     override val toTable: Table
 ) extends Rollup
     with Serializable {
