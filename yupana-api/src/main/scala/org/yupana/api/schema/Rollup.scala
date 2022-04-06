@@ -23,6 +23,7 @@ import org.yupana.api.query._
 trait Rollup {
   val name: String
   val timeExpr: Expression[Time]
+  val fromTable: Table
   val toTable: Table
 }
 
@@ -39,8 +40,8 @@ trait Rollup {
 case class TsdbRollup(
     override val name: String,
     override val timeExpr: Expression[Time],
+    override val fromTable: Table,
     override val toTable: Table,
-    fromTable: Table,
     fields: Seq[QueryFieldProjection],
     filter: Option[Condition],
     groupBy: Seq[Expression[_]]
