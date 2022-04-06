@@ -11,7 +11,7 @@ import org.yupana.api.types.{ DataType, DataTypeMeta }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.time.{ LocalDateTime, ZoneId }
+import java.time.{ LocalDateTime, ZoneId, ZoneOffset }
 
 class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -288,8 +288,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val resultSet = new YupanaResultSet(statement, result)
     resultSet.next
 
-    resultSet.getTimestamp(1) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
-    resultSet.getTimestamp("time") shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+    resultSet.getTimestamp(1) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTimestamp("time") shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.getTimestamp(1, Calendar.getInstance()) shouldEqual new Timestamp(
       time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli
     )
@@ -300,8 +300,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       time.atZone(ZoneId.of("Europe/Helsinki")).toInstant.toEpochMilli
     )
 
-    resultSet.getDate(1) shouldEqual Date.valueOf(time.toLocalDate)
-    resultSet.getDate("time") shouldEqual Date.valueOf(time.toLocalDate)
+    resultSet.getDate(1) shouldEqual new Date(time.toInstant(ZoneOffset.UTC).toEpochMilli)
+    resultSet.getDate("time") shouldEqual new Date(time.toInstant(ZoneOffset.UTC).toEpochMilli)
     resultSet.getDate(1, Calendar.getInstance()) shouldEqual Date.valueOf(
       time.atZone(ZoneId.systemDefault()).toLocalDate
     )
@@ -309,8 +309,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       time.atZone(ZoneId.of("Pacific/Honolulu")).toLocalDate
     )
 
-    resultSet.getTime(1) shouldEqual java.sql.Time.valueOf(time.atZone(ZoneId.systemDefault()).toLocalTime)
-    resultSet.getTime("time") shouldEqual java.sql.Time.valueOf(time.atZone(ZoneId.systemDefault()).toLocalTime)
+    resultSet.getTime(1) shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTime("time") shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Africa/Lome"))) shouldEqual java.sql.Time.valueOf(
       time.atZone(ZoneId.of("Africa/Lome")).toLocalTime
     )
@@ -396,7 +396,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getDouble(3) shouldEqual 0d
     resultSet.wasNull shouldBe true
 
-    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.wasNull shouldBe false
 
     resultSet.next
