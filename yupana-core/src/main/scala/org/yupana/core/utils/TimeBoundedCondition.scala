@@ -57,21 +57,6 @@ object TimeBoundedCondition {
     }
   }
 
-  def merge(conditions: Seq[TimeBoundedCondition]): TimeBoundedCondition = {
-    if (conditions.isEmpty) throw new IllegalArgumentException("Conditions must not be empty")
-
-    val from = conditions.head.from
-    val to = conditions.head.to
-    val cs = conditions.foldLeft(Seq.empty[Condition])((a, c) =>
-      if (c.from == from && c.to == to) {
-        a ++ c.conditions
-      } else {
-        throw new IllegalArgumentException("Conditions must have same time limits.")
-      }
-    )
-    TimeBoundedCondition(from, to, cs)
-  }
-
   private object GtTime extends GtMatcher[Time]
   private object LtTime extends LtMatcher[Time]
   private object GeTime extends GeMatcher[Time]
@@ -94,7 +79,7 @@ object TimeBoundedCondition {
     def updateTo(c: Condition, e: Expression[Time], offset: Long): Unit = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
-        to = to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis)
+        to = to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)
       } else {
         other += c
       }

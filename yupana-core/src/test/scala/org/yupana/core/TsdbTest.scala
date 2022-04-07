@@ -507,7 +507,7 @@ class TsdbTest
         )
       )
 
-    val row = tsdb.query(query).head
+    val row = tsdb.query(query).next()
 
     row.get[Time]("time_time") shouldBe Time(pointTime)
     row.get[Double]("sum_testField") shouldBe 1d
@@ -565,7 +565,7 @@ class TsdbTest
         )
       )
 
-    val row = tsdb.query(query).head
+    val row = tsdb.query(query).next()
 
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
@@ -728,6 +728,79 @@ class TsdbTest
     group2.get[Int]("A") shouldBe 2
   }
 
+  it should "execute total aggregation" in withTsdbMock { (tsdb, tsDaoMock) =>
+    val qtime = LocalDateTime.of(2022, 2, 16, 15, 7)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        sum(metric(TestTableFields.TEST_FIELD)) as "total_sum",
+        count(metric(TestTableFields.TEST_FIELD)) as "total_count"
+      )
+    )
+
+    (tsDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD)),
+          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
+          b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 10d).buildAndReset(),
+          b.set(Time(qtime.plusHours(3))).set(metric(TestTableFields.TEST_FIELD), 100d).buildAndReset()
+        )
+      )
+
+    val result = tsdb.query(query).toList
+
+    result should have size 1
+    result.head.get[Double]("total_sum") shouldEqual 111d
+    result.head.get[Double]("total_count") shouldEqual 3L
+  }
+
+  it should "group by without aggregate functions" in withTsdbMock { (tsdb, tsDaoMock) =>
+    val qtime = LocalDateTime.of(2022, 2, 16, 15, 7)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(metric(TestTableFields.TEST_FIELD) as "tf"),
+      None,
+      Seq(metric(TestTableFields.TEST_FIELD))
+    )
+
+    (tsDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, metric(TestTableFields.TEST_FIELD)),
+          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
+        ),
+        *,
+        NoMetricCollector
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
+          b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
+          b.set(Time(qtime.plusHours(3))).set(metric(TestTableFields.TEST_FIELD), 3d).buildAndReset()
+        )
+      )
+
+    val result = tsdb.query(query).toList
+
+    result.map(_.get[Double]("tf")) should contain theSameElementsInOrderAs Seq(1d, 3d)
+  }
+
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val qtime = LocalDateTime.of(2017, 12, 18, 11, 26).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
@@ -777,10 +850,10 @@ class TsdbTest
 
     val results = tsdb.query(query)
 
-    val res = results.iterator.next()
+    val res = results.next()
     res.get[Double]("sum_testField") shouldBe 4d
 
-    results.iterator.hasNext shouldBe false
+    results.hasNext shouldBe false
   }
 
   it should "execute query with filter values by external link field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2088,7 +2161,7 @@ class TsdbTest
 
     val startDay = Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
 
-    val r1 = tsdb.query(query1).head
+    val r1 = tsdb.query(query1).next()
     r1.get[Time]("time") shouldBe startDay
     r1.get[Double]("sum_testField") shouldBe 4d
     r1.get[String]("min_testStringField") shouldBe "001_01_1"
@@ -2101,7 +2174,7 @@ class TsdbTest
       )
     )
 
-    val r2 = tsdb.query(query2).head
+    val r2 = tsdb.query(query2).next()
     r2.get[Time]("time") shouldBe startDay
     r2.get[Double]("sum_testField") shouldBe 4d
     r2.get[String]("max_testStringField") shouldBe "001_02_1"
@@ -2114,7 +2187,7 @@ class TsdbTest
       )
     )
 
-    val r3 = tsdb.query(query3).head
+    val r3 = tsdb.query(query3).next()
     r3.get[Time]("time") shouldBe startDay
     r3.get[Double]("sum_testField") shouldBe 4d
     r3.get[Long]("count_testStringField") shouldBe 4L
@@ -2280,7 +2353,7 @@ class TsdbTest
         )
       )
 
-    val r = tsdb.query(query).head
+    val r = tsdb.query(query).next()
     r.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r.get[Time]("min_time") shouldBe Time(pointTime1)
     r.get[Time]("max_time") shouldBe Time(pointTime3)
@@ -2337,7 +2410,7 @@ class TsdbTest
         )
       )
 
-    val row = tsdb.query(query).head
+    val row = tsdb.query(query).next()
 
     row.get[BigDecimal]("dummy") shouldEqual BigDecimal(1)
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -2393,7 +2466,7 @@ class TsdbTest
         )
       )
 
-    val row = tsdb.query(query).head
+    val row = tsdb.query(query).next()
 
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
@@ -2677,7 +2750,7 @@ class TsdbTest
       (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", "testB1"),
       (qtime.toLocalDateTime.plusSeconds(1), qtime.toLocalDateTime, 1d, "testA1", "testB1")
     )
-    val results = tsdb.query(query).iterator
+    val results = tsdb.query(query)
 
     forAll(t) { (time, lagTime, testField, tagA, tagB) =>
       val r = results.next()
@@ -2762,7 +2835,7 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).iterator
+    val results = tsdb.query(query)
 
     val group1 = results.next()
     group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -2827,7 +2900,7 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).iterator
+    val results = tsdb.query(query)
 
     val group1 = results.next()
     group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -3110,7 +3183,7 @@ class TsdbTest
         )
       )
 
-    val row = tsdb.query(query).head
+    val row = tsdb.query(query).next()
 
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 0

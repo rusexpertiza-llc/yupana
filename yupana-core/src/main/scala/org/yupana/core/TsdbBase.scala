@@ -160,7 +160,8 @@ trait TsdbBase extends StrictLogging {
     val processedDataPoints = new AtomicInteger(0)
     val resultRows = new AtomicInteger(0)
 
-    val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
+    val hasWindowFunctions = queryContext.query.fields.exists(_.expr.kind == Window)
+    val hasAggregates = queryContext.query.fields.exists(_.expr.kind == Aggregate)
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
       val batchSize = batch.size
       val c = processedRows.incrementAndGet()
@@ -183,7 +184,7 @@ trait TsdbBase extends StrictLogging {
       }
     }
 
-    val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
+    val keysAndValuesWinFunc = if (hasWindowFunctions) {
       metricCollector.windowFunctions.measure(1) {
         applyWindowFunctions(queryContext, keysAndValues)
       }
@@ -191,7 +192,7 @@ trait TsdbBase extends StrictLogging {
       keysAndValues
     }
 
-    val reduced = if (queryContext.query.groupBy.nonEmpty && !isWindowFunctionPresent) {
+    val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
       val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
         metricCollector.reduceOperation.measure(batch.size) {
           val mapped = batch.iterator.map {

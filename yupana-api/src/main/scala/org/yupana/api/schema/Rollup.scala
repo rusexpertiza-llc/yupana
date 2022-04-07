@@ -20,25 +20,33 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 
+trait Rollup {
+  val name: String
+  val timeExpr: Expression[Time]
+  val fromTable: Table
+  val toTable: Table
+}
+
 /**
   * Definition of persistent rollup
   * @param name name of this rollup to be displayed
+  * @param timeExpr time expression to group values
+  * @param toTable table to write data
+  * @param fromTable table to read data
+  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
   * @param filter condition to gather data
   * @param groupBy expressions to group by data
-  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
-  * @param timeExpr time expression to group values
-  * @param fromTable table to read data
-  * @param toTable table to write data
   */
-case class Rollup(
-    name: String,
-    filter: Option[Condition],
-    groupBy: Seq[Expression[_]],
+case class TsdbRollup(
+    override val name: String,
+    override val timeExpr: Expression[Time],
+    override val fromTable: Table,
+    override val toTable: Table,
     fields: Seq[QueryFieldProjection],
-    timeExpr: Expression[Time],
-    fromTable: Table,
-    toTable: Table
-) extends Serializable {
+    filter: Option[Condition],
+    groupBy: Seq[Expression[_]]
+) extends Rollup
+    with Serializable {
 
   lazy val timeField: QueryField = timeExpr as Table.TIME_FIELD_NAME
   lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields

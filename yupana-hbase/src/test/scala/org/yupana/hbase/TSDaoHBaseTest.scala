@@ -154,6 +154,85 @@ class TSDaoHBaseTest
     r.get[Time](2) shouldEqual 1d
   }
 
+  it should "support different time conditions" in withMock { (dao, _, queryRunner) =>
+    val from = 1000
+    val to = 5000
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+    val pointTime = 2000
+
+    queryRunner
+      .expects(scan(from + 1, to + 1))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("test2"), 2.toShort)
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "test2")
+            .hbaseRow
+        )
+      )
+
+    val res = dao
+      .query(
+        InternalQuery(testTable, exprs.toSet, and(gt(time, const(Time(from))), le(time, const(Time(to))))),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
+
+    res.size shouldEqual 1
+
+    val r = res.head
+    r.get[Time](0) shouldEqual Time(pointTime)
+    r.get[Time](1) shouldEqual "test2"
+  }
+
+  it should "use most strict time conditions" in withMock { (dao, _, queryRunner) =>
+    val from = 1000
+    val to = 5000
+    val exprs = Seq[Expression[_]](time, metric(TestTableFields.TEST_FIELD))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+    val pointTime = 2000
+
+    queryRunner
+      .expects(scan(from + 100 + 1, to))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime - (pointTime % testTable.rowTimeSpan), dimAHash("test1"), 2.toShort)
+            .cell("d1", pointTime % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "test1")
+            .hbaseRow
+        )
+      )
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(const(Time(from + 100)), time),
+            gt(const(Time(to)), time),
+            ge(const(Time(to)), time)
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
+
+    res.size shouldEqual 1
+
+    val r = res.head
+    r.get[Time](0) shouldEqual Time(pointTime)
+    r.get[Time](1) shouldEqual 3d
+  }
+
   it should "skip values with fields not defined in schema" in withMock { (dao, dictionary, queryRunner) =>
     val from = 1000
     val to = 5000
