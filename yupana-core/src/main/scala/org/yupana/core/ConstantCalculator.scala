@@ -31,7 +31,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
     import ExpressionCalculator.truncateTime
 
     expr match {
-      case ConstantExpr(x) => x
+      case ConstantExpr(x, _) => x
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateConstant(condition)

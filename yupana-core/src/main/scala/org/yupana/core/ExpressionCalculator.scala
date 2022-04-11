@@ -24,6 +24,7 @@ import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 import org.yupana.api.utils.Tokenizer
+import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
 
 import java.sql.Types
@@ -55,6 +56,10 @@ object ExpressionCalculator extends StrictLogging {
   private val tokenizer = TermName("tokenizer")
   private val params = TermName("params")
   private val calculator = q"_root_.org.yupana.core.ExpressionCalculator"
+
+  private val calculatorCache: Cache[String, ExpressionCalculator] = CacheFactory.initCache("calculator_cache")
+
+  private val toolBox = currentMirror.mkToolBox()
 
   private val byRefTypes: Set[ClassTag[_]] = Set(classTag[Time], classTag[BigDecimal], classTag[PeriodDuration])
 
@@ -127,13 +132,16 @@ object ExpressionCalculator extends StrictLogging {
     def withRef(ref: AnyRef, tpe: Tree): (TermName, State) = {
       refs.find(_._1 == ref) match {
         case Some((_, Decl(name, _, _))) => name -> this
-        case None =>
-          val name = TermName(s"e_$exprId")
-          val refId = refs.size
-          val tree = q"$params($refId)"
-          val ns = copy(refs = refs :+ (ref -> Decl(name, tpe, tree)), exprId = exprId + 1)
-          name -> ns
+        case None                        => withNewRef(ref, tpe)
       }
+    }
+
+    def withNewRef(ref: AnyRef, tpe: Tree): (TermName, State) = {
+      val name = TermName(s"e_$exprId")
+      val refId = refs.size
+      val tree = q"$params($refId)"
+      val ns = copy(refs = refs :+ (ref -> Decl(name, tpe, tree)), exprId = exprId + 1)
+      name -> ns
     }
 
     def withGlobal(key: Any, tpe: Tree, tree: Tree): (TermName, State) = {
@@ -269,12 +277,17 @@ object ExpressionCalculator extends StrictLogging {
     e match {
       case x if state.unfinished.contains(x) => None
 
-      case ConstantExpr(x) =>
+      case ConstantExpr(x, false) =>
         val (v, ns) = mapValue(state, e.dataType)(x)
         Some(q"$v.asInstanceOf[$tpe]" -> ns)
+
+      case ConstantExpr(v, true) =>
+        val (name, ns) = state.withNewRef(v.asInstanceOf[AnyRef], mkType(e.dataType))
+        Some(q"$name" -> ns)
+
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
         val (lits, newState) = exprs.foldLeft((Seq.empty[Tree], state)) {
-          case ((ts, s), ConstantExpr(v)) =>
+          case ((ts, s), ConstantExpr(v, _)) =>
             val (t, ns) = mapValue(s, ae.elementDataType)(v)
             (ts :+ t, ns)
           case (_, x) => throw new IllegalArgumentException(s"Unexpected constant expression $x")
@@ -299,9 +312,9 @@ object ExpressionCalculator extends StrictLogging {
 
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     e match {
-      case ConstantExpr(_)  => None
-      case TimeExpr         => None
-      case DimensionExpr(_) => None
+      case ConstantExpr(_, _) => None
+      case TimeExpr           => None
+      case DimensionExpr(_)   => None
       case TupleExpr(e1, e2) =>
         val d1 = mkIsDefined(state, row, e1)
         val d2 = mkIsDefined(state, row, e2)
@@ -511,7 +524,7 @@ object ExpressionCalculator extends StrictLogging {
     } else {
 
       e match {
-        case ConstantExpr(c) =>
+        case ConstantExpr(c, _) =>
           val (v, s) = mapValue(state, e.dataType)(c)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
 
@@ -633,7 +646,7 @@ object ExpressionCalculator extends StrictLogging {
 
   private def mkFilter(state: State, row: TermName, condition: Option[Condition]): State = {
     condition match {
-      case Some(ConstantExpr(v)) => state.appendLocal(q"$v")
+      case Some(ConstantExpr(v, _)) => state.appendLocal(q"$v")
 
       case Some(cond) =>
         val newState = mkSet(state, row, cond)
@@ -892,18 +905,27 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {
-    val tb = currentMirror.mkToolBox()
 
+    val t1 = System.nanoTime()
     val (tree, known, params) = generateCalculator(query, condition)
+    val t2 = System.nanoTime()
 
     logger.whenTraceEnabled {
       val index = known.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
       logger.trace("Expr index: ")
       index.foreach(s => logger.trace(s"  $s"))
+      logger.trace(s"Params size: ${params.length}")
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
-    (tb.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator](params), known)
+    val res = calculatorCache.caching(tree.toString()) {
+      toolBox.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator](params)
+    }
+    val t3 = System.nanoTime()
+
+    println(s"MAKE CALCULATOR gen = ${t2 - t1}ns, cmpl = ${t3 - t2}ns")
+
+    (res, known)
   }
 
   private def prettyTree(tree: Tree): String = {

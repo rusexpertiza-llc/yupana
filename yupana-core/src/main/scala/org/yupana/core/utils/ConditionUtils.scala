@@ -25,8 +25,8 @@ object ConditionUtils {
     def doFlat(xs: Seq[Condition]): Seq[Condition] = {
       xs.flatMap(x =>
         flatMap(x)(f) match {
-          case ConstantExpr(true) => None
-          case nonEmpty           => Some(nonEmpty)
+          case ConstantExpr(true, _) => None
+          case nonEmpty              => Some(nonEmpty)
         }
       )
     }

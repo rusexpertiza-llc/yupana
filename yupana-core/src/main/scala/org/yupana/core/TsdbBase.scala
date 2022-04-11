@@ -121,7 +121,7 @@ trait TsdbBase extends StrictLogging {
 
     logger.debug(s"Final condition: $condition")
 
-    val queryContext = QueryContext(optimizedQuery, condition)
+    val queryContext = metricCollector.createContext.measure(1)(QueryContext(optimizedQuery, condition))
 
     val rows = queryContext.query.table match {
       case Some(table) =>
