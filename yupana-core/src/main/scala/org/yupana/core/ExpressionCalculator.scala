@@ -905,10 +905,7 @@ object ExpressionCalculator extends StrictLogging {
   }
 
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {
-
-    val t1 = System.nanoTime()
     val (tree, known, params) = generateCalculator(query, condition)
-    val t2 = System.nanoTime()
 
     logger.whenTraceEnabled {
       val index = known.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
@@ -921,9 +918,6 @@ object ExpressionCalculator extends StrictLogging {
     val res = calculatorCache.caching(tree.toString()) {
       toolBox.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator](params)
     }
-    val t3 = System.nanoTime()
-
-    println(s"MAKE CALCULATOR gen = ${t2 - t1}ns, cmpl = ${t3 - t2}ns")
 
     (res, known)
   }
