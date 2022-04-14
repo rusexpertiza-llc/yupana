@@ -2,7 +2,7 @@ package org.yupana.hbase
 
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TestDims, TestSchema, TestTableFields }
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, time }
 import org.yupana.core.utils.metric.NoMetricCollector
@@ -33,7 +33,7 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
     Seq.empty
   )
 
-  val queryContext = QueryContext(query, None)
+  val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
   val internalQuery =
     InternalQuery(

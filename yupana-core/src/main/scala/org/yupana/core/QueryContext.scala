@@ -23,7 +23,8 @@ import scala.collection.mutable
 
 class QueryContext(
     val query: Query,
-    val postCondition: Option[Condition]
+    val postCondition: Option[Condition],
+    calculatorFactory: ExpressionCalculatorFactory
 ) extends Serializable {
   @transient private var calc: ExpressionCalculator = _
   @transient private var idx: mutable.Map[Expression[_], Int] = _
@@ -41,14 +42,8 @@ class QueryContext(
   lazy val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
 
   private def init(): Unit = {
-    val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
+    val (calculator, index) = calculatorFactory.makeCalculator(query, postCondition)
     calc = calculator
     idx = mutable.HashMap(index.toSeq: _*)
-  }
-}
-
-object QueryContext {
-  def apply(query: Query, postCondition: Option[Condition]): QueryContext = {
-    new QueryContext(query, postCondition)
   }
 }

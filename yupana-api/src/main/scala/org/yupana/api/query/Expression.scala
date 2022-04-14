@@ -50,6 +50,8 @@ sealed trait Expression[Out] extends Serializable {
       case _                   => false
     }
   }
+
+  def makeKey: String = encode
 }
 
 object Expression {
@@ -116,6 +118,12 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
   override val kind: ExprKind = Const
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
+
+  override def makeKey: String = {
+    if (prepared) {
+      s"const(?:${v.getClass.getSimpleName})"
+    } else encode
+  }
 }
 
 case object TimeExpr extends Expression[Time] {

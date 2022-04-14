@@ -101,7 +101,7 @@ class RequestHandlerTest
       groupBy = Seq(dimension(Dimensions.ITEM))
     )
 
-    val qc = QueryContext(expected, None)
+    val qc = new QueryContext(expected, None, ExpressionCalculatorFactory)
 
     (tsdb.query _)
       .expects(expected)

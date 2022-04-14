@@ -52,6 +52,8 @@ trait TsdbBase extends StrictLogging {
 
   def schema: Schema
 
+  def calculatorFactory: ExpressionCalculatorFactory
+
   private lazy val constantCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
   /** Batch size for reading values from external links */
@@ -121,7 +123,8 @@ trait TsdbBase extends StrictLogging {
 
     logger.debug(s"Final condition: $condition")
 
-    val queryContext = metricCollector.createContext.measure(1)(QueryContext(optimizedQuery, condition))
+    val queryContext =
+      metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, condition, calculatorFactory))
 
     val rows = queryContext.query.table match {
       case Some(table) =>
