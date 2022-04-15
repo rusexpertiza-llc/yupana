@@ -43,9 +43,7 @@ class TSDB(
   override lazy val extractBatchSize: Int = config.extractBatchSize
   override lazy val putBatchSize: Int = config.putBatchSize
 
-  override val calculatorFactory: ExpressionCalculatorFactory = new CachingExpressionCalculatorFactory(
-    ExpressionCalculatorFactory
-  )
+  override val calculatorFactory: ExpressionCalculatorFactory = CachingExpressionCalculatorFactory
 
   private var externalLinks = Map.empty[ExternalLink, ExternalLinkService[_ <: ExternalLink]]
 

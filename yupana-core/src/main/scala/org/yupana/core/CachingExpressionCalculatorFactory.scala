@@ -20,10 +20,9 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, Query }
 import org.yupana.core.cache.{ Cache, CacheFactory }
 
-class CachingExpressionCalculatorFactory(innerFactory: ExpressionCalculatorFactory)
-    extends ExpressionCalculatorFactory {
+object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
-  private val calculatorCache: Cache[String, (ExpressionCalculator, Map[Expression[_], Int])] =
+  private val calculatorCache: Cache[String, Array[Any] => ExpressionCalculator] =
     CacheFactory.initCache("calculator_cache")
 
   override def makeCalculator(
@@ -31,18 +30,14 @@ class CachingExpressionCalculatorFactory(innerFactory: ExpressionCalculatorFacto
       condition: Option[Condition]
   ): (ExpressionCalculator, Map[Expression[_], Int]) = {
 
-    val key = makeKey(query)
+    val (tree, index, params) = ExpressionCalculatorFactory.generateCalculator(query, condition)
 
-    calculatorCache.caching(key) {
-      innerFactory.makeCalculator(query, condition)
+    val key = tree.toString()
+
+    val fun = calculatorCache.caching(key) {
+      ExpressionCalculatorFactory.compile(tree)
     }
-  }
 
-  private def makeKey(query: Query): String = {
-    val fieldKey = query.fields.map(_.expr.makeKey).mkString(";")
-    val filterKey = query.filter.map(_.makeKey)
-    val postFilterKey = query.postFilter.map(_.makeKey)
-    val groupingKey = query.groupBy.map(_.makeKey)
-    s"${query.table}_${fieldKey}_${filterKey}_${postFilterKey}_${groupingKey}_${query.limit}"
+    (fun(params), index)
   }
 }

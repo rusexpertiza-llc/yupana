@@ -882,24 +882,29 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     val finalRequirements = finalState.required -- finalState.index.keySet
     val index = finalRequirements.foldLeft(finalState.index)((i, e) => i + (e -> i.size))
+    val paramsArray = finalState.refs.map(_._1).toArray[Any]
 
-    (tree, index, finalState.refs.map(_._1).toArray)
+    logger.whenTraceEnabled {
+      val sortedIndex = index.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
+      logger.trace("Expr index: ")
+      sortedIndex.foreach(s => logger.trace(s"  $s"))
+      logger.trace(s"Params size: ${paramsArray.length}")
+      logger.trace(s"Tree: ${prettyTree(tree)}")
+    }
+
+    (tree, index, paramsArray)
   }
 
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {
     val (tree, known, params) = generateCalculator(query, condition)
 
-    logger.whenTraceEnabled {
-      val index = known.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
-      logger.trace("Expr index: ")
-      index.foreach(s => logger.trace(s"  $s"))
-      logger.trace(s"Params size: ${params.length}")
-      logger.trace(s"Tree: ${prettyTree(tree)}")
-    }
-
-    val res = toolBox.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator](params)
+    val res = compile(tree)(params)
 
     (res, known)
+  }
+
+  def compile(tree: Tree): Array[Any] => ExpressionCalculator = {
+    toolBox.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator]
   }
 
   private def prettyTree(tree: Tree): String = {
