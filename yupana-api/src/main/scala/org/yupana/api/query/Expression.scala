@@ -50,8 +50,6 @@ sealed trait Expression[Out] extends Serializable {
       case _                   => false
     }
   }
-
-  def makeKey: String = encode
 }
 
 object Expression {
@@ -118,12 +116,6 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
   override val kind: ExprKind = Const
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
-
-  override def makeKey: String = {
-    if (prepared) {
-      s"const(?:${v.getClass.getSimpleName})"
-    } else encode
-  }
 }
 
 case object TimeExpr extends Expression[Time] {
@@ -187,7 +179,7 @@ sealed abstract class UnaryOperationExpr[In, Out](expr: Expression[In], function
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
 
-  override def encode: String = s"$functionName($expr)"
+  override def encode: String = s"$functionName(${expr.encode})"
   override def toString: String = s"$functionName($expr)"
 }
 
@@ -307,7 +299,8 @@ final case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
 
-  override def encode: String = s"${tc.functionName}($expr)"
+  override def encode: String = s"${tc.functionName}(${expr.encode})"
+  override def toString: String = s"${tc.functionName}(${expr})"
 }
 
 sealed abstract class BinaryOperationExpr[T, U, Out](
@@ -451,7 +444,8 @@ final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(
     e2.fold(z1)(f)
   }
 
-  override def encode: String = s"($e1, $e2)"
+  override def encode: String = s"(${e1.encode}, ${e2.encode})"
+  override def toString: String = s"($e1, $e2)"
 }
 
 final case class ArrayExpr[T](exprs: Seq[Expression[T]])(implicit val elementDataType: DataType.Aux[T])
@@ -461,7 +455,7 @@ final case class ArrayExpr[T](exprs: Seq[Expression[T]])(implicit val elementDat
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = exprs.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
 
-  override def encode: String = exprs.mkString("[", ", ", "]")
+  override def encode: String = exprs.map(_.encode).mkString("[", ", ", "]")
   override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
 }
 
