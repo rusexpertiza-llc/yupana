@@ -19,7 +19,6 @@ package org.yupana.core
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
-import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.model.InternalRow
 
 trait ExternalLinkService[T <: ExternalLink] {
@@ -72,29 +71,6 @@ trait ExternalLinkService[T <: ExternalLink] {
     * @return sequence of transformations applied to the initial condition, basically each transformation is a mapping from one expression to another. It should preserve time bounds even if there no conditions supported by this catalog.
     */
   def transformCondition(condition: Condition): Seq[TransformCondition]
-
-  /**
-    * Checks what passed simple condition can be handled by this catalog
-    *
-    * @param condition condition to be checked
-    */
-  def isSupportedCondition(condition: Condition): Boolean = {
-    condition match {
-      case EqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                   => true
-      case EqString(LowerExpr(l: LinkExpr[_]), ConstantExpr(_)) if l.link.linkName == externalLink.linkName => true
-      case EqString(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                 => true
-      case EqString(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName      => true
-      case NeqExpr(LinkExpr(c, _), ConstantExpr(_)) if c.linkName == externalLink.linkName                  => true
-      case NeqString(LowerExpr(LinkExpr(c, _)), ConstantExpr(_)) if c.linkName == externalLink.linkName     => true
-      case NeqExpr(ConstantExpr(_), LinkExpr(c, _)) if c.linkName == externalLink.linkName                  => true
-      case NeqString(ConstantExpr(_), LowerExpr(LinkExpr(c, _))) if c.linkName == externalLink.linkName     => true
-      case InExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                                 => true
-      case InString(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                    => true
-      case NotInExpr(LinkExpr(c, _), _) if c.linkName == externalLink.linkName                              => true
-      case NotInString(LowerExpr(LinkExpr(c, _)), _) if c.linkName == externalLink.linkName                 => true
-      case _                                                                                                => false
-    }
-  }
 
   def put(dataPoints: Seq[DataPoint]): Unit = {}
 }

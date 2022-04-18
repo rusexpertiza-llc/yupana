@@ -2,7 +2,7 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ EitherValues, Inside }
+import org.scalatest.{ BeforeAndAfterAll, EitherValues, Inside }
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
@@ -25,13 +25,27 @@ import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.auth.YupanaUser
+import org.yupana.core.cache.CacheFactory
 
 import java.time.{ OffsetDateTime, ZoneOffset }
+import java.util.Properties
 
-class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with EitherValues with Inside {
+class RequestHandlerTest
+    extends AnyFlatSpec
+    with Matchers
+    with MockFactory
+    with EitherValues
+    with Inside
+    with BeforeAndAfterAll {
 
   private val sqlQueryProcessor = new SqlQueryProcessor(SchemaRegistry.defaultSchema)
   private val jdbcMetadataProvider = new JdbcMetadataProvider(SchemaRegistry.defaultSchema)
+
+  override protected def beforeAll(): Unit = {
+    val properties = new Properties()
+    properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
+    CacheFactory.init(properties)
+  }
 
   "RequestHandler" should "send version on ping" in {
     val ping = Ping(1234567L, Some(Version(ProtocolVersion.value, 3, 1, "3.1.3-SNAPSHOT")))
@@ -87,7 +101,7 @@ class RequestHandlerTest extends AnyFlatSpec with Matchers with MockFactory with
       groupBy = Seq(dimension(Dimensions.ITEM))
     )
 
-    val qc = QueryContext(expected, None)
+    val qc = new QueryContext(expected, None, ExpressionCalculatorFactory)
 
     (tsdb.query _)
       .expects(expected)
