@@ -137,7 +137,7 @@ object UpdatesIntervalsProvider extends StrictLogging {
           } yield f.withRecalculatedAfter(fromTime).withRecalculatedBefore(toTime)
         case Eq(FieldName(ci"updated_by"), Constant(x)) => getString(x).map(s => f.withBy(s))
         case Eq(Constant(x), FieldName(ci"updated_by")) => getString(x).map(s => f.withBy(s))
-        case c                                        => Left(s"Unsupported condition: $c")
+        case c                                          => Left(s"Unsupported condition: $c")
       }
     }
 
