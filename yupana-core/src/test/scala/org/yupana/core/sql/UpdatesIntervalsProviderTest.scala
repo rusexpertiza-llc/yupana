@@ -29,8 +29,8 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
         )
       )
     ) shouldBe UpdatesIntervalsFilter.empty
-      .withFrom(startTime)
-      .withTo(endTime)
+      .withUpdatedAfter(startTime)
+      .withUpdatedBefore(endTime)
 
     createFilter(
       Some(Eq(FieldName("updated_by"), Constant(StringValue("somebody"))))
@@ -53,8 +53,66 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
       )
     ) shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
-      .withTo(endTime)
-      .withFrom(startTime)
+      .withUpdatedBefore(endTime)
+      .withUpdatedAfter(startTime)
+      .withTableName("some_table")
+
+    createFilter(
+      Some(
+        And(
+          Seq(
+            Eq(FieldName("table"), Constant(StringValue("some_table"))),
+            BetweenCondition(
+              FieldName("recalculated_at"),
+              TimestampValue(startTime),
+              TimestampValue(endTime)
+            ),
+            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
+          )
+        )
+      )
+    ) shouldBe UpdatesIntervalsFilter.empty
+      .withBy("somebody")
+      .withRecalculatedBefore(endTime)
+      .withRecalculatedAfter(startTime)
+      .withTableName("some_table")
+
+    createFilter(
+      Some(
+        And(
+          Seq(
+            Eq(FieldName("table"), Constant(StringValue("some_table"))),
+            Ge(
+              FieldName("recalculated_at"),
+              Constant(TimestampValue(startTime))
+            ),
+            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
+          )
+        )
+      )
+    ) shouldBe UpdatesIntervalsFilter.empty
+      .withBy("somebody")
+      .withRecalculatedAfter(startTime)
+      .withTableName("some_table")
+
+    createFilter(
+      Some(
+        And(
+          Seq(
+            Eq(FieldName("TABLE"), Constant(StringValue("some_table"))),
+            BetweenCondition(
+              FieldName("UpDated_at"),
+              TimestampValue(startTime),
+              TimestampValue(endTime)
+            ),
+            Eq(FieldName("updaTed_by"), Constant(StringValue("somebody")))
+          )
+        )
+      )
+    ) shouldBe UpdatesIntervalsFilter.empty
+      .withBy("somebody")
+      .withUpdatedBefore(endTime)
+      .withUpdatedAfter(startTime)
       .withTableName("some_table")
 
     createFilter(

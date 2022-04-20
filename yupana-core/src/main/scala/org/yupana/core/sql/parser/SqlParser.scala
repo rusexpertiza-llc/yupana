@@ -28,6 +28,7 @@ object SqlParser {
   private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[_: P] = P(IgnoreCase("QUERIES"))
   private def updatesIntervalsWord[_: P] = P(IgnoreCase("UPDATES_INTERVALS"))
+  private def lastRecalculatedDayWord[_: P] = P(IgnoreCase("LAST_RECALCULATED_DAY"))
   private def queryWord[_: P] = P(IgnoreCase("QUERY"))
   private def fromWord[_: P] = P(IgnoreCase("FROM"))
   private def whereWord[_: P] = P(IgnoreCase("WHERE"))
@@ -254,12 +255,15 @@ object SqlParser {
   def updatesIntervals[_: P]: P[ShowUpdatesIntervals] =
     P(updatesIntervalsWord ~ (whereWord ~ condition).?).map(ShowUpdatesIntervals)
 
+  def lastRecalculatedDay[_: P]: P[ShowLastRecalculatedDay] =
+    P(lastRecalculatedDayWord ~ (whereWord ~ condition).?).map(ShowLastRecalculatedDay)
+
   def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
 
   def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
 
   def show[_: P]: P[Statement] =
-    P(showWord ~/ (columns | tables | queries | functions | updatesIntervals))
+    P(showWord ~/ (columns | tables | queries | functions | updatesIntervals | lastRecalculatedDay))
 
   def kill[_: P]: P[Statement] = P(killWord ~/ query)
 

@@ -48,3 +48,5 @@ case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 case class ShowFunctions(dataType: String) extends Statement
 
 case class ShowUpdatesIntervals(condition: Option[Condition]) extends Statement
+
+case class ShowLastRecalculatedDay(condition: Option[Condition]) extends Statement

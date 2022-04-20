@@ -57,6 +57,9 @@ class QueryEngineRouter(
 
       case ShowUpdatesIntervals(condition) =>
         Right(UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition))
+
+      case ShowLastRecalculatedDay(condition) =>
+        Right(UpdatesIntervalsProvider.handleLastRecalculatedDay(flatQueryEngine, condition))
     }
   }
 
