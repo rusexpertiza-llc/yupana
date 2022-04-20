@@ -29,7 +29,7 @@ import java.time.temporal.ChronoUnit
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
 
-  implicit class CaseInsensitiveRegex(sc: StringContext) {
+  implicit class CaseInsensitiveRegex(val sc: StringContext) extends AnyVal {
     def ci = ("(?i)" + sc.parts.mkString).r
   }
 
