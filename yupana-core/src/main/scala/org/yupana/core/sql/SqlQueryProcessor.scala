@@ -381,8 +381,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
       case parser.PeriodValue(p) => Right(ConstantExpr(p, prepared))
 
-      case parser.Placeholder =>
-        state.nextPlaceholderValue().flatMap(v => convertValue(state, v, exprType, prepared = true))
+      case parser.Placeholder(id) =>
+        state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))
     }
   }
 
@@ -556,7 +556,6 @@ object SqlQueryProcessor {
 
   class BuilderState(parameters: Map[Int, parser.Value]) {
     private var fieldNames = Map.empty[String, Int]
-    private var nextPlaceholder = 1
 
     val queryStartTime: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
 
@@ -573,10 +572,8 @@ object SqlQueryProcessor {
       }
     }
 
-    def nextPlaceholderValue(): Either[String, parser.Value] = {
-      val result = parameters.get(nextPlaceholder).toRight(s"Value for placeholder #$nextPlaceholder is not defined")
-      nextPlaceholder += 1
-      result
+    def placeholderValue(id: Int): Either[String, parser.Value] = {
+      parameters.get(id).toRight(s"Value for placeholder #$id is not defined")
     }
   }
 }

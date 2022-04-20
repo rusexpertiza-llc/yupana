@@ -432,8 +432,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         fields should contain(SqlField(FieldName("field")))
         condition shouldEqual And(
           Seq(
-            Ge(FieldName("bar"), Constant(Placeholder)),
-            Lt(FieldName("baz"), Constant(Placeholder))
+            Ge(FieldName("bar"), Constant(Placeholder(1))),
+            Lt(FieldName("baz"), Constant(Placeholder(2)))
           )
         )
         groupings shouldBe empty
