@@ -82,27 +82,9 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
           )
         )
       )
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).value shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
       .withRecalculatedBefore(endTime)
-      .withRecalculatedAfter(startTime)
-      .withTableName("some_table")
-
-    createFilter(
-      Some(
-        And(
-          Seq(
-            Eq(FieldName("table"), Constant(StringValue("some_table"))),
-            Ge(
-              FieldName("recalculated_at"),
-              Constant(TimestampValue(startTime))
-            ),
-            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
-          )
-        )
-      )
-    ) shouldBe UpdatesIntervalsFilter.empty
-      .withBy("somebody")
       .withRecalculatedAfter(startTime)
       .withTableName("some_table")
 
@@ -120,7 +102,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
           )
         )
       )
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).value shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
       .withUpdatedBefore(endTime)
       .withUpdatedAfter(startTime)
@@ -144,6 +126,9 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
         )
       ),
       Map(1 -> TimestampValue(startTime), 2 -> TimestampValue(endTime), 3 -> StringValue("the_table"))
-    ).value shouldBe UpdatesIntervalsFilter.empty.withFrom(startTime).withTo(endTime).withTableName("the_table")
+    ).value shouldBe UpdatesIntervalsFilter.empty
+      .withUpdatedAfter(startTime)
+      .withUpdatedBefore(endTime)
+      .withTableName("the_table")
   }
 }
