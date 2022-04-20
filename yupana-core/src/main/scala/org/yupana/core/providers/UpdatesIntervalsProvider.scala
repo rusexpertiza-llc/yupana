@@ -93,7 +93,7 @@ object UpdatesIntervalsProvider extends StrictLogging {
         }
         SimpleResult("UPDATES_INTERVALS", List("day"), List(DataType[Time]), Iterator(Array(Time(maxDay))))
       } else
-        SimpleResult("UPDATES_INTERVALS", List("day"), List(DataType[Time]), Iterator(Array(null)))
+        SimpleResult("UPDATES_INTERVALS", List("day"), List(DataType[Time]), Iterator.empty)
     }
   }
 
