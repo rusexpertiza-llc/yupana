@@ -1,11 +1,12 @@
 package org.yupana.core.sql
 
+import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.time.{ LocalDate, LocalTime, OffsetDateTime, ZoneOffset }
 
-class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
+class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with EitherValues {
 
   import org.yupana.core.providers.UpdatesIntervalsProvider._
   import org.yupana.core.sql.parser._
@@ -13,13 +14,18 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
   private val startTime = OffsetDateTime.of(LocalDate.of(2016, 6, 1), LocalTime.MIDNIGHT, ZoneOffset.UTC)
   private val endTime = OffsetDateTime.of(LocalDate.of(2016, 6, 2), LocalTime.MIDNIGHT, ZoneOffset.UTC)
 
-  "UpdatesIntervalsProvider" should "create filters" in {
-    createFilter(None) shouldBe UpdatesIntervalsFilter.empty
+  "UpdatesIntervalsProvider" should "create empty filter" in {
+    createFilter(None).value shouldBe UpdatesIntervalsFilter.empty
+  }
 
+  it should "handle table name filter" in {
     createFilter(
       Some(Eq(FieldName("table"), Constant(StringValue("some_table"))))
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).value shouldBe UpdatesIntervalsFilter.empty
       .withTableName("some_table")
+  }
+
+  it should "support between time filter" in {
     createFilter(
       Some(
         BetweenCondition(
@@ -28,14 +34,19 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
           TimestampValue(endTime)
         )
       )
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).value shouldBe UpdatesIntervalsFilter.empty
       .withFrom(startTime)
       .withTo(endTime)
+  }
 
+  it should "support updater filter" in {
     createFilter(
       Some(Eq(FieldName("updated_by"), Constant(StringValue("somebody"))))
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).value shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
+  }
+
+  it should "combine filters" in {
 
     createFilter(
       Some(
@@ -51,14 +62,30 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers {
           )
         )
       )
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).value shouldBe UpdatesIntervalsFilter.empty
       .withBy("somebody")
       .withTo(endTime)
       .withFrom(startTime)
       .withTableName("some_table")
+  }
 
+  it should "ignore unknown fields" in {
     createFilter(
       Some(Eq(FieldName("unknown_field"), Constant(StringValue("unknown"))))
-    ) shouldBe UpdatesIntervalsFilter.empty
+    ).left.value should startWith("Unsupported condition")
+  }
+
+  it should "handle placeholders" in {
+    createFilter(
+      Some(
+        And(
+          Seq(
+            BetweenCondition(FieldName("updated_at"), Placeholder(1), Placeholder(2)),
+            Eq(FieldName("table"), Constant(Placeholder(3)))
+          )
+        )
+      ),
+      Map(1 -> TimestampValue(startTime), 2 -> TimestampValue(endTime), 3 -> StringValue("the_table"))
+    ).value shouldBe UpdatesIntervalsFilter.empty.withFrom(startTime).withTo(endTime).withTableName("the_table")
   }
 }

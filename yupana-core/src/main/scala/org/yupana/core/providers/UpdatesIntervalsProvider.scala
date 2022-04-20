@@ -28,36 +28,41 @@ import java.time.OffsetDateTime
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
 
-  def handleGetUpdatesIntervals(flatQueryEngine: FlatQueryEngine, maybeCondition: Option[Condition]): Result = {
-    val filter = createFilter(maybeCondition)
-    val updatesIntervals = flatQueryEngine.getUpdatesIntervals(filter)
-    val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
-      Array[Any](
-        period.table,
-        Time(period.updatedAt),
-        Time(period.from),
-        Time(period.to),
-        period.updatedBy
+  def handleGetUpdatesIntervals(
+      flatQueryEngine: FlatQueryEngine,
+      maybeCondition: Option[Condition],
+      parameters: Map[Int, Value]
+  ): Either[String, Result] = {
+    createFilter(maybeCondition, parameters).map { filter =>
+      val updatesIntervals = flatQueryEngine.getUpdatesIntervals(filter)
+      val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
+        Array[Any](
+          period.table,
+          Time(period.updatedAt),
+          Time(period.from),
+          Time(period.to),
+          period.updatedBy
+        )
+      }.iterator
+
+      val queryFieldNames = List(
+        tableColumn,
+        updatedAtColumn,
+        fromColumn,
+        toColumn,
+        updatedByColumn
       )
-    }.iterator
 
-    val queryFieldNames = List(
-      tableColumn,
-      updatedAtColumn,
-      fromColumn,
-      toColumn,
-      updatedByColumn
-    )
+      val queryFieldTypes = List(
+        DataType[String],
+        DataType[Time],
+        DataType[Time],
+        DataType[Time],
+        DataType[String]
+      )
 
-    val queryFieldTypes = List(
-      DataType[String],
-      DataType[Time],
-      DataType[Time],
-      DataType[Time],
-      DataType[String]
-    )
-
-    SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)
+      SimpleResult("UPDATES_INTERVALS", queryFieldNames, queryFieldTypes, data)
+    }
   }
 
   case class UpdatesIntervalsFilter(
@@ -76,25 +81,56 @@ object UpdatesIntervalsProvider extends StrictLogging {
     val empty: UpdatesIntervalsFilter = UpdatesIntervalsFilter()
   }
 
-  def createFilter(maybeCondition: Option[Condition]): UpdatesIntervalsFilter = {
-    def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): UpdatesIntervalsFilter = {
+  def createFilter(
+      maybeCondition: Option[Condition],
+      params: Map[Int, Value] = Map.empty
+  ): Either[String, UpdatesIntervalsFilter] = {
+    def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): Either[String, UpdatesIntervalsFilter] = {
       c match {
-        case Eq(FieldName("table"), Constant(StringValue(value))) => f.withTableName(value)
-        case Eq(Constant(StringValue(value)), FieldName("table")) => f.withTableName(value)
-        case BetweenCondition(FieldName("updated_at"), TimestampValue(from), TimestampValue(to)) =>
-          f.withFrom(from).withTo(to)
-        case Eq(FieldName("updated_by"), Constant(StringValue(value))) => f.withBy(value)
-        case Eq(Constant(StringValue(value)), FieldName("updated_by")) => f.withBy(value)
-        case c =>
-          logger.warn(s"Unsupported condition: $c")
-          f
+        case Eq(FieldName("table"), Constant(x)) => getString(x).map(s => f.withTableName(s))
+        case Eq(Constant(x), FieldName("table")) => getString(x).map(s => f.withTableName(s))
+        case BetweenCondition(FieldName("updated_at"), from, to) =>
+          for {
+            fromTime <- getTime(from)
+            toTime <- getTime(to)
+          } yield f.withFrom(fromTime).withTo(toTime)
+        case Eq(FieldName("updated_by"), Constant(x)) => getString(x).map(s => f.withBy(s))
+        case Eq(Constant(x), FieldName("updated_by")) => getString(x).map(s => f.withBy(s))
+        case c                                        => Left(s"Unsupported condition: $c")
+      }
+    }
+
+    def getString(value: Value): Either[String, String] = {
+      value match {
+        case StringValue(s) => Right(s)
+        case Placeholder(id) =>
+          params.get(id).toRight(s"Parameter #$id is not defined").flatMap {
+            case StringValue(s) => Right(s)
+            case x              => Left(s"Got $x for parameter #$id, but String is required")
+          }
+        case x => Left(s"Got $x but String is required")
+      }
+    }
+
+    def getTime(value: Value): Either[String, OffsetDateTime] = {
+      value match {
+        case TimestampValue(t) => Right(t)
+        case Placeholder(id) =>
+          params.get(id).toRight(s"Parameter #$id is not defined").flatMap {
+            case TimestampValue(t) => Right(t)
+            case x                 => Left(s"Got $x for parameter #$id, but Timestamp is required")
+          }
+        case x => Left(s"Got $x but Timestamp is required")
       }
     }
 
     maybeCondition match {
-      case None          => UpdatesIntervalsFilter.empty
-      case Some(And(cs)) => cs.foldLeft(UpdatesIntervalsFilter.empty)((f, c) => addSimpleCondition(f, c))
-      case Some(c)       => addSimpleCondition(UpdatesIntervalsFilter.empty, c)
+      case None => Right(UpdatesIntervalsFilter.empty)
+      case Some(And(cs)) =>
+        cs.foldLeft(Right(UpdatesIntervalsFilter.empty): Either[String, UpdatesIntervalsFilter])((filter, c) =>
+          filter.flatMap(f => addSimpleCondition(f, c))
+        )
+      case Some(c) => addSimpleCondition(UpdatesIntervalsFilter.empty, c)
     }
   }
 }
