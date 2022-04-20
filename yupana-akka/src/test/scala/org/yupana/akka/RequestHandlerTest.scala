@@ -382,7 +382,9 @@ class RequestHandlerTest
       sqlQueryProcessor
     )
 
-    (changelogDao.getUpdatesIntervals _).expects(Some("a_table"), None, None, None, None, Some("John Doe")).returning(Seq.empty)
+    (changelogDao.getUpdatesIntervals _)
+      .expects(Some("a_table"), None, None, None, None, Some("John Doe"))
+      .returning(Seq.empty)
 
     val query = SqlQuery("SHOW updates_intervals WHERE table = 'a_table' AND updated_by='John Doe'")
     val requestHandler = new RequestHandler(queryEngineRouter)
