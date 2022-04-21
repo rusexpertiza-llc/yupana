@@ -28,11 +28,16 @@ import java.time.OffsetDateTime
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
 
+  implicit class CaseInsensitiveRegex(val sc: StringContext) extends AnyVal {
+    def ci = ("(?i)" + sc.parts.mkString).r
+  }
+
   def handleGetUpdatesIntervals(
       flatQueryEngine: FlatQueryEngine,
       maybeCondition: Option[Condition],
       parameters: Map[Int, Value]
   ): Either[String, Result] = {
+
     createFilter(maybeCondition, parameters).map { filter =>
       val updatesIntervals = flatQueryEngine.getUpdatesIntervals(filter)
       val data: Iterator[Array[Any]] = updatesIntervals.map { period =>
@@ -66,15 +71,19 @@ object UpdatesIntervalsProvider extends StrictLogging {
   }
 
   case class UpdatesIntervalsFilter(
-      maybeTableName: Option[String] = None,
-      maybeFrom: Option[OffsetDateTime] = None,
-      maybeTo: Option[OffsetDateTime] = None,
-      maybeBy: Option[String] = None
+      tableName: Option[String] = None,
+      updatedAfter: Option[OffsetDateTime] = None,
+      updatedBefore: Option[OffsetDateTime] = None,
+      recalculatedAfter: Option[OffsetDateTime] = None,
+      recalculatedBefore: Option[OffsetDateTime] = None,
+      updatedBy: Option[String] = None
   ) {
-    def withTableName(tn: String): UpdatesIntervalsFilter = this.copy(maybeTableName = Some(tn))
-    def withFrom(f: OffsetDateTime): UpdatesIntervalsFilter = this.copy(maybeFrom = Some(f))
-    def withTo(t: OffsetDateTime): UpdatesIntervalsFilter = this.copy(maybeTo = Some(t))
-    def withBy(ub: String): UpdatesIntervalsFilter = this.copy(maybeBy = Some(ub))
+    def withTableName(tn: String): UpdatesIntervalsFilter = this.copy(tableName = Some(tn))
+    def withUpdatedAfter(f: OffsetDateTime): UpdatesIntervalsFilter = this.copy(updatedAfter = Some(f))
+    def withUpdatedBefore(t: OffsetDateTime): UpdatesIntervalsFilter = this.copy(updatedBefore = Some(t))
+    def withRecalculatedAfter(f: OffsetDateTime): UpdatesIntervalsFilter = this.copy(recalculatedAfter = Some(f))
+    def withRecalculatedBefore(t: OffsetDateTime): UpdatesIntervalsFilter = this.copy(recalculatedBefore = Some(t))
+    def withBy(ub: String): UpdatesIntervalsFilter = this.copy(updatedBy = Some(ub))
   }
 
   object UpdatesIntervalsFilter {
@@ -87,16 +96,22 @@ object UpdatesIntervalsProvider extends StrictLogging {
   ): Either[String, UpdatesIntervalsFilter] = {
     def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): Either[String, UpdatesIntervalsFilter] = {
       c match {
-        case Eq(FieldName("table"), Constant(x)) => getString(x).map(s => f.withTableName(s))
-        case Eq(Constant(x), FieldName("table")) => getString(x).map(s => f.withTableName(s))
-        case BetweenCondition(FieldName("updated_at"), from, to) =>
+        case Eq(FieldName(ci"table"), Constant(x)) => getString(x).map(s => f.withTableName(s))
+        case Eq(Constant(x), FieldName(ci"table")) => getString(x).map(s => f.withTableName(s))
+        case BetweenCondition(FieldName(ci"updated_at"), from, to) =>
           for {
             fromTime <- getTime(from)
             toTime <- getTime(to)
-          } yield f.withFrom(fromTime).withTo(toTime)
-        case Eq(FieldName("updated_by"), Constant(x)) => getString(x).map(s => f.withBy(s))
-        case Eq(Constant(x), FieldName("updated_by")) => getString(x).map(s => f.withBy(s))
-        case c                                        => Left(s"Unsupported condition: $c")
+          } yield f.withUpdatedAfter(fromTime).withUpdatedBefore(toTime)
+        case BetweenCondition(FieldName(ci"recalculated_at"), from, to) =>
+          for {
+            fromTime <- getTime(from)
+            toTime <- getTime(to)
+          } yield f.withRecalculatedAfter(fromTime).withRecalculatedBefore(toTime)
+        case Ge(FieldName(ci"recalculated_at"), Constant(x)) => getTime(x).map(s => f.withRecalculatedAfter(s))
+        case Eq(FieldName(ci"updated_by"), Constant(x))      => getString(x).map(s => f.withBy(s))
+        case Eq(Constant(x), FieldName(ci"updated_by"))      => getString(x).map(s => f.withBy(s))
+        case c                                               => Left(s"Unsupported condition: $c")
       }
     }
 

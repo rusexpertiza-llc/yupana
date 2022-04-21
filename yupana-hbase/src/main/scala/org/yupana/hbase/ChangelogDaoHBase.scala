@@ -69,61 +69,97 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
     }
   }
 
+  private def buildFilterList(
+      tableName: Option[String],
+      updatedAfter: Option[Long],
+      updatedBefore: Option[Long],
+      recalculatedAfter: Option[Long],
+      recalculatedBefore: Option[Long],
+      updatedBy: Option[String]
+  ): FilterList = {
+    val filterList = new FilterList()
+
+    tableName.foreach(t =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          TABLE_QUALIFIER,
+          CompareOperator.EQUAL,
+          Bytes.toBytes(t)
+        )
+      )
+    )
+
+    updatedAfter.foreach(ua =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          UPDATED_AT_QUALIFIER,
+          CompareOperator.GREATER_OR_EQUAL,
+          Bytes.toBytes(ua)
+        )
+      )
+    )
+
+    updatedBefore.foreach(ub =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          UPDATED_AT_QUALIFIER,
+          CompareOperator.LESS_OR_EQUAL,
+          Bytes.toBytes(ub)
+        )
+      )
+    )
+
+    recalculatedAfter.foreach(ra =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          FROM_QUALIFIER,
+          CompareOperator.GREATER_OR_EQUAL,
+          Bytes.toBytes(ra)
+        )
+      )
+    )
+
+    recalculatedBefore.foreach(rb =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          TO_QUALIFIER,
+          CompareOperator.LESS_OR_EQUAL,
+          Bytes.toBytes(rb)
+        )
+      )
+    )
+
+    updatedBy.foreach(ub =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          UPDATED_BY_QUALIFIER,
+          CompareOperator.EQUAL,
+          ub.getBytes(StandardCharsets.UTF_8)
+        )
+      )
+    )
+    filterList
+  }
+
   override def getUpdatesIntervals(
       tableName: Option[String],
       updatedAfter: Option[Long],
       updatedBefore: Option[Long],
+      recalculatedAfter: Option[Long],
+      recalculatedBefore: Option[Long],
       updatedBy: Option[String]
   ): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
-        val filterList = new FilterList()
-
-        tableName.foreach(t =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              TABLE_QUALIFIER,
-              CompareOperator.EQUAL,
-              Bytes.toBytes(t)
-            )
-          )
-        )
-
-        updatedAfter.foreach(ua =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              UPDATED_AT_QUALIFIER,
-              CompareOperator.GREATER_OR_EQUAL,
-              Bytes.toBytes(ua)
-            )
-          )
-        )
-
-        updatedBefore.foreach(ub =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              UPDATED_AT_QUALIFIER,
-              CompareOperator.LESS_OR_EQUAL,
-              Bytes.toBytes(ub)
-            )
-          )
-        )
-
-        updatedBy.foreach(ub =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              UPDATED_BY_QUALIFIER,
-              CompareOperator.EQUAL,
-              ub.getBytes(StandardCharsets.UTF_8)
-            )
-          )
-        )
-
+        val filterList =
+          buildFilterList(tableName, updatedAfter, updatedBefore, recalculatedAfter, recalculatedBefore, updatedBy)
         scan.setFilter(filterList)
         table.getScanner(scan).asScala.map(toUpdateInterval)
       }

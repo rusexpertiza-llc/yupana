@@ -30,10 +30,10 @@ title: SHOW
   1. Информация об актуальности сверток по периодам.
   2. Информация о пересчете сверток.
 
-`SHOW UPDATES_INTERVALS WHERE TABLE = '<tableName>' AND UPDATED_AT BETWEEN <FROM> AND <TO>`
+`SHOW UPDATES_INTERVALS WHERE TABLE = '<tableName>' AND UPDATED_AT BETWEEN <FROM> AND <TO> AND RECALCULATED_AT BETWEEN <FROM> AND <TO>`
   
 Где:
 
-  - `tableName` - имя таблицы
-  - `FROM` - Начало периода
-  - `TO` - Конец периода
+- `tableName` - имя таблицы, в которую свертка складывает данные
+- `UPDATED_AT` - фильтр по дате завершения свертки, где `FROM` - начало периода, `TO` - конец периода
+- `RECALCULATED_AT` - фильтр по датам, за которые сверткой были пересчитаны данные, где `FROM` - начало периода, `TO` - конец периода

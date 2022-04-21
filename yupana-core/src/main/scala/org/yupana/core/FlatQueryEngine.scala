@@ -24,10 +24,12 @@ import org.yupana.core.providers.UpdatesIntervalsProvider.UpdatesIntervalsFilter
 class FlatQueryEngine(metricsDao: TsdbQueryMetricsDao, changelogDao: ChangelogDao) {
   def getUpdatesIntervals(filter: UpdatesIntervalsFilter = UpdatesIntervalsFilter.empty): Iterable[UpdateInterval] = {
     changelogDao.getUpdatesIntervals(
-      filter.maybeTableName,
-      filter.maybeFrom.map(_.toInstant.toEpochMilli),
-      filter.maybeTo.map(_.toInstant.toEpochMilli),
-      filter.maybeBy
+      filter.tableName,
+      filter.updatedAfter.map(_.toInstant.toEpochMilli),
+      filter.updatedBefore.map(_.toInstant.toEpochMilli),
+      filter.recalculatedAfter.map(_.toInstant.toEpochMilli),
+      filter.recalculatedBefore.map(_.toInstant.toEpochMilli),
+      filter.updatedBy
     )
   }
 
