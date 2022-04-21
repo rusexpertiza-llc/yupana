@@ -1056,50 +1056,6 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     )
   }
 
-  it should "parse SHOW LAST_RECALCULATED_DAY statements" in {
-    val f = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-    val t = OffsetDateTime.now(ZoneOffset.UTC).withNano(0)
-    SqlParser.parse(
-      s"""SHOW LAST_RECALCULATED_DAY WHERE TABLE = 'price_distribution_by_day' AND recalculated_at >= TIMESTAMP '${t
-          .format(f)}'""".stripMargin
-    ) shouldBe Right(
-      ShowLastRecalculatedDay(
-        Some(
-          And(
-            Seq(
-              Eq(FieldName("TABLE"), Constant(StringValue("price_distribution_by_day"))),
-              Ge(FieldName("recalculated_at"), Constant(TimestampValue(t)))
-            )
-          )
-        )
-      )
-    )
-    SqlParser.parse(
-      s"""SHOW LAST_RECALCULATED_DAY""".stripMargin
-    ) shouldBe Right(
-      ShowLastRecalculatedDay(None)
-    )
-    SqlParser.parse(
-      s"""SHOW LAST_RECALCULATED_DAY
-         |  WHERE table = 'receipt'
-         |    AND 'somebody' = updated_by
-         |    AND updated_at BETWEEN TIMESTAMP '${t.format(f)}'
-         |      AND TIMESTAMP '${t.format(f)}'""".stripMargin
-    ) shouldBe Right(
-      ShowLastRecalculatedDay(
-        Some(
-          And(
-            Seq(
-              Eq(FieldName("table"), Constant(StringValue("receipt"))),
-              Eq(Constant(StringValue("somebody")), FieldName("updated_by")),
-              BetweenCondition(FieldName("updated_at"), TimestampValue(t), TimestampValue(t))
-            )
-          )
-        )
-      )
-    )
-  }
-
   it should "support functions as conditions" in {
     val statement =
       """
@@ -1263,7 +1219,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     errorMessage("SHOW cartoons") {
       case msg =>
         msg should include(
-          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS" | "LAST_RECALCULATED_DAY"), but got "cartoons"""
+          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
         )
     }
   }

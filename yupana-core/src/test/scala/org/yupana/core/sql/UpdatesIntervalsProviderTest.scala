@@ -92,6 +92,24 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
       Some(
         And(
           Seq(
+            Eq(FieldName("table"), Constant(StringValue("some_table"))),
+            Ge(
+              FieldName("recalculated_at"),
+              Constant(TimestampValue(startTime))
+            ),
+            Eq(FieldName("updated_by"), Constant(StringValue("somebody")))
+          )
+        )
+      )
+    ).value shouldBe UpdatesIntervalsFilter.empty
+      .withBy("somebody")
+      .withRecalculatedAfter(startTime)
+      .withTableName("some_table")
+
+    createFilter(
+      Some(
+        And(
+          Seq(
             Eq(FieldName("TABLE"), Constant(StringValue("some_table"))),
             BetweenCondition(
               FieldName("UpDated_at"),
@@ -129,6 +147,20 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withUpdatedAfter(startTime)
       .withUpdatedBefore(endTime)
+      .withTableName("the_table")
+
+    createFilter(
+      Some(
+        And(
+          Seq(
+            Ge(FieldName("recalculated_at"), Constant(Placeholder(1))),
+            Eq(FieldName("table"), Constant(Placeholder(2)))
+          )
+        )
+      ),
+      Map(1 -> TimestampValue(startTime), 2 -> StringValue("the_table"))
+    ).value shouldBe UpdatesIntervalsFilter.empty
+      .withRecalculatedAfter(startTime)
       .withTableName("the_table")
   }
 }

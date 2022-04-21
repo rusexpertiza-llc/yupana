@@ -71,32 +71,6 @@ object UpdatesIntervalsProvider extends StrictLogging {
     }
   }
 
-  def handleLastRecalculatedDay(
-      flatQueryEngine: FlatQueryEngine,
-      maybeCondition: Option[Condition],
-      parameters: Map[Int, Value]
-  ): Either[String, Result] = {
-    createFilter(maybeCondition, parameters).map { filter =>
-      val limit = filter.recalculatedBefore.getOrElse(OffsetDateTime.now().truncatedTo(ChronoUnit.DAYS))
-      val it = flatQueryEngine.getUpdatesIntervals(filter.copy(recalculatedBefore = None)).iterator
-      if (it.nonEmpty) {
-        var maxDay = OffsetDateTime.MIN
-        while (it.nonEmpty && !maxDay.isEqual(limit)) {
-          val interval = it.next()
-          if (interval.to.isAfter(maxDay)) {
-            if (interval.to.isAfter(limit)) {
-              maxDay = limit
-            } else {
-              maxDay = interval.to
-            }
-          }
-        }
-        SimpleResult("UPDATES_INTERVALS", List("day"), List(DataType[Time]), Iterator(Array(Time(maxDay))))
-      } else
-        SimpleResult("UPDATES_INTERVALS", List("day"), List(DataType[Time]), Iterator.empty)
-    }
-  }
-
   case class UpdatesIntervalsFilter(
       tableName: Option[String] = None,
       updatedAfter: Option[OffsetDateTime] = None,
@@ -135,9 +109,10 @@ object UpdatesIntervalsProvider extends StrictLogging {
             fromTime <- getTime(from)
             toTime <- getTime(to)
           } yield f.withRecalculatedAfter(fromTime).withRecalculatedBefore(toTime)
-        case Eq(FieldName(ci"updated_by"), Constant(x)) => getString(x).map(s => f.withBy(s))
-        case Eq(Constant(x), FieldName(ci"updated_by")) => getString(x).map(s => f.withBy(s))
-        case c                                          => Left(s"Unsupported condition: $c")
+        case Ge(FieldName(ci"recalculated_at"), Constant(x)) => getTime(x).map(s => f.withRecalculatedAfter(s))
+        case Eq(FieldName(ci"updated_by"), Constant(x))      => getString(x).map(s => f.withBy(s))
+        case Eq(Constant(x), FieldName(ci"updated_by"))      => getString(x).map(s => f.withBy(s))
+        case c                                               => Left(s"Unsupported condition: $c")
       }
     }
 
