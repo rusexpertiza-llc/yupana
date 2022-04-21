@@ -24,7 +24,6 @@ import org.yupana.core.FlatQueryEngine
 import org.yupana.core.sql.parser._
 
 import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
