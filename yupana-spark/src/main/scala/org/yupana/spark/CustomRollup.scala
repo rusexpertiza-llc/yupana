@@ -20,7 +20,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
 import org.threeten.extra.Interval
 import org.yupana.api.Time
-import org.yupana.api.query.{ DataPoint, Expression }
+import org.yupana.api.query.Expression.Condition
+import org.yupana.api.query.{ AndExpr, DataPoint, Expression }
 import org.yupana.api.schema.{ Metric, MetricValue, Rollup, Table }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -54,13 +55,26 @@ abstract class CustomRollup(
     }
   }
 
-  protected def executeQuery(tsdbSpark: TsdbSparkBase, sql: String): tsdbSpark.Result = {
+  protected def executeQuery(
+      tsdbSpark: TsdbSparkBase,
+      sql: String,
+      externalFilter: Option[Condition]
+  ): tsdbSpark.Result = {
     SqlParser.parse(sql) flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
       case _         => Left(s"Bad query ($sql), Select expected")
     } match {
       case Right(query) =>
-        tsdbSpark.query(query)
+        val finalFilter = (query.filter, externalFilter) match {
+          case (Some(f), Some(ef)) =>
+            Some(AndExpr(Seq(f, ef)))
+          case (Some(f), None) =>
+            Some(f)
+          case (None, Some(ef)) =>
+            Some(ef)
+          case _ => None
+        }
+        tsdbSpark.query(query.copy(filter = finalFilter))
       case Left(msg) =>
         throw new RuntimeException(s"Bad query ($sql): $msg")
     }
