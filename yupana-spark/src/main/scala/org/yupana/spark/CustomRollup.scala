@@ -36,7 +36,11 @@ abstract class CustomRollup(
 
   protected val sqlQueryProcessor: SqlQueryProcessor
 
-  def doRollup(tsdbSpark: TsdbSparkBase, recalcIntervals: Seq[Interval]): RDD[DataPoint]
+  def doRollup(
+      tsdbSpark: TsdbSparkBase,
+      recalcIntervals: Seq[Interval],
+      externalFilter: Option[Condition] = None
+  ): RDD[DataPoint]
 
   protected def toDataPoints(rdd: RDD[Row]): RDD[DataPoint] = {
     rdd.map { row =>
@@ -58,7 +62,7 @@ abstract class CustomRollup(
   protected def executeQuery(
       tsdbSpark: TsdbSparkBase,
       sql: String,
-      externalFilter: Option[Condition]
+      externalFilter: Option[Condition] = None
   ): tsdbSpark.Result = {
     SqlParser.parse(sql) flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
