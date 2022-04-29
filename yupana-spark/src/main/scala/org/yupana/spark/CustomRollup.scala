@@ -30,7 +30,8 @@ abstract class CustomRollup(
     override val name: String,
     override val timeExpr: Expression[Time],
     override val fromTable: Table,
-    override val toTable: Table
+    override val toTable: Table,
+    override val filter: Option[Condition]
 ) extends Rollup
     with Serializable {
 
@@ -38,8 +39,7 @@ abstract class CustomRollup(
 
   def doRollup(
       tsdbSpark: TsdbSparkBase,
-      recalcIntervals: Seq[Interval],
-      externalFilter: Option[Condition] = None
+      recalcIntervals: Seq[Interval]
   ): RDD[DataPoint]
 
   protected def toDataPoints(rdd: RDD[Row]): RDD[DataPoint] = {
@@ -61,15 +61,14 @@ abstract class CustomRollup(
 
   protected def executeQuery(
       tsdbSpark: TsdbSparkBase,
-      sql: String,
-      externalFilter: Option[Condition] = None
+      sql: String
   ): tsdbSpark.Result = {
     SqlParser.parse(sql) flatMap {
       case s: Select => sqlQueryProcessor.createQuery(s)
       case _         => Left(s"Bad query ($sql), Select expected")
     } match {
       case Right(query) =>
-        val finalFilter = (query.filter, externalFilter) match {
+        val finalFilter = (query.filter, filter) match {
           case (Some(f), Some(ef)) =>
             Some(AndExpr(Seq(f, ef)))
           case (Some(f), None) =>
