@@ -82,3 +82,11 @@ case class Divide(a: SqlExpr, b: SqlExpr) extends SqlExpr {
 case class UMinus(x: SqlExpr) extends SqlExpr {
   override def proposedName: Option[String] = x.proposedName.map(n => s"minus_$n")
 }
+
+case class Tuple(a: SqlExpr, b: SqlExpr) extends SqlExpr {
+  override def proposedName: Option[String] =
+    for {
+      aName <- a.proposedName
+      bName <- b.proposedName
+    } yield s"${aName}_$bName"
+}

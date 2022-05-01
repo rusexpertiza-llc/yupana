@@ -404,6 +404,31 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "handle tuples" in {
+    testQuery("""
+        |SELECT min(testField) mtf, hour(time) h
+        |  FROM test_table
+        |  WHERE time >= TIMESTAMP '2022-05-01' and time < TIMESTAMP '2022-05-05'
+        |    AND (testStringField, testLongField) IN (('foo', 1), ('bar', 21))
+        |  GROUP BY h""".stripMargin) { q =>
+
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs Seq(
+        min(metric(TestTableFields.TEST_FIELD)) as "mtf",
+        truncHour(time) as "h"
+      )
+      q.filter.value shouldEqual and(
+        ge(time, const(Time(LocalDateTime.of(2022, 5, 1, 0, 0)))),
+        lt(time, const(Time(LocalDateTime.of(2022, 5, 5, 0, 0)))),
+        in(
+          tuple(lower(metric(TestTableFields.TEST_STRING_FIELD)), metric(TestTableFields.TEST_LONG_FIELD)),
+          Set(("foo", 1L), ("bar", 21L))
+        )
+      )
+      q.groupBy should contain theSameElementsAs Seq(truncHour(time))
+    }
+  }
+
   it should "substitute passed placeholders values" in {
     val statement =
       """SELECT SUM(TestField), month(time) as m, b FROM test_table

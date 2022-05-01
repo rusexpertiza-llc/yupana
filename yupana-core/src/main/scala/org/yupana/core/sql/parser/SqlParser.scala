@@ -125,8 +125,13 @@ object SqlParser {
 
   def mathTerm[_: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
 
+  def exprOrTuple[_: P]: P[SqlExpr] = P("(" ~ expr ~ ("," ~ expr).? ~ ")").map {
+    case (a, Some(b)) => Tuple(a, b)
+    case (e, None)    => e
+  }
+
   def mathFactor[_: P]: P[SqlExpr] =
-    P(functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | "(" ~ expr ~ ")")
+    P(functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | exprOrTuple)
 
   def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
 
