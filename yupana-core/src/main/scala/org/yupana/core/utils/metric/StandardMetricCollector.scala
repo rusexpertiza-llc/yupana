@@ -78,6 +78,7 @@ abstract class StandardMetricCollector(
 
   def allMetrics: Seq[MetricImpl] =
     Seq(
+      createContext,
       createDimensionFilters,
       createScans,
       scan,
