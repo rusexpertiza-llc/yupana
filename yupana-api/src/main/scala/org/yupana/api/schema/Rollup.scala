@@ -25,6 +25,7 @@ trait Rollup {
   val timeExpr: Expression[Time]
   val fromTable: Table
   val toTable: Table
+  val filter: Option[Condition]
 }
 
 /**
@@ -42,8 +43,8 @@ case class TsdbRollup(
     override val timeExpr: Expression[Time],
     override val fromTable: Table,
     override val toTable: Table,
+    override val filter: Option[Condition],
     fields: Seq[QueryFieldProjection],
-    filter: Option[Condition],
     groupBy: Seq[Expression[_]]
 ) extends Rollup
     with Serializable {

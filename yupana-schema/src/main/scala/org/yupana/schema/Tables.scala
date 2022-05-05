@@ -101,7 +101,7 @@ object Tables {
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq.empty,
     metrics = summaryFields ++ rollupFields,
-    externalLinks = receiptExternalLinks,
+    externalLinks = Seq.empty,
     epochTime
   )
 

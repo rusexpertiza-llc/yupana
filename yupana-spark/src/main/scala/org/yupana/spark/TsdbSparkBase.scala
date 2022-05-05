@@ -27,7 +27,7 @@ import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector, PersistentMetricQueryReporter }
-import org.yupana.core.{ QueryContext, TsdbBase }
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
@@ -83,6 +83,8 @@ abstract class TsdbSparkBase(
 
   override val extractBatchSize: Int = conf.extractBatchSize
   override val putBatchSize: Int = conf.putBatchSize
+
+  override val calculatorFactory: ExpressionCalculatorFactory = ExpressionCalculatorFactory
 
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),

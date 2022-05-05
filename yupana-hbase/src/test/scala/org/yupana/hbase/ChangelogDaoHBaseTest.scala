@@ -62,6 +62,15 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
     And("invalid periods still here")
     dao.getUpdatesIntervals(Some("receipt"), Some(from), Some(to)) should have size 2
 
+    And("invalid periods by from/to still here")
+    dao.getUpdatesIntervals(
+      Some("receipt"),
+      None,
+      None,
+      Some(baseTimes.head),
+      Some(baseTimes.last + TestTable.rowTimeSpan)
+    ) should have size 2
+
     And("no new invalid periods")
     dao.getUpdatesIntervals(
       Some("receipt"),

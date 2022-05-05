@@ -50,13 +50,13 @@ class ConditionUtilsTest extends AnyFlatSpec with Matchers {
     val c = equ(dimension(RawDimension[Int]("foo")), const(44))
 
     ConditionUtils.split(c) {
-      case EqExpr(DimensionExpr(RawDimension("foo")), ConstantExpr(_)) => true
-      case _                                                           => false
+      case EqExpr(DimensionExpr(RawDimension("foo")), ConstantExpr(_, _)) => true
+      case _                                                              => false
     } shouldBe ((c, ConstantExpr(true)))
 
     ConditionUtils.split(c) {
-      case EqExpr(DimensionExpr(RawDimension("bar")), ConstantExpr(_)) => true
-      case _                                                           => false
+      case EqExpr(DimensionExpr(RawDimension("bar")), ConstantExpr(_, _)) => true
+      case _                                                              => false
     } shouldBe ((ConstantExpr(true), c))
   }
 
@@ -68,8 +68,8 @@ class ConditionUtilsTest extends AnyFlatSpec with Matchers {
     )
 
     val (l, r) = ConditionUtils.split(c) {
-      case NeqString(DimensionExpr(DictionaryDimension("y", None)), ConstantExpr(_)) => true
-      case _                                                                         => false
+      case NeqString(DimensionExpr(DictionaryDimension("y", None)), ConstantExpr(_, _)) => true
+      case _                                                                            => false
     }
 
     l shouldEqual neq(dimension(DictionaryDimension("y")), const("z"))
@@ -93,8 +93,8 @@ class ConditionUtilsTest extends AnyFlatSpec with Matchers {
     )
 
     val (l, r) = ConditionUtils.split(c) {
-      case EqString(DimensionExpr(DictionaryDimension("x", None)), ConstantExpr(_)) => true
-      case _                                                                        => false
+      case EqString(DimensionExpr(DictionaryDimension("x", None)), ConstantExpr(_, _)) => true
+      case _                                                                           => false
     }
 
     l shouldEqual or(

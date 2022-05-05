@@ -35,6 +35,7 @@ object TsdbQueryMetrics {
   val createDimensionFiltersQualifier = "create_dimensions_filters"
   val createScansQualifier = "create_scans"
   val scanQualifier = "scan"
+  val createContextQualifier = "create_context"
   val loadTagsQualifier = "load_tags"
   val filterRowsQualifier = "filter_rows"
   val windowFunctionsCheckQualifier = "window_functions_check"
