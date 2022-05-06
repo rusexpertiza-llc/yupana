@@ -22,7 +22,7 @@ import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Table => _, _ }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
-import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
+import org.apache.hadoop.hbase.io.compress.Compression
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
@@ -419,7 +419,7 @@ object HBaseUtils extends StrictLogging {
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
+      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions, config.compression)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
     checkSchemaDefinition(connection, namespace, schema) match {
@@ -438,7 +438,14 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
+  def checkTableExistsElseCreate(
+      connection: Connection,
+      namespace: String,
+      table: Table,
+      maxRegions: Int,
+      compressionAlgorithm: String
+  ): Unit = {
+    val algorithm = Compression.getCompressionAlgorithmByName(compressionAlgorithm)
     val hbaseTable = tableName(namespace, table)
     using(connection.getAdmin) { admin =>
       if (!admin.tableExists(hbaseTable)) {
@@ -447,7 +454,7 @@ object HBaseUtils extends StrictLogging {
           ColumnFamilyDescriptorBuilder
             .newBuilder(family(group))
             .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-            .setCompactionCompressionType(Algorithm.SNAPPY)
+            .setCompactionCompressionType(algorithm)
             .build()
         )
         val desc = TableDescriptorBuilder

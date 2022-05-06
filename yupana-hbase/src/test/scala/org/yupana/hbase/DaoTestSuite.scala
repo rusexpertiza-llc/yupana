@@ -17,6 +17,7 @@ class DaoTestSuite
     with DictionaryDaoHBaseTest
     with TsdbQueryMetricsDaoHBaseTest
     with ChangelogDaoHBaseTest
+    with TsdbHBaseTest
     with BeforeAndAfterAll {
   private val utility = new HBaseTestingUtility
 
