@@ -18,13 +18,13 @@ package org.yupana.hbase
 
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, RawDimension }
-import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
+import org.yupana.api.utils.SortedSetIterator
 
 class Filters(
     includes: Map[Dimension, SortedSetIterator[_]],
     excludes: Map[Dimension, SortedSetIterator[_]],
-    val includeTime: Option[SortedSetIterator[Time]],
-    val excludeTime: Option[SortedSetIterator[Time]]
+    val includeTime: Option[Set[Time]],
+    val excludeTime: Option[Set[Time]]
 ) {
   def getIncludes[R](dim: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] =
     includes.get(dim).asInstanceOf[Option[SortedSetIterator[R]]]
@@ -57,8 +57,8 @@ object Filters {
       excValues: Map[Dimension, SortedSetIterator[_]],
       incIds: Map[Dimension, SortedSetIterator[_]],
       excIds: Map[Dimension, SortedSetIterator[_]],
-      incTime: Option[SortedSetIterator[Time]],
-      excTime: Option[SortedSetIterator[Time]]
+      incTime: Option[Set[Time]],
+      excTime: Option[Set[Time]]
   ) {
     def getIncValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
       incValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
@@ -97,13 +97,13 @@ object Filters {
       new Builder(incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
     }
 
-    def includeTime(times: SortedSetIterator[Time]): Builder = {
-      val newTime = intersect(incTime, times)
+    def includeTime(times: Set[Time]): Builder = {
+      val newTime = incTime.map(_ intersect times).getOrElse(times)
       new Builder(incValues, excValues, incIds, excIds, Some(newTime), excTime)
     }
 
-    def excludeTime(times: SortedSetIterator[Time]): Builder = {
-      val newTime = union(excTime, times)
+    def excludeTime(times: Set[Time]): Builder = {
+      val newTime = excTime.map(_ union times).getOrElse(times)
       new Builder(incValues, excValues, incIds, excIds, incTime, Some(newTime))
     }
 
@@ -124,19 +124,11 @@ object Filters {
     }
 
     def includeTime(t: Time): Builder = {
-      includeTime(SortedSetIterator(t))
-    }
-
-    def includeTime(t: Set[Time]): Builder = {
-      includeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
+      includeTime(Set(t))
     }
 
     def excludeTime(t: Time): Builder = {
-      excludeTime(SortedSetIterator(t))
-    }
-
-    def excludeTime(t: Set[Time]): Builder = {
-      excludeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
+      excludeTime(Set(t))
     }
 
     def includeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {

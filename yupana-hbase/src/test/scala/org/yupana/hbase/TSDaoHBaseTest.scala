@@ -1268,13 +1268,15 @@ class TSDaoHBaseTest
 
     override def executeScans(
         queryContext: InternalQueryContext,
-        from: IdType,
-        to: IdType,
+        intervals: Seq[(Long, Long)],
         rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
     ): Iterator[HResult] = {
       val scans = rangeScanDims.flatMap { dimIds =>
-        val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
-        HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
+        intervals.flatMap {
+          case (from, to) =>
+            val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
+            HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
+        }
       }
       queryRunner(scans.toSeq)
     }

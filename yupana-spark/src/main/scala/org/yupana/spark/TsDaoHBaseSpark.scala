@@ -45,13 +45,15 @@ class TsDaoHBaseSpark(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
     if (rangeScanDims.nonEmpty) {
-      val rdds = rangeScanDims.map { dimIds =>
-        new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds)
+      val rdds = rangeScanDims.flatMap { dimIds =>
+        intervals.map {
+          case (from, to) =>
+            new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds)
+        }
       }
       sparkContext.union(rdds.toSeq)
     } else {
