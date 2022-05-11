@@ -88,8 +88,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
             val s = HBaseUtils.baseTime(t, table)
             s -> (s + table.rowTimeSpan)
           }
-          .view
-          .mapValues(_.sorted)
+          .map { case (k, vs) => k -> vs.sorted }
           .toSeq
 
         intervals
