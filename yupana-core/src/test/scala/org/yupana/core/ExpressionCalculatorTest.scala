@@ -7,6 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.utils.RussianTokenizer
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
@@ -27,7 +28,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       cond
     )
 
-    val qc = QueryContext(query, Some(cond))
+    val qc = QueryContext(query, Some(cond), NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -67,7 +68,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = QueryContext(query, None)
+    val qc = QueryContext(query, None, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -115,7 +116,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(truncDay(time))
     )
 
-    val qc = QueryContext(query, None)
+    val qc = QueryContext(query, None, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -219,7 +220,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = QueryContext(query, None)
+    val qc = QueryContext(query, None, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -260,7 +261,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = QueryContext(query, None)
+    val qc = QueryContext(query, None, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -296,7 +297,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = QueryContext(query, None)
+    val qc = QueryContext(query, None, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -356,7 +357,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = QueryContext(query, None)
+    val qc = QueryContext(query, None, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -398,7 +399,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = QueryContext(query, Some(cond))
+    val qc = QueryContext(query, Some(cond), NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -425,7 +426,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = QueryContext(query, Some(cond))
+    val qc = QueryContext(query, Some(cond), NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)

@@ -83,6 +83,7 @@ object TestLinks {
 object TestSchema {
 
   val testTable = new Table(
+    id = 1,
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B),
@@ -99,6 +100,7 @@ object TestSchema {
   )
 
   val testTable2 = new Table(
+    id = 1,
     name = "test_table_2",
     rowTimeSpan = 7 * 24 * 3600 * 1000,
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
@@ -108,6 +110,7 @@ object TestSchema {
   )
 
   val testTable3 = new Table(
+    id = 1,
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_X),

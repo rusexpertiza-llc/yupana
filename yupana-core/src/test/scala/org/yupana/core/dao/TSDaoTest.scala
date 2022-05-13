@@ -40,7 +40,7 @@ class TSDaoTest extends AnyFlatSpec with Matchers {
       override def isSupportedCondition(condition: Condition): Boolean = ???
     }
 
-    val table = new Table("table", 1L, Seq.empty, Seq.empty, Seq.empty, 1L)
+    val table = new Table(1, "table", 1L, Seq.empty, Seq.empty, Seq.empty, 1L)
     val intervalsReturned = testDao.put(
       IteratorMapReducible.iteratorMR,
       List.fill(100)(DataPoint(table, 1L, Map.empty, Seq.empty)).iterator,

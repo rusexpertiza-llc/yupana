@@ -14,6 +14,7 @@ lazy val yupana = (project in file("."))
     hbase,
     rocks,
     lmdb,
+    khipu,
     akka,
     spark,
     schema,
@@ -183,6 +184,14 @@ lazy val lmdb = (project in file("yupana-lmdb"))
       "org.lmdbjava" % "lmdbjava" % versions.lmdb
     ),
     excludeDependencies ++= Seq()
+  )
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val khipu = (project in file("yupana-khipu"))
+  .settings(
+    name := "yupana-khipu",
+    allSettings
   )
   .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
@@ -433,12 +442,12 @@ val commonSettings = Seq(
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
-    "-deprecation",
+    //"-deprecation",
     "-unchecked",
     "-feature",
     "-language:higherKinds",
     "-Xlint",
-    "-Xfatal-warnings",
+//    "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ) ++ {
     CrossVersion.partialVersion(scalaVersion.value) match {

@@ -16,6 +16,7 @@ class QueryTest extends AnyFlatSpec with Matchers {
   val FIELD = Metric[Double]("F", 1)
 
   val testTable = new Table(
+    id = 1,
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C),
