@@ -66,7 +66,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Collection[HResult]
 
-  private def calculateIntervals(
+  private def calculateTimeIntervals(
       table: Table,
       from: Option[Long],
       to: Option[Long],
@@ -123,7 +123,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     }
 
     val intervals =
-      calculateIntervals(query.table, condition.from, condition.to, filters.includeTime, filters.excludeTime)
+      calculateTimeIntervals(query.table, condition.from, condition.to, filters.includeTime, filters.excludeTime)
 
     val dimFilter = filters.allIncludes
     val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
