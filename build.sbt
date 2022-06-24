@@ -363,7 +363,7 @@ lazy val versions = new {
   val scala213 = "2.13.8"
 
   val colCompat = "2.1.1" // Same version with Spark
-  val spark = "3.2.1"
+  val spark = "3.3.0"
 
   val threeTenExtra = "1.7.0"
 
