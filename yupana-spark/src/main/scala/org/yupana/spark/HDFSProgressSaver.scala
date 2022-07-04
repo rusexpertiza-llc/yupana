@@ -19,12 +19,11 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.spark.Partition
-import org.yupana.api.query.Query
+import org.yupana.api.utils.ResourceUtils
 import org.yupana.hbase.HdfsFileUtils
 
 import java.util.Properties
 import scala.io.Source
-import scala.util.Using
 
 class HDFSProgressSaver[P <: Partition](
     fileName: String,
@@ -35,11 +34,9 @@ class HDFSProgressSaver[P <: Partition](
   private val allPartitionsHeader = "** All Partitions **"
   private val completedPartitionsHeader = "** Completed partitions **"
 
-  override def writeHeader(q: Query): Unit = ???
-
   override def writePartitions(ps: Seq[P]): Unit = {
-    val hBaseConfiguration = createHbaseConfiguration()
-    HdfsFileUtils.saveDataToHdfs(
+    val hBaseConfiguration = createHBaseConfiguration()
+    HdfsFileUtils.appendDataToHdfs(
       fileName,
       hBaseConfiguration,
       os => {
@@ -53,7 +50,7 @@ class HDFSProgressSaver[P <: Partition](
   }
 
   override def writeProgress(p: P): Unit = {
-    val hBaseConfiguration = createHbaseConfiguration()
+    val hBaseConfiguration = createHBaseConfiguration()
     HdfsFileUtils.appendDataToHdfs(
       fileName,
       hBaseConfiguration,
@@ -62,13 +59,13 @@ class HDFSProgressSaver[P <: Partition](
   }
 
   override def readPartitions: Seq[P] = {
-    val hBaseConfiguration = createHbaseConfiguration()
+    val hBaseConfiguration = createHBaseConfiguration()
 
     val lines = HdfsFileUtils.readDataFromHdfs[List[String]](
       fileName,
       hBaseConfiguration,
       is => {
-        Using.resource(Source.fromInputStream(is)) { s =>
+        ResourceUtils.using(Source.fromInputStream(is)) { s =>
           s.getLines().toList
         }
       }
@@ -82,14 +79,12 @@ class HDFSProgressSaver[P <: Partition](
       .filterNot(p => donePartitions.contains(p))
       .zipWithIndex
       .map {
-        case (line, index) => partitionStorable.fromString(line)
+        case (line, index) => partitionStorable.fromString(line, index)
       }
-//      .toArray
-//    logger.info(s"Partitions total: ${allPartitions.size}, remains: ${remains.length}")
     remains
   }
 
-  private def createHbaseConfiguration(): Configuration = {
+  private def createHBaseConfiguration(): Configuration = {
     val hBaseConfiguration = HBaseConfiguration.create()
     hBaseConfiguration.set("hbase.zookeeper.quorum", properties.getProperty("hbase.zookeeper"))
     hBaseConfiguration.set("zookeeper.session.timeout", "180000")

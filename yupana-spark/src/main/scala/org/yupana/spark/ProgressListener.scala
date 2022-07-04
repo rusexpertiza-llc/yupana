@@ -16,20 +16,26 @@
 
 package org.yupana.spark
 
-import org.apache.spark.Partition
-import org.apache.spark.scheduler.{ SparkListener, SparkListenerTaskEnd }
-import org.yupana.api.query.Query
+import org.apache.spark.{ Partition, Success }
+import org.apache.spark.scheduler.{ SparkListener, SparkListenerJobEnd, SparkListenerTaskEnd }
 
-abstract class ProgressListener extends SparkListener {
+class ProgressListener[P <: Partition] extends SparkListener {
 
-  def onStart(query: Query): Unit
-  def onEnd(): Unit
+  private var listeners = List.empty[RddProgressListener[P]]
 
-  def onPartitionsCalculated(ps: Seq[Partition]): Unit
-  def onPartitionCompleted(p: Partition): Unit
+  def addListener(listener: RddProgressListener[P]): Unit = {
+    listeners ::= listener
+  }
 
   override def onTaskEnd(taskEnd: SparkListenerTaskEnd): Unit = {
+    if (taskEnd.reason == Success) {
+      listeners.foreach(_.onPartitionCompleted(taskEnd.taskInfo.partitionId))
+    }
     super.onTaskEnd(taskEnd)
-    taskEnd.taskInfo.partitionId
+  }
+
+  override def onJobEnd(jobEnd: SparkListenerJobEnd): Unit = {
+    listeners = List.empty
+    super.onJobEnd(jobEnd)
   }
 }

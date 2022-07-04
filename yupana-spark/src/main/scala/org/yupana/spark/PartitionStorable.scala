@@ -20,5 +20,5 @@ import org.apache.spark.Partition
 
 trait PartitionStorable[P <: Partition] {
   def asString(p: P): String
-  def fromString(s: String): P
+  def fromString(s: String, index: Int): P
 }

@@ -18,9 +18,7 @@ package org.yupana.spark
 
 import org.apache.spark.Partition
 
-trait ProgressSaver[P <: Partition] {
-  def writePartitions(ps: Seq[P]): Unit
-  def writeProgress(p: P): Unit
-
-  def readPartitions: Seq[P]
+trait RddProgressListener[P <: Partition] {
+  def transformPartitions(ps: Seq[P]): Seq[P]
+  def onPartitionCompleted(partitionIndex: Int): Unit
 }

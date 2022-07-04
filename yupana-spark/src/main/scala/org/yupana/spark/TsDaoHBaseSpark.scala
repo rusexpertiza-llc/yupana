@@ -39,6 +39,9 @@ class TsDaoHBaseSpark(
     with TSDao[RDD, Long]
     with Serializable {
 
+  private val sparkListener = new ProgressListener[HBaseScanPartition]
+  sparkContext.addSparkListener(sparkListener)
+
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[RDD] = {
     new RddMapReducible(sparkContext, metricQueryCollector)
   }
@@ -49,9 +52,21 @@ class TsDaoHBaseSpark(
       to: Long,
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
+    val progressFile = queryContext.hints.collectFirst { case ProgressHint(fileName) => fileName }
     if (rangeScanDims.nonEmpty) {
-      val rdds = rangeScanDims.map { dimIds =>
-        new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds)
+      val rdds = rangeScanDims.zipWithIndex.map {
+        case (dimIds, index) =>
+          val listener = progressFile match {
+            case Some(f) =>
+              new RddProgressListenerImpl[HBaseScanPartition](
+                s"${f}_$index",
+                new HBaseScanPartition.HBaseScanPartitionStorable(from, to, queryContext, dimIds),
+                config.properties
+              )
+            case None => new DummyProgressListener[HBaseScanPartition]
+          }
+          sparkListener.addListener(listener)
+          new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds, listener)
       }
       sparkContext.union(rdds.toSeq)
     } else {

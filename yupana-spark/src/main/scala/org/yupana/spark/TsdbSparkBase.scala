@@ -21,7 +21,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.Query
+import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
@@ -67,6 +67,8 @@ object TsdbSparkBase extends StrictLogging {
     )
   }
 }
+
+case class ProgressHint(fileName: String) extends QueryHint
 
 abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,

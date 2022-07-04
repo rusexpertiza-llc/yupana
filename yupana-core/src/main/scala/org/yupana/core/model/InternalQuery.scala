@@ -17,7 +17,12 @@
 package org.yupana.core.model
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.Expression
+import org.yupana.api.query.{ Expression, QueryHint }
 import org.yupana.api.schema.Table
 
-case class InternalQuery(table: Table, exprs: Set[Expression[_]], condition: Condition)
+case class InternalQuery(
+    table: Table,
+    exprs: Set[Expression[_]],
+    condition: Condition,
+    hints: Seq[QueryHint] = Seq.empty
+)
