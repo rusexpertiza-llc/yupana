@@ -42,7 +42,7 @@ class HDFSProgressSaver[P <: Partition](
       os => {
         os.writeBytes(allPartitionsHeader + "\n")
         ps.foreach { partition =>
-          os.writeBytes(partitionStorable.asString(partition))
+          os.writeBytes(partitionStorable.asString(partition) + "\n")
         }
         os.writeBytes(completedPartitionsHeader + "\n")
       }
@@ -54,7 +54,7 @@ class HDFSProgressSaver[P <: Partition](
     HdfsFileUtils.appendDataToHdfs(
       fileName,
       hBaseConfiguration,
-      os => os.writeBytes(partitionStorable.asString(p))
+      os => os.writeBytes(partitionStorable.asString(p) + "\n")
     )
   }
 
