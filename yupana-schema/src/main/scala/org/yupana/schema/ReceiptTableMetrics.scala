@@ -17,10 +17,12 @@
 package org.yupana.schema
 
 import org.yupana.api.Time
+import org.yupana.api.query.UnaryMinusExpr
 import org.yupana.api.schema.{ Metric, QueryFieldToDimension, QueryFieldToMetric }
 
 trait ReceiptTableMetrics {
-  private val rarelyQueried = 2
+
+  import Metric.Groups._
 
   val totalSumField = Metric[BigDecimal]("totalSum", 1)
   val cashSumField = Metric[BigDecimal]("cashSum", 2, rarelyQueried)
@@ -52,6 +54,7 @@ trait ReceiptTableMetrics {
   val cardReceiptCountField = Metric[Long]("cardReceiptCount", 29)
   val documentNumberField = Metric[Long]("documentNumber", 30, rarelyQueried)
   val operator = Metric[String]("operator", 31, rarelyQueried)
+  val totalQuantityField = Metric[Double]("totalQuantity", 32, rarelyQueried)
 
   val baseFields: Seq[Metric] = Seq(
     totalSumField,
@@ -70,7 +73,8 @@ trait ReceiptTableMetrics {
     tax18000Field,
     tax20000Field,
     taxNoField,
-    itemsCountField
+    itemsCountField,
+    totalQuantityField
   )
 
   val rollupFields = Seq(
@@ -80,6 +84,17 @@ trait ReceiptTableMetrics {
     cashReceiptCountField,
     cardReceiptCountField
   )
+
+  val summaryFields = Seq(
+    kkmDistinctCountField,
+    totalSumField,
+    totalQuantityField,
+    cashSumField,
+    cardSumField,
+    positionsCountField,
+    itemsCountField
+  )
+
   import org.yupana.api.query.syntax.All._
 
   object ReceiptRollupFields {
@@ -110,7 +125,8 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(sum(metric(tax20000Field)) as tax20000Field.name, tax20000Field),
       QueryFieldToMetric(sum(metric(itemsCountField)) as itemsCountField.name, itemsCountField),
       QueryFieldToMetric(sum(metric(taxNoField)) as taxNoField.name, taxNoField),
-      QueryFieldToMetric(count(metric(documentNumberField)) as documentNumberField.name, receiptCountField)
+      QueryFieldToMetric(count(metric(documentNumberField)) as documentNumberField.name, receiptCountField),
+      QueryFieldToMetric(sum(metric(totalQuantityField)) as totalQuantityField.name, totalQuantityField)
     )
 
     val shiftRollupFields = Seq(
@@ -143,11 +159,96 @@ trait ReceiptTableMetrics {
       QueryFieldToMetric(sum(metric(cardReceiptCountField)) as cardReceiptCountField.name, cardReceiptCountField)
     )
 
-    val kkmDistinctCountRollupField =
+    val summaryRollupFields = Seq(
       QueryFieldToMetric(
         distinctCount(dimension(Dimensions.KKM_ID)) as kkmDistinctCountField.name,
         kkmDistinctCountField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[BigDecimal](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(totalSumField),
+            condition[BigDecimal](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(totalSumField)),
+              const(BigDecimal(0))
+            )
+          )
+        ) as totalSumField.name,
+        totalSumField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[BigDecimal](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(cashSumField),
+            condition[BigDecimal](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(cashSumField)),
+              const(BigDecimal(0))
+            )
+          )
+        ) as cashSumField.name,
+        cashSumField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[BigDecimal](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(cardSumField),
+            condition[BigDecimal](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(cardSumField)),
+              const(BigDecimal(0))
+            )
+          )
+        ) as cardSumField.name,
+        cardSumField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[Long](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(positionsCountField),
+            condition[Long](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(positionsCountField)),
+              const(0L)
+            )
+          )
+        ) as positionsCountField.name,
+        positionsCountField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[Long](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(itemsCountField),
+            condition[Long](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(itemsCountField)),
+              const(0L)
+            )
+          )
+        ) as itemsCountField.name,
+        itemsCountField
+      ),
+      QueryFieldToMetric(
+        sum(
+          condition[Double](
+            equ(dimension(Dimensions.OPERATION_TYPE), const(2.toByte)),
+            metric(totalQuantityField),
+            condition[Double](
+              equ(dimension(Dimensions.OPERATION_TYPE), const(3.toByte)),
+              UnaryMinusExpr(metric(totalQuantityField)),
+              const(0d)
+            )
+          )
+        ) as totalQuantityField.name,
+        totalQuantityField
       )
+    )
   }
 }
 

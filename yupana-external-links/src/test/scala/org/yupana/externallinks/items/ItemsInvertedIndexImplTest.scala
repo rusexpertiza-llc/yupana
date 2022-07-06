@@ -25,7 +25,7 @@ class ItemsInvertedIndexImplTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
   }
 
   override protected def beforeEach(): Unit = {
@@ -92,7 +92,11 @@ class ItemsInvertedIndexImplTest
     inside(res) {
       case Seq(Replace(_, DimIdInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
-        vs.toList should contain theSameElementsInOrderAs si("красное яблоко", "еще красное яблоко", "желтый банан").toList
+        vs.toList should contain theSameElementsInOrderAs si(
+          "красное яблоко",
+          "еще красное яблоко",
+          "желтый банан"
+        ).toList
     }
   }
 

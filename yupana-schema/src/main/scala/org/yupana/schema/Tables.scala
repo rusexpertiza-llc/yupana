@@ -16,13 +16,14 @@
 
 package org.yupana.schema
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema.{ Dimension, ExternalLink, Table }
 import org.yupana.schema.externallinks._
 
+import java.time.{ LocalDateTime, ZoneOffset }
+
 object Tables {
 
-  val epochTime = new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+  val epochTime: Long = LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
 
   val itemExternalLinks: Seq[ExternalLink] = Seq(ItemsInvertedIndex, RelatedItemsCatalog)
   val itemRollupsExternalLinks: Seq[ExternalLink] = itemExternalLinks.filterNot(_ == RelatedItemsCatalog)
@@ -111,91 +112,11 @@ object Tables {
     epochTime
   )
 
-  val itemByDayTable = new Table(
-    id = 8,
-    name = "item_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemByWeekTable = new Table(
-    id = 9,
-    name = "item_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemByMonthTable = new Table(
-    id = 10,
-    name = "item_by_month",
-    rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemKkmsByDayTable = new Table(
-    id = 11,
-    name = "item_kkms_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemKkmsByWeekTable = new Table(
-    id = 12,
-    name = "item_kkms_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
   val itemKkmsByMonthTable = new Table(
-    id = 13,
+    id = 8,
     name = "item_kkms_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByDayTable = new Table(
-    id = 14,
-    name = "kkms_item_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByWeekTable = new Table(
-    id = 15,
-    name = "kkms_item_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByMonthTable = new Table(
-    id = 16,
-    name = "kkms_item_by_month",
-    rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
     externalLinks = itemRollupsExternalLinks,
     epochTime

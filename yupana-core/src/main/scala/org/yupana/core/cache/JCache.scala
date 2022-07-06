@@ -23,7 +23,6 @@ import javax.cache.{ Cache => JavaCache }
 import scala.jdk.CollectionConverters._
 
 class JCache[K, V](underlying: JavaCache[K, V]) extends Cache[K, V] {
-  override def get(key: K): Option[V] = Option(underlying.get(key))
   override def getNullable(key: K): V = underlying.get(key)
   override def put(key: K, value: V): Unit = underlying.put(key, value)
   override def remove(key: K): Boolean = underlying.remove(key)

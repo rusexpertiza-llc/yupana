@@ -42,7 +42,9 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val pong =
       Response(Response.Resp.Pong(Pong(12345678, 12345679, Some(Version(ProtocolVersion.value + 1, 5, 4, "5.4.22")))))
     server.readBytesSendResponseChunked(pong.toByteArray)
-    the[IOException] thrownBy client.ping(12345678) should have message "Incompatible protocol versions: 3 on server and 2 in this driver"
+    the[IOException] thrownBy client.ping(
+      12345678
+    ) should have message "Incompatible protocol versions: 3 on server and 2 in this driver"
   }
 
   it should "handle if response is too small" in {
@@ -145,7 +147,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     result.name shouldEqual "items_kkm"
 
-    val rows = result.iterator.toList
+    val rows = result.toList
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
@@ -231,7 +233,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     result.name shouldEqual "items_kkm"
 
-    val rows = result.iterator.toList
+    val rows = result.toList
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"

@@ -24,6 +24,8 @@ trait ChangelogDao {
       tableName: Option[String],
       updatedAfter: Option[Long] = None,
       updatedBefore: Option[Long] = None,
+      recalculatedAfter: Option[Long] = None,
+      recalculatedBefore: Option[Long] = None,
       updatedBy: Option[String] = None
   ): Iterable[UpdateInterval]
 }

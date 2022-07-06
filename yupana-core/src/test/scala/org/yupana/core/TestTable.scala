@@ -2,10 +2,10 @@ package org.yupana.core
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.schema._
 import org.yupana.utils.{ OfdItemFixer, RussianTokenizer, RussianTransliterator }
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 object TestDims {
   val DIM_A = HashDimension(
@@ -96,7 +96,7 @@ object TestSchema {
     ),
     externalLinks =
       Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val testTable2 = new Table(
@@ -106,7 +106,7 @@ object TestSchema {
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
     externalLinks = Seq(),
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val testTable3 = new Table(
@@ -123,7 +123,7 @@ object TestSchema {
     ),
     externalLinks =
       Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val schema = Schema(Seq(testTable, testTable2), Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)

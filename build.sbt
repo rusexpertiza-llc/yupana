@@ -36,7 +36,7 @@ lazy val api = (project in file("yupana-api"))
     name := "yupana-api",
     allSettings,
     libraryDependencies ++= Seq(
-      "joda-time"              %  "joda-time"            % versions.joda,
+      "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
       "org.scalatestplus"      %% "scalacheck-1-15"      % versions.scalaTestCheck    % Test
@@ -61,7 +61,6 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     name := "yupana-jdbc",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules" %% "scala-collection-compat" % versions.colCompat,
       "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
@@ -245,7 +244,6 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     allSettings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
-      "org.scala-lang.modules"      %% "scala-collection-compat"    % versions.colCompat,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -272,8 +270,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
     name := "yupana-caffeine",
     allSettings,
     libraryDependencies ++= Seq(
-      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine,
-      "com.github.ben-manes.caffeine" %  "jcache"                       % versions.caffeine
+      "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
   .dependsOn(core)
@@ -358,7 +355,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
-    scalaVersion := "2.13.6",
+    scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -397,11 +394,13 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val colCompat = "2.5.0"
+  val scala212 = "2.12.15"
+  val scala213 = "2.13.8"
 
-  val spark = "3.2.0"
+  val colCompat = "2.1.1" // Same version with Spark
+  val spark = "3.3.0"
 
-  val joda = "2.10.10"
+  val threeTenExtra = "1.7.0"
 
   val protobufJava = "2.6.1"
 
@@ -412,33 +411,34 @@ lazy val versions = new {
 
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
+
+  val akka = "2.6.19"
   val rocksdb = "6.25.3"
   val lmdb = "0.8.2"
-  val akka = "2.5.32"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
-  val ehcache = "3.3.2"
-  val caffeine = "2.8.6"
+  val ehcache = "3.9.7"
+  val caffeine = "2.9.3"
 
   val json4s = "3.7.0-M11" // Same version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
-  val logback = "1.2.6"
+  val logback = "1.2.11"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.2.24"
+  val postgresqlJdbc = "42.3.3"
 
   val scalaTest = "3.2.10"
-  val scalaCheck = "1.15.4"
+  val scalaCheck = "1.16.0"
   val scalaTestCheck = "3.2.10.0"
-  val scalaMock = "5.1.0"
+  val scalaMock = "5.2.0"
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.6",
-  crossScalaVersions := Seq("2.12.15", "2.13.6"),
+  scalaVersion := versions.scala213,
+  crossScalaVersions := Seq(versions.scala212, versions.scala213),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
@@ -451,7 +451,7 @@ val commonSettings = Seq(
     "-Ywarn-dead-code"
   ) ++ {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info")
+      case Some((2,13)) => Seq("-Wconf:cat=unused:info", "-Wconf:msg=Top-level:s")
       case _ => Seq.empty
     }
   },

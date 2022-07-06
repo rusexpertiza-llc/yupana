@@ -16,22 +16,22 @@
 
 package org.yupana.benchmarks
 
-import org.joda.time.LocalDateTime
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB }
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, SimpleTsdbConfig, TSDB }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry }
+import java.time.LocalDateTime
 
 abstract class TsdbBaseBenchmarkStateBase {
   def query: Query
   def daoExprs: Seq[Expression[_]]
 
-  lazy val queryContext: QueryContext = QueryContext(query, None)
+  lazy val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
   private def rowBuilder = new InternalRowBuilder(queryContext)
 
-  val qtime = new LocalDateTime(2021, 5, 24, 22, 40, 0)
+  val qtime = LocalDateTime.of(2021, 5, 24, 22, 40, 0)
 
   private val EXPR_CALC: Map[Expression[_], Int => Any] = Map(
     TimeExpr -> (i => Time(qtime.minusHours(i % 100))),

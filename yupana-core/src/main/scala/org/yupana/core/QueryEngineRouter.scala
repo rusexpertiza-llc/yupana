@@ -56,7 +56,7 @@ class QueryEngineRouter(
         Right(QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
 
       case ShowUpdatesIntervals(condition) =>
-        Right(UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition))
+        UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
     }
   }
 

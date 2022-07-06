@@ -173,7 +173,9 @@ class RussianTokenizerTest extends AnyFlatSpec with Matchers with TableDrivenPro
       "15,9г"
     )
 
-    RussianTokenizer.stemmedTokens("\"АКЦИЯ! Сухарики \"\"ХруcТим багет\"\" 60г\"") should contain theSameElementsAs List(
+    RussianTokenizer.stemmedTokens(
+      "\"АКЦИЯ! Сухарики \"\"ХруcТим багет\"\" 60г\""
+    ) should contain theSameElementsAs List(
       "акц",
       "сухарик",
       "хруcт",

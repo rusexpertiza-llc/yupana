@@ -17,10 +17,14 @@
 package org.yupana.core.sql.parser
 
 import fastparse._
-import org.joda.time.{ DateTime, DateTimeZone, Period }
 import NoWhitespace._
+import org.threeten.extra.PeriodDuration
+
+import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 object ValueParser {
+  private val PLACEHOLDER_ID = "PLACEHOLDER_ID"
+
   private def wsp[_: P] = P(CharsWhileIn(" \t", 0))
 
   private def timestampWord[_: P] = P(IgnoreCase("TIMESTAMP"))
@@ -29,7 +33,17 @@ object ValueParser {
 
   private def toWord[_: P] = P(IgnoreCase("TO"))
 
-  def placeholder[_: P]: P[Placeholder.type] = P("?").map(_ => Placeholder)
+  def placeholder[_: P]: P[Placeholder] = {
+    val p = P("?")
+    val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
+
+    if (p.isSuccess) {
+      p.misc.put(PLACEHOLDER_ID, idx + 1)
+      p.freshSuccess(Placeholder(idx))
+    } else {
+      p.freshFailure()
+    }
+  }
 
   private def digit[_: P] = P(CharIn("0-9").!)
 
@@ -65,20 +79,21 @@ object ValueParser {
   def time[_: P]: P[(Int, Int, Int, Int)] =
     P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
 
-  def dateAndTime[_: P]: P[DateTime] = P(date ~/ (" " ~ time).?).map {
-    case (y, m, d, None)                  => new DateTime(y, m, d, 0, 0, 0, 0, DateTimeZone.UTC)
-    case (y, m, d, Some((h, mm, ss, ms))) => new DateTime(y, m, d, h, mm, ss, ms, DateTimeZone.UTC)
+  def dateAndTime[_: P]: P[OffsetDateTime] = P(date ~/ (" " ~ time).?).map {
+    case (y, m, d, None)                  => OffsetDateTime.of(y, m, d, 0, 0, 0, 0, ZoneOffset.UTC)
+    case (y, m, d, Some((h, mm, ss, ms))) => OffsetDateTime.of(y, m, d, h, mm, ss, ms, ZoneOffset.UTC)
   }
 
-  def duration[_: P]: P[Period] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
+  def duration[_: P]: P[PeriodDuration] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
     case (d, (h, m, s, ms)) =>
-      new Period(0, 0, 0, d.getOrElse(0), h, m, s, ms)
+      PeriodDuration
+        .of(Period.of(0, 0, d.getOrElse(0)), Duration.ofHours(h).plusMinutes(m).plusSeconds(s).plusMillis(ms))
   }
 
-  private def pgTimestamp[_: P]: P[DateTime] = {
+  private def pgTimestamp[_: P]: P[OffsetDateTime] = {
     P(timestampWord ~/ wsp ~ "'" ~ dateAndTime ~ "'")
   }
-  private def msTimestamp[_: P]: P[DateTime] = {
+  private def msTimestamp[_: P]: P[OffsetDateTime] = {
     P("{" ~ wsp ~ tsWord ~/ wsp ~ "'" ~ dateAndTime ~ "'" ~ wsp ~ "}")
   }
 
@@ -91,18 +106,18 @@ object ValueParser {
       "SECOND",
       () =>
         (intNumber ~ ("." ~ millis).?).map {
-          case (s, ms) => Period.seconds(s).plusMillis(ms.getOrElse(0))
+          case (s, ms) => PeriodDuration.of(Duration.ofSeconds(s).plusMillis(ms.getOrElse(0).toLong))
         },
       () => P("")
     ),
-    IntervalPart("MINUTE", () => intNumber.map(Period.minutes), () => P(":")),
-    IntervalPart("HOUR", () => intNumber.map(Period.hours), () => P(":")),
-    IntervalPart("DAY", () => intNumber.map(Period.days), () => P(" ")),
-    IntervalPart("MONTH", () => intNumber.map(Period.months), () => P("-")),
-    IntervalPart("YEAR", () => intNumber.map(Period.years), () => P("-"))
+    IntervalPart("MINUTE", () => intNumber.map(m => PeriodDuration.of(Duration.ofMinutes(m))), () => P(":")),
+    IntervalPart("HOUR", () => intNumber.map(h => PeriodDuration.of(Duration.ofHours(h))), () => P(":")),
+    IntervalPart("DAY", () => intNumber.map(d => PeriodDuration.of(Period.ofDays(d))), () => P(" ")),
+    IntervalPart("MONTH", () => intNumber.map(m => PeriodDuration.of(Period.ofMonths(m))), () => P("-")),
+    IntervalPart("YEAR", () => intNumber.map(y => PeriodDuration.of(Period.ofYears(y))), () => P("-"))
   )
 
-  def singleFieldDuration[_: P]: P[Period] = {
+  def singleFieldDuration[_: P]: P[PeriodDuration] = {
     val variants = INTERVAL_PARTS.tails.flatMap(_.inits).toList
 
     val parsers = variants.flatMap {
@@ -130,5 +145,5 @@ object ValueParser {
 
   def value[_: P]: P[Value] = P(numericValue | timestampValue | periodValue | stringValue | placeholder)
 
-  case class IntervalPart(name: String, parser: () => P[Period], separator: () => P[Unit])
+  case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])
 }

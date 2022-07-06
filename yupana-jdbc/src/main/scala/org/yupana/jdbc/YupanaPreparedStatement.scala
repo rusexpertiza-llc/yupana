@@ -185,7 +185,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setDate(parameterIndex: Int, x: Date): Unit = {
-    throw new SQLFeatureNotSupportedException("Dates are not supported")
+    setParameter(parameterIndex, TimestampValue(x.getTime))
   }
 
   @throws[SQLException]

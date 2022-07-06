@@ -1,12 +1,13 @@
 package org.yupana.core.model
 
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
-import org.joda.time.{ DateTimeZone, LocalDateTime }
+
 import org.yupana.api.Time
 import org.yupana.api.query.{ Query, TimeExpr }
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TestDims, TestSchema, TestTableFields }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import java.time.{ LocalDateTime, ZoneOffset }
 import org.yupana.core.utils.metric.NoMetricCollector
 
 class KeyDataTest extends AnyFlatSpec with Matchers {
@@ -14,7 +15,7 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
   import org.yupana.api.query.syntax.All._
 
   "KeyData" should "preserve hash after serialization" in {
-    val qtime = new LocalDateTime(2019, 10, 12, 13, 47).toDateTime(DateTimeZone.UTC)
+    val qtime = LocalDateTime.of(2019, 10, 12, 13, 47).atOffset(ZoneOffset.UTC)
 
     val query = Query(
       TestSchema.testTable,
@@ -28,7 +29,7 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.DIM_A))
     )
-    val context = QueryContext(query, None, NoMetricCollector)
+    val context = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
 
     val builder = new InternalRowBuilder(context)
 
@@ -46,7 +47,7 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
   }
 
   it should "support equals for serialized and not serialized instances" in {
-    val qtime = new LocalDateTime(2019, 10, 12, 13, 47).toDateTime(DateTimeZone.UTC)
+    val qtime = LocalDateTime.of(2019, 10, 12, 13, 47).atOffset(ZoneOffset.UTC)
 
     val query = Query(
       TestSchema.testTable,
@@ -61,7 +62,7 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
-    val context = QueryContext(query, None, NoMetricCollector)
+    val context = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
 
     val builder = new InternalRowBuilder(context)
 

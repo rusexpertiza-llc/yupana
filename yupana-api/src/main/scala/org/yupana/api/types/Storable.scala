@@ -16,12 +16,11 @@
 
 package org.yupana.api.types
 
+import org.threeten.extra.PeriodDuration
+
 import java.math.{ BigInteger, BigDecimal => JavaBigDecimal }
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
-
-import org.joda.time.Period
-import org.joda.time.format.{ ISOPeriodFormat, PeriodFormatter }
 import org.yupana.api.{ Blob, Time }
 
 import scala.annotation.implicitNotFound
@@ -58,8 +57,6 @@ trait Storable[T] extends Serializable {
 }
 
 object Storable {
-  private val periodFormat: PeriodFormatter = ISOPeriodFormat.standard()
-
   implicit val booleanStorable: Storable[Boolean] = of(_.get() != 0, x => Array[Byte](if (x) 1 else 0))
   implicit val doubleStorable: Storable[Double] = of(_.getDouble, d => ByteBuffer.allocate(8).putDouble(d).array())
   implicit val bigDecimalStorable: Storable[BigDecimal] = of(readBigDecimal, bigDecimalToBytes)
@@ -69,8 +66,8 @@ object Storable {
   implicit val longStorable: Storable[Long] = of(readVLong, vLongToBytes)
   implicit val stringStorable: Storable[String] = of(readString, stringToBytes)
   implicit val timestampStorable: Storable[Time] = wrap(longStorable, (l: Long) => new Time(l), _.millis)
-  implicit val periodStorable: Storable[Period] =
-    wrap(stringStorable, (s: String) => ISOPeriodFormat.standard().parsePeriod(s), p => periodFormat.print(p))
+  implicit val periodStorable: Storable[PeriodDuration] =
+    wrap(stringStorable, PeriodDuration.parse, _.toString)
 
   implicit val blobStorable: Storable[Blob] = of(readBlob, blobToBytes)
 
@@ -142,7 +139,7 @@ object Storable {
       0 until (len - 1) foreach { _ =>
         val b = bb.get()
         result <<= 8
-        result |= (b & 0xff)
+        result |= (b & 0xFF)
       }
 
       if (first >= -120) result else result ^ -1L

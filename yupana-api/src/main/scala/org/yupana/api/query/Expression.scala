@@ -16,7 +16,7 @@
 
 package org.yupana.api.query
 
-import org.joda.time.Period
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
@@ -102,7 +102,8 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override val dataType: DataType.Aux[I] = expr.dataType
 }
 
-final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.Aux[T]) extends Expression[T] {
+final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit override val dataType: DataType.Aux[T])
+    extends Expression[T] {
   override def encode: String = {
     if (dataType.kind == TypeKind.Array) {
       val adt = dataType.asInstanceOf[ArrayDataType[T]]
@@ -178,7 +179,7 @@ sealed abstract class UnaryOperationExpr[In, Out](expr: Expression[In], function
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
 
-  override def encode: String = s"$functionName($expr)"
+  override def encode: String = s"$functionName(${expr.encode})"
   override def toString: String = s"$functionName($expr)"
 }
 
@@ -298,7 +299,8 @@ final case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
 
-  override def encode: String = s"${tc.functionName}($expr)"
+  override def encode: String = s"${tc.functionName}(${expr.encode})"
+  override def toString: String = s"${tc.functionName}(${expr})"
 }
 
 sealed abstract class BinaryOperationExpr[T, U, Out](
@@ -387,19 +389,21 @@ final case class TimeMinusExpr(override val a: Expression[Time], override val b:
   override val dataType: DataType.Aux[Long] = DataType[Long]
 }
 
-final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[Period])
-    extends BinaryOperationExpr[Time, Period, Time](a, b, "-", true) {
+final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
+    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "-", true) {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
-final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[Period])
-    extends BinaryOperationExpr[Time, Period, Time](a, b, "+", true) {
+final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
+    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "+", true) {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
-final case class PeriodPlusPeriodExpr(override val a: Expression[Period], override val b: Expression[Period])
-    extends BinaryOperationExpr[Period, Period, Period](a, b, "+", true) {
-  override val dataType: DataType.Aux[Period] = DataType[Period]
+final case class PeriodPlusPeriodExpr(
+    override val a: Expression[PeriodDuration],
+    override val b: Expression[PeriodDuration]
+) extends BinaryOperationExpr[PeriodDuration, PeriodDuration, PeriodDuration](a, b, "+", true) {
+  override val dataType: DataType.Aux[PeriodDuration] = DataType[PeriodDuration]
 }
 
 final case class ConcatExpr(override val a: Expression[String], override val b: Expression[String])
@@ -440,7 +444,8 @@ final case class TupleExpr[T, U](e1: Expression[T], e2: Expression[U])(
     e2.fold(z1)(f)
   }
 
-  override def encode: String = s"($e1, $e2)"
+  override def encode: String = s"(${e1.encode}, ${e2.encode})"
+  override def toString: String = s"($e1, $e2)"
 }
 
 final case class ArrayExpr[T](exprs: Seq[Expression[T]])(implicit val elementDataType: DataType.Aux[T])
@@ -450,7 +455,7 @@ final case class ArrayExpr[T](exprs: Seq[Expression[T]])(implicit val elementDat
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = exprs.foldLeft(f(z, this))((a, e) => e.fold(a)(f))
 
-  override def encode: String = exprs.mkString("[", ", ", "]")
+  override def encode: String = exprs.map(_.encode).mkString("[", ", ", "]")
   override def toString: String = CollectionUtils.mkStringWithLimit(exprs)
 }
 

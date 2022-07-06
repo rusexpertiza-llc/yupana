@@ -16,14 +16,21 @@
 
 package org.yupana.core.model
 
-import org.joda.time.DateTime
-import org.joda.time.Interval
+import org.threeten.extra.Interval
 
-case class UpdateInterval(table: String, from: DateTime, to: DateTime, updatedAt: DateTime, updatedBy: String) {
+import java.time.OffsetDateTime
 
-  lazy val interval: Interval = new Interval(from, to)
+case class UpdateInterval(
+    table: String,
+    from: OffsetDateTime,
+    to: OffsetDateTime,
+    updatedAt: OffsetDateTime,
+    updatedBy: String
+) {
 
-  def whatUpdated: (String, DateTime, DateTime) = (table, from, to)
+  lazy val interval: Interval = Interval.of(from.toInstant, to.toInstant)
+
+  def whatUpdated: (String, OffsetDateTime, OffsetDateTime) = (table, from, to)
 }
 
 object UpdateInterval {

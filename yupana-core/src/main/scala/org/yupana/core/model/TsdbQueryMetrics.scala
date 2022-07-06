@@ -16,13 +16,14 @@
 
 package org.yupana.core.model
 
-import org.joda.time.DateTime
 import org.yupana.core.model.QueryStates.QueryState
+
+import java.time.OffsetDateTime
 
 case class TsdbQueryMetrics(
     queryId: String,
     partitionId: Option[String],
-    startDate: DateTime,
+    startDate: OffsetDateTime,
     totalDuration: Long = 0L,
     query: String,
     state: QueryState,
@@ -35,6 +36,7 @@ object TsdbQueryMetrics {
   val createDimensionFiltersQualifier = "create_dimensions_filters"
   val createScansQualifier = "create_scans"
   val scanQualifier = "scan"
+  val createContextQualifier = "create_context"
   val loadTagsQualifier = "load_tags"
   val filterRowsQualifier = "filter_rows"
   val filterQualifier = "filer"

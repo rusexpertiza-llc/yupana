@@ -16,7 +16,6 @@
 
 package org.yupana.core.sql
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -27,7 +26,9 @@ import org.yupana.core.ConstantCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
-class SqlQueryProcessor(schema: Schema) extends QueryValidator {
+import java.time.{ LocalDateTime, ZoneOffset }
+
+class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable {
 
   import SqlQueryProcessor._
 
@@ -357,30 +358,31 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
   private def convertValue(
       state: BuilderState,
       v: parser.Value,
-      exprType: ExprType
+      exprType: ExprType,
+      prepared: Boolean = false
   ): Either[String, ConstantExpr[_]] = {
     v match {
       case parser.StringValue(s) =>
         val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
-        Right(ConstantExpr(const))
+        Right(ConstantExpr(const, prepared))
 
       case parser.NumericValue(n) =>
-        Right(ConstantExpr(n))
+        Right(ConstantExpr(n, prepared))
 
       case parser.TimestampValue(t) =>
-        Right(ConstantExpr(Time(t)))
+        Right(ConstantExpr(Time(t), prepared))
 
       case parser.PeriodValue(p) if exprType == ExprType.Cmp =>
-        if (p.getYears == 0 && p.getMonths == 0) {
-          Right(ConstantExpr(p.toStandardDuration.getMillis))
+        if (p.getPeriod.getYears == 0 && p.getPeriod.getMonths == 0) {
+          Right(ConstantExpr(p.getDuration.plusDays(p.getPeriod.getDays).toMillis, prepared))
         } else {
           Left(s"Period $p cannot be used as duration, because it has months or years")
         }
 
-      case parser.PeriodValue(p) => Right(ConstantExpr(p))
+      case parser.PeriodValue(p) => Right(ConstantExpr(p, prepared))
 
-      case parser.Placeholder =>
-        state.nextPlaceholderValue().flatMap(v => convertValue(state, v, exprType))
+      case parser.Placeholder(id) =>
+        state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))
     }
   }
 
@@ -445,7 +447,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
     if (lowerName == TIME_FIELD) {
       Right(TimeExpr)
     } else {
-      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(table, name) toRight s"Unknown field $name"
+      getMetricExpr(table, lowerName) orElse getDimExpr(table, lowerName) orElse getLinkExpr(
+        table,
+        name
+      ) toRight s"Unknown field $name"
     }
   }
 
@@ -551,9 +556,8 @@ object SqlQueryProcessor {
 
   class BuilderState(parameters: Map[Int, parser.Value]) {
     private var fieldNames = Map.empty[String, Int]
-    private var nextPlaceholder = 1
 
-    val queryStartTime: LocalDateTime = new LocalDateTime(DateTimeZone.UTC)
+    val queryStartTime: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
 
     def fieldName(field: parser.SqlField): String = {
       val name = field.alias orElse field.expr.proposedName getOrElse "field"
@@ -568,10 +572,8 @@ object SqlQueryProcessor {
       }
     }
 
-    def nextPlaceholderValue(): Either[String, parser.Value] = {
-      val result = parameters.get(nextPlaceholder).toRight(s"Value for placeholder #$nextPlaceholder is not defined")
-      nextPlaceholder += 1
-      result
+    def placeholderValue(id: Int): Either[String, parser.Value] = {
+      parameters.get(id).toRight(s"Value for placeholder #$id is not defined")
     }
   }
 }

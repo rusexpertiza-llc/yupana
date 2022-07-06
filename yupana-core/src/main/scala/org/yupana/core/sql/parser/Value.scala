@@ -16,13 +16,15 @@
 
 package org.yupana.core.sql.parser
 
-import org.joda.time.{ DateTime, DateTimeZone, Period }
+import org.threeten.extra.PeriodDuration
+
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 
 sealed trait Value {
   def asString: String
 }
 
-case object Placeholder extends Value {
+case class Placeholder(id: Int) extends Value {
   override def asString: String = throw new IllegalStateException("asString called on Placeholder")
 }
 
@@ -34,14 +36,15 @@ case class StringValue(value: String) extends Value {
   override def asString: String = value
 }
 
-case class TimestampValue(value: DateTime) extends Value {
+case class TimestampValue(value: OffsetDateTime) extends Value {
   override def asString: String = value.toString
 }
 
 object TimestampValue {
-  def apply(millis: Long): TimestampValue = new TimestampValue(new DateTime(millis, DateTimeZone.UTC))
+  def apply(millis: Long): TimestampValue =
+    new TimestampValue(OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC))
 }
 
-case class PeriodValue(value: Period) extends Value {
+case class PeriodValue(value: PeriodDuration) extends Value {
   override def asString: String = value.toString
 }

@@ -22,13 +22,13 @@ import java.nio.charset.{ Charset, StandardCharsets }
 import java.sql.{ Array => SqlArray, _ }
 import java.util
 import java.util.Calendar
-import org.joda.time.DateTimeZone
 import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
+import org.yupana.jdbc.compat.LazyList
 
-import scala.collection.compat.immutable.LazyList
+import java.time.ZonedDateTime
 
 class YupanaResultSet protected[jdbc] (
     statement: Statement,
@@ -41,7 +41,7 @@ class YupanaResultSet protected[jdbc] (
   private val dataTypes = result.dataTypes.toArray
 
   private var currentIdx = -1
-  private var it = result.iterator
+  private var it: Iterator[DataRow] = result
   private var currentRow: DataRow = _
 
   private var wasNullValue = false
@@ -144,7 +144,7 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (row < currentIdx + 1) onlyForwardException()
-    it = result.iterator.drop(row - currentIdx - 2)
+    it = result.drop(row - currentIdx - 2)
     currentRow = it.next()
     currentIdx = row - 1
     true
@@ -155,7 +155,7 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (rows < 0) onlyForwardException()
-    it = result.iterator.drop(rows - 1)
+    it = result.drop(rows - 1)
     currentRow = it.next()
     currentIdx = currentIdx + rows
     true
@@ -275,18 +275,31 @@ class YupanaResultSet protected[jdbc] (
 
   private def toBigDecimal(a: Any): BigDecimal = a.asInstanceOf[scala.math.BigDecimal].underlying()
 
-  private def toLocalMillis(a: Any): Long = {
+  private def toSQLDate(a: Any): Date = {
     a match {
-      case t: ApiTime => DateTimeZone.getDefault.convertLocalToUTC(t.millis, false)
-      case x          => throw new SQLException(s"Cannot cast $x to Time")
+      case t: ApiTime => new Date(t.millis)
+      case x          => throw new SQLException(s"Cannot cast $x to java.sql.Date")
     }
   }
 
-  private def toCalendarMillis(a: Any, c: Calendar): Long = {
+  private def toSQLTime(a: Any): Time = {
     a match {
-      case t: ApiTime =>
-        DateTimeZone.forTimeZone(c.getTimeZone).convertLocalToUTC(t.millis, false)
-      case x => throw new SQLException(s"Cannot cast $x to Time")
+      case t: ApiTime => new Time(t.millis)
+      case x          => throw new SQLException(s"Cannot cast $x to java.sql.Time")
+    }
+  }
+
+  private def toSQLTimestamp(a: Any): Timestamp = {
+    a match {
+      case t: ApiTime => new Timestamp(t.millis)
+      case x          => throw new SQLException(s"Cannot cast $x to java.sql.Timestamp")
+    }
+  }
+
+  private def toZonedDateTime(a: Any, c: Calendar): ZonedDateTime = {
+    a match {
+      case t: ApiTime => t.toLocalDateTime.atZone(c.getTimeZone.toZoneId)
+      case x          => throw new SQLException(s"Cannot cast $x to Time")
     }
   }
 
@@ -331,13 +344,13 @@ class YupanaResultSet protected[jdbc] (
   override def getBytes(s: String): Array[Byte] = getReferenceByName(s, toBytes)
 
   @throws[SQLException]
-  override def getDate(i: Int): Date = getReference(i, a => new Date(toLocalMillis(a)))
+  override def getDate(i: Int): Date = getReference(i, a => toSQLDate(a))
 
   @throws[SQLException]
-  override def getTime(i: Int): Time = getReference(i, a => new Time(toLocalMillis(a)))
+  override def getTime(i: Int): Time = getReference(i, a => toSQLTime(a))
 
   @throws[SQLException]
-  override def getTimestamp(i: Int): Timestamp = getReference(i, a => new Timestamp(toLocalMillis(a)))
+  override def getTimestamp(i: Int): Timestamp = getReference(i, a => toSQLTimestamp(a))
 
   private def toTextStream(s: String, charset: Charset): InputStream = {
     if (s != null) {
@@ -404,13 +417,13 @@ class YupanaResultSet protected[jdbc] (
     getReferenceByName(s, x => toBigDecimal(x).setScale(scale))
 
   @throws[SQLException]
-  override def getDate(s: String): Date = getReferenceByName(s, a => new Date(toLocalMillis(a)))
+  override def getDate(s: String): Date = getReferenceByName(s, a => toSQLDate(a))
 
   @throws[SQLException]
-  override def getTime(s: String): Time = getReferenceByName(s, a => new Time(toLocalMillis(a)))
+  override def getTime(s: String): Time = getReferenceByName(s, a => toSQLTime(a))
 
   @throws[SQLException]
-  override def getTimestamp(s: String): Timestamp = getReferenceByName(s, a => new Timestamp(toLocalMillis(a)))
+  override def getTimestamp(s: String): Timestamp = getReferenceByName(s, a => toSQLTimestamp(a))
 
   @throws[SQLException]
   override def getObject(i: Int): AnyRef = getReference(i)
@@ -513,28 +526,28 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def getDate(columnIndex: Int, cal: Calendar): Date =
-    getReference(columnIndex, a => new Date(toCalendarMillis(a, cal)))
+    getReference(columnIndex, a => Date.valueOf(toZonedDateTime(a, cal).toLocalDate))
 
   @throws[SQLException]
   override def getDate(columnName: String, cal: Calendar): Date =
-    getReferenceByName(columnName, a => new Date(toCalendarMillis(a, cal)))
+    getReferenceByName(columnName, a => Date.valueOf(toZonedDateTime(a, cal).toLocalDate))
 
   @throws[SQLException]
   override def getTime(columnIndex: Int, cal: Calendar): Time =
-    getReference(columnIndex, a => new Time(toCalendarMillis(a, cal)))
+    getReference(columnIndex, a => Time.valueOf(toZonedDateTime(a, cal).toLocalTime))
 
   @throws[SQLException]
   override def getTime(columnName: String, cal: Calendar): Time =
-    getReferenceByName(columnName, a => new Time(toCalendarMillis(a, cal)))
+    getReferenceByName(columnName, a => Time.valueOf(toZonedDateTime(a, cal).toLocalTime))
 
   @throws[SQLException]
   override def getTimestamp(columnIndex: Int, cal: Calendar): Timestamp = {
-    getReference(columnIndex, a => new Timestamp(toCalendarMillis(a, cal)))
+    getReference(columnIndex, a => new Timestamp(toZonedDateTime(a, cal).toInstant.toEpochMilli))
   }
 
   @throws[SQLException]
   override def getTimestamp(columnName: String, cal: Calendar): Timestamp =
-    getReferenceByName(columnName, a => new Timestamp(toCalendarMillis(a, cal)))
+    getReferenceByName(columnName, a => new Timestamp(toZonedDateTime(a, cal).toInstant.toEpochMilli))
 
   @throws[SQLException]
   override def getURL(i: Int) = throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.getURL(int)")

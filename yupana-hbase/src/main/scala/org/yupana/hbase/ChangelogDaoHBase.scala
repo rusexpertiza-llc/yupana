@@ -22,13 +22,13 @@ import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.joda.time.DateTime
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.model.UpdateInterval._
 import org.yupana.hbase.ChangelogDaoHBase._
 
+import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 import scala.jdk.CollectionConverters._
 
 object ChangelogDaoHBase {
@@ -46,14 +46,15 @@ object ChangelogDaoHBase {
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
 
   def createChangelogPut(updateInterval: UpdateInterval): Put = {
-    val rowKey = Bytes.toBytes(updateInterval.table) ++
-      Bytes.toBytes(updateInterval.from.getMillis) ++
-      Bytes.toBytes(updateInterval.to.getMillis)
+    val fromBytes = Bytes.toBytes(updateInterval.from.toInstant.toEpochMilli)
+    val toBytes = Bytes.toBytes(updateInterval.to.toInstant.toEpochMilli)
+    val rowKey = Bytes.toBytes(updateInterval.table) ++ fromBytes ++ toBytes
+
     val put = new Put(rowKey)
-    put.addColumn(FAMILY, FROM_QUALIFIER, Bytes.toBytes(updateInterval.from.getMillis))
-    put.addColumn(FAMILY, TO_QUALIFIER, Bytes.toBytes(updateInterval.to.getMillis))
+    put.addColumn(FAMILY, FROM_QUALIFIER, fromBytes)
+    put.addColumn(FAMILY, TO_QUALIFIER, toBytes)
     put.addColumn(FAMILY, TABLE_QUALIFIER, Bytes.toBytes(updateInterval.table))
-    put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updateInterval.updatedAt.getMillis))
+    put.addColumn(FAMILY, UPDATED_AT_QUALIFIER, Bytes.toBytes(updateInterval.updatedAt.toInstant.toEpochMilli))
     put.addColumn(FAMILY, UPDATED_BY_QUALIFIER, updateInterval.updatedBy.getBytes(StandardCharsets.UTF_8))
     put
   }
@@ -68,61 +69,97 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
     }
   }
 
+  private def buildFilterList(
+      tableName: Option[String],
+      updatedAfter: Option[Long],
+      updatedBefore: Option[Long],
+      recalculatedAfter: Option[Long],
+      recalculatedBefore: Option[Long],
+      updatedBy: Option[String]
+  ): FilterList = {
+    val filterList = new FilterList()
+
+    tableName.foreach(t =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          TABLE_QUALIFIER,
+          CompareOperator.EQUAL,
+          Bytes.toBytes(t)
+        )
+      )
+    )
+
+    updatedAfter.foreach(ua =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          UPDATED_AT_QUALIFIER,
+          CompareOperator.GREATER_OR_EQUAL,
+          Bytes.toBytes(ua)
+        )
+      )
+    )
+
+    updatedBefore.foreach(ub =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          UPDATED_AT_QUALIFIER,
+          CompareOperator.LESS_OR_EQUAL,
+          Bytes.toBytes(ub)
+        )
+      )
+    )
+
+    recalculatedAfter.foreach(ra =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          FROM_QUALIFIER,
+          CompareOperator.GREATER_OR_EQUAL,
+          Bytes.toBytes(ra)
+        )
+      )
+    )
+
+    recalculatedBefore.foreach(rb =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          TO_QUALIFIER,
+          CompareOperator.LESS_OR_EQUAL,
+          Bytes.toBytes(rb)
+        )
+      )
+    )
+
+    updatedBy.foreach(ub =>
+      filterList.addFilter(
+        new SingleColumnValueFilter(
+          FAMILY,
+          UPDATED_BY_QUALIFIER,
+          CompareOperator.EQUAL,
+          ub.getBytes(StandardCharsets.UTF_8)
+        )
+      )
+    )
+    filterList
+  }
+
   override def getUpdatesIntervals(
       tableName: Option[String],
       updatedAfter: Option[Long],
       updatedBefore: Option[Long],
+      recalculatedAfter: Option[Long],
+      recalculatedBefore: Option[Long],
       updatedBy: Option[String]
   ): Iterable[UpdateInterval] =
     withTables {
       val updatesIntervals = using(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
-        val filterList = new FilterList()
-
-        tableName.foreach(t =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              TABLE_QUALIFIER,
-              CompareOperator.EQUAL,
-              Bytes.toBytes(t)
-            )
-          )
-        )
-
-        updatedAfter.foreach(ua =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              UPDATED_AT_QUALIFIER,
-              CompareOperator.GREATER_OR_EQUAL,
-              Bytes.toBytes(ua)
-            )
-          )
-        )
-
-        updatedBefore.foreach(ub =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              UPDATED_AT_QUALIFIER,
-              CompareOperator.LESS_OR_EQUAL,
-              Bytes.toBytes(ub)
-            )
-          )
-        )
-
-        updatedBy.foreach(ub =>
-          filterList.addFilter(
-            new SingleColumnValueFilter(
-              FAMILY,
-              UPDATED_BY_QUALIFIER,
-              CompareOperator.EQUAL,
-              ub.getBytes(StandardCharsets.UTF_8)
-            )
-          )
-        )
-
+        val filterList =
+          buildFilterList(tableName, updatedAfter, updatedBefore, recalculatedAfter, recalculatedBefore, updatedBy)
         scan.setFilter(filterList)
         table.getScanner(scan).asScala.map(toUpdateInterval)
       }
@@ -134,9 +171,18 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
     val by = if (byBytes != null) new String(byBytes, StandardCharsets.UTF_8) else ChangelogDaoHBase.UPDATER_UNKNOWN
     UpdateInterval(
       table = new String(result.getValue(FAMILY, TABLE_QUALIFIER), StandardCharsets.UTF_8),
-      from = new DateTime(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
-      to = new DateTime(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
-      updatedAt = new DateTime(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
+      from = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, FROM_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
+      to = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, TO_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
+      updatedAt = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, UPDATED_AT_QUALIFIER))),
+        ZoneOffset.UTC
+      ),
       updatedBy = by
     )
   }

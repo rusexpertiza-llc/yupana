@@ -1,6 +1,5 @@
 package org.yupana.akka
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.scalatest.{ EitherValues, OptionValues }
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
@@ -9,6 +8,8 @@ import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues with EitherValues {
 
@@ -22,7 +23,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
     val res = metadataProvider.listTables
     res.fieldNames should contain theSameElementsAs metadataProvider.tableFieldNames
     res.dataTypes should contain only DataType[String]
-    val r = res.iterator.next()
+    val r = res.next()
     val cols = metadataProvider.tableFieldNames.map(r.get[String])
     cols should contain theSameElementsInOrderAs Seq(
       null,
@@ -36,7 +37,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   it should "describe table by name" in {
     val res = metadataProvider.describeTable("s1").value
     res.fieldNames should contain theSameElementsAs metadataProvider.columnFieldNames
-    val r = res.iterator.toList
+    val r = res.toList
     r should have size 6
 
     val timeColDescription = r.find(_.get[String]("COLUMN_NAME").contains("time")).value
@@ -133,7 +134,7 @@ object TS {
     dimensionSeq = Seq(DictionaryDimension("t1"), DictionaryDimension("t2")),
     metrics = Seq(Metric[Long]("f1", 1), Metric[String]("f2", 2)),
     externalLinks = Seq(new C1),
-    new LocalDateTime(2016, 1, 1, 0, 0).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val schema = Schema(Seq(S1), Seq.empty, ItemFixer.empty, RussianTokenizer, RussianTransliterator)

@@ -25,6 +25,7 @@ import scala.collection.mutable
 class QueryContext(
     val query: Query,
     val postCondition: Option[Condition],
+    calculatorFactory: ExpressionCalculatorFactory,
     val metricCollector: MetricQueryCollector
 ) extends Serializable {
   @transient private var calc: ExpressionCalculator = _
@@ -44,15 +45,9 @@ class QueryContext(
 
   private def init(): Unit = {
     metricCollector.initQueryContext.measure(1) {
-      val (calculator, index) = ExpressionCalculator.makeCalculator(query, postCondition)
+      val (calculator, index) = calculatorFactory.makeCalculator(query, postCondition)
       calc = calculator
       idx = mutable.HashMap(index.toSeq: _*)
     }
-  }
-}
-
-object QueryContext {
-  def apply(query: Query, postCondition: Option[Condition], metricCollector: MetricQueryCollector): QueryContext = {
-    new QueryContext(query, postCondition, metricCollector)
   }
 }

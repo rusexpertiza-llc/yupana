@@ -108,11 +108,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
             logger.trace(s"--- Send request to HBase")
             using(table.getScanner(scan)) {
-              _.iterator().asScala.map { result =>
-                val id = Bytes.toLong(result.getValue(dataFamily, column))
-                val value = Bytes.toString(result.getRow)
-                value -> id
-              }.toSeq
+              _.iterator().asScala
+                .map { result =>
+                  val id = Bytes.toLong(result.getValue(dataFamily, column))
+                  val value = Bytes.toString(result.getRow)
+                  value -> id
+                }
+                .toSeq
             }
           }
           .toMap
@@ -151,7 +153,10 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
           val desc = TableDescriptorBuilder
             .newBuilder(tableName)
             .setColumnFamilies(
-              Seq(ColumnFamilyDescriptorBuilder.of(seqFamily), ColumnFamilyDescriptorBuilder.of(dataFamily)).asJavaCollection
+              Seq(
+                ColumnFamilyDescriptorBuilder.of(seqFamily),
+                ColumnFamilyDescriptorBuilder.of(dataFamily)
+              ).asJavaCollection
             )
             .build()
           connection.getAdmin.createTable(desc)

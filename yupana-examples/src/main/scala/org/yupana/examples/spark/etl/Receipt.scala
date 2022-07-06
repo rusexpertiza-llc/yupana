@@ -16,7 +16,7 @@
 
 package org.yupana.examples.spark.etl
 
-import org.joda.time.LocalDateTime
+import java.time.LocalDateTime
 
 case class Receipt(
     date: LocalDateTime,

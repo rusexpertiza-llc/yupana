@@ -1,10 +1,11 @@
 package org.yupana.api.query
 
-import org.joda.time.{ DateTimeZone, LocalDateTime }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, Metric, RawDimension, Table }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 class QueryTest extends AnyFlatSpec with Matchers {
 
@@ -22,7 +23,7 @@ class QueryTest extends AnyFlatSpec with Matchers {
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C),
     metrics = Seq(FIELD),
     externalLinks = Seq.empty,
-    new LocalDateTime(2020, 4, 6, 15, 16).toDateTime(DateTimeZone.UTC).getMillis
+    LocalDateTime.of(2020, 4, 6, 15, 16).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   "Query" should "have human readable toString implementation" in {

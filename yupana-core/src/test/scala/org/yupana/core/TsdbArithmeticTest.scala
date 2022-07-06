@@ -1,9 +1,6 @@
 package org.yupana.core
 
 import java.util.Properties
-
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.{ DateTime, DateTimeZone, LocalDateTime }
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
@@ -14,6 +11,9 @@ import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.format.DateTimeFormatter
 
 class TsdbArithmeticTest
     extends AnyFlatSpec
@@ -26,23 +26,23 @@ class TsdbArithmeticTest
 
   import org.yupana.api.query.syntax.All._
 
-  private val format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
+  private val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties, "test")
+    CacheFactory.init(properties)
   }
 
   override def beforeEach(): Unit = {
     CacheFactory.flushCaches()
   }
 
-  val from: DateTime = new LocalDateTime(2017, 10, 15, 12, 57).toDateTime(DateTimeZone.UTC)
-  val to: DateTime = from.plusDays(1)
+  val from: OffsetDateTime = OffsetDateTime.of(2017, 10, 15, 12, 57, 0, 0, ZoneOffset.UTC)
+  val to: OffsetDateTime = from.plusDays(1)
 
-  private def timeBounds(from: DateTime = from, to: DateTime = to, and: Boolean = true): String = {
-    s" ${if (and) "AND" else "WHERE"} time >= TIMESTAMP '${from.toString(format)}' AND time < TIMESTAMP '${to.toString(format)}' "
+  private def timeBounds(from: OffsetDateTime = from, to: OffsetDateTime = to, and: Boolean = true): String = {
+    s" ${if (and) "AND" else "WHERE"} time >= TIMESTAMP '${from.format(format)}' AND time < TIMESTAMP '${to.format(format)}' "
   }
 
   "TSDB" should "execute query with arithmetic (no aggregations)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -74,7 +74,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("some_sum") shouldBe 3d
@@ -118,7 +118,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("stf") shouldBe 4d
@@ -185,7 +185,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("totalSum") shouldBe -6d
@@ -200,7 +200,7 @@ class TsdbArithmeticTest
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
-      val pointTime = from.getMillis + 10
+      val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
         .expects(
@@ -225,7 +225,7 @@ class TsdbArithmeticTest
           )
         )
 
-      val rows = tsdb.query(query).iterator
+      val rows = tsdb.query(query)
 
       val r1 = rows.next()
       r1.get[Long]("plus4") shouldBe 4
@@ -257,7 +257,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[Double]("plus2") shouldBe 4d
@@ -271,7 +271,7 @@ class TsdbArithmeticTest
       "HAVING (time - lag_time) >= INTERVAL '10' SECOND"
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
 
     (tsdbDaoMock.query _)
@@ -291,7 +291,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator
+    val rows = tsdb.query(query)
 
     val r1 = rows.next()
     r1.get[String]("A") shouldBe "0000270761025003"
@@ -308,7 +308,7 @@ class TsdbArithmeticTest
       "HAVING ((operator + lag_operator) <> 'MayorovaBlatov')"
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
     val pointTime3 = pointTime + 10 * 2000
 
@@ -336,7 +336,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
     rows should have size 1
     val row = rows.head
     row.get[String]("operator") shouldBe "Blatov"
@@ -348,7 +348,7 @@ class TsdbArithmeticTest
       "FROM test_table " + timeBounds(and = false) + " HAVING lag(testField) IS NOT NULL "
     val query = createQuery(sql)
 
-    val pointTime = from.getMillis + 10
+    val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
 
     (tsdbDaoMock.query _)
@@ -368,7 +368,7 @@ class TsdbArithmeticTest
         )
       )
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
 
     val r1 = rows.head
     r1.get[Double]("testField") shouldBe 5d
@@ -407,7 +407,7 @@ class TsdbArithmeticTest
       .expects(*, *, *)
       .onCall((idx, rs, _) => rs.foreach(r => r.set(idx, doubleLinkExpr, 15.23)))
 
-    val rows = tsdb.query(query).iterator.toList
+    val rows = tsdb.query(query).toList
 
     val r1 = rows.head
     r1.get[Double]("plus5") shouldBe 20.23

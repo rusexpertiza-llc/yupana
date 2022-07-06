@@ -52,6 +52,8 @@ trait TsdbBase extends StrictLogging {
 
   def schema: Schema
 
+  def calculatorFactory: ExpressionCalculatorFactory
+
   private lazy val constantCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
   /** Batch size for reading values from external links */
@@ -121,7 +123,8 @@ trait TsdbBase extends StrictLogging {
 
     logger.debug(s"Final condition: $condition")
 
-    val queryContext = QueryContext(optimizedQuery, condition, metricCollector)
+    val queryContext =
+      metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, condition, calculatorFactory, metricCollector ))
 
     val rows = queryContext.query.table match {
       case Some(table) =>
@@ -160,33 +163,30 @@ trait TsdbBase extends StrictLogging {
     val processedDataPoints = new AtomicInteger(0)
     val resultRows = new AtomicInteger(0)
 
-    val isWindowFunctionPresent = queryContext.query.fields.exists(_.expr.kind == Window)
+    val hasWindowFunctions = queryContext.query.fields.exists(_.expr.kind == Window)
+    val hasAggregates = queryContext.query.fields.exists(_.expr.kind == Aggregate)
     val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
-
+      val batchSize = batch.size
       val c = processedRows.incrementAndGet()
       if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
-      val withExtLinks = metricCollector.readExternalLinks.measure(1) {
+      val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
         readExternalLinks(queryContext, batch)
       }
 
-      val filtered = metricCollector.filter.measure(1) {
-        queryContext.postCondition match {
+      metricCollector.extractDataComputation.measure(batchSize) {
+        val it = withExtLinks.iterator
+        val filtered = queryContext.postCondition match {
           case Some(_) =>
-            withExtLinks.filter(row => queryContext.calculator.evaluateFilter(schema.tokenizer, row))
-          case None => withExtLinks
+            it.filter(row => queryContext.calculator.evaluateFilter(schema.tokenizer, row))
+          case None => it
         }
-      }
 
-      val withExprValues = metricCollector.evaluateExpressions.measure(1) {
-        filtered.map(row => queryContext.calculator.evaluateExpressions(schema.tokenizer, row))
-      }
+        val withExprValues = filtered.map(row => queryContext.calculator.evaluateExpressions(schema.tokenizer, row))
 
-      metricCollector.extractKeyData.measure(1) {
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
-      }
     }
 
-    val keysAndValuesWinFunc = if (isWindowFunctionPresent) {
+    val keysAndValuesWinFunc = if (hasWindowFunctions) {
       metricCollector.windowFunctions.measure(1) {
         applyWindowFunctions(queryContext, keysAndValues)
       }
@@ -194,7 +194,7 @@ trait TsdbBase extends StrictLogging {
       keysAndValues
     }
 
-    val reduced = if (queryContext.query.groupBy.nonEmpty && !isWindowFunctionPresent) {
+    val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
       val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
         metricCollector.reduceOperation.measure(1) {
           val mapped = batch.iterator.map {
@@ -226,19 +226,16 @@ trait TsdbBase extends StrictLogging {
       mr.map(keysAndValuesWinFunc)(_._2)
     }
 
-    val calculated = mr.batchFlatMap(reduced, extractBatchSize) { batch =>
-      metricCollector.reduceOperation.measure(1) {
-        batch.map { row =>
-          queryContext.calculator.evaluatePostAggregateExprs(schema.tokenizer, row)
-        }
-      }
+    val calculated = mr.map(reduced) { row =>
+      queryContext.calculator.evaluatePostAggregateExprs(schema.tokenizer, row)
     }
 
     val postFiltered = queryContext.query.postFilter match {
       case Some(_) =>
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
-          metricCollector.postFilter.measure(1) {
-            batch.filter(row => queryContext.calculator.evaluatePostFilter(schema.tokenizer, row))
+          metricCollector.postFilter.measure(batch.size) {
+            val it = batch.iterator
+            it.filter(row => queryContext.calculator.evaluatePostFilter(schema.tokenizer, row))
           }
         }
       case None => calculated

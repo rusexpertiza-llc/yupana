@@ -16,16 +16,16 @@
 
 package org.yupana.benchmarks
 
-import org.joda.time.DateTime
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
-import org.yupana.core.QueryContext
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
+import java.time.{ OffsetDateTime, ZoneOffset }
 
 object BenchLink extends ExternalLink {
 
@@ -88,8 +88,8 @@ class ExternalLinkBenchmarkState {
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
   val table = new SchemaTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
   val linkExpr: LinkExpr[String] = LinkExpr(BenchLink, BenchLink.F1)
-  val t0 = new DateTime("2019-04-20")
-  val t1: DateTime = t0.plusYears(1)
+  val t0: OffsetDateTime = OffsetDateTime.of(2019, 4, 2, 0, 0, 0, 0, ZoneOffset.UTC)
+  val t1: OffsetDateTime = t0.plusYears(1)
   val query = new Query(
     Some(table),
     Seq(QueryField(dim.name, dimExpr), QueryField(BenchLink.F1, linkExpr)),
@@ -102,7 +102,7 @@ class ExternalLinkBenchmarkState {
       )
     )
   )
-  val queryContext: QueryContext = QueryContext(query, None)
+  val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
   var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex.toMap
