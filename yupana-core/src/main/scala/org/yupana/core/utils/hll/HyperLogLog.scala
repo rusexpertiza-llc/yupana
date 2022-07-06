@@ -19,7 +19,7 @@ case class HyperLogLog(
     case _  => 0.7213 / (1 + 1.079 / registerSize)
   }
 
-  def addValue[A](value: A): Unit = {
+  def addValue(value: Int): Unit = {
     val hash = MurmurHash3.stringHash(value.toString, 11).toBinaryString
     val registerIndex = Integer.parseInt(hash.takeRight(numBitsForRegisterIndex), 2)
     val zeroRunLength =
