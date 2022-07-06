@@ -104,6 +104,7 @@ object ExpressionUtils {
       case m @ MinExpr(e)        => MinExpr(transform(t)(e))(m.ord)
       case CountExpr(e)          => CountExpr(transform(t)(e))
       case DistinctCountExpr(e)  => DistinctCountExpr(transform(t)(e))
+      case HLLCountExpr(e)       => HLLCountExpr(transform(t)(e))
       case DistinctRandomExpr(e) => DistinctRandomExpr(transform(t)(e))
 
       case LagExpr(e) => LagExpr(transform(t)(e))

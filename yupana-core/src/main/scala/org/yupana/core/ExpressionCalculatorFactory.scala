@@ -690,7 +690,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             case None    => s.withDefine(row, ae, q"1L")
           }
 
-        case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
+        case DistinctCountExpr(_) | DistinctRandomExpr(_) | HLLCountExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
             case Some(d) => s.withDefine(row, ae, q"if ($d) Set($exprValue) else Set.empty")
             case None    => s.withDefine(row, ae, q"Set($exprValue)")

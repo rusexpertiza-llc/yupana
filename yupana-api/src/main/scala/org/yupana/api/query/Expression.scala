@@ -97,6 +97,11 @@ final case class DistinctCountExpr[I](override val expr: Expression[I])
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
 
+final case class HLLCountExpr[I](override val expr: Expression[I])
+  extends AggregateExpr[I, Set[I], Int](expr, "hll_count") {
+  override val dataType: DataType.Aux[Int] = DataType[Int]
+}
+
 final case class DistinctRandomExpr[I](override val expr: Expression[I])
     extends AggregateExpr[I, Set[I], I](expr, "distinct_random") {
   override val dataType: DataType.Aux[I] = expr.dataType

@@ -29,6 +29,7 @@ trait AggregationSyntax {
   def count[T](e: Expression[T]) = CountExpr(e)
   def count[T](m: Metric.Aux[T]) = CountExpr(MetricExpr(m))
   def distinctCount[T](e: Expression[T]) = DistinctCountExpr(e)
+  def hllCount[T](e: Expression[T]) = HLLCountExpr(e)
   def distinctRandom[T](e: Expression[T]) = DistinctRandomExpr(e)
 }
 

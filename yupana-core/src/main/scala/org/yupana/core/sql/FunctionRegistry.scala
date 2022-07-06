@@ -74,6 +74,7 @@ object FunctionRegistry {
     ),
     uAny("count", e => CountExpr(e)),
     uAny("distinct_count", e => DistinctCountExpr(e)),
+    uAny("hll_count", e => HLLCountExpr(e)),
     uAny("distinct_random", e => DistinctRandomExpr(e)),
     // WINDOW
     uAny("lag", e => LagExpr(e)),
