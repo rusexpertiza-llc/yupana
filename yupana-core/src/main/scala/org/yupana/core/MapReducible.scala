@@ -28,6 +28,10 @@ trait MapReducible[Collection[_]] extends Serializable {
   def singleton[A: ClassTag](a: A): Collection[A]
   def filter[A: ClassTag](c: Collection[A])(f: A => Boolean): Collection[A]
 
+  def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
+      c: Collection[(K, A)]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Collection[(K, B)]
+
   def map[A: ClassTag, B: ClassTag](c: Collection[A])(f: A => B): Collection[B]
   def flatMap[A: ClassTag, B: ClassTag](mr: Collection[A])(f: A => Iterable[B]): Collection[B]
 

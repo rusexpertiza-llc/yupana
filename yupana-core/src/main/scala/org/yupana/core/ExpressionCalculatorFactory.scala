@@ -700,6 +700,22 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
+  private def mkFold(
+      state: State,
+      aggregates: Seq[AggregateExpr[_, _, _]],
+      acc: TermName,
+      row: TermName
+  ): State = {
+    val newState = mkSetExprs(state, row, aggregates.map(_.expr))
+
+    aggregates.foldLeft(newState) { (s, ae) =>
+      ae match {
+        case SumExpr(_) => mkSetReduce(s, acc, row, ae, (a, b) => q"$a + $b")
+        case _          => ???
+      }
+    }
+  }
+
   private def mkSetReduce(
       state: State,
       rowA: TermName,
@@ -822,11 +838,15 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     val beforeAggregationState = evaluatedState.copy(unfinished = Set.empty)
 
+    val acc = TermName("acc")
+
     val (map, mappedState) = mkMap(beforeAggregationState, knownAggregates, internalRow).fresh
+
+    val (fold, foldedState) = mkFold(mappedState, knownAggregates, acc, internalRow).fresh
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
-    val (reduce, reducedState) = mkReduce(mappedState, knownAggregates, rowA, rowB).fresh
+    val (reduce, reducedState) = mkReduce(foldedState, knownAggregates, rowA, rowB).fresh
 
     val (postMap, postMappedState) = mkPostMap(reducedState, knownAggregates, internalRow).fresh
 
@@ -859,6 +879,11 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           override def evaluateMap($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $map
             $internalRow
+          }
+          
+          override def evaluateFold($tokenizer: Tokenizer, $acc: InternalRow, $internalRow: InternalRow): InternalRow = {
+            $fold
+            $acc
           }
           
           override def evaluateReduce($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
