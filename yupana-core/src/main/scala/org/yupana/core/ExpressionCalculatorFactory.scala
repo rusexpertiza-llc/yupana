@@ -16,8 +16,6 @@
 
 package org.yupana.core
 
-import java.sql.Types
-
 import com.typesafe.scalalogging.StrictLogging
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
@@ -26,6 +24,7 @@ import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 
+import java.sql.Types
 import scala.reflect.{ ClassTag, classTag }
 
 trait ExpressionCalculatorFactory {
@@ -254,8 +253,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
-  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[(Tree, State)] = {
-    val tpe = mkType(e)
+  private def mkGet(state: State, row: TermName, e: Expression[_], tpe: Tree): Option[(Tree, State)] = {
     e match {
       case x if state.unfinished.contains(x) => None
 
@@ -286,6 +284,14 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           .findLocal(x)
           .map(x => q"${x.name}" -> state)
     }
+  }
+
+  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[(Tree, State)] = {
+    mkGet(state, row, e, mkType(e))
+  }
+
+  private def mkGetNow(state: State, row: TermName, e: Expression[_], tpe: Tree): (Tree, State) = {
+    mkGet(state, row, e, tpe) getOrElse (throw new IllegalStateException(s"Unknown expression $e"))
   }
 
   private def mkGetNow(state: State, row: TermName, e: Expression[_]): (Tree, State) = {
@@ -663,6 +669,13 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
+  private def mkCount(s: State, row: TermName, ae: AggregateExpr[_, _, _]): Tree = {
+    mkIsDefined(s, row, ae.expr) match {
+      case Some(d) => q"if ($d) 1L else 0L"
+      case None    => q"1L"
+    }
+  }
+
   private def mkMap(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
@@ -684,11 +697,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
               q"DataType.bySqlName(${ae.expr.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].ordering.get"
             )
 
-        case CountExpr(_) =>
-          mkIsDefined(s, row, ae.expr) match {
-            case Some(d) => s.withDefine(row, ae, q"if ($d) 1L else 0L")
-            case None    => s.withDefine(row, ae, q"1L")
-          }
+        case CountExpr(_) => s.withDefine(row, ae, mkCount(s, row, ae))
 
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
@@ -706,13 +715,55 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       acc: TermName,
       row: TermName
   ): State = {
-    val newState = mkSetExprs(state, row, aggregates.map(_.expr))
-
-    aggregates.foldLeft(newState) { (s, ae) =>
+    aggregates.foldLeft(state) { (s, ae) =>
       ae match {
-        case SumExpr(_) => mkSetReduce(s, acc, row, ae, (a, b) => q"$a + $b")
-        case _          => ???
+        case SumExpr(_) => mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"$a + $r")
+        case MinExpr(_) =>
+          mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.min($a, $r)")
+        case MaxExpr(_) =>
+          mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.max($a, $r)")
+        case CountExpr(_) =>
+          mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"0L"), (a, r) => q"$a + $r")
+        case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
+          val valTpe = mkType(ae.expr)
+          mkSetFold(s, acc, tq"Set[$valTpe]", row, ae, identity, None, (a, r) => q"$a + $r")
       }
+    }
+  }
+
+  private def mkSetFold(
+      state: State,
+      acc: TermName,
+      row: TermName,
+      ae: AggregateExpr[_, _, _],
+      map: Tree => Tree,
+      default: Option[Tree],
+      fold: (Tree, Tree) => Tree
+  ): State = {
+    mkSetFold(state, acc, mkType(ae), row, ae, map, default, fold)
+  }
+
+  private def mkSetFold(
+      state: State,
+      acc: TermName,
+      accType: Tree,
+      row: TermName,
+      ae: AggregateExpr[_, _, _],
+      map: Tree => Tree,
+      default: Option[Tree],
+      fold: (Tree, Tree) => Tree
+  ): State = {
+    val (aValue, s1) = mkGetNow(state, acc, ae, accType)
+    val s2 = mkSet(s1, row, ae.expr)
+    val (rValue, s3) = mkGetNow(s2, row, ae.expr)
+
+    (mkIsDefined(s3, acc, ae), mkIsDefined(s3, row, ae.expr)) match {
+      case (Some(ad), Some(rd)) =>
+        s3.withDefineIf(acc, ae, rd, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
+
+      case (None, Some(rd)) => s3.withDefineIf(acc, ae, rd, fold(aValue, map(rValue)))
+      case (Some(ad), None) => s3.withDefine(acc, ae, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
+      case (None, None)     => s3.withDefine(acc, ae, fold(aValue, map(rValue)))
     }
   }
 
