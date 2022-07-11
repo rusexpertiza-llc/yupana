@@ -28,6 +28,7 @@ import scala.collection.AbstractIterator
 trait ExpressionCalculator {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
   def evaluateExpressions(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluateFold(tokenizer: Tokenizer, accumulator: InternalRow, internalRow: InternalRow): InternalRow
   def evaluateMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluateReduce(tokenizer: Tokenizer, a: InternalRow, b: InternalRow): InternalRow
   def evaluatePostMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow

@@ -47,6 +47,13 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
+  override def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
+      rdd: RDD[(K, A)]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): RDD[(K, B)] = {
+    val r = rdd.combineByKeyWithClassTag(createZero, seqOp, combOp)
+    saveMetricOnCompleteRdd(r)
+  }
+
   override def batchFlatMap[A, B: ClassTag](rdd: RDD[A], size: Int)(f: Seq[A] => IterableOnce[B]): RDD[B] = {
     val r = rdd.mapPartitions(_.grouped(size).flatMap(f))
     saveMetricOnCompleteRdd(r)
