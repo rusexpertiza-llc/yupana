@@ -300,9 +300,14 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     e match {
-      case ConstantExpr(_, _) => None
-      case TimeExpr           => None
-      case DimensionExpr(_)   => None
+      case ConstantExpr(_, _)                                                   => None
+      case TimeExpr                                                             => None
+      case DimensionExpr(_)                                                     => None
+      case CountExpr(_)                                                         => None
+      case DistinctCountExpr(_)                                                 => None
+      case DistinctRandomExpr(_)                                                => None
+      case e: AggregateExpr[_, _, _] if mkIsDefined(state, row, e.expr).isEmpty => None
+
       case TupleExpr(e1, e2) =>
         val d1 = mkIsDefined(state, row, e1)
         val d2 = mkIsDefined(state, row, e2)
@@ -669,13 +674,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
-  private def mkCount(s: State, row: TermName, ae: AggregateExpr[_, _, _]): Tree = {
-    mkIsDefined(s, row, ae.expr) match {
-      case Some(d) => q"if ($d) 1L else 0L"
-      case None    => q"1L"
-    }
-  }
-
   private def mkMap(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
@@ -697,7 +695,11 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
               q"DataType.bySqlName(${ae.expr.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].ordering.get"
             )
 
-        case CountExpr(_) => s.withDefine(row, ae, mkCount(s, row, ae))
+        case CountExpr(_) =>
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) => s.withDefine(row, ae, q"if ($d) 1L else 0L")
+            case None    => s.withDefine(row, ae, q"1L")
+          }
 
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
@@ -757,16 +759,22 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     val s2 = mkSet(s1, row, ae.expr)
     val (rValue, s3) = mkGetNow(s2, row, ae.expr)
 
-    (mkIsDefined(s3, acc, ae), mkIsDefined(s3, row, ae.expr)) match {
-      case (Some(ad), Some(rd)) =>
+    (mkIsDefined(s3, acc, ae), mkIsDefined(s3, row, ae.expr), default) match {
+      case (Some(ad), Some(rd), Some(d)) =>
+        val s4 = s3.withDefine(row, ae.expr, q"if ($rd) ${map(rValue)} else $d")
+        val (rOrDefault, s5) = mkGetNow(s4, row, ae.expr, accType)
+        s5.withDefine(acc, ae, q"if ($ad) ${fold(aValue, rOrDefault)} else $rOrDefault")
+
+      case (Some(ad), Some(rd), None) =>
         s3.withDefineIf(acc, ae, rd, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
 
-      case (None, Some(rd)) => s3.withDefineIf(acc, ae, rd, fold(aValue, map(rValue)))
-      case (Some(ad), None) => s3.withDefine(acc, ae, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
-      case (None, None)     => s3.withDefine(acc, ae, fold(aValue, map(rValue)))
+      case (None, Some(rd), Some(d)) => s3.withDefine(acc, ae, fold(aValue, q"if ($rd) ${map(rValue)} else $d"))
+      case (None, Some(rd), None)    => s3.withDefineIf(acc, ae, rd, fold(aValue, map(rValue)))
+
+      case (Some(ad), None, _) => s3.withDefine(acc, ae, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
+      case (None, None, _)     => s3.withDefine(acc, ae, fold(aValue, map(rValue)))
     }
   }
-
   private def mkSetReduce(
       state: State,
       rowA: TermName,
@@ -774,8 +782,19 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       ae: AggregateExpr[_, _, _],
       f: (Tree, Tree) => Tree
   ): State = {
-    val (aValue, s1) = mkGetNow(state, rowA, ae)
-    val (bValue, s2) = mkGetNow(s1, rowB, ae)
+    mkSetReduce(state, rowA, rowB, mkType(ae), ae, f)
+  }
+
+  private def mkSetReduce(
+      state: State,
+      rowA: TermName,
+      rowB: TermName,
+      tpe: Tree,
+      ae: AggregateExpr[_, _, _],
+      f: (Tree, Tree) => Tree
+  ): State = {
+    val (aValue, s1) = mkGetNow(state, rowA, ae, tpe)
+    val (bValue, s2) = mkGetNow(s1, rowB, ae, tpe)
 
     (mkIsDefined(s2, rowA, ae), mkIsDefined(s2, rowB, ae)) match {
       case (Some(da), Some(db)) =>
@@ -795,18 +814,15 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkReduce(state: State, aggregates: Seq[AggregateExpr[_, _, _]], rowA: TermName, rowB: TermName): State = {
 
     aggregates.foldLeft(state) { (s, ae) =>
-      val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
 
       ae match {
         case SumExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
         case MinExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.min($a, $b)")
         case MaxExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.max($a, $b)")
-        case CountExpr(_) => s.withDefine(rowA, ae, q"$rowA.get[Long]($idx) + $rowB.get[Long]($idx)")
-        case DistinctCountExpr(_) =>
-          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
-        case DistinctRandomExpr(_) =>
-          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
+        case CountExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
+        case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
+          mkSetReduce(s, rowA, rowB, tq"Set[$valueTpe]", ae, (a, b) => q"$a ++ $b")
       }
     }
   }
