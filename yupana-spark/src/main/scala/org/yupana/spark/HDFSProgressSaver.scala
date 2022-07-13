@@ -29,7 +29,8 @@ class HDFSProgressSaver[P <: Partition](
     fileName: String,
     partitionStorable: PartitionStorable[P],
     properties: Properties
-) extends ProgressSaver[P] {
+) extends ProgressSaver[P]
+    with Serializable {
 
   private val allPartitionsHeader = "** All Partitions **"
   private val completedPartitionsHeader = "** Completed partitions **"

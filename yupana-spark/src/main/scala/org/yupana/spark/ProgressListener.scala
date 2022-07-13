@@ -19,7 +19,7 @@ package org.yupana.spark
 import org.apache.spark.{ Partition, Success }
 import org.apache.spark.scheduler.{ SparkListener, SparkListenerJobEnd, SparkListenerTaskEnd }
 
-class ProgressListener[P <: Partition] extends SparkListener {
+class ProgressListener[P <: Partition] extends SparkListener with Serializable {
 
   private var listeners = List.empty[RddProgressListener[P]]
 

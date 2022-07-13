@@ -38,7 +38,8 @@ object HBaseScanPartition {
       toTime: Long,
       queryContext: InternalQueryContext,
       rangeScanDims: Map[Dimension, Seq[_]]
-  ) extends PartitionStorable[HBaseScanPartition] {
+  ) extends PartitionStorable[HBaseScanPartition]
+      with Serializable {
     override def asString(p: HBaseScanPartition): String = s"${Bytes.toHex(p.startKey)}-${Bytes.toHex(p.endKey)}"
 
     override def fromString(s: String, index: Int): HBaseScanPartition = {

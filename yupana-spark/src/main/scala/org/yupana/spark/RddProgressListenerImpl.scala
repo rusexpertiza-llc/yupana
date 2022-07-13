@@ -24,7 +24,8 @@ class RddProgressListenerImpl[P <: Partition](
     fileName: String,
     storable: PartitionStorable[P],
     properties: Properties
-) extends RddProgressListener[P] {
+) extends RddProgressListener[P]
+    with Serializable {
 
   private var partitions: Map[Int, P] = Map.empty
   private val progressSaver: ProgressSaver[P] = new HDFSProgressSaver[P](fileName, storable, properties)
