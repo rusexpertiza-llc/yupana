@@ -36,7 +36,7 @@ class HDFSProgressSaver[P <: Partition](
 
   override def writePartitions(ps: Seq[P]): Unit = {
     val hBaseConfiguration = createHBaseConfiguration()
-    HdfsFileUtils.appendDataToHdfs(
+    HdfsFileUtils.saveDataToHdfs(
       fileName,
       hBaseConfiguration,
       os => {
@@ -61,27 +61,29 @@ class HDFSProgressSaver[P <: Partition](
   override def readPartitions: Seq[P] = {
     val hBaseConfiguration = createHBaseConfiguration()
 
-    val lines = HdfsFileUtils.readDataFromHdfs[List[String]](
-      fileName,
-      hBaseConfiguration,
-      is => {
-        ResourceUtils.using(Source.fromInputStream(is)) { s =>
-          s.getLines().toList
+    if (HdfsFileUtils.isFileExists(fileName, hBaseConfiguration)) {
+      val lines = HdfsFileUtils.readDataFromHdfs[List[String]](
+        fileName,
+        hBaseConfiguration,
+        is => {
+          ResourceUtils.using(Source.fromInputStream(is)) { s =>
+            s.getLines().toList
+          }
         }
+      )
+      if (!lines.headOption.contains(allPartitionsHeader)) {
+        throw new IllegalArgumentException("Incorrect format of partitions file")
       }
-    )
-    if (!lines.headOption.contains(allPartitionsHeader)) {
-      throw new IllegalArgumentException("Incorrect format of partitions file")
-    }
-    val (allPartitions, tail) = lines.tail.span(_ != completedPartitionsHeader)
-    val donePartitions = tail.drop(1).toSet
-    val remains = allPartitions
-      .filterNot(p => donePartitions.contains(p))
-      .zipWithIndex
-      .map {
-        case (line, index) => partitionStorable.fromString(line, index)
-      }
-    remains
+      val (allPartitions, tail) = lines.tail.span(_ != completedPartitionsHeader)
+      val donePartitions = tail.drop(1).toSet
+      val remains = allPartitions
+        .filterNot(p => donePartitions.contains(p))
+        .zipWithIndex
+        .map {
+          case (line, index) => partitionStorable.fromString(line, index)
+        }
+      remains
+    } else Seq.empty
   }
 
   private def createHBaseConfiguration(): Configuration = {
