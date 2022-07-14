@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.core.model
+package org.yupana.spark
 
-import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, QueryHint }
-import org.yupana.api.schema.Table
+import org.apache.spark.Partition
 
-case class InternalQuery(
-    table: Table,
-    exprs: Set[Expression[_]],
-    condition: Condition,
-    hints: Seq[QueryHint] = Seq.empty
-)
+trait RddProgressListener[P <: Partition] {
+  def transformPartitions(ps: Seq[P]): Seq[P]
+  def onPartitionCompleted(partitionIndex: Int): Unit
+}
