@@ -18,7 +18,7 @@ package org.yupana.spark
 
 import org.apache.spark.Partition
 
-class DummyProgressListener[P <: Partition] extends RddProgressListener[P] {
+class DummyProgressListener[P <: Partition] extends RddProgressListener[P] with Serializable {
   override def transformPartitions(ps: Seq[P]): Seq[P] = ps
 
   override def onPartitionCompleted(partitionIndex: Int): Unit = {}
