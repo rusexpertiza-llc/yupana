@@ -16,13 +16,14 @@
 
 package org.yupana.core.utils
 
+import java.util
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 
 object CollectionUtils {
 
   def reduceByKey[K, A](it: Iterator[(K, A)], limit: Int = Int.MaxValue)(func: (A, A) => A): Iterator[(K, A)] = {
-    val map = new java.util.HashMap[K, A]()
+    val map = new util.HashMap[K, A]()
     it.foreach {
       case (k, v) =>
         val old = map.get(k)
@@ -31,6 +32,17 @@ object CollectionUtils {
         if (limit < map.size()) {
           throw new IllegalStateException(s"reduceByKey operation is out of limit = $limit")
         }
+    }
+    map.asScala.iterator
+  }
+
+  def foldByKey[K, A, B](it: Iterator[(K, A)])(z: A => B, func: (B, A) => B): Iterator[(K, B)] = {
+    val map = new util.HashMap[K, B]()
+    it.foreach {
+      case (k, v) =>
+        val old = map.get(k)
+        val n = if (old != null) func(old, v) else z(v)
+        map.put(k, n)
     }
     map.asScala.iterator
   }

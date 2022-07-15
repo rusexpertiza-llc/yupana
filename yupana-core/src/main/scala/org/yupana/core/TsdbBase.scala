@@ -24,7 +24,7 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.utils.{ CollectionUtils, ConditionUtils, TimeBoundedCondition }
+import org.yupana.core.utils.{ ConditionUtils, TimeBoundedCondition }
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -160,7 +160,6 @@ trait TsdbBase extends StrictLogging {
       rows: Collection[InternalRow]
   ): Result = {
     val processedRows = new AtomicInteger(0)
-    val processedDataPoints = new AtomicInteger(0)
     val resultRows = new AtomicInteger(0)
 
     val hasWindowFunctions = queryContext.query.fields.exists(_.expr.kind == Window)
@@ -196,23 +195,14 @@ trait TsdbBase extends StrictLogging {
     }
 
     val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
-      val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
-        metricCollector.reduceOperation.measure(batch.size) {
-          val mapped = batch.iterator.map {
-            case (key, row) =>
-              val c = processedDataPoints.incrementAndGet()
-              if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Extracted $c data points")
-              key -> queryContext.calculator.evaluateMap(schema.tokenizer, row)
+      val r = mr.aggregateByKey[KeyData, InternalRow, InternalRow](keysAndValuesWinFunc)(
+        r => queryContext.calculator.evaluateMap(schema.tokenizer, r),
+        (a, r) => queryContext.calculator.evaluateFold(schema.tokenizer, a, r),
+        (a, b) =>
+          metricCollector.reduceOperation.measure(1) {
+            queryContext.calculator.evaluateReduce(schema.tokenizer, a, b)
           }
-          CollectionUtils.reduceByKey(mapped)((a, b) => queryContext.calculator.evaluateReduce(schema.tokenizer, a, b))
-        }
-      }
-
-      val r = mr.reduceByKey(keysAndMappedValues) { (a, b) =>
-        metricCollector.reduceOperation.measure(1) {
-          queryContext.calculator.evaluateReduce(schema.tokenizer, a, b)
-        }
-      }
+      )
 
       mr.batchFlatMap(r, extractBatchSize) { batch =>
         metricCollector.reduceOperation.measure(batch.size) {
