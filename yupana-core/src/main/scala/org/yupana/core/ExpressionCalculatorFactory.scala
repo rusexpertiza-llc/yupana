@@ -690,11 +690,12 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             case None    => s.withDefine(row, ae, q"1L")
           }
 
-        case DistinctCountExpr(_) | DistinctRandomExpr(_) | HLLCountExpr(_) =>
+        case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
             case Some(d) => s.withDefine(row, ae, q"if ($d) Set($exprValue) else Set.empty")
             case None    => s.withDefine(row, ae, q"Set($exprValue)")
           }
+        /*        case HLLCountExpr(_, _) =>*/
 
       }
     }
@@ -738,10 +739,9 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case CountExpr(_) => s.withDefine(rowA, ae, q"$rowA.get[Long]($idx) + $rowB.get[Long]($idx)")
         case DistinctCountExpr(_) =>
           s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
-        case HLLCountExpr(_) =>
-          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
         case DistinctRandomExpr(_) =>
           s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
+        /*        case HLLCountExpr(_, _) =>*/
       }
     }
   }
@@ -765,7 +765,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case MaxExpr(_)           => None
         case CountExpr(_)         => None
         case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
-        case HLLCountExpr(_)      => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
+        /*        case HLLCountExpr(_, _)   => */
         case DistinctRandomExpr(_) =>
           Some(
             q"""

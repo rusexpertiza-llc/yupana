@@ -74,7 +74,6 @@ object FunctionRegistry {
     ),
     uAny("count", e => CountExpr(e)),
     uAny("distinct_count", e => DistinctCountExpr(e)),
-    uAny("hll_count", e => HLLCountExpr(e)),
     uAny("distinct_random", e => DistinctRandomExpr(e)),
     // WINDOW
     uAny("lag", e => LagExpr(e)),
@@ -233,6 +232,17 @@ object FunctionRegistry {
       new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
         override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsSameExpr(a, b)
       }
+    ),
+    Function2Desc(
+      "hll_count",
+      (a: Expression[_], c: Expression[_]) =>
+        c match {
+          case ConstantExpr(v, _) =>
+            c.dataType.numeric
+              .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
+              .toRight(s"$c must be a number")
+          case _ => Left(s"Expected constant but got $c")
+        }
     )
   )
 

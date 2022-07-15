@@ -118,7 +118,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         count(metric(TestTableFields.TEST_FIELD)) as "COUNT",
         count(metric(TestTableFields.TEST_STRING_FIELD)) as "CS",
         distinctCount(metric(TestTableFields.TEST_FIELD)) as "DISTINCT",
-        hllCount(metric(TestTableFields.TEST_FIELD)) as "HLL",
+        hllCount(metric(TestTableFields.TEST_FIELD), 1) as "HLL",
         distinctRandom(metric(TestTableFields.TEST_FIELD)) as "RANDOM",
         truncDay(time) as "T",
         min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) as "MIN_PRICE",
@@ -158,7 +158,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped1.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
     mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
     mapped1.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
-    mapped1.get(qc, hllCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
+    mapped1.get(qc, hllCount(metric(TestTableFields.TEST_FIELD), 1)) shouldEqual Set(10d)
     mapped1.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     mapped1.get(
       qc,
@@ -175,7 +175,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped2.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
     mapped2.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     mapped2.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
-    mapped2.get(qc, hllCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
+    mapped2.get(qc, hllCount(metric(TestTableFields.TEST_FIELD), 1)) shouldEqual Set(12d)
     mapped2.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
     mapped2.get(
       qc,
@@ -195,7 +195,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     reduced.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 2L
     reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     reduced.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
-    reduced.get(qc, hllCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
+    reduced.get(qc, hllCount(metric(TestTableFields.TEST_FIELD), 1)) shouldEqual Set(10d, 12d)
     reduced.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d, 12d)
     reduced.get(
       qc,
@@ -215,7 +215,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     postMapped.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 2L
     postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
     postMapped.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
-    postMapped.get(qc, hllCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 2
+    postMapped.get(qc, hllCount(metric(TestTableFields.TEST_FIELD), 1)) shouldEqual 2
     postMapped.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(10d) or equal(12d))
     postMapped.get(
       qc,
