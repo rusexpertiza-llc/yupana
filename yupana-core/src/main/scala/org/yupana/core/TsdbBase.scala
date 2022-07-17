@@ -137,7 +137,7 @@ trait TsdbBase extends StrictLogging {
 
         substitutedCondition match {
           case Some(c) =>
-            val internalQuery = InternalQuery(table, daoExprs.toSet, c)
+            val internalQuery = InternalQuery(table, daoExprs.toSet, c, query.hints)
             dao.query(internalQuery, new InternalRowBuilder(queryContext), metricCollector)
 
           case None =>

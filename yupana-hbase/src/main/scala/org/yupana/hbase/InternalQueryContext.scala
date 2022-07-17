@@ -16,7 +16,7 @@
 
 package org.yupana.hbase
 
-import org.yupana.api.query.Expression
+import org.yupana.api.query.{ Expression, QueryHint }
 import org.yupana.api.schema.{ Dimension, Table }
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -27,7 +27,8 @@ case class InternalQueryContext(
     table: Table,
     exprsIndexSeq: Seq[(Expression[_], Int)],
     dimIndexMap: mutable.Map[Dimension, Int],
-    metricsCollector: MetricQueryCollector
+    metricsCollector: MetricQueryCollector,
+    hints: Seq[QueryHint]
 )
 
 object InternalQueryContext {
@@ -36,6 +37,6 @@ object InternalQueryContext {
 
     val exprsIndexSeq = query.exprs.toSeq.zipWithIndex
 
-    new InternalQueryContext(query.table, exprsIndexSeq, dimIndexMap, metricCollector)
+    new InternalQueryContext(query.table, exprsIndexSeq, dimIndexMap, metricCollector, query.hints)
   }
 }

@@ -26,23 +26,14 @@ import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
-case class HBaseScanPartition(
-    override val index: Int,
-    startKey: Array[Byte],
-    endKey: Array[Byte],
-    fromTime: Long,
-    toTime: Long,
-    queryContext: InternalQueryContext,
-    rangeScanDimsIds: Map[Dimension, Seq[_]]
-) extends Partition
-
 class HBaseScanRDD(
     sc: SparkContext,
     config: Config,
     queryContext: InternalQueryContext,
     fromTime: Long,
     toTime: Long,
-    rangeScanDimsIds: Map[Dimension, Seq[_]]
+    rangeScanDimsIds: Map[Dimension, Seq[_]],
+    listener: RddProgressListener[HBaseScanPartition]
 ) extends RDD[HBaseResult](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
@@ -73,7 +64,10 @@ class HBaseScanRDD(
           HBaseScanPartition(index, startKey, endKey, fromTime, toTime, queryContext, rangeScanDimsIds)
       }
 
-    partitions.asInstanceOf[Array[Partition]]
+    listener
+      .transformPartitions(partitions.toSeq)
+      .toArray
+      .asInstanceOf[Array[Partition]]
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
