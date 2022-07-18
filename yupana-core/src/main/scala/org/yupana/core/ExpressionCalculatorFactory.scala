@@ -16,6 +16,7 @@
 
 package org.yupana.core
 
+import com.twitter.algebird.{ HyperLogLogAggregator, HyperLogLogMonoid, MurmurHash128 }
 import com.typesafe.scalalogging.StrictLogging
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
@@ -706,8 +707,22 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             case Some(d) => s.withDefine(row, ae, q"if ($d) Set($exprValue) else Set.empty")
             case None    => s.withDefine(row, ae, q"Set($exprValue)")
           }
-        /*        case HLLCountExpr(_, _) =>*/
-
+        case HLLCountExpr(_, b) =>
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) =>
+              s.withDefine(
+                row,
+                ae,
+                q"""
+             if ($d)
+                val hll = new HyperLogLogMonoid($b)
+                data.map { hll($exprValue) }
+             else
+                List.empty
+           """
+              )
+            case None => s.withDefine(row, ae, q"List.empty")
+          }
       }
     }
   }
@@ -730,6 +745,20 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           val valTpe = mkType(ae.expr)
           mkSetFold(s, acc, tq"Set[$valTpe]", row, ae, identity, None, (a, r) => q"$a + $r")
+        case HLLCountExpr(_, b) =>
+          mkSetFold(
+            s,
+            acc,
+            tq"List[HLL]",
+            row,
+            ae,
+            identity,
+            None,
+            (a, r) => q"""
+                val hll = new HyperLogLogMonoid($b)
+                $a + hll.create($r)
+              """
+          )
       }
     }
   }
@@ -824,6 +853,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case CountExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           mkSetReduce(s, rowA, rowB, tq"Set[$valueTpe]", ae, (a, b) => q"$a ++ $b")
+        case HLLCountExpr(_, _) =>
+          mkSetReduce(s, rowA, rowB, tq"List[HLL]", ae, (a, b) => q"$a ++ $b")
       }
     }
   }
@@ -847,7 +878,14 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case MaxExpr(_)           => None
         case CountExpr(_)         => None
         case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
-        /*        case HLLCountExpr(_, _)   => */
+        case HLLCountExpr(_, _) =>
+          Some(
+            q"""
+              val sumHll = hll.sum($row.get[List[HLL]]($idx))
+              val approxSizeOf = hll.sizeOf(sumHll)
+              approxSizeOf.estimate
+            """ -> s
+          )
         case DistinctRandomExpr(_) =>
           Some(
             q"""
