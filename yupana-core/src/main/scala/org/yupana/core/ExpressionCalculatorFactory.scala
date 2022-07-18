@@ -16,7 +16,6 @@
 
 package org.yupana.core
 
-import com.twitter.algebird.{ HyperLogLogAggregator, HyperLogLogMonoid, MurmurHash128 }
 import com.typesafe.scalalogging.StrictLogging
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
@@ -971,6 +970,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       import _root_.org.yupana.api.utils.Tokenizer
       import _root_.org.yupana.core.model.InternalRow
       import _root_.org.threeten.extra.PeriodDuration
+      import _root_.org.threeten.extra.PeriodDuration
+      import _root_.com.twitter.algebird._
 
       ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {
