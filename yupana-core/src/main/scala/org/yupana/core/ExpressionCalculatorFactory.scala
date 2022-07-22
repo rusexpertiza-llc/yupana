@@ -159,6 +159,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       render -> State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
     }
 
+    def mkState: State = {
+      State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
+    }
+
     def nested(prefix: String): State = State(
       index,
       required,
@@ -674,7 +678,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
-  private def mkMap(
+  private def mkPreAgregate(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
       row: TermName
@@ -713,11 +717,12 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
                 row,
                 ae,
                 q"""
-             if ($d)
-                val hll = new HyperLogLogMonoid($b)
+             if ($d) {
+                val hll = new _root_.com.twitter.algebird.HyperLogLogMonoid($b)
                 data.map { hll($exprValue) }
-             else
+             } else {
                 List.empty
+             }
            """
               )
             case None => s.withDefine(row, ae, q"List.empty")
@@ -732,7 +737,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       acc: TermName,
       row: TermName
   ): State = {
-    aggregates.foldLeft(state) { (s, ae) =>
+
+    val mappedState = mkPreAgregate(state, aggregates, row).mkState
+
+    aggregates.foldLeft(mappedState) { (s, ae) =>
       ae match {
         case SumExpr(_) => mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"$a + $r")
         case MinExpr(_) =>
@@ -754,7 +762,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             identity,
             None,
             (a, r) => q"""
-                val hll = new HyperLogLogMonoid($b)
+                val hll = new _root_.com.twitter.algebird.HyperLogLogMonoid($b)
                 $a + hll.create($r)
               """
           )
@@ -946,7 +954,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     val acc = TermName("acc")
 
-    val (map, mappedState) = mkMap(beforeAggregationState, knownAggregates, internalRow).fresh
+    val (map, mappedState) = mkPreAgregate(beforeAggregationState, knownAggregates, internalRow).fresh
 
     val (fold, foldedState) = mkFold(mappedState, knownAggregates, acc, internalRow).fresh
 
@@ -971,7 +979,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       import _root_.org.yupana.core.model.InternalRow
       import _root_.org.threeten.extra.PeriodDuration
       import _root_.org.threeten.extra.PeriodDuration
-      import _root_.com.twitter.algebird._
 
       ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {
