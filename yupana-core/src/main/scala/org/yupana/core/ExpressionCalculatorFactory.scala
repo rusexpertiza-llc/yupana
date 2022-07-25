@@ -846,7 +846,12 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
-  private def mkReduce(state: State, aggregates: Seq[AggregateExpr[_, _, _]], rowA: TermName, rowB: TermName): State = {
+  private def mkCombine(
+      state: State,
+      aggregates: Seq[AggregateExpr[_, _, _]],
+      rowA: TermName,
+      rowB: TermName
+  ): State = {
 
     aggregates.foldLeft(state) { (s, ae) =>
       val valueTpe = mkType(ae.expr)
@@ -952,13 +957,13 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     val acc = TermName("acc")
 
-    val (map, mappedState) = mkPreAgregate(beforeAggregationState, knownAggregates, internalRow).fresh
+    val (map, mappedState) = mkZero(beforeAggregationState, knownAggregates, internalRow).fresh
 
     val (fold, foldedState) = mkFold(mappedState, knownAggregates, acc, internalRow).fresh
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
-    val (reduce, reducedState) = mkReduce(foldedState, knownAggregates, rowA, rowB).fresh
+    val (reduce, reducedState) = mkCombine(foldedState, knownAggregates, rowA, rowB).fresh
 
     val (postMap, postMappedState) = mkPostMap(reducedState, knownAggregates, internalRow).fresh
 
