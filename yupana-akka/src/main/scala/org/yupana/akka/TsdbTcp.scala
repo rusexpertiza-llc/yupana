@@ -125,7 +125,7 @@ class TsdbTcp(
 
     val connHandler = protocol
       .join(requestFlow)
-      .groupedWeightedWithin(32767, 100.millis)(_.length)
+      .groupedWeightedWithin(32767, 10.millis)(_.length)
       .map { bsIt =>
         val b = new ByteStringBuilder()
         b.sizeHint(32767)
