@@ -235,7 +235,7 @@ class TsdbArithmeticTest
   }
 
   it should "execute query like this (to handle hll_count)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT hll_count(testField, 0.1)  as hll " +
+    val sql = "SELECT hll_count(testStringField, 0.1)  as hll " +
       "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
     val query = createQuery(sql)
 
@@ -254,13 +254,13 @@ class TsdbArithmeticTest
       .onCall((_, b, _) =>
         Iterator(
           b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
             .buildAndReset(),
           b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
             .buildAndReset(),
           b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 2d)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "2d")
             .buildAndReset()
         )
       )
@@ -274,7 +274,7 @@ class TsdbArithmeticTest
   }
 
   it should "execute query like this (to handle hll_count d)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql = "SELECT distinct_count(testField)  as hll " +
+    val sql = "SELECT (hll_count(testField, 0.1) + hll_count(testField2, 0.1)) as plus " +
       "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
     val query = createQuery(sql)
 
@@ -284,7 +284,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), time),
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -294,12 +294,11 @@ class TsdbArithmeticTest
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .set(metric(TestTableFields.TEST_FIELD2), 2d)
             .buildAndReset(),
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
-            .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 2d)
+            .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
       )
@@ -307,7 +306,7 @@ class TsdbArithmeticTest
     val rows = tsdb.query(query)
 
     val r1 = rows.next()
-    r1.get[Long]("hll") shouldBe 2
+    r1.get[Long]("plus") shouldBe 3
 
     rows.hasNext shouldBe false
   }

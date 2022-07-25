@@ -678,7 +678,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
-  private def mkPreAgregate(
+  private def mkZero(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
       row: TermName
@@ -738,9 +738,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       row: TermName
   ): State = {
 
-    val mappedState = mkPreAgregate(state, aggregates, row).mkState
-
-    aggregates.foldLeft(mappedState) { (s, ae) =>
+    aggregates.foldLeft(state) { (s, ae) =>
       ae match {
         case SumExpr(_) => mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"$a + $r")
         case MinExpr(_) =>
@@ -991,17 +989,17 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             $internalRow
           }
           
-          override def evaluateMap($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
+          override def evaluateZero($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $map
             $internalRow
           }
           
-          override def evaluateFold($tokenizer: Tokenizer, $acc: InternalRow, $internalRow: InternalRow): InternalRow = {
+          override def evaluateSequence($tokenizer: Tokenizer, $acc: InternalRow, $internalRow: InternalRow): InternalRow = {
             $fold
             $acc
           }
           
-          override def evaluateReduce($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
+          override def evaluateCombine($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
             $reduce
             $rowA
           }
