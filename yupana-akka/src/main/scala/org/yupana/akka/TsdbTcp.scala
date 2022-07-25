@@ -18,16 +18,16 @@ package org.yupana.akka
 
 import akka.actor.ActorSystem
 import akka.stream.Attributes.CancellationStrategy
-import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
-import akka.stream.{ ActorAttributes, Attributes, Supervision }
-import akka.util.{ ByteString, ByteStringBuilder }
+import akka.stream.scaladsl.{Flow, Framing, Source, Tcp}
+import akka.stream.{ActorAttributes, Attributes, Supervision}
+import akka.util.{ByteString, ByteStringBuilder}
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.proto.{ Request, Response }
+import org.yupana.proto.{Request, Response}
 
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{ Failure, Success, Try }
+import scala.util.{Failure, Success, Try}
 
 class TsdbTcp(
     requestHandler: RequestHandler,
@@ -125,7 +125,7 @@ class TsdbTcp(
 
     val connHandler = protocol
       .join(requestFlow)
-      .groupedWeightedWithin(32767, 100.millis)(_.length)
+      .groupedWeightedWithin(32767, 10.millis)(_.length)
       .map { bsIt =>
         val b = new ByteStringBuilder()
         b.sizeHint(32767)
