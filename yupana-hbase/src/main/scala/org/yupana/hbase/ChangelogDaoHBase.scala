@@ -20,7 +20,8 @@ import java.nio.charset.StandardCharsets
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
 import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
-import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
+import org.apache.hadoop.hbase.filter.FilterList.Operator
+import org.apache.hadoop.hbase.filter.{ Filter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.ChangelogDao
@@ -77,6 +78,70 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
       recalculatedBefore: Option[Long],
       updatedBy: Option[String]
   ): FilterList = {
+
+    def dateRangeFilter(
+        fromColumn: Array[Byte],
+        toColumn: Array[Byte],
+        fromOpt: Option[Long],
+        toOpt: Option[Long]
+    ): Option[Filter] = {
+      (fromOpt, toOpt) match {
+        case (Some(from), Some(to)) =>
+          Some(
+            new FilterList(
+              Operator.MUST_PASS_ONE,
+              List(
+                new FilterList(
+                  Operator.MUST_PASS_ALL,
+                  List(
+                    new SingleColumnValueFilter(
+                      FAMILY,
+                      fromColumn,
+                      CompareOperator.GREATER_OR_EQUAL,
+                      Bytes.toBytes(from)
+                    ),
+                    new SingleColumnValueFilter(
+                      FAMILY,
+                      fromColumn,
+                      CompareOperator.LESS_OR_EQUAL,
+                      Bytes.toBytes(to)
+                    )
+                  ).asInstanceOf[List[Filter]].asJava
+                ),
+                new FilterList(
+                  Operator.MUST_PASS_ALL,
+                  List(
+                    new SingleColumnValueFilter(
+                      FAMILY,
+                      fromColumn,
+                      CompareOperator.LESS_OR_EQUAL,
+                      Bytes.toBytes(from)
+                    ),
+                    new SingleColumnValueFilter(
+                      FAMILY,
+                      toColumn,
+                      CompareOperator.GREATER_OR_EQUAL,
+                      Bytes.toBytes(from)
+                    )
+                  ).asInstanceOf[List[Filter]].asJava
+                )
+              ).asInstanceOf[List[Filter]].asJava
+            )
+          )
+        case (Some(from), _) =>
+          Some(
+            new SingleColumnValueFilter(
+              FAMILY,
+              fromColumn,
+              CompareOperator.GREATER_OR_EQUAL,
+              Bytes.toBytes(from)
+            )
+          )
+        case _ =>
+          None
+      }
+    }
+
     val filterList = new FilterList()
 
     tableName.foreach(t =>
@@ -90,49 +155,10 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
       )
     )
 
-    updatedAfter.foreach(ua =>
-      filterList.addFilter(
-        new SingleColumnValueFilter(
-          FAMILY,
-          UPDATED_AT_QUALIFIER,
-          CompareOperator.GREATER_OR_EQUAL,
-          Bytes.toBytes(ua)
-        )
-      )
+    dateRangeFilter(UPDATED_AT_QUALIFIER, UPDATED_AT_QUALIFIER, updatedAfter, updatedBefore).foreach(
+      filterList.addFilter
     )
-
-    updatedBefore.foreach(ub =>
-      filterList.addFilter(
-        new SingleColumnValueFilter(
-          FAMILY,
-          UPDATED_AT_QUALIFIER,
-          CompareOperator.LESS_OR_EQUAL,
-          Bytes.toBytes(ub)
-        )
-      )
-    )
-
-    recalculatedAfter.foreach(ra =>
-      filterList.addFilter(
-        new SingleColumnValueFilter(
-          FAMILY,
-          FROM_QUALIFIER,
-          CompareOperator.GREATER_OR_EQUAL,
-          Bytes.toBytes(ra)
-        )
-      )
-    )
-
-    recalculatedBefore.foreach(rb =>
-      filterList.addFilter(
-        new SingleColumnValueFilter(
-          FAMILY,
-          TO_QUALIFIER,
-          CompareOperator.LESS_OR_EQUAL,
-          Bytes.toBytes(rb)
-        )
-      )
-    )
+    dateRangeFilter(FROM_QUALIFIER, TO_QUALIFIER, recalculatedAfter, recalculatedBefore).foreach(filterList.addFilter)
 
     updatedBy.foreach(ub =>
       filterList.addFilter(
