@@ -156,8 +156,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_STRING_FIELD), "bar")
       .buildAndReset()
 
-    val mapped1 = calc.evaluateMap(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row1))
-    val mapped2 = calc.evaluateMap(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row2))
+    val mapped1 = calc.evaluateZero(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row1))
+    val mapped2 = calc.evaluateZero(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row2))
     Then("fields filled with map phase values")
     mapped1.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
     mapped1.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
@@ -195,7 +195,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     When("fold is called")
 
-    val folded2 = calc.evaluateFold(RussianTokenizer, mapped2, calc.evaluateExpressions(RussianTokenizer, row22))
+    val folded2 = calc.evaluateSequence(RussianTokenizer, mapped2, calc.evaluateExpressions(RussianTokenizer, row22))
     folded2.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 14d
     folded2.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
     folded2.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
@@ -213,7 +213,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     ) shouldBe true
 
     When("reduce called")
-    val reduced = calc.evaluateReduce(RussianTokenizer, mapped1, folded2)
+    val reduced = calc.evaluateCombine(RussianTokenizer, mapped1, folded2)
     Then("reduced values shall be calculated")
     reduced.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 24d
     reduced.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
@@ -475,8 +475,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .buildAndReset()
 
     val rows = Seq(row1, row2, row3).groupBy(_.get(qc, dimension(TestDims.DIM_A)))
-    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
-    val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateReduce(RussianTokenizer, a, b)) }
+    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateZero(RussianTokenizer, r)) }
+    val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateCombine(RussianTokenizer, a, b)) }
     val postMapped = reduced.map(r => calc.evaluatePostMap(RussianTokenizer, r))
 
     val postFiltered = postMapped
@@ -666,8 +666,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val evaluated = rows.map(qc.calculator.evaluateExpressions(RussianTokenizer, _))
 
-    val mapped = evaluated.map(qc.calculator.evaluateMap(RussianTokenizer, _))
-    val reduced = mapped.reduce((a, b) => qc.calculator.evaluateReduce(RussianTokenizer, a, b))
+    val mapped = evaluated.map(qc.calculator.evaluateZero(RussianTokenizer, _))
+    val reduced = mapped.reduce((a, b) => qc.calculator.evaluateCombine(RussianTokenizer, a, b))
     val postMapped = qc.calculator.evaluatePostMap(RussianTokenizer, reduced)
 
     postMapped.get(qc, sum(metric(TestTableFields.TEST_LONG_FIELD))) shouldEqual 0L
