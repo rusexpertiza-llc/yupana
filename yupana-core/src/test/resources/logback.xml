@@ -12,5 +12,5 @@
     <logger name="org.apache" level="error"/>
 <!--    <logger name="org.yupana.core" level="debug"/>-->
 <!--    <logger name="org.yupana.core.ExpressionCalculator" level="trace"/>-->
-    <logger name="org.yupana.core.ExpressionCalculatorFactory" level="trace"/>
+<!--    <logger name="org.yupana.core.ExpressionCalculatorFactory" level="trace"/>-->
 </configuration>
