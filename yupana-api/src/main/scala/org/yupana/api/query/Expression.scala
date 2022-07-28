@@ -88,6 +88,11 @@ final case class SumExpr[I](override val expr: Expression[I])(implicit val numer
   override val dataType: DataType.Aux[I] = expr.dataType
 }
 
+final case class AvgExpr[I](override val expr: Expression[I])(implicit val numeric: Numeric[I])
+    extends AggregateExpr[I, I, I](expr, "avg") {
+  override val dataType: DataType.Aux[I] = expr.dataType
+}
+
 final case class CountExpr[I](override val expr: Expression[I]) extends AggregateExpr[I, Long, Long](expr, "count") {
   override val dataType: DataType.Aux[Long] = DataType[Long]
 }

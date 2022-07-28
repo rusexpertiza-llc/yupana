@@ -234,6 +234,43 @@ class TsdbArithmeticTest
       rows.hasNext shouldBe false
   }
 
+  it should "execute query like this (calculate average for double value when evaluating each data row)" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val sql = "SELECT avg(testField) value " +
+        "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      val query = createQuery(sql)
+
+      val pointTime = from.toInstant.toEpochMilli + 10
+
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(metric(TestTableFields.TEST_FIELD), time),
+            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          ),
+          *,
+          *
+        )
+        .onCall((_, b, _) =>
+          Iterator(
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_FIELD), 0d)
+              .buildAndReset(),
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_FIELD), 10d)
+              .buildAndReset()
+          )
+        )
+
+      val rows = tsdb.query(query)
+
+      val r1 = rows.next()
+      r1.get[Double]("value") shouldBe 5
+
+      rows.hasNext shouldBe false
+  }
+
   it should "execute query like this (be able to cast long to double)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT testField + testLongField as plus2 " +
       "FROM test_table " + timeBounds(and = false)

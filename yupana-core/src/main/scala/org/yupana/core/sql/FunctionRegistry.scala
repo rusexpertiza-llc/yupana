@@ -90,6 +90,12 @@ object FunctionRegistry {
         override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
       }
     ),
+    uNum(
+      "avg",
+      new Bind2R[Expression, Numeric, Expression] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AvgExpr(e)(n)
+      }
+    ),
     uTyped("year", TruncYearExpr),
     uTyped("trunc_year", TruncYearExpr),
     uTyped("month", TruncMonthExpr),

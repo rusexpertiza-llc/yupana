@@ -102,6 +102,7 @@ object ExpressionUtils {
       case s @ SumExpr(e)        => SumExpr(transform(t)(e))(s.numeric)
       case m @ MaxExpr(e)        => MaxExpr(transform(t)(e))(m.ord)
       case m @ MinExpr(e)        => MinExpr(transform(t)(e))(m.ord)
+      case s @ AvgExpr(e)        => AvgExpr(transform(t)(e))(s.numeric)
       case CountExpr(e)          => CountExpr(transform(t)(e))
       case DistinctCountExpr(e)  => DistinctCountExpr(transform(t)(e))
       case DistinctRandomExpr(e) => DistinctRandomExpr(transform(t)(e))
