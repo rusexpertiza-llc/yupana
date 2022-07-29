@@ -236,7 +236,7 @@ class TsdbArithmeticTest
 
   it should "execute query like this (calculate average for double value when evaluating each data row)" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql = "SELECT avg(testField) value " +
+      val sql = "SELECT avg(testField) value1,  avg(testField2) value2 " +
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
@@ -246,7 +246,7 @@ class TsdbArithmeticTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(metric(TestTableFields.TEST_FIELD), time),
+            Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to))))
           ),
           *,
@@ -256,9 +256,11 @@ class TsdbArithmeticTest
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 0d)
+              .set(metric(TestTableFields.TEST_FIELD2), 1d)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 10d)
+              .set(metric(TestTableFields.TEST_FIELD2), 10d)
               .buildAndReset()
           )
         )
@@ -266,7 +268,8 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query)
 
       val r1 = rows.next()
-      r1.get[Double]("value") shouldBe 5
+      r1.get[Double]("value1") shouldBe 5
+      r1.get[Double]("value2") shouldBe 5.5
 
       rows.hasNext shouldBe false
   }
