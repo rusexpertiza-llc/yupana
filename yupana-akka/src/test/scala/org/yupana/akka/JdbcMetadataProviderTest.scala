@@ -96,6 +96,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
       "min",
       "sum",
       "abs",
+      "avg",
       "-"
     )
 
