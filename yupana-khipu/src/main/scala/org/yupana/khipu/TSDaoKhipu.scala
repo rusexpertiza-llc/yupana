@@ -1,23 +1,53 @@
-package org.yupana.rocks
+package org.yupana.khipu
 
-import org.rocksdb.{ Options, PlainTableConfig, RocksDB }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query._
-import org.yupana.api.schema._
+import org.yupana.api.query.{
+  AndExpr,
+  ConstantExpr,
+  DataPoint,
+  DimIdInExpr,
+  DimIdNotInExpr,
+  DimensionExpr,
+  DimensionIdExpr,
+  EqExpr,
+  InExpr,
+  LowerExpr,
+  NeqExpr,
+  NotInExpr,
+  TimeExpr,
+  TupleExpr
+}
+import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, Metric, RawDimension, Schema, Table }
 import org.yupana.api.types.DataType
-import org.yupana.api.utils.ConditionMatchers._
+import org.yupana.api.utils.ConditionMatchers.{
+  EqString,
+  EqTime,
+  EqUntyped,
+  GeTime,
+  GtTime,
+  InString,
+  InTime,
+  InUntyped,
+  LeTime,
+  LtTime,
+  NeqString,
+  NeqTime,
+  NotInString,
+  NotInTime
+}
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
+import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, UpdateInterval }
 import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible }
 
+import java.io.File
 import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
 
-class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
+class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
 
   type IdType = Long
   type TimeFilter = Long => Boolean
@@ -27,20 +57,14 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
   val CROSS_JOIN_LIMIT = 500000
   val EXTRACT_BATCH_SIZE = 10000
 
-  RocksDB.loadLibrary()
+  val path = new File("/home/victor/tmp/yupana-khipu")
+  if (!path.exists()) path.mkdirs()
+
+  val db = new DB(path.toPath, schema)
 
   protected lazy val expressionCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
-  private val rocksOptions = new Options()
-    .setCreateIfMissing(true)
-    .useFixedLengthPrefixExtractor(10)
-    .setTableFormatConfig(new PlainTableConfig())
-    .setAllowMmapReads(true)
-//    .setCompressionType(CompressionType.LZ4_COMPRESSION)
-
-  private val rocksDb = RocksDB.open(rocksOptions, "/home/victor/tmp/yupana-rocksdb")
-
-  override val dataPointsBatchSize: Int = 10000
+  override val dataPointsBatchSize: Int = 50000
   val reduceLimit = 10000000
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
@@ -48,13 +72,16 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
 
   override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
 
-    dataPointsBatch.foreach { dp =>
-      val key = keyBytes(dp, dp.table, keySize(dp.table))
-      val group = Metric.Groups.default
-      val value = valueBytes(dp, group)
-      rocksDb.put(key, value)
-    }
+    dataPointsBatch.groupBy(_.table).foreach {
+      case (table, dps) =>
+        val rows = dps.map { dp =>
+          val key = keyBytes(dp, table, StorageFormat.keySize(table))
+          val value = valueBytes(dp, Metric.Groups.default)
+          Row(key, value)
+        }
+        db.tables(table.name).put(rows)
 
+    }
     Seq.empty
   }
 
@@ -101,11 +128,11 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
 
     val rows = executeScans(context, from, to, rangeScanDimIds, metricCollector)
 
-//    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
-//
-//    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+    //    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+    //
+    //    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
-//    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
+    //    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
     val timeFilter = createTimeFilter(
       from,
       to,
@@ -117,21 +144,20 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
 
     val dimensions = context.table.dimensionSeq.toArray
     mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-//      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-//        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
-//      }
-      rs.iterator
-        .map {
+      //      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+      //        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
+      //      }
+      metricCollector.extractDataComputation.measure(1) {
+        rs.map {
           case (key, value) =>
             loadRowKey(context.table, key, dimensions, internalRowBuilder)
             loadValue(value, context, internalRowBuilder)
             internalRowBuilder.buildAndReset()
-        }
-        .filter { r =>
+        }.filter { r =>
           timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis)
         }
+      }
     }
-
   }
 
   private def executeScans(
@@ -142,82 +168,23 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
       metricCollector: MetricQueryCollector
   ): Iterator[(Array[Byte], Array[Byte])] = {
 
-    val baseTimeList = baseTime(from, context.table) to baseTime(to, context.table) by context.table.rowTimeSpan
+    val ktable = db.tables(context.table.name)
 
-    val baseTimeDim = new RawDimension[Long]("baseTime")
-    val basTimeIt = SortedSetIterator[Long](baseTimeList.iterator).prefetch(RANGE_FILTERS_LIMIT)
-
-    val prefixIterator = new PrefixIterator(context.table, (baseTimeDim, basTimeIt) +: rangeScanDims)
-
-    val dbIterator = rocksDb.newIterator()
+    val cursor = ktable.scan()
 
     new AbstractIterator[(Array[Byte], Array[Byte])] {
 
-      private var prefix = prefixIterator.next()
-      dbIterator.seek(prefix)
+      var isValid = cursor.next()
 
-      override def hasNext: Boolean = {
-        metricCollector.scan.measure(1) {
-          if (dbIterator.isValid) {
-            if (dbIterator.key().startsWith(prefix)) {
-              true
-            } else {
-              while (prefixIterator.hasNext && dbIterator.isValid && !dbIterator.key().startsWith(prefix)) {
-                prefix = prefixIterator.next()
-                dbIterator.seek(prefix)
-              }
-              dbIterator.isValid && dbIterator.key().startsWith(prefix)
-            }
-          } else {
-            false
-          }
-        }
-      }
+      override def hasNext: Boolean = isValid
 
       override def next(): (Array[Byte], Array[Byte]) = {
-        metricCollector.scan.measure(1) {
-          val r = (dbIterator.key(), dbIterator.value())
-          dbIterator.next()
-          r
-        }
+        val r = (cursor.keyBytes(), cursor.valueBytes())
+        isValid = cursor.next()
+        r
       }
     }
   }
-
-//  private def createRowFilter(
-//      table: Table,
-//      include: Map[Dimension, SortedSetIterator[_]],
-//      exclude: Map[Dimension, SortedSetIterator[_]]
-//  ): RowFilter = {
-//
-//    val includeMap: Map[Dimension, Set[Any]] = include.map { case (k, v) => k -> v.toSet }
-//    val excludeMap: Map[Dimension, Set[Any]] = exclude.map { case (k, v) => k -> v.toSet }
-//
-//    if (excludeMap.nonEmpty) {
-//      if (includeMap.nonEmpty) {
-//        rowFilter(
-//          table,
-//          (dim, x) => includeMap.get(dim).forall(_.contains(x)) && !excludeMap.get(dim).exists(_.contains(x))
-//        )
-//      } else {
-//        rowFilter(table, (dim, x) => !excludeMap.get(dim).exists(_.contains(x)))
-//      }
-//    } else {
-//      if (includeMap.nonEmpty) {
-//        rowFilter(table, (dim, x) => includeMap.get(dim).forall(_.contains(x)))
-//      } else { _ =>
-//        true
-//      }
-//    }
-//  }
-
-//  private def rowFilter(table: Table, f: (Dimension, Any) => Boolean): RowFilter = { rowKey =>
-//    true
-////    rowKey.dimReprs.zip(table.dimensionSeq).forall {
-////      case (Some(x), dim) => f(dim, x)
-////      case _              => true
-////    }
-//  }
 
   private def createTimeFilter(
       fromTime: Long,
@@ -457,10 +424,10 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
   }
 
   private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: String): Option[R] = {
-//    Try {
-//      val bytes = javax.xml.bind.DatatypeConverter.parseHexBinary(value)
-//      dim.rStorable.read(bytes)
-//    }.toOption
+    //    Try {
+    //      val bytes = javax.xml.bind.DatatypeConverter.parseHexBinary(value)
+    //      dim.rStorable.read(bytes)
+    //    }.toOption
     None
   }
 
@@ -492,7 +459,6 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
 
     val buffer = ByteBuffer
       .allocate(keySize)
-      .put(table.id)
       .putLong(bt)
 
     table.dimensionSeq.foreach { dim =>
@@ -518,13 +484,6 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
     buffer.array()
   }
 
-  def keySize(table: Table): Int = {
-    1 + // table id
-      java.lang.Long.BYTES + // base time
-      table.dimensionSeq.map(_.rStorable.size).sum + // dimensions
-      java.lang.Long.BYTES // rest time
-  }
-
   private def loadRowKey(
       table: Table,
       rowKey: Array[Byte],
@@ -532,8 +491,6 @@ class TSDaoRocks(schema: Schema) extends TSDao[Iterator, Long] {
       internalRowBuilder: InternalRowBuilder
   ): Unit = {
     val bb = ByteBuffer.wrap(rowKey)
-
-    bb.position(1)
 
     val baseTime = bb.getLong()
 

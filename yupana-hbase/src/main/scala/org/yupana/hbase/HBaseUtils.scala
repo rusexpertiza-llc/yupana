@@ -328,7 +328,6 @@ object HBaseUtils extends StrictLogging {
     val stopBuffer = ByteBuffer.allocate(keySize)
     startBuffer.put(bytes)
     stopBuffer.put(Bytes.unsignedCopyAndIncrement(bytes))
-
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }
 

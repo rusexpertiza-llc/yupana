@@ -7,8 +7,6 @@ import java.nio.ByteOrder
 
 class Cursor(table: Table, blocks: Seq[LeafBlock], prefix: Option[Array[Byte]]) {
 
-  private val dimensions = table.dimensionSeq.toArray
-
   private val keySize = StorageFormat.keySize(table)
   private val prefixBuf = MemorySegment.ofArray(prefix.getOrElse(Array.empty[Byte]))
 
@@ -43,7 +41,7 @@ class Cursor(table: Table, blocks: Seq[LeafBlock], prefix: Option[Array[Byte]]) 
   private def nextLoop: Boolean = {
     currentBlock match {
       case Some(bl) =>
-        if (pos < bl.header.numOfRecords - 1) {
+        if (pos < bl.numOfRecords - 1) {
           pos += 1
           offset += rowSize
           rowSize = readRowSize()
@@ -79,7 +77,7 @@ class Cursor(table: Table, blocks: Seq[LeafBlock], prefix: Option[Array[Byte]]) 
       case blockOpt @ Some(block) =>
         currentBlock = blockOpt
         tailBlocks = tailBlocks.tail
-        currentSegment = block.rowsData
+        currentSegment = block.payload
         pos = 0
         offset = 0
         rowSize = readRowSize()

@@ -6,20 +6,19 @@ import Block._
 trait Block {
 
   val kind: Byte = checkFormatAndGetBlockKind(id, table)
+  val segment: MemorySegment = table.blockSegment(id)
 
   val keySize: Int = StorageFormat.getInt(segment, KEY_SIZE_OFFSET)
   require(keySize == table.keySize)
 
   val startKey: Array[Byte] = Array.ofDim[Byte](keySize)
-  StorageFormat.getBytes(segment, START_KEY_OFFSET, startKey, 0, keySize)
+  StorageFormat.getBytes(segment, START_KEY_OFFSET, startKey, keySize)
 
   val endKey: Array[Byte] = Array.ofDim[Byte](keySize)
-  StorageFormat.getBytes(segment, endKeyOffset(keySize), endKey, 0, keySize)
+  StorageFormat.getBytes(segment, endKeyOffset(keySize), endKey, keySize)
 
   val numOfRecords: Int = StorageFormat.getInt(segment, numOfRecordsOffset(keySize))
   val rowsDataSize: Int = StorageFormat.getInt(segment, rowsDataSizeOffset(keySize))
-
-  val segment: MemorySegment = table.blockSegment(id)
 
   def id: Int
   def table: KTable
@@ -28,13 +27,14 @@ trait Block {
 }
 
 object Block {
+
   val MAGIC = 22859.toShort // StorageFormat.getShort(MemorySegment.ofArray("YK".getBytes(StandardCharsets.UTF_8)), 0)
   val BLOCK_SIZE = 4096
 
   val LEAF_KIND: Byte = 1
   val NODE_KIND: Byte = 2
 
-  val ID_BLOCK_SIZE = 4
+  val BLOCK_ID_SIZE = 4
   val MAGIC_SIZE = 2
   val KIND_SIZE = 2
   val ID_SIZE = 4

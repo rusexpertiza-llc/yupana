@@ -22,6 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
 import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
@@ -86,7 +87,7 @@ class ExternalLinkBenchmarkState {
 
   val dim: RawDimension[Int] = BenchLink.dim
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
-  val table = new SchemaTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
+  val table = new SchemaTable(1, "benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
   val linkExpr: LinkExpr[String] = LinkExpr(BenchLink, BenchLink.F1)
   val t0: OffsetDateTime = OffsetDateTime.of(2019, 4, 2, 0, 0, 0, 0, ZoneOffset.UTC)
   val t1: OffsetDateTime = t0.plusYears(1)
@@ -102,7 +103,7 @@ class ExternalLinkBenchmarkState {
       )
     )
   )
-  val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
+  val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
   var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex.toMap

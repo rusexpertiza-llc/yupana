@@ -124,7 +124,9 @@ trait TsdbBase extends StrictLogging {
     logger.debug(s"Final condition: $condition")
 
     val queryContext =
-      metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, condition, calculatorFactory, metricCollector ))
+      metricCollector.createContext.measure(1)(
+        new QueryContext(optimizedQuery, condition, calculatorFactory, metricCollector)
+      )
 
     val rows = queryContext.query.table match {
       case Some(table) =>
@@ -184,6 +186,7 @@ trait TsdbBase extends StrictLogging {
         val withExprValues = filtered.map(row => queryContext.calculator.evaluateExpressions(schema.tokenizer, row))
 
         withExprValues.map(row => new KeyData(queryContext, row) -> row)
+      }
     }
 
     val keysAndValuesWinFunc = if (hasWindowFunctions) {

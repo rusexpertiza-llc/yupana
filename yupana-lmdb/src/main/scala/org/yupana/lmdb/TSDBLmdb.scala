@@ -19,10 +19,13 @@ object TSDBLmdb {
     val dao = new TSDaoLmdb(schema)
     val changeLogDao = new ChangelogDao {
       override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = ()
+
       override def getUpdatesIntervals(
           tableName: Option[String],
           updatedAfter: Option[Long],
           updatedBefore: Option[Long],
+          recalculatedAfter: Option[Long],
+          recalculatedBefore: Option[Long],
           updatedBy: Option[String]
       ): Iterable[UpdateInterval] = Seq.empty
     }

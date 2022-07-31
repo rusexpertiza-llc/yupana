@@ -1,22 +1,27 @@
-package org.yupana.rocks
+package org.yupana.khipu
 
 import org.yupana.api.query.Query
 import org.yupana.api.schema.{ Dimension, Schema }
-import org.yupana.core.{ TSDB, TsdbConfig }
+import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl }
 import org.yupana.core.model.UpdateInterval
+import org.yupana.core.{ TSDB, TsdbConfig }
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 
-object TSDBRocks {
+import java.util.Properties
+
+object TSDBKhipu {
 
   def apply(
       schema: Schema,
       prepareQuery: Query => Query,
       tsdbConfig: TsdbConfig,
+      properties: Properties,
       metricCollectorCreator: Query => MetricQueryCollector = _ => NoMetricCollector
   ): TSDB = {
+    CacheFactory.init(properties)
 
-    val dao = new TSDaoRocks(schema)
+    val dao = new TSDaoKhipu(schema)
     val changeLogDao = new ChangelogDao {
       override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = ()
 

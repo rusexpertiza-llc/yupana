@@ -3,16 +3,15 @@ package org.yupana.khipu
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.TestSchema
-
 import TestUtils._
 
 class BlockTest extends AnyFlatSpec with Matchers {
 
   "A Block" should "allocate new block and put rows" in {
 
-    val block = LeafBlock.empty(TestSchema.testTable)
+    val block = emptyTestBlock
 
-    val row = Row(Array.fill[Byte](block.header.keySize)(1.toByte), Array.fill[Byte](100)(2.toByte))
+    val row = Row(Array.fill[Byte](block.keySize)(1.toByte), Array.fill[Byte](100)(2.toByte))
     val blocks1 = block.put(Seq(row))
 
     val c1 = new Cursor(TestSchema.testTable, blocks1, None)
@@ -40,7 +39,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
   it should "put rows to existing not empty block" in {
 
-    val initblock = LeafBlock.empty(TestSchema.testTable)
+    val initblock = emptyTestBlock
     val initRows = Seq(testRowFill(10, 15), testRowFill(20, 25), testRowFill(30, 35))
 
     val block = initblock.put(initRows).head
@@ -78,7 +77,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
   it should "replace rows for existing not empty block" in {
 
-    val initblock = LeafBlock.empty(TestSchema.testTable)
+    val initblock = emptyTestBlock
     val initRows = Seq(testRowFill(10, 15), testRowFill(20, 25), testRowFill(30, 35))
 
     val block = initblock.put(initRows).head
@@ -105,7 +104,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
   it should "put a lot new rows to empty block" in {
 
-    val initblock = LeafBlock.empty(TestSchema.testTable)
+    val initblock = emptyTestBlock
     val rows =
       for (i <- 1 to 1000) yield {
         testRowVal(i, i)
@@ -123,7 +122,7 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
   it should "put a lot new rows to existing non empty block" in {
 
-    val initblock = LeafBlock.empty(TestSchema.testTable)
+    val initblock = emptyTestBlock
     val initVals = Seq(2, 22)
     val initRows = initVals.map(v => testRowVal(v, v))
 
@@ -144,6 +143,13 @@ class BlockTest extends AnyFlatSpec with Matchers {
       c.keyBytes() shouldBe expectedRow.key
       c.valueBytes() shouldBe expectedRow.value
     }
+  }
+
+  private def emptyTestBlock = {
+    val table = KTable.allocateHeap(TestSchema.testTable)
+    val id = table.allocateBlock
+    LeafBlock.initEmptyBlock(id, table.blockSegment(id), TestSchema.testTable)
+    new LeafBlock(id, table)
   }
 
 }

@@ -169,6 +169,7 @@ object HBaseUtilsTest {
   val TEST_FIELD = Metric[Double]("testField", 1)
 
   val TestTable = new Table(
+    1,
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C),
@@ -178,6 +179,7 @@ object HBaseUtilsTest {
   )
 
   val TestTable2 = new Table(
+    2,
     name = "test_table_2",
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(DIM_B, DIM_A, DIM_C),

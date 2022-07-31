@@ -20,7 +20,7 @@ object TestUtils {
     keyBuf.putInt(k)
     val key = keyBuf.array()
 
-    val valBuf = ByteBuffer.wrap(Array.ofDim[Byte](100))
+    val valBuf = ByteBuffer.wrap(Array.ofDim[Byte](20))
     valBuf.putInt(v)
     val value = valBuf.array()
     Row(key, value)

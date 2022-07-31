@@ -386,7 +386,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory)
+    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -443,7 +443,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .buildAndReset()
 
     val rows = Seq(row1, row2, row3).groupBy(_.get(qc, dimension(TestDims.DIM_A)))
-    val mapped = rows.map { case (s, rs)    => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
+    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateMap(RussianTokenizer, r)) }
     val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateReduce(RussianTokenizer, a, b)) }
     val postMapped = reduced.map(r => calc.evaluatePostMap(RussianTokenizer, r))
 
@@ -509,7 +509,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
   }
 
   it should "handle nulls properly" in {
-    val now = DateTime.now()
+    val now = OffsetDateTime.now()
 
     val exp = divFrac(plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)), const(2d))
     val cond = equ(exp, const(0d))
@@ -582,7 +582,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory)
+    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -615,7 +615,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory)
+    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
 
     val builder = new InternalRowBuilder(qc)
 

@@ -1,5 +1,11 @@
 package org.yupana.khipu
 
+import jdk.incubator.foreign.MemorySegment
+import org.yupana.api.schema.Table
+import org.yupana.khipu.KhipuMetricCollector.Metrics
+
+import scala.collection.AbstractIterator
+
 /**
   * Format:
   *   Int16 - MAGIC
@@ -11,114 +17,162 @@ package org.yupana.khipu
   */
 class LeafBlock(override val id: Int, override val table: KTable) extends Block {
 
-  private val rowsOrdering = Ordering.comparatorToOrdering(StorageFormat.BYTES_COMPARATOR)
+  private val headerSize = Block.headerSize(keySize)
 
-  override def put(rows: Seq[Row]): List[Block] = {
+  val payload: MemorySegment = segment.asSlice(Block.headerSize(keySize))
+
+  override def put(puts: Seq[Row]): List[LeafBlock] = {
 
     require(
-      rows.forall(r => rowSize(r) <= LeafBlock.MAX_ROW_SIZE),
+      puts.forall(r => rowSize(r) <= LeafBlock.MAX_ROW_SIZE),
       s"One or more row have size more than ${LeafBlock.MAX_ROW_SIZE}"
     )
-    merge(rows).toList
 
+    val existing = Metrics.load.measure(1) {
+      loadRows()
+    }
+    val rows = Metrics.merge.measure(1) {
+      mergeRows(existing, puts.toIndexedSeq).toIndexedSeq
+    }
+
+    Metrics.splitAndWriteLeafBlocks.measure(1) {
+      val bs = splitAndWrite(rows, startKey, endKey).toList
+      table.freeBlock(id)
+      bs
+    }
   }
 
-  private def merge(rows: Seq[Row]) = {
+  private def splitAndWrite(
+      rows: IndexedSeq[Row],
+      start: Array[Byte],
+      end: Array[Byte]
+  ): Seq[LeafBlock] = {
+    if (rows.nonEmpty) {
 
-    var dstBlocks = Seq.empty[LeafBlock]
-    var dstPos = 0L
+      val size = rows.foldLeft(0)((s, r) => s + rowSize(r))
 
-    val sorted = sortRows(rows).toArray
-    var srcPos = 0L
-    var putRowIdx = 0
+      if (headerSize + size > Block.BLOCK_SIZE) {
 
-    val srcRowBytes = Array.ofDim[Byte](LeafBlock.MAX_ROW_SIZE)
+        val splitIndex = rows.length / 2
 
-    val headerSize = Block.headerSize(keySize)
+        val (left, right) = rows.splitAt(splitIndex)
+        val splitPoint = left.last.key
+        val incSplitPoint = StorageFormat.incByteArray(splitPoint, keySize)
 
-    while (putRowIdx < sorted.length || srcPos < rowsDataSize) {
-
-      val newId = table.allocateBlock
-      val dstData = table.blockSegment(newId)
-      dstPos = Block.headerSize(keySize)
-      val startKeyPos = dstPos
-      var endKeyPos = startKeyPos
-      var recordsCount = 0
-      var payloadSize = 0
-
-      while (dstPos < dstData.byteSize() && putRowIdx < sorted.length || srcPos < rowsDataSize) {
-
-        val srcRowSize = StorageFormat.getInt(segment, headerSize + srcPos)
-        if (srcPos < rowsDataSize) {
-          StorageFormat.getBytes(segment, headerSize + srcPos + 4, srcRowBytes, 0, srcRowSize - 4)
+        splitAndWrite(left, start, splitPoint) ++ splitAndWrite(right, incSplitPoint, end)
+      } else {
+        Metrics.writeLeafBlock.measure(1) {
+          val block = writeBlock(rows.iterator, start, end)
+          Seq(block)
         }
+      }
+    } else {
+      Seq.empty
+    }
+  }
 
-        val c = if (putRowIdx < sorted.length && srcPos < rowsDataSize) {
-          val putRow = sorted(putRowIdx)
-          StorageFormat.compareTo(srcRowBytes, 4, putRow.key, 0, keySize)
-        } else if (srcPos < rowsDataSize) {
-          -1
-        } else {
-          1
-        }
+  private def mergeRows(existing: IndexedSeq[Row], puts: IndexedSeq[Row]): Iterator[Row] = {
 
-        val offset = if (c >= 0) {
-          val putRow = sorted(putRowIdx)
-          rowSize(putRow)
-        } else {
-          srcRowSize
-        }
+    new AbstractIterator[Row] {
+      var eIdx = 0
+      var pIdx = 0
 
-        if (dstPos + offset < dstData.byteSize()) {
-
-          if (c >= 0) {
-            if (c == 0) {
-              // replace row else insert
-              srcPos += srcRowSize
-            }
-            val putRow = sorted(putRowIdx)
-            StorageFormat.setInt(offset, dstData, dstPos)
-            StorageFormat.setBytes(putRow.key, 0, dstData, dstPos + 4, keySize)
-            StorageFormat.setBytes(putRow.value, 0, dstData, dstPos + 4 + keySize, putRow.value.length)
-            putRowIdx += 1
-          } else {
-            StorageFormat.setInt(srcRowSize, dstData, dstPos)
-            StorageFormat.setBytes(srcRowBytes, 0, dstData, dstPos + 4, srcRowSize - 4)
-            srcPos += srcRowSize
-          }
-          recordsCount += 1
-          payloadSize += offset
-        }
-        endKeyPos = dstPos
-        dstPos += offset
+      override def hasNext: Boolean = {
+        eIdx < existing.length || pIdx < puts.length
       }
 
-      Block.writeHeader(
-        segment,
-        newId,
-        Block.LEAF_KIND,
-        keySize,
-        StorageFormat.getBytes(dstData, startKeyPos + 4, keySize),
-        StorageFormat.getBytes(dstData, endKeyPos + 4, keySize),
-        recordsCount,
-        payloadSize
-      )
+      override def next(): Row = {
+        val cmp = if (eIdx < existing.length && pIdx < puts.length) {
+          StorageFormat.compareTo(existing(eIdx).key, puts(pIdx).key, keySize)
+        } else if (pIdx < puts.length) {
+          1
+        } else {
+          -1
+        }
 
-      val b = new LeafBlock(newId, table)
-      dstBlocks = dstBlocks :+ b
+        if (cmp >= 0) {
+          if (cmp == 0) {
+            eIdx += 1
+          }
+          val r = puts(pIdx)
+          pIdx += 1
+          r
+        } else {
+          val r = existing(eIdx)
+          eIdx += 1
+          r
+        }
+      }
     }
-    dstBlocks
+  }
+
+  private def loadRows(): IndexedSeq[Row] = {
+    var offset = 0L
+    val rows = Array.ofDim[Row](numOfRecords)
+    var i = 0
+    while (offset < rowsDataSize) {
+      val srcRowSize = StorageFormat.getInt(payload, offset)
+      val key = StorageFormat.getBytes(payload, offset + 4, keySize)
+      val value = StorageFormat.getBytes(payload, offset + 4 + keySize, srcRowSize - keySize - 4)
+      rows(i) = Row(key, value)
+      offset += srcRowSize
+      i += 1
+    }
+    rows
+  }
+
+  private def writeBlock(rows: Iterator[Row], start: Array[Byte], end: Array[Byte]): LeafBlock = {
+    val newId = table.allocateBlock
+    val dstData = table.blockSegment(newId)
+    var dstPos = Block.headerSize(keySize)
+    var count = 0
+
+    rows.foreach { row =>
+      val offset = rowSize(row)
+      StorageFormat.setInt(offset, dstData, dstPos)
+      StorageFormat.setBytes(row.key, 0, dstData, dstPos + 4, keySize)
+      StorageFormat.setBytes(row.value, 0, dstData, dstPos + 4 + keySize, row.value.length)
+      dstPos += offset
+      count += 1
+    }
+
+    Block.writeHeader(
+      table.blockSegment(newId),
+      newId,
+      Block.LEAF_KIND,
+      keySize,
+      start,
+      end,
+      count,
+      dstPos - headerSize
+    )
+    new LeafBlock(newId, table)
   }
 
   private def rowSize(row: Row) = {
     4 + row.key.length + row.value.length
   }
-
-  private def sortRows(rows: Seq[Row]) = {
-    rows.sortBy(_.key)(rowsOrdering)
-  }
 }
 
 object LeafBlock {
+
+  def initEmptyBlock(id: Int, blockSegment: MemorySegment, table: Table): NodeBlock.Child = {
+    val keySize = StorageFormat.keySize(table)
+    val startKey = Array.ofDim[Byte](keySize)
+    val endKey = Array.fill[Byte](keySize)(0xFF.toByte)
+
+    Block.writeHeader(
+      blockSegment,
+      id,
+      Block.LEAF_KIND,
+      keySize,
+      startKey,
+      endKey,
+      0,
+      0
+    )
+    NodeBlock.Child(id, startKey, endKey)
+  }
+
   val MAX_ROW_SIZE = 200
 }
