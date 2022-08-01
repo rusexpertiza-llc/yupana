@@ -21,7 +21,7 @@ import org.yupana.core.MapReducible
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-trait TSReadingDao[Collection[_], IdType] {
+trait TSReadingDao[Collection[_]] {
   def query(
       query: InternalQuery,
       valueDataBuilder: InternalRowBuilder,

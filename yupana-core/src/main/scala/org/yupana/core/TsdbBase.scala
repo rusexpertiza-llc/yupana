@@ -16,6 +16,7 @@
 
 package org.yupana.core
 
+import cats.data.Writer
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
@@ -40,8 +41,7 @@ trait TsdbBase extends StrictLogging {
   type Collection[_]
   type Result <: TsdbResultBase[Collection]
 
-  // TODO: it should work with different DAO Id types
-  def dao: TSDao[Collection, Long]
+  def dao: TSDao[Collection]
 
   def changelogDao: ChangelogDao
 
@@ -101,6 +101,14 @@ trait TsdbBase extends StrictLogging {
     * calculations if limit is defined.
     */
   def query(query: Query): Result = {
+    doQuery(query).value
+  }
+
+  def exlain(query: Query): List[Explanation] = {
+    doQuery(query).written
+  }
+
+  def doQuery(query: Query): Writer[List[Explanation], Result] = {
 
     val preparedQuery = prepareQuery(query)
     logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)

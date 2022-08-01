@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.{ LocalDateTime, ZoneOffset }
 
-trait TSTestDao extends TSDao[Iterator, Long]
+trait TSTestDao extends TSDao[Iterator]
 
 class TsdbTest
     extends AnyFlatSpec

@@ -28,7 +28,7 @@ import org.yupana.core.utils.metric._
 
 class TSDB(
     override val schema: Schema,
-    override val dao: TSDao[Iterator, Long],
+    override val dao: TSDao[Iterator],
     val changelogDao: ChangelogDao,
     override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,

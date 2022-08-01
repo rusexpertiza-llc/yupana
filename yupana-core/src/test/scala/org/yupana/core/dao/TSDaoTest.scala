@@ -25,7 +25,7 @@ class TSDaoTest extends AnyFlatSpec with Matchers {
 
     val intervalsIterator = intervals.iterator
 
-    val testDao = new TSDao[Iterator, Long] {
+    val testDao = new TSDao[Iterator] {
       override val dataPointsBatchSize: Int = 10
       override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
         intervalsIterator.next()

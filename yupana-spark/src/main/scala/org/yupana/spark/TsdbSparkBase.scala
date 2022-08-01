@@ -97,7 +97,7 @@ abstract class TsdbSparkBase(
 
   override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
-  override val dao: TSDao[RDD, Long] =
+  override val dao: TSDao[RDD] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
   override def createMetricCollector(query: Query): MetricQueryCollector = {

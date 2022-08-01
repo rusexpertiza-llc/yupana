@@ -37,7 +37,7 @@ object QueryRunner {
     val config = new QueryRunnerConfig(sparkConf)
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
 
-    val sparkDao: TSDao[RDD, Long] =
+    val sparkDao: TSDao[RDD] =
       new TsDaoHBaseSpark(spark.sparkContext, ExampleSchema.schema, config, new SparkDictionaryProvider(config))
     val changelogDao: ChangelogDao = new ChangelogDaoHBase(
       ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),

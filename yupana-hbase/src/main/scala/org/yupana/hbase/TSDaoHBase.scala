@@ -39,8 +39,8 @@ class TSDaoHBase(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: IdType,
-      to: IdType,
+      from: Long,
+      to: Long,
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Iterator[HResult] = {
 

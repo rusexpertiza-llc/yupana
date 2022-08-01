@@ -109,7 +109,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
     CacheFactory.init(properties)
 
-    val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
+    val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator] {
 
       override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] = {
         IteratorMapReducible.iteratorMR

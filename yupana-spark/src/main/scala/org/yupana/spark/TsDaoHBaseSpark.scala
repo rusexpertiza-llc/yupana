@@ -36,7 +36,7 @@ class TsDaoHBaseSpark(
     override val dictionaryProvider: DictionaryProvider,
     putsBatchSize: Int = 10000
 ) extends TSDaoHBaseBase[RDD]
-    with TSDao[RDD, Long]
+    with TSDao[RDD]
     with Serializable {
 
   private val sparkListener = new ProgressListener[HBaseScanPartition]
