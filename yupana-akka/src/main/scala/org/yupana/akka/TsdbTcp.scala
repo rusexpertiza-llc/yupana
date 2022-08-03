@@ -80,7 +80,9 @@ class TsdbTcp(
           b -> Try(Request.parseFrom(b.toArray)).toOption
       }
       .collect {
-        case (_, Some(r)) => r
+        case (_, Some(r)) =>
+          logger.debug("Received request" + r)
+          r
       }
       .mapAsync(1) {
         case Request(Request.Req.Ping(ping)) =>
