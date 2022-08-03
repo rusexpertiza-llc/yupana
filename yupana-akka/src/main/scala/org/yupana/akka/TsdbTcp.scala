@@ -74,18 +74,13 @@ class TsdbTcp(
       .addAttributes(
         Attributes(CancellationStrategy(CancellationStrategy.AfterDelay(1.second, CancellationStrategy.FailStage)))
       )
-      .map { b =>
-        val r = Try(Request.parseFrom(b.toArray)) match {
-          case Success(message) =>
-            message
-
-          case Failure(f) =>
-            logger.error(s"Parse error $b: ", f)
-            throw f
-        }
-
-        logger.debug("Received request" + r)
-        r
+      .scan((ByteString.empty, Option.empty[Request])) {
+        case ((acc, _), part) =>
+          val b = acc.concat(part)
+          b -> Try(Request.parseFrom(b.toArray)).toOption
+      }
+      .collect {
+        case (_, Some(r)) => r
       }
       .mapAsync(1) {
         case Request(Request.Req.Ping(ping)) =>
