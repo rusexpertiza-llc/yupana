@@ -44,6 +44,7 @@ object TimeBoundedCondition {
   def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
     condition match {
       case a: AndExpr => andToTimeBounded(constantCalculator)(a)
+      case OrExpr(es) => es.flatMap(e => apply(constantCalculator, e))
       case x          => Seq(TimeBoundedCondition(None, None, Seq(x)))
     }
   }
