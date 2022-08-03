@@ -42,6 +42,8 @@ class TsdbTcp(
   import system.dispatcher
 
   private val HEART_BEAT_INTERVAL = 10
+  private val FRAME_SIZE = 1024 * 100
+  private val REQUEST_SIZE_LIMIT = 1024 * 1000 * 5
 
   val decider: Supervision.Decider = { e =>
     logger.error("Exception:", e)
@@ -58,7 +60,7 @@ class TsdbTcp(
 
     logger.info(s"Get TCP connection from ${conn.remoteAddress}")
 
-    val protocol = Framing.simpleFramingProtocol(1024 * 100).reversed
+    val protocol = Framing.simpleFramingProtocol(FRAME_SIZE).reversed
 
     val heartbeat =
       Source
@@ -77,6 +79,9 @@ class TsdbTcp(
       .scan((ByteString.empty, Option.empty[Request])) {
         case ((acc, _), part) =>
           val b = acc.concat(part)
+          if (b.length > REQUEST_SIZE_LIMIT) {
+            throw new IllegalArgumentException(s"Request is too big")
+          }
           b -> Try(Request.parseFrom(b.toArray)).toOption
       }
       .collect {
