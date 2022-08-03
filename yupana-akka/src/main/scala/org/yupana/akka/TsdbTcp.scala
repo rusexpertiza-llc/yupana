@@ -43,7 +43,7 @@ class TsdbTcp(
 
   private val HEART_BEAT_INTERVAL = 10
   private val FRAME_SIZE = 1024 * 100
-  private val REQUEST_SIZE_LIMIT = 1024 * 1000 * 5
+  private val REQUEST_SIZE_LIMIT = FRAME_SIZE * 50
 
   val decider: Supervision.Decider = { e =>
     logger.error("Exception:", e)
