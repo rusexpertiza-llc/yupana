@@ -24,7 +24,7 @@ import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{ SparseTable, Table }
+import org.yupana.core.utils.{ SparseTable, Table, TimeBoundedCondition }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
@@ -65,9 +65,8 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+  override def transformCondition(condition: TimeBoundedCondition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,

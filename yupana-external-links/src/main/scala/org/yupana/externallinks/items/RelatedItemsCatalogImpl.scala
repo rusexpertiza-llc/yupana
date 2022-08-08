@@ -61,41 +61,38 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     )
   }
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
-    val tbcs = TimeBoundedCondition(constantCalculator, condition)
+  override def transformCondition(tbc: TimeBoundedCondition): Seq[TransformCondition] = {
 
-    tbcs.flatMap { tbc =>
-      val from = tbc.from.getOrElse(
-        throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")
-      )
-      val to =
-        tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
+    val from = tbc.from.getOrElse(
+      throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")
+    )
+    val to =
+      tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
 
-      // TODO: Here we can take KKM related conditions from other, to speed up transactions request
+    // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
-      val (includeExprValues, excludeExprValues, other) =
-        ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
+    val (includeExprValues, excludeExprValues, other) =
+      ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
-      val include = if (includeExprValues.nonEmpty) {
-        Some(includeTransform(includeExprValues, from, to))
-      } else {
-        None
-      }
-
-      val exclude = if (excludeExprValues.nonEmpty) {
-        Some(excludeTransform(excludeExprValues, from, to))
-      } else {
-        None
-      }
-
-      val result =
-        if (other.nonEmpty)
-          Seq(include, exclude, Some(Original(other.toSet))).flatten
-        else
-          Seq(include, exclude).flatten
-
-      result
+    val include = if (includeExprValues.nonEmpty) {
+      Some(includeTransform(includeExprValues, from, to))
+    } else {
+      None
     }
+
+    val exclude = if (excludeExprValues.nonEmpty) {
+      Some(excludeTransform(excludeExprValues, from, to))
+    } else {
+      None
+    }
+
+    val result =
+      if (other.nonEmpty)
+        Seq(include, exclude, Some(Original(other.toSet))).flatten
+      else
+        Seq(include, exclude).flatten
+
+    result
   }
 
   protected def createFilter(fieldValues: Seq[(Condition, String, Set[String])]): Seq[Condition] = {

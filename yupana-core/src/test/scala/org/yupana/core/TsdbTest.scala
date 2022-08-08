@@ -1,11 +1,14 @@
 package org.yupana.core
 
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl, TSDao }
 import org.yupana.core.model._
@@ -13,15 +16,12 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
-
-import java.util.Properties
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.yupana.core.auth.YupanaUser
+import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.{ LocalDateTime, ZoneOffset }
+import java.util.Properties
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -33,6 +33,8 @@ class TsdbTest
     with TableDrivenPropertyChecks
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
+
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()

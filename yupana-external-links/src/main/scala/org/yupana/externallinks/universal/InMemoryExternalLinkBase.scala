@@ -22,6 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.externallinks.ExternalLinkUtils
 
 abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[String], data: Array[Array[String]])
@@ -89,9 +90,8 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     }
   }
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+  override def transformCondition(condition: TimeBoundedCondition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,

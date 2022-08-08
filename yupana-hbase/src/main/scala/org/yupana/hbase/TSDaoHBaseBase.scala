@@ -28,7 +28,6 @@ import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
-import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.util.Try
@@ -73,11 +72,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
-    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
+//    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
 
-    if (tbc.size != 1) throw new IllegalArgumentException("Only one condition is supported")
+    if (query.condition.size != 1) throw new IllegalArgumentException("Only one condition is supported")
 
-    val condition = tbc.head
+    val condition = query.condition.head
 
     val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
     val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))

@@ -117,10 +117,15 @@ trait TsdbBase extends StrictLogging {
     val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
     logger.debug(s"Substituted condition: $substitutedCondition")
 
-    val condition = substitutedCondition
-      .map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
-      .filterNot(_ == ConstantExpr(true))
+    val conditions = substitutedCondition
+      .map(cs =>
+        cs.flatMap { tbc =>
+          val daoConditions = tbc.conditions.filter(c => c != ConstantExpr(true) && dao.isSupportedCondition(c))
+          if (daoConditions.nonEmpty) Some(tbc.copy(conditions = daoConditions)) else None
+        }
+      )
 
+    val condition = conditions.map { cs => if (cs.size == 1) cs.head.toCondition else OrExpr(cs.map(_.toCondition)) }
     logger.debug(s"Final condition: $condition")
 
     val queryContext =
@@ -262,26 +267,28 @@ trait TsdbBase extends StrictLogging {
     rows
   }
 
-  def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Condition = {
+  def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Seq[TimeBoundedCondition] = {
     val linkServices = condition.flatten.collect {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val transformations = linkServices.flatMap(service =>
-      metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.transformCondition(condition)
-      }
-    )
+    TimeBoundedCondition(constantCalculator, condition).map { tbc =>
 
-    if (transformations.nonEmpty) {
-      val tbc = TimeBoundedCondition.single(constantCalculator, condition)
-      val transformed = transformations.foldLeft(tbc) {
-        case (c, transform) =>
-          ConditionUtils.transform(c, transform)
+      val transformations = linkServices.flatMap(service =>
+        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
+          service.transformCondition(tbc)
+        }
+      )
+
+      if (transformations.nonEmpty) {
+        val transformed = transformations.foldLeft(tbc) {
+          case (c, transform) =>
+            ConditionUtils.transform(c, transform)
+        }
+        transformed
+      } else {
+        tbc
       }
-      transformed.toCondition
-    } else {
-      condition
     }
   }
 

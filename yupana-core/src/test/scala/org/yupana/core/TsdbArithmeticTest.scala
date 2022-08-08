@@ -11,6 +11,7 @@ import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.utils.RussianTokenizer
 
 import java.time.{ OffsetDateTime, ZoneOffset }
 import java.time.format.DateTimeFormatter
@@ -27,6 +28,7 @@ class TsdbArithmeticTest
   import org.yupana.api.query.syntax.All._
 
   private val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()

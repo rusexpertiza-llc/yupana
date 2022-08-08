@@ -24,6 +24,7 @@ import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
+import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
@@ -109,9 +110,8 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+  override def transformCondition(condition: TimeBoundedCondition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformConditionT[String](
-      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,

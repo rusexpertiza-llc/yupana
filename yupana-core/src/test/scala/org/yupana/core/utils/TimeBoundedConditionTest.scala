@@ -57,4 +57,16 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
     tbc2.to.value shouldEqual to2.millis + 1
     tbc2.conditions should contain theSameElementsAs List(in(metric(TestTableFields.TEST_FIELD), Set(1d, 2d)))
   }
+
+  it should "fail if there conditions without time bound" in {
+    val from = Time(LocalDateTime.now().minusMonths(1))
+    val to = Time(LocalDateTime.now().minusWeeks(2))
+
+    val condition = or(
+      and(ge(time, const(from)), lt(time, const(to)), equ(dimension(TestDims.DIM_A), const("x"))),
+      and(ge(time, const(from)), equ(dimension(TestDims.DIM_A), const("y")))
+    )
+
+    an[IllegalArgumentException] should be thrownBy TimeBoundedCondition(calculator, condition)
+  }
 }

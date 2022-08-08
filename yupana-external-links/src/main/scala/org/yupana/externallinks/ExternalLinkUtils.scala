@@ -21,7 +21,6 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.{ InternalRow, TimeSensitiveFieldValues }
 import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
 
@@ -103,16 +102,14 @@ object ExternalLinkUtils {
   }
 
   def transformConditionT[T](
-      expressionCalculator: ConstantCalculator,
       linkName: String,
-      condition: Condition,
+      tbc: TimeBoundedCondition,
       includeExpression: Seq[(Condition, String, Set[T])] => TransformCondition,
       excludeExpression: Seq[(Condition, String, Set[T])] => TransformCondition
   ): Seq[TransformCondition] = {
     transformCondition(
-      expressionCalculator,
       linkName,
-      condition,
+      tbc,
       { metricsWithValues: Seq[(Condition, String, Set[Any])] =>
         includeExpression(metricsWithValues.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) })
       },
@@ -123,37 +120,37 @@ object ExternalLinkUtils {
   }
 
   def transformCondition(
-      expressionCalculator: ConstantCalculator,
+//      expressionCalculator: ConstantCalculator,
       linkName: String,
-      condition: Condition,
+      tbc: TimeBoundedCondition,
       includeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition,
       excludeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition
   ): Seq[TransformCondition] = {
-    val tbcs = TimeBoundedCondition(expressionCalculator, condition)
+//    val tbcs = TimeBoundedCondition(expressionCalculator, condition)
 
-    tbcs.flatMap { tbc =>
-      val (includeExprValues, excludeExprValues, other) = extractCatalogFields(tbc, linkName)
+//    tbcs.flatMap { tbc =>
+    val (includeExprValues, excludeExprValues, other) = extractCatalogFields(tbc, linkName)
 
-      val include = if (includeExprValues.nonEmpty) {
-        Some(includeTransform(includeExprValues))
-      } else {
-        None
-      }
-
-      val exclude = if (excludeExprValues.nonEmpty) {
-        Some(excludeTransform(excludeExprValues))
-      } else {
-        None
-      }
-
-      val result =
-        if (other.nonEmpty)
-          Seq(include, exclude, Some(Original(other.toSet))).flatten
-        else
-          Seq(include, exclude).flatten
-
-      result
+    val include = if (includeExprValues.nonEmpty) {
+      Some(includeTransform(includeExprValues))
+    } else {
+      None
     }
+
+    val exclude = if (excludeExprValues.nonEmpty) {
+      Some(excludeTransform(excludeExprValues))
+    } else {
+      None
+    }
+
+    val result =
+      if (other.nonEmpty)
+        Seq(include, exclude, Some(Original(other.toSet))).flatten
+      else
+        Seq(include, exclude).flatten
+
+    result
+//    }
   }
 
   def setLinkedValues[R](

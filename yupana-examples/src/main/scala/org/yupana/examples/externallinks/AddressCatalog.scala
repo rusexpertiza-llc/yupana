@@ -21,7 +21,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table }
+import org.yupana.core.utils.{ CollectionUtils, SparseTable, Table, TimeBoundedCondition }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Dimensions
 
@@ -73,9 +73,8 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+  override def transformCondition(condition: TimeBoundedCondition): Seq[TransformCondition] = {
     ExternalLinkUtils.transformCondition(
-      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,
