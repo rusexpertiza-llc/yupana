@@ -26,6 +26,8 @@ import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
+import scala.annotation.tailrec
+
 class HBaseScanRDD(
     sc: SparkContext,
     config: Config,
@@ -47,17 +49,19 @@ class HBaseScanRDD(
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
-    val partitions = regions
-      .filter {
-        case (startKey, endKey) =>
-          baseTimeList.exists { time =>
-            val t1 = Bytes.toBytes(time)
-            val t2 = Bytes.toBytes(time + 1)
+    val regionsRequested = regions.filter {
+      case (startKey, endKey) =>
+        baseTimeList.exists { time =>
+          val t1 = Bytes.toBytes(time)
+          val t2 = Bytes.toBytes(time + 1)
 
-            (Bytes
-              .compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
-          }
-      }
+          (Bytes
+            .compareTo(t1, endKey) <= 0 || endKey.isEmpty) && (Bytes.compareTo(t2, startKey) >= 0 || startKey.isEmpty)
+        }
+    }
+
+    val partitions = HBaseScanRDD
+      .splitRanges(config.minHBaseScanPartitions, regionsRequested)
       .zipWithIndex
       .map {
         case ((startKey, endKey), index) =>
@@ -111,5 +115,25 @@ class HBaseScanRDD(
 
   private def hTableName(): TableName = {
     HBaseUtils.tableName(config.hbaseNamespace, queryContext.table)
+  }
+}
+
+object HBaseScanRDD {
+
+  def bisect(range: (Array[Byte], Array[Byte])): Array[(Array[Byte], Array[Byte])] = {
+    Bytes
+      .split(range._1, range._2, 1)
+      .sliding(2, 1)
+      .map { a => (a(0), a(1)) }
+      .toArray
+  }
+
+  @tailrec
+  def splitRanges(parts: Int, rs: Array[(Array[Byte], Array[Byte])]): Array[(Array[Byte], Array[Byte])] = {
+    if (rs.length >= parts) rs
+    else {
+      val bisectedRanges = rs.flatMap(bisect)
+      splitRanges(parts, bisectedRanges)
+    }
   }
 }

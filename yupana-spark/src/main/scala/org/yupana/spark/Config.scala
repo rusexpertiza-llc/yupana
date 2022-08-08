@@ -52,4 +52,6 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
 
   override val reduceLimit: Int = Int.MaxValue
+
+  val minHBaseScanPartitions: Int = sparkConf.getInt("analytics.tsdb.spark.min-hbase-scan-partitions", 50)
 }
