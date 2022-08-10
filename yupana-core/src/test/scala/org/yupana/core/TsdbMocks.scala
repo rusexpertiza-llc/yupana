@@ -5,13 +5,15 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl }
+import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl, TSDao }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.utils.RussianTokenizer
+
+trait TSTestDao extends TSDao[Iterator, Long]
 
 trait TsdbMocks extends MockFactory {
 

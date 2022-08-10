@@ -25,7 +25,6 @@ import org.yupana.api.query._
 import org.yupana.api.schema._
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
-import org.yupana.core.ConstantCalculator
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -35,11 +34,12 @@ import scala.util.Try
 object TSDaoHBaseBase {
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
-  val FUZZY_FILTERS_LIMIT = 20
   val EXTRACT_BATCH_SIZE = 10000
   val INSERT_BATCH_SIZE = 5000
   val PUTS_BATCH_SIZE = 1000
 }
+
+case class RangeInfo(from: Long, to: Long, rangeScanDims: Iterator[Map[Dimension, Seq[_]]])
 
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
 
@@ -51,19 +51,13 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
   val schema: Schema
 
-  protected lazy val expressionCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
-
-  val TIME: RawDimension[Time] = RawDimension[Time]("time")
-
   override val dataPointsBatchSize: Int = INSERT_BATCH_SIZE
 
   def dictionaryProvider: DictionaryProvider
 
   def executeScans(
       queryContext: InternalQueryContext,
-      from: Long,
-      to: Long,
-      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
+      ranges: Seq[RangeInfo]
   ): Collection[HResult]
 
   override def query(
@@ -72,43 +66,40 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
-//    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
-
-    if (query.condition.size != 1) throw new IllegalArgumentException("Only one condition is supported")
-
-    val condition = query.condition.head
-
-    val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-    val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
-
-    val filters = metricCollector.createDimensionFilters.measure(1) {
-      val c = if (condition.conditions.nonEmpty) Some(AndExpr(condition.conditions)) else None
-      createFilters(c)
-    }
-
-    val dimFilter = filters.allIncludes
-    val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
-
-    val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
-      case (d, it) =>
-        val rit = it.asInstanceOf[SortedSetIterator[d.R]]
-        d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
-    }.toMap
-
-    val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
-
-    val rangeScanDimIds = if (hasEmptyFilter) {
-      Iterator.empty
-    } else {
-      val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
-        (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
-      }.toMap
-      rangeScanFilters(rangeScanDimIterators)
-    }
-
     val context = InternalQueryContext(query, metricCollector)
 
-    val rows = executeScans(context, from, to, rangeScanDimIds)
+    val rangeInfos = query.condition.flatMap { condition =>
+
+      val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
+      val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
+
+      val filters = metricCollector.createDimensionFilters.measure(1) {
+        val c = if (condition.conditions.nonEmpty) Some(AndExpr(condition.conditions)) else None
+        createFilters(c)
+      }
+
+      val dimFilter = filters.allIncludes
+      val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
+
+      val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
+        case (d, it) =>
+          val rit = it.asInstanceOf[SortedSetIterator[d.R]]
+          d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
+      }.toMap
+
+      val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
+
+      if (hasEmptyFilter) {
+        None
+      } else {
+        val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
+          (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
+        }.toMap
+        Some(RangeInfo(from, to, rangeScanFilters(rangeScanDimIterators)))
+      }
+    }
+
+    val rows = executeScans(context, rangeInfos)
 
     val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 

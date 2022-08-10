@@ -61,7 +61,7 @@ object QueryOptimizer {
     cs match {
       case Nil                 => List(and(topAnd.reverse))
       case AndExpr(as) :: rest => optimizeAnd(topAnd, as.toList ::: rest)
-      case OrExpr(os) :: rest  => os.flatMap(optimizeOr).flatMap(o => optimizeAnd(o :: topAnd, rest)).toList
+      case OrExpr(os) :: rest  => os.flatMap(optimizeOr).flatMap(o => optimizeAnd(topAnd, o :: rest)).toList
       case x :: rest           => optimizeAnd(x :: topAnd, rest)
     }
   }

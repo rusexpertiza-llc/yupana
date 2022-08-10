@@ -37,6 +37,17 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
       )
     )
   }
+
+  def optimize: TimeBoundedCondition = {
+    def flat(cs: Seq[Condition]): Seq[Condition] = {
+      cs.flatMap {
+        case AndExpr(xs) => flat(xs)
+        case x           => Seq(x)
+      }
+    }
+
+    this.copy(from = this.from, to = this.to, conditions = flat(this.conditions))
+  }
 }
 
 object TimeBoundedCondition {
