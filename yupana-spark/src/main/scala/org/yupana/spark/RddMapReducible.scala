@@ -30,6 +30,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     extends MapReducible[RDD]
     with Serializable {
 
+  override def empty[A: ClassTag]: RDD[A] = sparkContext.emptyRDD[A]
+
   override def singleton[A: ClassTag](a: A): RDD[A] = sparkContext.parallelize(Seq(a))
 
   override def filter[A: ClassTag](rdd: RDD[A])(f: A => Boolean): RDD[A] = {
@@ -82,6 +84,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     val r = sparkContext.parallelize(ArraySeq.unsafeWrapArray(rdd.take(n)))
     saveMetricOnCompleteRdd(r)
   }
+
+  override def concat[A: ClassTag](a: RDD[A], b: RDD[A]): RDD[A] = sparkContext.union(a, b)
 
   override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = ArraySeq.unsafeWrapArray(c.collect())
 

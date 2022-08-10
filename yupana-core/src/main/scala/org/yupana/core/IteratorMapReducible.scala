@@ -21,6 +21,8 @@ import scala.collection.compat.IterableOnce
 import scala.reflect.ClassTag
 
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
+
+  override def empty[A: ClassTag]: Iterator[A] = Iterator.empty
   override def singleton[A: ClassTag](a: A): Iterator[A] = Iterator(a)
   override def filter[A: ClassTag](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 
@@ -52,6 +54,7 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
 
   override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toList
 
+  override def concat[A: ClassTag](a: Iterator[A], b: Iterator[A]): Iterator[A] = a.concat(b)
 }
 
 object IteratorMapReducible {

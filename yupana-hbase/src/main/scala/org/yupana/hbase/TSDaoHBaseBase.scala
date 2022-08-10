@@ -39,7 +39,7 @@ object TSDaoHBaseBase {
   val PUTS_BATCH_SIZE = 1000
 }
 
-case class RangeInfo(from: Long, to: Long, rangeScanDims: Iterator[Map[Dimension, Seq[_]]])
+//case class RangeInfo(from: Long, to: Long, rangeScanDims: Iterator[Map[Dimension, Seq[_]]])
 
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
 
@@ -57,7 +57,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
   def executeScans(
       queryContext: InternalQueryContext,
-      ranges: Seq[RangeInfo]
+      from: Long,
+      to: Long,
+      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Collection[HResult]
 
   override def query(
@@ -67,8 +69,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   ): Collection[InternalRow] = {
 
     val context = InternalQueryContext(query, metricCollector)
+    val mr = mapReduceEngine(metricCollector)
 
-    val rangeInfos = query.condition.flatMap { condition =>
+    val results: Seq[Collection[InternalRow]] = query.condition.map { condition =>
 
       val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
       val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
@@ -90,41 +93,41 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
       if (hasEmptyFilter) {
-        None
+        mr.empty
       } else {
         val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
           (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
         }.toMap
-        Some(RangeInfo(from, to, rangeScanFilters(rangeScanDimIterators)))
+        val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
+
+        val rows = executeScans(context, from, to, rangeScanDimIds)
+
+        val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+
+        val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+
+        val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
+        val timeFilter = createTimeFilter(
+          from,
+          to,
+          filters.includeTime.map(_.toSet).getOrElse(Set.empty),
+          filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
+        )
+
+        import org.yupana.core.utils.metric.MetricUtils._
+        val table = query.table
+        mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
+          val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+            rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
+          }
+
+          new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
+            .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+        }.withSavedMetrics(context.metricsCollector)
       }
     }
 
-    val rows = executeScans(context, rangeInfos)
-
-    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
-
-    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
-
-    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
-    val timeFilter = createTimeFilter(
-      from,
-      to,
-      filters.includeTime.map(_.toSet).getOrElse(Set.empty),
-      filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
-    )
-
-    val mr = mapReduceEngine(metricCollector)
-
-    import org.yupana.core.utils.metric.MetricUtils._
-    val table = query.table
-    mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
-      }
-
-      new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-        .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
-    }.withSavedMetrics(context.metricsCollector)
+    results.reduce(mr.concat[InternalRow])
   }
 
   def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {

@@ -18,7 +18,7 @@ package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.Schema
+import org.yupana.api.schema.{ Dimension, Schema }
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
@@ -39,23 +39,23 @@ class TSDaoHBase(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      ranges: Seq[RangeInfo]
+      from: Long,
+      to: Long,
+      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Iterator[HResult] = {
 
-    ranges.iterator.flatMap { range =>
-      if (range.rangeScanDims.nonEmpty) {
-        range.rangeScanDims.flatMap { dimIds =>
-          queryContext.metricsCollector.createScans.measure(1) {
-            val filter = multiRowRangeFilter(queryContext.table, range.from, range.to, dimIds)
-            createScan(queryContext, filter, Seq.empty, range.from, range.to)
-          } match {
-            case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
-            case None       => Iterator.empty
-          }
+    if (rangeScanDims.nonEmpty) {
+      rangeScanDims.flatMap { dimIds =>
+        queryContext.metricsCollector.createScans.measure(1) {
+          val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
+          createScan(queryContext, filter, Seq.empty, from, to)
+        } match {
+          case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
+          case None       => Iterator.empty
         }
-      } else {
-        Iterator.empty
       }
+    } else {
+      Iterator.empty
     }
   }
 

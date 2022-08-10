@@ -26,7 +26,7 @@ import org.yupana.core.MapReducible
 import org.yupana.core.dao.{ DictionaryProvider, TSDao }
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.hbase.HBaseUtils.{ doPutBatch, restTime }
+import org.yupana.hbase.HBaseUtils.doPutBatch
 import org.yupana.hbase._
 
 class TsDaoHBaseSpark(
@@ -48,31 +48,30 @@ class TsDaoHBaseSpark(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      ranges: Seq[RangeInfo]
+      from: Long,
+      to: Long,
+      rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
     val progressFile = queryContext.hints.collectFirst { case ProgressHint(fileName) => fileName }
-    val rdds = ranges.flatMap { range =>
-      if (range.rangeScanDims.nonEmpty) {
-        range.rangeScanDims.zipWithIndex.map {
-          case (dimIds, index) =>
-            val listener = progressFile match {
-              case Some(f) =>
-                new RddProgressListenerImpl[HBaseScanPartition](
-                  s"${f}_$index",
-                  new HBaseScanPartition.HBaseScanPartitionStorable(range.from, range.to, queryContext, dimIds),
-                  config.properties
-                )
-              case None => new DummyProgressListener[HBaseScanPartition]
-            }
-            sparkListener.addListener(listener)
-            new HBaseScanRDD(sparkContext, config, queryContext, range.from, range.to, dimIds, listener)
-        }
-      } else {
-        Iterator(sparkContext.emptyRDD[HResult])
+    if (rangeScanDims.nonEmpty) {
+      val rdds = rangeScanDims.zipWithIndex.map {
+        case (dimIds, index) =>
+          val listener = progressFile match {
+            case Some(f) =>
+              new RddProgressListenerImpl[HBaseScanPartition](
+                s"${f}_$index",
+                new HBaseScanPartition.HBaseScanPartitionStorable(from, to, queryContext, dimIds),
+                config.properties
+              )
+            case None => new DummyProgressListener[HBaseScanPartition]
+          }
+          sparkListener.addListener(listener)
+          new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds, listener)
       }
+      sparkContext.union(rdds.toSeq)
+    } else {
+      sparkContext.emptyRDD[HResult]
     }
-
-    sparkContext.union(rdds)
   }
 
   override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
