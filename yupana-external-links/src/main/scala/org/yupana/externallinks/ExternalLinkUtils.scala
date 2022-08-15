@@ -120,15 +120,11 @@ object ExternalLinkUtils {
   }
 
   def transformCondition(
-//      expressionCalculator: ConstantCalculator,
       linkName: String,
       tbc: TimeBoundedCondition,
       includeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition,
       excludeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition
   ): Seq[TransformCondition] = {
-//    val tbcs = TimeBoundedCondition(expressionCalculator, condition)
-
-//    tbcs.flatMap { tbc =>
     val (includeExprValues, excludeExprValues, other) = extractCatalogFields(tbc, linkName)
 
     val include = if (includeExprValues.nonEmpty) {
@@ -150,7 +146,6 @@ object ExternalLinkUtils {
         Seq(include, exclude).flatten
 
     result
-//    }
   }
 
   def setLinkedValues[R](

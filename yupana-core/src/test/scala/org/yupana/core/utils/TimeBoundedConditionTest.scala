@@ -69,4 +69,24 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
 
     an[IllegalArgumentException] should be thrownBy TimeBoundedCondition(calculator, condition)
   }
+
+  it should "support ors inside one time bound" in {
+    val from = Time(LocalDateTime.now().minusDays(1))
+    val to = Time(LocalDateTime.now())
+
+    val condition = and(
+      ge(time, const(from)),
+      lt(time, const(to)),
+      or(equ(dimension(TestDims.DIM_A), const("value")), equ(metric(TestTableFields.TEST_FIELD), const(42d)))
+    )
+
+    val tbcs = TimeBoundedCondition(calculator, condition)
+
+    tbcs should have size 1
+    val tbc = tbcs.head
+
+    tbc.from.value shouldEqual from.millis
+    tbc.to.value shouldEqual to.millis
+    tbc.conditions should contain theSameElementsAs List(equ(dimension(TestDims.DIM_A), const("value")))
+  }
 }

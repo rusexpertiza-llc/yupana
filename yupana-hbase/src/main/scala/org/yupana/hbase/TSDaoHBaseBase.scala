@@ -381,6 +381,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
         case AndExpr(conditions) =>
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
 
+        case OrExpr(conditions) => ???
+
         case _ => builder
       }
     }
