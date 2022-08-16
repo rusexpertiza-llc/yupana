@@ -36,12 +36,12 @@ object InternalQuery {
       condition: Condition,
       hints: Seq[QueryHint]
   )(implicit calculator: ConstantCalculator): InternalQuery =
-    new InternalQuery(table, exprs, Seq(TimeBoundedCondition.single(calculator, condition)), hints)
+    new InternalQuery(table, exprs, TimeBoundedCondition(calculator, condition), hints)
 
   def apply(
       table: Table,
       exprs: Set[Expression[_]],
       condition: Condition
   )(implicit calculator: ConstantCalculator): InternalQuery =
-    new InternalQuery(table, exprs, Seq(TimeBoundedCondition.single(calculator, condition)), Seq.empty)
+    new InternalQuery(table, exprs, TimeBoundedCondition(calculator, condition), Seq.empty)
 }

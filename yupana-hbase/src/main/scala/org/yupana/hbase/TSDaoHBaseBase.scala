@@ -39,8 +39,6 @@ object TSDaoHBaseBase {
   val PUTS_BATCH_SIZE = 1000
 }
 
-//case class RangeInfo(from: Long, to: Long, rangeScanDims: Iterator[Map[Dimension, Seq[_]]])
-
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
 
   import TSDaoHBaseBase._

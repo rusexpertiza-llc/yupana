@@ -1276,6 +1276,18 @@ class TSDaoHBaseTest
 
     val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
+    val pointTime1 = 100500L
+
+    queryRunner
+      .expects(scanMultiRanges(testTable, from, to, Set()))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("test42"), 5.toShort)
+            .hbaseRow
+        )
+      )
+
     val res = dao.query(
       InternalQuery(
         testTable,

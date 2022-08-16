@@ -70,23 +70,37 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
     an[IllegalArgumentException] should be thrownBy TimeBoundedCondition(calculator, condition)
   }
 
-  it should "support ors inside one time bound" in {
+  it should "support ORs" in {
     val from = Time(LocalDateTime.now().minusDays(1))
     val to = Time(LocalDateTime.now())
 
     val condition = and(
       ge(time, const(from)),
       lt(time, const(to)),
-      or(equ(dimension(TestDims.DIM_A), const("value")), equ(metric(TestTableFields.TEST_FIELD), const(42d)))
+      or(equ(dimension(TestDims.DIM_A), const("value")), equ(metric(TestTableFields.TEST_FIELD), const(42d))),
+      neq(dimension(TestDims.DIM_B), const(3.toShort))
     )
 
     val tbcs = TimeBoundedCondition(calculator, condition)
 
-    tbcs should have size 1
-    val tbc = tbcs.head
+    tbcs should have size 2
+    val res1 = tbcs(0)
 
-    tbc.from.value shouldEqual from.millis
-    tbc.to.value shouldEqual to.millis
-    tbc.conditions should contain theSameElementsAs List(equ(dimension(TestDims.DIM_A), const("value")))
+    res1.from.value shouldEqual from.millis
+    res1.to.value shouldEqual to.millis
+    res1.conditions should contain theSameElementsAs List(
+      equ(dimension(TestDims.DIM_A), const("value")),
+      neq(dimension(TestDims.DIM_B), const(3.toShort))
+    )
+
+    tbcs should have size 2
+    val res2 = tbcs(1)
+
+    res2.from.value shouldEqual from.millis
+    res2.to.value shouldEqual to.millis
+    res2.conditions should contain theSameElementsAs List(
+      equ(metric(TestTableFields.TEST_FIELD), const(42d)),
+      neq(dimension(TestDims.DIM_B), const(3.toShort))
+    )
   }
 }

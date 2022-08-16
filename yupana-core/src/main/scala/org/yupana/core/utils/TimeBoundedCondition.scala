@@ -51,9 +51,7 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 object TimeBoundedCondition {
 
   def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
-    val tbcs = toTimeBounded(constantCalculator)(Seq.empty, condition)
-
-    merge(tbcs)
+    toTimeBounded(constantCalculator, Seq.empty, condition)
   }
 
   def single(constantCalculator: ConstantCalculator, condition: Condition): TimeBoundedCondition = {
@@ -71,58 +69,53 @@ object TimeBoundedCondition {
   private object LeTime extends LeMatcher[Time]
 
   private def toTimeBounded(
-      expressionCalculator: ConstantCalculator
-  )(tbcs: Seq[TimeBoundedCondition], condition: Condition): Seq[TimeBoundedCondition] = {
+      expressionCalculator: ConstantCalculator,
+      tbcs: Seq[TimeBoundedCondition],
+      condition: Condition
+  ): Seq[TimeBoundedCondition] = {
 
-    val current = tbcs.headOption.getOrElse(TimeBoundedCondition(None, None, Seq.empty))
+    def update(f: TimeBoundedCondition => TimeBoundedCondition): Seq[TimeBoundedCondition] = {
+      if (tbcs.isEmpty) Seq(f(TimeBoundedCondition(None, None, Seq.empty))) else tbcs.map(f)
+    }
 
-    def updateFrom(c: Condition, e: Expression[Time], offset: Long): TimeBoundedCondition = {
+    def updateFrom(c: Condition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
-        current.copy(from =
-          current.from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset)
+        update(t =>
+          t.copy(from = t.from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset))
         )
       } else {
-        current.copy(conditions = current.conditions :+ c)
+        update(t => t.copy(conditions = t.conditions :+ c))
       }
     }
 
-    def updateTo(c: Condition, e: Expression[Time], offset: Long): TimeBoundedCondition = {
+    def updateTo(c: Condition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
-        current.copy(to = current.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset))
+        update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))
       } else {
-        current.copy(conditions = current.conditions :+ c)
+        update(t => t.copy(conditions = t.conditions :+ c))
       }
     }
 
     condition match {
-      case c @ GtTime(TimeExpr, e) => Seq(updateFrom(c, e, 1L))
-      case c @ LtTime(e, TimeExpr) => Seq(updateFrom(c, e, 1L))
+      case c @ GtTime(TimeExpr, e) => updateFrom(c, e, 1L)
+      case c @ LtTime(e, TimeExpr) => updateFrom(c, e, 1L)
 
-      case c @ GeTime(TimeExpr, e) => Seq(updateFrom(c, e, 0L))
-      case c @ LeTime(e, TimeExpr) => Seq(updateFrom(c, e, 0L))
+      case c @ GeTime(TimeExpr, e) => updateFrom(c, e, 0L)
+      case c @ LeTime(e, TimeExpr) => updateFrom(c, e, 0L)
 
-      case c @ LtTime(TimeExpr, e) => Seq(updateTo(c, e, 0L))
-      case c @ GtTime(e, TimeExpr) => Seq(updateTo(c, e, 0L))
+      case c @ LtTime(TimeExpr, e) => updateTo(c, e, 0L)
+      case c @ GtTime(e, TimeExpr) => updateTo(c, e, 0L)
 
-      case c @ LeTime(TimeExpr, e) => Seq(updateTo(c, e, 1L))
-      case c @ GeTime(e, TimeExpr) => Seq(updateTo(c, e, 1L))
+      case c @ LeTime(TimeExpr, e) => updateTo(c, e, 1L)
+      case c @ GeTime(e, TimeExpr) => updateTo(c, e, 1L)
 
-      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => toTimeBounded(expressionCalculator)(t, c))
+      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => toTimeBounded(expressionCalculator, t, c))
 
-      case OrExpr(cs) => cs.flatMap(c => toTimeBounded(expressionCalculator)(tbcs, c))
+      case OrExpr(cs) => cs.flatMap(c => toTimeBounded(expressionCalculator, tbcs, c))
 
-      case x => Seq(current.copy(conditions = current.conditions :+ x))
+      case x => update(t => t.copy(conditions = t.conditions :+ x))
     }
-  }
-
-  private def merge(tbcs: Seq[TimeBoundedCondition]): Seq[TimeBoundedCondition] = {
-    tbcs
-//      .groupBy(tbc => (tbc.from, tbc.to))
-//      .flatMap {
-//        case ((from, to), cs) => Seq(TimeBoundedCondition(from, to, cs.flatMap(_.conditions)))
-//      }
-//      .toSeq
   }
 }
