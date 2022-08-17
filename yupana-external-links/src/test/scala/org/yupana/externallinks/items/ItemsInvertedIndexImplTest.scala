@@ -7,12 +7,14 @@ import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Replace }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.TSDB
+import org.yupana.core.{ ConstantCalculator, TSDB }
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.utils.RussianTokenizer
 
 class ItemsInvertedIndexImplTest
     extends AnyFlatSpec
@@ -21,6 +23,8 @@ class ItemsInvertedIndexImplTest
     with BeforeAndAfterAll
     with BeforeAndAfterEach
     with Inside {
+
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -51,10 +55,13 @@ class ItemsInvertedIndexImplTest
       const("хол копчения")
     )
     val actual = index.transformCondition(
-      and(
-        c1,
-        c2
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          c1,
+          c2
+        )
+      ).head
     )
 
     actual shouldEqual Seq(
@@ -86,7 +93,10 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
     val res = index.transformCondition(
-      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
+      TimeBoundedCondition(
+        calculator,
+        in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
+      ).head
     )
 
     inside(res) {
@@ -106,7 +116,10 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
     val res = index.transformCondition(
-      notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
+      TimeBoundedCondition(
+        calculator,
+        notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
+      ).head
     )
 
     inside(res) {

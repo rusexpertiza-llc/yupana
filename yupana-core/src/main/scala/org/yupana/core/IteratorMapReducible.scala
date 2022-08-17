@@ -54,7 +54,7 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
 
   override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toList
 
-  override def concat[A: ClassTag](a: Iterator[A], b: Iterator[A]): Iterator[A] = a.concat(b)
+  override def concat[A: ClassTag](a: Iterator[A], b: Iterator[A]): Iterator[A] = a ++ b
 }
 
 object IteratorMapReducible {

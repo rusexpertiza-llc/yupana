@@ -5,12 +5,17 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ DimensionExpr, Expression, Replace }
 import org.yupana.api.schema._
+import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.externallinks.TestSchema
+import org.yupana.utils.RussianTokenizer
 
 class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
+
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   class TestExternalLink(data: Array[Array[String]], override val externalLink: TestLink)
       extends InMemoryExternalLinkBase[TestLink](
@@ -109,7 +114,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   it should "support positive conditions" in {
     val c = equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
-    testCatalog.transformCondition(c) shouldEqual Seq(
+    testCatalog.transformCondition(TimeBoundedCondition(calculator, c).head) shouldEqual Seq(
       Replace(
         Set(c),
         in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
@@ -119,10 +124,13 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val c2 = equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     val c2_2 = equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("bar"))
     testCatalog.transformCondition(
-      and(
-        c2,
-        c2_2
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          c2,
+          c2_2
+        )
+      ).head
     ) shouldEqual Seq(
       Replace(
         Set(c2, c2_2),
@@ -133,10 +141,13 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val c3 = equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     val c3_2 = in(lower(link(testExternalLink, TestExternalLink.testField3)), Set("abc"))
     testCatalog.transformCondition(
-      and(
-        c3,
-        c3_2
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          c3,
+          c3_2
+        )
+      ).head
     ) shouldEqual Seq(
       Replace(
         Set(c3, c3_2),
@@ -147,7 +158,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   it should "support negativeCondition operation" in {
     val c = neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
-    testCatalog.transformCondition(c) shouldEqual Seq(
+    testCatalog.transformCondition(TimeBoundedCondition(calculator, c).head) shouldEqual Seq(
       Replace(
         Set(c),
         notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
@@ -157,10 +168,13 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val c2 = neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
     val c2_2 = notIn(lower(link(testExternalLink, TestExternalLink.testField3)), Set("look"))
     testCatalog.transformCondition(
-      and(
-        c2,
-        c2_2
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          c2,
+          c2_2
+        )
+      ).head
     ) shouldEqual Seq(
       Replace(
         Set(c2, c2_2),
@@ -171,10 +185,13 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val c3 = neq(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
     val c3_2 = neq(lower(link(testExternalLink, TestExternalLink.testField3)), const("baz"))
     testCatalog.transformCondition(
-      and(
-        c3,
-        c3_2
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          c3,
+          c3_2
+        )
+      ).head
     ) shouldEqual Seq(
       Replace(
         Set(c3, c3_2),

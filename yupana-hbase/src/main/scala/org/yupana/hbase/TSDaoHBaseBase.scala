@@ -91,7 +91,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
       if (hasEmptyFilter) {
-        mr.empty
+        mr.empty[InternalRow]
       } else {
         val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
           (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]

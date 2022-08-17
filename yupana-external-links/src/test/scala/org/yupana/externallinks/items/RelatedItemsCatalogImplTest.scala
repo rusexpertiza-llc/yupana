@@ -6,16 +6,20 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ Query, Replace }
 import org.yupana.core._
+import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 import org.yupana.schema.{ Dimensions, Tables }
+import org.yupana.utils.RussianTokenizer
 
 class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
 
   class MockedTsdb
       extends TSDB(TestSchema.schema, null, null, null, identity, SimpleTsdbConfig(), { _: Query => NoMetricCollector })
+
+  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {
     val tsdb = mock[MockedTsdb]
@@ -72,12 +76,15 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     val c2 = notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
 
     val conditions = catalog.transformCondition(
-      and(
-        ge(time, const(Time(100L))),
-        lt(time, const(Time(500L))),
-        c1,
-        c2
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          ge(time, const(Time(100L))),
+          lt(time, const(Time(500L))),
+          c1,
+          c2
+        )
+      ).head
     )
 
     conditions shouldEqual Seq(
@@ -128,11 +135,14 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val c = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
     val conditions = catalog.transformCondition(
-      and(
-        ge(time, const(Time(100L))),
-        lt(time, const(Time(500L))),
-        c
-      )
+      TimeBoundedCondition(
+        calculator,
+        and(
+          ge(time, const(Time(100L))),
+          lt(time, const(Time(500L))),
+          c
+        )
+      ).head
     )
 
     conditions shouldEqual Seq(

@@ -4,12 +4,11 @@ import java.util.Properties
 import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
-import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, LinkExpr, Original, Replace }
 import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
-import org.yupana.core.utils.SparseTable
+import org.yupana.core.utils.{ SparseTable, TimeBoundedCondition }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.utils.RussianTokenizer
@@ -159,7 +158,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -209,7 +208,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD2),
             metric(TestTableFields.TEST_FIELD),
@@ -262,7 +261,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -321,7 +320,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -379,12 +378,15 @@ class TsdbDataFilterTest
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
-          neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
-          equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
+        TimeBoundedCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
+            neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
+            equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
+          )
         )
       )
       .returning(
@@ -404,7 +406,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_STRING_FIELD),
             metric(TestTableFields.TEST_FIELD),
@@ -468,7 +470,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(condition)
+      .expects(TimeBoundedCondition.single(calculator, condition))
       .returning(
         Seq(
           Original(Set(condition))
@@ -492,7 +494,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -541,7 +543,9 @@ class TsdbDataFilterTest
       isNotNull(link(TestLinks.TEST_LINK, "testField"))
     )
 
-    (testCatalogServiceMock.transformCondition _).expects(condition).returning(Seq(Original(Set(condition))))
+    (testCatalogServiceMock.transformCondition _)
+      .expects(TimeBoundedCondition.single(calculator, condition))
+      .returning(Seq(Original(Set(condition))))
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -560,7 +564,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -618,12 +622,12 @@ class TsdbDataFilterTest
       )
 
       (testCatalogServiceMock.transformCondition _)
-        .expects(condition)
+        .expects(TimeBoundedCondition.single(calculator, condition))
         .returning(
           Seq(Original(Set(condition)))
         )
       (testCatalogServiceMock2.transformCondition _)
-        .expects(condition)
+        .expects(TimeBoundedCondition.single(calculator, condition))
         .returning(
           Seq(Original(Set(condition)))
         )
@@ -656,7 +660,7 @@ class TsdbDataFilterTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(
+            Set[Expression[_]](
               time,
               metric(TestTableFields.TEST_FIELD),
               dimension(TestDims.DIM_A),
@@ -721,10 +725,13 @@ class TsdbDataFilterTest
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
     (testCatalogServiceMock2.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c
+        TimeBoundedCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c
+          )
         )
       )
       .returning(
@@ -745,7 +752,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -786,7 +793,7 @@ class TsdbDataFilterTest
       .expects(
         InternalQuery(
           TestSchema.testTable2,
-          Set(time, metric(TestTable2Fields.TEST_FIELD2), metric(TestTable2Fields.TEST_FIELD3)),
+          Set[Expression[_]](time, metric(TestTable2Fields.TEST_FIELD2), metric(TestTable2Fields.TEST_FIELD3)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -835,7 +842,7 @@ class TsdbDataFilterTest
         }
       )
 
-    (link5.transformCondition _).expects(*).onCall((c: Condition) => Seq(Original(Set(c))))
+    (link5.transformCondition _).expects(*).onCall((c: TimeBoundedCondition) => Seq(Original(Set(c.toCondition))))
 
     val rows = tsdb.query(query).toList
 
