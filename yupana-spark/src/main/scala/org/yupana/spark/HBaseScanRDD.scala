@@ -39,13 +39,20 @@ class HBaseScanRDD(
 ) extends RDD[HBaseResult](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
-    val keys = using(createConnection()) { connection =>
-      using(connection.getRegionLocator(hTableName())) { regionLocator =>
-        regionLocator.getStartEndKeys
+    val regions = using(createConnection()) { connection =>
+      val tableName = hTableName()
+
+      using(connection.getRegionLocator(tableName)) { regionLocator =>
+        val keys = regionLocator.getStartEndKeys
+        val firstKey = HBaseUtils.getFirstKey(connection, tableName)
+        val lastKey = HBaseUtils.getLastKey(connection, tableName)
+
+        keys.getFirst()(0) = firstKey
+        keys.getSecond()(keys.getSecond.length - 1) = lastKey
+
+        keys.getFirst.zip(keys.getSecond)
       }
     }
-
-    val regions = keys.getFirst.zip(keys.getSecond)
 
     val baseTimeList = HBaseUtils.baseTimeList(fromTime, toTime, queryContext.table)
 
