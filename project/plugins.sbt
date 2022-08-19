@@ -14,7 +14,7 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.2.0")
 
 addSbtPlugin("io.github.davidmweber" % "flyway-sbt" % "7.4.0")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.2")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.9.3")
 
 addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.7.0")
 
