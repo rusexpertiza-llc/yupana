@@ -108,11 +108,13 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
             logger.trace(s"--- Send request to HBase")
             using(table.getScanner(scan)) {
-              _.iterator().asScala.map { result =>
-                val id = Bytes.toLong(result.getValue(dataFamily, column))
-                val value = Bytes.toString(result.getRow)
-                value -> id
-              }.toSeq
+              _.iterator().asScala
+                .map { result =>
+                  val id = Bytes.toLong(result.getValue(dataFamily, column))
+                  val value = Bytes.toString(result.getRow)
+                  value -> id
+                }
+                .toSeq
             }
           }
           .toMap

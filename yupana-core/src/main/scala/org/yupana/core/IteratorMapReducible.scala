@@ -41,6 +41,11 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
     CollectionUtils.reduceByKey(it, reduceLimit)(f)
   }
 
+  override def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
+      it: Iterator[(K, A)]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Iterator[(K, B)] =
+    CollectionUtils.foldByKey(it)(createZero, seqOp)
+
   override def distinct[A: ClassTag](it: Iterator[A]): Iterator[A] = it.toSet.iterator
 
   override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)
