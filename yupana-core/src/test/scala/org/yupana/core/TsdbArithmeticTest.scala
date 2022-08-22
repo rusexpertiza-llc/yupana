@@ -1,7 +1,8 @@
 package org.yupana.core
 
-import java.util.Properties
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, LinkExpr }
@@ -9,12 +10,11 @@ import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 import org.yupana.utils.RussianTokenizer
 
-import java.time.{ OffsetDateTime, ZoneOffset }
 import java.time.format.DateTimeFormatter
+import java.time.{ OffsetDateTime, ZoneOffset }
+import java.util.Properties
 
 class TsdbArithmeticTest
     extends AnyFlatSpec

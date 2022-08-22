@@ -121,10 +121,11 @@ trait TsdbBase extends StrictLogging {
       .map(cs =>
         cs.flatMap { tbc =>
           val daoConditions =
-            tbc.optimize.conditions.filter(c => c != ConstantExpr(true) && dao.isSupportedCondition(c))
+            tbc.optimize.conditions.filter(c => c != ConstantExpr(true) && !dao.isSupportedCondition(c))
           if (daoConditions.nonEmpty) Some(tbc.copy(conditions = daoConditions)) else None
         }
       )
+      .filter(_.nonEmpty)
 
     val condition = conditions.map { cs => if (cs.size == 1) cs.head.toCondition else OrExpr(cs.map(_.toCondition)) }
     logger.debug(s"Final condition: $condition")
@@ -286,7 +287,7 @@ trait TsdbBase extends StrictLogging {
           case (c, transform) =>
             ConditionUtils.transform(c, transform)
         }
-        transformed
+        transformed.optimize
       } else {
         tbc
       }
