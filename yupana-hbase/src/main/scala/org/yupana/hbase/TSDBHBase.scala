@@ -65,7 +65,7 @@ object TSDBHBase {
       new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize, tsdbConfig.reduceLimit)
     val changelogDao = new ChangelogDaoHBase(connection, namespace)
 
-    new TSDB(schema, dao, changelogDao, dictProvider, prepareQuery, tsdbConfig, metricCollectorCreator)
+    new TSDB(schema, dao, changelogDao, prepareQuery, tsdbConfig, metricCollectorCreator)
   }
 
   def apply(

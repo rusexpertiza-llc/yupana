@@ -19,9 +19,9 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
+import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ ConditionUtils, TimeBoundedCondition }
@@ -48,8 +48,6 @@ trait TsdbBase extends StrictLogging {
   def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection] =
     dao.mapReduceEngine(metricCollector)
 
-  def dictionaryProvider: DictionaryProvider
-
   def schema: Schema
 
   def calculatorFactory: ExpressionCalculatorFactory
@@ -61,8 +59,6 @@ trait TsdbBase extends StrictLogging {
 
   /** Batch size for writing values to external links */
   val putBatchSize: Int
-
-  def dictionary(dimension: DictionaryDimension): Dictionary = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 

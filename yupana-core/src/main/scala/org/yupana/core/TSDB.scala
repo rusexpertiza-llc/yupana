@@ -21,7 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
@@ -30,7 +30,6 @@ class TSDB(
     override val schema: Schema,
     override val dao: TSDao[Iterator, Long],
     val changelogDao: ChangelogDao,
-    override val dictionaryProvider: DictionaryProvider,
     override val prepareQuery: Query => Query,
     config: TsdbConfig,
     metricCollectorCreator: Query => MetricQueryCollector

@@ -259,7 +259,6 @@ class RequestHandlerTest
         SchemaRegistry.defaultSchema,
         null,
         null,
-        null,
         identity,
         SimpleTsdbConfig(),
         { q: Query =>
