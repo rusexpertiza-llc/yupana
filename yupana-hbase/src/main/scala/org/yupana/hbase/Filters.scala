@@ -19,6 +19,7 @@ package org.yupana.hbase
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, RawDimension }
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
+import org.yupana.core.utils.CollectionUtils
 
 class Filters(
     includes: Map[Dimension, SortedSetIterator[_]],
@@ -53,12 +54,12 @@ object Filters {
   def empty = new Filters(Map.empty, Map.empty, None, None)
 
   class Builder(
-      incValues: Map[Dimension, SortedSetIterator[_]],
-      excValues: Map[Dimension, SortedSetIterator[_]],
-      incIds: Map[Dimension, SortedSetIterator[_]],
-      excIds: Map[Dimension, SortedSetIterator[_]],
-      incTime: Option[SortedSetIterator[Time]],
-      excTime: Option[SortedSetIterator[Time]]
+      private val incValues: Map[Dimension, SortedSetIterator[_]],
+      private val excValues: Map[Dimension, SortedSetIterator[_]],
+      private val incIds: Map[Dimension, SortedSetIterator[_]],
+      private val excIds: Map[Dimension, SortedSetIterator[_]],
+      private val incTime: Option[SortedSetIterator[Time]],
+      private val excTime: Option[SortedSetIterator[Time]]
   ) {
     def getIncValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
       incValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
@@ -145,6 +146,17 @@ object Filters {
 
     def excludeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
       excludeIds(dim, SortedSetIterator(ids.sortWith(dim.rOrdering.lt).iterator)(dim.rOrdering))
+    }
+
+    def union(that: Builder): Builder = {
+      new Builder(
+        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](this.incValues, that.incValues, _ union _),
+        CollectionUtils.mergeMaps(this.excValues, that.excValues, _ union _),
+        CollectionUtils.mergeMaps(this.incIds, that.incIds, _ union _),
+        CollectionUtils.mergeMaps(this.excIds, that.excIds, _ union _),
+        unionIds(this.incTime, that.incTime),
+        unionIds(this.excTime, that.excTime)
+      )
     }
 
     private def hashValues[T, R](d: HashDimension[T, R], values: SortedSetIterator[T]): SortedSetIterator[R] = {

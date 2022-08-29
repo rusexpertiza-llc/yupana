@@ -523,7 +523,12 @@ object HBaseUtils extends StrictLogging {
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
   def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
-    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).map { case (k, v) => k -> v.toArray }
+    dataPoints
+      .map(partitionValuesByGroup(table))
+      .reduce((a, b) => CollectionUtils.mergeMaps(a, b, _ ++ _))
+      .map {
+        case (k, v) => k -> v.toArray
+      }
   }
 
   private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
@@ -531,13 +536,6 @@ object HBaseUtils extends StrictLogging {
     dp.metrics
       .groupBy(_.metric.group)
       .map { case (k, metricValues) => k -> Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))) }
-  }
-
-  private def mergeMaps(
-      m1: Map[Int, Seq[TimeShiftedValue]],
-      m2: Map[Int, Seq[TimeShiftedValue]]
-  ): Map[Int, Seq[TimeShiftedValue]] = {
-    (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
   }
 
   private def fieldsToBytes(

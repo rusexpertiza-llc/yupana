@@ -368,8 +368,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
-            notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             equ(dimension(TestDims.DIM_B), const(52.toShort)),
+            notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -1474,8 +1474,8 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.DIM_A), Set("test12", "test13")),
-              notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
+              notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
+              in(dimension(TestDims.DIM_A), Set("test12", "test13"))
             )
           ),
           *,
@@ -1591,9 +1591,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test14")),
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
             notIn(dimension(TestDims.DIM_A), Set("test13")),
-            notIn(dimension(TestDims.DIM_A), Set("test11", "test14")),
             neq(dimension(TestDims.DIM_A), const("test11"))
           )
         ),
@@ -1669,10 +1669,6 @@ class TsdbTest
             Replace(
               Set(c1),
               in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-            ),
-            Replace(
-              Set(c2),
-              equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
             )
           )
         )
@@ -1693,10 +1689,6 @@ class TsdbTest
         )
         .returning(
           Seq(
-            Replace(
-              Set(c3),
-              equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-            ),
             Replace(
               Set(c4),
               in(dimension(TestDims.DIM_A), Set("test12"))
@@ -1720,8 +1712,8 @@ class TsdbTest
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.DIM_A), Set("test11", "test12")),
-              in(dimension(TestDims.DIM_A), Set("test12"))
+              in(dimension(TestDims.DIM_A), Set("test12")),
+              in(dimension(TestDims.DIM_A), Set("test11", "test12"))
             )
           ),
           *,
@@ -1799,10 +1791,6 @@ class TsdbTest
           Replace(
             Set(c1),
             in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          ),
-          Replace(
-            Set(c2),
-            equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
           )
         )
       )
@@ -1822,10 +1810,6 @@ class TsdbTest
       )
       .returning(
         Seq(
-          Replace(
-            Set(c3),
-            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-          ),
           Replace(
             Set(c4),
             in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
@@ -1849,8 +1833,8 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.DIM_A), Set("test11", "test12")),
-            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
+            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort)),
+            in(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         ),
         *,
@@ -2046,8 +2030,8 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
           )
         ),
         *,

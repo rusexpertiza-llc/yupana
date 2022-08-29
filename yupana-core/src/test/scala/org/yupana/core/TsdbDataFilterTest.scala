@@ -828,8 +828,8 @@ class TsdbDataFilterTest
       .expects(*, *, *)
       .onCall((_, b, _) =>
         Iterator(
-          b.set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
-          b.set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
+          b.set(Time(from.plusMinutes(10))).set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
+          b.set(Time(from.plusHours(3))).set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
         )
       )
 

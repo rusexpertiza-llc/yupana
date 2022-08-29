@@ -63,6 +63,19 @@ object TimeBoundedCondition {
     }
   }
 
+  def mergeByTime(tbcs: Seq[TimeBoundedCondition]): Seq[(Option[Long], Option[Long], Option[Condition])] = {
+    tbcs
+      .groupBy(tbc => (tbc.from, tbc.to))
+      .map {
+        case ((f, t), cs) =>
+          val c = OrExpr(cs.map(x => AndExpr(x.conditions)))
+          val simplified = QueryOptimizer.simplifyCondition(c)
+
+          (f, t, if (simplified == ConstantExpr(true)) None else Some(simplified))
+      }
+      .toSeq
+  }
+
   private object GtTime extends GtMatcher[Time]
   private object LtTime extends LtMatcher[Time]
   private object GeTime extends GeMatcher[Time]

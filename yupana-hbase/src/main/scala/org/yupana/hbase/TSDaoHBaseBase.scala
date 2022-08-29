@@ -27,6 +27,7 @@ import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
+import org.yupana.core.utils.TimeBoundedCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.util.Try
@@ -69,60 +70,61 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     val context = InternalQueryContext(query, metricCollector)
     val mr = mapReduceEngine(metricCollector)
 
-    val results: Seq[Collection[InternalRow]] = query.condition.map { condition =>
+    val conditionByTime = TimeBoundedCondition.mergeByTime(query.condition)
 
-      val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-      val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
+    val results: Seq[Collection[InternalRow]] = conditionByTime.map {
+      case (fromTime, toTime, c) =>
+        val from = fromTime.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
+        val to = toTime.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
 
-      val filters = metricCollector.createDimensionFilters.measure(1) {
-        val c = if (condition.conditions.nonEmpty) Some(AndExpr(condition.conditions)) else None
-        createFilters(c)
-      }
+        val filters = metricCollector.createDimensionFilters.measure(1) {
+          createFilters(c)
+        }
 
-      val dimFilter = filters.allIncludes
-      val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
+        val dimFilter = filters.allIncludes
+        val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
 
-      val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
-        case (d, it) =>
-          val rit = it.asInstanceOf[SortedSetIterator[d.R]]
-          d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
-      }.toMap
-
-      val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
-
-      if (hasEmptyFilter) {
-        mr.empty[InternalRow]
-      } else {
-        val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
-          (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
+        val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
+          case (d, it) =>
+            val rit = it.asInstanceOf[SortedSetIterator[d.R]]
+            d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
         }.toMap
-        val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
 
-        val rows = executeScans(context, from, to, rangeScanDimIds)
+        val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
-        val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+        if (hasEmptyFilter) {
+          mr.empty[InternalRow]
+        } else {
+          val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
+            (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
+          }.toMap
+          val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
 
-        val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+          val rows = executeScans(context, from, to, rangeScanDimIds)
 
-        val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
-        val timeFilter = createTimeFilter(
-          from,
-          to,
-          filters.includeTime.map(_.toSet).getOrElse(Set.empty),
-          filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
-        )
+          val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
-        import org.yupana.core.utils.metric.MetricUtils._
-        val table = query.table
-        mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-          val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-            rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
-          }
+          val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
-          new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-            .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
-        }.withSavedMetrics(context.metricsCollector)
-      }
+          val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
+          val timeFilter = createTimeFilter(
+            from,
+            to,
+            filters.includeTime.map(_.toSet).getOrElse(Set.empty),
+            filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
+          )
+
+          import org.yupana.core.utils.metric.MetricUtils._
+          val table = query.table
+          mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
+            val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+              rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
+            }
+
+            new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
+              .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+          }.withSavedMetrics(context.metricsCollector)
+        }
     }
 
     results.reduce(mr.concat[InternalRow])
@@ -379,7 +381,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
         case AndExpr(conditions) =>
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
 
-        case OrExpr(conditions) => ???
+        case OrExpr(conditions) =>
+          conditions.map(c => createFilters(c, Filters.newBuilder)).foldLeft(builder)(_ union _)
 
         case _ => builder
       }

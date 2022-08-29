@@ -58,17 +58,17 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
     tbc2.conditions should contain theSameElementsAs List(in(metric(TestTableFields.TEST_FIELD), Set(1d, 2d)))
   }
 
-  it should "fail if there conditions without time bound" in {
-    val from = Time(LocalDateTime.now().minusMonths(1))
-    val to = Time(LocalDateTime.now().minusWeeks(2))
-
-    val condition = or(
-      and(ge(time, const(from)), lt(time, const(to)), equ(dimension(TestDims.DIM_A), const("x"))),
-      and(ge(time, const(from)), equ(dimension(TestDims.DIM_A), const("y")))
-    )
-
-    an[IllegalArgumentException] should be thrownBy TimeBoundedCondition(calculator, condition)
-  }
+//  it should "fail if there conditions without time bound" in {
+//    val from = Time(LocalDateTime.now().minusMonths(1))
+//    val to = Time(LocalDateTime.now().minusWeeks(2))
+//
+//    val condition = or(
+//      and(ge(time, const(from)), lt(time, const(to)), equ(dimension(TestDims.DIM_A), const("x"))),
+//      and(ge(time, const(from)), equ(dimension(TestDims.DIM_A), const("y")))
+//    )
+//
+//    an[IllegalArgumentException] should be thrownBy TimeBoundedCondition(calculator, condition)
+//  }
 
   it should "support ORs" in {
     val from = Time(LocalDateTime.now().minusDays(1))
@@ -101,6 +101,44 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
     res2.conditions should contain theSameElementsAs List(
       equ(metric(TestTableFields.TEST_FIELD), const(42d)),
       neq(dimension(TestDims.DIM_B), const(3.toShort))
+    )
+  }
+
+  it should "merge conditions with same time" in {
+    val from1 = 1000L
+    val to1 = 2000L
+    val from2 = 3000L
+    val to2 = 4000L
+
+    TimeBoundedCondition.mergeByTime(Seq()) shouldBe empty
+
+    TimeBoundedCondition.mergeByTime(
+      Seq(
+        TimeBoundedCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_A), const("x")))),
+        TimeBoundedCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_B), const(1.toShort)))),
+        TimeBoundedCondition(
+          Some(from2),
+          Some(to2),
+          Seq(and(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))))
+        ),
+        TimeBoundedCondition(Some(from1), Some(to2), Seq(in(dimension(TestDims.DIM_A), Set("y"))))
+      )
+    ) should contain theSameElementsAs List(
+      (
+        Some(from1),
+        Some(to1),
+        Some(or(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))))
+      ),
+      (
+        Some(from2),
+        Some(to2),
+        Some(and(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))))
+      ),
+      (
+        Some(from1),
+        Some(to2),
+        Some(in(dimension(TestDims.DIM_A), Set("y")))
+      )
     )
   }
 }
