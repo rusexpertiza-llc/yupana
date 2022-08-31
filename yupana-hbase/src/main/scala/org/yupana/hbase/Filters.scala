@@ -27,17 +27,12 @@ class Filters(
     val includeTime: Option[SortedSetIterator[Time]],
     val excludeTime: Option[SortedSetIterator[Time]]
 ) {
-  def getIncludes[R](dim: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] =
-    includes.get(dim).asInstanceOf[Option[SortedSetIterator[R]]]
-
-  def getExcludes[R](dim: Dimension.Aux2[_, R]): Option[SortedSetIterator[R]] =
-    excludes.get(dim).asInstanceOf[Option[SortedSetIterator[R]]]
 
   def allIncludes: Map[Dimension, SortedSetIterator[_]] = {
     includes.map {
       case (d, i) =>
-        val s = getExcludes(d.asInstanceOf[Dimension.Aux2[d.T, d.R]]) match {
-          case Some(e) => i.asInstanceOf[SortedSetIterator[d.R]] exclude e
+        val s = excludes.get(d) match {
+          case Some(e) => i.asInstanceOf[SortedSetIterator[d.R]] exclude e.asInstanceOf[SortedSetIterator[d.R]]
           case None    => i
         }
         d -> s
@@ -149,13 +144,26 @@ object Filters {
     }
 
     def union(that: Builder): Builder = {
+
+      def union(a: SortedSetIterator[_], b: SortedSetIterator[_]): SortedSetIterator[_] = {
+        a match {
+          case x: SortedSetIterator[t] => x.union(b.asInstanceOf[SortedSetIterator[t]])
+        }
+      }
+
+      def intersect(a: SortedSetIterator[_], b: SortedSetIterator[_]): SortedSetIterator[_] = {
+        a match {
+          case x: SortedSetIterator[t] => x.union(b.asInstanceOf[SortedSetIterator[t]])
+        }
+      }
+
       new Builder(
-        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](this.incValues, that.incValues, _ union _),
-        CollectionUtils.mergeMaps(this.excValues, that.excValues, _ union _),
-        CollectionUtils.mergeMaps(this.incIds, that.incIds, _ union _),
-        CollectionUtils.mergeMaps(this.excIds, that.excIds, _ union _),
-        unionIds(this.incTime, that.incTime),
-        unionIds(this.excTime, that.excTime)
+        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](this.incValues, that.incValues, union),
+        CollectionUtils.mergeMaps(this.excValues, that.excValues, intersect),
+        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](this.incIds, that.incIds, union),
+        CollectionUtils.mergeMaps(this.excIds, that.excIds, intersect),
+        unionOptIterators(this.incTime, that.incTime),
+        intersectOptIterators(this.excTime, that.excTime)
       )
     }
 
@@ -163,7 +171,7 @@ object Filters {
       SortedSetIterator(values.map(d.hashFunction).toSeq.sortWith(d.rOrdering.lt).iterator)(d.rOrdering)
     }
 
-    private def intersectIds[T](
+    private def intersectOptIterators[T](
         ids1: Option[SortedSetIterator[T]],
         ids2: Option[SortedSetIterator[T]]
     ): Option[SortedSetIterator[T]] = {
@@ -185,19 +193,19 @@ object Filters {
         case d: DictionaryDimension =>
           val valueIds = getIncValues(d).map(vs => valuesToIds(d, vs))
           val ids = getIncIds(d)
-          intersectIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          intersectOptIterators(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
-          intersectIds(getIncIds(r), getIncValues(r)).map(vs => r -> vs)
+          intersectOptIterators(getIncIds(r), getIncValues(r)).map(vs => r -> vs)
 
         case h: HashDimension[_, _] =>
           val valueIds = getIncValues[h.T](h).map(vs => hashValues[h.T, h.R](h, vs))
           val ids = getIncIds[h.R](h)
-          intersectIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          intersectOptIterators(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
       }.toMap
     }
 
-    private def unionIds[T](
+    private def unionOptIterators[T](
         ids1: Option[SortedSetIterator[T]],
         ids2: Option[SortedSetIterator[T]]
     ): Option[SortedSetIterator[T]] = {
@@ -218,15 +226,15 @@ object Filters {
         case d: DictionaryDimension =>
           val valueIds = getExcValues(d).map(vs => valuesToIds(d, vs))
           val ids = getExcIds(d)
-          unionIds(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          unionOptIterators(valueIds, ids).map(d -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
 
         case r: RawDimension[_] =>
-          unionIds(getExcIds(r), getExcValues(r)).map(vs => r -> vs)
+          unionOptIterators(getExcIds(r), getExcValues(r)).map(vs => r -> vs)
 
         case h: HashDimension[_, _] =>
           val valueIds = getExcValues(h).map(vs => hashValues(h, vs))
           val ids = getExcIds(h)
-          unionIds(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
+          unionOptIterators(valueIds, ids).map(h -> _).asInstanceOf[Option[(Dimension, SortedSetIterator[_])]]
       }.toMap
     }
 

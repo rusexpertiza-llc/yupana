@@ -16,7 +16,7 @@
 
 package org.yupana.core.utils
 
-import java.{ lang, util }
+import java.util
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 

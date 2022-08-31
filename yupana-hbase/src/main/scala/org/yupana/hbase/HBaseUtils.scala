@@ -525,7 +525,7 @@ object HBaseUtils extends StrictLogging {
   def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
     dataPoints
       .map(partitionValuesByGroup(table))
-      .reduce((a, b) => CollectionUtils.mergeMaps(a, b, _ ++ _))
+      .reduce((a, b) => CollectionUtils.mergeMaps[Int, Seq[TimeShiftedValue]](a, b, _ ++ _))
       .map {
         case (k, v) => k -> v.toArray
       }

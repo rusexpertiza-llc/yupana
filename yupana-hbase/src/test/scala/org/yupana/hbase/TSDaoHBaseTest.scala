@@ -77,7 +77,7 @@ class TSDaoHBaseTest
       val rowRanges = filter.getRowRanges.asScala
 
       val rangesChecks = for {
-        time <- (baseTime(from) to baseTime(to) by table.rowTimeSpan)
+        time <- baseTime(from) to baseTime(to) by table.rowTimeSpan
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
@@ -115,6 +115,7 @@ class TSDaoHBaseTest
         }
       }
 
+      ranges.size == rowRanges.size &&
       rangesChecks.forall(_ == true) &&
       baseTime(from) == Bytes.toLong(scan.getStartRow) &&
       baseTime(to) == Bytes.toLong(scan.getStopRow)
@@ -1279,11 +1280,15 @@ class TSDaoHBaseTest
     val pointTime1 = 100500L
 
     queryRunner
-      .expects(scanMultiRanges(testTable, from, to, Set()))
+      .expects(
+        scanMultiRanges(testTable, from, to, Set(Seq(dimAHash("foo")), Seq(dimAHash("bar")), Seq(dimAHash("baz"))))
+      )
       .returning(
         Iterator(
           HBaseTestUtils
-            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("test42"), 5.toShort)
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
             .hbaseRow
         )
       )
@@ -1305,7 +1310,7 @@ class TSDaoHBaseTest
       NoMetricCollector
     )
 
-    fail("implement me")
+    res should have size 1
   }
 
   it should "handle multiple time bounds" in {
