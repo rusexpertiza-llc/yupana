@@ -29,9 +29,12 @@ object QueryUtils {
   }
 
   def getFromTo(tbc: TimeBoundedCondition): (Time, Time) = {
-    val from = tbc.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-    val to = tbc.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
-    Time(from) -> Time(to)
+    (tbc.from, tbc.to) match {
+      case (Some(from), Some(to)) => Time(from) -> Time(to)
+      case (Some(_), None)        => throw new IllegalArgumentException(s"TO time is not defined in ${tbc.toCondition}")
+      case (None, Some(_)) => throw new IllegalArgumentException(s"FROM time is not defined in ${tbc.toCondition}")
+      case (None, None)    => throw new IllegalArgumentException(s"time interval is not defined in ${tbc.toCondition}")
+    }
   }
 
 }

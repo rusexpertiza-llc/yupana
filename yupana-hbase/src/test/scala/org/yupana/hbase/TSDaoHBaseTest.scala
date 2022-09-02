@@ -115,7 +115,6 @@ class TSDaoHBaseTest
         }
       }
 
-      ranges.size == rowRanges.size &&
       rangesChecks.forall(_ == true) &&
       baseTime(from) == Bytes.toLong(scan.getStartRow) &&
       baseTime(to) == Bytes.toLong(scan.getStopRow)
@@ -1313,8 +1312,66 @@ class TSDaoHBaseTest
     res should have size 1
   }
 
-  it should "handle multiple time bounds" in {
-    fail("implement me")
+  it should "handle multiple time bounds" in withMock { (dao, _, queryRunner) =>
+    val from1 = 100000L
+    val to1 = 200000L
+
+    val from2 = 300000L
+    val to2 = 400000L
+
+    val exprs = Seq[Expression[_]](time, metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 123500L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from1, to1, Set(Seq(dimAHash("foo"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val pointTime2 = 345678L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from2, to2, Set(Seq(dimAHash("foo"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime2 - (pointTime2 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          equ(dimension(TestDims.DIM_A), const("foo")),
+          or(
+            and(ge(time, const(Time(from1))), lt(time, const(Time(to1)))),
+            and(ge(time, const(Time(from2))), lt(time, const(Time(to2))))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res.toList.map(r => r.get[Time](0)) should have size 2
   }
 
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
