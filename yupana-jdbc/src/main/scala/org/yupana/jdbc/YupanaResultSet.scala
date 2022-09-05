@@ -304,10 +304,15 @@ class YupanaResultSet protected[jdbc] (
   }
 
   private def toBytes(a: Any): Array[Byte] = {
-    val bs = new ByteArrayOutputStream()
-    val os = new ObjectOutputStream(bs)
-    os.writeObject(a)
-    bs.toByteArray
+    a match {
+      case b: org.yupana.api.Blob => b.bytes
+      case b: Array[Byte]         => b
+      case _ =>
+        val bs = new ByteArrayOutputStream()
+        val os = new ObjectOutputStream(bs)
+        os.writeObject(a)
+        bs.toByteArray
+    }
   }
 
   @throws[SQLException]
