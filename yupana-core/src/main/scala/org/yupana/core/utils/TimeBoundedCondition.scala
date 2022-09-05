@@ -46,6 +46,20 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
     this.copy(from = this.from, to = this.to, conditions = flat(this.conditions))
   }
+
+  override def hashCode(): Int = encoded.hashCode
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: TimeBoundedCondition => this.encoded == that.encoded
+      case _                          => false
+    }
+  }
+
+  private lazy val encoded: String = {
+    val cEnc = conditions.map(_.encode).sorted.mkString(",")
+    s"$from,$to,$cEnc"
+  }
 }
 
 object TimeBoundedCondition {
