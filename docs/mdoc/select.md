@@ -12,6 +12,7 @@ title: SELECT
  - условия фильтрации по сгруппированным данным (не обязательно)
 
 > Условие является обязательным и должно содержать как минимум временной интервал (`time > x AND time < y`).
+> Если условие содержит выражение `OR` то временной интервал должен быть определен для каждого из подусловий.
 
 ## Примеры запросов
 
@@ -125,3 +126,13 @@ WHERE
 GROUP BY item, taste
 ```
 
+Использование ИЛИ:
+```sql
+SELECT trunc_day(time) as day, item, sum(sum) as sum
+  FROM items_kkm
+  WHERE ItemsInvertedIndex_phrase = 'лук' AND (
+        (time >= TIMESTAMP '2021-08-01' AND time < TIMESTAMP '2021-08-08') OR
+        (time >= TIMESTAMP '2022-08-01' AND time < TIMESTAMP '2022-08-08')
+      )
+  GROUP BY day, item
+```
