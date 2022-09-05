@@ -153,7 +153,7 @@ object Filters {
 
       def intersect(a: SortedSetIterator[_], b: SortedSetIterator[_]): SortedSetIterator[_] = {
         a match {
-          case x: SortedSetIterator[t] => x.union(b.asInstanceOf[SortedSetIterator[t]])
+          case x: SortedSetIterator[t] => x.intersect(b.asInstanceOf[SortedSetIterator[t]])
         }
       }
 

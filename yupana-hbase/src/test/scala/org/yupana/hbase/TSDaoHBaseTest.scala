@@ -1312,6 +1312,53 @@ class TSDaoHBaseTest
     res should have size 1
   }
 
+  it should "support negative conditions in OR" in withMock { (dao, _, queryRunner) =>
+
+    val from = 100000L
+    val to = 200000L
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 100500L
+
+    queryRunner
+      .expects(scan(from, to))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow,
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("bar"), 2.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 33d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          or(
+            neq(dimension(TestDims.DIM_A), const("foo")),
+            notIn(dimension(TestDims.DIM_A), Set("foo", "bar"))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res should have size 1
+  }
+
   it should "handle multiple time bounds" in withMock { (dao, _, queryRunner) =>
     val from1 = 100000L
     val to1 = 200000L
