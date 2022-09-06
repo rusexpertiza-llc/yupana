@@ -126,7 +126,7 @@ WHERE
 GROUP BY item, taste
 ```
 
-Использование ИЛИ:
+Использование ИЛИ для выборки по нескольким временным отрезкам:
 ```sql
 SELECT trunc_day(time) as day, item, sum(sum) as sum
   FROM items_kkm
@@ -134,5 +134,16 @@ SELECT trunc_day(time) as day, item, sum(sum) as sum
         (time >= TIMESTAMP '2021-08-01' AND time < TIMESTAMP '2021-08-08') OR
         (time >= TIMESTAMP '2022-08-01' AND time < TIMESTAMP '2022-08-08')
       )
+  GROUP BY day, item
+```
+
+Использование ИЛИ для выборки по нескольким условиям:
+```sql
+SELECT trunc_day(time) as day, item, sum(sum) as sum
+  FROM items_kkm
+  WHERE (
+          (ItemsInvertedIndex_phrase = 'лук' AND kkmId IN (1,2,3)) OR
+          (itemsInvertedIndex_phrase = 'чеснок' AND kkmId IN (4,5,6))
+        ) AND time >= TIMESTAMP '2022-08-01' AND time < TIMESTAMP '2022-08-08'
   GROUP BY day, item
 ```
