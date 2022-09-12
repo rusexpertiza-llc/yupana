@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
 import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
 
-case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions: Seq[Condition]) {
+case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition]) {
   def toCondition: Condition = {
     import org.yupana.api.query.syntax.All._
 
@@ -34,17 +34,6 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
         ) ++ conditions
       )
     )
-  }
-
-  def optimize: TimeBoundedCondition = {
-    def flat(cs: Seq[Condition]): Seq[Condition] = {
-      cs.flatMap {
-        case AndExpr(xs) => flat(xs)
-        case x           => Seq(x)
-      }
-    }
-
-    this.copy(from = this.from, to = this.to, conditions = flat(this.conditions))
   }
 
   override def hashCode(): Int = encoded.hashCode
@@ -105,7 +94,7 @@ object TimeBoundedCondition {
       if (tbcs.isEmpty) Seq(f(TimeBoundedCondition(None, None, Seq.empty))) else tbcs.map(f)
     }
 
-    def updateFrom(c: Condition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
+    def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
         update(t =>
@@ -116,7 +105,7 @@ object TimeBoundedCondition {
       }
     }
 
-    def updateTo(c: Condition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
+    def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
         update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))
@@ -142,7 +131,9 @@ object TimeBoundedCondition {
 
       case OrExpr(cs) => cs.flatMap(c => toTimeBounded(expressionCalculator, tbcs, c))
 
-      case x => update(t => t.copy(conditions = t.conditions :+ x))
+      case x: SimpleCondition => update(t => t.copy(conditions = t.conditions :+ x))
+
+      case x => ???
     }
   }
 }

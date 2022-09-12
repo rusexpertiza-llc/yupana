@@ -119,7 +119,7 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
         TimeBoundedCondition(
           Some(from2),
           Some(to2),
-          Seq(and(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))))
+          Seq(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort)))
         ),
         TimeBoundedCondition(Some(from1), Some(to2), Seq(in(dimension(TestDims.DIM_A), Set("y"))))
       )

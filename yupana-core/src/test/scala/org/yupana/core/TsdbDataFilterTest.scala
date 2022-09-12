@@ -393,9 +393,7 @@ class TsdbDataFilterTest
         Seq(
           Replace(
             Set(c),
-            and(
-              in(dimension(TestDims.DIM_A), Set("test1"))
-            )
+            in(dimension(TestDims.DIM_A), Set("test1"))
           )
         )
       )
@@ -738,9 +736,7 @@ class TsdbDataFilterTest
         Seq(
           Replace(
             Set(c),
-            and(
-              in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
-            )
+            in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
           )
         )
       )

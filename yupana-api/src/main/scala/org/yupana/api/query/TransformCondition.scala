@@ -20,5 +20,5 @@ import org.yupana.api.query.Expression.Condition
 
 sealed trait TransformCondition
 
-case class Replace(in: Set[Condition], out: Condition) extends TransformCondition
+case class Replace(in: Set[Condition], out: SimpleCondition) extends TransformCondition
 case class Original(in: Set[Condition]) extends TransformCondition
