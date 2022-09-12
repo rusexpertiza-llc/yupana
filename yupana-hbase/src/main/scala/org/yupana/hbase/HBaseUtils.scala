@@ -479,6 +479,25 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
+  def getFirstKey(connection: Connection, tableName: TableName): Array[Byte] = {
+    getFirstOrLastKey(connection, tableName, first = true)
+  }
+
+  def getLastKey(connection: Connection, tableName: TableName): Array[Byte] = {
+    getFirstOrLastKey(connection, tableName, first = false)
+  }
+
+  private def getFirstOrLastKey(connection: Connection, tableName: TableName, first: Boolean): Array[Byte] = {
+    val table = connection.getTable(tableName)
+    val scan = new Scan().setOneRowLimit().setFilter(new FirstKeyOnlyFilter).setReversed(!first)
+
+    using(table.getScanner(scan)) { scanner =>
+
+      val result = scanner.next()
+      if (result != null) result.getRow else Array.empty
+    }
+  }
+
   private[hbase] def tableKeySize(table: Table): Int = {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map(_.rStorable.size).sum
   }

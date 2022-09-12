@@ -17,10 +17,13 @@
 package org.yupana.api.query
 
 import java.util.UUID
-
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
+
+import scala.collection.mutable
+
+trait QueryHint
 
 /**
   * Query to TSDB
@@ -38,7 +41,8 @@ case class Query(
     filter: Option[Condition],
     groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
-    postFilter: Option[Condition] = None
+    postFilter: Option[Condition] = None,
+    hints: Seq[QueryHint] = Seq.empty
 ) {
 
   val id: String = System.nanoTime().toString + UUID.randomUUID().toString
@@ -47,7 +51,7 @@ case class Query(
   override def toString: String = {
     val fs = fields.mkString("\n    ")
 
-    val builder = new StringBuilder()
+    val builder = new mutable.StringBuilder()
     builder.append(s"""Query(
          |  $uuidLog
          |  FIELDS:

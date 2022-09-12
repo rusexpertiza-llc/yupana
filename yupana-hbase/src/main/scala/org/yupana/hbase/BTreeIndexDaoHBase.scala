@@ -84,11 +84,13 @@ class BTreeIndexDaoHBase[K, V](
           .setFilter(filter)
 
         using(table.getScanner(scan)) {
-          _.iterator().asScala.map { r =>
-            val id = keyDeserializer(r.getRow)
-            val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
-            id -> value
-          }.toMap
+          _.iterator().asScala
+            .map { r =>
+              val id = keyDeserializer(r.getRow)
+              val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
+              id -> value
+            }
+            .toMap
         }
       }
     } else Map.empty

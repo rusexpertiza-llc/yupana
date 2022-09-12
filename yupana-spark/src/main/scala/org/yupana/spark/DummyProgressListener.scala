@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 
-package org.yupana.core.model
+package org.yupana.spark
 
-import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, QueryHint }
-import org.yupana.api.schema.Table
+import org.apache.spark.Partition
 
-case class InternalQuery(
-    table: Table,
-    exprs: Set[Expression[_]],
-    condition: Condition,
-    hints: Seq[QueryHint] = Seq.empty
-)
+class DummyProgressListener[P <: Partition] extends RddProgressListener[P] with Serializable {
+  override def transformPartitions(ps: Seq[P]): Seq[P] = ps
+
+  override def onPartitionCompleted(partitionIndex: Int): Unit = {}
+}

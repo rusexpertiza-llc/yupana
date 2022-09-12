@@ -28,8 +28,9 @@ import scala.collection.AbstractIterator
 trait ExpressionCalculator {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
   def evaluateExpressions(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
-  def evaluateMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
-  def evaluateReduce(tokenizer: Tokenizer, a: InternalRow, b: InternalRow): InternalRow
+  def evaluateZero(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluateSequence(tokenizer: Tokenizer, accumulator: InternalRow, internalRow: InternalRow): InternalRow
+  def evaluateCombine(tokenizer: Tokenizer, a: InternalRow, b: InternalRow): InternalRow
   def evaluatePostMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluatePostAggregateExprs(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluatePostFilter(tokenizer: Tokenizer, row: InternalRow): Boolean

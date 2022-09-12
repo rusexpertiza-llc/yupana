@@ -45,11 +45,13 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
 
   val properties: Properties = propsWithPrefix("")
 
+  override val compression: String = sparkConf.getOption("tsdb.hbase.compression").getOrElse(Algorithm.SNAPPY.getName)
+
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
 
   override val reduceLimit: Int = Int.MaxValue
 
-  override val compression: String = sparkConf.getOption("tsdb.hbase.compression").getOrElse(Algorithm.SNAPPY.getName)
+  val minHBaseScanPartitions: Int = sparkConf.getInt("analytics.tsdb.spark.min-hbase-scan-partitions", 50)
 
   protected def propsWithPrefix(prefix: String): Properties =
     sparkConf
