@@ -102,6 +102,7 @@ lazy val core = (project in file("yupana-core"))
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
+      "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test

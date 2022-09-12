@@ -99,12 +99,13 @@ object ExpressionUtils {
 
       case ConditionExpr(c, p, n) => ConditionExpr(transform(t)(c), transform(t)(p), transform(t)(n))
 
-      case s @ SumExpr(e)        => SumExpr(transform(t)(e))(s.numeric)
-      case m @ MaxExpr(e)        => MaxExpr(transform(t)(e))(m.ord)
-      case m @ MinExpr(e)        => MinExpr(transform(t)(e))(m.ord)
-      case CountExpr(e)          => CountExpr(transform(t)(e))
-      case DistinctCountExpr(e)  => DistinctCountExpr(transform(t)(e))
-      case DistinctRandomExpr(e) => DistinctRandomExpr(transform(t)(e))
+      case s @ SumExpr(e)            => SumExpr(transform(t)(e))(s.numeric)
+      case m @ MaxExpr(e)            => MaxExpr(transform(t)(e))(m.ord)
+      case m @ MinExpr(e)            => MinExpr(transform(t)(e))(m.ord)
+      case CountExpr(e)              => CountExpr(transform(t)(e))
+      case DistinctCountExpr(e)      => DistinctCountExpr(transform(t)(e))
+      case HLLCountExpr(e, accuracy) => HLLCountExpr(transform(t)(e), accuracy)
+      case DistinctRandomExpr(e)     => DistinctRandomExpr(transform(t)(e))
 
       case LagExpr(e) => LagExpr(transform(t)(e))
 
