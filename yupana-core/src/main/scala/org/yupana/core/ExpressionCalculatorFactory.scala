@@ -702,11 +702,12 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case AvgExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
             case _ =>
+              val valTpe = mkType(ae.expr)
               s.withDefine(
                 row,
                 ae,
                 q"""
-                _root_.com.twitter.algebird.AveragedValue($exprValue)
+                _root_.scala.collection.mutable.ListBuffer[$valTpe]($exprValue)
                """
               )
           }
@@ -755,15 +756,16 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case MaxExpr(_) =>
           mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.max($a, $r)")
         case AvgExpr(_) =>
+          val valueTpe = mkType(ae.expr)
           mkSetFold(
             s,
             acc,
-            tq"_root_.com.twitter.algebird.AveragedValue",
+            tq"_root_.scala.collection.mutable.ListBuffer[$valueTpe]",
             row,
             ae,
             identity,
             None,
-            (a, r) => q"$a + _root_.com.twitter.algebird.AveragedValue($r)"
+            (a, r) => q"$a.addOne($r)"
           )
         case CountExpr(_) =>
           mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"0L"), (a, r) => q"$a + $r")
@@ -882,7 +884,14 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case MinExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.min($a, $b)")
         case MaxExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.max($a, $b)")
         case AvgExpr(_) =>
-          mkSetReduce(s, rowA, rowB, tq"_root_.com.twitter.algebird.AveragedValue", ae, (a, b) => q"$a + $b")
+          mkSetReduce(
+            s,
+            rowA,
+            rowB,
+            tq"_root_.scala.collection.mutable.ListBuffer[$valueTpe]",
+            ae,
+            (a, b) => q"$a ++ $b"
+          )
         case CountExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           mkSetReduce(s, rowA, rowB, tq"Set[$valueTpe]", ae, (a, b) => q"$a ++ $b")
@@ -918,9 +927,13 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case SumExpr(_) =>
           val (z, ns) = mkZero(s, ae.dataType)
           Some(mkIsDefined(state, row, ae).fold(oldValue)(d => q"if ($d) $oldValue else $z") -> ns)
-        case MinExpr(_)           => None
-        case MaxExpr(_)           => None
-        case AvgExpr(_)           => Some(q"$row.get[_root_.com.twitter.algebird.AveragedValue]($idx).value" -> s)
+        case MinExpr(_) => None
+        case MaxExpr(_) => None
+        case AvgExpr(_) =>
+          Some(q"""
+               val items = $row.get[_root_.scala.collection.mutable.ListBuffer[$valueTpe]]($idx).toList
+               _root_.com.twitter.algebird.AveragedValue.numericAggregator[$valueTpe].apply(items)
+            """ -> s)
         case CountExpr(_)         => None
         case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
         case HLLCountExpr(_, _) =>
