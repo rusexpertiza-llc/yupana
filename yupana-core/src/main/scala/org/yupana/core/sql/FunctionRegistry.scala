@@ -92,8 +92,8 @@ object FunctionRegistry {
     ),
     uNum(
       "avg",
-      new Bind2[Expression, Numeric, Expression[Double]] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[Double] = AvgExpr(e)(n)
+      new Bind2R[Expression, Numeric, Expression] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AvgExpr(e)(n)
       }
     ),
     uTyped("year", TruncYearExpr),
@@ -302,22 +302,6 @@ object FunctionRegistry {
       {
         case e: Expression[t] =>
           e.dataType.numeric.fold[Either[String, Expression[t]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
-            num => Right(create(e, num))
-          )
-      }
-    )
-  }
-
-  private def uNum[T](
-      fn: String,
-      create: Bind2[Expression, Numeric, Expression[T]]
-  ): FunctionDesc = {
-    FunctionDesc(
-      fn,
-      NumberParam,
-      {
-        case e: Expression[t] =>
-          e.dataType.numeric.fold[Either[String, Expression[T]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
             num => Right(create(e, num))
           )
       }
