@@ -200,6 +200,46 @@ class TsdbArithmeticTest
     rows.hasNext shouldBe false
   }
 
+  it should "execute query like this (do not calculate arithmetic on aggregated str fields when evaluating each data row)" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val sql = "SELECT hll_count(testStringField, 0.01) str_count " +
+        "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      val query = createQuery(sql)
+
+      val pointTime = from.toInstant.toEpochMilli + 10
+
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(metric(TestTableFields.TEST_STRING_FIELD), time),
+            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          ),
+          *,
+          *
+        )
+        .onCall((_, b, _) =>
+          Iterator(
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), "2d")
+              .buildAndReset(),
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), "2d")
+              .buildAndReset(),
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_STRING_FIELD), "4d")
+              .buildAndReset()
+          )
+        )
+
+      val rows = tsdb.query(query)
+
+      val r1 = rows.next()
+      r1.get[Long]("str_count") shouldBe 2
+
+      rows.hasNext shouldBe false
+  }
+
   it should "execute query like this (do not calculate arithmetic on aggregated fields when evaluating each data row)" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql = "SELECT (count(testField) + count(testField2)) as plus4, " +
@@ -239,6 +279,142 @@ class TsdbArithmeticTest
       r1.get[Long]("plus5") shouldBe 3
 
       rows.hasNext shouldBe false
+  }
+
+  it should "execute query like this (to handle hll_count)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT hll_count(testStringField, 0.01)  as hll " +
+      "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+    val query = createQuery(sql)
+
+    val pointTime = from.toInstant.toEpochMilli + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(metric(TestTableFields.TEST_STRING_FIELD), time),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "2d")
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query)
+
+    val r1 = rows.next()
+    r1.get[Long]("hll") shouldBe 2
+
+    rows.hasNext shouldBe false
+  }
+
+  it should "execute query like this (to handle hll_count long)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT hll_count(testLongField, 0.01) as hll " +
+      "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+    val query = createQuery(sql)
+
+    val pointTime = from.toInstant.toEpochMilli + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(metric(TestTableFields.TEST_LONG_FIELD), time),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query)
+
+    val r1 = rows.next()
+    r1.get[Long]("hll") shouldBe 2
+
+    rows.hasNext shouldBe false
+  }
+
+  it should "calculate average for double value when evaluating each data row" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT avg(testField) value1, avg(testLongField) value2, avg(testBigDecimalField) value3 " +
+      "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+    val query = createQuery(sql)
+
+    val pointTime = from.toInstant.toEpochMilli + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(
+            metric(TestTableFields.TEST_FIELD),
+            metric(TestTableFields.TEST_LONG_FIELD),
+            metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
+            time
+          ),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 0d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
+            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(10))
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 10d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 11L)
+            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(101))
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 5d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
+            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(20))
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 6d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 5L)
+            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(7))
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query)
+
+    val r1 = rows.next()
+    r1.get[Double]("value1") shouldBe 5.25d
+    r1.get[Double]("value2") shouldBe 4.75d
+    r1.get[Double]("value3") shouldBe 34.5d
+
+    rows.hasNext shouldBe false
   }
 
   it should "execute query like this (be able to cast long to double)" in withTsdbMock { (tsdb, tsdbDaoMock) =>

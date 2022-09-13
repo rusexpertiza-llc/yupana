@@ -90,6 +90,12 @@ object FunctionRegistry {
         override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
       }
     ),
+    uNum(
+      "avg",
+      new Bind2[Expression, Numeric, Expression[Double]] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[Double] = AvgExpr(e)(n)
+      }
+    ),
     uTyped("year", TruncYearExpr),
     uTyped("trunc_year", TruncYearExpr),
     uTyped("month", TruncMonthExpr),
@@ -232,6 +238,17 @@ object FunctionRegistry {
       new Bind2[ArrayExpr, ArrayExpr, Expression[_]] {
         override def apply[T](a: ArrayExpr[T], b: ArrayExpr[T]): Expression[_] = ContainsSameExpr(a, b)
       }
+    ),
+    Function2Desc(
+      "hll_count",
+      (a: Expression[_], c: Expression[_]) =>
+        c match {
+          case ConstantExpr(v, _) =>
+            c.dataType.numeric
+              .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
+              .toRight(s"$c must be a number")
+          case _ => Left(s"Expected constant but got $c")
+        }
     )
   )
 
@@ -285,6 +302,22 @@ object FunctionRegistry {
       {
         case e: Expression[t] =>
           e.dataType.numeric.fold[Either[String, Expression[t]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
+            num => Right(create(e, num))
+          )
+      }
+    )
+  }
+
+  private def uNum[T](
+      fn: String,
+      create: Bind2[Expression, Numeric, Expression[T]]
+  ): FunctionDesc = {
+    FunctionDesc(
+      fn,
+      NumberParam,
+      {
+        case e: Expression[t] =>
+          e.dataType.numeric.fold[Either[String, Expression[T]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
             num => Right(create(e, num))
           )
       }
