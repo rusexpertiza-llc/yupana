@@ -352,44 +352,44 @@ class TsdbArithmeticTest
     rows.hasNext shouldBe false
   }
 
-  it should "execute query like this (calculate average for double value when evaluating each data row)" in withTsdbMock {
-    (tsdb, tsdbDaoMock) =>
-      val sql = "SELECT avg(testField) value1,  avg(testField2) value2 " +
-        "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
-      val query = createQuery(sql)
+  it should "calculate average for double value when evaluating each data row" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT avg(testField) value1, avg(testField2) value2 " +
+      "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
-      val pointTime = from.toInstant.toEpochMilli + 10
+    val query = createQuery(sql)
 
-      (tsdbDaoMock.query _)
-        .expects(
-          InternalQuery(
-            TestSchema.testTable,
-            Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
-          ),
-          *,
-          *
+    val pointTime = from.toInstant.toEpochMilli + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 0d)
+            .set(metric(TestTableFields.TEST_FIELD2), 1d)
+            .buildAndReset(),
+          b.set(time, Time(pointTime))
+            .set(metric(TestTableFields.TEST_FIELD), 10d)
+            .set(metric(TestTableFields.TEST_FIELD2), 10d)
+            .buildAndReset()
         )
-        .onCall((_, b, _) =>
-          Iterator(
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 0d)
-              .set(metric(TestTableFields.TEST_FIELD2), 1d)
-              .buildAndReset(),
-            b.set(time, Time(pointTime))
-              .set(metric(TestTableFields.TEST_FIELD), 10d)
-              .set(metric(TestTableFields.TEST_FIELD2), 10d)
-              .buildAndReset()
-          )
-        )
+      )
 
-      val rows = tsdb.query(query)
+    val rows = tsdb.query(query)
 
-      val r1 = rows.next()
-      r1.get[Double]("value1") shouldBe 5
-      r1.get[Double]("value2") shouldBe 5.5
+    val r1 = rows.next()
+    r1.get[Double]("value1") shouldBe 5d
+    r1.get[Double]("value2") shouldBe 5.5
 
-      rows.hasNext shouldBe false
+    rows.hasNext shouldBe false
   }
 
   it should "execute query like this (be able to cast long to double)" in withTsdbMock { (tsdb, tsdbDaoMock) =>

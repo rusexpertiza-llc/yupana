@@ -60,11 +60,16 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       refs: Seq[(AnyRef, Decl)],
       globalDecls: Seq[(Any, Decl)],
       localDecls: Seq[LocalDecl],
+      typeDecls: Map[TypeName, Tree],
       trees: Seq[Tree],
       exprId: Int,
       prefix: String = "",
       parent: Option[State] = None
   ) {
+    def withDeclaration(className: TypeName, tree: Tree): State = {
+      if (typeDecls.contains(className)) this else this.copy(typeDecls = this.typeDecls + (className -> tree))
+    }
+
     def withRequired(e: Expression[_]): State = copy(required = required + e).withExpr(e)
 
     def withExpr(e: Expression[_]): State = {
@@ -156,11 +161,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
 
     def fresh: (Tree, State) = {
-      render -> State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
-    }
-
-    def mkState: State = {
-      State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
+      render -> State(index, required, unfinished, refs, globalDecls, Seq.empty, typeDecls, Seq.empty, exprId)
     }
 
     def nested(prefix: String): State = State(
@@ -170,6 +171,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       refs,
       globalDecls,
       Seq.empty,
+      Map.empty,
       Seq.empty,
       exprId,
       prefix + this.prefix,
@@ -310,6 +312,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       case CountExpr(_)                                                         => None
       case DistinctCountExpr(_)                                                 => None
       case DistinctRandomExpr(_)                                                => None
+      case AvgExpr(_)                                                           => None
+      case HLLCountExpr(_, _)                                                   => None
       case e: AggregateExpr[_, _, _] if mkIsDefined(state, row, e.expr).isEmpty => None
 
       case TupleExpr(e1, e2) =>
@@ -678,6 +682,36 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
+  private def avgClassName(dataType: DataType): TypeName = TypeName(s"Avg_${dataType.meta.sqlTypeName}")
+
+  private def mkAvg(dataType: DataType, state: State): State = {
+    val tpe = mkType(dataType) // .meta.javaTypeName)
+    val className = avgClassName(dataType)
+
+    val tree = q"""
+       class $className(initial: $tpe) {
+         var a: $tpe = initial
+         var c: Int = 1
+
+         def +(x: $tpe): $className = {
+           a += x
+           c += 1
+           this
+         }
+
+         def ++(that: $className): $className = {
+           this.a += that.a
+           this.c += that.c
+           this
+         }
+
+         def result: Double = a.toDouble / c
+       }
+     """
+
+    state.withDeclaration(className, tree)
+  }
+
   private def mkZero(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
@@ -700,17 +734,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             )
 
         case AvgExpr(_) =>
-          mkIsDefined(s, row, ae.expr) match {
-            case _ =>
-              val valTpe = mkType(ae.expr)
-              s.withDefine(
-                row,
-                ae,
-                q"""
-                _root_.scala.collection.mutable.ListBuffer[$valTpe]($exprValue)
-               """
-              )
-          }
+          val avgClass = avgClassName(ae.dataType)
+          mkAvg(ae.dataType, s).withDefine(row, ae, q"new $avgClass($exprValue)")
 
         case CountExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
@@ -725,18 +750,14 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           }
         case HLLCountExpr(_, b) =>
           val valTpe = mkType(ae.expr)
-          mkIsDefined(s, row, ae.expr) match {
-            case Some(d) =>
-              s.withDefine(
-                row,
-                ae,
-                q"""
+          s.withDefine(
+            row,
+            ae,
+            q"""
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
                 agg.prepare($exprValue)
            """
-              )
-            case None => s.withDefine(row, ae, q"List.empty")
-          }
+          )
       }
     }
   }
@@ -751,27 +772,32 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     aggregates.foldLeft(state) { (s, ae) =>
       ae match {
         case SumExpr(_) => mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"$a + $r")
+
         case MinExpr(_) =>
           mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.min($a, $r)")
+
         case MaxExpr(_) =>
           mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.max($a, $r)")
+
         case AvgExpr(_) =>
-          val valueTpe = mkType(ae.expr)
           mkSetFold(
             s,
             acc,
-            tq"_root_.scala.collection.mutable.ListBuffer[$valueTpe]",
+            tq"${avgClassName(ae.dataType)}",
             row,
             ae,
             identity,
             None,
-            (a, r) => q"$a.addOne($r)"
+            (a, r) => q"$a + ($r)"
           )
+
         case CountExpr(_) =>
           mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"0L"), (a, r) => q"$a + $r")
+
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
           val valTpe = mkType(ae.expr)
           mkSetFold(s, acc, tq"Set[$valTpe]", row, ae, identity, None, (a, r) => q"$a + $r")
+
         case HLLCountExpr(_, e) =>
           val valTpe = mkType(ae.expr)
           mkSetFold(
@@ -888,7 +914,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             s,
             rowA,
             rowB,
-            tq"_root_.scala.collection.mutable.ListBuffer[$valueTpe]",
+            tq"${avgClassName(ae.dataType)}",
             ae,
             (a, b) => q"$a ++ $b"
           )
@@ -927,13 +953,9 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case SumExpr(_) =>
           val (z, ns) = mkZero(s, ae.dataType)
           Some(mkIsDefined(state, row, ae).fold(oldValue)(d => q"if ($d) $oldValue else $z") -> ns)
-        case MinExpr(_) => None
-        case MaxExpr(_) => None
-        case AvgExpr(_) =>
-          Some(q"""
-               val items = $row.get[_root_.scala.collection.mutable.ListBuffer[$valueTpe]]($idx).toList
-               _root_.com.twitter.algebird.AveragedValue.numericAggregator[$valueTpe].apply(items)
-            """ -> s)
+        case MinExpr(_)           => None
+        case MaxExpr(_)           => None
+        case AvgExpr(_)           => Some(q"$row.get[${avgClassName(ae.dataType)}]($idx).result" -> s)
         case CountExpr(_)         => None
         case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
         case HLLCountExpr(_, _) =>
@@ -987,6 +1009,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         Seq.empty,
         Seq.empty,
         Seq.empty,
+        Map.empty,
         Seq.empty,
         0
       )
@@ -1021,6 +1044,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
       finalState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
 
+    val typeDecls = finalState.typeDecls.values
+
     val tree = q"""
       import _root_.org.yupana.api.Time
       import _root_.org.yupana.api.types.DataType
@@ -1028,6 +1053,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       import _root_.org.yupana.core.model.InternalRow
       import _root_.org.threeten.extra.PeriodDuration
       import _root_.org.threeten.extra.PeriodDuration
+
+      ..$typeDecls
 
       ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {
@@ -1103,7 +1130,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       .replaceAll("\\.\\$eq\\$eq", " == ")
       .replaceAll("\\.\\$amp\\$amp", " && ")
       .replaceAll("\\.\\$plus\\$plus", " ++ ")
+      .replaceAll("\\$plus\\$plus", "++")
+      .replaceAll("\\.\\$plus\\$eq", " += ")
       .replaceAll("\\.\\$plus", " + ")
+      .replaceAll("\\$plus", "+")
       .replaceAll("\\.\\$minus", " - ")
       .replaceAll("\\.\\$div", " / ")
       .replaceAll("\\.\\$greater\\$eq", " >= ")
