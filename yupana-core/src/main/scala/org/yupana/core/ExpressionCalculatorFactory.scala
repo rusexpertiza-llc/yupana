@@ -734,8 +734,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             )
 
         case AvgExpr(_) =>
-          val avgClass = avgClassName(ae.dataType)
-          mkAvg(ae.dataType, s).withDefine(row, ae, q"new $avgClass($exprValue)")
+          val avgClass = avgClassName(ae.expr.dataType)
+          mkAvg(ae.expr.dataType, s).withDefine(row, ae, q"new $avgClass($exprValue)")
 
         case CountExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
@@ -783,7 +783,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           mkSetFold(
             s,
             acc,
-            tq"${avgClassName(ae.dataType)}",
+            tq"${avgClassName(ae.expr.dataType)}",
             row,
             ae,
             identity,
@@ -914,7 +914,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             s,
             rowA,
             rowB,
-            tq"${avgClassName(ae.dataType)}",
+            tq"${avgClassName(ae.expr.dataType)}",
             ae,
             (a, b) => q"$a ++ $b"
           )
@@ -955,7 +955,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           Some(mkIsDefined(state, row, ae).fold(oldValue)(d => q"if ($d) $oldValue else $z") -> ns)
         case MinExpr(_)           => None
         case MaxExpr(_)           => None
-        case AvgExpr(_)           => Some(q"$row.get[${avgClassName(ae.dataType)}]($idx).result" -> s)
+        case AvgExpr(_)           => Some(q"$row.get[${avgClassName(ae.expr.dataType)}]($idx).result" -> s)
         case CountExpr(_)         => None
         case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
         case HLLCountExpr(_, _) =>
