@@ -438,39 +438,43 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
-    val hbaseTable = tableName(namespace, table)
+  private def createTable(table: Table, tableName: TableName, maxRegions: Int, admin: Admin): Unit = {
+    val fieldGroups = table.metrics.map(_.group).toSet
+    val families = fieldGroups map (group =>
+      ColumnFamilyDescriptorBuilder
+        .newBuilder(family(group))
+        .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+        .setCompactionCompressionType(Algorithm.SNAPPY)
+        .build()
+    )
+    val desc = TableDescriptorBuilder
+      .newBuilder(tableName)
+      .setColumnFamilies(families.asJavaCollection)
+      .build()
+    val endTime = LocalDate
+      .now()
+      .`with`(TemporalAdjusters.firstDayOfNextYear())
+      .atStartOfDay(ZoneOffset.UTC)
+      .toInstant
+      .toEpochMilli
+    val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
+    val regions = math.min(r, maxRegions)
+    admin.createTable(
+      desc,
+      Bytes.toBytes(baseTime(table.epochTime, table)),
+      Bytes.toBytes(baseTime(endTime, table)),
+      regions
+    )
+  }
+
+  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit =
     using(connection.getAdmin) { admin =>
-      if (!admin.tableExists(hbaseTable)) {
-        val fieldGroups = table.metrics.map(_.group).toSet
-        val families = fieldGroups map (group =>
-          ColumnFamilyDescriptorBuilder
-            .newBuilder(family(group))
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-            .setCompactionCompressionType(Algorithm.SNAPPY)
-            .build()
-        )
-        val desc = TableDescriptorBuilder
-          .newBuilder(hbaseTable)
-          .setColumnFamilies(families.asJavaCollection)
-          .build()
-        val endTime = LocalDate
-          .now()
-          .`with`(TemporalAdjusters.firstDayOfNextYear())
-          .atStartOfDay(ZoneOffset.UTC)
-          .toInstant
-          .toEpochMilli
-        val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-        val regions = math.min(r, maxRegions)
-        admin.createTable(
-          desc,
-          Bytes.toBytes(baseTime(table.epochTime, table)),
-          Bytes.toBytes(baseTime(endTime, table)),
-          regions
-        )
+      val name = tableName(namespace, table)
+
+      if (!admin.tableExists(name)) {
+        createTable(table, name, maxRegions, admin)
       }
     }
-  }
 
   def getFirstKey(connection: Connection, tableName: TableName): Array[Byte] = {
     getFirstOrLastKey(connection, tableName, first = true)
