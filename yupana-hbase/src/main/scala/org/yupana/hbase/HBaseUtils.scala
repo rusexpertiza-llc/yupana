@@ -424,9 +424,9 @@ object HBaseUtils extends StrictLogging {
     }
     if (config.needCheckSchema) {
       checkSchemaDefinition(connection, namespace, schema) match {
-        case Success => logger.info("TSDB table definition checked successfully")
+        case Success      => logger.info("TSDB table definition checked successfully")
         case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
-        case Error(msg) => throw new RuntimeException("TSDB table definition check failed: " + msg)
+        case Error(msg)   => throw new RuntimeException("TSDB table definition check failed: " + msg)
       }
     }
   }
