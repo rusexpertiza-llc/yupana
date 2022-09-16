@@ -422,10 +422,12 @@ object HBaseUtils extends StrictLogging {
       checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
-    checkSchemaDefinition(connection, namespace, schema) match {
-      case Success      => logger.info("TSDB table definition checked successfully")
-      case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
-      case Error(msg)   => throw new RuntimeException("TSDB table definition check failed: " + msg)
+    if (config.needCheckSchema) {
+      checkSchemaDefinition(connection, namespace, schema) match {
+        case Success => logger.info("TSDB table definition checked successfully")
+        case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
+        case Error(msg) => throw new RuntimeException("TSDB table definition check failed: " + msg)
+      }
     }
   }
 
