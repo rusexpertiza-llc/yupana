@@ -36,7 +36,7 @@ lazy val api = (project in file("yupana-api"))
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
-      "org.scalatestplus"      %% "scalacheck-1-15"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-16"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -360,7 +360,6 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala212 = "2.12.15"
   val scala213 = "2.13.8"
 
   val colCompat = "2.1.1" // Same version with Spark
@@ -393,32 +392,26 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.10"
+  val scalaTest = "3.2.13"
   val scalaCheck = "1.16.0"
-  val scalaTestCheck = "3.2.10.0"
+  val scalaTestCheck = "3.2.13.0"
   val scalaMock = "5.2.0"
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := versions.scala213,
-  crossScalaVersions := Seq(versions.scala212, versions.scala213),
   scalacOptions ++= Seq(
     "-target:jvm-1.8",
     "-Xsource:2.13",
     "-deprecation",
     "-unchecked",
     "-feature",
-    "-language:higherKinds",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code"
-  ) ++ {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info", "-Wconf:msg=Top-level:s")
-      case _ => Seq.empty
-    }
-  },
+    "-Ywarn-dead-code",
+    "-Wconf:msg=Top-level:s"
+  ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,

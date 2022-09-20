@@ -22,11 +22,11 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
 import scala.annotation.tailrec
+import scala.util.Using
 
 class HBaseScanRDD(
     sc: SparkContext,
@@ -39,10 +39,10 @@ class HBaseScanRDD(
 ) extends RDD[HBaseResult](sc, Nil) {
 
   override protected def getPartitions: Array[Partition] = {
-    val regions = using(createConnection()) { connection =>
+    val regions = Using.resource(createConnection()) { connection =>
       val tableName = hTableName()
 
-      using(connection.getRegionLocator(tableName)) { regionLocator =>
+      Using.resource(connection.getRegionLocator(tableName)) { regionLocator =>
         val keys = regionLocator.getStartEndKeys
         val firstKey = HBaseUtils.getFirstKey(connection, tableName)
         val lastKey = HBaseUtils.getLastKey(connection, tableName)
