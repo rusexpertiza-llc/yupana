@@ -3187,8 +3187,8 @@ class TsdbTest
 
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 0
-    row.get[Long]("count_testField") shouldBe 0
-    row.get[Long]("distinct_count_testField") shouldBe 0
+    row.get[Long]("count_testField") shouldBe 2
+    row.get[Long]("distinct_count_testField") shouldBe 1
     row.get[Long]("record_count") shouldBe 2
   }
 }

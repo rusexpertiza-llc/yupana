@@ -331,13 +331,11 @@ class TsdbArithmeticTest
   it should "calculate count and distinct_count for dimension fields when evaluating each data rows" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        """SELECT 
-          |count(Y) cY, 
-          |count(B) cB, 
-          |count(A) cA, 
-          |distinct_count(Y) dcY, 
-          |distinct_count(B) dcB, 
-          |distinct_count(A) dcA 
+        """SELECT
+          |count(B) cB,
+          |count(A) cA,
+          |distinct_count(B) dcB,
+          |distinct_count(A) dcA
           |""".stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
@@ -350,7 +348,6 @@ class TsdbArithmeticTest
           InternalQuery(
             TestSchema.testTable,
             Set(
-              dimension(TestDims.DIM_Y),
               dimension(TestDims.DIM_B),
               dimension(TestDims.DIM_A),
               time
@@ -363,22 +360,18 @@ class TsdbArithmeticTest
         .onCall((_, b, _) =>
           Iterator(
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 1L)
               .set(dimension(TestDims.DIM_B), 1: Short)
               .set(dimension(TestDims.DIM_A), "0000270761025003")
               .buildAndReset(),
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 3L)
               .set(dimension(TestDims.DIM_B), 2: Short)
               .set(dimension(TestDims.DIM_A), "0000270761025002")
               .buildAndReset(),
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 5L)
               .set(dimension(TestDims.DIM_B), 1: Short)
               .set(dimension(TestDims.DIM_A), "0000270761025001")
               .buildAndReset(),
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 1L)
               .set(dimension(TestDims.DIM_B), 1: Short)
               .set(dimension(TestDims.DIM_A), "0000270761025003")
               .buildAndReset()
@@ -388,10 +381,8 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query)
 
       val r1 = rows.next()
-      r1.get[Long]("cY") shouldBe 4
       r1.get[Long]("cB") shouldBe 4
       r1.get[Long]("cA") shouldBe 4
-      r1.get[Long]("dcY") shouldBe 3
       r1.get[Long]("dcB") shouldBe 2
       r1.get[Long]("dcA") shouldBe 3
 
@@ -524,7 +515,7 @@ class TsdbArithmeticTest
   it should "calculate average for dimension fields when evaluating each data row" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        "SELECT avg(Y) avgY, avg(B) avgB " +
+        "SELECT avg(B) avgB " +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
@@ -536,7 +527,7 @@ class TsdbArithmeticTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(dimension(TestDims.DIM_Y), dimension(TestDims.DIM_B), time),
+            Set(dimension(TestDims.DIM_B), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to))))
           ),
           *,
@@ -545,19 +536,15 @@ class TsdbArithmeticTest
         .onCall((_, b, _) =>
           Iterator(
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 1L)
               .set(dimension(TestDims.DIM_B), 1: Short)
               .buildAndReset(),
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 3L)
               .set(dimension(TestDims.DIM_B), 2: Short)
               .buildAndReset(),
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 5L)
               .set(dimension(TestDims.DIM_B), 1: Short)
               .buildAndReset(),
             b.set(time, Time(pointTime))
-              .set(dimension(TestDims.DIM_Y), 2L)
               .set(dimension(TestDims.DIM_B), 1: Short)
               .buildAndReset()
           )
@@ -566,7 +553,6 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query)
 
       val r1 = rows.next()
-      r1.get[BigDecimal]("avgY") shouldBe 2.75
       r1.get[BigDecimal]("avgB") shouldBe 1.25
 
       rows.hasNext shouldBe false

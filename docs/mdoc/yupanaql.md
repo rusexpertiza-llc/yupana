@@ -195,7 +195,7 @@ hll_count(column_name, std_err)
 
 Пример:
 ```roomsql
-SELECT hll_count(column_name), id
+SELECT hll_count(column_name, 0.18), id
   FROM some_table
   WHERE time >= TIMESTAMP '2019-06-01' AND time < TIMESTAMP '2019-07-01'
   GROUP BY id
