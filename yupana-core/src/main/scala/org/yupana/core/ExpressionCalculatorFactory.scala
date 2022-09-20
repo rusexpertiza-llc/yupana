@@ -23,6 +23,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
+import org.yupana.core.ExpressionCalculatorFactory.className
 
 import java.sql.Types
 import scala.reflect.{ ClassTag, classTag }
@@ -685,31 +686,43 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def avgClassName(dataType: DataType): TypeName = TypeName(s"Avg_${dataType.meta.sqlTypeName}")
 
   private def mkAvg(dataType: DataType, state: State): State = {
-    val tpe = mkType(dataType) // .meta.javaTypeName)
-    val className = avgClassName(dataType)
+    val tpe = mkType(dataType)
+    val accTpe = if (className(dataType).eq("Short")) {
+      Ident(TypeName("Long"))
+    } else {
+      tpe
+    }
+
+    val cn = avgClassName(dataType)
 
     val tree = q"""
-       class $className(initial: $tpe) {
-         var a: $tpe = initial
-         var c: Int = 1
-
-         def +(x: $tpe): $className = {
-           a += x
-           c += 1
-           this
+       class $cn {
+       
+         var a: $accTpe = 0
+         var c: Int = 0
+         
+         def prepare(initial: $tpe): $cn = {
+             a = initial
+             c = 1
+             this
          }
 
-         def ++(that: $className): $className = {
+         def +(x: $tpe): $cn = {
+             a += x
+             c += 1
+             this
+         }
+
+         def ++(that: $cn): $cn = {
            this.a += that.a
            this.c += that.c
            this
          }
 
-         def result: Double = a.toDouble / c
+         def result: BigDecimal = if (c != 0) { BigDecimal(a.toDouble / c) } else  { null }
        }
      """
-
-    state.withDeclaration(className, tree)
+    state.withDeclaration(cn, tree)
   }
 
   private def mkZero(
@@ -735,28 +748,44 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
         case AvgExpr(_) =>
           val avgClass = avgClassName(ae.expr.dataType)
-          mkAvg(ae.expr.dataType, s).withDefine(row, ae, q"new $avgClass($exprValue)")
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) =>
+              mkAvg(ae.expr.dataType, s).withDefine(
+                row,
+                ae,
+                q"""
+                 val avg = new $avgClass()
+                 if ($d) {
+                  avg.prepare($exprValue)
+                 } else {
+                  avg
+                 }
+                """
+              )
+            case None =>
+              mkAvg(ae.expr.dataType, s).withDefine(
+                row,
+                ae,
+                q"""
+                  val avg = new $avgClass()
+                  avg.prepare($exprValue)
+                """
+              )
+          }
 
         case CountExpr(_) =>
-          mkIsDefined(s, row, ae.expr) match {
-            case Some(d) => s.withDefine(row, ae, q"if ($d) 1L else 0L")
-            case None    => s.withDefine(row, ae, q"1L")
-          }
+          s.withDefine(row, ae, q"1L")
 
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
-          mkIsDefined(s, row, ae.expr) match {
-            case Some(d) => s.withDefine(row, ae, q"if ($d) Set($exprValue) else Set.empty")
-            case None    => s.withDefine(row, ae, q"Set($exprValue)")
-          }
+          s.withDefine(row, ae, q"Set[Int]() + $exprValue.##")
         case HLLCountExpr(_, b) =>
-          val valTpe = mkType(ae.expr)
           s.withDefine(
             row,
             ae,
             q"""
-                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
-                agg.prepare($exprValue)
-           """
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[Int]($b)
+                agg.prepare($exprValue.##)
+               """
           )
       }
     }
@@ -792,11 +821,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           )
 
         case CountExpr(_) =>
-          mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"0L"), (a, r) => q"$a + $r")
+          mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"1L"), (a, r) => q"$a + $r")
 
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
-          val valTpe = mkType(ae.expr)
-          mkSetFold(s, acc, tq"Set[$valTpe]", row, ae, identity, None, (a, r) => q"$a + $r")
+          mkSetFold(s, acc, tq"Set[Int]", row, ae, identity, Some(q"null.##"), (a, r) => q"$a + $r.##")
 
         case HLLCountExpr(_, e) =>
           val valTpe = mkType(ae.expr)
@@ -809,8 +837,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             identity,
             None,
             (a, r) => q"""
-                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($e)
-                agg.append($a, $r)
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[Int]($e)
+                agg.append($a, $r.##)
               """
           )
       }
@@ -920,7 +948,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           )
         case CountExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
-          mkSetReduce(s, rowA, rowB, tq"Set[$valueTpe]", ae, (a, b) => q"$a ++ $b")
+          mkSetReduce(s, rowA, rowB, tq"Set[Int]", ae, (a, b) => q"$a ++ $b")
         case HLLCountExpr(_, e) =>
           mkSetReduce(
             s,
@@ -929,7 +957,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             tq"_root_.com.twitter.algebird.HLL",
             ae,
             (a, b) => q"""
-                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valueTpe]($e)
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[Int]($e)
                 val hll = agg.monoid
                 hll.combine($a, $b)
                """
@@ -957,7 +985,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case MaxExpr(_)           => None
         case AvgExpr(_)           => Some(q"$row.get[${avgClassName(ae.expr.dataType)}]($idx).result" -> s)
         case CountExpr(_)         => None
-        case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
+        case DistinctCountExpr(_) => Some(q"$row.get[Set[Int]]($idx).size" -> s)
         case HLLCountExpr(_, _) =>
           Some(
             q"""
@@ -1140,5 +1168,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       .replaceAll("\\.\\$greater", " > ")
       .replaceAll("\\.\\$less\\$eq", " <= ")
       .replaceAll("\\.\\$less", " < ")
+      .replaceAll("\\$hash", "#")
   }
 }

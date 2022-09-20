@@ -1,5 +1,7 @@
 package org.yupana.core
 
+import org.yupana.api.Time
+
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import org.yupana.api.schema._
@@ -85,7 +87,7 @@ object TestSchema {
   val testTable = new Table(
     name = "test_table",
     rowTimeSpan = 24 * 60 * 60 * 1000,
-    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B),
+    dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_Y),
     metrics = Seq(
       TestTableFields.TEST_FIELD,
       TestTableFields.TEST_STRING_FIELD,
