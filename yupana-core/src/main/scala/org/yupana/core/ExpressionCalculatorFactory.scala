@@ -774,19 +774,40 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           }
 
         case CountExpr(_) =>
-          s.withDefine(row, ae, q"1L")
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) => s.withDefine(row, ae, q"if ($d) 1L else 0L")
+            case None    => s.withDefine(row, ae, q"1L")
+          }
 
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
-          s.withDefine(row, ae, q"Set[Int]() + $exprValue.##")
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) => s.withDefine(row, ae, q"if ($d) Set($exprValue) else Set.empty")
+            case None    => s.withDefine(row, ae, q"Set($exprValue)")
+          }
         case HLLCountExpr(_, b) =>
-          s.withDefine(
-            row,
-            ae,
-            q"""
-                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[Int]($b)
-                agg.prepare($exprValue.##)
-               """
-          )
+          val valTpe = mkType(ae.expr)
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) => s.withDefine(
+              row,
+              ae,
+              q"""
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
+                if ($d) {
+                  agg.prepare($exprValue)
+                } else {
+                  agg.monoid.empty
+                }
+              """
+            )
+            case None => s.withDefine(
+              row,
+              ae,
+              q"""
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
+                agg.prepare($exprValue)
+              """
+            )
+          }
       }
     }
   }
@@ -821,11 +842,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           )
 
         case CountExpr(_) =>
-          mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"1L"), (a, r) => q"$a + $r")
-
+          mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"0L"), (a, r) => q"$a + $r")
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
-          mkSetFold(s, acc, tq"Set[Int]", row, ae, identity, Some(q"null.##"), (a, r) => q"$a + $r.##")
-
+          val valTpe = mkType(ae.expr)
+          mkSetFold(s, acc, tq"Set[$valTpe]", row, ae, identity, None, (a, r) => q"$a + $r")
         case HLLCountExpr(_, e) =>
           val valTpe = mkType(ae.expr)
           mkSetFold(
@@ -837,8 +857,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             identity,
             None,
             (a, r) => q"""
-                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[Int]($e)
-                agg.append($a, $r.##)
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($e)
+                agg.append($a, $r)
               """
           )
       }
@@ -948,7 +968,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           )
         case CountExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
         case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
-          mkSetReduce(s, rowA, rowB, tq"Set[Int]", ae, (a, b) => q"$a ++ $b")
+          mkSetReduce(s, rowA, rowB, tq"Set[$valueTpe]", ae, (a, b) => q"$a ++ $b")
         case HLLCountExpr(_, e) =>
           mkSetReduce(
             s,
@@ -957,7 +977,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             tq"_root_.com.twitter.algebird.HLL",
             ae,
             (a, b) => q"""
-                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[Int]($e)
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valueTpe]($e)
                 val hll = agg.monoid
                 hll.combine($a, $b)
                """
@@ -985,7 +1005,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case MaxExpr(_)           => None
         case AvgExpr(_)           => Some(q"$row.get[${avgClassName(ae.expr.dataType)}]($idx).result" -> s)
         case CountExpr(_)         => None
-        case DistinctCountExpr(_) => Some(q"$row.get[Set[Int]]($idx).size" -> s)
+        case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
         case HLLCountExpr(_, _) =>
           Some(
             q"""
@@ -1168,6 +1188,5 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       .replaceAll("\\.\\$greater", " > ")
       .replaceAll("\\.\\$less\\$eq", " <= ")
       .replaceAll("\\.\\$less", " < ")
-      .replaceAll("\\$hash", "#")
   }
 }

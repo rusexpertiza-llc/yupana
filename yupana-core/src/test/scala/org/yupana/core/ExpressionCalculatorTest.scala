@@ -5,12 +5,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
-import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
+import org.yupana.api.query.{ConcatExpr, LengthExpr, Query}
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
-import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
-import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
+import java.time.temporal.{ChronoUnit, TemporalAdjusters}
+import java.time.{Duration, OffsetDateTime, Period, ZoneOffset}
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
@@ -163,7 +163,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     mapped1.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
     mapped1.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
     mapped1.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
-    mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
+    mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
     mapped1.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     mapped1.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     mapped1.get(
@@ -217,7 +217,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     reduced.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
     reduced.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
     reduced.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
-    reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 3L
+    reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
     reduced.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 10d, 12d)
     reduced.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 10d, 12d)
     reduced.get(
@@ -236,7 +236,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     postMapped.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
     postMapped.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
     postMapped.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
-    postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 3L
+    postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
     postMapped.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 3
     postMapped.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(2d) or equal(10d) or equal(
       12d

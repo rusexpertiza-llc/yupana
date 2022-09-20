@@ -123,5 +123,15 @@ object TestSchema {
     LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
-  val schema = Schema(Seq(testTable, testTable2), Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
+  val testTable4 = new Table(
+    name = "test_table_4",
+    rowTimeSpan = 7 * 24 * 3600 * 1000,
+    dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y, TestDims.DIM_B),
+    metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
+    externalLinks = Seq(),
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
+  )
+
+  val schema =
+    Schema(Seq(testTable, testTable2, testTable4), Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
 }

@@ -314,16 +314,16 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query)
 
       val r1 = rows.next()
-      r1.get[Long]("c1") shouldBe 5
-      r1.get[Long]("c2") shouldBe 5
-      r1.get[Long]("c3") shouldBe 5
-      r1.get[Long]("c4") shouldBe 5
-      r1.get[Long]("c5") shouldBe 5
-      r1.get[Long]("dc1") shouldBe 3
-      r1.get[Long]("dc2") shouldBe 1
-      r1.get[Long]("dc3") shouldBe 3
-      r1.get[Long]("dc4") shouldBe 3
-      r1.get[Long]("dc5") shouldBe 3
+      r1.get[Long]("c1") shouldBe 3
+      r1.get[Long]("c2") shouldBe 0
+      r1.get[Long]("c3") shouldBe 3
+      r1.get[Long]("c4") shouldBe 3
+      r1.get[Long]("c5") shouldBe 3
+      r1.get[Long]("dc1") shouldBe 2
+      r1.get[Long]("dc2") shouldBe 0
+      r1.get[Long]("dc3") shouldBe 2
+      r1.get[Long]("dc4") shouldBe 2
+      r1.get[Long]("dc5") shouldBe 2
 
       rows.hasNext shouldBe false
   }
@@ -435,8 +435,51 @@ class TsdbArithmeticTest
       val rows = tsdb.query(query)
 
       val r1 = rows.next()
-      r1.get[Long]("hllString") shouldBe 3
-      r1.get[Long]("hllLong") shouldBe 3
+      r1.get[Long]("hllString") shouldBe 2
+      r1.get[Long]("hllLong") shouldBe 2
+
+      rows.hasNext shouldBe false
+  }
+
+  it should "calculate count, distinct_count and hll_count for metric fields when evaluating each data row with null values" in withTsdbMock {
+    (tsdb, tsdbDaoMock) =>
+      val sql =
+        "SELECT count(testLongField) as c, distinct_count(testLongField) as cd, hll_count(testLongField, 0.01) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      val query = createQuery(sql)
+
+      val pointTime = from.toInstant.toEpochMilli + 10
+
+      (tsdbDaoMock.query _)
+        .expects(
+          InternalQuery(
+            TestSchema.testTable,
+            Set(metric(TestTableFields.TEST_LONG_FIELD), time),
+            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          ),
+          *,
+          *
+        )
+        .onCall((_, b, _) =>
+          Iterator(
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
+              .buildAndReset(),
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
+              .buildAndReset(),
+            b.set(time, Time(pointTime))
+              .set(metric(TestTableFields.TEST_LONG_FIELD), null)
+              .buildAndReset()
+          )
+        )
+
+      val rows = tsdb.query(query)
+
+      val r1 = rows.next()
+      r1.get[Long]("c") shouldBe 0
+      r1.get[Long]("cd") shouldBe 0
+      r1.get[Long]("ch") shouldBe 0
 
       rows.hasNext shouldBe false
   }
@@ -515,8 +558,8 @@ class TsdbArithmeticTest
   it should "calculate average for dimension fields when evaluating each data row" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        "SELECT avg(B) avgB " +
-          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+        "SELECT avg(B) avgB, avg(Y) avgY  " +
+          "FROM test_table_4 " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
 
@@ -526,8 +569,8 @@ class TsdbArithmeticTest
       (tsdbDaoMock.query _)
         .expects(
           InternalQuery(
-            TestSchema.testTable,
-            Set(dimension(TestDims.DIM_B), time),
+            TestSchema.testTable4,
+            Set(dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to))))
           ),
           *,
@@ -537,15 +580,19 @@ class TsdbArithmeticTest
           Iterator(
             b.set(time, Time(pointTime))
               .set(dimension(TestDims.DIM_B), 1: Short)
+              .set(dimension(TestDims.DIM_Y), 1L)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(dimension(TestDims.DIM_B), 2: Short)
+              .set(dimension(TestDims.DIM_Y), 1L)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(dimension(TestDims.DIM_B), 1: Short)
+              .set(dimension(TestDims.DIM_Y), 2L)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(dimension(TestDims.DIM_B), 1: Short)
+              .set(dimension(TestDims.DIM_Y), 1L)
               .buildAndReset()
           )
         )
@@ -554,6 +601,7 @@ class TsdbArithmeticTest
 
       val r1 = rows.next()
       r1.get[BigDecimal]("avgB") shouldBe 1.25
+      r1.get[BigDecimal]("avgY") shouldBe 1.25
 
       rows.hasNext shouldBe false
   }
