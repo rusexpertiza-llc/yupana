@@ -484,6 +484,16 @@ class TsdbArithmeticTest
       rows.hasNext shouldBe false
   }
 
+  it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql =
+      "SELECT hll_count(testField, 0.01) as ch " +
+        "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+    the[Exception] thrownBy createQuery(
+      sql
+    ) should have message "hll_count is not defined for given datatype: DOUBLE"
+  }
+
   it should "calculate average for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =

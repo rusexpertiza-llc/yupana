@@ -21,6 +21,8 @@ import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
 
+import java.sql.Types
+
 object FunctionRegistry {
 
   type ArrayExpr[T] = Expression[Seq[T]]
@@ -244,9 +246,15 @@ object FunctionRegistry {
       (a: Expression[_], c: Expression[_]) =>
         c match {
           case ConstantExpr(v, _) =>
-            c.dataType.numeric
-              .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
-              .toRight(s"$c must be a number")
+            val tpe = a.dataType.meta.sqlTypeName
+            if (!Set("VARCHAR", "BIGINT", "SHORT").contains(tpe)) {
+              Left("hll_count is not defined for given datatype: " + tpe)
+            } else {
+              c.dataType.numeric
+                .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
+                .toRight(s"$c must be a number")
+            }
+
           case _ => Left(s"Expected constant but got $c")
         }
     )

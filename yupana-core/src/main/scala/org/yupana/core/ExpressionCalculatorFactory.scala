@@ -787,10 +787,11 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case HLLCountExpr(_, b) =>
           val valTpe = mkType(ae.expr)
           mkIsDefined(s, row, ae.expr) match {
-            case Some(d) => s.withDefine(
-              row,
-              ae,
-              q"""
+            case Some(d) =>
+              s.withDefine(
+                row,
+                ae,
+                q"""
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
                 if ($d) {
                   agg.prepare($exprValue)
@@ -798,15 +799,16 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
                   agg.monoid.empty
                 }
               """
-            )
-            case None => s.withDefine(
-              row,
-              ae,
-              q"""
+              )
+            case None =>
+              s.withDefine(
+                row,
+                ae,
+                q"""
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
                 agg.prepare($exprValue)
               """
-            )
+              )
           }
       }
     }

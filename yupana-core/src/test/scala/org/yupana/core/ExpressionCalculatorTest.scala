@@ -5,12 +5,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
-import org.yupana.api.query.{ConcatExpr, LengthExpr, Query}
+import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
-import java.time.temporal.{ChronoUnit, TemporalAdjusters}
-import java.time.{Duration, OffsetDateTime, Period, ZoneOffset}
+import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
+import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenThen {
   import org.yupana.api.query.syntax.All._
