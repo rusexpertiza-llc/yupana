@@ -5,7 +5,7 @@ import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.LinkExpr
-import org.yupana.api.schema.{ DictionaryDimension, LinkField }
+import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.SparseTable
@@ -564,7 +564,6 @@ class TsdbArithmeticTest
       val query = createQuery(sql)
 
       val pointTime = from.toInstant.toEpochMilli + 10
-      val pointTime2 = pointTime + 10 * 1000
 
       (tsdbDaoMock.query _)
         .expects(
