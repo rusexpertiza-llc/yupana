@@ -19,7 +19,7 @@ package org.yupana.externallinks.universal
 import java.sql.{ Blob, Clob, Date, ResultSet }
 
 import javax.sql.DataSource
-import org.yupana.api.utils.ResourceUtils.using
+import scala.util.Using
 
 object JdbcUtils {
   def runQuery(
@@ -28,7 +28,7 @@ object JdbcUtils {
       fields: Set[String],
       params: Seq[Any]
   ): Seq[Map[String, Any]] = {
-    using(ds.getConnection()) { con =>
+    Using.resource(ds.getConnection()) { con =>
       val ps = con.prepareStatement(q)
       params.zipWithIndex.foreach { case (p, i) => ps.setObject(i + 1, p) }
       val rs = ps.executeQuery()

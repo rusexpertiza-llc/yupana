@@ -27,7 +27,6 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
@@ -40,6 +39,7 @@ import java.time.{ Instant, LocalDate, OffsetDateTime, ZoneOffset }
 import scala.collection.AbstractIterator
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable.NumericRange
+import scala.util.Using
 
 object HBaseUtils extends StrictLogging {
 
@@ -142,7 +142,7 @@ object HBaseUtils extends StrictLogging {
     val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
     putsWithIntervalsByTable.flatMap {
       case (table, puts, updateIntervals) =>
-        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+        Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
           puts
             .sliding(putsBatchSize, putsBatchSize)
             .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
@@ -368,7 +368,7 @@ object HBaseUtils extends StrictLogging {
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
 
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       if (admin.tableExists(metaTableName)) {
         ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
       } else {
@@ -383,7 +383,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
-    using(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
+    Using.resource(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
       val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
       table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
     }
@@ -393,7 +393,7 @@ object HBaseUtils extends StrictLogging {
     logger.info(s"Writing TSDB Schema definition to namespace $namespace")
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       if (!admin.tableExists(metaTableName)) {
         val tableDesc = TableDescriptorBuilder
           .newBuilder(metaTableName)
@@ -406,7 +406,7 @@ object HBaseUtils extends StrictLogging {
           .build()
         admin.createTable(tableDesc)
       }
-      using(connection.getTable(metaTableName)) { table =>
+      Using.resource(connection.getTable(metaTableName)) { table =>
         val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, schemaBytes)
         table.put(put)
       }
@@ -432,7 +432,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   def checkNamespaceExistsElseCreate(connection: Connection, namespace: String): Unit = {
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       if (!admin.listNamespaceDescriptors.exists(_.getName == namespace)) {
         val namespaceDescriptor = NamespaceDescriptor.create(namespace).build()
         admin.createNamespace(namespaceDescriptor)
@@ -470,7 +470,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit =
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       val name = tableName(namespace, table)
 
       if (!admin.tableExists(name)) {
@@ -490,7 +490,7 @@ object HBaseUtils extends StrictLogging {
     val table = connection.getTable(tableName)
     val scan = new Scan().setOneRowLimit().setFilter(new FirstKeyOnlyFilter).setReversed(!first)
 
-    using(table.getScanner(scan)) { scanner =>
+    Using.resource(table.getScanner(scan)) { scanner =>
 
       val result = scanner.next()
       if (result != null) result.getRow else Array.empty

@@ -21,13 +21,13 @@ import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.utils.CloseableIterator
 
 import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
+import scala.util.Using
 
 object InvertedIndexDaoHBase {
   val FAMILY: Array[Byte] = Bytes.toBytes("f")
@@ -75,7 +75,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering: ClassTag](
 
   override def put(key: K, values: Set[V]): Unit = {
     if (values.nonEmpty) {
-      using(connection.getTable(tableName)) { table =>
+      Using.resource(connection.getTable(tableName)) { table =>
         val put = createPutOperation(key, values, keySerializer, valueSerializer)
         put.foreach(table.put)
       }
@@ -83,7 +83,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering: ClassTag](
   }
 
   override def batchPut(batch: Map[K, Set[V]]): Unit = {
-    using(connection.getTable(tableName)) { table =>
+    Using.resource(connection.getTable(tableName)) { table =>
       val puts = batch.flatMap {
         case (key, values) =>
           createPutOperation(key, values, keySerializer, valueSerializer)
@@ -102,8 +102,8 @@ class InvertedIndexDaoHBase[K, V: DimOrdering: ClassTag](
     val filters = new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter())
 
     val scan = new Scan().setRowPrefixFilter(skey).setFilter(filters)
-    using(connection.getTable(tableName)) { table =>
-      using(table.getScanner(scan)) { scanner =>
+    Using.resource(connection.getTable(tableName)) { table =>
+      Using.resource(table.getScanner(scan)) { scanner =>
 
         val keys = scanner
           .iterator()
@@ -129,7 +129,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering: ClassTag](
       new Get(skey).setMaxResultsPerColumnFamily(BATCH_SIZE)
     }
 
-    val results = using(connection.getTable(tableName)) { table =>
+    val results = Using.resource(connection.getTable(tableName)) { table =>
       gets
         .grouped(BATCH_SIZE)
         .flatMap(batch => table.get(batch.asJava))
