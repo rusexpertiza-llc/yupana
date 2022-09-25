@@ -98,7 +98,6 @@ lazy val core = (project in file("yupana-core"))
     libraryDependencies ++= Seq(
       "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
-      "org.scala-lang.modules"        %% "scala-collection-compat"      % versions.colCompat,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
@@ -117,7 +116,6 @@ lazy val hbase = (project in file("yupana-hbase"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules"      %% "scala-collection-compat"      % versions.colCompat,
       "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
       "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
@@ -362,7 +360,6 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val scala213 = "2.13.8"
 
-  val colCompat = "2.1.1" // Same version with Spark
   val spark = "3.3.0"
 
   val threeTenExtra = "1.7.0"
