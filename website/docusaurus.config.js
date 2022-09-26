@@ -16,8 +16,10 @@ const siteConfig = {
 
   i18n: {
     defaultLocale: 'ru',
-    locales: ['ru'],
+    locales: [ 'ru' ],
   },
+
+  staticDirectories: [ 'static' ],
 
   presets: [
     [
@@ -60,7 +62,7 @@ const siteConfig = {
             position: 'right'
           },
           {
-            to: '/api/org/yupana/index.html',
+            href: 'pathname:///api/org/yupana/index.html',
             label: 'API',
             position: 'right'
           }
