@@ -23,7 +23,6 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
-import org.yupana.core.ExpressionCalculatorFactory.className
 
 import java.sql.Types
 import scala.reflect.{ ClassTag, classTag }
