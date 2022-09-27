@@ -1,5 +1,7 @@
 package org.yupana.core
 
+import org.yupana.api.Time
+
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import org.yupana.api.schema._
@@ -23,6 +25,7 @@ object TestTableFields {
   val TEST_FIELD2: Metric.Aux[Double] = Metric[Double]("testField2", 3, 2)
   val TEST_LONG_FIELD: Metric.Aux[Long] = Metric[Long]("testLongField", 4, 2)
   val TEST_BIGDECIMAL_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testBigDecimalField", 5)
+  val TEST_TIME_FIELD: Metric.Aux[Time] = Metric[Time]("testTimeField", 5)
 }
 
 object TestTable2Fields {
@@ -91,7 +94,8 @@ object TestSchema {
       TestTableFields.TEST_STRING_FIELD,
       TestTableFields.TEST_FIELD2,
       TestTableFields.TEST_LONG_FIELD,
-      TestTableFields.TEST_BIGDECIMAL_FIELD
+      TestTableFields.TEST_BIGDECIMAL_FIELD,
+      TestTableFields.TEST_TIME_FIELD
     ),
     externalLinks =
       Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),

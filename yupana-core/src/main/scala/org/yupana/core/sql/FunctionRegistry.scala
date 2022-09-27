@@ -245,7 +245,7 @@ object FunctionRegistry {
         c match {
           case ConstantExpr(v, _) =>
             val tpe = a.dataType.meta.sqlTypeName
-            if (!Set("VARCHAR", "BIGINT", "SHORT").contains(tpe)) {
+            if (!Set("VARCHAR", "BIGINT", "SHORT", "TIMESTAMP").contains(tpe)) {
               Left("hll_count is not defined for given datatype: " + tpe)
             } else {
               c.dataType.numeric

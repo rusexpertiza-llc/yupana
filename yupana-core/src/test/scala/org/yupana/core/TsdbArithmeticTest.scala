@@ -391,8 +391,12 @@ class TsdbArithmeticTest
 
   it should "calculate hll_count for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql = "SELECT hll_count(testStringField, 0.01) as hllString, hll_count(testLongField, 0.01) as hllLong " +
-        "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      val sql =
+        """SELECT 
+          |hll_count(testStringField, 0.01) as hllString, 
+          |hll_count(testLongField, 0.01) as hllLong, 
+          |hll_count(testTimeField, 0.01) as hllTime """.stripMargin +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
       val pointTime = from.toInstant.toEpochMilli + 10
@@ -401,7 +405,12 @@ class TsdbArithmeticTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(metric(TestTableFields.TEST_STRING_FIELD), metric(TestTableFields.TEST_LONG_FIELD), time),
+            Set(
+              metric(TestTableFields.TEST_STRING_FIELD),
+              metric(TestTableFields.TEST_LONG_FIELD),
+              metric(TestTableFields.TEST_TIME_FIELD),
+              time
+            ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to))))
           ),
           *,
@@ -412,22 +421,27 @@ class TsdbArithmeticTest
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_STRING_FIELD), null)
               .set(metric(TestTableFields.TEST_LONG_FIELD), null)
+              .set(metric(TestTableFields.TEST_TIME_FIELD), null)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
               .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
+              .set(metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_STRING_FIELD), null)
               .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
+              .set(metric(TestTableFields.TEST_TIME_FIELD), null)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_STRING_FIELD), "2d")
               .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
+              .set(metric(TestTableFields.TEST_TIME_FIELD), Time(2L))
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_STRING_FIELD), "1d")
               .set(metric(TestTableFields.TEST_LONG_FIELD), null)
+              .set(metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
               .buildAndReset()
           )
         )
@@ -437,6 +451,7 @@ class TsdbArithmeticTest
       val r1 = rows.next()
       r1.get[Long]("hllString") shouldBe 2
       r1.get[Long]("hllLong") shouldBe 2
+      r1.get[Long]("hllTime") shouldBe 2
 
       rows.hasNext shouldBe false
   }
