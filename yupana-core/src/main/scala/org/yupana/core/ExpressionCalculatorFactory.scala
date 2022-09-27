@@ -16,17 +16,17 @@
 
 package org.yupana.core
 
-import com.twitter.algebird.{Hash128, MurmurHash128}
+import com.twitter.algebird.{ Hash128, MurmurHash128 }
 import com.typesafe.scalalogging.StrictLogging
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ArrayDataType, DataType, TupleDataType}
+import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 
 import java.sql.Types
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{ ClassTag, classTag }
 
 trait ExpressionCalculatorFactory {
   def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int])
@@ -734,10 +734,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     aggregates.foldLeft(newState) { (s, ae) =>
       val (exprValue, s2) = mkGetNow(s, row, ae.expr)
-      implicit lazy val timeHash: Hash128[Time] = new Hash128[Time] {
-        override val DefaultSeed: Long = Hash128.DefaultSeed
-        override def hashWithSeed(seed: Long, k: Time): (Long, Long) = MurmurHash128(seed)(k.millis)
-      }
 
       ae match {
         case SumExpr(_) => s2.withDefine(row, ae, exprValue)
@@ -796,10 +792,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
                 row,
                 ae,
                 q"""
-                implicit lazy val timeHash: _root_.com.twitter.algebird.Hash128[_root_.org.yupana.api.Time] = new _root_.com.twitter.algebird.Hash128[_root_.org.yupana.api.Time] {
-                  override val DefaultSeed: Long = _root_.com.twitter.algebird.Hash128.DefaultSeed
-                  override def hashWithSeed(seed: Long, k: _root_.org.yupana.api.Time): (Long, Long) = _root_.com.twitter.algebird.MurmurHash128(seed)(k.millis)
-                }
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
                 if ($d) {
                   agg.prepare($exprValue)
@@ -867,10 +859,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             identity,
             None,
             (a, r) => q"""
-                implicit lazy val timeHash: _root_.com.twitter.algebird.Hash128[_root_.org.yupana.api.Time] = new _root_.com.twitter.algebird.Hash128[_root_.org.yupana.api.Time] {
-                  override val DefaultSeed: Long = _root_.com.twitter.algebird.Hash128.DefaultSeed
-                  override def hashWithSeed(seed: Long, k: _root_.org.yupana.api.Time): (Long, Long) = _root_.com.twitter.algebird.MurmurHash128(seed)(k.millis)
-                }
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($e)
                 agg.append($a, $r)
               """
@@ -966,7 +954,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     aggregates.foldLeft(state) { (s, ae) =>
       val valueTpe = mkType(ae.expr)
-
       ae match {
         case SumExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
         case MinExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.min($a, $b)")
@@ -991,10 +978,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             tq"_root_.com.twitter.algebird.HLL",
             ae,
             (a, b) => q"""
-                implicit lazy val timeHash: _root_.com.twitter.algebird.Hash128[_root_.org.yupana.api.Time] = new _root_.com.twitter.algebird.Hash128[_root_.org.yupana.api.Time] {
-                  override val DefaultSeed: Long = _root_.com.twitter.algebird.Hash128.DefaultSeed
-                  override def hashWithSeed(seed: Long, k: _root_.org.yupana.api.Time): (Long, Long) = _root_.com.twitter.algebird.MurmurHash128(seed)(k.millis)
-                }
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valueTpe]($e)
                 val hll = agg.monoid
                 hll.combine($a, $b)
@@ -1119,6 +1102,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       import _root_.org.yupana.core.model.InternalRow
       import _root_.org.threeten.extra.PeriodDuration
       import _root_.org.threeten.extra.PeriodDuration
+      import _root_.org.yupana.core.utils.Hash128Utils.timeHash
 
       ..$typeDecls
 
