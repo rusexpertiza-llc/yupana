@@ -21,8 +21,6 @@ import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
 
-import java.sql.Types
-
 object FunctionRegistry {
 
   type ArrayExpr[T] = Expression[Seq[T]]
