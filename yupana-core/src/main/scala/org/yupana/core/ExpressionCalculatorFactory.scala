@@ -16,7 +16,6 @@
 
 package org.yupana.core
 
-import com.twitter.algebird.{ Hash128, MurmurHash128 }
 import com.typesafe.scalalogging.StrictLogging
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
