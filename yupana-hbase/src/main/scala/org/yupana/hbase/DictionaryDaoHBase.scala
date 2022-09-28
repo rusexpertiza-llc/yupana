@@ -22,10 +22,10 @@ import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.schema.Dimension
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.DictionaryDao
 
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 object DictionaryDaoHBase {
 
@@ -65,7 +65,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     if (value != null) {
       val trimmed = value.trim
       if (trimmed.nonEmpty) {
-        using(getTable(dimension.name)) { table =>
+        Using.resource(getTable(dimension.name)) { table =>
           val get = new Get(Bytes.toBytes(trimmed)).addFamily(dataFamily)
           val result = table.get(get)
           if (!result.isEmpty) {
@@ -89,7 +89,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
       val nonEmptyValues = values.filter(_ != null).map(_.trim).filter(_.nonEmpty).toSeq
       logger.trace(s"Get dictionary ids by values for ${dimension.name}. Size of values: ${nonEmptyValues.size}")
       checkTablesExistsElseCreate(dimension)
-      val r = using(getTable(dimension.name)) { table =>
+      val r = Using.resource(getTable(dimension.name)) { table =>
         nonEmptyValues
           .grouped(BATCH_SIZE)
           .flatMap { vs =>
@@ -107,7 +107,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
               .setFilter(rangeFilter)
 
             logger.trace(s"--- Send request to HBase")
-            using(table.getScanner(scan)) {
+            Using.resource(table.getScanner(scan)) {
               _.iterator().asScala
                 .map { result =>
                   val id = Bytes.toLong(result.getValue(dataFamily, column))
@@ -130,7 +130,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
     val idBytes = Bytes.toBytes(id)
     val valueBytes = Bytes.toBytes(value)
 
-    using(getTable(dimension.name)) { table =>
+    Using.resource(getTable(dimension.name)) { table =>
       val rput = new Put(valueBytes).addColumn(dataFamily, column, idBytes)
       table.checkAndMutate(CheckAndMutate.newBuilder(valueBytes).ifNotExists(dataFamily, column).build(rput)).isSuccess
     }
@@ -138,7 +138,7 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
   override def createSeqId(dimension: Dimension): Int = {
     checkTablesExistsElseCreate(dimension)
-    using(getTable(dimension.name))(_.incrementColumnValue(seqIdRowKey, seqFamily, column, 1).toInt)
+    Using.resource(getTable(dimension.name))(_.incrementColumnValue(seqIdRowKey, seqFamily, column, 1).toInt)
   }
 
   private def getTable(name: String) = {
