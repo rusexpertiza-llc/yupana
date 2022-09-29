@@ -36,7 +36,7 @@ class Filters(
           case None    => i
         }
         d -> s
-    }.toMap
+    }
   }
 
   def allExcludes: Map[Dimension, SortedSetIterator[_]] = excludes

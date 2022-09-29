@@ -88,7 +88,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           case (d, it) =>
             val rit = it.asInstanceOf[SortedSetIterator[d.R]]
             d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
-        }.toMap
+        }
 
         val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
@@ -96,7 +96,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           mr.empty[InternalRow]
         } else {
           val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
-            (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
+            d -> prefetchedDimIterators(d)
           }.toMap
           val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
 
@@ -248,16 +248,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case EqExpr(DimensionExpr(dim), ConstantExpr(c, _)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqExpr(ConstantExpr(c, _), DimensionExpr(dim)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c, _)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(ConstantExpr(c, _), LowerExpr(DimensionExpr(dim))) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(DimensionIdExpr(dim), ConstantExpr(c, _)) =>
           builder.includeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
@@ -286,16 +286,16 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     def handleNeq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NeqExpr(DimensionExpr(dim), ConstantExpr(c, _)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqExpr(ConstantExpr(c, _), DimensionExpr(dim)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c, _)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(ConstantExpr(c, _), LowerExpr(DimensionExpr(dim))) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(DimensionIdExpr(dim), ConstantExpr(c, _)) =>
           builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
@@ -319,13 +319,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           builder.includeValues(dim, consts)
 
         case InString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.includeValues(
-            dim,
-            consts.asInstanceOf[Set[dim.T]]
-          )
+          builder.includeValues(dim, consts)
 
         case InTime(TimeExpr, consts) =>
-          builder.includeTime(consts.asInstanceOf[Set[Time]])
+          builder.includeTime(consts)
 
         case InString(DimensionIdExpr(dim), dimIds) =>
           builder.includeIds(
@@ -344,10 +341,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     def handleNotIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NotInExpr(DimensionExpr(dim), consts) =>
-          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+          builder.excludeValues(dim, consts)
 
         case NotInString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+          builder.excludeValues(dim, consts)
 
         case NotInString(DimensionIdExpr(dim), dimIds) =>
           builder.excludeIds(
