@@ -18,8 +18,6 @@ package org.yupana.core
 
 import scala.reflect.ClassTag
 
-import scala.collection.compat.IterableOnce
-
 /**
   * Defines basic operations on `Collection`
   * @tparam Collection collection for which operations are defined

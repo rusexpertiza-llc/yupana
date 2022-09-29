@@ -57,7 +57,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
       exprs: Set[LinkExpr[_]]
   ): Unit = {
     ExternalLinkUtils.setLinkedValues(
-      externalLink.asInstanceOf[ExternalLink.Aux[externalLink.dimension.T]],
+      externalLink,
       exprIndex,
       rows,
       exprs,

@@ -11,6 +11,7 @@ import org.yupana.api.types.{ DataType, DataTypeMeta }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.nio.charset.StandardCharsets
 import java.time.{ LocalDateTime, ZoneId, ZoneOffset }
 
 class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
@@ -542,6 +543,25 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val bytes2 = new Array[Byte](3)
     blob2.getBinaryStream(2, 3).read(bytes2)
     bytes2 should contain theSameElementsInOrderAs Seq[Byte](12, 85, 0)
+  }
+
+  it should "return BLOB as bytes correctly" in {
+    import org.yupana.api.{ Blob => ApiBlob }
+
+    val statement = mock[Statement]
+
+    val result = SimpleResult(
+      "test",
+      Seq("bytes"),
+      Seq(DataType[ApiBlob]),
+      Iterator(Array[Any]("hello world!".getBytes(StandardCharsets.UTF_8)))
+    )
+
+    val rs = new YupanaResultSet(statement, result)
+    rs.next
+
+    val bytes: Array[Byte] = rs.getBytes("bytes")
+    new String(bytes, StandardCharsets.UTF_8) shouldEqual "hello world!"
   }
 
   it should "throw exception on update operation" in {

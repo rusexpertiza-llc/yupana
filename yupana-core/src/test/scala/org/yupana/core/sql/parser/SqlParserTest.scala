@@ -22,6 +22,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "support escaped text" in {
     parse("'slash \\\\'", ValueParser.value(_)).value shouldEqual StringValue("slash \\")
     parse("'\\'escaped\\' quotes'", ValueParser.value(_)).value shouldEqual StringValue("'escaped' quotes")
+    parse("'multi\\nline'", ValueParser.value(_)).value shouldEqual StringValue("multi\nline")
+    parse("'multi\\n\\rline'", ValueParser.value(_)).value shouldEqual StringValue("multi\n\rline")
+    parse("'col1\\tcol2'", ValueParser.value(_)).value shouldEqual StringValue("col1\tcol2")
+    parse("'test\\g'", ValueParser.value(_)).error should include("found \"g'")
   }
 
   it should "parse integer numbers" in {

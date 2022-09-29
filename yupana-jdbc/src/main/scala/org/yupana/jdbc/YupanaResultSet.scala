@@ -26,7 +26,6 @@ import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
-import org.yupana.jdbc.compat.LazyList
 
 import java.time.ZonedDateTime
 
@@ -304,10 +303,15 @@ class YupanaResultSet protected[jdbc] (
   }
 
   private def toBytes(a: Any): Array[Byte] = {
-    val bs = new ByteArrayOutputStream()
-    val os = new ObjectOutputStream(bs)
-    os.writeObject(a)
-    bs.toByteArray
+    a match {
+      case b: org.yupana.api.Blob => b.bytes
+      case b: Array[Byte]         => b
+      case _ =>
+        val bs = new ByteArrayOutputStream()
+        val os = new ObjectOutputStream(bs)
+        os.writeObject(a)
+        bs.toByteArray
+    }
   }
 
   @throws[SQLException]

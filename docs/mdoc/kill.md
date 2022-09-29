@@ -9,8 +9,12 @@ title: KILL
 
 Остановка запроса по идентификатору:
 
-`KILL QUERY WHERE QUERY_ID = ?`
+```sql
+KILL QUERY WHERE QUERY_ID = ?
+```
 
 Остановка запросов по состоянию:
 
-`KILL QUERY WHERE STATE = 'RUNNING'`
+```sql
+KILL QUERY WHERE STATE = 'RUNNING'
+```

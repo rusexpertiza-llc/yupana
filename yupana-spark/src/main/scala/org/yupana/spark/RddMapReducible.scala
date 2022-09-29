@@ -22,8 +22,7 @@ import org.yupana.core.MapReducible
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.collection.compat.IterableOnce
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 import scala.reflect.ClassTag
 
 class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector: MetricQueryCollector)

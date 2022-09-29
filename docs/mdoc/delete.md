@@ -9,8 +9,12 @@ title: DELETE
 
 Удаление метрики из истории по идентификатору запроса:
 
-`DELETE QUERIES WHERE QUERY_ID = ?`
+```sql
+DELETE QUERIES WHERE QUERY_ID = ?
+```
 
 Удаление метрик по состоянию запросов:
 
-`DELETE QUERIES WHERE STATE = 'FINISHED' `
+```sql
+DELETE QUERIES WHERE STATE = 'FINISHED'
+```
