@@ -26,6 +26,7 @@ object ConditionUtils {
       xs.flatMap(x =>
         flatMap(x)(f) match {
           case ConstantExpr(true, _) => None
+          case TrueExpr              => None
           case nonEmpty              => Some(nonEmpty)
         }
       )
@@ -64,10 +65,10 @@ object ConditionUtils {
     transform match {
       case Replace(from, to) =>
         val filtered = tbc.conditions.filterNot { c =>
-          from.contains(c) || c == to
+          from.contains(c) || to.contains(c)
         }
         if (filtered.size != tbc.conditions.size)
-          tbc.copy(conditions = filtered :+ to)
+          tbc.copy(conditions = to ++ filtered)
         else
           tbc
       case Original(_) =>

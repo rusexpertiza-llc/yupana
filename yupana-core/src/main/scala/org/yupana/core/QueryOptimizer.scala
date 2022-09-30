@@ -17,7 +17,7 @@
 package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField }
+import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField, TrueExpr }
 import org.yupana.core.utils.ExpressionUtils
 import org.yupana.core.utils.ExpressionUtils.Transformer
 
@@ -74,7 +74,7 @@ object QueryOptimizer {
   }
 
   private def and(conditions: Seq[Condition]): Condition = {
-    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    val nonEmpty = conditions.filterNot(c => c == ConstantExpr(true) || c == TrueExpr)
     if (nonEmpty.size == 1) {
       nonEmpty.head
     } else if (nonEmpty.nonEmpty) {
@@ -85,7 +85,7 @@ object QueryOptimizer {
   }
 
   private def or(conditions: Seq[Condition]): Condition = {
-    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
+    val nonEmpty = conditions.filterNot(c => c == ConstantExpr(true) || c == TrueExpr)
     if (nonEmpty.size == 1) {
       nonEmpty.head
     } else if (nonEmpty.nonEmpty) {

@@ -18,7 +18,21 @@ package org.yupana.api.query
 
 import org.yupana.api.query.Expression.Condition
 
+/**
+  * Condition transformation. Used in external links to convert conditions in terms of external link fields to conditions
+  * in terms of basic schema fields (dimensions, metrics, time).
+  */
 sealed trait TransformCondition
 
-case class Replace(in: Set[Condition], out: SimpleCondition) extends TransformCondition
+/**
+  * Replace conditions in the set with simple conditions.
+  * @param in conditions to be replaced.
+  * @param out replacement conditions. Replacements are joined with AND operation.
+  */
+case class Replace(in: Set[Condition], out: Seq[SimpleCondition]) extends TransformCondition
+
+object Replace {
+  def apply(in: Set[Condition], out: SimpleCondition): Replace = Replace(in, Seq(out))
+}
+
 case class Original(in: Set[Condition]) extends TransformCondition

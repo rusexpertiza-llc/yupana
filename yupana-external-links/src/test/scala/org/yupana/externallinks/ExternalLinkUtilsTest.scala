@@ -30,18 +30,18 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
   private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     Replace(
       values.map(_._1).toSet,
-      and(values.map {
+      values.map {
         case (_, field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
-      }: _*)
+      }
     )
   }
 
   private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
     Replace(
       values.map(_._1).toSet,
-      and(values.map {
+      values.map {
         case (_, field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
-      }: _*)
+      }
     )
   }
 
@@ -50,7 +50,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     transform(c) shouldEqual Seq(
       Replace(
         Set(c),
-        and(in(dimension(xDim), Set("field1_foo")))
+        in(dimension(xDim), Set("field1_foo"))
       )
     )
   }
@@ -67,9 +67,9 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     conditions shouldEqual Seq(
       Replace(
         Set(c1, c2),
-        and(
-          in(dimension(xDim), Set("field2_bar")),
-          in(dimension(xDim), Set("field3_aaa", "field3_bbb"))
+        Seq(
+          in(dimension(xDim), Set("field3_aaa", "field3_bbb")),
+          in(dimension(xDim), Set("field2_bar"))
         )
       )
     )
@@ -80,7 +80,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     transform(c) shouldEqual Seq(
       Replace(
         Set(c),
-        and(
+        Seq(
           notIn(dimension(xDim), Set("field1_foo"))
         )
       )
@@ -98,7 +98,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     conditions shouldEqual Seq(
       Replace(
         Set(notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))),
-        and(notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")))
+        notIn(dimension(xDim), Set("field1_aaa", "field1_bbb"))
       ),
       Original(
         Set(in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")))
