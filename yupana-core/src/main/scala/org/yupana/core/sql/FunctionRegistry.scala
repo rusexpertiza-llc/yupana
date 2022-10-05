@@ -245,8 +245,11 @@ object FunctionRegistry {
         c match {
           case ConstantExpr(v, _) =>
             val tpe = a.dataType.meta.sqlTypeName
+            val std_err = v.asInstanceOf[BigDecimal]
             if (!Set("VARCHAR", "BIGINT", "SHORT", "TIMESTAMP").contains(tpe)) {
               Left("hll_count is not defined for given datatype: " + tpe)
+            } else if (std_err < 0.00003 || std_err > 0.367) {
+              Left("std_err must be in range (0.00003, 0.367), but: std_err=" + std_err)
             } else {
               c.dataType.numeric
                 .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
