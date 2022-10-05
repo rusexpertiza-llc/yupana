@@ -499,6 +499,39 @@ class TsdbArithmeticTest
       rows.hasNext shouldBe false
   }
 
+  it should "throwing exception on calling hll_count for metric decimal field with wrong type" in withTsdbMock {
+    (_, _) =>
+      val sql =
+        "SELECT hll_count(testField, 0.01) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+      the[Exception] thrownBy createQuery(
+        sql
+      ) should have message "hll_count is not defined for given datatype: DOUBLE"
+  }
+
+  it should "throwing exception on calling hll_count for metric decimal field and std_err less then 0.00003" in withTsdbMock {
+    (_, _) =>
+      val sql =
+        "SELECT hll_count(testLongField, 0.0000029) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+      the[Exception] thrownBy createQuery(
+        sql
+      ) should have message "std_err must be in range (0.00003, 0.367), but: std_err=0.0000029"
+  }
+
+  it should "throwing exception on calling hll_count for metric decimal field and std_err more then 0.367" in withTsdbMock {
+    (_, _) =>
+      val sql =
+        "SELECT hll_count(testLongField, 0.3671) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+      the[Exception] thrownBy createQuery(
+        sql
+      ) should have message "std_err must be in range (0.00003, 0.367), but: std_err=0.3671"
+  }
+
   it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql =
       "SELECT hll_count(testField, 0.01) as ch " +
@@ -512,7 +545,11 @@ class TsdbArithmeticTest
   it should "calculate average for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
       val sql =
-        "SELECT avg(testField) avgDouble, avg(testLongField) avgLong, avg(testBigDecimalField) avgBigDecimal " +
+        """SELECT 
+          |avg(testField) avgDouble, 
+          |avg(testLongField) avgLong, 
+          |avg(testBigDecimalField) avgBigDecimal,
+          |avg(testByteField) avgByte """.stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
@@ -527,6 +564,7 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_FIELD),
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
+              metric(TestTableFields.TEST_BYTE_FIELD),
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to))))
@@ -540,31 +578,37 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_FIELD), null)
               .set(metric(TestTableFields.TEST_LONG_FIELD), null)
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
+              .set(metric(TestTableFields.TEST_BYTE_FIELD), null)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 0d)
               .set(metric(TestTableFields.TEST_LONG_FIELD), 1L)
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(10))
+              .set(metric(TestTableFields.TEST_BYTE_FIELD), 10.toByte)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 10d)
               .set(metric(TestTableFields.TEST_LONG_FIELD), 11L)
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(101))
+              .set(metric(TestTableFields.TEST_BYTE_FIELD), 101.toByte)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), null)
               .set(metric(TestTableFields.TEST_LONG_FIELD), 2L)
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(20))
+              .set(metric(TestTableFields.TEST_BYTE_FIELD), 20.toByte)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 6d)
               .set(metric(TestTableFields.TEST_LONG_FIELD), 5L)
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
+              .set(metric(TestTableFields.TEST_BYTE_FIELD), null)
               .buildAndReset(),
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 5d)
               .set(metric(TestTableFields.TEST_LONG_FIELD), null)
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(7))
+              .set(metric(TestTableFields.TEST_BYTE_FIELD), 7.toByte)
               .buildAndReset()
           )
         )
@@ -576,6 +620,7 @@ class TsdbArithmeticTest
       r1.get[BigDecimal]("avgDouble") shouldBe 5.25d
       r1.get[BigDecimal]("avgLong") shouldBe 4.75d
       r1.get[BigDecimal]("avgBigDecimal") shouldBe 34.5d
+      r1.get[BigDecimal]("avgByte") shouldBe 34.5d
 
       rows.hasNext shouldBe false
   }
