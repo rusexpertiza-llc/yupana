@@ -26,7 +26,7 @@ object TestTableFields {
   val TEST_LONG_FIELD: Metric.Aux[Long] = Metric[Long]("testLongField", 4, 2)
   val TEST_BIGDECIMAL_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testBigDecimalField", 5)
   val TEST_TIME_FIELD: Metric.Aux[Time] = Metric[Time]("testTimeField", 6)
-  val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 6)
+  val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 7)
 }
 
 object TestTable2Fields {
