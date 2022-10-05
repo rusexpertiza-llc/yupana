@@ -499,6 +499,39 @@ class TsdbArithmeticTest
       rows.hasNext shouldBe false
   }
 
+  it should "throwing exception on calling hll_count for metric decimal field with wrong type" in withTsdbMock {
+    (_, _) =>
+      val sql =
+        "SELECT hll_count(testField, 0.01) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+      the[Exception] thrownBy createQuery(
+        sql
+      ) should have message "hll_count is not defined for given datatype: DOUBLE"
+  }
+
+  it should "throwing exception on calling hll_count for metric decimal field and std_err less then 0.00003" in withTsdbMock {
+    (_, _) =>
+      val sql =
+        "SELECT hll_count(testLongField, 0.0000029) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+      the[Exception] thrownBy createQuery(
+        sql
+      ) should have message "std_err must be in range (0.00003, 0.367), but: std_err=0.0000029"
+  }
+
+  it should "throwing exception on calling hll_count for metric decimal field and std_err more then 0.367" in withTsdbMock {
+    (_, _) =>
+      val sql =
+        "SELECT hll_count(testLongField, 0.3671) as ch " +
+          "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+
+      the[Exception] thrownBy createQuery(
+        sql
+      ) should have message "std_err must be in range (0.00003, 0.367), but: std_err=0.3671"
+  }
+
   it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql =
       "SELECT hll_count(testField, 0.01) as ch " +
