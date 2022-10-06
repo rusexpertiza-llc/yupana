@@ -92,8 +92,8 @@ object FunctionRegistry {
     ),
     uNum(
       "avg",
-      new Bind2[Expression, Numeric, Expression[Double]] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[Double] = AvgExpr(e)(n)
+      new Bind2[Expression, Numeric, Expression[BigDecimal]] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[BigDecimal] = AvgExpr(e)(n)
       }
     ),
     uTyped("year", TruncYearExpr),
