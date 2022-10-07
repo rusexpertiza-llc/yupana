@@ -89,8 +89,8 @@ final case class SumExpr[I](override val expr: Expression[I])(implicit val numer
 }
 
 final case class AvgExpr[I](override val expr: Expression[I])(implicit val numeric: Numeric[I])
-    extends AggregateExpr[I, I, Double](expr, "avg") {
-  override val dataType: DataType.Aux[Double] = DataType[Double]
+    extends AggregateExpr[I, I, BigDecimal](expr, "avg") {
+  override val dataType: DataType.Aux[BigDecimal] = DataType[BigDecimal]
 }
 
 final case class CountExpr[I](override val expr: Expression[I]) extends AggregateExpr[I, Long, Long](expr, "count") {
@@ -103,8 +103,8 @@ final case class DistinctCountExpr[I](override val expr: Expression[I])
 }
 
 final case class HLLCountExpr[I](override val expr: Expression[I], accuracy: Double)
-    extends AggregateExpr[I, Set[I], Int](expr, "hll_count") {
-  override val dataType: DataType.Aux[Int] = DataType[Int]
+    extends AggregateExpr[I, Set[I], Long](expr, "hll_count") {
+  override val dataType: DataType.Aux[Long] = DataType[Long]
 }
 
 final case class DistinctRandomExpr[I](override val expr: Expression[I])
