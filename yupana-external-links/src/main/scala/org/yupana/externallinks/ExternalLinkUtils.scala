@@ -40,9 +40,13 @@ object ExternalLinkUtils {
   def extractCatalogFields(
       simpleCondition: TimeBoundedCondition,
       linkName: String
-  ): (List[(Condition, String, Set[Any])], List[(Condition, String, Set[Any])], List[Condition]) = {
+  ): (List[(SimpleCondition, String, Set[Any])], List[(SimpleCondition, String, Set[Any])], List[Condition]) = {
     simpleCondition.conditions.foldLeft(
-      (List.empty[(Condition, String, Set[Any])], List.empty[(Condition, String, Set[Any])], List.empty[Condition])
+      (
+        List.empty[(SimpleCondition, String, Set[Any])],
+        List.empty[(SimpleCondition, String, Set[Any])],
+        List.empty[Condition]
+      )
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
@@ -104,16 +108,16 @@ object ExternalLinkUtils {
   def transformConditionT[T](
       linkName: String,
       tbc: TimeBoundedCondition,
-      includeExpression: Seq[(Condition, String, Set[T])] => TransformCondition,
-      excludeExpression: Seq[(Condition, String, Set[T])] => TransformCondition
+      includeExpression: Seq[(SimpleCondition, String, Set[T])] => TransformCondition,
+      excludeExpression: Seq[(SimpleCondition, String, Set[T])] => TransformCondition
   ): Seq[TransformCondition] = {
     transformCondition(
       linkName,
       tbc,
-      { metricsWithValues: Seq[(Condition, String, Set[Any])] =>
+      { metricsWithValues: Seq[(SimpleCondition, String, Set[Any])] =>
         includeExpression(metricsWithValues.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) })
       },
-      { metricsWithValues: Seq[(Condition, String, Set[Any])] =>
+      { metricsWithValues: Seq[(SimpleCondition, String, Set[Any])] =>
         excludeExpression(metricsWithValues.map { case (e, n, vs) => (e, n, vs.asInstanceOf[Set[T]]) })
       }
     )
@@ -122,8 +126,8 @@ object ExternalLinkUtils {
   def transformCondition(
       linkName: String,
       tbc: TimeBoundedCondition,
-      includeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition,
-      excludeTransform: Seq[(Condition, String, Set[Any])] => TransformCondition
+      includeTransform: Seq[(SimpleCondition, String, Set[Any])] => TransformCondition,
+      excludeTransform: Seq[(SimpleCondition, String, Set[Any])] => TransformCondition
   ): Seq[TransformCondition] = {
     val (includeExprValues, excludeExprValues, other) = extractCatalogFields(tbc, linkName)
 

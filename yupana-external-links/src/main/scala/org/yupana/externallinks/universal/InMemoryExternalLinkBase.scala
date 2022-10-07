@@ -99,7 +99,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     )
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+  private def includeTransform(values: Seq[(SimpleCondition, String, Set[String])]): TransformCondition = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
     Replace(
       values.map(_._1).toSet,
@@ -107,7 +107,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[String])]): TransformCondition = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
     Replace(
       values.map(_._1).toSet,
