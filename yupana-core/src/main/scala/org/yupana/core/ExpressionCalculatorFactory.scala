@@ -694,7 +694,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
   private def mkAvg(dataType: DataType, state: State): State = {
     val tpe = mkType(dataType)
-    val accTpe = if (className(dataType).eq("Short")) {
+    val accTpe = if (Set("Short", "Byte").contains(className(dataType))) {
       Ident(TypeName("Long"))
     } else {
       tpe
