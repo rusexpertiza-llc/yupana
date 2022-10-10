@@ -16,6 +16,12 @@ trait ParsedValues {
       case f: Failure =>
         throw new TestFailedException((_: StackDepthException) => Some(s"Value is not parsed ${f.msg}"), None, pos)
     }
+
+    def error: String = p match {
+      case Success(v, _) =>
+        throw new TestFailedException((_: StackDepthException) => Some(s"Error expected, but got $v"), None, pos)
+      case f: Failure => f.msg
+    }
   }
 
 }

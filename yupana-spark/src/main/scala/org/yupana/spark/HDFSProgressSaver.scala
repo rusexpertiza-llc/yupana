@@ -19,11 +19,11 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.spark.Partition
-import org.yupana.api.utils.ResourceUtils
 import org.yupana.hbase.HdfsFileUtils
 
 import java.util.Properties
 import scala.io.Source
+import scala.util.Using
 
 class HDFSProgressSaver[P <: Partition](
     fileName: String,
@@ -67,7 +67,7 @@ class HDFSProgressSaver[P <: Partition](
         fileName,
         hBaseConfiguration,
         is => {
-          ResourceUtils.using(Source.fromInputStream(is)) { s =>
+          Using.resource(Source.fromInputStream(is)) { s =>
             s.getLines().toList
           }
         }

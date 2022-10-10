@@ -196,11 +196,11 @@ trait TsdbBase extends StrictLogging {
 
     val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
       val r = mr.aggregateByKey[KeyData, InternalRow, InternalRow](keysAndValuesWinFunc)(
-        r => queryContext.calculator.evaluateMap(schema.tokenizer, r),
-        (a, r) => queryContext.calculator.evaluateFold(schema.tokenizer, a, r),
+        r => queryContext.calculator.evaluateZero(schema.tokenizer, r),
+        (a, r) => queryContext.calculator.evaluateSequence(schema.tokenizer, a, r),
         (a, b) =>
           metricCollector.reduceOperation.measure(1) {
-            queryContext.calculator.evaluateReduce(schema.tokenizer, a, b)
+            queryContext.calculator.evaluateCombine(schema.tokenizer, a, b)
           }
       )
 

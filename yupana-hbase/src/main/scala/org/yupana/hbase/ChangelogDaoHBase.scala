@@ -23,7 +23,6 @@ import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
 import org.apache.hadoop.hbase.filter.FilterList.Operator
 import org.apache.hadoop.hbase.filter.{ Filter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.model.UpdateInterval._
@@ -31,6 +30,7 @@ import org.yupana.hbase.ChangelogDaoHBase._
 
 import java.time.{ Instant, OffsetDateTime, ZoneOffset }
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 object ChangelogDaoHBase {
 
@@ -64,7 +64,7 @@ object ChangelogDaoHBase {
 class ChangelogDaoHBase(connection: Connection, namespace: String) extends ChangelogDao with StrictLogging {
 
   override def putUpdatesIntervals(intervals: Seq[UpdateInterval]): Unit = withTables {
-    using(getTable) { table =>
+    Using.resource(getTable) { table =>
       val puts = intervals.map(ChangelogDaoHBase.createChangelogPut)
       table.put(puts.asJava)
     }
@@ -182,7 +182,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
       updatedBy: Option[String]
   ): Iterable[UpdateInterval] =
     withTables {
-      val updatesIntervals = using(getTable) { table =>
+      val updatesIntervals = Using.resource(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
         val filterList =
           buildFilterList(tableName, updatedAfter, updatedBefore, recalculatedAfter, recalculatedBefore, updatedBy)
@@ -223,7 +223,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
   private def checkTablesExistsElseCreate(): Unit = {
     try {
       val tableName = getTableName(namespace)
-      using(connection.getAdmin) { admin =>
+      Using.resource(connection.getAdmin) { admin =>
         if (!admin.tableExists(tableName)) {
           val desc = TableDescriptorBuilder
             .newBuilder(tableName)
