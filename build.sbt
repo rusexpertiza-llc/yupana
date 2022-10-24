@@ -275,11 +275,12 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("org", "apache", "commons", _*) => MergeStrategy.last
       case PathList("javax", "servlet", _*)         => MergeStrategy.last
       case PathList("javax", "el", _*)              => MergeStrategy.last
+      case PathList("javax", "activation", _*)      => MergeStrategy.last
       case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
       case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
-      case "module-info.class"                      => MergeStrategy.first
+      case PathList(ps @ _*) if ps.last == "module-info.class" => MergeStrategy.discard
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
@@ -295,6 +296,7 @@ lazy val examples = (project in file("yupana-examples"))
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
+  .disablePlugins(AssemblyPlugin)
   .settings(commonSettings, noPublishSettings)
   .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
   .settings(
@@ -372,7 +374,7 @@ lazy val versions = new {
   val prometheus = "0.9.0"
 
   val hbase = "2.4.1"
-  val hadoop = "3.0.3"
+  val hadoop = "3.3.3"
 
   val akka = "2.6.19"
 
