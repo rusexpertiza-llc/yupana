@@ -13,8 +13,11 @@ import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.Time
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.utils.RussianTokenizer
+
+import java.time.LocalDateTime
 
 class ItemsInvertedIndexImplTest
     extends AnyFlatSpec
@@ -54,10 +57,14 @@ class ItemsInvertedIndexImplTest
       lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
       const("хол копчения")
     )
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 0)
+    val t2 = t1.plusWeeks(1)
     val actual = index.transformCondition(
       FlatAndCondition(
         calculator,
         and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
           c1,
           c2
         )
@@ -92,10 +99,16 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("yablok").returning(si("еще красное яблоко", "красное яблоко", "сок яблоко"))
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 3)
+    val t2 = t1.plusWeeks(1)
     val res = index.transformCondition(
       FlatAndCondition(
         calculator,
-        in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
+        and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
+          in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
+        )
       ).head
     )
 
@@ -114,11 +127,16 @@ class ItemsInvertedIndexImplTest
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
-
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 4)
+    val t2 = t1.plusWeeks(1)
     val res = index.transformCondition(
       FlatAndCondition(
         calculator,
-        notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
+        and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
+          notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
+        )
       ).head
     )
 

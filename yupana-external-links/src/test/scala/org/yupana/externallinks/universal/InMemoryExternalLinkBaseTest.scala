@@ -11,6 +11,8 @@ import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.utils.RussianTokenizer
 
+import java.time.LocalDateTime
+
 class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
@@ -114,7 +116,11 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   it should "support positive conditions" in {
     val c = equ(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
-    testCatalog.transformCondition(FlatAndCondition(calculator, c).head) shouldEqual Seq(
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 5)
+    val t2 = t1.plusWeeks(1)
+    testCatalog.transformCondition(
+      FlatAndCondition(calculator, and(c, ge(time, const(Time(t1))), le(time, const(Time(t2))))).head
+    ) shouldEqual Seq(
       Replace(
         Set(c),
         in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
@@ -127,6 +133,8 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       FlatAndCondition(
         calculator,
         and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
           c2,
           c2_2
         )
@@ -145,7 +153,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
         calculator,
         and(
           c3,
-          c3_2
+          c3_2,
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2)))
         )
       ).head
     ) shouldEqual Seq(
@@ -158,7 +168,11 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
   it should "support negativeCondition operation" in {
     val c = neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
-    testCatalog.transformCondition(FlatAndCondition(calculator, c).head) shouldEqual Seq(
+    val t2 = LocalDateTime.now()
+    val t1 = t2.minusDays(3)
+    testCatalog.transformCondition(
+      FlatAndCondition(calculator, and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c)).head
+    ) shouldEqual Seq(
       Replace(
         Set(c),
         notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
@@ -171,6 +185,8 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       FlatAndCondition(
         calculator,
         and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
           c2,
           c2_2
         )
@@ -188,6 +204,8 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       FlatAndCondition(
         calculator,
         and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
           c3,
           c3_2
         )

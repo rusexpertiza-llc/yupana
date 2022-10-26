@@ -28,16 +28,13 @@ import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
   * @param to end time of the condition
   * @param conditions sequence of conditions
   */
-case class FlatAndCondition(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition]) {
+case class FlatAndCondition(from: Long, to: Long, conditions: Seq[SimpleCondition]) {
   def toCondition: Condition = {
     import org.yupana.api.query.syntax.All._
 
     QueryOptimizer.simplifyCondition(
       AndExpr(
-        Seq(
-          from.map(f => ge(time, const(Time(f)))).getOrElse(ConstantExpr(true)),
-          to.map(t => lt(time, const(Time(t)))).getOrElse(ConstantExpr(true))
-        ) ++ conditions
+        Seq(ge(time, const(Time(from))), lt(time, const(Time(to)))) ++ conditions
       )
     )
   }
@@ -59,8 +56,18 @@ case class FlatAndCondition(from: Option[Long], to: Option[Long], conditions: Se
 
 object FlatAndCondition {
 
+  private case class FlatAndConditionParts(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition])
+
   def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[FlatAndCondition] = {
-    toTimeBounded(constantCalculator, Seq.empty, condition)
+    val parts = fromCondition(constantCalculator, Seq.empty, condition)
+    val (errs, result) = parts.partitionMap { fac =>
+      for {
+        from <- fac.from.toRight(s"FROM is not defined for ${AndExpr(fac.conditions)}")
+        to <- fac.to.toRight(s"TO is not defined for ${AndExpr(fac.conditions)}")
+      } yield FlatAndCondition(from, to, fac.conditions)
+    }
+
+    if (errs.isEmpty) result else throw new IllegalArgumentException(errs.mkString(", "))
   }
 
   def single(constantCalculator: ConstantCalculator, condition: Condition): FlatAndCondition = {
@@ -72,7 +79,7 @@ object FlatAndCondition {
     }
   }
 
-  def mergeByTime(tbcs: Seq[FlatAndCondition]): Seq[(Option[Long], Option[Long], Option[Condition])] = {
+  def mergeByTime(tbcs: Seq[FlatAndCondition]): Seq[(Long, Long, Option[Condition])] = {
     tbcs
       .groupBy(tbc => (tbc.from, tbc.to))
       .map {
@@ -90,17 +97,17 @@ object FlatAndCondition {
   private object GeTime extends GeMatcher[Time]
   private object LeTime extends LeMatcher[Time]
 
-  private def toTimeBounded(
+  private def fromCondition(
       expressionCalculator: ConstantCalculator,
-      tbcs: Seq[FlatAndCondition],
+      tbcs: Seq[FlatAndConditionParts],
       condition: Condition
-  ): Seq[FlatAndCondition] = {
+  ): Seq[FlatAndConditionParts] = {
 
-    def update(f: FlatAndCondition => FlatAndCondition): Seq[FlatAndCondition] = {
-      if (tbcs.isEmpty) Seq(f(FlatAndCondition(None, None, Seq.empty))) else tbcs.map(f)
+    def update(f: FlatAndConditionParts => FlatAndConditionParts): Seq[FlatAndConditionParts] = {
+      if (tbcs.isEmpty) Seq(f(FlatAndConditionParts(None, None, Seq.empty))) else tbcs.map(f)
     }
 
-    def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndCondition] = {
+    def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
         update(t =>
@@ -111,7 +118,7 @@ object FlatAndCondition {
       }
     }
 
-    def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndCondition] = {
+    def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
         update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))
@@ -133,9 +140,9 @@ object FlatAndCondition {
       case c @ LeTime(TimeExpr, e) => updateTo(c, e, 1L)
       case c @ GeTime(e, TimeExpr) => updateTo(c, e, 1L)
 
-      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => toTimeBounded(expressionCalculator, t, c))
+      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => fromCondition(expressionCalculator, t, c))
 
-      case OrExpr(cs) => cs.flatMap(c => toTimeBounded(expressionCalculator, tbcs, c))
+      case OrExpr(cs) => cs.flatMap(c => fromCondition(expressionCalculator, tbcs, c))
 
       case x: SimpleCondition => update(t => t.copy(conditions = t.conditions :+ x))
 

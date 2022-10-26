@@ -6,6 +6,7 @@ import org.scalatest.exceptions.TestFailedException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ BeforeAndAfterAll, EitherValues, OptionValues }
+import org.yupana.api.Time
 import org.yupana.api.query.Replace
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.cache.CacheFactory
@@ -15,6 +16,7 @@ import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExt
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
 import org.yupana.utils.RussianTokenizer
 
+import java.time.LocalDateTime
 import java.util.Properties
 
 class SQLSourcedCatalogServiceTest
@@ -84,11 +86,15 @@ class SQLSourcedCatalogServiceTest
 
     val c1 = in(lower(link(externalLink, "f1")), Set("qwe", "ert"))
     val c1_2 = in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
+    val t1 = LocalDateTime.now()
+    val t2 = t1.plusHours(6)
     val inCondition = externalLinkService.transformCondition(
       FlatAndCondition(
         calculator,
         and(
+          ge(time, const(Time(t1))),
           c1,
+          lt(time, const(Time(t2))),
           c1_2
         )
       ).head
@@ -106,6 +112,8 @@ class SQLSourcedCatalogServiceTest
       FlatAndCondition(
         calculator,
         and(
+          gt(time, const(Time(t1))),
+          le(time, const(Time(t2))),
           c2,
           c2_2
         )
@@ -166,10 +174,14 @@ class SQLSourcedCatalogServiceTest
 
     val c1 = in(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
     val c1_2 = in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
+    val t1 = LocalDateTime.now()
+    val t2 = t1.plusHours(6)
     val inCondition = externalLinkService.transformCondition(
       FlatAndCondition(
         calculator,
         and(
+          le(time, const(Time(t1))),
+          lt(const(Time(t2)), time),
           c1,
           c1_2
         )
@@ -189,6 +201,8 @@ class SQLSourcedCatalogServiceTest
       FlatAndCondition(
         calculator,
         and(
+          gt(const(Time(t1)), time),
+          gt(time, const(Time(t2))),
           c2,
           c2_2
         )

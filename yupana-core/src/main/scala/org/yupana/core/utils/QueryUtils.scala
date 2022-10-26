@@ -16,7 +16,6 @@
 
 package org.yupana.core.utils
 
-import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, MetricExpr }
 import org.yupana.api.schema.Metric
 
@@ -27,14 +26,4 @@ object QueryUtils {
       case (s, _)             => s
     }
   }
-
-  def getFromTo(tbc: FlatAndCondition): (Time, Time) = {
-    (tbc.from, tbc.to) match {
-      case (Some(from), Some(to)) => Time(from) -> Time(to)
-      case (Some(_), None)        => throw new IllegalArgumentException(s"TO time is not defined in ${tbc.toCondition}")
-      case (None, Some(_)) => throw new IllegalArgumentException(s"FROM time is not defined in ${tbc.toCondition}")
-      case (None, None)    => throw new IllegalArgumentException(s"time interval is not defined in ${tbc.toCondition}")
-    }
-  }
-
 }

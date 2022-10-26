@@ -73,10 +73,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     val conditionByTime = FlatAndCondition.mergeByTime(query.condition)
 
     val results: Seq[Collection[InternalRow]] = conditionByTime.map {
-      case (fromTime, toTime, c) =>
-        val from = fromTime.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-        val to = toTime.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
-
+      case (from, to, c) =>
         val filters = metricCollector.createDimensionFilters.measure(1) {
           createFilters(c)
         }

@@ -26,8 +26,8 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
     tbcs should have size 1
     val tbc = tbcs.head
 
-    tbc.from.value shouldEqual from.millis
-    tbc.to.value shouldEqual to.millis
+    tbc.from shouldEqual from.millis
+    tbc.to shouldEqual to.millis
     tbc.conditions should contain theSameElementsAs List(equ(dimension(TestDims.DIM_A), const("value")))
   }
 
@@ -49,12 +49,12 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
     val tbc1 = tbcs(0)
     val tbc2 = tbcs(1)
 
-    tbc1.from.value shouldEqual from1.millis
-    tbc1.to.value shouldEqual to1.millis
+    tbc1.from shouldEqual from1.millis
+    tbc1.to shouldEqual to1.millis
     tbc1.conditions should contain theSameElementsAs List(equ(dimension(TestDims.DIM_A), const("value")))
 
-    tbc2.from.value shouldEqual from2.millis + 1
-    tbc2.to.value shouldEqual to2.millis + 1
+    tbc2.from shouldEqual from2.millis + 1
+    tbc2.to shouldEqual to2.millis + 1
     tbc2.conditions should contain theSameElementsAs List(in(metric(TestTableFields.TEST_FIELD), Set(1d, 2d)))
   }
 
@@ -86,8 +86,8 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
     tbcs should have size 2
     val res1 = tbcs(0)
 
-    res1.from.value shouldEqual from.millis
-    res1.to.value shouldEqual to.millis
+    res1.from shouldEqual from.millis
+    res1.to shouldEqual to.millis
     res1.conditions should contain theSameElementsAs List(
       equ(dimension(TestDims.DIM_A), const("value")),
       neq(dimension(TestDims.DIM_B), const(3.toShort))
@@ -96,8 +96,8 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
     tbcs should have size 2
     val res2 = tbcs(1)
 
-    res2.from.value shouldEqual from.millis
-    res2.to.value shouldEqual to.millis
+    res2.from shouldEqual from.millis
+    res2.to shouldEqual to.millis
     res2.conditions should contain theSameElementsAs List(
       equ(metric(TestTableFields.TEST_FIELD), const(42d)),
       neq(dimension(TestDims.DIM_B), const(3.toShort))
@@ -114,29 +114,29 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
 
     FlatAndCondition.mergeByTime(
       Seq(
-        FlatAndCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_A), const("x")))),
-        FlatAndCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_B), const(1.toShort)))),
+        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_A), const("x")))),
+        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_B), const(1.toShort)))),
         FlatAndCondition(
-          Some(from2),
-          Some(to2),
+          from2,
+          to2,
           Seq(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort)))
         ),
-        FlatAndCondition(Some(from1), Some(to2), Seq(in(dimension(TestDims.DIM_A), Set("y"))))
+        FlatAndCondition(from1, to2, Seq(in(dimension(TestDims.DIM_A), Set("y"))))
       )
     ) should contain theSameElementsAs List(
       (
-        Some(from1),
-        Some(to1),
+        from1,
+        to1,
         Some(or(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))))
       ),
       (
-        Some(from2),
-        Some(to2),
+        from2,
+        to2,
         Some(and(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))))
       ),
       (
-        Some(from1),
-        Some(to2),
+        from1,
+        to2,
         Some(in(dimension(TestDims.DIM_A), Set("y")))
       )
     )
