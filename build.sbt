@@ -374,7 +374,7 @@ lazy val versions = new {
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.6.19"
+  val akka = "2.6.20"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
@@ -389,9 +389,9 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.13"
-  val scalaCheck = "1.16.0"
-  val scalaTestCheck = "3.2.13.0"
+  val scalaTest = "3.2.14"
+  val scalaCheck = "1.17.0"
+  val scalaTestCheck = "3.2.14.0"
   val scalaMock = "5.2.0"
 }
 
