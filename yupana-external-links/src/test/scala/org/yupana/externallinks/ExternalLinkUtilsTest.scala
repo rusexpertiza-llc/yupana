@@ -7,7 +7,7 @@ import org.yupana.api.query.{ ConstantExpr, Expression, Original, Replace, Trans
 import org.yupana.api.query.Expression.Condition
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.InternalRowBuilder
-import org.yupana.core.utils.{ SparseTable, Table, TimeBoundedCondition }
+import org.yupana.core.utils.{ SparseTable, Table, FlatAndCondition }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.RussianTokenizer
 import org.scalatest.flatspec.AnyFlatSpec
@@ -21,7 +21,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
   val calculator = new ConstantCalculator(RussianTokenizer)
 
   private def transform(condition: Condition): Seq[TransformCondition] = {
-    val tbcs = TimeBoundedCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition)
     tbcs.flatMap(tbc =>
       ExternalLinkUtils.transformConditionT[String](TestLink.linkName, tbc, includeTransform, excludeTransform)
     )

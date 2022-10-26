@@ -19,7 +19,7 @@ package org.yupana.core
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.FlatAndCondition
 
 trait ExternalLinkService[T <: ExternalLink] {
 
@@ -68,7 +68,7 @@ trait ExternalLinkService[T <: ExternalLink] {
     * @param condition condition to be transformed
     * @return sequence of transformations applied to the initial condition, basically each transformation is a mapping from one expression to another. It should preserve time bounds even if there no conditions supported by this catalog.
     */
-  def transformCondition(condition: TimeBoundedCondition): Seq[TransformCondition]
+  def transformCondition(condition: FlatAndCondition): Seq[TransformCondition]
 
   def put(dataPoints: Seq[DataPoint]): Unit = {}
 }

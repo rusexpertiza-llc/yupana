@@ -13,7 +13,7 @@ import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.FlatAndCondition
 import org.yupana.utils.RussianTokenizer
 
 class ItemsInvertedIndexImplTest
@@ -55,7 +55,7 @@ class ItemsInvertedIndexImplTest
       const("хол копчения")
     )
     val actual = index.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           c1,
@@ -93,7 +93,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
     val res = index.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
       ).head
@@ -116,7 +116,7 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
 
     val res = index.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
       ).head

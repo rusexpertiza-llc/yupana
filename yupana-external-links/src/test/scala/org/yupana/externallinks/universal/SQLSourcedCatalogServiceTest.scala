@@ -9,7 +9,7 @@ import org.scalatest.{ BeforeAndAfterAll, EitherValues, OptionValues }
 import org.yupana.api.query.Replace
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
@@ -85,7 +85,7 @@ class SQLSourcedCatalogServiceTest
     val c1 = in(lower(link(externalLink, "f1")), Set("qwe", "ert"))
     val c1_2 = in(lower(link(externalLink, "f2")), Set("asd", "fgh"))
     val inCondition = externalLinkService.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           c1,
@@ -103,7 +103,7 @@ class SQLSourcedCatalogServiceTest
     val c2 = notIn(lower(link(externalLink, "f1")), Set("qwe", "ert"))
     val c2_2 = notIn(lower(link(externalLink, "f2")), Set("asd", "fgh"))
     val notInCondition = externalLinkService.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           c2,
@@ -167,7 +167,7 @@ class SQLSourcedCatalogServiceTest
     val c1 = in(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
     val c1_2 = in(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
     val inCondition = externalLinkService.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           c1,
@@ -186,7 +186,7 @@ class SQLSourcedCatalogServiceTest
     val c2 = notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
     val c2_2 = notIn(lower(link(externalLink, "f2")), Set("ggg2", "ggg3"))
     val notInCondition = externalLinkService.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           c2,

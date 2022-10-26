@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ Query, Replace }
 import org.yupana.core._
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
@@ -76,7 +76,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     val c2 = notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
 
     val conditions = catalog.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           ge(time, const(Time(100L))),
@@ -135,7 +135,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val c = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
     val conditions = catalog.transformCondition(
-      TimeBoundedCondition(
+      FlatAndCondition(
         calculator,
         and(
           ge(time, const(Time(100L))),

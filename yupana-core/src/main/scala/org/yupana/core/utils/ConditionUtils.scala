@@ -61,7 +61,7 @@ object ConditionUtils {
     (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
 
-  def transform(tbc: TimeBoundedCondition, transform: TransformCondition): TimeBoundedCondition = {
+  def transform(tbc: FlatAndCondition, transform: TransformCondition): FlatAndCondition = {
     transform match {
       case Replace(from, to) =>
         val filtered = tbc.conditions.filterNot { c =>

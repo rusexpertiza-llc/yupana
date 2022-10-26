@@ -9,7 +9,7 @@ import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime
 
-class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValues {
+class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
 
   import org.yupana.api.query.syntax.All._
 
@@ -21,7 +21,7 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
 
     val condition = and(ge(time, const(from)), lt(time, const(to)), equ(dimension(TestDims.DIM_A), const("value")))
 
-    val tbcs = TimeBoundedCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition)
 
     tbcs should have size 1
     val tbc = tbcs.head
@@ -43,7 +43,7 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
       and(gt(time, const(from2)), le(time, const(to2)), in(metric(TestTableFields.TEST_FIELD), Set(1d, 2d)))
     )
 
-    val tbcs = TimeBoundedCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition)
 
     tbcs should have size 2
     val tbc1 = tbcs(0)
@@ -81,7 +81,7 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
       neq(dimension(TestDims.DIM_B), const(3.toShort))
     )
 
-    val tbcs = TimeBoundedCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition)
 
     tbcs should have size 2
     val res1 = tbcs(0)
@@ -110,18 +110,18 @@ class TimeBoundedConditionTest extends AnyFlatSpec with Matchers with OptionValu
     val from2 = 3000L
     val to2 = 4000L
 
-    TimeBoundedCondition.mergeByTime(Seq()) shouldBe empty
+    FlatAndCondition.mergeByTime(Seq()) shouldBe empty
 
-    TimeBoundedCondition.mergeByTime(
+    FlatAndCondition.mergeByTime(
       Seq(
-        TimeBoundedCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_A), const("x")))),
-        TimeBoundedCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_B), const(1.toShort)))),
-        TimeBoundedCondition(
+        FlatAndCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_A), const("x")))),
+        FlatAndCondition(Some(from1), Some(to1), Seq(equ(dimension(TestDims.DIM_B), const(1.toShort)))),
+        FlatAndCondition(
           Some(from2),
           Some(to2),
           Seq(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort)))
         ),
-        TimeBoundedCondition(Some(from1), Some(to2), Seq(in(dimension(TestDims.DIM_A), Set("y"))))
+        FlatAndCondition(Some(from1), Some(to2), Seq(in(dimension(TestDims.DIM_A), Set("y"))))
       )
     ) should contain theSameElementsAs List(
       (

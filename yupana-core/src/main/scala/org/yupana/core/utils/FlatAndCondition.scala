@@ -22,7 +22,13 @@ import org.yupana.api.query._
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
 import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
 
-case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition]) {
+/**
+  * AND condition which contains only simple conditions and time bounds.
+  * @param from start time of the condition
+  * @param to end time of the condition
+  * @param conditions sequence of conditions
+  */
+case class FlatAndCondition(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition]) {
   def toCondition: Condition = {
     import org.yupana.api.query.syntax.All._
 
@@ -40,8 +46,8 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
 
   override def equals(obj: Any): Boolean = {
     obj match {
-      case that: TimeBoundedCondition => this.encoded == that.encoded
-      case _                          => false
+      case that: FlatAndCondition => this.encoded == that.encoded
+      case _                      => false
     }
   }
 
@@ -51,14 +57,14 @@ case class TimeBoundedCondition(from: Option[Long], to: Option[Long], conditions
   }
 }
 
-object TimeBoundedCondition {
+object FlatAndCondition {
 
-  def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[TimeBoundedCondition] = {
+  def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[FlatAndCondition] = {
     toTimeBounded(constantCalculator, Seq.empty, condition)
   }
 
-  def single(constantCalculator: ConstantCalculator, condition: Condition): TimeBoundedCondition = {
-    TimeBoundedCondition(constantCalculator, condition) match {
+  def single(constantCalculator: ConstantCalculator, condition: Condition): FlatAndCondition = {
+    FlatAndCondition(constantCalculator, condition) match {
       case Seq(tbc) =>
         tbc
       case _ =>
@@ -66,7 +72,7 @@ object TimeBoundedCondition {
     }
   }
 
-  def mergeByTime(tbcs: Seq[TimeBoundedCondition]): Seq[(Option[Long], Option[Long], Option[Condition])] = {
+  def mergeByTime(tbcs: Seq[FlatAndCondition]): Seq[(Option[Long], Option[Long], Option[Condition])] = {
     tbcs
       .groupBy(tbc => (tbc.from, tbc.to))
       .map {
@@ -86,15 +92,15 @@ object TimeBoundedCondition {
 
   private def toTimeBounded(
       expressionCalculator: ConstantCalculator,
-      tbcs: Seq[TimeBoundedCondition],
+      tbcs: Seq[FlatAndCondition],
       condition: Condition
-  ): Seq[TimeBoundedCondition] = {
+  ): Seq[FlatAndCondition] = {
 
-    def update(f: TimeBoundedCondition => TimeBoundedCondition): Seq[TimeBoundedCondition] = {
-      if (tbcs.isEmpty) Seq(f(TimeBoundedCondition(None, None, Seq.empty))) else tbcs.map(f)
+    def update(f: FlatAndCondition => FlatAndCondition): Seq[FlatAndCondition] = {
+      if (tbcs.isEmpty) Seq(f(FlatAndCondition(None, None, Seq.empty))) else tbcs.map(f)
     }
 
-    def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
+    def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndCondition] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
         update(t =>
@@ -105,7 +111,7 @@ object TimeBoundedCondition {
       }
     }
 
-    def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[TimeBoundedCondition] = {
+    def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndCondition] = {
       if (e.kind == Const) {
         val const = expressionCalculator.evaluateConstant(e)
         update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))

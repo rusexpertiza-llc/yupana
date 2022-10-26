@@ -28,7 +28,7 @@ object QueryUtils {
     }
   }
 
-  def getFromTo(tbc: TimeBoundedCondition): (Time, Time) = {
+  def getFromTo(tbc: FlatAndCondition): (Time, Time) = {
     (tbc.from, tbc.to) match {
       case (Some(from), Some(to)) => Time(from) -> Time(to)
       case (Some(_), None)        => throw new IllegalArgumentException(s"TO time is not defined in ${tbc.toCondition}")

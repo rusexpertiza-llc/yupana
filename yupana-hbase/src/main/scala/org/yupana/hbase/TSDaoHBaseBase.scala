@@ -27,7 +27,7 @@ import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.util.Try
@@ -70,7 +70,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     val context = InternalQueryContext(query, metricCollector)
     val mr = mapReduceEngine(metricCollector)
 
-    val conditionByTime = TimeBoundedCondition.mergeByTime(query.condition)
+    val conditionByTime = FlatAndCondition.mergeByTime(query.condition)
 
     val results: Seq[Collection[InternalRow]] = conditionByTime.map {
       case (fromTime, toTime, c) =>

@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.Schema
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
+import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
@@ -61,7 +61,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     )
   }
 
-  override def transformCondition(tbc: TimeBoundedCondition): Seq[TransformCondition] = {
+  override def transformCondition(tbc: FlatAndCondition): Seq[TransformCondition] = {
 
     val from = tbc.from.getOrElse(
       throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")

@@ -24,7 +24,7 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.utils.{ ConditionUtils, TimeBoundedCondition }
+import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -265,12 +265,12 @@ trait TsdbBase extends StrictLogging {
     rows
   }
 
-  def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Seq[TimeBoundedCondition] = {
+  def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Seq[FlatAndCondition] = {
     val linkServices = condition.flatten.collect {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    TimeBoundedCondition(constantCalculator, condition).map { tbc =>
+    FlatAndCondition(constantCalculator, condition).map { tbc =>
 
       val transformations = linkServices.flatMap(service =>
         metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {

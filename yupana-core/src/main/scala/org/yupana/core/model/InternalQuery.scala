@@ -20,12 +20,12 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, QueryHint }
 import org.yupana.api.schema.Table
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.FlatAndCondition
 
 case class InternalQuery(
     table: Table,
     exprs: Set[Expression[_]],
-    condition: Seq[TimeBoundedCondition],
+    condition: Seq[FlatAndCondition],
     hints: Seq[QueryHint] = Seq.empty
 )
 
@@ -36,12 +36,12 @@ object InternalQuery {
       condition: Condition,
       hints: Seq[QueryHint]
   )(implicit calculator: ConstantCalculator): InternalQuery =
-    new InternalQuery(table, exprs, TimeBoundedCondition(calculator, condition), hints)
+    new InternalQuery(table, exprs, FlatAndCondition(calculator, condition), hints)
 
   def apply(
       table: Table,
       exprs: Set[Expression[_]],
       condition: Condition
   )(implicit calculator: ConstantCalculator): InternalQuery =
-    new InternalQuery(table, exprs, TimeBoundedCondition(calculator, condition), Seq.empty)
+    new InternalQuery(table, exprs, FlatAndCondition(calculator, condition), Seq.empty)
 }

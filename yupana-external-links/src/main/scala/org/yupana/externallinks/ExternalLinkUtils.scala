@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.model.{ InternalRow, TimeSensitiveFieldValues }
-import org.yupana.core.utils.{ CollectionUtils, Table, TimeBoundedCondition }
+import org.yupana.core.utils.{ CollectionUtils, Table, FlatAndCondition }
 
 import scala.collection.mutable
 
@@ -38,7 +38,7 @@ object ExternalLinkUtils {
     *         unmatched part of the condition.
     */
   def extractCatalogFields(
-      simpleCondition: TimeBoundedCondition,
+      simpleCondition: FlatAndCondition,
       linkName: String
   ): (List[(SimpleCondition, String, Set[Any])], List[(SimpleCondition, String, Set[Any])], List[Condition]) = {
     simpleCondition.conditions.foldLeft(
@@ -92,7 +92,7 @@ object ExternalLinkUtils {
   }
 
   def extractCatalogFieldsT[T](
-      simpleCondition: TimeBoundedCondition,
+      simpleCondition: FlatAndCondition,
       linkName: String
   ): (List[(Condition, String, Set[T])], List[(Condition, String, Set[T])], List[Condition]) = {
     val (inc, exc, cond) = extractCatalogFields(simpleCondition, linkName)
@@ -107,7 +107,7 @@ object ExternalLinkUtils {
 
   def transformConditionT[T](
       linkName: String,
-      tbc: TimeBoundedCondition,
+      tbc: FlatAndCondition,
       includeExpression: Seq[(SimpleCondition, String, Set[T])] => TransformCondition,
       excludeExpression: Seq[(SimpleCondition, String, Set[T])] => TransformCondition
   ): Seq[TransformCondition] = {
@@ -125,7 +125,7 @@ object ExternalLinkUtils {
 
   def transformCondition(
       linkName: String,
-      tbc: TimeBoundedCondition,
+      tbc: FlatAndCondition,
       includeTransform: Seq[(SimpleCondition, String, Set[Any])] => TransformCondition,
       excludeTransform: Seq[(SimpleCondition, String, Set[Any])] => TransformCondition
   ): Seq[TransformCondition] = {

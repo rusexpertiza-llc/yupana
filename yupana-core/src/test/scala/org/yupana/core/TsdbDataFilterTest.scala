@@ -8,7 +8,7 @@ import org.yupana.api.query.{ Expression, LinkExpr, Original, Replace }
 import org.yupana.api.schema.LinkField
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
-import org.yupana.core.utils.{ SparseTable, TimeBoundedCondition }
+import org.yupana.core.utils.{ SparseTable, FlatAndCondition }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.utils.RussianTokenizer
@@ -378,7 +378,7 @@ class TsdbDataFilterTest
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -468,7 +468,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(TimeBoundedCondition.single(calculator, condition))
+      .expects(FlatAndCondition.single(calculator, condition))
       .returning(
         Seq(
           Original(Set(condition))
@@ -542,7 +542,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(TimeBoundedCondition.single(calculator, condition))
+      .expects(FlatAndCondition.single(calculator, condition))
       .returning(Seq(Original(Set(condition))))
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -620,12 +620,12 @@ class TsdbDataFilterTest
       )
 
       (testCatalogServiceMock.transformCondition _)
-        .expects(TimeBoundedCondition.single(calculator, condition))
+        .expects(FlatAndCondition.single(calculator, condition))
         .returning(
           Seq(Original(Set(condition)))
         )
       (testCatalogServiceMock2.transformCondition _)
-        .expects(TimeBoundedCondition.single(calculator, condition))
+        .expects(FlatAndCondition.single(calculator, condition))
         .returning(
           Seq(Original(Set(condition)))
         )
@@ -723,7 +723,7 @@ class TsdbDataFilterTest
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
     (testCatalogServiceMock2.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -838,7 +838,7 @@ class TsdbDataFilterTest
         }
       )
 
-    (link5.transformCondition _).expects(*).onCall((c: TimeBoundedCondition) => Seq(Original(Set(c.toCondition))))
+    (link5.transformCondition _).expects(*).onCall((c: FlatAndCondition) => Seq(Original(Set(c.toCondition))))
 
     val rows = tsdb.query(query).toList
 

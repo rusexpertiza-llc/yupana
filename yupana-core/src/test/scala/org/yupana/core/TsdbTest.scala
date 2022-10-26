@@ -15,7 +15,7 @@ import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.utils.{ SparseTable, TimeBoundedCondition }
+import org.yupana.core.utils.{ SparseTable, FlatAndCondition }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
@@ -901,7 +901,7 @@ class TsdbTest
     val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -1019,7 +1019,7 @@ class TsdbTest
       val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1093,7 +1093,7 @@ class TsdbTest
       val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1172,7 +1172,7 @@ class TsdbTest
     val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -1280,7 +1280,7 @@ class TsdbTest
       val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1397,7 +1397,7 @@ class TsdbTest
       val c2 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1424,7 +1424,7 @@ class TsdbTest
       val c4 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalog2ServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1543,7 +1543,7 @@ class TsdbTest
     val c4 = neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -1654,7 +1654,7 @@ class TsdbTest
       val c2 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1677,7 +1677,7 @@ class TsdbTest
       val c4 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalog2ServiceMock.transformCondition _)
         .expects(
-          TimeBoundedCondition.single(
+          FlatAndCondition.single(
             calculator,
             and(
               ge(time, const(Time(from))),
@@ -1776,7 +1776,7 @@ class TsdbTest
     val c2 = equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -1798,7 +1798,7 @@ class TsdbTest
     val c4 = equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
     (testCatalog4ServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -1890,7 +1890,7 @@ class TsdbTest
     val c = in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -1996,7 +1996,7 @@ class TsdbTest
     val c = in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
@@ -2609,7 +2609,7 @@ class TsdbTest
     val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        TimeBoundedCondition.single(
+        FlatAndCondition.single(
           calculator,
           and(
             ge(time, const(Time(from))),
