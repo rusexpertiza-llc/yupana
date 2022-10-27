@@ -61,19 +61,15 @@ object ConditionUtils {
     (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
 
-  def transform(tbc: FlatAndCondition, transform: TransformCondition): FlatAndCondition = {
+  def transform(tbc: FlatAndCondition, transform: ConditionTransformation): FlatAndCondition = {
     transform match {
-      case Replace(from, to) =>
-        val filtered = tbc.conditions.filterNot { c =>
-          from.contains(c) || to.contains(c)
-        }
-        if (filtered.size != tbc.conditions.size)
-          tbc.copy(conditions = to ++ filtered)
-        else
-          tbc
-      case Original(_) =>
-        // TODO: looks like, no need to do anything with 'other' conditions
-        tbc
+      case AddCondition(newCondition) =>
+        if (!tbc.conditions.contains(newCondition))
+          tbc.copy(conditions = newCondition +: tbc.conditions)
+        else tbc
+
+      case RemoveCondition(toRemove) =>
+        tbc.copy(conditions = tbc.conditions.filterNot(_ == toRemove))
     }
   }
 }

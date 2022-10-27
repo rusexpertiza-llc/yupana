@@ -17,7 +17,6 @@
 package org.yupana.externallinks.universal
 
 import org.yupana.api.Time
-import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
@@ -90,7 +89,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     }
   }
 
-  override def transformCondition(condition: FlatAndCondition): Seq[TransformCondition] = {
+  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](
       externalLink.linkName,
       condition,
@@ -99,24 +98,18 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
     )
   }
 
-  private def includeTransform(values: Seq[(SimpleCondition, String, Set[String])]): TransformCondition = {
+  private def includeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
     val keyValues = keyValuesForFieldValues(values, _ intersect _)
-    Replace(
-      values.map(_._1).toSet,
-      in(lower(keyExpr), keyValues)
-    )
+    ConditionTransformation.replace(values.map(_._1), in(lower(keyExpr), keyValues))
   }
 
-  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[String])]): TransformCondition = {
+  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
     val keyValues = keyValuesForFieldValues(values, _ union _)
-    Replace(
-      values.map(_._1).toSet,
-      notIn(lower(keyExpr), keyValues)
-    )
+    ConditionTransformation.replace(values.map(_._1), notIn(lower(keyExpr), keyValues))
   }
 
   private def keyValuesForFieldValues(
-      fieldValues: Seq[(Condition, String, Set[String])],
+      fieldValues: Seq[(SimpleCondition, String, Set[String])],
       reducer: (Set[Int], Set[Int]) => Set[Int]
   ): Set[String] = {
     if (fieldValues.nonEmpty) {

@@ -3,7 +3,7 @@ package org.yupana.externallinks.universal
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimensionExpr, Expression, Replace }
+import org.yupana.api.query.{ AddCondition, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
@@ -120,11 +120,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val t2 = t1.plusWeeks(1)
     testCatalog.transformCondition(
       FlatAndCondition(calculator, and(c, ge(time, const(Time(t1))), le(time, const(Time(t2))))).head
-    ) shouldEqual Seq(
-      Replace(
-        Set(c),
-        in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa"))
-      )
+    ) should contain theSameElementsAs Seq(
+      RemoveCondition(c),
+      AddCondition(in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa")))
     )
 
     val c2 = equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
@@ -139,11 +137,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2_2
         )
       ).head
-    ) shouldEqual Seq(
-      Replace(
-        Set(c2, c2_2),
-        in(lower(dimension(DictionaryDimension("TAG_X"))), Set("bar"))
-      )
+    ) should contain theSameElementsAs Seq(
+      RemoveCondition(c2),
+      RemoveCondition(c2_2),
+      AddCondition(in(lower(dimension(DictionaryDimension("TAG_X"))), Set("bar")))
     )
 
     val c3 = equ(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
@@ -158,11 +155,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           le(time, const(Time(t2)))
         )
       ).head
-    ) shouldEqual Seq(
-      Replace(
-        Set(c3, c3_2),
-        in(lower(dimension(DictionaryDimension("TAG_X"))), Set.empty)
-      )
+    ) should contain theSameElementsAs Seq(
+      RemoveCondition(c3),
+      RemoveCondition(c3_2),
+      AddCondition(in(lower(dimension(DictionaryDimension("TAG_X"))), Set.empty))
     )
   }
 
@@ -172,11 +168,9 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val t1 = t2.minusDays(3)
     testCatalog.transformCondition(
       FlatAndCondition(calculator, and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c)).head
-    ) shouldEqual Seq(
-      Replace(
-        Set(c),
-        notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
-      )
+    ) should contain theSameElementsAs Seq(
+      RemoveCondition(c),
+      AddCondition(notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar")))
     )
 
     val c2 = neq(lower(link(testExternalLink, TestExternalLink.testField2)), const("bar"))
@@ -191,11 +185,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2_2
         )
       ).head
-    ) shouldEqual Seq(
-      Replace(
-        Set(c2, c2_2),
-        notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar"))
-      )
+    ) should contain theSameElementsAs Seq(
+      RemoveCondition(c2),
+      RemoveCondition(c2_2),
+      AddCondition(notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar")))
     )
 
     val c3 = neq(lower(link(testExternalLink, TestExternalLink.testField1)), const("aaa"))
@@ -210,11 +203,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c3_2
         )
       ).head
-    ) shouldEqual Seq(
-      Replace(
-        Set(c3, c3_2),
-        notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa", "foo"))
-      )
+    ) should contain theSameElementsAs Seq(
+      RemoveCondition(c3),
+      RemoveCondition(c3_2),
+      AddCondition(notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa", "foo")))
     )
   }
 

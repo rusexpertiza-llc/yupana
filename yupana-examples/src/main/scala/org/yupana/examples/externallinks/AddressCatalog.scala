@@ -16,7 +16,6 @@
 
 package org.yupana.examples.externallinks
 
-import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
 import org.yupana.core.ExternalLinkService
@@ -73,7 +72,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  override def transformCondition(condition: FlatAndCondition): Seq[TransformCondition] = {
+  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformCondition(
       externalLink.linkName,
       condition,
@@ -82,7 +81,7 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     )
   }
 
-  private def idsForValues(values: Seq[(Condition, String, Set[Any])]): Seq[Set[Int]] = {
+  private def idsForValues(values: Seq[(SimpleCondition, String, Set[Any])]): Seq[Set[Int]] = {
     values.map {
       case (_, AddressCatalog.CITY, cities) => kkmAddressData.filter(x => cities.contains(x._2.city)).map(_._1).toSet
       case (_, AddressCatalog.LAT, latitudes) =>
@@ -93,20 +92,20 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     }
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[Any])]): TransformCondition = {
+  private def includeTransform(values: Seq[(SimpleCondition, String, Set[Any])]): Seq[ConditionTransformation] = {
     val ids = idsForValues(values)
     val dimValues = CollectionUtils.intersectAll(ids)
-    Replace(
-      values.map(_._1).toSet,
+    ConditionTransformation.replace(
+      values.map(_._1),
       in(dimension(externalLink.dimension.aux), dimValues)
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[Any])]): TransformCondition = {
+  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[Any])]): Seq[ConditionTransformation] = {
     val ids = idsForValues(values)
     val dimValues = ids.fold(Set.empty)(_ union _)
-    Replace(
-      values.map(_._1).toSet,
+    ConditionTransformation.replace(
+      values.map(_._1),
       notIn(dimension(externalLink.dimension.aux), dimValues)
     )
   }

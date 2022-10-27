@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ BeforeAndAfterAll, EitherValues, OptionValues }
 import org.yupana.api.Time
-import org.yupana.api.query.Replace
+import org.yupana.api.query.{ AddCondition, RemoveCondition }
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.utils.FlatAndCondition
@@ -99,11 +99,10 @@ class SQLSourcedCatalogServiceTest
         )
       ).head
     )
-    inCondition shouldEqual Seq(
-      Replace(
-        Set(c1, c1_2),
-        in(dimension(externalLink.dimension.aux), Set(12345654))
-      )
+    inCondition should contain theSameElementsAs Seq(
+      RemoveCondition(c1),
+      RemoveCondition(c1_2),
+      AddCondition(in(dimension(externalLink.dimension.aux), Set(12345654)))
     )
 
     val c2 = notIn(lower(link(externalLink, "f1")), Set("qwe", "ert"))
@@ -120,9 +119,10 @@ class SQLSourcedCatalogServiceTest
       ).head
     )
 
-    notInCondition shouldEqual Seq(
-      Replace(
-        Set(c2, c2_2),
+    notInCondition should contain theSameElementsAs Seq(
+      RemoveCondition(c2),
+      RemoveCondition(c2_2),
+      AddCondition(
         notIn(
           dimension(externalLink.dimension.aux),
           Set(12345654, 12345656, 12345657)
@@ -188,11 +188,10 @@ class SQLSourcedCatalogServiceTest
       ).head
     )
 
-    inCondition shouldEqual Seq(
-      Replace(
-        Set(c1, c1_2),
-        in(dimension(externalLink.dimension.aux), Set(12345657))
-      )
+    inCondition should contain theSameElementsAs Seq(
+      RemoveCondition(c1),
+      RemoveCondition(c1_2),
+      AddCondition(in(dimension(externalLink.dimension.aux), Set(12345657)))
     )
 
     val c2 = notIn(lower(link(externalLink, "f1")), Set("hhh", "hhh3"))
@@ -209,9 +208,10 @@ class SQLSourcedCatalogServiceTest
       ).head
     )
 
-    notInCondition shouldEqual Seq(
-      Replace(
-        Set(c2, c2_2),
+    notInCondition should contain theSameElementsAs Seq(
+      RemoveCondition(c2),
+      RemoveCondition(c2_2),
+      AddCondition(
         notIn(
           dimension(externalLink.dimension.aux),
           Set(12345654, 12345656, 12345657)

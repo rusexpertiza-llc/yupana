@@ -4,7 +4,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.{ Query, Replace }
+import org.yupana.api.query.{ AddCondition, Query, RemoveCondition }
 import org.yupana.core._
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
@@ -87,16 +87,16 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       ).head
     )
 
-    conditions shouldEqual Seq(
-      Replace(
-        Set(c1),
+    conditions should contain theSameElementsAs Seq(
+      RemoveCondition(c1),
+      AddCondition(
         in(
           tuple(time, dimension(Dimensions.KKM_ID)),
           Set((Time(120L), 123456), (Time(150L), 123456), (Time(120L), 345112))
         )
       ),
-      Replace(
-        Set(c2),
+      RemoveCondition(c2),
+      AddCondition(
         notIn(
           tuple(time, dimension(Dimensions.KKM_ID)),
           Set((Time(125L), 123456), (Time(120L), 123456))
@@ -146,8 +146,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     )
 
     conditions shouldEqual Seq(
-      Replace(
-        Set(c),
+      RemoveCondition(c),
+      AddCondition(
         in(
           tuple(time, dimension(Dimensions.KKM_ID)),
           Set((Time(220L), 123456), (Time(330L), 654321))

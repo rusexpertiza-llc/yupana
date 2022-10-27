@@ -3,7 +3,7 @@ package org.yupana.externallinks.items
 import java.util.Properties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Replace }
+import org.yupana.api.query.{ AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
@@ -71,15 +71,13 @@ class ItemsInvertedIndexImplTest
       ).head
     )
 
-    actual shouldEqual Seq(
-      Replace(
-        Set(c1),
+    actual should contain theSameElementsAs Seq(
+      RemoveCondition(c1),
+      AddCondition(
         DimIdInExpr(Dimensions.ITEM, si("колбаса вареная", "колбаса вареная молочная", "щупальца кальмара"))
       ),
-      Replace(
-        Set(c2),
-        DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения"))
-      )
+      RemoveCondition(c2),
+      AddCondition(DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения")))
     )
   }
 
@@ -113,7 +111,7 @@ class ItemsInvertedIndexImplTest
     )
 
     inside(res) {
-      case Seq(Replace(_, Seq(DimIdInExpr(d, vs)))) =>
+      case Seq(RemoveCondition(_), AddCondition(DimIdInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
         vs.toList should contain theSameElementsInOrderAs si(
           "красное яблоко",
@@ -141,7 +139,7 @@ class ItemsInvertedIndexImplTest
     )
 
     inside(res) {
-      case Seq(Replace(_, Seq(DimIdNotInExpr(d, vs)))) =>
+      case Seq(RemoveCondition(_), AddCondition(DimIdNotInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs si("сигареты винстон", "сигареты бонд").toList
     }

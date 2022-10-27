@@ -911,11 +911,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("test1", "test12"))
         )
       )
 
@@ -1029,11 +1027,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              in(dimension(TestDims.DIM_A), Set.empty)
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            in(dimension(TestDims.DIM_A), Set.empty)
           )
         )
 
@@ -1103,11 +1099,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
           )
         )
 
@@ -1182,11 +1176,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
 
@@ -1290,11 +1282,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
           )
         )
 
@@ -1408,15 +1398,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
-            ),
-            Replace(
-              Set(c2),
-              equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         )
 
@@ -1435,15 +1419,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c3),
-              neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-            ),
-            Replace(
-              Set(c4),
-              in(dimension(TestDims.DIM_A), Set("test12", "test13"))
-            )
+          ConditionTransformation.replace(
+            Seq(c4),
+            in(dimension(TestDims.DIM_A), Set("test12", "test13"))
           )
         )
 
@@ -1556,23 +1534,18 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c1),
-            neq(dimension(TestDims.DIM_A), const("test11"))
-          ),
-          Replace(
-            Set(c2),
-            notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          ),
-          Replace(
-            Set(c3),
-            notIn(dimension(TestDims.DIM_A), Set("test13"))
-          ),
-          Replace(
-            Set(c4),
-            notIn(dimension(TestDims.DIM_A), Set("test11", "test14"))
-          )
+        ConditionTransformation.replace(
+          Seq(c1),
+          neq(dimension(TestDims.DIM_A), const("test11"))
+        ) ++ ConditionTransformation.replace(
+          Seq(c2),
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
+        ) ++ ConditionTransformation.replace(
+          Seq(c3),
+          notIn(dimension(TestDims.DIM_A), Set("test13"))
+        ) ++ ConditionTransformation.replace(
+          Seq(c4),
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test14"))
         )
       )
 
@@ -1665,11 +1638,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c1),
-              in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-            )
+          ConditionTransformation.replace(
+            Seq(c1),
+            in(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         )
 
@@ -1688,11 +1659,9 @@ class TsdbTest
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c4),
-              in(dimension(TestDims.DIM_A), Set("test12"))
-            )
+          ConditionTransformation.replace(
+            Seq(c4),
+            in(dimension(TestDims.DIM_A), Set("test12"))
           )
         )
 
@@ -1787,11 +1756,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c1),
-            in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c1),
+          in(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
     val c3 = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
@@ -1809,11 +1776,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c4),
-            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
-          )
+        ConditionTransformation.replace(
+          Seq(c4),
+          in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
         )
       )
 
@@ -1900,11 +1865,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
         )
       )
 
@@ -2007,11 +1970,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
         )
       )
 
@@ -2619,11 +2580,9 @@ class TsdbTest
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("test1", "test12"))
         )
       )
 
