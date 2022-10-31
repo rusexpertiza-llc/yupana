@@ -360,7 +360,7 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val scala213 = "2.13.10"
 
-  val spark = "3.3.0"
+  val spark = "3.3.1"
 
   val threeTenExtra = "1.7.0"
 
@@ -374,7 +374,7 @@ lazy val versions = new {
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.6.19"
+  val akka = "2.6.20"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
