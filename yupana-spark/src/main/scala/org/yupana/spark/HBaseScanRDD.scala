@@ -84,13 +84,14 @@ class HBaseScanRDD(
   override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
     val partition = split.asInstanceOf[HBaseScanPartition]
     val scan = queryContext.metricsCollector.createScans.measure(1) {
-      val filter =
+      val filter = {
         HBaseUtils.multiRowRangeFilter(
           partition.queryContext.table,
           partition.fromTime,
           partition.toTime,
           partition.rangeScanDimsIds
         )
+      }
 
       HBaseUtils.createScan(
         partition.queryContext,

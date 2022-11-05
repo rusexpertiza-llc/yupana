@@ -42,10 +42,11 @@ object BoxingTag {
   implicit val doubleBoxing: BoxingTag[Double] = primitive[Double, jl.Double]
   implicit val booleanBoxing: BoxingTag[Boolean] = primitive[Boolean, jl.Boolean]
 
-  private def primitive[T <: AnyVal, B <: AnyRef](implicit ev: T => B, bTag: ClassTag[B]): BoxingTag[T] =
+  private def primitive[T <: AnyVal, B <: AnyRef](implicit ev: T => B, bTag: ClassTag[B]): BoxingTag[T] = {
     new BoxingTag[T] {
       override type R = B
       override def clazz: Class[B] = bTag.runtimeClass.asInstanceOf[Class[B]]
       override def cast(t: T): B = ev(t)
     }
+  }
 }

@@ -38,12 +38,13 @@ trait LinkField extends Serializable {
 
   override def equals(obj: Any): Boolean = {
     if (obj == null) false
-    else
+    else {
       obj match {
         case that: LinkField =>
           this.name == that.name && this.dataType == that.dataType
         case _ => false
       }
+    }
   }
 }
 

@@ -63,7 +63,7 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(metric(TestTableFields.TEST_FIELD2), 2d)
@@ -72,7 +72,7 @@ class TsdbArithmeticTest
             .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query)
 
@@ -105,7 +105,7 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(dimension(TestDims.DIM_A), "taga")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -116,7 +116,7 @@ class TsdbArithmeticTest
             .set(metric(TestTableFields.TEST_FIELD2), 4d)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query)
 
@@ -141,14 +141,14 @@ class TsdbArithmeticTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
           TestLinks.TEST_LINK,
           SparseTable("0000270761025003" -> Map("testField" -> "some-val"))
         )
-      )
+      })
 
     (tsdbDaoMock.query _)
       .expects(
@@ -170,7 +170,7 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(dimension(TestDims.DIM_A), "0000270761025003")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -183,7 +183,7 @@ class TsdbArithmeticTest
             .set(metric(TestTableFields.TEST_STRING_FIELD), "3")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query)
 
@@ -212,7 +212,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -223,7 +223,7 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_FIELD2), 4d)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -236,7 +236,7 @@ class TsdbArithmeticTest
 
   it should "calculate count and distinct_count for metric fields when evaluating each data row including null values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         """SELECT 
           |count(testField) c1, 
           |count(testField2) c2,
@@ -250,6 +250,7 @@ class TsdbArithmeticTest
           |distinct_count(testBigDecimalField) dc5 
           |""".stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
       val query = createQuery(sql)
 
       val pointTime = from.toInstant.toEpochMilli + 10
@@ -271,7 +272,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), null)
@@ -309,7 +310,7 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -330,7 +331,7 @@ class TsdbArithmeticTest
 
   it should "calculate count and distinct_count for dimension fields when evaluating each data rows" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         """SELECT
           |count(B) cB,
           |count(A) cA,
@@ -338,6 +339,7 @@ class TsdbArithmeticTest
           |distinct_count(A) dcA
           |""".stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       val query = createQuery(sql)
 
@@ -357,7 +359,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(dimension(TestDims.DIM_B), 1: Short)
@@ -376,7 +378,7 @@ class TsdbArithmeticTest
               .set(dimension(TestDims.DIM_A), "0000270761025003")
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -391,12 +393,13 @@ class TsdbArithmeticTest
 
   it should "calculate hll_count for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         """SELECT 
           |hll_count(testStringField, 0.01) as hllString, 
           |hll_count(testLongField, 0.01) as hllLong, 
           |hll_count(testTimeField, 0.01) as hllTime """.stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
       val query = createQuery(sql)
 
       val pointTime = from.toInstant.toEpochMilli + 10
@@ -416,7 +419,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_STRING_FIELD), null)
@@ -444,7 +447,7 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_TIME_FIELD), Time(1L))
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -458,9 +461,10 @@ class TsdbArithmeticTest
 
   it should "calculate count, distinct_count and hll_count for metric fields when evaluating each data row with null values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         "SELECT count(testLongField) as c, distinct_count(testLongField) as cd, hll_count(testLongField, 0.01) as ch " +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
       val query = createQuery(sql)
 
       val pointTime = from.toInstant.toEpochMilli + 10
@@ -475,7 +479,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_LONG_FIELD), null)
@@ -487,7 +491,7 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_LONG_FIELD), null)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -501,9 +505,10 @@ class TsdbArithmeticTest
 
   it should "throwing exception on calling hll_count for metric decimal field with wrong type" in withTsdbMock {
     (_, _) =>
-      val sql =
+      val sql = {
         "SELECT hll_count(testField, 0.01) as ch " +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       the[Exception] thrownBy createQuery(
         sql
@@ -512,9 +517,10 @@ class TsdbArithmeticTest
 
   it should "throwing exception on calling hll_count for metric decimal field and std_err less then 0.00003" in withTsdbMock {
     (_, _) =>
-      val sql =
+      val sql = {
         "SELECT hll_count(testLongField, 0.0000029) as ch " +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       the[Exception] thrownBy createQuery(
         sql
@@ -523,9 +529,10 @@ class TsdbArithmeticTest
 
   it should "throwing exception on calling hll_count for metric decimal field and std_err more then 0.367" in withTsdbMock {
     (_, _) =>
-      val sql =
+      val sql = {
         "SELECT hll_count(testLongField, 0.3671) as ch " +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       the[Exception] thrownBy createQuery(
         sql
@@ -533,9 +540,10 @@ class TsdbArithmeticTest
   }
 
   it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    val sql =
+    val sql = {
       "SELECT hll_count(testField, 0.01) as ch " +
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+    }
 
     the[Exception] thrownBy createQuery(
       sql
@@ -544,13 +552,14 @@ class TsdbArithmeticTest
 
   it should "calculate average for metric fields when evaluating each data row including null field values" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         """SELECT 
           |avg(testField) avgDouble, 
           |avg(testLongField) avgLong, 
           |avg(testBigDecimalField) avgBigDecimal,
           |avg(testByteField) avgByte """.stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       val query = createQuery(sql)
 
@@ -572,7 +581,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), null)
@@ -611,7 +620,7 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_BYTE_FIELD), 7.toByte)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -627,9 +636,10 @@ class TsdbArithmeticTest
 
   it should "calculate average for dimension fields when evaluating each data row" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         "SELECT avg(B) avgB, avg(Y) avgY  " +
           "FROM test_table_4 " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       val query = createQuery(sql)
 
@@ -645,7 +655,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(dimension(TestDims.DIM_B), 1: Short)
@@ -664,7 +674,7 @@ class TsdbArithmeticTest
               .set(dimension(TestDims.DIM_Y), 1L)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -677,9 +687,10 @@ class TsdbArithmeticTest
 
   it should "calculate average for fields when evaluating each data row and each field has null value" in withTsdbMock {
     (tsdb, tsdbDaoMock) =>
-      val sql =
+      val sql = {
         "SELECT avg(testField) avgDouble, avg(testLongField) avgLong, avg(testBigDecimalField) avgBigDecimal " +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
+      }
 
       val query = createQuery(sql)
 
@@ -700,7 +711,7 @@ class TsdbArithmeticTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime))
               .set(metric(TestTableFields.TEST_FIELD), null)
@@ -713,7 +724,7 @@ class TsdbArithmeticTest
               .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), null)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query)
 
@@ -741,13 +752,13 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query)
 
@@ -776,12 +787,12 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset(),
           b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "0000270761025003").buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query)
 
@@ -814,7 +825,7 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
@@ -826,7 +837,7 @@ class TsdbArithmeticTest
             .set(metric(TestTableFields.TEST_STRING_FIELD), "Mayorova")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -853,12 +864,12 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 5d).buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
 
@@ -888,12 +899,12 @@ class TsdbArithmeticTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(dimension(TestDims.DIM_B), 12).buildAndReset(),
           b.set(dimension(TestDims.DIM_B), 15).buildAndReset()
         )
-      )
+      })
 
     (link5.setLinkedValues _)
       .expects(*, *, *)

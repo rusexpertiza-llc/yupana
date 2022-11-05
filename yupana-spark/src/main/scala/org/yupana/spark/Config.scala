@@ -44,10 +44,11 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
 
   val properties: Properties = propsWithPrefix("")
 
-  protected def propsWithPrefix(prefix: String): Properties =
+  protected def propsWithPrefix(prefix: String): Properties = {
     sparkConf
       .getAllWithPrefix(prefix)
       .foldLeft(new Properties) { case (_props, (k, v)) => _props.put(prefix + k, v); _props }
+  }
 
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
 

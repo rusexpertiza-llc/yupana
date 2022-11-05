@@ -228,10 +228,11 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkDefault(dataType: DataType): Tree = {
     if (dataType.classTag.runtimeClass.isPrimitive) {
       if (dataType == DataType[Boolean]) q"false"
-      else
+      else {
         dataType.numeric
           .map(_ => q"0")
           .getOrElse(throw new IllegalArgumentException(s"Unexpected primitive type $dataType"))
+      }
     } else q"null"
   }
 
@@ -1049,7 +1050,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
   def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int], Array[Any]) = {
     val internalRow = TermName("internalRow")
-    val initialState =
+    val initialState = {
       State(
         Map.empty,
         query.fields.map(_.expr).toSet ++ query.groupBy ++ query.postFilter + TimeExpr,
@@ -1061,6 +1062,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         Seq.empty,
         0
       )
+    }
 
     val (filter, filteredState) = mkFilter(initialState, internalRow, condition).fresh
 

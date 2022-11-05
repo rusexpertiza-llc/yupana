@@ -48,13 +48,14 @@ class ExternalLinkRegistrator(
     Dimensions.ITEM.rStorable.read
   )
 
-  lazy val invertedIndex =
+  lazy val invertedIndex = {
     new ItemsInvertedIndexImpl(
       tsdb.schema,
       invertedDao,
       false,
       ItemsInvertedIndex
     )
+  }
 
   def registerExternalLink(link: ExternalLink): Unit = {
     val service = link match {

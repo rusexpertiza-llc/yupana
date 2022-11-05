@@ -92,7 +92,7 @@ class TsdbTest
     val changelogDaoMock = mock[ChangelogDao]
     val dictionaryDaoMock = mock[DictionaryDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb =
+    val tsdb = {
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
@@ -102,6 +102,7 @@ class TsdbTest
         SimpleTsdbConfig(),
         { _: Query => NoMetricCollector }
       )
+    }
 
     val dp = DataPoint(
       TestSchema.testTable,
@@ -152,7 +153,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -160,7 +161,7 @@ class TsdbTest
             .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -206,7 +207,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -214,7 +215,7 @@ class TsdbTest
             .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -259,14 +260,14 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .set(dimension(TestDims.DIM_A), "test12")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -315,7 +316,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -326,7 +327,7 @@ class TsdbTest
             .set(dimension(TestDims.DIM_A), "test42")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -377,7 +378,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test42")
@@ -392,7 +393,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList.sortBy(_.fields.filter(_ != null).toList.map(_.toString).mkString(","))
     rows should have size 2
@@ -443,7 +444,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "test12")
@@ -451,7 +452,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -497,7 +498,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -505,7 +506,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val row = tsdb.query(query).next()
 
@@ -550,7 +551,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -563,7 +564,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val row = tsdb.query(query).next()
 
@@ -607,7 +608,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -634,7 +635,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
     results should have size (2)
@@ -684,7 +685,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -711,7 +712,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 2d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
@@ -751,13 +752,13 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 10d).buildAndReset(),
           b.set(Time(qtime.plusHours(3))).set(metric(TestTableFields.TEST_FIELD), 100d).buildAndReset()
         )
-      )
+      })
 
     val result = tsdb.query(query).toList
 
@@ -788,13 +789,13 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(Time(qtime.plusHours(3))).set(metric(TestTableFields.TEST_FIELD), 3d).buildAndReset()
         )
-      )
+      })
 
     val result = tsdb.query(query).toList
 
@@ -839,14 +840,14 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(time, Time(pointTime1)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query)
 
@@ -929,7 +930,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -952,7 +953,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
@@ -1176,7 +1177,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test13")
@@ -1189,7 +1190,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -1276,7 +1277,7 @@ class TsdbTest
           *,
           NoMetricCollector
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime1))
               .set(dimension(TestDims.DIM_A), "test13")
@@ -1289,7 +1290,7 @@ class TsdbTest
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query).toList
       rows should have size 1
@@ -1415,7 +1416,7 @@ class TsdbTest
           *,
           NoMetricCollector
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime1))
               .set(dimension(TestDims.DIM_A), "test13")
@@ -1428,7 +1429,7 @@ class TsdbTest
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset()
           )
-        )
+        })
 
       val rows = tsdb.query(query).toList
       rows should have size 1
@@ -1526,7 +1527,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "test15")
@@ -1534,7 +1535,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 5d)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -1642,7 +1643,7 @@ class TsdbTest
           *,
           NoMetricCollector
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime1))
               .set(dimension(TestDims.DIM_A), "test12")
@@ -1655,7 +1656,7 @@ class TsdbTest
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset()
           )
-        )
+        })
 
       val result = tsdb.query(query).toList
       val r1 = result.head
@@ -1760,7 +1761,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test12")
@@ -1773,7 +1774,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 5d)
             .buildAndReset()
         )
-      )
+      })
 
     val result = tsdb.query(query).toList
     val r1 = result.head
@@ -1841,7 +1842,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "Test a 1")
@@ -1854,7 +1855,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .buildAndReset()
         )
-      )
+      })
 
     val res = tsdb.query(query).toList
 
@@ -1941,7 +1942,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "A 1")
@@ -1964,7 +1965,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 6d)
             .buildAndReset()
         )
-      )
+      })
 
     val rs = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
@@ -2055,7 +2056,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2082,7 +2083,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
     results should have size 2
@@ -2133,7 +2134,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2156,7 +2157,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_STRING_FIELD), "001_02_1")
             .buildAndReset()
         )
-      )
+      })
       .repeated(3)
 
     val startDay = Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -2258,7 +2259,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
@@ -2277,7 +2278,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val rs = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
@@ -2333,7 +2334,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2351,7 +2352,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val r = tsdb.query(query).next()
     r.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -2395,7 +2396,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2408,7 +2409,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val row = tsdb.query(query).next()
 
@@ -2451,7 +2452,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2464,7 +2465,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val row = tsdb.query(query).next()
 
@@ -2543,7 +2544,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2562,7 +2563,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
     results should have size 2
@@ -2613,7 +2614,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
@@ -2646,7 +2647,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
@@ -2706,7 +2707,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
@@ -2739,7 +2740,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val t = Table(
       ("time_time", "lag_time_time", "testField", "A", "B"),
@@ -2806,7 +2807,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2833,7 +2834,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query)
 
@@ -2889,7 +2890,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1)).set(dimension(TestDims.DIM_A), "test1").buildAndReset(),
           b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "test1").buildAndReset(),
@@ -2898,7 +2899,7 @@ class TsdbTest
           b.set(time, Time(pointTime1)).set(dimension(TestDims.DIM_A), "test1").buildAndReset(),
           b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "test1").buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query)
 
@@ -2941,7 +2942,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2968,7 +2969,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList
     results should have size 1
@@ -3019,7 +3020,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(dimension(TestDims.DIM_A), "test1")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -3031,7 +3032,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList.sortBy(_.fields.filter(_ != null).toList.map(_.toString).mkString(","))
 
@@ -3086,13 +3087,13 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "1").buildAndReset(),
           b.set(time, Time(pointTime1)).set(dimension(TestDims.DIM_A), "1").buildAndReset(),
           b.set(time, Time(pointTime1)).set(dimension(TestDims.DIM_A), "2").buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList
     results should have size 1
@@ -3172,7 +3173,7 @@ class TsdbTest
         *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), null)
@@ -3181,7 +3182,7 @@ class TsdbTest
             .set(metric(TestTableFields.TEST_FIELD), null)
             .buildAndReset()
         )
-      )
+      })
 
     val row = tsdb.query(query).next()
 

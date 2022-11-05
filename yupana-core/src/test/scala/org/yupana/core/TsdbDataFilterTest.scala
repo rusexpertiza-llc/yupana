@@ -70,7 +70,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -83,7 +83,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -122,7 +122,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -135,7 +135,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), 31.toShort)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -172,7 +172,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -185,7 +185,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -223,7 +223,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -238,7 +238,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -275,7 +275,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -288,7 +288,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
-      )
+      })
 
     val iterator = tsdb.query(query)
 
@@ -334,7 +334,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 123d)
@@ -352,7 +352,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
-      )
+      })
 
     val iterator = tsdb.query(query)
 
@@ -420,7 +420,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -440,7 +440,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), "test2")
             .buildAndReset()
         )
-      )
+      })
 
     val rows = tsdb.query(query).toList
     rows should have size 1
@@ -475,14 +475,14 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
           TestLinks.TEST_LINK,
           SparseTable("test2a" -> Map("testField" -> "some-value"))
         )
-      )
+      })
 
     val pointTime1 = from.toInstant.toEpochMilli + 10
 
@@ -501,7 +501,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 10d)
@@ -514,7 +514,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), "test3b")
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList
     results should have size 1
@@ -543,14 +543,14 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
+      .onCall((qc, datas, _) => {
         setCatalogValueByTag(
           qc,
           datas,
           TestLinks.TEST_LINK,
           SparseTable("test2a" -> Map("testField" -> "some-value"))
         )
-      )
+      })
 
     val pointTime1 = from.toInstant.toEpochMilli + 10
 
@@ -569,7 +569,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 10d)
@@ -582,7 +582,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_B), "test3b")
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList
     results should have size 1
@@ -628,25 +628,25 @@ class TsdbDataFilterTest
 
       (testCatalogServiceMock.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-        .onCall((qc, datas, _) =>
+        .onCall((qc, datas, _) => {
           setCatalogValueByTag(
             qc,
             datas,
             TestLinks.TEST_LINK,
             SparseTable("test2a" -> Map("testField" -> "some-value"))
           )
-        )
+        })
 
       (testCatalogServiceMock2.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")).asInstanceOf[Set[LinkExpr[_]]])
-        .onCall((qc, datas, _) =>
+        .onCall((qc, datas, _) => {
           setCatalogValueByTag(
             qc,
             datas,
             TestLinks.TEST_LINK2,
             SparseTable("test1a" -> Map("testField2" -> "c2-value"), "test2a" -> Map("testField2" -> "some-value"))
           )
-        )
+        })
 
       val pointTime1 = from.toInstant.toEpochMilli + 10
 
@@ -665,7 +665,7 @@ class TsdbDataFilterTest
           *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _) => {
           Iterator(
             b.set(time, Time(pointTime1))
               .set(metric(TestTableFields.TEST_FIELD), 1001d)
@@ -688,7 +688,7 @@ class TsdbDataFilterTest
               .set(dimension(TestDims.DIM_B), 15.toShort)
               .buildAndReset()
           )
-        )
+        })
 
       val results = tsdb.query(query).toList
       results should have size 1
@@ -704,10 +704,11 @@ class TsdbDataFilterTest
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
     val testCatalogServiceMock2 = mockCatalogService(tsdb, TestLinks.TEST_LINK2)
 
-    val sql =
+    val sql = {
       "SELECT day(time) AS d, sum(CASE WHEN TestLink_testField IS NOT NULL THEN testField ELSE 0) as quantity " +
         "FROM test_table " +
         "WHERE TestLink2_testField2 = 'test2'" + timeBounds() + " GROUP BY d"
+    }
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -753,7 +754,7 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 1011d)
@@ -764,7 +765,7 @@ class TsdbDataFilterTest
             .set(dimension(TestDims.DIM_A), "test2a")
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList
     results should have size 1
@@ -794,14 +795,14 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTable2Fields.TEST_FIELD2), 0d)
             .set(metric(TestTable2Fields.TEST_FIELD3), BigDecimal(5))
             .buildAndReset()
         )
-      )
+      })
 
     val results = tsdb.query(query).toList
     results should have size 0
@@ -817,21 +818,21 @@ class TsdbDataFilterTest
 
     (tsdbDaoMock.query _)
       .expects(*, *, *)
-      .onCall((_, b, _) =>
+      .onCall((_, b, _) => {
         Iterator(
           b.set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
           b.set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
         )
-      )
+      })
 
     (link5.setLinkedValues _)
       .expects(*, *, *)
-      .onCall((idx, rs, _) =>
+      .onCall((idx, rs, _) => {
         rs.foreach { r =>
           val b = r.get(idx, dimension(TestDims.DIM_B))
           r.set(idx, doubleLinkExpr, if (b == 12) 10.0 else 30.0)
         }
-      )
+      })
 
     (link5.transformCondition _).expects(*).onCall((c: Condition) => Seq(Original(Set(c))))
 

@@ -8,11 +8,12 @@ class MapCache[K, V] extends Cache[K, V] {
   override def get(key: K): Option[V] = map.get(key)
   override def getNullable(key: K): V = map.getOrElse(key, null.asInstanceOf[V])
   override def put(key: K, value: V): Unit = map += key -> value
-  override def remove(key: K): Boolean =
+  override def remove(key: K): Boolean = {
     if (map.contains(key)) {
       map -= key
       true
     } else false
+  }
 
   override def removeAll(): Unit = map = Map.empty
   override def getAll(keys: Set[K]): Map[K, V] = keys.flatMap(k => map.get(k).map(k -> _)).toMap

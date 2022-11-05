@@ -312,11 +312,11 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
       Request.Req.BatchSqlQuery(
         BatchSqlQuery(
           query,
-          params.map(vs =>
+          params.map(vs => {
             ParameterValues(vs.map {
               case (i, v) => ParameterValue(i, createProtoValue(v))
             }.toSeq)
-          )
+          })
         )
       )
     )

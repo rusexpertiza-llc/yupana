@@ -154,7 +154,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
             } yield (c, et)
         })
 
-        createExpr(state, nameResolver, default, exprType).flatMap(ve =>
+        createExpr(state, nameResolver, default, exprType).flatMap(ve => {
           converted.flatMap { conv =>
             conv.foldRight(Right(ve): Either[String, Expression[_]]) {
               case ((condition, value), Right(e)) =>
@@ -165,7 +165,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
               case (_, Left(msg)) => Left(msg)
             }
           }
-        )
+        })
 
       case parser.FieldName(name) => nameResolver(name)
 
@@ -262,12 +262,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       r: parser.SqlExpr,
       fun: String,
       exprType: ExprType
-  ): Either[String, Expression[_]] =
+  ): Either[String, Expression[_]] = {
     for {
       le <- createExpr(state, nameResolver, l, exprType)
       re <- createExpr(state, nameResolver, r, exprType)
       biFunction <- FunctionRegistry.bi(fun, le, re)
     } yield biFunction
+  }
 
   def createBooleanExpr(l: Expression[_], r: Expression[_], fun: String): Either[String, Expression[Boolean]] = {
     FunctionRegistry.bi(fun, l, r).flatMap { e =>

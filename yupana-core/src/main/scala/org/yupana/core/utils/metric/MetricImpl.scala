@@ -34,7 +34,7 @@ class MetricImpl(
     timeAdder.reset()
   }
 
-  override def measure[T](cnt: Int)(f: => T): T =
+  override def measure[T](cnt: Int)(f: => T): T = {
     try {
       val start = System.nanoTime()
       val result = f
@@ -49,4 +49,5 @@ class MetricImpl(
         metricCollector.finish()
         throw throwable
     }
+  }
 }

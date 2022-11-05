@@ -51,13 +51,13 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
   }
 
   private def createRow(a: Array[Any], fields: Seq[QueryField]): Row = {
-    val values = fields.indices.map(idx =>
+    val values = fields.indices.map(idx => {
       a(dataIndexForFieldIndex(idx)) match {
         case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
         case Blob(bytes) => bytes
         case x           => x
       }
-    )
+    })
     Row(values: _*)
   }
 

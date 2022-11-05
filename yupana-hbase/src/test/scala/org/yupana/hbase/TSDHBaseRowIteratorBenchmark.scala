@@ -51,12 +51,13 @@ class TSDHBaseRowIteratorBenchmark extends AnyFlatSpec with Matchers {
 
     val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
-    val internalQuery =
+    val internalQuery = {
       InternalQuery(
         TestSchema.testTable,
         exprs.map(_.expr).toSet,
         and(ge(time, const(Time(10))), lt(time, const(Time(20))))
       )
+    }
     val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)
 
     (1 to 1000).foreach { i =>

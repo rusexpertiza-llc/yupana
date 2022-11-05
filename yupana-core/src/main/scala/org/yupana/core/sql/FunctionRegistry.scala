@@ -200,7 +200,7 @@ object FunctionRegistry {
     ),
     Function2Desc(
       "/",
-      (a: Expression[_], b: Expression[_]) =>
+      (a: Expression[_], b: Expression[_]) => {
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.integral.isDefined =>
             Right(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
@@ -209,7 +209,7 @@ object FunctionRegistry {
           case Right(pair) => Left(s"Cannot apply math operations to ${pair.dataType}")
           case Left(msg)   => Left(msg)
         }
-    ),
+      }),
     biTyped("+", ConcatExpr),
     biTyped("-", TimeMinusExpr),
     biTyped("-", TimeMinusPeriodExpr),
@@ -241,7 +241,7 @@ object FunctionRegistry {
     ),
     Function2Desc(
       "hll_count",
-      (a: Expression[_], c: Expression[_]) =>
+      (a: Expression[_], c: Expression[_]) => {
         c match {
           case ConstantExpr(v, _) =>
             val tpe = a.dataType.meta.sqlTypeName
@@ -258,7 +258,7 @@ object FunctionRegistry {
 
           case _ => Left(s"Expected constant but got $c")
         }
-    )
+      })
   )
 
   def unary(name: String, e: Expression[_]): Either[String, Expression[_]] = {
@@ -358,20 +358,20 @@ object FunctionRegistry {
     FunctionDesc(
       fn,
       DataTypeParam(dt),
-      e =>
+      e => {
         if (e.dataType == dt) Right(create(e.asInstanceOf[Expression[T]]))
         else Left(s"Function $fn cannot be applied to $e of type ${e.dataType}")
-    )
+      })
   }
 
   private def uArray[T](fn: String, create: Bind[ArrayExpr, Expression[_]]): FunctionDesc = {
     FunctionDesc(
       fn,
       ArrayParam,
-      e =>
+      e => {
         if (e.dataType.kind == TypeKind.Array) Right(create(e.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires array, but got $e")
-    )
+      })
   }
 
   private def biOrd(
@@ -380,14 +380,14 @@ object FunctionRegistry {
   ): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) =>
+      (a, b) => {
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.ordering.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.ordering.get))
           case Right(_) => Left(s"Cannot compare types ${a.dataType} and ${b.dataType}")
           case Left(_)  => Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
         }
-    )
+      })
   }
 
   private def biNum(
@@ -396,14 +396,14 @@ object FunctionRegistry {
   ): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) =>
+      (a, b) => {
         ExprPair.alignTypes(a, b) match {
           case Right(pair) if pair.dataType.numeric.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.numeric.get))
           case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
           case Left(_)  => Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
         }
-    )
+      })
   }
 
   private def biSame(fn: String, create: Bind2[Expression, Expression, Expression[_]]): Function2Desc = {
@@ -418,33 +418,33 @@ object FunctionRegistry {
       dtu: DataType.Aux[U]
   ): Function2Desc = Function2Desc(
     fn,
-    (a, b) =>
+    (a, b) => {
       if (a.dataType == dtt && b.dataType == dtu)
         Right(create(a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[U]]))
       else Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
-  )
+    })
 
   private def biArray[T](fn: String, create: Bind2[ArrayExpr, ArrayExpr, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) =>
+      (a, b) => {
         if (a.dataType.kind == TypeKind.Array && a.dataType == b.dataType)
           Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[ArrayExpr[T]]))
         else Left(s"Function $fn requires two arrays of same type, but got $a, $b")
-    )
+      })
   }
 
   private def biArrayAndElem[T](fn: String, create: Bind2[ArrayExpr, Expression, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) =>
+      (a, b) => {
         if (a.dataType.kind == TypeKind.Array) {
           val adt = a.dataType.asInstanceOf[ArrayDataType[T]]
           if (adt.valueType == b.dataType) {
             Right(create(a.asInstanceOf[ArrayExpr[T]], b.asInstanceOf[Expression[T]]))
           } else Left(s"Function $fn second parameter should have type ${adt.valueType}")
         } else Left(s"Function $fn requires array and its element, but got $a and $b")
-    )
+      })
   }
 
   private def createDimIdExpr(expr: Expression[_]): Either[String, Expression[_]] = {

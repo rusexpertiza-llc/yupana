@@ -273,9 +273,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support between conditions" in {
-    val statement =
+    val statement = {
       """SELECT sum(quantity) FROM items WHERE time BETWEEN TIMESTAMP '2021-03-09' AND TIMESTAMP '2021-03-10' AND
          | sum BETWEEN 1000 AND 10000""".stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
@@ -409,11 +410,12 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "parse multiline queries" in {
-    val statement =
+    val statement = {
       """SELECT field FROM foo
         |  WHERE bar <= 5
         |  GROUP BY baz
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -425,10 +427,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "handle placeholders" in {
-    val statement =
+    val statement = {
       """SELECT field FROM foo
         | WHERE bar >= ? AND baz < ?
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -519,11 +522,12 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support dummy nested select" in {
-    val statement =
+    val statement = {
       """SELECT * FROM (
         |  SELECT foo, barbarian as bar FROM qux WHERE mode != 'test'
         |)
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
@@ -537,7 +541,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support nested select with alias" in {
-    val statement =
+    val statement = {
       """
         | SELECT * FROM (
         |   SELECT day(time) as d, sum(quantity) as quantity, sum(sum) as sum
@@ -546,6 +550,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |     group by d
         | ) "Custom_SQL_Query"
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -570,7 +575,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support nested select with specified field names" in {
-    val statement =
+    val statement = {
       """
         | SELECT "Custom_SQL_Query"."d" AS "d",
         |  "Custom_SQL_Query"."quantity" AS "amount"
@@ -581,6 +586,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |   group by d
         | ) "Custom_SQL_Query";
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -604,7 +610,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support constants in queries" in {
-    val statement =
+    val statement = {
       """
         |SELECT 1 AS "Number_of_Records",
         |  "Custom_SQL_Query"."d" AS "d",
@@ -617,6 +623,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |  group by d
         |) "Custom_SQL_Query"
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -664,7 +671,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support case when construction" in {
-    val statement =
+    val statement = {
       """
         | SELECT (CASE
         |   WHEN x < 10 THEN 0
@@ -673,6 +680,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         | FROM foo
         |   WHERE y = 5
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
@@ -699,7 +707,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "parse case when inside function calls" in {
-    val statement =
+    val statement = {
       """
         | SELECT item, SUM(CASE
         |   WHEN x < 10 THEN 0
@@ -708,6 +716,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         | WHERE more_than_ten >= 5
         | GROUP BY item
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -734,13 +743,14 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support fields inside case when results" in {
-    val statement =
+    val statement = {
       """
         | SELECT item, SUM(CASE WHEN x = 'type_one' THEN y ELSE 0) AS sum_type_one
         | FROM foo
         | WHERE more_than_ten >= 5
         | GROUP BY item
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -779,7 +789,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support having" in {
-    val statement =
+    val statement = {
       """
         |SELECT
         |   kkmId,
@@ -794,6 +804,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |   ((l - t) > '4:00:00' AND (h > 18 OR h < 8))
         | LIMIT 10
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, Some(having), Some(limit)) =>
@@ -838,13 +849,14 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support now call" in {
-    val statement =
+    val statement = {
       """
         | SELECT kkmId, day(time) d, sum(quantity)
         | FROM itemsKkm
         | WHERE time < now() AND time >= now() - INTERVAL '1' month AND item = 'конфета \'Чупа-чупс\''
         | GROUP BY kkmId, d
         |""".stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -874,13 +886,14 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support plus" in {
-    val statement =
+    val statement = {
       """
         | SELECT kkmId, (cardSum + cashSum) as total
         | FROM itemsKkm
         | WHERE time < now() AND time >= now() - INTERVAL '1' month
         | GROUP BY kkmId
         |""".stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -892,13 +905,14 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support arithmetic on aggregations" in {
-    val statement =
+    val statement = {
       """
         | SELECT day, sum(cashSum) + min(cardSum) as wtf
         | FROM itemsKkm
         | WHERE time < now() AND time >= now() - INTERVAL '1' month
         | GROUP BY day
         |""".stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -913,13 +927,14 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support quite complex arithmetical expressions in" in {
-    val statement =
+    val statement = {
       """
         | SELECT kkmId, ((cardSum + cashSum) * 5 - whatever / 1.3) / 52 as wtf
         | FROM itemsKkm
         | WHERE time < now() AND time >= now() - INTERVAL '1' month
         | GROUP BY kkmId
         |""".stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
@@ -944,12 +959,13 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support array literals" in {
-    val sql =
+    val sql = {
       """
         | SELECT a, b
         |   FROM table
         |   WHERE containsAll(x, {1,2,3})
         | """.stripMargin
+    }
 
     parsed(sql) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
@@ -1061,10 +1077,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "support functions as conditions" in {
-    val statement =
+    val statement = {
       """
         |SELECT value from table_x WHERE isValid(value) and isTheSame(toArray(foo), toArray('bar'))
       """.stripMargin
+    }
 
     parsed(statement) {
       case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>

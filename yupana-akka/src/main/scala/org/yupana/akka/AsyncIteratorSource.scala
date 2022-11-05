@@ -28,7 +28,7 @@ class AsyncIteratorSource[T](val iterator: Iterator[T], bufferCapacity: Int)(
   val out: Outlet[T] = Outlet("AsyncIteratorSource")
   override val shape: SourceShape[T] = SourceShape(out)
 
-  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
+  override def createLogic(inheritedAttributes: Attributes): GraphStageLogic = {
     new GraphStageLogic(shape) {
       private val buffer = new collection.mutable.Queue[T]()
 
@@ -60,4 +60,5 @@ class AsyncIteratorSource[T](val iterator: Iterator[T], bufferCapacity: Int)(
         }
       )
     }
+  }
 }

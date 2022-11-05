@@ -405,11 +405,12 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "substitute passed placeholders values" in {
-    val statement =
+    val statement = {
       """SELECT SUM(TestField), month(time) as m, b FROM test_table
         | WHERE time >= ? and time < ? AND a = ?
         | GROUP BY m, b
       """.stripMargin
+    }
 
     val from = OffsetDateTime.of(2017, 9, 1, 0, 0, 0, 0, ZoneOffset.UTC)
     val to = OffsetDateTime.of(2017, 9, 15, 0, 0, 0, 0, ZoneOffset.UTC)
@@ -494,12 +495,13 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "support placeholders in const fields" in {
-    val statement =
+    val statement = {
       """
         | SELECT ? as my_string, day(time) as d
         |   FROM test_table
         |   WHERE time >= TIMESTAMP '2018-1-1' AND time < ?
       """.stripMargin
+    }
 
     inside(
       createQuery(
@@ -1129,11 +1131,12 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "fail if field name is ambiguous" in {
-    val q =
+    val q = {
       """SELECT sum(testField) as testField
         |  FROM test_table
         |  WHERE time >= timestamp '2021-10-21' and time <= timestamp '2021-10-22'
         |       AND testField = 'a'""".stripMargin
+    }
 
     testError(q) { _ shouldEqual "Ambiguous field testField" }
   }
@@ -1143,18 +1146,20 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   }
 
   it should "fail if array contains different types" in {
-    val q =
+    val q = {
       """SELECT testField FROM test_table
         |  WHERE time > timestamp '2021-10-21' and time < timestamp '2021-10-30'
         |  AND containsAny(tokens(testStringField), { 'a', 'b', 3 })""".stripMargin
+    }
 
     testError(q) { _ shouldEqual "All expressions must have same type but: const(3:BigDecimal) has type DECIMAL" }
   }
 
   it should "fail if non boolean expression in where" in {
-    val q =
+    val q = {
       """SELECT testField from test_table
         |  WHERE time > timestamp '2021-10-21' and time < timestamp '2021-10-30' and testField + 1""".stripMargin
+    }
 
     testError(q) { _ shouldEqual "metric(testField) + const(1.0:Double) has type DOUBLE, but BOOLEAN is required" }
   }

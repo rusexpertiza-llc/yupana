@@ -39,13 +39,14 @@ class TsdbSpark(
     schema: Schema
 ) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
 
-  @transient lazy val elRegistrator =
+  @transient lazy val elRegistrator = {
     new ExternalLinkRegistrator(
       this,
       TsDaoHBaseSpark.hbaseConfiguration(conf),
       conf.hbaseNamespace,
       conf.properties
     )
+  }
 
   override def linkService(el: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
     if (!TsdbSpark.externalLinks.contains(el.linkName)) {

@@ -651,16 +651,18 @@ class YupanaResultSet protected[jdbc] (
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateTimestamp(int, Timestamp)")
 
   @throws[SQLException]
-  override def updateAsciiStream(columnIndex: Int, x: InputStream, length: Int): Unit =
+  override def updateAsciiStream(columnIndex: Int, x: InputStream, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException(
       "Method not supported: ResultSet.updateAsciiStream(int, InputStream, int)"
     )
+  }
 
   @throws[SQLException]
-  override def updateBinaryStream(columnIndex: Int, x: InputStream, length: Int): Unit =
+  override def updateBinaryStream(columnIndex: Int, x: InputStream, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException(
       "Method not supported: ResultSet.updateBinaryStreamint, InputStream, int)"
     )
+  }
 
   @throws[SQLException]
   override def updateCharacterStream(columnIndex: Int, x: Reader, length: Int): Unit =
@@ -731,22 +733,25 @@ class YupanaResultSet protected[jdbc] (
     throw new SQLFeatureNotSupportedException("Method not supported: ResultSet.updateTimestamp(String, Timestamp)")
 
   @throws[SQLException]
-  override def updateAsciiStream(columnName: String, x: InputStream, length: Int): Unit =
+  override def updateAsciiStream(columnName: String, x: InputStream, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException(
       "Method not supported: ResultSet.updateAsciiStream(String, InputStream, int)"
     )
+  }
 
   @throws[SQLException]
-  override def updateBinaryStream(columnName: String, x: InputStream, length: Int): Unit =
+  override def updateBinaryStream(columnName: String, x: InputStream, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException(
       "Method not supported: ResultSet.updateBinaryStream(String, InputStream, int)"
     )
+  }
 
   @throws[SQLException]
-  override def updateCharacterStream(columnName: String, reader: Reader, length: Int): Unit =
+  override def updateCharacterStream(columnName: String, reader: Reader, length: Int): Unit = {
     throw new SQLFeatureNotSupportedException(
       "Method not supported: ResultSet.updateCharacterStream(String, Reader, int)"
     )
+  }
 
   @throws[SQLException]
   override def updateObject(columnName: String, x: Any, scale: Int): Unit =

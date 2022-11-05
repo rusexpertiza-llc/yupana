@@ -146,11 +146,12 @@ object ExternalLinkUtils {
         None
       }
 
-      val result =
+      val result = {
         if (other.nonEmpty)
           Seq(include, exclude, Some(Original(other.toSet))).flatten
         else
           Seq(include, exclude).flatten
+      }
 
       result
     }

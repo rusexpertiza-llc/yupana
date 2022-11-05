@@ -144,7 +144,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
 
     val filterList = new FilterList()
 
-    tableName.foreach(t =>
+    tableName.foreach(t => {
       filterList.addFilter(
         new SingleColumnValueFilter(
           FAMILY,
@@ -153,14 +153,14 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
           Bytes.toBytes(t)
         )
       )
-    )
+    })
 
     dateRangeFilter(UPDATED_AT_QUALIFIER, UPDATED_AT_QUALIFIER, updatedAfter, updatedBefore).foreach(
       filterList.addFilter
     )
     dateRangeFilter(FROM_QUALIFIER, TO_QUALIFIER, recalculatedAfter, recalculatedBefore).foreach(filterList.addFilter)
 
-    updatedBy.foreach(ub =>
+    updatedBy.foreach(ub => {
       filterList.addFilter(
         new SingleColumnValueFilter(
           FAMILY,
@@ -169,7 +169,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
           ub.getBytes(StandardCharsets.UTF_8)
         )
       )
-    )
+    })
     filterList
   }
 
@@ -180,7 +180,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
       recalculatedAfter: Option[Long],
       recalculatedBefore: Option[Long],
       updatedBy: Option[String]
-  ): Iterable[UpdateInterval] =
+  ): Iterable[UpdateInterval] = {
     withTables {
       val updatesIntervals = Using.resource(getTable) { table =>
         val scan = new Scan().addFamily(FAMILY)
@@ -191,6 +191,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
       }
       updatesIntervals
     }
+  }
 
   private def toUpdateInterval(result: Result): UpdateInterval = {
     val byBytes = result.getValue(FAMILY, UPDATED_BY_QUALIFIER)

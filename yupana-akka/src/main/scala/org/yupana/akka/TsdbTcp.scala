@@ -62,7 +62,7 @@ class TsdbTcp(
 
     val protocol = Framing.simpleFramingProtocol(FRAME_SIZE).reversed
 
-    val heartbeat =
+    val heartbeat = {
       Source
         .tick(HEART_BEAT_INTERVAL.seconds, HEART_BEAT_INTERVAL.seconds, HEART_BEAT_INTERVAL)
         .scan(0)(_ + _)
@@ -71,6 +71,7 @@ class TsdbTcp(
           logger.debug(s"Heartbeat($time), connection: ${conn.remoteAddress}")
           ByteString(Response(Response.Resp.Heartbeat(time.toString)).toByteArray)
         }
+    }
 
     val requestFlow = Flow[ByteString]
       .addAttributes(

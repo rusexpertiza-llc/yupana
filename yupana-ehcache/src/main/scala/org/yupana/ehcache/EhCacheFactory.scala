@@ -43,11 +43,12 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
       case Some(cm) =>
         if (!caches.contains(description)) {
           logger.info(s"Adding cache ${description.fullName}")
-          val cache =
+          val cache = {
             cm.createCache[description.Key, description.Value, Configuration[description.Key, description.Value]](
               description.fullName,
               Eh107Configuration.fromEhcacheCacheConfiguration(createCacheConfig(description))
             )
+          }
 
           caches += description
           new JCache(cache)

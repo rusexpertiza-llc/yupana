@@ -59,7 +59,7 @@ class JdbcMetadataProvider(schema: Schema) {
     SimpleResult("TABLES", tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
   }
 
-  def describeTable(tableName: String): Either[String, Result] =
+  def describeTable(tableName: String): Either[String, Result] = {
     schema.getTable(tableName) map { table =>
       val metricColumns = table.metrics.map { f =>
         columnsArray(table.name, f.name, f.dataType.meta)
@@ -81,6 +81,7 @@ class JdbcMetadataProvider(schema: Schema) {
         data
       )
     } toRight s"Unknown table '$tableName'"
+  }
 
   def listFunctions(typeName: String): Either[String, Result] = {
     DataType.bySqlName(typeName).map { t =>

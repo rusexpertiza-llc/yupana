@@ -51,13 +51,14 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     extends ExternalLinkService[AddressCatalog] {
   import syntax.All._
 
-  val kkmAddressData: Seq[(Int, AddressData)] =
+  val kkmAddressData: Seq[(Int, AddressData)] = {
     (1 to 20).map { id =>
       (
         id,
         if (id < 15) AddressData("Москва", -26.668287, 153.102198) else AddressData("Таганрог", 61.314494, 10.303508)
       )
     }
+  }
 
   override def setLinkedValues(
       exprIndex: collection.Map[Expression[_], Int],

@@ -23,12 +23,12 @@ import org.yupana.core.QueryOptimizer
 object ConditionUtils {
   def flatMap(c: Condition)(f: Condition => Condition): Condition = {
     def doFlat(xs: Seq[Condition]): Seq[Condition] = {
-      xs.flatMap(x =>
+      xs.flatMap(x => {
         flatMap(x)(f) match {
           case ConstantExpr(true, _) => None
           case nonEmpty              => Some(nonEmpty)
         }
-      )
+      })
     }
 
     val mapped = c match {

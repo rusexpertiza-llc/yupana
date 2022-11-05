@@ -58,7 +58,7 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
     groupBy = Seq.empty
   )
 
-  val daoExprs: Seq[Expression[_]] =
+  val daoExprs: Seq[Expression[_]] = {
     Seq(
       time,
       dimension(Dimensions.ITEM),
@@ -66,4 +66,5 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
       metric(ItemTableMetrics.sumField),
       dimension(Dimensions.KKM_ID)
     )
+  }
 }

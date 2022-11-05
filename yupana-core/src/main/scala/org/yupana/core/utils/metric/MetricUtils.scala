@@ -19,7 +19,7 @@ package org.yupana.core.utils.metric
 object MetricUtils {
 
   implicit class SavedMetrics[T](func: => T) {
-    def withSavedMetrics(metricCollector: MetricQueryCollector): T =
+    def withSavedMetrics(metricCollector: MetricQueryCollector): T = {
       try func
       catch {
         case throwable: Throwable =>
@@ -27,5 +27,6 @@ object MetricUtils {
           metricCollector.finish()
           throw throwable
       }
+    }
   }
 }

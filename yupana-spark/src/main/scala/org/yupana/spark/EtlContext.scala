@@ -38,7 +38,7 @@ class EtlContext(
   }
 
   private def initTsdb: TSDB = {
-    val tsdb =
+    val tsdb = {
       TSDBHBase(
         hBaseConfiguration,
         cfg.hbaseNamespace,
@@ -48,6 +48,7 @@ class EtlContext(
         cfg,
         None
       )
+    }
     setup(tsdb)
     EtlContext.tsdb = Some(tsdb)
     tsdb

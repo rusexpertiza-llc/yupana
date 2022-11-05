@@ -103,12 +103,13 @@ object SqlParser {
 
   def arrayExpr[_: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
 
-  def caseExpr[_: P]: P[Case] =
+  def caseExpr[_: P]: P[Case] = {
     P(
       caseWord ~/
         (whenWord ~/ condition ~ thenWord ~/ expr).rep(1) ~
         elseWord ~/ expr
     ).map { case (cs, d) => Case(cs, d) }
+  }
 
   private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
 
@@ -271,10 +272,11 @@ object SqlParser {
   def values[_: P](count: Int): P[Seq[Seq[SqlExpr]]] =
     ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
-  def upsert[_: P]: P[Upsert] =
+  def upsert[_: P]: P[Upsert] = {
     P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
       case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
     }
+  }
 
   def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
 

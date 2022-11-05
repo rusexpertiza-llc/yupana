@@ -39,9 +39,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     override type DimType = Int
     override val linkName: String = "TestCatalog"
     override val dimension: Dimension.Aux[Int] = RawDimension[Int]("TAG_Y")
-    override val fields: Set[LinkField] =
+    override val fields: Set[LinkField] = {
       Set(TestExternalLink.testField1, TestExternalLink.testField2, TestExternalLink.testField3)
         .map(LinkField[String])
+    }
   }
 
   object TestExternalLink {

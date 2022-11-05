@@ -45,11 +45,12 @@ class SQLSourcedExternalLinkService[DimensionValue](
 
   private val mapping = config.fieldsMapping
 
-  private val fieldValuesForDimValuesCache: Cache[DimensionValue, Map[FieldName, FieldValue]] =
+  private val fieldValuesForDimValuesCache: Cache[DimensionValue, Map[FieldName, FieldValue]] = {
     CacheFactory.initCache[DimensionValue, Map[FieldName, FieldValue]](externalLink.linkName + "_fields")(
       externalLink.dimension.dataType.boxingTag,
       BoxingTag[Map[FieldName, FieldValue]]
     )
+  }
 
   override def setLinkedValues(
       exprIndex: collection.Map[Expression[_], Int],

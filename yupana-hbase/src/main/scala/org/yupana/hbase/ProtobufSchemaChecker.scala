@@ -23,10 +23,11 @@ import org.yupana.hbase.proto.{ Metric => ProtoMetric, SchemaRegistry => ProtoRe
 
 object ProtobufSchemaChecker extends SchemaChecker {
 
-  private def typeMap: Map[String, String] =
+  private def typeMap: Map[String, String] = {
     Map(
       DataType[Blob] -> DataType[Seq[Byte]]
     ).map { case (f, t) => f.meta.sqlTypeName -> t.meta.sqlTypeName }
+  }
 
   override def toBytes(schema: Schema): Array[Byte] =
     new ProtoRegistry(schema.tables.values.map(asProto).toSeq).toByteArray
@@ -73,11 +74,11 @@ object ProtobufSchemaChecker extends SchemaChecker {
       else Error(s"Expected rowTimeSpan for table ${a.name}: ${e.rowTimeSpan}, actual: ${a.rowTimeSpan}"),
       if (a.dimensions == e.dimensions)
         Success
-      else
+      else {
         Error(
           s"Expected dimensions for table ${a.name}: ${e.dimensions.mkString(", ")}; actual: ${a.dimensions.mkString(", ")}"
         )
-    )
+      })
 
     val removedFields = e.metrics.filter(ef => !a.metrics.contains(ef))
     checks ++= removedFields.map(rf =>

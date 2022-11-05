@@ -32,7 +32,7 @@ object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
 
-  def indexItems(schema: Schema)(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
+  def indexItems(schema: Schema)(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] = {
     items
       .flatMap {
         case (id, n) =>
@@ -47,6 +47,7 @@ object ItemsInvertedIndexImpl {
         case (word, group) =>
           (word, group.map(_._2))
       }
+  }
 }
 
 class ItemsInvertedIndexImpl(

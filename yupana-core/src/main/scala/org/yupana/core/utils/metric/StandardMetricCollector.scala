@@ -76,7 +76,7 @@ abstract class StandardMetricCollector(
 
   override def checkpoint(): Unit = reporter.saveQueryMetrics(this, partitionId, QueryStates.Running)
 
-  def allMetrics: Seq[MetricImpl] =
+  def allMetrics: Seq[MetricImpl] = {
     Seq(
       createContext,
       createDimensionFilters,
@@ -90,4 +90,5 @@ abstract class StandardMetricCollector(
       postFilter,
       collectResultRows
     ) ++ dynamicMetrics.values
+  }
 }

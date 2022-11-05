@@ -66,11 +66,12 @@ class SQLSourcedCatalogServiceTest
     val externalLinkService = createService(externalLinkConfig)
     val externalLink = externalLinkService.externalLink
 
-    val values =
+    val values = {
       externalLinkService.fieldValuesForDimValues(
         externalLinkConfig.description.fieldsNames,
         Set(12345655, 12345657)
       )
+    }
 
     values.get(12345655, "f1").value shouldEqual "wer"
     values.get(12345655, "f2").value shouldEqual "sdf"
@@ -142,11 +143,12 @@ class SQLSourcedCatalogServiceTest
     val externalLinkService = createService(externalLinkConfig)
     val externalLink = externalLinkService.externalLink
 
-    val values =
+    val values = {
       externalLinkService.fieldValuesForDimValues(
         externalLinkConfig.description.fieldsNames,
         Set(12345655, 12345657)
       )
+    }
 
     values.get(12345655, "f1").value shouldEqual "hhh2"
     values.get(12345655, "f2").value shouldEqual "ggg"

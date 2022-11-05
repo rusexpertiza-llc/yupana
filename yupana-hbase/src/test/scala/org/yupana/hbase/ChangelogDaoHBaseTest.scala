@@ -24,7 +24,7 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
 
     val now = OffsetDateTime.now()
 
-    def invalidatedIntervals(table: String) =
+    def invalidatedIntervals(table: String) = {
       baseTimes.map { baseTime =>
         UpdateInterval(
           table,
@@ -34,6 +34,7 @@ trait ChangelogDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matc
           "test"
         )
       }.toSeq
+    }
 
     val from = now.minusDays(1).toInstant.toEpochMilli
     val to = now.plusDays(1).toInstant.toEpochMilli

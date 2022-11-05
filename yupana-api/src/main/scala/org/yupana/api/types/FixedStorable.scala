@@ -53,7 +53,7 @@ object FixedStorable {
     )
   }
 
-  def of[T](s: Int, r: ByteBuffer => T, w: ByteBuffer => T => ByteBuffer): FixedStorable[T] =
+  def of[T](s: Int, r: ByteBuffer => T, w: ByteBuffer => T => ByteBuffer): FixedStorable[T] = {
     new FixedStorable[T] {
       override val size: Int = s
 
@@ -61,6 +61,7 @@ object FixedStorable {
       override def read(a: Array[Byte]): T = read(ByteBuffer.wrap(a))
       override def write(t: T): Array[Byte] = w(ByteBuffer.allocate(size))(t).array()
     }
+  }
 
   def wrap[T, U](storable: FixedStorable[T], from: T => U, to: U => T): FixedStorable[U] = new FixedStorable[U] {
     override val size: Int = storable.size

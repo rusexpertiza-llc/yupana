@@ -74,12 +74,13 @@ object ValueParser {
 
   private def hours[_: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 23))
   private def minutes[_: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 59))
-  private def millis[_: P] =
+  private def millis[_: P] = {
     P(
       digit
         .rep(min = 1, max = 3)
         .map(s => (s.mkString + ("0" * (3 - s.length))).toInt)
     )
+  }
 
   def time[_: P]: P[(Int, Int, Int, Int)] =
     P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
@@ -132,11 +133,11 @@ object ValueParser {
         val p = vs
           .map(p => () => p.parser() ~ p.separator())
           .reduceRight((a, b) => () => P(b() ~ a()).map { case (x, y) => x plus y })
-        Some(() =>
+        Some(() => {
           P("'" ~ p() ~ v.parser() ~ "' " ~ IgnoreCase(vs.last.name) ~ " " ~ toWord ~ " " ~ IgnoreCase(v.name))
             .map { case (x, y) => x plus y }
             .opaque(s"${vs.last.name} TO ${v.name}")
-        )
+        })
 
       case Nil => None
     }

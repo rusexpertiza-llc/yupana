@@ -158,9 +158,10 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
   }
 
   @throws[SQLException]
-  override def setHoldability(holdability: Int): Unit =
+  override def setHoldability(holdability: Int): Unit = {
     if (holdability != ResultSet.HOLD_CURSORS_OVER_COMMIT)
       throw new SQLFeatureNotSupportedException("Unsupported holdability: " + holdability)
+  }
 
   @throws[SQLException]
   override def getHoldability: Int = ResultSet.HOLD_CURSORS_OVER_COMMIT

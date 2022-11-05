@@ -32,7 +32,7 @@ trait TsdbMocks extends MockFactory {
     val tsdbDaoMock = mock[TSTestDao]
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
-      .onCall((c: Condition) =>
+      .onCall((c: Condition) => {
         c match {
           case EqTime(_: TimeExpr.type, ConstantExpr(_, _))                  => true
           case EqTime(ConstantExpr(_, _), _: TimeExpr.type)                  => true
@@ -64,7 +64,7 @@ trait TsdbMocks extends MockFactory {
           case NotInString(LowerExpr(_: DimensionExpr[_]), _)                => true
           case _                                                             => false
         }
-      )
+      })
       .anyNumberOfTimes()
 
     (tsdbDaoMock.mapReduceEngine _)
@@ -75,7 +75,7 @@ trait TsdbMocks extends MockFactory {
     val dictionaryDaoMock = mock[DictionaryDao]
     val changelogDaoMock = mock[ChangelogDao]
     val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
-    val tsdb =
+    val tsdb = {
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
@@ -85,6 +85,7 @@ trait TsdbMocks extends MockFactory {
         SimpleTsdbConfig(),
         { _: Query => NoMetricCollector }
       )
+    }
     body(tsdb, tsdbDaoMock)
   }
 

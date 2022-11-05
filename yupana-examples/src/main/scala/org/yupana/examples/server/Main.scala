@@ -62,11 +62,11 @@ object Main extends StrictLogging {
     val schema = ExampleSchema.schema
     val jsonLinks = Option(config.properties.getProperty("yupana.json-catalogs-declaration"))
     val schemaWithJson = jsonLinks
-      .map(json =>
+      .map(json => {
         JsonExternalLinkDeclarationsParser
           .parse(schema, json)
           .map(configs => JsonCatalogs.attachLinksToSchema(schema, configs))
-      )
+      })
       .getOrElse(Right(schema))
       .fold(msg => throw new RuntimeException(s"Cannot register JSON catalogs: $msg"), identity)
 
@@ -93,10 +93,11 @@ object Main extends StrictLogging {
       )
     }
 
-    val tsdb =
+    val tsdb = {
       TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(
         metricCreator
       )
+    }
 
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),

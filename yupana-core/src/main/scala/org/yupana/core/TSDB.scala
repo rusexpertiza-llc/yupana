@@ -60,9 +60,10 @@ class TSDB(
     } else throw new IllegalAccessException("Put is disabled")
   }
 
-  override def createMetricCollector(query: Query): MetricQueryCollector =
+  override def createMetricCollector(query: Query): MetricQueryCollector = {
     if (config.collectMetrics) metricCollectorCreator(query)
     else NoMetricCollector
+  }
 
   override def finalizeQuery(
       queryContext: QueryContext,

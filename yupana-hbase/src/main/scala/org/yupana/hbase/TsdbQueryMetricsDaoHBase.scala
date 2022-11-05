@@ -188,7 +188,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val h = metrics.head
 
     if (metrics.size > 1) {
-      val merged =
+      val merged = {
         metrics.tail.foldLeft(
           Info(h.startDate, h.startDate.plusNanos(h.totalDuration.toInt), h.state, h.metrics)
         ) { (i, m) =>
@@ -200,6 +200,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
             metrics = mergeMetrics(i.metrics, m.metrics)
           )
         }
+      }
 
       val duration = Duration.between(merged.startTime, merged.stopTime).toNanos
       val ms = merged.metrics.map {

@@ -442,13 +442,13 @@ object HBaseUtils extends StrictLogging {
 
   private def createTable(table: Table, tableName: TableName, maxRegions: Int, admin: Admin): Unit = {
     val fieldGroups = table.metrics.map(_.group).toSet
-    val families = fieldGroups map (group =>
+    val families = fieldGroups map (group => {
       ColumnFamilyDescriptorBuilder
         .newBuilder(family(group))
         .setDataBlockEncoding(DataBlockEncoding.PREFIX)
         .setCompactionCompressionType(Algorithm.SNAPPY)
         .build()
-    )
+    })
     val desc = TableDescriptorBuilder
       .newBuilder(tableName)
       .setColumnFamilies(families.asJavaCollection)
@@ -469,7 +469,7 @@ object HBaseUtils extends StrictLogging {
     )
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit =
+  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit = {
     Using.resource(connection.getAdmin) { admin =>
       val name = tableName(namespace, table)
 
@@ -477,6 +477,7 @@ object HBaseUtils extends StrictLogging {
         createTable(table, name, maxRegions, admin)
       }
     }
+  }
 
   def getFirstKey(connection: Connection, tableName: TableName): Array[Byte] = {
     getFirstOrLastKey(connection, tableName, first = true)

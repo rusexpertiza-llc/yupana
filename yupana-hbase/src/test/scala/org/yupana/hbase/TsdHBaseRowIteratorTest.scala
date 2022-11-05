@@ -35,12 +35,13 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
 
   val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
-  val internalQuery =
+  val internalQuery = {
     InternalQuery(
       TestSchema.testTable,
       exprs.map(_.expr).toSet,
       and(ge(time, const(Time(from))), lt(time, const(Time(to))))
     )
+  }
   val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)
 
   it should "iterate on one hbase row and one DataPoint" in {

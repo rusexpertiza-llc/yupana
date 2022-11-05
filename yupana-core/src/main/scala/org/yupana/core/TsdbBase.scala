@@ -198,11 +198,11 @@ trait TsdbBase extends StrictLogging {
       val r = mr.aggregateByKey[KeyData, InternalRow, InternalRow](keysAndValuesWinFunc)(
         r => queryContext.calculator.evaluateZero(schema.tokenizer, r),
         (a, r) => queryContext.calculator.evaluateSequence(schema.tokenizer, a, r),
-        (a, b) =>
+        (a, b) => {
           metricCollector.reduceOperation.measure(1) {
             queryContext.calculator.evaluateCombine(schema.tokenizer, a, b)
           }
-      )
+        })
 
       mr.batchFlatMap(r, extractBatchSize) { batch =>
         metricCollector.reduceOperation.measure(batch.size) {
@@ -267,11 +267,11 @@ trait TsdbBase extends StrictLogging {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val transformations = linkServices.flatMap(service =>
+    val transformations = linkServices.flatMap(service => {
       metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
         service.transformCondition(condition)
       }
-    )
+    })
 
     if (transformations.nonEmpty) {
       val tbc = TimeBoundedCondition.single(constantCalculator, condition)
