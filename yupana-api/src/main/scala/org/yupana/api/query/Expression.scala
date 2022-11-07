@@ -203,9 +203,9 @@ final case class AbsExpr[N](expr: Expression[N])(implicit val num: Numeric[N])
   override val dataType: DataType.Aux[N] = expr.dataType
 }
 
-final case class NotExpr(expr: Expression[Boolean]) extends UnaryOperationExpr[Boolean, Boolean](expr, "not") {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+final case class NotExpr(expr: Expression[Boolean])
+    extends UnaryOperationExpr[Boolean, Boolean](expr, "not")
+    with SimpleCondition
 
 final case class LengthExpr(expr: Expression[String]) extends UnaryOperationExpr[String, Int](expr, "length") {
   override val dataType: DataType.Aux[Int] = DataType[Int]
@@ -295,13 +295,13 @@ final case class TruncSecondExpr(expr: Expression[Time]) extends UnaryOperationE
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
-final case class IsNullExpr[T](expr: Expression[T]) extends UnaryOperationExpr[T, Boolean](expr, "isNull") {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+final case class IsNullExpr[T](expr: Expression[T])
+    extends UnaryOperationExpr[T, Boolean](expr, "isNull")
+    with SimpleCondition
 
-final case class IsNotNullExpr[T](expr: Expression[T]) extends UnaryOperationExpr[T, Boolean](expr, "isNotNull") {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+final case class IsNotNullExpr[T](expr: Expression[T])
+    extends UnaryOperationExpr[T, Boolean](expr, "isNotNull")
+    with SimpleCondition
 
 final case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression[T]) extends Expression[U] {
   override val dataType: DataType.Aux[U] = tc.dataType
@@ -330,39 +330,49 @@ sealed abstract class BinaryOperationExpr[T, U, Out](
   override val kind: ExprKind = ExprKind.combine(a.kind, b.kind)
 }
 
-final case class EqExpr[T](override val a: Expression[T], override val b: Expression[T])
-    extends BinaryOperationExpr[T, T, Boolean](a, b, "=", true) {
+sealed trait SimpleCondition extends Expression[Boolean] {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-final case class NeqExpr[T](override val a: Expression[T], override val b: Expression[T])
-    extends BinaryOperationExpr[T, T, Boolean](a, b, "<>", true) {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+case object TrueExpr extends SimpleCondition {
+  override val kind: ExprKind = Simple
+  override def encode: String = "true"
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
+
+case object FalseExpr extends SimpleCondition {
+  override val kind: ExprKind = Simple
+  override def encode: String = "false"
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
+}
+
+final case class EqExpr[T](override val a: Expression[T], override val b: Expression[T])
+    extends BinaryOperationExpr[T, T, Boolean](a, b, "=", true)
+    with SimpleCondition
+
+final case class NeqExpr[T](override val a: Expression[T], override val b: Expression[T])
+    extends BinaryOperationExpr[T, T, Boolean](a, b, "<>", true)
+    with SimpleCondition
 
 final case class LtExpr[T](override val a: Expression[T], override val b: Expression[T])(
     implicit val ordering: Ordering[T]
-) extends BinaryOperationExpr[T, T, Boolean](a, b, "<", true) {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+) extends BinaryOperationExpr[T, T, Boolean](a, b, "<", true)
+    with SimpleCondition
 
 final case class GtExpr[T](override val a: Expression[T], override val b: Expression[T])(
     implicit val ordering: Ordering[T]
-) extends BinaryOperationExpr[T, T, Boolean](a, b, ">", true) {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+) extends BinaryOperationExpr[T, T, Boolean](a, b, ">", true)
+    with SimpleCondition
 
 final case class LeExpr[T](override val a: Expression[T], override val b: Expression[T])(
     implicit val ordering: Ordering[T]
-) extends BinaryOperationExpr[T, T, Boolean](a, b, "<=", true) {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+) extends BinaryOperationExpr[T, T, Boolean](a, b, "<=", true)
+    with SimpleCondition
 
 final case class GeExpr[T](override val a: Expression[T], override val b: Expression[T])(
     implicit val ordering: Ordering[T]
-) extends BinaryOperationExpr[T, T, Boolean](a, b, ">=", true) {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-}
+) extends BinaryOperationExpr[T, T, Boolean](a, b, ">=", true)
+    with SimpleCondition
 
 final case class PlusExpr[N](override val a: Expression[N], override val b: Expression[N])(
     implicit val numeric: Numeric[N]
@@ -487,9 +497,7 @@ final case class ConditionExpr[T](
   override def encode: String = s"if(${condition.encode},${positive.encode},${negative.encode}"
 }
 
-final case class InExpr[T](expr: Expression[T], values: Set[T]) extends Expression[Boolean] {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
-
+final case class InExpr[T](expr: Expression[T], values: Set[T]) extends Expression[Boolean] with SimpleCondition {
   override val kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
@@ -499,8 +507,7 @@ final case class InExpr[T](expr: Expression[T], values: Set[T]) extends Expressi
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " IN (", ", ", ")")
 }
 
-final case class NotInExpr[T](expr: Expression[T], values: Set[T]) extends Expression[Boolean] {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+final case class NotInExpr[T](expr: Expression[T], values: Set[T]) extends Expression[Boolean] with SimpleCondition {
   override val kind: ExprKind = expr.kind
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
@@ -511,8 +518,8 @@ final case class NotInExpr[T](expr: Expression[T], values: Set[T]) extends Expre
 }
 
 final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean] {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+    extends Expression[Boolean]
+    with SimpleCondition {
   override val kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
@@ -522,8 +529,8 @@ final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetI
 }
 
 final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean] {
-  override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
+    extends Expression[Boolean]
+    with SimpleCondition {
   override val kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)

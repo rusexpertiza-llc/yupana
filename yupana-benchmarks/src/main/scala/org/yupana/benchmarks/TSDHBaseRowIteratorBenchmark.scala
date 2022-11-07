@@ -20,10 +20,12 @@ import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core._
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase.{ HBaseTestUtils, InternalQueryContext, TSDHBaseRowIterator }
+import org.yupana.utils.RussianTokenizer
+
 import java.time.{ LocalDateTime, ZoneOffset }
 
 class TSDHBaseRowIteratorBenchmark {
@@ -78,6 +80,8 @@ class TSDHBaseRowBencmarkState {
   )
 
   val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
+
+  implicit val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 
   val internalQuery =
     InternalQuery(

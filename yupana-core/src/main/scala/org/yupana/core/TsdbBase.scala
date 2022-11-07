@@ -19,12 +19,12 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, ExternalLink, Schema }
+import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ ChangelogDao, DictionaryProvider, TSDao }
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.utils.{ ConditionUtils, TimeBoundedCondition }
+import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -48,8 +48,6 @@ trait TsdbBase extends StrictLogging {
   def mapReduceEngine(metricCollector: MetricQueryCollector): MapReducible[Collection] =
     dao.mapReduceEngine(metricCollector)
 
-  def dictionaryProvider: DictionaryProvider
-
   def schema: Schema
 
   def calculatorFactory: ExpressionCalculatorFactory
@@ -61,8 +59,6 @@ trait TsdbBase extends StrictLogging {
 
   /** Batch size for writing values to external links */
   val putBatchSize: Int
-
-  def dictionary(dimension: DictionaryDimension): Dictionary = dictionaryProvider.dictionary(dimension)
 
   def registerExternalLink(catalog: ExternalLink, catalogService: ExternalLinkService[_ <: ExternalLink]): Unit
 
@@ -114,40 +110,53 @@ trait TsdbBase extends StrictLogging {
 
     metricCollector.start()
 
-    val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
-    logger.debug(s"Substituted condition: $substitutedCondition")
-
-    val condition = substitutedCondition
-      .map(c => ConditionUtils.split(c)(dao.isSupportedCondition)._2)
-      .filterNot(_ == ConstantExpr(true))
-
-    logger.debug(s"Final condition: $condition")
-
-    val queryContext =
-      metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, condition, calculatorFactory))
-
-    val rows = queryContext.query.table match {
+    val (rows, queryContext) = query.table match {
       case Some(table) =>
-        val daoExprs = queryContext.exprsIndex.keys.collect {
+        val substitutedCondition = optimizedQuery.filter.map(c => substituteLinks(c, metricCollector))
+        logger.debug(s"Substituted condition: $substitutedCondition")
+
+        val conditions = substitutedCondition
+          .map(cs =>
+            cs.flatMap { tbc =>
+              val daoConditions =
+                tbc.conditions.filter(c => c != ConstantExpr(true) && !dao.isSupportedCondition(c))
+              if (daoConditions.nonEmpty) Some(tbc.copy(conditions = daoConditions)) else None
+            }
+          )
+          .filter(_.nonEmpty)
+
+        val condition = conditions.map { cs =>
+          if (cs.size == 1) cs.head.toCondition else OrExpr(cs.map(_.toCondition))
+        }
+        logger.debug(s"Final condition: $condition")
+
+        val qc =
+          metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, condition, calculatorFactory))
+
+        val daoExprs = qc.exprsIndex.keys.collect {
           case e: DimensionExpr[_] => e
           case e: DimensionIdExpr  => e
           case e: MetricExpr[_]    => e
           case TimeExpr            => TimeExpr
         }
 
-        substitutedCondition match {
+        val r = substitutedCondition match {
           case Some(c) =>
-            val internalQuery = InternalQuery(table, daoExprs.toSet, c, query.hints)
-            dao.query(internalQuery, new InternalRowBuilder(queryContext), metricCollector)
+            val internalQuery = InternalQuery(table, daoExprs.toSet[Expression[_]], c, query.hints)
+            dao.query(internalQuery, new InternalRowBuilder(qc), metricCollector)
 
           case None =>
             val th = new IllegalArgumentException("Empty condition")
             metricCollector.queryStatus.set(Failed(th))
             throw th
         }
+
+        r -> qc
       case None =>
-        val rb = new InternalRowBuilder(queryContext)
-        mr.singleton(rb.buildAndReset())
+        val qc =
+          metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, query.filter, calculatorFactory))
+        val rb = new InternalRowBuilder(qc)
+        mr.singleton(rb.buildAndReset()) -> qc
     }
 
     processRows(queryContext, metricCollector, mr, rows)
@@ -262,26 +271,28 @@ trait TsdbBase extends StrictLogging {
     rows
   }
 
-  def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Condition = {
+  def substituteLinks(condition: Condition, metricCollector: MetricQueryCollector): Seq[FlatAndCondition] = {
     val linkServices = condition.flatten.collect {
       case LinkExpr(c, _) => linkService(c)
     }
 
-    val transformations = linkServices.flatMap(service =>
-      metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-        service.transformCondition(condition)
-      }
-    )
+    FlatAndCondition(constantCalculator, condition).map { tbc =>
 
-    if (transformations.nonEmpty) {
-      val tbc = TimeBoundedCondition.single(constantCalculator, condition)
-      val transformed = transformations.foldLeft(tbc) {
-        case (c, transform) =>
-          ConditionUtils.transform(c, transform)
+      val transformations = linkServices.flatMap(service =>
+        metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
+          service.transformCondition(tbc)
+        }
+      )
+
+      if (transformations.nonEmpty) {
+        val transformed = transformations.foldLeft(tbc) {
+          case (c, transform) =>
+            ConditionUtils.transform(c, transform)
+        }
+        transformed
+      } else {
+        tbc
       }
-      transformed.toCondition
-    } else {
-      condition
     }
   }
 

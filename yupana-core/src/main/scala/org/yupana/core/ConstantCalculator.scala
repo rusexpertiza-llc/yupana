@@ -32,6 +32,8 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
     expr match {
       case ConstantExpr(x, _) => x
+      case TrueExpr           => true
+      case FalseExpr          => false
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateConstant(condition)

@@ -95,7 +95,7 @@ abstract class TsdbSparkBase(
     conf
   )
 
-  override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
+  private val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
   override val dao: TSDao[RDD, Long] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
