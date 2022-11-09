@@ -17,7 +17,6 @@
 package org.yupana.core
 
 import org.yupana.core.utils.CollectionUtils
-import scala.collection.compat.IterableOnce
 import scala.reflect.ClassTag
 
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {

@@ -538,7 +538,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        ExprPair.constCast(values(idx), m.dataType).map(v => MetricValue(m, v))
+        val x: Either[String, Any] = ExprPair.constCast(values(idx), m.dataType)
+        x.map(v => MetricValue(m, v))
     }
 
     CollectionUtils.collectErrors(vs.toSeq)

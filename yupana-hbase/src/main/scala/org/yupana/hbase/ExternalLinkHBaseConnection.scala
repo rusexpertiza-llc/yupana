@@ -21,7 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory, Table, TableDescriptor }
 import org.apache.hadoop.hbase.{ HBaseConfiguration, TableExistsException, TableName }
-import org.yupana.api.utils.ResourceUtils.using
+import scala.util.Using
 
 class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) extends StrictLogging {
   protected lazy val connection: Connection = createConnectionAndNamespace
@@ -43,7 +43,7 @@ class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) 
   def clearTable(tableNameString: String): Unit = {
     val tableName = getTableName(tableNameString)
     try {
-      using(connection.getAdmin) { admin =>
+      Using.resource(connection.getAdmin) { admin =>
         if (admin.isTableEnabled(tableName)) {
           admin.disableTable(tableName)
         }
@@ -56,7 +56,7 @@ class ExternalLinkHBaseConnection(val config: Configuration, namespace: String) 
 
   def checkTablesExistsElseCreate(tableDescriptor: TableDescriptor): Unit = {
     try {
-      using(connection.getAdmin) { admin =>
+      Using.resource(connection.getAdmin) { admin =>
         if (!admin.tableExists(tableDescriptor.getTableName)) {
           admin.createTable(tableDescriptor)
         }
