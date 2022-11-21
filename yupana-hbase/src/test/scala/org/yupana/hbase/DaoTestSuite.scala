@@ -1,6 +1,6 @@
 package org.yupana.hbase
 
-import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
+import com.dimafeng.testcontainers.{ ForAllTestContainer, GenericContainer }
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
@@ -18,7 +18,8 @@ class DaoTestSuite
     with DictionaryDaoHBaseTest
     with TsdbQueryMetricsDaoHBaseTest
     with ChangelogDaoHBaseTest
-    with ForAllTestContainer with StrictLogging {
+    with ForAllTestContainer
+    with StrictLogging {
 
   val ImageName = "registry.docker.ofd.nov:5000/hbase-standalone:2.3.4-snappy"
 
