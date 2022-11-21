@@ -147,13 +147,6 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     CacheFactory.flushCaches()
   }
 
-  it should "test" in {
-    val i1 = -1
-    val i2 = 1
-
-    Bytes.compareTo(Bytes.toBytes(i1), Bytes.toBytes(i2)) > 0 shouldEqual java.lang.Long.compareUnsigned(i1, i2) > 0
-  }
-
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))

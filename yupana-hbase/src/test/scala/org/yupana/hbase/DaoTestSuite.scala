@@ -1,8 +1,9 @@
 package org.yupana.hbase
 
+import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
-import org.scalatest.BeforeAndAfterAll
+import org.apache.hadoop.hbase.HBaseConfiguration
 import org.scalatest.flatspec.AnyFlatSpec
 
 trait HBaseTestBase {
@@ -17,25 +18,23 @@ class DaoTestSuite
     with DictionaryDaoHBaseTest
     with TsdbQueryMetricsDaoHBaseTest
     with ChangelogDaoHBaseTest
-    with BeforeAndAfterAll {
-  private val utility = new HBaseTestingUtility
+    with ForAllTestContainer with StrictLogging {
 
-  override def getConfiguration: Configuration = utility.getConfiguration
+  val ImageName = "registry.docker.ofd.nov:5000/hbase-standalone:2.3.4-snappy"
+
+  val container: GenericContainer = {
+    logger.info("instantiating Hbase Container " + ImageName)
+    val gc = new GenericContainer(ImageName)
+    gc.container.withNetworkMode("host")
+    gc
+  }
+
+  override def getConfiguration: Configuration = {
+    val hBaseConfiguration = HBaseConfiguration.create()
+    hBaseConfiguration.set("hbase.zookeeper.quorum", "localhost")
+    hBaseConfiguration.get("hbase.zookeeper.property.clientPort", "2181")
+    hBaseConfiguration
+  }
 
   override val connection = new ExternalLinkHBaseConnection(getConfiguration, "test")
-
-  override def beforeAll(): Unit = {
-    utility.startMiniCluster(
-      StartMiniClusterOption
-        .builder()
-        .numMasters(1)
-        .numRegionServers(1)
-        .numDataNodes(1)
-        .build()
-    )
-  }
-
-  override protected def afterAll(): Unit = {
-    utility.shutdownMiniCluster()
-  }
 }
