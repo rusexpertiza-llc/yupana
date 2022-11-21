@@ -284,15 +284,7 @@ trait TsdbBase extends StrictLogging {
         }
       )
 
-      if (transformations.nonEmpty) {
-        val transformed = transformations.foldLeft(tbc) {
-          case (c, transform) =>
-            ConditionUtils.transform(c, transform)
-        }
-        transformed
-      } else {
-        tbc
-      }
+      ConditionUtils.transform(tbc, transformations.toSeq)
     }
   }
 
