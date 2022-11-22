@@ -62,8 +62,8 @@ object FlatAndCondition {
     val parts = fromCondition(constantCalculator, Seq.empty, condition)
     val (errs, result) = parts.partitionMap { fac =>
       for {
-        from <- fac.from.toRight(s"FROM is not defined for ${AndExpr(fac.conditions)}")
-        to <- fac.to.toRight(s"TO is not defined for ${AndExpr(fac.conditions)}")
+        from <- fac.from.toRight(s"FROM time is not defined for ${AndExpr(fac.conditions)}")
+        to <- fac.to.toRight(s"TO time is not defined for ${AndExpr(fac.conditions)}")
       } yield FlatAndCondition(from, to, fac.conditions)
     }
 

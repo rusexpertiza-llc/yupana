@@ -61,15 +61,17 @@ object ConditionUtils {
     (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
   }
 
-  def transform(tbc: FlatAndCondition, transform: ConditionTransformation): FlatAndCondition = {
-    transform match {
-      case AddCondition(newCondition) =>
-        if (!tbc.conditions.contains(newCondition))
-          tbc.copy(conditions = newCondition +: tbc.conditions)
-        else tbc
-
-      case RemoveCondition(toRemove) =>
-        tbc.copy(conditions = tbc.conditions.filterNot(_ == toRemove))
+  def transform(fac: FlatAndCondition, transformations: Seq[ConditionTransformation]): FlatAndCondition = {
+    val (adds, removes) = transformations.partitionMap {
+      case a: AddCondition    => Left(a)
+      case r: RemoveCondition => Right(r)
     }
+    val afterRemove = removes.foldLeft(fac)((c, t) => c.copy(conditions = c.conditions.filterNot(_ == t.c)))
+
+    adds.foldLeft(afterRemove)((c, t) =>
+      if (!c.conditions.contains(t.c))
+        c.copy(conditions = t.c +: c.conditions)
+      else c
+    )
   }
 }

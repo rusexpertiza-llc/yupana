@@ -30,6 +30,7 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 
+import java.time.Instant
 import scala.util.Try
 
 object TSDaoHBaseBase {
@@ -74,6 +75,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     val results: Seq[Collection[InternalRow]] = conditionByTime.map {
       case (from, to, c) =>
+        logger.debug(
+          s"Run subquery $c for time >= ${Instant.ofEpochMilli(from)} and time < ${Instant.ofEpochMilli(to)}"
+        )
+
         val filters = metricCollector.createDimensionFilters.measure(1) {
           createFilters(c)
         }
