@@ -1186,6 +1186,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       .replaceAll("\\.\\$bang\\$eq", " != ")
       .replaceAll("\\.\\$eq\\$eq", " == ")
       .replaceAll("\\.\\$amp\\$amp", " && ")
+      .replaceAll("\\.\\$bar\\$bar", " || ")
       .replaceAll("\\.\\$plus\\$plus", " ++ ")
       .replaceAll("\\$plus\\$plus", "++")
       .replaceAll("\\.\\$plus\\$eq", " += ")

@@ -116,17 +116,16 @@ trait TsdbBase extends StrictLogging {
         logger.debug(s"Substituted condition: $substitutedCondition")
 
         val conditions = substitutedCondition
-          .map(cs =>
-            cs.flatMap { tbc =>
-              val daoConditions =
-                tbc.conditions.filter(c => c != ConstantExpr(true) && !dao.isSupportedCondition(c))
-              if (daoConditions.nonEmpty) Some(tbc.copy(conditions = daoConditions)) else None
-            }
-          )
+          .map(_.map { tbc =>
+            val daoConditions =
+              tbc.conditions.filter(c => c != ConstantExpr(true) && !dao.isSupportedCondition(c))
+            tbc.copy(conditions = daoConditions)
+          })
           .filter(_.nonEmpty)
 
         val condition = conditions.map { cs =>
-          if (cs.size == 1) cs.head.toCondition else OrExpr(cs.map(_.toCondition))
+          if (cs.size == 1) QueryOptimizer.simplifyCondition(AndExpr(cs.head.conditions))
+          else OrExpr(cs.map(_.toCondition))
         }
         logger.debug(s"Final condition: $condition")
 
