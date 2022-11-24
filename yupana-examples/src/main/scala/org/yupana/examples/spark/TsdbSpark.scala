@@ -32,7 +32,7 @@ object TsdbSpark {
 
 class TsdbSpark(
     override val dao: TSDao[RDD, Long],
-    val changelogDao: ChangelogDao,
+    @transient val changelogDao: ChangelogDao,
     sparkContext: SparkContext,
     prepareQuery: Query => Query,
     conf: Config,

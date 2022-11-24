@@ -164,30 +164,9 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
-      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-server"                   % versions.hbase          % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase          % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-hdfs"                    % versions.hadoop         % Test,
-      "org.apache.hadoop"           %  "hadoop-hdfs"                    % versions.hadoop         % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop         % Test,
-      "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop         % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-mapreduce-client-core"   % versions.hadoop         % Test,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"            % versions.hbase          % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"           % versions.hbase          % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-zookeeper"                % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-zookeeper"                % versions.hbase          % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-http"                     % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-metrics-api"              % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-metrics"                  % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-asyncfs"                  % versions.hbase          % Test,
-      "org.apache.hbase"            %  "hbase-logging"                  % versions.hbase          % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
-      "junit"                       %  "junit"                          % "4.13"                  % Test,
-      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"              % "2.1.5"                 % Test,
-      "javax.activation"            %  "javax.activation-api"           % "1.2.0"                 % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"               % Test
+
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618

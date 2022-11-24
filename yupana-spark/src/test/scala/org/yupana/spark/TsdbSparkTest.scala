@@ -1,5 +1,6 @@
 package org.yupana.spark
 
+import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
@@ -9,6 +10,7 @@ import org.yupana.core.ExternalLinkService
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.hbase.ChangelogDaoHBase
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
 import java.time.OffsetDateTime
@@ -36,9 +38,13 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
       ): Unit = {}
       override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = ???
 
-      override def changelogDao: ChangelogDao = ???
+      @transient
+      override val changelogDao: ChangelogDao = new ChangelogDaoHBase(
+        ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(config)),
+        config.hbaseNamespace
+      )
 
-      override def externalLinkServices: Iterable[ExternalLinkService[_]] = ???
+      override def externalLinkServices: Iterable[ExternalLinkService[_]] = Nil
     }
 
     val now = OffsetDateTime.now()

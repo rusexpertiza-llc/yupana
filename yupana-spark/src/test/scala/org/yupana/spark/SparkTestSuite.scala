@@ -1,35 +1,28 @@
 package org.yupana.spark
 
-import org.apache.hadoop.hbase.{ HBaseTestingUtility, StartMiniClusterOption }
-import org.scalatest.BeforeAndAfterAll
+import com.dimafeng.testcontainers.{ Container, ForAllTestContainer, GenericContainer }
+import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.flatspec.AnyFlatSpec
 
 trait SparkTestEnv {
   def getZkPort: Int
 }
 
-class SparkTestSuite extends AnyFlatSpec with BeforeAndAfterAll with TsdbSparkTest with DataRowRDDTest {
+class SparkTestSuite
+    extends AnyFlatSpec
+    with TsdbSparkTest
+    with DataRowRDDTest
+    with ForAllTestContainer
+    with StrictLogging {
 
-  private val utility = new HBaseTestingUtility
+  val ImageName = "pikkvile/hbase-2.4.15-standalone:1.0.0"
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-
-    utility.startMiniCluster(
-      StartMiniClusterOption
-        .builder()
-        .numMasters(1)
-        .numRegionServers(1)
-        .numDataNodes(1)
-        .build()
-    )
+  override val container: Container = {
+    logger.info("Instantiating HBase Container " + ImageName)
+    val gc = new GenericContainer(ImageName)
+    gc.container.withNetworkMode("host")
+    gc
   }
 
-  override def afterAll(): Unit = {
-    spark.stop()
-    utility.shutdownMiniCluster()
-    super.afterAll()
-  }
-
-  override def getZkPort: Int = utility.getZkCluster.getClientPort
+  override def getZkPort: Int = 2181
 }
