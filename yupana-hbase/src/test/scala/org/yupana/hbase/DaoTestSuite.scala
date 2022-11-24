@@ -12,7 +12,7 @@ trait HBaseTestBase {
 }
 
 class DaoTestSuite
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with BTreeIndexDaoHBaseTest
     with InvertedIndexDaoHBaseTest
     with DictionaryDaoHBaseTest
