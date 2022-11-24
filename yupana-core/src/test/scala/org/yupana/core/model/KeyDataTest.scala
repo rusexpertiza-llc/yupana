@@ -1,12 +1,12 @@
 package org.yupana.core.model
 
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
+
 import org.yupana.api.Time
 import org.yupana.api.query.{ Query, TimeExpr }
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TestDims, TestSchema, TestTableFields }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import java.time.{ LocalDateTime, ZoneOffset }
 
 class KeyDataTest extends AnyFlatSpec with Matchers {
@@ -28,7 +28,7 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.DIM_A))
     )
-    val context = QueryContext(query, None)
+    val context = new QueryContext(query, None, ExpressionCalculatorFactory)
 
     val builder = new InternalRowBuilder(context)
 
@@ -61,7 +61,7 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
-    val context = QueryContext(query, None)
+    val context = new QueryContext(query, None, ExpressionCalculatorFactory)
 
     val builder = new InternalRowBuilder(context)
 

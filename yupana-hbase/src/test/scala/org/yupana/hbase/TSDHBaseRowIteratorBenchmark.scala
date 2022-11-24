@@ -4,16 +4,19 @@ import org.scalatest.tagobjects.Slow
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core._
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
 class TSDHBaseRowIteratorBenchmark extends AnyFlatSpec with Matchers {
+
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 
   "TSDHBaseRowIterator" should "be fast" taggedAs Slow in {
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
@@ -50,7 +53,7 @@ class TSDHBaseRowIteratorBenchmark extends AnyFlatSpec with Matchers {
       Seq.empty
     )
 
-    val queryContext = QueryContext(query, None)
+    val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
     val internalQuery =
       InternalQuery(

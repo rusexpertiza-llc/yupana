@@ -17,12 +17,13 @@
 package org.yupana.schema
 
 import org.yupana.api.query._
-import org.yupana.api.schema.Rollup
+import org.yupana.api.query.syntax.All.dimension
+import org.yupana.api.schema.TsdbRollup
 
 object ReceiptRollups {
   import org.yupana.schema.ReceiptTableMetrics.ReceiptRollupFields._
 
-  val receiptDayRollup = Rollup(
+  val receiptDayRollup = TsdbRollup(
     name = "receiptByDay",
     filter = None,
     groupBy = Tables.receiptTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
@@ -32,32 +33,30 @@ object ReceiptRollups {
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
-  val receiptDayAllKkmsRollup = Rollup(
+  val receiptDayAllKkmsRollup = TsdbRollup(
     name = "receiptByDayAllKkms",
     filter = None,
     groupBy = Seq.empty,
-    fields = Seq(
-      kkmDistinctCountRollupField
-    ) ++ additionalRollupFieldsFromRollups,
+    fields = summaryRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByDayAllKkmsTable,
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
-  val receiptWeekRollup = Rollup(
+  val receiptWeekRollup = TsdbRollup(
     name = "receiptByWeek",
     filter = None,
-    groupBy = Seq[Expression[_]](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
+    groupBy = Seq(dimension(Dimensions.KKM_ID), dimension(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByWeekTable,
     timeExpr = TruncWeekExpr(TimeExpr)
   )
 
-  val receiptMonthRollup = Rollup(
+  val receiptMonthRollup = TsdbRollup(
     name = "receiptByMonth",
     filter = None,
-    groupBy = Seq[Expression[_]](DimensionExpr(Dimensions.KKM_ID), DimensionExpr(Dimensions.OPERATION_TYPE)),
+    groupBy = Seq(dimension(Dimensions.KKM_ID), dimension(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
     toTable = Tables.receiptByMonthTable,

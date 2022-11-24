@@ -55,4 +55,8 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
       .foldLeft(new Properties) { case (_props, (k, v)) => _props.put(prefix + k, v); _props }
 
   override val reduceLimit: Int = Int.MaxValue
+
+  override val needCheckSchema: Boolean = true
+
+  val minHBaseScanPartitions: Int = sparkConf.getInt("analytics.tsdb.spark.min-hbase-scan-partitions", 50)
 }

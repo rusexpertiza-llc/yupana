@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.api.query
+package org.yupana.spark
 
-import org.yupana.api.query.Expression.Condition
+import org.apache.spark.Partition
 
-sealed trait TransformCondition
-
-case class Replace(in: Set[Condition], out: Condition) extends TransformCondition
-case class Original(in: Set[Condition]) extends TransformCondition
+trait PartitionStorable[P <: Partition] {
+  def asString(p: P): String
+  def fromString(s: String, index: Int): P
+}

@@ -3,15 +3,17 @@ package org.yupana.externallinks
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.yupana.api.Time
-import org.yupana.api.query.{ ConstantExpr, Expression, Original, Replace, TransformCondition }
+import org.yupana.api.query._
 import org.yupana.api.query.Expression.Condition
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.model.InternalRowBuilder
-import org.yupana.core.utils.{ SparseTable, Table }
+import org.yupana.core.utils.{ FlatAndCondition, SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.RussianTokenizer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.time.LocalDateTime
 
 class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory with OptionValues {
 
@@ -20,36 +22,39 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
 
   val calculator = new ConstantCalculator(RussianTokenizer)
 
-  private def transform(condition: Condition): Seq[TransformCondition] = {
-    ExternalLinkUtils
-      .transformConditionT[String](calculator, TestLink.linkName, condition, includeTransform, excludeTransform)
-  }
-
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
-    Replace(
-      values.map(_._1).toSet,
-      and(values.map {
-        case (_, field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
-      }: _*)
+  private def transform(condition: Condition): Seq[ConditionTransformation] = {
+    val t1 = LocalDateTime.now()
+    val t2 = t1.plusDays(1)
+    val c = and(ge(time, const(Time(t1))), lt(time, const(Time(t2))), condition)
+    val tbcs = FlatAndCondition(calculator, c)
+    tbcs.flatMap(tbc =>
+      ExternalLinkUtils.transformConditionT[String](TestLink.linkName, tbc, includeTransform, excludeTransform)
     )
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
-    Replace(
-      values.map(_._1).toSet,
-      and(values.map {
+  private def includeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
+    ConditionTransformation.replace(
+      values.map(_._1),
+      values.map {
+        case (_, field, vs) => in[String](dimension(xDim), vs.map(v => field + "_" + v))
+      }
+    )
+  }
+
+  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
+    ConditionTransformation.replace(
+      values.map(_._1),
+      values.map {
         case (_, field, vs) => notIn(dimension(xDim), vs.map(v => field + "_" + v))
-      }: _*)
+      }
     )
   }
 
   "ExternalLinkUtils" should "support == condition" in {
     val c = equ(lower(link(TestLink, TestLink.field1)), const("foo"))
-    transform(c) shouldEqual Seq(
-      Replace(
-        Set(c),
-        and(in(dimension(xDim), Set("field1_foo")))
-      )
+    transform(c) should contain theSameElementsAs Seq(
+      RemoveCondition(c),
+      AddCondition(in(dimension(xDim), Set("field1_foo")))
     )
   }
 
@@ -62,26 +67,19 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
         c2
       )
     )
-    conditions shouldEqual Seq(
-      Replace(
-        Set(c1, c2),
-        and(
-          in(dimension(xDim), Set("field2_bar")),
-          in(dimension(xDim), Set("field3_aaa", "field3_bbb"))
-        )
-      )
+    conditions should contain theSameElementsAs Seq(
+      RemoveCondition(c1),
+      RemoveCondition(c2),
+      AddCondition(in(dimension(xDim), Set("field3_aaa", "field3_bbb"))),
+      AddCondition(in(dimension(xDim), Set("field2_bar")))
     )
   }
 
   it should "support != condition" in {
     val c = neq(lower(link(TestLink, TestLink.field1)), const("foo"))
-    transform(c) shouldEqual Seq(
-      Replace(
-        Set(c),
-        and(
-          notIn(dimension(xDim), Set("field1_foo"))
-        )
-      )
+    transform(c) should contain theSameElementsAs Seq(
+      RemoveCondition(c),
+      AddCondition(notIn(dimension(xDim), Set("field1_foo")))
     )
   }
 
@@ -93,14 +91,9 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       )
     )
 
-    conditions shouldEqual Seq(
-      Replace(
-        Set(notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))),
-        and(notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")))
-      ),
-      Original(
-        Set(in(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD), Set("12345", "67890")))
-      )
+    conditions should contain theSameElementsAs Seq(
+      RemoveCondition(notIn(lower(link(TestLink, TestLink.field1)), Set("aaa", "bbb"))),
+      AddCondition(notIn(dimension(xDim), Set("field1_aaa", "field1_bbb")))
     )
   }
 

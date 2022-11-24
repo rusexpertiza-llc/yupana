@@ -23,7 +23,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
     val res = metadataProvider.listTables
     res.fieldNames should contain theSameElementsAs metadataProvider.tableFieldNames
     res.dataTypes should contain only DataType[String]
-    val r = res.iterator.next()
+    val r = res.next()
     val cols = metadataProvider.tableFieldNames.map(r.get[String])
     cols should contain theSameElementsInOrderAs Seq(
       null,
@@ -37,7 +37,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   it should "describe table by name" in {
     val res = metadataProvider.describeTable("s1").value
     res.fieldNames should contain theSameElementsAs metadataProvider.columnFieldNames
-    val r = res.iterator.toList
+    val r = res.toList
     r should have size 6
 
     val timeColDescription = r.find(_.get[String]("COLUMN_NAME").contains("time")).value
@@ -96,6 +96,7 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
       "min",
       "sum",
       "abs",
+      "avg",
       "-"
     )
 

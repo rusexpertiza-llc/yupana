@@ -28,7 +28,7 @@ import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class SqlQueryProcessor(schema: Schema) extends QueryValidator {
+class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable {
 
   import SqlQueryProcessor._
 
@@ -358,30 +358,31 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
   private def convertValue(
       state: BuilderState,
       v: parser.Value,
-      exprType: ExprType
+      exprType: ExprType,
+      prepared: Boolean = false
   ): Either[String, ConstantExpr[_]] = {
     v match {
       case parser.StringValue(s) =>
         val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
-        Right(ConstantExpr(const))
+        Right(ConstantExpr(const, prepared))
 
       case parser.NumericValue(n) =>
-        Right(ConstantExpr(n))
+        Right(ConstantExpr(n, prepared))
 
       case parser.TimestampValue(t) =>
-        Right(ConstantExpr(Time(t)))
+        Right(ConstantExpr(Time(t), prepared))
 
       case parser.PeriodValue(p) if exprType == ExprType.Cmp =>
         if (p.getPeriod.getYears == 0 && p.getPeriod.getMonths == 0) {
-          Right(ConstantExpr(p.getDuration.plusDays(p.getPeriod.getDays).toMillis))
+          Right(ConstantExpr(p.getDuration.plusDays(p.getPeriod.getDays).toMillis, prepared))
         } else {
           Left(s"Period $p cannot be used as duration, because it has months or years")
         }
 
-      case parser.PeriodValue(p) => Right(ConstantExpr(p))
+      case parser.PeriodValue(p) => Right(ConstantExpr(p, prepared))
 
-      case parser.Placeholder =>
-        state.nextPlaceholderValue().flatMap(v => convertValue(state, v, exprType))
+      case parser.Placeholder(id) =>
+        state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))
     }
   }
 
@@ -537,7 +538,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator {
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        ExprPair.constCast(values(idx), m.dataType).map(v => MetricValue(m, v))
+        val x: Either[String, Any] = ExprPair.constCast(values(idx), m.dataType)
+        x.map(v => MetricValue(m, v))
     }
 
     CollectionUtils.collectErrors(vs.toSeq)
@@ -555,7 +557,6 @@ object SqlQueryProcessor {
 
   class BuilderState(parameters: Map[Int, parser.Value]) {
     private var fieldNames = Map.empty[String, Int]
-    private var nextPlaceholder = 1
 
     val queryStartTime: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC)
 
@@ -572,10 +573,8 @@ object SqlQueryProcessor {
       }
     }
 
-    def nextPlaceholderValue(): Either[String, parser.Value] = {
-      val result = parameters.get(nextPlaceholder).toRight(s"Value for placeholder #$nextPlaceholder is not defined")
-      nextPlaceholder += 1
-      result
+    def placeholderValue(id: Int): Either[String, parser.Value] = {
+      parameters.get(id).toRight(s"Value for placeholder #$id is not defined")
     }
   }
 }

@@ -24,6 +24,7 @@ object NoMetricCollector extends MetricQueryCollector {
   override val createDimensionFilters: Metric = NoMetric
   override val createScans: Metric = NoMetric
   override val scan: Metric = NoMetric
+  override val createContext: Metric = NoMetric
   override val readExternalLinks: Metric = NoMetric
   override val extractDataComputation: Metric = NoMetric
   override val filterRows: Metric = NoMetric

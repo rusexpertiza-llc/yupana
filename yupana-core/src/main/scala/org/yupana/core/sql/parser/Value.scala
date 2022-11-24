@@ -24,7 +24,7 @@ sealed trait Value {
   def asString: String
 }
 
-case object Placeholder extends Value {
+case class Placeholder(id: Int) extends Value {
   override def asString: String = throw new IllegalStateException("asString called on Placeholder")
 }
 

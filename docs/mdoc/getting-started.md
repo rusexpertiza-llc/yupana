@@ -20,7 +20,7 @@ title: Быстрый старт
  - compile -- компиляция проекта
  - test -- запуск юнит-тестов
  - assembly -- сборка толстых jar-ов, применяется в yupana-jdbc и yupana-examples
-
+ - docs/docusaurusCreateSite -- генерация документации (локальный запуск вебсервера документации из bash консоли: `cd website/; yarn start;`)
 
 ## Подготовка окружения
 1. Установить hbase @HBASE_VERSION@.x

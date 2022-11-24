@@ -20,25 +20,38 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 
+trait Rollup {
+  val name: String
+  val timeExpr: Expression[Time]
+  val fromTable: Table
+  val toTable: Table
+  val filter: Option[Condition]
+
+  def withFromTable(table: Table): Rollup
+  def withToTable(table: Table): Rollup
+  def withName(newName: String): Rollup
+}
+
 /**
   * Definition of persistent rollup
   * @param name name of this rollup to be displayed
+  * @param timeExpr time expression to group values
+  * @param toTable table to write data
+  * @param fromTable table to read data
+  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
   * @param filter condition to gather data
   * @param groupBy expressions to group by data
-  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
-  * @param timeExpr time expression to group values
-  * @param fromTable table to read data
-  * @param toTable table to write data
   */
-case class Rollup(
-    name: String,
-    filter: Option[Condition],
-    groupBy: Seq[Expression[_]],
+case class TsdbRollup(
+    override val name: String,
+    override val timeExpr: Expression[Time],
+    override val fromTable: Table,
+    override val toTable: Table,
+    override val filter: Option[Condition],
     fields: Seq[QueryFieldProjection],
-    timeExpr: Expression[Time],
-    fromTable: Table,
-    toTable: Table
-) extends Serializable {
+    groupBy: Seq[Expression[_]]
+) extends Rollup
+    with Serializable {
 
   lazy val timeField: QueryField = timeExpr as Table.TIME_FIELD_NAME
   lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields
@@ -61,4 +74,10 @@ case class Rollup(
   def getResultFieldForMeasureName(fieldName: String): String = {
     fieldNamesMap.getOrElse(fieldName, throw new Exception(s"Can't find result field for field name: $fieldName"))
   }
+
+  override def withFromTable(table: Table) = copy(fromTable = table)
+
+  override def withToTable(table: Table) = copy(toTable = table)
+
+  override def withName(newName: String) = copy(name = newName)
 }

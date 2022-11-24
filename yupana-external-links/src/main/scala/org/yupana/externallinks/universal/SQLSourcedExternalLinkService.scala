@@ -18,13 +18,13 @@ package org.yupana.externallinks.universal
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, LinkExpr, Replace, TransformCondition }
+import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
 import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.utils.{ SparseTable, Table }
+import org.yupana.core.utils.{ FlatAndCondition, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
 import org.yupana.schema.externallinks.ExternalLinks._
@@ -57,7 +57,7 @@ class SQLSourcedExternalLinkService[DimensionValue](
       exprs: Set[LinkExpr[_]]
   ): Unit = {
     ExternalLinkUtils.setLinkedValues(
-      externalLink.asInstanceOf[ExternalLink.Aux[externalLink.dimension.T]],
+      externalLink,
       exprIndex,
       rows,
       exprs,
@@ -65,9 +65,8 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](
-      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,
@@ -75,37 +74,37 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+  private def includeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
     val dimValues = dimValuesForFieldsValues(values, "AND").filter(x => x != null)
     if (externalLink.dimension.dataType == DataType[String]) {
-      Replace(
-        values.map(_._1).toSet,
+      ConditionTransformation.replace(
+        values.map(_._1).distinct,
         in(
           lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
           dimValues.asInstanceOf[Set[String]]
         )
       )
     } else {
-      Replace(
-        values.map(_._1).toSet,
+      ConditionTransformation.replace(
+        values.map(_._1).distinct,
         in(dimension(externalLink.dimension.aux), dimValues)
       )
     }
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
     val dimValues = dimValuesForFieldsValues(values, "OR").filter(x => x != null)
     if (externalLink.dimension.dataType == DataType[String]) {
-      Replace(
-        values.map(_._1).toSet,
+      ConditionTransformation.replace(
+        values.map(_._1).distinct,
         notIn(
           lower(dimension(externalLink.dimension.asInstanceOf[Dimension.Aux[String]])),
           dimValues.asInstanceOf[Set[String]]
         )
       )
     } else {
-      Replace(
-        values.map(_._1).toSet,
+      ConditionTransformation.replace(
+        values.map(_._1).distinct,
         notIn(dimension(externalLink.dimension.aux), dimValues)
       )
     }

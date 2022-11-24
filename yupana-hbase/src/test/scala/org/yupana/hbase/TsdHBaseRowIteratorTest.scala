@@ -2,17 +2,20 @@ package org.yupana.hbase
 
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core._
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, time }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.utils.RussianTokenizer
 
 class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
 
   val from = 100
   val to = 101
+
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 
   val exprs = Seq(
     time as "time_time",
@@ -33,7 +36,7 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
     Seq.empty
   )
 
-  val queryContext = QueryContext(query, None)
+  val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
   val internalQuery =
     InternalQuery(

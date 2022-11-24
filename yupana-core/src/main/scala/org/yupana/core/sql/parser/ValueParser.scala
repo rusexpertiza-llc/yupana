@@ -23,6 +23,8 @@ import org.threeten.extra.PeriodDuration
 import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
 object ValueParser {
+  private val PLACEHOLDER_ID = "PLACEHOLDER_ID"
+
   private def wsp[_: P] = P(CharsWhileIn(" \t", 0))
 
   private def timestampWord[_: P] = P(IgnoreCase("TIMESTAMP"))
@@ -31,7 +33,17 @@ object ValueParser {
 
   private def toWord[_: P] = P(IgnoreCase("TO"))
 
-  def placeholder[_: P]: P[Placeholder.type] = P("?").map(_ => Placeholder)
+  def placeholder[_: P]: P[Placeholder] = {
+    val p = P("?")
+    val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
+
+    if (p.isSuccess) {
+      p.misc.put(PLACEHOLDER_ID, idx + 1)
+      p.freshSuccess(Placeholder(idx))
+    } else {
+      p.freshFailure()
+    }
+  }
 
   private def digit[_: P] = P(CharIn("0-9").!)
 
@@ -44,7 +56,12 @@ object ValueParser {
   }
 
   private def stringCharacter[_: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
-  private def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\").!)
+  def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\nrt").!).map {
+    case "n" => "\n"
+    case "r" => "\r"
+    case "t" => "\t"
+    case x   => x
+  }
 
   def string[_: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
   def boolean[_: P]: P[Boolean] = string.map(_.toBoolean)

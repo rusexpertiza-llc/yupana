@@ -18,9 +18,7 @@ package org.yupana.api.query
 
 import org.yupana.api.types.DataType
 
-import scala.collection.immutable
-
-trait Result extends immutable.Iterable[DataRow] {
+trait Result extends Iterator[DataRow] {
 
   def name: String
 
@@ -30,10 +28,8 @@ trait Result extends immutable.Iterable[DataRow] {
   def dataIndexForFieldIndex(idx: Int): Int
   def rows: Iterator[Array[Any]]
 
-  override def iterator: Iterator[DataRow] =
-    rows.map(r => new DataRow(r, dataIndexForFieldName, dataIndexForFieldIndex))
-
-  override def size: Int = rows.size
+  override def hasNext: Boolean = rows.hasNext
+  override def next(): DataRow = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
 }
 
 object Result {

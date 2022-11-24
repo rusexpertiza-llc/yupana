@@ -1,16 +1,16 @@
 package org.yupana.spark
 
 import java.sql.Timestamp
+
 import org.apache.spark.sql.types._
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.types.DataTypeMeta
-import org.yupana.core.QueryContext
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.model.InternalRowBuilder
-
 import java.time.{ LocalDateTime, ZoneOffset }
 
 trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSession {
@@ -29,7 +29,7 @@ trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSessi
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = QueryContext(query, None)
+    val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
     val builder = new InternalRowBuilder(queryContext)
 

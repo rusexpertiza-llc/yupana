@@ -14,9 +14,13 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.spark
 
-package object compat {
-  type LazyList[+T] = scala.collection.immutable.Stream[T]
-  val LazyList = scala.collection.immutable.Stream
+import org.apache.spark.Partition
+
+trait ProgressSaver[P <: Partition] {
+  def writePartitions(ps: Seq[P]): Unit
+  def writeProgress(p: P): Unit
+
+  def readPartitions: Seq[P]
 }

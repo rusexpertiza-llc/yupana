@@ -11,14 +11,14 @@ title: UPSERT
 
 При вставке данных необходимо заполнить данные всех размерностей, время и необходимые измерения.
 
-```SQL
+```sql
 UPSERT INTO kkm_items(kkmId, item, operation_type, position, time, sum, quantity)
    VALUES ('12345', 'Пряник тульский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 100, 1)
 ```
 
 Можно добавлять одновременно несколько значений:
 
-```SQL
+```sql
 UPSERT INTO kkm_items(kkmId, item, operation_type, position, time, sum, quantity) VALUES
    ('12345', 'Пряник тульский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 300, 5),
    ('12345', 'Чай индийский', '1', '1', TIMESTAMP '2020-01-10 16:02:30', 100, 1)

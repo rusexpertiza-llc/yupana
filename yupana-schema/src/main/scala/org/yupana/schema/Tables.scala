@@ -100,53 +100,8 @@ object Tables {
     name = "receipt_by_day_all_kkms",
     rowTimeSpan = 86400000L * 30,
     dimensionSeq = Seq.empty,
-    metrics = kkmDistinctCountField +: rollupFields,
-    externalLinks = receiptExternalLinks,
-    epochTime
-  )
-
-  val itemByDayTable = new Table(
-    name = "item_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemByWeekTable = new Table(
-    name = "item_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemByMonthTable = new Table(
-    name = "item_by_month",
-    rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemKkmsByDayTable = new Table(
-    name = "item_kkms_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val itemKkmsByWeekTable = new Table(
-    name = "item_kkms_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
+    metrics = summaryFields ++ rollupFields,
+    externalLinks = Seq.empty,
     epochTime
   )
 
@@ -154,33 +109,6 @@ object Tables {
     name = "item_kkms_by_month",
     rowTimeSpan = 86400000L * 30 * 12,
     dimensionSeq = Seq(Dimensions.ITEM, Dimensions.KKM_ID, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByDayTable = new Table(
-    name = "kkms_item_by_day",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByWeekTable = new Table(
-    name = "kkms_item_by_week",
-    rowTimeSpan = 86400000L * 30,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
-    metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
-    externalLinks = itemRollupsExternalLinks,
-    epochTime
-  )
-
-  val kkmsItemByMonthTable = new Table(
-    name = "kkms_item_by_month",
-    rowTimeSpan = 86400000L * 30 * 12,
-    dimensionSeq = Seq(Dimensions.KKM_ID, Dimensions.ITEM, Dimensions.OPERATION_TYPE),
     metrics = Seq(ItemTableMetrics.sumField, ItemTableMetrics.quantityField, ItemTableMetrics.itemCountField),
     externalLinks = itemRollupsExternalLinks,
     epochTime

@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.core.utils
 
-package object compat {
-  type LazyList[+T] = scala.collection.immutable.LazyList[T]
-  val LazyList = scala.collection.immutable.LazyList
+import com.twitter.algebird.Hash128
+import org.yupana.api.Time
+
+object Hash128Utils {
+  implicit lazy val timeHash: Hash128[Time] = Hash128.longHash.contramap(_.millis)
 }

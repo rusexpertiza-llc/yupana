@@ -27,7 +27,9 @@ object ExpressionUtils {
   def transform[T](t: Transformer)(expr: Expression[T]): Expression[T] = {
     t(expr).getOrElse(expr match {
       case TimeExpr             => expr
-      case ConstantExpr(_)      => expr
+      case ConstantExpr(_, _)   => expr
+      case TrueExpr             => expr
+      case FalseExpr            => expr
       case LinkExpr(_, _)       => expr
       case MetricExpr(_)        => expr
       case DimensionExpr(_)     => expr
@@ -99,12 +101,14 @@ object ExpressionUtils {
 
       case ConditionExpr(c, p, n) => ConditionExpr(transform(t)(c), transform(t)(p), transform(t)(n))
 
-      case s @ SumExpr(e)        => SumExpr(transform(t)(e))(s.numeric)
-      case m @ MaxExpr(e)        => MaxExpr(transform(t)(e))(m.ord)
-      case m @ MinExpr(e)        => MinExpr(transform(t)(e))(m.ord)
-      case CountExpr(e)          => CountExpr(transform(t)(e))
-      case DistinctCountExpr(e)  => DistinctCountExpr(transform(t)(e))
-      case DistinctRandomExpr(e) => DistinctRandomExpr(transform(t)(e))
+      case s @ SumExpr(e)            => SumExpr(transform(t)(e))(s.numeric)
+      case m @ MaxExpr(e)            => MaxExpr(transform(t)(e))(m.ord)
+      case m @ MinExpr(e)            => MinExpr(transform(t)(e))(m.ord)
+      case s @ AvgExpr(e)            => AvgExpr(transform(t)(e))(s.numeric)
+      case CountExpr(e)              => CountExpr(transform(t)(e))
+      case DistinctCountExpr(e)      => DistinctCountExpr(transform(t)(e))
+      case HLLCountExpr(e, accuracy) => HLLCountExpr(transform(t)(e), accuracy)
+      case DistinctRandomExpr(e)     => DistinctRandomExpr(transform(t)(e))
 
       case LagExpr(e) => LagExpr(transform(t)(e))
 

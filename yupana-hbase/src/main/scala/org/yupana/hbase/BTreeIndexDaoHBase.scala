@@ -19,9 +19,9 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.{ ColumnFamilyDescriptorBuilder, Get, Put, Scan, TableDescriptorBuilder }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.utils.ResourceUtils.using
 
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 class BTreeIndexDaoHBase[K, V](
     connection: ExternalLinkHBaseConnection,
@@ -38,7 +38,7 @@ class BTreeIndexDaoHBase[K, V](
   checkTableExistsElseCreate()
 
   def put(key: K, value: V): Unit = {
-    using(connection.getTable(tableName)) { table =>
+    Using.resource(connection.getTable(tableName)) { table =>
       val put = createPutOperation(key, value)
       table.put(put)
     }
@@ -50,13 +50,13 @@ class BTreeIndexDaoHBase[K, V](
 
   def batchPut(batch: Seq[(K, V)]): Unit = {
     val puts = batch.map { case (key, value) => createPutOperation(key, value) }
-    using(connection.getTable(tableName)) {
+    Using.resource(connection.getTable(tableName)) {
       _.put(puts.asJava)
     }
   }
 
   def get(key: K): Option[V] = {
-    using(connection.getTable(tableName)) { table =>
+    Using.resource(connection.getTable(tableName)) { table =>
       val get = new Get(keySerializer(key)).addColumn(FAMILY, QUALIFIER)
       val result = table.get(get)
       Option(result.getValue(FAMILY, QUALIFIER)).map(valueDeserializer)
@@ -65,7 +65,7 @@ class BTreeIndexDaoHBase[K, V](
 
   def get(keys: Seq[K]): Map[K, V] = {
     if (keys.nonEmpty) {
-      using(connection.getTable(tableName)) { table =>
+      Using.resource(connection.getTable(tableName)) { table =>
 
         val ranges = keys.map { id =>
           val key = keySerializer(id)
@@ -83,12 +83,14 @@ class BTreeIndexDaoHBase[K, V](
           .addColumn(FAMILY, QUALIFIER)
           .setFilter(filter)
 
-        using(table.getScanner(scan)) {
-          _.iterator().asScala.map { r =>
-            val id = keyDeserializer(r.getRow)
-            val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
-            id -> value
-          }.toMap
+        Using.resource(table.getScanner(scan)) {
+          _.iterator().asScala
+            .map { r =>
+              val id = keyDeserializer(r.getRow)
+              val value = valueDeserializer(r.getValue(FAMILY, QUALIFIER))
+              id -> value
+            }
+            .toMap
         }
       }
     } else Map.empty

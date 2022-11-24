@@ -20,12 +20,11 @@ import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
-import org.yupana.core.QueryContext
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
-
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 object BenchLink extends ExternalLink {
@@ -103,7 +102,7 @@ class ExternalLinkBenchmarkState {
       )
     )
   )
-  val queryContext: QueryContext = QueryContext(query, None)
+  val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
   var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex.toMap

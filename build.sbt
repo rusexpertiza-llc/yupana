@@ -36,7 +36,7 @@ lazy val api = (project in file("yupana-api"))
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
-      "org.scalatestplus"      %% "scalacheck-1-15"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-16"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -98,10 +98,10 @@ lazy val core = (project in file("yupana-core"))
     libraryDependencies ++= Seq(
       "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
-      "org.scala-lang.modules"        %% "scala-collection-compat"      % versions.colCompat,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "javax.cache"                   %  "cache-api"                    % "1.1.1",
+      "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
@@ -116,39 +116,16 @@ lazy val hbase = (project in file("yupana-hbase"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
-      "org.scala-lang.modules"      %% "scala-collection-compat"      % versions.colCompat,
-      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
-      "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
-      "org.apache.hadoop"           %  "hadoop-hdfs-client"           % versions.hadoop,
-      "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
-      "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
-      "org.scalatest"               %% "scalatest"                    % versions.scalaTest                % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test,
-      "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase                    % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test,
-      "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop                   % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-http"                   % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-metrics-api"            % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-metrics"                % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-asyncfs"                % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-logging"                % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
-      "junit"                       %  "junit"                        % "4.13"                            % Test,
-      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test,
-      "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
-      "org.slf4j"                   %  "log4j-over-slf4j"             % "1.7.30"                          % Test,
-      "javax.activation"            %  "javax.activation-api"         % "1.2.0"                           % Test
+      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase,
+      "org.apache.hbase"            %  "hbase-client"                   % versions.hbase,
+      "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop,
+      "org.apache.hadoop"           %  "hadoop-hdfs-client"             % versions.hadoop,
+      "com.thesamet.scalapb"        %% "scalapb-runtime"                % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
+      "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
+      "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
+      "org.scalacheck"              %% "scalacheck"                     % versions.scalaCheck               % Test,
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -351,7 +328,7 @@ lazy val docs = project
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .settings(
-    scalaVersion := "2.12.15",
+    scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
     noPublishSettings,
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
@@ -381,31 +358,32 @@ lazy val docs = project
   )
 
 def minMaj(v: String, default: String): String = {
- val n = VersionNumber(v)
- val r = for {
-   f <- n._1
-   s <- n._2
- } yield s"$f.$s"
- r getOrElse default
+  val n = VersionNumber(v)
+  val r = for {
+    f <- n._1
+    s <- n._2
+  } yield s"$f.$s"
+  r getOrElse default
 }
 
 lazy val versions = new {
-  val colCompat = "2.1.1" // Same version with Spark
-  val spark = "3.2.0"
+  val scala213 = "2.13.10"
 
-  val threeTenExtra = "1.7.0"
+  val spark = "3.3.1"
+
+  val threeTenExtra = "1.7.1"
 
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.4"
   val fastparse = "2.1.3"
-  val scopt = "4.0.1"
-  val prometheus = "0.9.0"
+  val scopt = "4.1.0"
+  val prometheus = "0.16.0"
 
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.6.17"
+  val akka = "2.6.20"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
@@ -416,36 +394,30 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
-  val logback = "1.2.6"
+  val logback = "1.2.11"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.2.24"
+  val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.10"
-  val scalaCheck = "1.15.4"
-  val scalaTestCheck = "3.2.10.0"
-  val scalaMock = "5.1.0"
+  val scalaTest = "3.2.14"
+  val scalaCheck = "1.17.0"
+  val scalaTestCheck = "3.2.14.0"
+  val scalaMock = "5.2.0"
 }
 
 val commonSettings = Seq(
   organization := "org.yupana",
-  scalaVersion := "2.13.8",
-  crossScalaVersions := Seq("2.12.15", "2.13.8"),
+  scalaVersion := versions.scala213,
   scalacOptions ++= Seq(
-    "-target:jvm-1.8",
+    "-release:8",
     "-Xsource:2.13",
     "-deprecation",
     "-unchecked",
     "-feature",
-    "-language:higherKinds",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code"
-  ) ++ {
-    CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2,13)) => Seq("-Wconf:cat=unused:info", "-Wconf:msg=Top-level:s")
-      case _ => Seq.empty
-    }
-  },
+    "-Ywarn-dead-code",
+    "-Wconf:msg=Top-level:s"
+  ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
@@ -499,10 +471,10 @@ val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-//    releaseStepCommandAndRemaining("+publishSigned"),
-//    releaseStepCommand("sonatypeBundleRelease"),
-//    setNextVersion,
-//    commitNextVersion,
+    //    releaseStepCommandAndRemaining("+publishSigned"),
+    //    releaseStepCommand("sonatypeBundleRelease"),
+    //    setNextVersion,
+    //    commitNextVersion,
     pushChanges
   )
 )
