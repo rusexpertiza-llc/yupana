@@ -9,7 +9,6 @@ import org.yupana.api.schema.{ ExternalLink, MetricValue }
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.ChangelogDao
-import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase.ChangelogDaoHBase
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
@@ -31,7 +30,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
           .set("tsdb.hbase.compression", "none")
       )
 
-    val tsdbSpark = new TsdbSparkBase(sc, identity, config, SchemaRegistry.defaultSchema)(_ => NoMetricCollector) {
+    val tsdbSpark = new TsdbSparkBase(sc, identity, config, SchemaRegistry.defaultSchema)() {
       override def registerExternalLink(
           catalog: ExternalLink,
           catalogService: ExternalLinkService[_ <: ExternalLink]
