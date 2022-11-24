@@ -125,12 +125,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
       "org.scalacheck"              %% "scalacheck"                     % versions.scalaCheck               % Test,
-      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test,
-      "junit"                       %  "junit"                          % "4.13"                            % Test,
-      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"              % "2.1.5"                           % Test,
-      "ch.qos.logback"              %  "logback-classic"                % versions.logback                  % Test,
-      "org.slf4j"                   %  "log4j-over-slf4j"               % "1.7.30"                          % Test,
-      "javax.activation"            % "javax.activation-api"            % "1.2.0"                           % Test
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
