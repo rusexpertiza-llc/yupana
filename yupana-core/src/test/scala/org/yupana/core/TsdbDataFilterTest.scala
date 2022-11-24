@@ -837,4 +837,66 @@ class TsdbDataFilterTest
     val r1 = rows.head
     r1.get[Int]("B") shouldBe 15
   }
+
+  it should "support OR conditions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT B, testField from test_table where (B IN (1,2,3) OR testField = 8)" + timeBounds()
+
+    val query = createQuery(sql)
+
+    (tsdbDaoMock.query _)
+      .expects(*, *, *)
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 1.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 4d)
+            .buildAndReset(),
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 2.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 8d)
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query).toList
+
+    rows should have size 2
+  }
+
+  it should "support OR on different times" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT time, B, testField from test_table where (B IN (1,2,3)" + timeBounds() +
+      ") OR (testField = 8" + timeBounds(from.minusYears(1), to.minusYears(1)) + ")"
+
+    val query = createQuery(sql)
+
+    (tsdbDaoMock.query _)
+      .expects(*, *, *)
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 1.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 4d)
+            .buildAndReset(),
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 2.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 8d)
+            .buildAndReset(),
+          b.set(Time(from.minusYears(1).plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 1.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 4d)
+            .buildAndReset(),
+          b.set(Time(from.minusYears(1).plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 2.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 8d)
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query).toList
+
+    rows should have size 3
+    rows.exists(r =>
+      r.get[Time]("time") == Time(from.minusYears(1).plusMinutes(2)) && r.get[Double]("testField") != 8d
+    ) shouldBe false
+  }
 }
