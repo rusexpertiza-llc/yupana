@@ -17,6 +17,7 @@
 package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
@@ -116,18 +117,16 @@ trait TsdbBase extends StrictLogging {
         logger.debug(s"Substituted condition: $substitutedCondition")
 
         val conditions = substitutedCondition
-          .map(cs =>
-            cs.flatMap { tbc =>
-              val daoConditions =
-                tbc.conditions.filter(c => c != ConstantExpr(true) && !dao.isSupportedCondition(c))
-              if (daoConditions.nonEmpty) Some(tbc.copy(conditions = daoConditions)) else None
-            }
-          )
+          .map(_.map { tbc =>
+            val daoConditions =
+              tbc.conditions.filter(c => c != ConstantExpr(true) && !dao.isSupportedCondition(c))
+            tbc.copy(conditions = daoConditions)
+          })
           .filter(_.nonEmpty)
 
-        val condition = conditions.map { cs =>
-          if (cs.size == 1) cs.head.toCondition else OrExpr(cs.map(_.toCondition))
-        }
+        logger.debug(s"Without dao conditions: $conditions")
+
+        val condition = conditions.flatMap(mergeCondition)
         logger.debug(s"Final condition: $condition")
 
         val qc =
@@ -286,6 +285,19 @@ trait TsdbBase extends StrictLogging {
 
       ConditionUtils.transform(tbc, transformations.toSeq)
     }
+  }
+
+  def mergeCondition(facs: Seq[FlatAndCondition]): Option[Condition] = {
+    val merged = FlatAndCondition.mergeByTime(facs)
+
+    if (merged.size == 1) merged.head._3
+    else if (merged.size > 1) {
+      val ands = merged.map {
+        case (f, t, c) =>
+          AndExpr(Seq(GeExpr(TimeExpr, ConstantExpr(Time(f))), LtExpr(TimeExpr, ConstantExpr(Time(t)))) ++ c)
+      }
+      Some(OrExpr(ands))
+    } else None
   }
 
   def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
