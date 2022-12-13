@@ -268,7 +268,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         DataType[Boolean],
         DataType[Int],
         DataType[String],
-        DataType[BigDecimal],
+        DataType[Double],
         DataType[Long],
         DataType[BigDecimal]
       ),
@@ -320,12 +320,16 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         time.atZone(ZoneId.of("Asia/Tokyo")).toLocalTime
       )
 
+    resultSet.getObject(1) shouldEqual new Timestamp(time.toInstant(ZoneOffset.UTC).toEpochMilli)
+    resultSet.getObject("time") shouldEqual new Timestamp(time.toInstant(ZoneOffset.UTC).toEpochMilli)
+
     resultSet.getBoolean(2) shouldEqual false
     resultSet.getBoolean("bool") shouldEqual false
 
     resultSet.getInt(3) shouldEqual 42
     resultSet.getInt("int") shouldEqual 42
     resultSet.wasNull shouldBe false
+    resultSet.getObject(3) shouldEqual 42
 
     resultSet.getString(4) shouldEqual "foo"
     resultSet.getString("string") shouldEqual "foo"
@@ -360,6 +364,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getInt(3) shouldEqual 0
     resultSet.getInt("int") shouldEqual 0
     resultSet.wasNull shouldBe true
+    resultSet.getObject("int") shouldEqual null
 
     resultSet.getString(4) shouldEqual null
     resultSet.getString("string") shouldEqual null
