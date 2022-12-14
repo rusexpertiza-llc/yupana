@@ -19,16 +19,16 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.spark.Partition
+import org.yupana.core.settings.Settings
 import org.yupana.hbase.HdfsFileUtils
 
-import java.util.Properties
 import scala.io.Source
 import scala.util.Using
 
 class HDFSProgressSaver[P <: Partition](
     fileName: String,
     partitionStorable: PartitionStorable[P],
-    properties: Properties
+    settings: Settings
 ) extends ProgressSaver[P]
     with Serializable {
 
@@ -89,9 +89,9 @@ class HDFSProgressSaver[P <: Partition](
 
   private def createHBaseConfiguration(): Configuration = {
     val hBaseConfiguration = HBaseConfiguration.create()
-    hBaseConfiguration.set("hbase.zookeeper.quorum", properties.getProperty("hbase.zookeeper"))
+    hBaseConfiguration.set("hbase.zookeeper.quorum", settings("hbase.zookeeper"))
     hBaseConfiguration.set("zookeeper.session.timeout", "180000")
-    HdfsFileUtils.addHdfsPathToConfiguration(hBaseConfiguration, properties)
+    HdfsFileUtils.addHdfsPathToConfiguration(hBaseConfiguration, settings)
     hBaseConfiguration
   }
 }

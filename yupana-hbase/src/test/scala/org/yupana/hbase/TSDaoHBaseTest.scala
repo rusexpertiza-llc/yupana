@@ -2,25 +2,26 @@ package org.yupana.hbase
 
 import java.nio.ByteBuffer
 import java.util.Properties
-import org.apache.hadoop.hbase.client.{ Scan, Result => HResult }
+import org.apache.hadoop.hbase.client.{Scan, Result => HResult}
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
-import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
+import org.scalamock.function.{FunctionAdapter1, MockFunction1}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.Time
-import org.yupana.api.query.{ DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
-import org.yupana.api.schema.{ Dimension, Schema, Table }
+import org.yupana.api.query.{DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression}
+import org.yupana.api.schema.{Dimension, Schema, Table}
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
+import org.yupana.core.dao.{DictionaryDao, DictionaryProvider, DictionaryProviderImpl}
 import org.yupana.core.model._
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.utils.metric.{MetricQueryCollector, NoMetricCollector}
+import org.yupana.core.{ConstantCalculator, IteratorMapReducible, MapReducible, TestDims, TestSchema, TestTableFields}
 
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 class TSDaoHBaseTest
@@ -42,7 +43,7 @@ class TSDaoHBaseTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {

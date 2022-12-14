@@ -15,6 +15,7 @@ import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.settings.Settings
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 
@@ -150,7 +151,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
     super.beforeAll()
   }
 }

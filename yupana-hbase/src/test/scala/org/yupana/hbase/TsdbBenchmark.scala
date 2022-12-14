@@ -19,6 +19,7 @@ import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.model.UpdateInterval
+import org.yupana.core.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
@@ -107,7 +108,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
 
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 

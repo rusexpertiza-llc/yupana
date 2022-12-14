@@ -10,6 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, RemoveCondition }
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.cache.CacheFactory
+import org.yupana.core.settings.Settings
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
@@ -226,7 +227,7 @@ class SQLSourcedCatalogServiceTest
 
     val props = new Properties()
     props.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(props)
+    CacheFactory.init(Settings(props))
   }
 
   import JsonExternalLinkCachingTest._

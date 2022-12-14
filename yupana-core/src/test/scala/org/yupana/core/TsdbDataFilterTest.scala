@@ -11,6 +11,7 @@ import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
@@ -34,7 +35,7 @@ class TsdbDataFilterTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override def beforeEach(): Unit = {

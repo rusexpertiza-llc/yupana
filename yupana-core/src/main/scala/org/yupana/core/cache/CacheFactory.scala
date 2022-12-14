@@ -16,11 +16,11 @@
 
 package org.yupana.core.cache
 
-import java.util.{ Properties, ServiceLoader }
-
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.types.BoxingTag
+import org.yupana.core.settings.Settings
 
+import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._
 
 trait CacheFactory {
@@ -40,17 +40,12 @@ object CacheFactory extends StrictLogging {
   )
 
   private var defaultEngine: String = _
-  private var properties: Properties = _
+  var settings: Settings = _
   private var nameSuffix: Option[String] = None
 
-  def propsForPrefix(prefix: String): Map[String, String] = {
-    properties.asScala.filter(_._1.startsWith(prefix + ".")).map { case (k, v) => k.drop(prefix.length + 1) -> v }.toMap
-  }
-
   def createDescription[K: BoxingTag, V: BoxingTag](name: String): CacheDescription.Aux[K, V] = {
-    if (properties == null) throw new IllegalStateException("CacheUtils were not properly initialized")
-    val props = propsForPrefix("analytics.caches." + name)
-    val engine = props.get("engine") match {
+    if (settings == null) throw new IllegalStateException("CacheUtils were not properly initialized")
+    val engine = settings.opt[String](s"analytics.caches.$name.engine") match {
       case Some(engineName) =>
         if (factories.contains(engineName)) {
           engineName
@@ -64,12 +59,11 @@ object CacheFactory extends StrictLogging {
     CacheDescription(name, nameSuffix, engine)
   }
 
-  def init(properties: Properties): Unit = {
-    if (this.properties == null) {
+  def init(settings: Settings): Unit = {
+    if (this.settings == null) {
       loadFactories()
-      this.properties = properties
-      val defaultEngineName = Option(properties.getProperty("analytics.caches.default.engine"))
-        .getOrElse(throw new IllegalArgumentException("Default cache engine is not defined"))
+      this.settings = settings
+      val defaultEngineName = settings[String]("analytics.caches.default.engine")
 
       defaultEngine = if (factories.contains(defaultEngineName)) {
         defaultEngineName
@@ -77,7 +71,8 @@ object CacheFactory extends StrictLogging {
         throw new IllegalArgumentException(s"Unknown default cache engine $defaultEngineName")
       }
 
-      nameSuffix = Option(properties.getProperty("analytics.caches.default.suffix"))
+      nameSuffix = settings
+        .opt[String]("analytics.caches.default.suffix")
         .map(_.trim)
         .filter(_.nonEmpty)
 
@@ -85,7 +80,7 @@ object CacheFactory extends StrictLogging {
   }
 
   def initCache[K, V](description: CacheDescription.Aux[K, V]): Cache[K, V] = synchronized {
-    if (properties == null) throw new IllegalStateException("CacheUtils was not initialized")
+    if (settings == null) throw new IllegalStateException("CacheUtils was not initialized")
     logger.debug(s"Initialize cache ${description.name}")
     getFactory(description).initCache(description)
   }

@@ -25,6 +25,7 @@ import org.ehcache.config.builders.{ CacheConfigurationBuilder, ExpiryPolicyBuil
 import org.ehcache.config.units.{ EntryUnit, MemoryUnit }
 import org.ehcache.jsr107.Eh107Configuration
 import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
+import org.yupana.core.settings.Settings
 
 import java.time.Duration
 
@@ -86,22 +87,22 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
   private def createCacheConfig(
       description: CacheDescription
   ): CacheConfiguration[description.Key, description.Value] = {
-    val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
-    val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.ehcache")
+    val settings = CacheFactory.settings.inner(s"analytics.caches.${description.name}.")
+    val defaultSettings = CacheFactory.settings.inner("analytics.caches.default.ehcache.")
 
-    val eternal = props.getOrElse("eternal", "false").toBoolean
+    val eternal = settings("eternal", false)
     val expiry = if (eternal) {
       ExpiryPolicyBuilder.noExpiration()
     } else {
       val ttl = Duration.ofSeconds(
-        props.get("timeToLive").orElse(defaultProps.get("timeToLive")).map(_.toLong).getOrElse(DEFAULT_TTL)
+        settings("timeToLive", defaultSettings("timeToLive", DEFAULT_TTL))
       )
-      val tti = props.get("timeToIdle").map(s => Duration.ofSeconds(s.toLong)).orNull
+      val tti = settings.opt[Long]("timeToIdle").map(Duration.ofSeconds).orNull
       ExpiryPolicyBuilder.expiry().create(ttl).access(tti).update(ttl).build()
     }
 
-    val resourcePoolsBuilder = createResourcePool(props)
-      .orElse(createResourcePool(defaultProps))
+    val resourcePoolsBuilder = createResourcePool(settings)
+      .orElse(createResourcePool(defaultSettings))
       .getOrElse(throw new IllegalArgumentException(s"Cache size is not defined for ${description.name}"))
 
     val conf = CacheConfigurationBuilder
@@ -112,10 +113,10 @@ class EhCacheFactory extends CacheFactory with StrictLogging {
     conf.asInstanceOf[CacheConfiguration[description.Key, description.Value]]
   }
 
-  private def createResourcePool(props: Map[String, String]): Option[ResourcePoolsBuilder] = {
-    val elements = props.get("maxElements").map(_.toLong)
-    val heapSize = props.get("heapSize").map(_.toLong)
-    val offHeapSize = props.get("offHeapSize").map(_.toLong)
+  private def createResourcePool(settings: Settings): Option[ResourcePoolsBuilder] = {
+    val elements = settings.opt[Long]("maxElements")
+    val heapSize = settings.opt[Long]("heapSize")
+    val offHeapSize = settings.opt[Long]("offHeapSize")
 
     elements match {
       case Some(e) =>

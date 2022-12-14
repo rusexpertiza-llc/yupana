@@ -22,9 +22,9 @@ import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
+import org.yupana.core.settings.Settings
 import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ TSDB, TsdbConfig }
-import java.util.Properties
 
 object TSDBHBase {
 
@@ -50,14 +50,14 @@ object TSDBHBase {
       namespace: String,
       schema: Schema,
       prepareQuery: Query => Query,
-      properties: Properties,
+      settings: Settings,
       tsdbConfig: TsdbConfig
   )(
       metricCollectorCreator: Query => MetricQueryCollector =
         createDefaultMetricCollector(tsdbConfig, connection, namespace)
   ): TSDB = {
 
-    CacheFactory.init(properties)
+    CacheFactory.init(settings)
 
     val dictDao = new DictionaryDaoHBase(connection, namespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
@@ -73,7 +73,7 @@ object TSDBHBase {
       namespace: String,
       schema: Schema,
       prepareQuery: Query => Query,
-      properties: Properties,
+      settings: Settings,
       tsdbConfig: TsdbConfig,
       metricCollectorCreator: Option[Query => MetricQueryCollector]
   ): TSDB = {
@@ -81,6 +81,6 @@ object TSDBHBase {
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
     val metricsCollectorOrDefault =
       metricCollectorCreator.getOrElse(createDefaultMetricCollector(tsdbConfig, connection, namespace))
-    TSDBHBase(connection, namespace, schema, prepareQuery, properties, tsdbConfig)(metricsCollectorOrDefault)
+    TSDBHBase(connection, namespace, schema, prepareQuery, settings, tsdbConfig)(metricsCollectorOrDefault)
   }
 }

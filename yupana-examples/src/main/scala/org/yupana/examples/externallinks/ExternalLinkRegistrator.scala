@@ -16,13 +16,13 @@
 
 package org.yupana.examples.externallinks
 
-import java.util.Properties
-
 import com.zaxxer.hikari.{ HikariConfig, HikariDataSource }
+
 import javax.sql.DataSource
 import org.apache.hadoop.conf.Configuration
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.TsdbBase
+import org.yupana.core.settings.Settings
 import org.yupana.externallinks.items.{ ItemsInvertedIndexImpl, RelatedItemsCatalogImpl }
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConnection }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
@@ -34,7 +34,7 @@ class ExternalLinkRegistrator(
     tsdb: TsdbBase,
     hbaseConfiguration: Configuration,
     hbaseNamespace: String,
-    properties: Properties
+    settings: Settings
 ) {
 
   lazy val hBaseConnection = new ExternalLinkHBaseConnection(hbaseConfiguration, hbaseNamespace)
@@ -63,7 +63,7 @@ class ExternalLinkRegistrator(
       case RelatedItemsCatalog   => new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
       case AddressCatalog        => new AddressCatalogImpl(tsdb.schema, AddressCatalog)
       case OrganisationCatalog =>
-        val dataSource = createConnection(OrganisationCatalogImpl.connection(properties))
+        val dataSource = createConnection(OrganisationCatalogImpl.connection(settings))
         new OrganisationCatalogImpl(tsdb.schema, dataSource)
       case _ => throw new IllegalArgumentException(s"Unknown external link ${link.linkName}")
     }

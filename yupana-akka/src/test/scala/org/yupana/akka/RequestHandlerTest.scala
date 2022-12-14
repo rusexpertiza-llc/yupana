@@ -2,22 +2,22 @@ package org.yupana.akka
 
 import com.google.protobuf.ByteString
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{ BeforeAndAfterAll, EitherValues, Inside }
+import org.scalatest.{BeforeAndAfterAll, EitherValues, Inside}
 import org.yupana.api.Time
-import org.yupana.api.query.{ DataPoint, Query }
+import org.yupana.api.query.{DataPoint, Query}
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
-import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
+import org.yupana.core.dao.{ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao}
+import org.yupana.core.model.{MetricData, QueryStates, TsdbQueryMetrics}
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
-import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
+import org.yupana.core.utils.metric.{PersistentMetricQueryReporter, StandaloneMetricCollector}
+import org.yupana.core.{QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult}
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
+import org.yupana.schema.{Dimensions, ItemTableMetrics, SchemaRegistry, Tables}
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -26,8 +26,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.cache.CacheFactory
+import org.yupana.core.settings.Settings
 
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.{OffsetDateTime, ZoneOffset}
 import java.util.Properties
 
 class RequestHandlerTest
@@ -44,7 +45,7 @@ class RequestHandlerTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   "RequestHandler" should "send version on ping" in {

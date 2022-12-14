@@ -16,12 +16,12 @@
 
 package org.yupana.spark
 
-import java.util.Properties
-
 import org.apache.spark.SparkConf
 import org.yupana.core.TsdbConfig
 
 class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serializable {
+
+  val settings: SparkConfSettings = SparkConfSettings(sparkConf)
 
   val hbaseZookeeper: String = sparkConf.get("hbase.zookeeper")
   val hbaseTimeout: Int = sparkConf.getInt("analytics.tsdb.rollup-job.hbase.timeout", 900000) // 15 minutes
@@ -41,13 +41,6 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
   override val metricsUpdateInterval: Int = sparkConf.getInt("analytics.tsdb.metrics-update-interval", 30000)
 
   override val putEnabled: Boolean = false
-
-  val properties: Properties = propsWithPrefix("")
-
-  protected def propsWithPrefix(prefix: String): Properties =
-    sparkConf
-      .getAllWithPrefix(prefix)
-      .foldLeft(new Properties) { case (_props, (k, v)) => _props.put(prefix + k, v); _props }
 
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
 
