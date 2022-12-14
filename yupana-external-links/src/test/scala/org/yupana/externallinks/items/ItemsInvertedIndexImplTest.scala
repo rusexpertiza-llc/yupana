@@ -3,14 +3,14 @@ package org.yupana.externallinks.items
 import java.util.Properties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.query.{AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition}
+import org.yupana.api.query.{ AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.{ConstantCalculator, TSDB}
+import org.yupana.core.{ ConstantCalculator, TSDB }
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{Dimensions, ItemDimension}
+import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time

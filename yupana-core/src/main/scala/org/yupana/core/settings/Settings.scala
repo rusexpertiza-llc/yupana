@@ -16,6 +16,8 @@
 
 package org.yupana.core.settings
 
+import com.typesafe.scalalogging.StrictLogging
+
 import java.util.Properties
 
 case class SettingsException(cause: Throwable, key: String, maybeValue: Option[String] = None)
@@ -76,13 +78,22 @@ abstract class Settings { self =>
   }
 }
 
-object Settings {
+object Settings extends StrictLogging {
 
   def apply(props: Properties): Settings = {
     new PropertiesSettings(props)
   }
 
   class PropertiesSettings(props: Properties) extends Settings {
-    override def getByKey(k: String): Option[String] = Option(props.getProperty(k))
+    override def getByKey(k: String): Option[String] = {
+      val v = Option(props.getProperty(k))
+      v match {
+        case Some(x) =>
+          logger.info(s"read setting value: $k = $x")
+        case None =>
+          logger.info(s"read setting value: $k is not defined")
+      }
+      v
+    }
   }
 }
