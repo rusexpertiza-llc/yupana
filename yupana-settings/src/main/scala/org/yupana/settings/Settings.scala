@@ -76,6 +76,17 @@ abstract class Settings { self =>
     override def format(k: String): String = prefix + k
     override def getByKey(k: String): Option[String] = self.getByKey(prefix + k)
   }
+
+  def settingToString(k: String, v: Option[String]): String = {
+    v match {
+      case Some(_) if k.contains("pass") =>
+        s"read setting value: $k = ******"
+      case Some(x) =>
+        s"read setting value: $k = $x"
+      case None =>
+        s"read setting value: $k is not defined"
+    }
+  }
 }
 
 object Settings extends StrictLogging {
@@ -87,13 +98,9 @@ object Settings extends StrictLogging {
   class PropertiesSettings(props: Properties) extends Settings {
     override def getByKey(k: String): Option[String] = {
       val v = Option(props.getProperty(k))
-      v match {
-        case Some(x) =>
-          logger.info(s"read setting value: $k = $x")
-        case None =>
-          logger.info(s"read setting value: $k is not defined")
-      }
+      settingToString(k, v)
       v
     }
   }
+
 }

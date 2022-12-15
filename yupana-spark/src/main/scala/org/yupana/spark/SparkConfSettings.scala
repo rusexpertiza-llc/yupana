@@ -25,12 +25,7 @@ import scala.util.Try
 case class SparkConfSettings(sc: SparkConf) extends Settings with Serializable with StrictLogging {
   override def getByKey(k: String): Option[String] = {
     val v = Try(sc.get(k)).toOption
-    v match {
-      case Some(x) =>
-        logger.info(s"read setting value: $k = $x")
-      case None =>
-        logger.info(s"read setting value: $k is not defined")
-    }
+    settingToString(k, v)
     v
   }
 }
