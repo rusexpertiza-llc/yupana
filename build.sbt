@@ -110,7 +110,6 @@ lazy val cache = (project in file("yupana-cache"))
     libraryDependencies ++= Seq(
       "javax.cache"                 %  "cache-api"                    % "1.1.1",
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
-      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   ).dependsOn(api, settings)
 
@@ -157,7 +156,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test", cache % "compile->compile ; test->test", caffeine )
+  .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
