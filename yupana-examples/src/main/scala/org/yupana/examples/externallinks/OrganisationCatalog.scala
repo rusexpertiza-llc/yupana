@@ -18,10 +18,10 @@ package org.yupana.examples.externallinks
 
 import javax.sql.DataSource
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
-import org.yupana.core.settings.Settings
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLinkConnection, SQLExternalLinkDescription }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.yupana.settings.Settings
 
 trait OrganisationCatalog extends ExternalLink {
 

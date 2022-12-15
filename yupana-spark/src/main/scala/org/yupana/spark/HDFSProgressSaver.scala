@@ -19,8 +19,8 @@ package org.yupana.spark
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.spark.Partition
-import org.yupana.core.settings.Settings
 import org.yupana.hbase.HdfsFileUtils
+import org.yupana.settings.Settings
 
 import scala.io.Source
 import scala.util.Using

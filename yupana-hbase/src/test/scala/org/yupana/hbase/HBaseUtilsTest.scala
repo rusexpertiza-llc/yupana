@@ -9,13 +9,13 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.settings.Settings
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 

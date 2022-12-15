@@ -24,8 +24,8 @@ import org.ehcache.config.CacheConfiguration
 import org.ehcache.config.builders.{ CacheConfigurationBuilder, ExpiryPolicyBuilder, ResourcePoolsBuilder }
 import org.ehcache.config.units.{ EntryUnit, MemoryUnit }
 import org.ehcache.jsr107.Eh107Configuration
-import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
-import org.yupana.core.settings.Settings
+import org.yupana.cache.{ Cache, CacheDescription, CacheFactory, JCache }
+import org.yupana.settings.Settings
 
 import java.time.Duration
 

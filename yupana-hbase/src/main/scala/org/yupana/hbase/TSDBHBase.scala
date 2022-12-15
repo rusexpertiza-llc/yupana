@@ -20,11 +20,11 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
-import org.yupana.core.cache.CacheFactory
+import org.yupana.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
-import org.yupana.core.settings.Settings
 import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ TSDB, TsdbConfig }
+import org.yupana.settings.Settings
 
 object TSDBHBase {
 

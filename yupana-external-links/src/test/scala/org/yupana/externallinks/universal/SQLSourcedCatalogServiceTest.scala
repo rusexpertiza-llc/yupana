@@ -8,13 +8,13 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ BeforeAndAfterAll, EitherValues, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, RemoveCondition }
+import org.yupana.cache.CacheFactory
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.settings.Settings
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime

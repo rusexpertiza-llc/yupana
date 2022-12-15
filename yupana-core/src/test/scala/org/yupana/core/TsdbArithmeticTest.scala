@@ -7,10 +7,10 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
-import org.yupana.core.cache.CacheFactory
+import org.yupana.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
-import org.yupana.core.settings.Settings
 import org.yupana.core.utils.SparseTable
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter

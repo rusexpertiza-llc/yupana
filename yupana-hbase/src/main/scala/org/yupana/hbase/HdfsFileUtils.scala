@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{ FSDataOutputStream, FileStatus, FileSystem, Path }
 import org.apache.hadoop.io.compress.CompressionCodecFactory
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 import scala.annotation.tailrec
 

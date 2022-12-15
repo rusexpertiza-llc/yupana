@@ -22,13 +22,13 @@ import javax.sql.DataSource
 import org.apache.hadoop.conf.Configuration
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.TsdbBase
-import org.yupana.core.settings.Settings
 import org.yupana.externallinks.items.{ ItemsInvertedIndexImpl, RelatedItemsCatalogImpl }
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConnection }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
+import org.yupana.settings.Settings
 
 class ExternalLinkRegistrator(
     tsdb: TsdbBase,

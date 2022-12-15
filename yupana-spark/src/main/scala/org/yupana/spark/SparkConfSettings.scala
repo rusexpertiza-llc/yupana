@@ -18,7 +18,7 @@ package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.SparkConf
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 import scala.util.Try
 

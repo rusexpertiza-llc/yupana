@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.settings
+package org.yupana.settings
 
 import java.time.format.{ DateTimeFormatter, DateTimeFormatterBuilder }
 import java.time.temporal.ChronoField

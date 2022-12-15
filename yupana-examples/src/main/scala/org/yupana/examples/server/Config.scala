@@ -18,7 +18,7 @@ package org.yupana.examples.server
 
 import java.util.Properties
 import com.typesafe.config.{ Config => TypesafeConfig }
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 import scala.jdk.CollectionConverters._
 

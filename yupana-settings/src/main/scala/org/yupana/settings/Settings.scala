@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.settings
+package org.yupana.settings
 
 import com.typesafe.scalalogging.StrictLogging
 

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.core.cache
+package org.yupana.cache
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.types.BoxingTag
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 import java.util.ServiceLoader
 import scala.jdk.CollectionConverters._

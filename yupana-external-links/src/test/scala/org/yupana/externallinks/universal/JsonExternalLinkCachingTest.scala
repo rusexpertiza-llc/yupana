@@ -7,8 +7,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.settings.Settings
+import org.yupana.cache.CacheFactory
 import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLink,
   SQLExternalLinkConfig,
@@ -16,6 +15,7 @@ import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLinkDescription
 }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.yupana.settings.Settings
 
 class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll {
 

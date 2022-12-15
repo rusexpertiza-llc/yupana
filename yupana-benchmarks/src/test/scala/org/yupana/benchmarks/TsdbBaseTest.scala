@@ -3,8 +3,8 @@ package org.yupana.benchmarks
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.settings.Settings
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 
 import java.util.Properties
 

@@ -1,4 +1,4 @@
-package org.yupana.core.settings
+package org.yupana.settings
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

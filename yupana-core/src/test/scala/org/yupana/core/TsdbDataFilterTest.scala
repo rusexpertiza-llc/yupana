@@ -6,12 +6,12 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConditionTransformation, Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.settings.Settings
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }

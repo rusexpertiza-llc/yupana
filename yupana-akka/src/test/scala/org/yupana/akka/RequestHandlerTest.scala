@@ -24,9 +24,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 import java.time.{ OffsetDateTime, ZoneOffset }
 import java.util.Properties

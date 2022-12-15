@@ -18,8 +18,8 @@ package org.yupana.spark
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.yupana.api.schema.DictionaryDimension
+import org.yupana.cache.CacheFactory
 import org.yupana.core.Dictionary
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider }
 import org.yupana.hbase.DictionaryDaoHBase
 

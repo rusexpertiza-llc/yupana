@@ -20,8 +20,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.Query
 import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.yupana.cache.CacheFactory
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }

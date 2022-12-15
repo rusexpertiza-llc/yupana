@@ -19,7 +19,7 @@ package org.yupana.caffeine
 import com.github.benmanes.caffeine.cache.{ Cache => CCache, Caffeine }
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory }
+import org.yupana.cache.{ Cache, CacheDescription, CacheFactory }
 
 import java.util.concurrent.TimeUnit
 

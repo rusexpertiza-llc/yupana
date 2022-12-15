@@ -10,6 +10,8 @@ lazy val yupana = (project in file("."))
     proto,
     jdbc,
     utils,
+    settings,
+    cache,
     core,
     hbase,
     akka,
@@ -91,6 +93,27 @@ lazy val utils = (project in file("yupana-utils"))
   )
   .dependsOn(api)
 
+lazy val settings = (project in file("yupana-settings"))
+  .settings(
+    name := "yupana-settings",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
+    )
+  )
+
+lazy val cache = (project in file("yupana-cache"))
+  .settings(
+    name := "yupana-cache",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "javax.cache"                 %  "cache-api"                    % "1.1.1",
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
+    )
+  ).dependsOn(api, settings)
+
 lazy val core = (project in file("yupana-core"))
   .settings(
     name := "yupana-core",
@@ -100,15 +123,15 @@ lazy val core = (project in file("yupana-core"))
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
-      "javax.cache"                   %  "cache-api"                    % "1.1.1",
       "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
-  .dependsOn(api, utils % Test)
+  .dependsOn(api, settings, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
+
 
 lazy val hbase = (project in file("yupana-hbase"))
   .settings(
@@ -134,7 +157,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .dependsOn(core % "compile->compile ; test->test", cache % "compile->compile ; test->test", caffeine )
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
@@ -166,7 +189,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
     )
   )
-  .dependsOn(core, hbase, externalLinks)
+  .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
 
 lazy val schema = (project in file("yupana-schema"))
@@ -193,7 +216,7 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
-  .dependsOn(schema, core, ehcache % Test)
+  .dependsOn(schema, settings, cache, core, ehcache % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val ehcache = (project in file("yupana-ehcache"))
@@ -204,7 +227,7 @@ lazy val ehcache = (project in file("yupana-ehcache"))
       "org.ehcache"                   %  "ehcache"                      % versions.ehcache
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val caffeine = (project in file("yupana-caffeine"))
@@ -215,7 +238,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
       "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val ignite = (project in file("yupana-ignite"))
@@ -227,7 +250,7 @@ lazy val ignite = (project in file("yupana-ignite"))
       "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")

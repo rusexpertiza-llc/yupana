@@ -23,7 +23,7 @@ import org.apache.ignite.logger.slf4j.Slf4jLogger
 import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
 import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import org.apache.ignite.{ Ignite, Ignition }
-import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
+import org.yupana.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
 import scala.jdk.CollectionConverters._
 

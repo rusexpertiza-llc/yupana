@@ -21,8 +21,8 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
 import org.yupana.api.types.{ BoxingTag, DataType }
+import org.yupana.cache.{ Cache, CacheFactory }
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils

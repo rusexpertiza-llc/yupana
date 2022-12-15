@@ -10,7 +10,6 @@ import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
 
@@ -18,8 +17,9 @@ import java.util.Properties
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
 import org.yupana.core.model.UpdateInterval
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
 

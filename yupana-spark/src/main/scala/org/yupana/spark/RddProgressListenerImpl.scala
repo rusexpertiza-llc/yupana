@@ -17,7 +17,7 @@
 package org.yupana.spark
 
 import org.apache.spark.Partition
-import org.yupana.core.settings.Settings
+import org.yupana.settings.Settings
 
 class RddProgressListenerImpl[P <: Partition](
     fileName: String,
