@@ -80,11 +80,11 @@ abstract class Settings { self =>
   def settingToString(k: String, v: Option[String]): String = {
     v match {
       case Some(_) if k.contains("pass") =>
-        s"read setting value: $k = ******"
+        s"$k = ******"
       case Some(x) =>
-        s"read setting value: $k = $x"
+        s"$k = $x"
       case None =>
-        s"read setting value: $k is not defined"
+        s"$k is not defined"
     }
   }
 }
@@ -98,7 +98,7 @@ object Settings extends StrictLogging {
   class PropertiesSettings(props: Properties) extends Settings {
     override def getByKey(k: String): Option[String] = {
       val v = Option(props.getProperty(k))
-      settingToString(k, v)
+      logger.info("read setting value: " + settingToString(k, v))
       v
     }
   }

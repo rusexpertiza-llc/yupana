@@ -19,13 +19,14 @@ package org.yupana.spark
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.spark.SparkConf
 import org.yupana.settings.Settings
+import org.yupana.settings.Settings.logger
 
 import scala.util.Try
 
 case class SparkConfSettings(sc: SparkConf) extends Settings with Serializable with StrictLogging {
   override def getByKey(k: String): Option[String] = {
     val v = Try(sc.get(k)).toOption
-    settingToString(k, v)
+    logger.info("read setting value: " + settingToString(k, v))
     v
   }
 }
