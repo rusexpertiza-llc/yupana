@@ -16,13 +16,12 @@
 
 package org.yupana.examples.externallinks
 
-import java.util.Properties
-
 import javax.sql.DataSource
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLinkConnection, SQLExternalLinkDescription }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.yupana.settings.Settings
 
 trait OrganisationCatalog extends ExternalLink {
 
@@ -53,11 +52,11 @@ object OrganisationCatalogImpl {
     Some("kkms k INNER JOIN organisations o on k.org_id = o.id")
   )
 
-  def connection(properties: Properties): SQLExternalLinkConnection = {
+  def connection(settings: Settings): SQLExternalLinkConnection = {
     SQLExternalLinkConnection(
-      properties.getProperty("orgCatalog.dbUrl"),
-      Option(properties.getProperty("orgCatalog.dbUser")),
-      Option(properties.getProperty("orgCatalog.dbPassword"))
+      settings("orgCatalog.dbUrl"),
+      settings.opt("orgCatalog.dbUser"),
+      settings.opt("orgCatalog.dbPassword")
     )
   }
 }

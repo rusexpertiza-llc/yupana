@@ -40,7 +40,7 @@ object TsdbSparkBase extends StrictLogging {
     configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
     configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)
     if (config.addHdfsToConfiguration) {
-      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.properties)
+      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.settings)
     }
     configuration
   }
