@@ -17,13 +17,13 @@
 package org.yupana.core.providers
 
 import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.schema.Schema
+import org.yupana.api.schema._
 import org.yupana.api.types.{ DataType, DataTypeMeta }
 import org.yupana.core.sql.FunctionRegistry
 
 class JdbcMetadataProvider(schema: Schema) {
 
-  val columnFieldNames = List(
+  private[providers] val columnFieldNames = List(
     "TABLE_CAT",
     "TABLE_SCHEM",
     "TABLE_NAME",
@@ -50,26 +50,36 @@ class JdbcMetadataProvider(schema: Schema) {
     "IS_GENERATEDCOLUMN"
   )
 
-  val tableFieldNames = List("TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "TABLE_TYPE", "REMARKS")
+  private[providers] val tableFieldNames = List("TABLE_CAT", "TABLE_SCHEM", "TABLE_NAME", "TABLE_TYPE", "REMARKS")
 
   def listTables: Result = {
     val data: Iterator[Array[Any]] = schema.tables.keys.map { name =>
-      Array[Any](null, null, name, "TABLE", null)
+      val desc = rollupDesc(name)
+      Array[Any](null, null, name, if (desc.isEmpty) "TABLE" else "ROLLUP", desc.orNull)
     }.iterator
     SimpleResult("TABLES", tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
   }
 
   def describeTable(tableName: String): Either[String, Result] =
     schema.getTable(tableName) map { table =>
+      val rollup = schema.rollups.find(_.toTable == table).collect { case t: TsdbRollup => t }
+
       val metricColumns = table.metrics.map { f =>
-        columnsArray(table.name, f.name, f.dataType.meta)
+        val desc = rollup.flatMap(r => rollupMetricDesc(r, f))
+        columnsArray(table.name, f.name, f.dataType.meta, nullable = true, desc)
       }
 
-      val dimColumns = table.dimensionSeq.map(d => columnsArray(table.name, d.name, d.dataType.meta))
-      val timeColumn = columnsArray(table.name, "time", DataTypeMeta.timestampMeta)
+      val dimColumns = table.dimensionSeq.map { d =>
+        val desc = rollup.flatMap(r => rollupDimDesc(r, d))
+        columnsArray(table.name, d.name, d.dataType.meta, nullable = false, desc)
+      }
+      val timeColumn =
+        columnsArray(table.name, "time", DataTypeMeta.timestampMeta, nullable = false, rollup.map(rollupTimeDesc))
 
       val catalogColumns = table.externalLinks.flatMap(catalog => {
-        catalog.fields.map(field => columnsArray(table.name, catalog.linkName + "_" + field.name, field.dataType.meta))
+        catalog.fields.map(field =>
+          columnsArray(table.name, catalog.linkName + "_" + field.name, field.dataType.meta, nullable = true, None)
+        )
       })
 
       ((metricColumns :+ timeColumn) ++ dimColumns ++ catalogColumns).iterator
@@ -89,11 +99,24 @@ class JdbcMetadataProvider(schema: Schema) {
     } toRight s"Unknown type $typeName"
   }
 
-  private def columnsArray[T](tableName: String, name: String, typeMeta: DataTypeMeta[T]): Array[Any] = {
-    columnsArray(tableName, name, typeMeta.sqlType, typeMeta.sqlTypeName)
+  private def columnsArray[T](
+      tableName: String,
+      name: String,
+      typeMeta: DataTypeMeta[T],
+      nullable: Boolean,
+      description: Option[String]
+  ): Array[Any] = {
+    columnsArray(tableName, name, typeMeta.sqlType, typeMeta.sqlTypeName, nullable, description)
   }
 
-  private def columnsArray(tableName: String, name: String, sqlType: Int, typeName: String): Array[Any] = {
+  private def columnsArray(
+      tableName: String,
+      name: String,
+      sqlType: Int,
+      typeName: String,
+      nullable: Boolean,
+      description: Option[String]
+  ): Array[Any] = {
     Array[Any](
       null,
       null,
@@ -105,8 +128,8 @@ class JdbcMetadataProvider(schema: Schema) {
       null,
       null,
       null,
-      null,
-      null,
+      nullable,
+      description.orNull,
       null,
       null,
       null,
@@ -124,6 +147,29 @@ class JdbcMetadataProvider(schema: Schema) {
 
   private def toColumnType(column: String): DataType = column match {
     case "DATA_TYPE" | "SOURCE_DATA_TYPE" => DataType[Int]
+    case "NULLABLE"                       => DataType[Boolean]
     case _                                => DataType[String]
+  }
+
+  private def rollupDesc(tableName: String): Option[String] = {
+    schema.rollups.find(_.toTable.name == tableName).map {
+      case TsdbRollup(_, _, from, _, filter, _, groupBy) =>
+        val where = filter.map(flt => s" WHERE $flt").getOrElse("")
+        s"Rollup from $from$where GROUP BY ${groupBy.mkString(", ")}"
+      case r =>
+        s"Custom rollup from ${r.fromTable.name}"
+    }
+  }
+
+  private def rollupTimeDesc(r: TsdbRollup): String = {
+    r.timeExpr.toString
+  }
+
+  private def rollupMetricDesc(r: TsdbRollup, metric: Metric): Option[String] = {
+    r.fields.collectFirst { case QueryFieldToMetric(f, m) if m == metric => f.expr.toString }
+  }
+
+  private def rollupDimDesc(r: TsdbRollup, dim: Dimension): Option[String] = {
+    r.fields.collectFirst { case QueryFieldToDimension(f, d) if d == dim => f.expr.toString }
   }
 }

@@ -134,7 +134,7 @@ object TestSchema {
     rowTimeSpan = 7 * 24 * 3600 * 1000,
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y, TestDims.DIM_B),
     metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
-    externalLinks = Seq(),
+    externalLinks = Seq(TestLinks.TEST_LINK4),
     LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
