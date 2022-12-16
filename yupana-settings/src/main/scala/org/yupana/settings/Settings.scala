@@ -95,7 +95,7 @@ object Settings extends StrictLogging {
     new PropertiesSettings(props)
   }
 
-  class PropertiesSettings(props: Properties) extends Settings {
+  class PropertiesSettings(props: Properties) extends Settings with Serializable {
     override def getByKey(k: String): Option[String] = {
       val v = Option(props.getProperty(k))
       logger.info("read setting value: " + settingToString(k, v))
