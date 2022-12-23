@@ -21,6 +21,8 @@ import org.yupana.api.schema._
 import org.yupana.api.types.{ DataType, DataTypeMeta }
 import org.yupana.core.sql.FunctionRegistry
 
+import java.sql.DatabaseMetaData
+
 class JdbcMetadataProvider(schema: Schema) {
 
   private[providers] val columnFieldNames = List(
@@ -66,19 +68,31 @@ class JdbcMetadataProvider(schema: Schema) {
 
       val metricColumns = table.metrics.map { f =>
         val desc = rollup.flatMap(r => rollupMetricDesc(r, f))
-        columnsArray(table.name, f.name, f.dataType.meta, nullable = true, desc)
+        columnsArray(table.name, f.name, f.dataType.meta, nullable = DatabaseMetaData.columnNullable, desc)
       }
 
       val dimColumns = table.dimensionSeq.map { d =>
         val desc = rollup.flatMap(r => rollupDimDesc(r, d))
-        columnsArray(table.name, d.name, d.dataType.meta, nullable = false, desc)
+        columnsArray(table.name, d.name, d.dataType.meta, nullable = DatabaseMetaData.columnNoNulls, desc)
       }
       val timeColumn =
-        columnsArray(table.name, "time", DataTypeMeta.timestampMeta, nullable = false, rollup.map(rollupTimeDesc))
+        columnsArray(
+          table.name,
+          "time",
+          DataTypeMeta.timestampMeta,
+          nullable = DatabaseMetaData.columnNullable,
+          rollup.map(rollupTimeDesc)
+        )
 
       val catalogColumns = table.externalLinks.flatMap(catalog => {
         catalog.fields.map(field =>
-          columnsArray(table.name, catalog.linkName + "_" + field.name, field.dataType.meta, nullable = true, None)
+          columnsArray(
+            table.name,
+            catalog.linkName + "_" + field.name,
+            field.dataType.meta,
+            nullable = DatabaseMetaData.columnNullableUnknown,
+            None
+          )
         )
       })
 
@@ -103,7 +117,7 @@ class JdbcMetadataProvider(schema: Schema) {
       tableName: String,
       name: String,
       typeMeta: DataTypeMeta[T],
-      nullable: Boolean,
+      nullable: Int,
       description: Option[String]
   ): Array[Any] = {
     columnsArray(tableName, name, typeMeta.sqlType, typeMeta.sqlTypeName, nullable, description)
@@ -114,9 +128,15 @@ class JdbcMetadataProvider(schema: Schema) {
       name: String,
       sqlType: Int,
       typeName: String,
-      nullable: Boolean,
+      nullable: Int,
       description: Option[String]
   ): Array[Any] = {
+    val isoNullable = nullable match {
+      case DatabaseMetaData.columnNullable => "YES"
+      case DatabaseMetaData.columnNoNulls  => "NO"
+      case _                               => ""
+    }
+
     Array[Any](
       null,
       null,
@@ -138,7 +158,7 @@ class JdbcMetadataProvider(schema: Schema) {
       null,
       null,
       null,
-      null,
+      isoNullable,
       sqlType,
       "NO",
       "NO"
@@ -147,7 +167,6 @@ class JdbcMetadataProvider(schema: Schema) {
 
   private def toColumnType(column: String): DataType = column match {
     case "DATA_TYPE" | "SOURCE_DATA_TYPE" => DataType[Int]
-    case "NULLABLE"                       => DataType[Boolean]
     case _                                => DataType[String]
   }
 
