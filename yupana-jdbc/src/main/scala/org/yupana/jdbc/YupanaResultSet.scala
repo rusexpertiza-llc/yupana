@@ -268,21 +268,21 @@ class YupanaResultSet protected[jdbc] (
 
   private def toSQLDate(a: AnyRef): Date = {
     a match {
-      case t: ApiTime => new Date(t.millis)
+      case t: ApiTime => Date.valueOf(t.toLocalDateTime.toLocalDate)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Date")
     }
   }
 
   private def toSQLTime(a: AnyRef): Time = {
     a match {
-      case t: ApiTime => new Time(t.millis)
+      case t: ApiTime => Time.valueOf(t.toLocalDateTime.toLocalTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Time")
     }
   }
 
   private def toSQLTimestamp(a: AnyRef): Timestamp = {
     a match {
-      case t: ApiTime => new Timestamp(t.millis)
+      case t: ApiTime => Timestamp.valueOf(t.toLocalDateTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Timestamp")
     }
   }
