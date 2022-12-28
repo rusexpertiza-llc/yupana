@@ -296,7 +296,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def fixTimestamp(a: AnyRef): AnyRef = {
     a match {
-      case t: ApiTime => new Timestamp(t.millis)
+      case t: ApiTime => toSQLTimestamp(t)
       case x          => x
     }
   }
