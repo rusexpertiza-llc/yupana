@@ -37,8 +37,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
-      "org.scalatestplus"      %% "scalacheck-1-16"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -146,7 +145,6 @@ lazy val hbase = (project in file("yupana-hbase"))
       "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                     % versions.scalaCheck               % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
@@ -389,9 +387,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.14"
-  val scalaCheck = "1.17.0"
-  val scalaTestCheck = "3.2.14.0"
+  val scalaTest = "3.2.15"
+  val scalaTestCheck = "3.2.15.0"
   val scalaMock = "5.2.0"
 }
 
