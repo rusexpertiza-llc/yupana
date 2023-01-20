@@ -32,6 +32,7 @@ trait DataTypeConverterSyntax {
   def int2Long(e: Expression[Int]): Expression[Long] = convert[Int, Long](e, TypeConverter.int2Long)
   def int2bigDecimal(e: Expression[Int]): Expression[BigDecimal] =
     convert[Int, BigDecimal](e, TypeConverter.int2BigDecimal)
+  def int2Double(e: Expression[Int]): Expression[Double] = convert[Int, Double](e, TypeConverter.int2Double)
 
   private def convert[T, U](e: Expression[T], typeConverter: TypeConverter[T, U]): TypeConvertExpr[T, U] =
     TypeConvertExpr(typeConverter, e)

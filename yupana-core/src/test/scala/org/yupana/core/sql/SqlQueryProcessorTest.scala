@@ -1070,6 +1070,18 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "align numeric types" in {
+    testQuery("""SELECT testField4 / testField2 as div
+        |  FROM test_table_2
+        |  WHERE time >= timestamp '2023-01-01' and time < timestamp '2023-02-01'
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable2
+      q.fields should contain theSameElementsInOrderAs Seq(
+        divFrac(int2Double(metric(TestTable2Fields.TEST_FIELD4)), metric(TestTable2Fields.TEST_FIELD2)) as "div"
+      )
+    }
+  }
+
   it should "handle dimension ids" in {
     testQuery("""SELECT id(A) as a_id, A as a
         |  FROM test_table

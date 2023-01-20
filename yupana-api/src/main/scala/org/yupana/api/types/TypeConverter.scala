@@ -78,8 +78,16 @@ object TypeConverter {
   val long2Double: TypeConverter[Long, Double] = mkTotal(_.toDouble)
   val int2Long: TypeConverter[Int, Long] = mkTotal(_.toLong)
   val int2BigDecimal: TypeConverter[Int, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val int2Double: TypeConverter[Int, Double] = mkTotal(_.toDouble)
+  val short2Int: TypeConverter[Short, Int] = mkTotal(_.toInt)
+  val short2Long: TypeConverter[Short, Long] = mkTotal(_.toLong)
   val short2BigDecimal: TypeConverter[Short, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val short2Double: TypeConverter[Short, Double] = mkTotal(_.toDouble)
+  val byte2Short: TypeConverter[Byte, Short] = mkTotal(_.toShort)
+  val byte2Int: TypeConverter[Byte, Int] = mkTotal(_.toInt)
+  val byte2Long: TypeConverter[Byte, Long] = mkTotal(_.toLong)
   val byte2BigDecimal: TypeConverter[Byte, BigDecimal] = mkTotal(x => BigDecimal(x))
+  val byte2Double: TypeConverter[Byte, Double] = mkTotal(_.toDouble)
 
   val bigDecimal2Double: PartialConverter[BigDecimal, Double] = mkPartial(x => Some(x.toDouble))
   val bigDecimal2Long: PartialConverter[BigDecimal, Long] =
@@ -130,8 +138,16 @@ object TypeConverter {
     entry[Long, Double](long2Double),
     entry[Int, Long](int2Long),
     entry[Int, BigDecimal](int2BigDecimal),
+    entry[Int, Double](int2Double),
+    entry[Short, Int](short2Int),
+    entry[Short, Long](short2Long),
     entry[Short, BigDecimal](short2BigDecimal),
-    entry[Byte, BigDecimal](byte2BigDecimal)
+    entry[Short, Double](short2Double),
+    entry[Byte, Short](byte2Short),
+    entry[Byte, Int](byte2Int),
+    entry[Byte, Long](byte2Long),
+    entry[Byte, BigDecimal](byte2BigDecimal),
+    entry[Byte, Double](byte2Double)
   )
 
   private val partials: Map[(String, String), PartialConverter[_, _]] = Map(
