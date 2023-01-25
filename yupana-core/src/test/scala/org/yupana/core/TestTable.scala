@@ -33,6 +33,7 @@ object TestTable2Fields {
   val TEST_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testField", 1)
   val TEST_FIELD2: Metric.Aux[Double] = Metric[Double]("testField2", 2)
   val TEST_FIELD3: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testField3", 3)
+  val TEST_FIELD4: Metric.Aux[Int] = Metric[Int]("testField4", 3)
 }
 
 object TestLinks {
@@ -108,7 +109,12 @@ object TestSchema {
     name = "test_table_2",
     rowTimeSpan = 7 * 24 * 3600 * 1000,
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
-    metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
+    metrics = Seq(
+      TestTable2Fields.TEST_FIELD,
+      TestTable2Fields.TEST_FIELD2,
+      TestTable2Fields.TEST_FIELD3,
+      TestTable2Fields.TEST_FIELD4
+    ),
     externalLinks = Seq(),
     LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
