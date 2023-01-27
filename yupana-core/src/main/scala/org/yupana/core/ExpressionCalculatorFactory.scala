@@ -473,8 +473,16 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     tcEntry[Long, Double](l => q"$l.toDouble"),
     tcEntry[Int, Long](i => q"$i.toLong"),
     tcEntry[Int, BigDecimal](i => q"BigDecimal($i)"),
+    tcEntry[Int, Double](i => q"$i.toDouble"),
     tcEntry[Short, BigDecimal](s => q"BigDecimal($s)"),
-    tcEntry[Byte, BigDecimal](b => q"BigDecimal($b)")
+    tcEntry[Short, Double](s => q"$s.toDouble"),
+    tcEntry[Short, Int](s => q"$s.toInt"),
+    tcEntry[Short, Long](s => q"$s.toLong"),
+    tcEntry[Byte, BigDecimal](b => q"BigDecimal($b)"),
+    tcEntry[Byte, Double](b => q"$b.toDouble"),
+    tcEntry[Byte, Short](b => q"$b.toShort"),
+    tcEntry[Byte, Int](b => q"$b.toInt"),
+    tcEntry[Byte, Long](b => q"$b.toLong")
   )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
