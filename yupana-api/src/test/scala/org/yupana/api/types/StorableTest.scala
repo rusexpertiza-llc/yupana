@@ -74,7 +74,7 @@ class StorableTest
   private def readWriteTest[T: Storable: Arbitrary] = {
     val storable = implicitly[Storable[T]]
 
-    forAll { t: T =>
+    forAll { (t: T) =>
       storable.read(storable.write(t)) shouldEqual t
     }
   }

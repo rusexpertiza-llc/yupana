@@ -246,7 +246,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     Try(Hex.decodeHex(value.toCharArray)).toOption.map(dim.rStorable.read)
   }
 
-  def createFilters(condition: Option[Condition]): Filters = {
+  private def createFilters(condition: Option[Condition]): Filters = {
     def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case EqExpr(DimensionExpr(dim), ConstantExpr(c, _)) =>
@@ -381,7 +381,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
 
         case OrExpr(conditions) =>
-          conditions.map(c => createFilters(c, Filters.newBuilder)).foldLeft(builder)(_ union _)
+          conditions.map(c => createFilters(c, Filters.newBuilder(valuesToIds))).foldLeft(builder)(_ union _)
 
         case _ => builder
       }
@@ -389,7 +389,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
     condition match {
       case Some(c) =>
-        createFilters(c, Filters.newBuilder).build(valuesToIds)
+        createFilters(c, Filters.newBuilder(valuesToIds)).build
 
       case None =>
         Filters.empty

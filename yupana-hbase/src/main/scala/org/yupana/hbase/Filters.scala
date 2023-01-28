@@ -44,11 +44,14 @@ class Filters(
 
 object Filters {
 
-  def newBuilder: Builder = new Builder(Map.empty, Map.empty, Map.empty, Map.empty, Option.empty, Option.empty)
+  type ValuesItIds = (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
+  def newBuilder(valuesToIds: ValuesItIds): Builder =
+    new Builder(valuesToIds, Map.empty, Map.empty, Map.empty, Map.empty, Option.empty, Option.empty)
 
   def empty = new Filters(Map.empty, Map.empty, None, None)
 
   class Builder(
+      valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long],
       private val incValues: Map[Dimension, SortedSetIterator[_]],
       private val excValues: Map[Dimension, SortedSetIterator[_]],
       private val incIds: Map[Dimension, SortedSetIterator[_]],
@@ -74,33 +77,33 @@ object Filters {
 
     def includeValues[T](dim: Dimension.Aux2[T, _], vs: SortedSetIterator[T]): Builder = {
       val newValues = intersect(getIncValues(dim), vs)
-      new Builder(incValues + (dim -> newValues), excValues, incIds, excIds, incTime, excTime)
+      new Builder(valuesToIds, incValues + (dim -> newValues), excValues, incIds, excIds, incTime, excTime)
     }
 
     def excludeValues[T](dim: Dimension.Aux2[T, _], vs: SortedSetIterator[T]): Builder = {
       val newValues = union(getExcValues(dim), vs)
-      new Builder(incValues, excValues + (dim -> newValues), incIds, excIds, incTime, excTime)
+      new Builder(valuesToIds, incValues, excValues + (dim -> newValues), incIds, excIds, incTime, excTime)
     }
 
     def includeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
       val newIds = intersect(getIncIds(dim), is)
-      new Builder(incValues, excValues, incIds + (dim -> newIds), excIds, incTime, excTime)
+      new Builder(valuesToIds, incValues, excValues, incIds + (dim -> newIds), excIds, incTime, excTime)
     }
 
     def excludeIds[R](dim: Dimension.Aux2[_, R], is: SortedSetIterator[R]): Builder = {
       val newIds = union(getExcIds(dim), is)
 
-      new Builder(incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
+      new Builder(valuesToIds, incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
     }
 
     def includeTime(times: SortedSetIterator[Time]): Builder = {
       val newTime = intersect(incTime, times)
-      new Builder(incValues, excValues, incIds, excIds, Some(newTime), excTime)
+      new Builder(valuesToIds, incValues, excValues, incIds, excIds, Some(newTime), excTime)
     }
 
     def excludeTime(times: SortedSetIterator[Time]): Builder = {
       val newTime = union(excTime, times)
-      new Builder(incValues, excValues, incIds, excIds, incTime, Some(newTime))
+      new Builder(valuesToIds, incValues, excValues, incIds, excIds, incTime, Some(newTime))
     }
 
     def includeValue[T](dim: Dimension.Aux2[T, _], v: T): Builder = {
@@ -157,13 +160,17 @@ object Filters {
         }
       }
 
+      val a = this.convertValues
+      val b = that.convertValues
+
       new Builder(
-        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](this.incValues, that.incValues, union),
-        CollectionUtils.mergeMaps(this.excValues, that.excValues, intersect),
-        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](this.incIds, that.incIds, union),
-        CollectionUtils.mergeMaps(this.excIds, that.excIds, intersect),
-        unionOptIterators(this.incTime, that.incTime),
-        intersectOptIterators(this.excTime, that.excTime)
+        valuesToIds,
+        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](a.incValues, b.incValues, union),
+        CollectionUtils.mergeMaps(a.excValues, b.excValues, intersect),
+        CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](a.incIds, b.incIds, union),
+        CollectionUtils.mergeMaps(a.excIds, b.excIds, intersect),
+        unionOptIterators(a.incTime, b.incTime),
+        intersectOptIterators(a.excTime, b.excTime)
       )
     }
 
@@ -184,9 +191,7 @@ object Filters {
       }
     }
 
-    def includeFilter(
-        valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
-    ): Map[Dimension, SortedSetIterator[_]] = {
+    def includeFilter: Map[Dimension, SortedSetIterator[_]] = {
       val dims = incValues.keySet ++ incIds.keySet
 
       dims.flatMap {
@@ -218,9 +223,7 @@ object Filters {
       }
     }
 
-    def excludeFilter(
-        valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]
-    ): Map[Dimension, SortedSetIterator[_]] = {
+    def excludeFilter: Map[Dimension, SortedSetIterator[_]] = {
       val dims = excValues.keySet ++ excIds.keySet
       dims.flatMap {
         case d: DictionaryDimension =>
@@ -238,8 +241,12 @@ object Filters {
       }.toMap
     }
 
-    def build(valuesToIds: (DictionaryDimension, SortedSetIterator[String]) => SortedSetIterator[Long]): Filters = {
-      new Filters(includeFilter(valuesToIds), excludeFilter(valuesToIds), incTime, excTime)
+    private def convertValues: Builder = {
+      new Builder(valuesToIds, Map.empty, Map.empty, includeFilter, excludeFilter, incTime, excTime)
+    }
+
+    def build: Filters = {
+      new Filters(includeFilter, excludeFilter, incTime, excTime)
     }
 
     private def intersect[T](cur: Option[SortedSetIterator[T]], vs: SortedSetIterator[T]): SortedSetIterator[T] = {

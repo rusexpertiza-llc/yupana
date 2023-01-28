@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
   * Core of time series database processing pipeline.
   */
-trait TsdbBase extends StrictLogging {
+trait TsdbBase extends AutoCloseable with StrictLogging {
 
   /**
     * Type of collection used in this TSDB instance and the DAO. The default implementation uses Iterator as a collection type.

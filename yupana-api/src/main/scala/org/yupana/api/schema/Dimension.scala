@@ -96,7 +96,7 @@ case class RawDimension[TT](override val name: String)(
 
 case class HashDimension[TT, RR](override val name: String, hashFunction: TT => RR)(
     implicit val rStorable: FixedStorable[RR],
-    implicit val tStorable: Storable[TT],
+    val tStorable: Storable[TT],
     val rOrdering: DimOrdering[RR],
     val tOrdering: DimOrdering[TT],
     val rCt: ClassTag[RR],

@@ -54,7 +54,7 @@ class RequestHandlerTest
     val resp = requestHandler.handlePingProto(ping, 4, 2, "4.2.1").value.next()
 
     inside(resp) {
-      case Response(Response.Resp.Pong(Pong(reqTime, _, Some(version)))) =>
+      case Response(Response.Resp.Pong(Pong(reqTime, _, Some(version), _)), _) =>
         reqTime shouldEqual ping.reqTime
         version shouldEqual Version(ProtocolVersion.value, 4, 2, "4.2.1")
     }

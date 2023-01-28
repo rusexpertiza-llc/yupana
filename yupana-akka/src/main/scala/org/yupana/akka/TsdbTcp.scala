@@ -90,16 +90,16 @@ class TsdbTcp(
           r
       }
       .mapAsync(1) {
-        case Request(Request.Req.Ping(ping)) =>
+        case Request(Request.Req.Ping(ping), _) =>
           Future.successful(requestHandler.handlePingProto(ping, majorVersion, minorVersion, version))
 
-        case Request(Request.Req.SqlQuery(sqlQuery)) =>
+        case Request(Request.Req.SqlQuery(sqlQuery), _) =>
           requestHandler.handleQuery(sqlQuery)
 
-        case Request(Request.Req.BatchSqlQuery(batchSqlQuery)) =>
+        case Request(Request.Req.BatchSqlQuery(batchSqlQuery), _) =>
           requestHandler.handleBatchQuery(batchSqlQuery)
 
-        case Request(Request.Req.Empty) =>
+        case Request(Request.Req.Empty, _) =>
           val error = "Got empty request"
           logger.error(error)
           throw new Exception(error)

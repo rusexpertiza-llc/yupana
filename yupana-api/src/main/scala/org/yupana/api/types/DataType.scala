@@ -153,8 +153,8 @@ object DataType {
     override type T = Null
     override val meta: DataTypeMeta[Null] = implicitly[DataTypeMeta[Null]]
     override val storable: Storable[Null] = Storable.noop
-    override val classTag: ClassTag[Null] = implicitly[ClassTag[Null]]
-    override val boxingTag: BoxingTag[Null] = BoxingTag[Null]
+    override val classTag: ClassTag[Null] = ClassTag.Null
+    override val boxingTag: BoxingTag[Null] = BoxingTag.refBoxing(ClassTag.Null)
     override val ordering: Option[Ordering[Null]] = None
     override val integral: Option[Integral[Null]] = None
     override val fractional: Option[Fractional[Null]] = None

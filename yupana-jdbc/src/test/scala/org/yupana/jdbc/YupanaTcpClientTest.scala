@@ -140,7 +140,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val req = Await.result(reqF, 100.millis)
     inside(req) {
-      case Request(Request.Req.SqlQuery(SqlQuery(q, f))) =>
+      case Request(Request.Req.SqlQuery(SqlQuery(q, _, _)), _) =>
         q shouldEqual sql
 
     }
@@ -226,7 +226,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val req = Await.result(reqF, 100.millis)
     inside(req) {
-      case Request(Request.Req.BatchSqlQuery(BatchSqlQuery(q, fs))) =>
+      case Request(Request.Req.BatchSqlQuery(BatchSqlQuery(q, fs, _)), _) =>
         q shouldEqual sql
         fs should have size 2
     }

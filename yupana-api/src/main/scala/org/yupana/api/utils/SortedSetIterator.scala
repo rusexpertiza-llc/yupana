@@ -105,14 +105,15 @@ private class SortedSetIteratorImpl[A: DimOrdering](it: SortedSetIterator[A]) ex
       var t: A = nextVal
       var hasT = false
 
-      do {
+      while ({
         if (it.hasNext) {
           t = it.next()
           hasT = true
         } else {
           hasT = false
         }
-      } while (hasT && t == nextVal)
+        hasT && t == nextVal
+      }) ()
       nextVal = t
       hasNextVal = hasT
       hasT
@@ -174,7 +175,7 @@ private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(imp
 
   private def seekToNextEq(): Boolean = {
 
-    do {
+    while ({
       val maxHead = bIts.map(_.head).reduce(ord.max)
 
       bIts.foreach { bit =>
@@ -182,7 +183,8 @@ private class IntersectSortedIteratorImpl[A](its: Seq[SortedSetIterator[A]])(imp
           bit.next()
         }
       }
-    } while (bIts.forall(_.hasNext) && bIts.exists(_.head != bIts.head.head))
+      bIts.forall(_.hasNext) && bIts.exists(_.head != bIts.head.head)
+    }) ()
 
     bIts.forall(bit => bit.hasNext && bit.head == bIts.head.head)
   }
@@ -197,7 +199,7 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
 
   override def hasNext: Boolean = {
 
-    do {
+    while ({
       while (bIt.hasNext && bSub.hasNext && ord.lt(bSub.head, bIt.head)) {
         bSub.next()
       }
@@ -205,7 +207,8 @@ private class ExcludeSortedIteratorImpl[A](it: SortedSetIterator[A], sub: Sorted
       if (bIt.hasNext && bSub.hasNext && bIt.head == bSub.head) {
         bIt.next()
       }
-    } while (bIt.hasNext && bSub.hasNext && ord.lte(bSub.head, bIt.head))
+      bIt.hasNext && bSub.hasNext && ord.lte(bSub.head, bIt.head)
+    }) ()
 
     bIt.hasNext && !(bSub.hasNext && bIt.head == bSub.head)
   }

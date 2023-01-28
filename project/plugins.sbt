@@ -6,9 +6,9 @@ addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
 
 addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.11.0")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.3")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.8"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.11"
 
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.2.0")
 

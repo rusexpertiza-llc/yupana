@@ -15,7 +15,7 @@ class FixedStorableTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
   private def readWriteTest[T: FixedStorable: Arbitrary] = {
     val fs = implicitly[FixedStorable[T]]
-    forAll { v: T =>
+    forAll { (v: T) =>
       fs.read(fs.write(v)) shouldEqual v
     }
   }

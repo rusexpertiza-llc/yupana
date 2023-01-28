@@ -34,6 +34,7 @@ lazy val api = (project in file("yupana-api"))
   .settings(
     name := "yupana-api",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
@@ -47,6 +48,7 @@ lazy val proto = (project in file("yupana-proto"))
     name := "yupana-proto",
     allSettings,
     pbSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"    %  "protobuf-java"        % versions.protobufJava force()
@@ -58,6 +60,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   .settings(
     name := "yupana-jdbc",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
       "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
@@ -85,6 +88,7 @@ lazy val utils = (project in file("yupana-utils"))
   .settings(
     name := "yupana-utils",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.apache.lucene"           %  "lucene-analyzers-common"       % versions.lucene,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
@@ -357,6 +361,7 @@ def minMaj(v: String, default: String): String = {
 
 lazy val versions = new {
   val scala213 = "2.13.10"
+  val scala3 = "3.2.0"
 
   val spark = "3.3.1"
 
@@ -395,22 +400,39 @@ lazy val versions = new {
 val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := versions.scala213,
-  scalacOptions ++= Seq(
-    "-release:8",
-    "-Xsource:2.13",
-    "-deprecation",
-    "-unchecked",
-    "-feature",
-    "-Xlint",
-    "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Wconf:msg=Top-level:s"
-  ),
-  Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
   coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*;org\\.yupana\\.benchmarks\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
+)
+
+val scala3Settings = Seq(
+  scalaVersion := versions.scala213,
+  crossScalaVersions := Seq(versions.scala213, versions.scala3)
+)
+
+val scalacSettings = Seq(
+  scalacOptions ++= Seq(
+    "-release:8",
+    "-deprecation",
+    "-unchecked",
+    "-feature",
+    "-Xfatal-warnings",
+    "-Wconf:msg=Top-level:s"
+  ) ++ {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, _)) => Seq(
+        "-Xlint",
+        "-Xsource:2.13",
+        "-Ywarn-dead-code"
+      )
+
+      case Some((3, _)) => Seq()
+
+      case _ => sys.error(s"Unsupported Scala version ${scalaVersion.value}")
+    }
+  },
+  Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
 )
 
 val noPublishSettings = Seq(
@@ -444,7 +466,7 @@ val publishSettings = Seq(
 )
 
 val pbSettings = Seq(
-  PB.protocVersion := "-v261",
+  PB.protocVersion := "2.6.1",
   Compile / PB.targets := Seq(
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )
@@ -467,7 +489,7 @@ val releaseSettings = Seq(
   )
 )
 
-val allSettings = commonSettings ++ publishSettings ++ releaseSettings
+val allSettings = commonSettings ++ publishSettings ++ releaseSettings ++ scalacSettings
 
 ThisBuild / credentials ++= (for {
   username <- Option(System.getenv().get("SONATYPE_USERNAME"))
