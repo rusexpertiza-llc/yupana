@@ -324,6 +324,7 @@ lazy val docs = project
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "mdoc",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
     Compile / resourceGenerators += Def.task {
