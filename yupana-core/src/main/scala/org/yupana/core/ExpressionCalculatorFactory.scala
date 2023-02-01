@@ -528,6 +528,12 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case ConstantExpr(c, _) =>
           val (v, s) = mapValue(state, e.dataType)(c)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case TrueExpr =>
+          val (v, s) = mapValue(state, e.dataType)(true)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case FalseExpr =>
+          val (v, s) = mapValue(state, e.dataType)(false)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
 
         case TimeExpr             => state.withExpr(e)
         case DimensionExpr(_)     => state.withExpr(e)
@@ -648,6 +654,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkFilter(state: State, row: TermName, condition: Option[Condition]): State = {
     condition match {
       case Some(ConstantExpr(v, _)) => state.appendLocal(q"$v")
+      case Some(TrueExpr)           => state.appendLocal(q"true")
+      case Some(FalseExpr)          => state.appendLocal(q"false")
 
       case Some(cond) =>
         val newState = mkSet(state, row, cond)
@@ -1178,6 +1186,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       .replaceAll("\\.\\$bang\\$eq", " != ")
       .replaceAll("\\.\\$eq\\$eq", " == ")
       .replaceAll("\\.\\$amp\\$amp", " && ")
+      .replaceAll("\\.\\$bar\\$bar", " || ")
       .replaceAll("\\.\\$plus\\$plus", " ++ ")
       .replaceAll("\\$plus\\$plus", "++")
       .replaceAll("\\.\\$plus\\$eq", " += ")

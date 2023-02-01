@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.cache
+package org.yupana.cache
 
 class DisabledCache[K, V] extends Cache[K, V] {
   override def getNullable(key: K): V = null.asInstanceOf[V]

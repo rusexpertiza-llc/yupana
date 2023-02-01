@@ -10,7 +10,6 @@ import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
 import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
 
@@ -18,7 +17,9 @@ import java.util.Properties
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
 import org.yupana.core.model.UpdateInterval
+import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
@@ -107,7 +108,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
 
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 
@@ -215,7 +216,6 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
           TestSchema.schema,
           dao,
           changelogDao,
-          dictProvider,
           identity,
           SimpleTsdbConfig(putEnabled = true),
           { _ =>

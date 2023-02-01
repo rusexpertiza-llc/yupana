@@ -87,6 +87,30 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
     )
   }
 
+  it should "handle nested ANDs in OR" in {
+    val c =
+      and(
+        or(
+          and(ge(dimension(RawDimension[Int]("a")), const(1)), lt(dimension(RawDimension[Int]("a")), const(10))),
+          and(ge(dimension(RawDimension[Int]("a")), const(21)), lt(dimension(RawDimension[Int]("a")), const(30)))
+        ),
+        equ(dimension(RawDimension[Int]("b")), const(42))
+      )
+
+    QueryOptimizer.simplifyCondition(c) shouldEqual or(
+      and(
+        ge(dimension(RawDimension[Int]("a")), const(1)),
+        lt(dimension(RawDimension[Int]("a")), const(10)),
+        equ(dimension(RawDimension[Int]("b")), const(42))
+      ),
+      and(
+        ge(dimension(RawDimension[Int]("a")), const(21)),
+        lt(dimension(RawDimension[Int]("a")), const(30)),
+        equ(dimension(RawDimension[Int]("b")), const(42))
+      )
+    )
+  }
+
   it should "handle OR in AND" in {
     val c = and(
       or(

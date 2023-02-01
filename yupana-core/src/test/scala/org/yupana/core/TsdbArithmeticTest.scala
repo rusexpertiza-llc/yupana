@@ -1,19 +1,21 @@
 package org.yupana.core
 
-import java.util.Properties
 import org.scalatest._
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.yupana.api.Time
-import org.yupana.api.query.LinkExpr
-import org.yupana.api.schema.LinkField
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.model.InternalQuery
-import org.yupana.core.utils.SparseTable
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.yupana.api.Time
+import org.yupana.api.query.{ Expression, LinkExpr }
+import org.yupana.api.schema.LinkField
+import org.yupana.cache.CacheFactory
+import org.yupana.core.model.InternalQuery
+import org.yupana.core.utils.SparseTable
+import org.yupana.settings.Settings
+import org.yupana.utils.RussianTokenizer
 
-import java.time.{ OffsetDateTime, ZoneOffset }
 import java.time.format.DateTimeFormatter
+import java.time.{ OffsetDateTime, ZoneOffset }
+import java.util.Properties
 
 class TsdbArithmeticTest
     extends AnyFlatSpec
@@ -27,11 +29,12 @@ class TsdbArithmeticTest
   import org.yupana.api.query.syntax.All._
 
   private val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override def beforeEach(): Unit = {
@@ -53,7 +56,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)),
           and(
             equ(lower(dimension(TestDims.DIM_A)), const("taga")),
             ge(time, const(Time(from))),
@@ -95,7 +98,12 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            metric(TestTableFields.TEST_FIELD2),
+            dimension(TestDims.DIM_A)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -154,7 +162,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_FIELD2),
@@ -206,7 +214,7 @@ class TsdbArithmeticTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
+            Set[Expression[_]](metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to))))
           ),
           *,
@@ -735,7 +743,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -770,7 +778,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(dimension(TestDims.DIM_A), time),
+          Set[Expression[_]](dimension(TestDims.DIM_A), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -808,7 +816,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_STRING_FIELD), time),
+          Set[Expression[_]](metric(TestTableFields.TEST_STRING_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -847,7 +855,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(metric(TestTableFields.TEST_FIELD), time),
+          Set[Expression[_]](metric(TestTableFields.TEST_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -882,7 +890,7 @@ class TsdbArithmeticTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_B)),
+          Set[Expression[_]](time, dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,

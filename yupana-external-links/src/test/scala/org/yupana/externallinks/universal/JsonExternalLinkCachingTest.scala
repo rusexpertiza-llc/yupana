@@ -7,7 +7,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.cache.CacheFactory
+import org.yupana.cache.CacheFactory
 import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLink,
   SQLExternalLinkConfig,
@@ -15,6 +15,7 @@ import org.yupana.externallinks.universal.JsonCatalogs.{
   SQLExternalLinkDescription
 }
 import org.yupana.schema.{ Dimensions, SchemaRegistry }
+import org.yupana.settings.Settings
 
 class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll {
 
@@ -25,7 +26,7 @@ class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFac
     props.put("analytics.caches.default.engine", "EhCache")
     props.put("analytics.caches.TestLink_fields.maxElements", "100")
     props.put("analytics.caches.TestLink_fields.heapSize", "1024")
-    CacheFactory.init(props)
+    CacheFactory.init(Settings(props))
   }
 
   override def afterAll(): Unit = {
@@ -74,9 +75,8 @@ class JsonExternalLinkCachingTest extends AnyFlatSpec with Matchers with MockFac
 object JsonExternalLinkCachingTest {
 
   def resetCacheFactory(): Unit = {
-    val propsField = CacheFactory.getClass.getDeclaredField("properties")
+    val propsField = CacheFactory.getClass.getDeclaredField("settings")
     propsField.setAccessible(true)
     propsField.set(CacheFactory, null)
-    println("dropped props")
   }
 }

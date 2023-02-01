@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.cache
+package org.yupana.cache
 
 trait Cache[K, V] {
   def get(key: K): Option[V] = Option(getNullable(key))

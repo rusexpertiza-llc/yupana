@@ -28,6 +28,8 @@ object ExpressionUtils {
     t(expr).getOrElse(expr match {
       case TimeExpr             => expr
       case ConstantExpr(_, _)   => expr
+      case TrueExpr             => expr
+      case FalseExpr            => expr
       case LinkExpr(_, _)       => expr
       case MetricExpr(_)        => expr
       case DimensionExpr(_)     => expr

@@ -76,4 +76,19 @@ object CollectionUtils {
   def intersectAll[T](sets: Seq[Set[T]]): Set[T] = {
     if (sets.nonEmpty) sets.reduce(_ intersect _) else Set.empty
   }
+
+  def mergeMaps[K, V, U](a: Map[K, V], b: Map[K, V], map: V => U, reduce: (U, U) => U): Map[K, U] = {
+    (a.keySet ++ b.keySet).map { k =>
+      val v = (a.get(k), b.get(k)) match {
+        case (Some(x), Some(y)) => reduce(map(x), map(y))
+        case (Some(x), None)    => map(x)
+        case (None, Some(y))    => map(y)
+        case _                  => throw new IllegalStateException("This should never happen")
+      }
+      k -> v
+    }.toMap
+  }
+
+  def mergeMaps[K, V](a: Map[K, V], b: Map[K, V], reduce: (V, V) => V): Map[K, V] =
+    mergeMaps[K, V, V](a, b, identity, reduce)
 }

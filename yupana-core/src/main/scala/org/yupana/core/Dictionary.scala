@@ -18,7 +18,7 @@ package org.yupana.core
 
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.schema.DictionaryDimension
-import org.yupana.core.cache.CacheFactory
+import org.yupana.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 
 class Dictionary(dimension: DictionaryDimension, dao: DictionaryDao) extends StrictLogging {

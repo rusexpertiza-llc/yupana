@@ -1,29 +1,28 @@
 package org.yupana.core
 
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.cache.CacheFactory
-import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl, TSDao }
+import org.yupana.cache.CacheFactory
+import org.yupana.core.auth.YupanaUser
+import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
-import org.yupana.core.utils.SparseTable
 import org.yupana.core.utils.metric.NoMetricCollector
-
-import java.util.Properties
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.yupana.core.auth.YupanaUser
+import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
+import org.yupana.settings.Settings
+import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.{ LocalDateTime, ZoneOffset }
-
-trait TSTestDao extends TSDao[Iterator, Long]
+import java.util.Properties
 
 class TsdbTest
     extends AnyFlatSpec
@@ -34,10 +33,12 @@ class TsdbTest
     with BeforeAndAfterAll
     with BeforeAndAfterEach {
 
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
+
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {
@@ -50,13 +51,10 @@ class TsdbTest
 
     val tsdbDaoMock = mock[TSTestDao]
     val changelogDaoMock = mock[ChangelogDao]
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb = new TSDB(
       TestSchema.schema,
       tsdbDaoMock,
       changelogDaoMock,
-      dictionaryProvider,
       identity,
       SimpleTsdbConfig(putEnabled = true),
       { _: Query => NoMetricCollector }
@@ -90,14 +88,12 @@ class TsdbTest
   it should "not allow put if disabled" in {
     val tsdbDaoMock = mock[TSTestDao]
     val changelogDaoMock = mock[ChangelogDao]
-    val dictionaryDaoMock = mock[DictionaryDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
+
     val tsdb =
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
         changelogDaoMock,
-        dictionaryProvider,
         identity,
         SimpleTsdbConfig(),
         { _: Query => NoMetricCollector }
@@ -137,7 +133,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             dimension(TestDims.DIM_A),
@@ -196,7 +192,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(
             DimIdInExpr(TestDims.DIM_A, SortedSetIterator((123, 456L))),
             ge(time, const(Time(from))),
@@ -249,7 +250,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             equ(time, const(Time(pointTime))),
             ge(time, const(Time(from))),
@@ -305,7 +306,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
@@ -366,10 +367,10 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
-            notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             equ(dimension(TestDims.DIM_B), const(52.toShort)),
+            notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           )
@@ -433,7 +434,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_B), dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_B),
+            dimension(TestDims.DIM_A),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -488,7 +494,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -541,7 +552,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -598,7 +614,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -675,7 +691,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -745,7 +761,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
         ),
         *,
@@ -782,7 +798,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
         ),
         *,
@@ -830,7 +846,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -886,18 +902,19 @@ class TsdbTest
     val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("test1", "test12"))
         )
       )
 
@@ -919,7 +936,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -996,18 +1018,19 @@ class TsdbTest
       val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              in(dimension(TestDims.DIM_A), Set.empty)
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            in(dimension(TestDims.DIM_A), Set.empty)
           )
         )
 
@@ -1015,7 +1038,12 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+            Set[Expression[_]](
+              time,
+              dimension(TestDims.DIM_A),
+              dimension(TestDims.DIM_B),
+              metric(TestTableFields.TEST_FIELD)
+            ),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
@@ -1062,18 +1090,19 @@ class TsdbTest
       val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
           )
         )
 
@@ -1081,7 +1110,12 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+            Set[Expression[_]](
+              time,
+              dimension(TestDims.DIM_A),
+              dimension(TestDims.DIM_B),
+              metric(TestTableFields.TEST_FIELD)
+            ),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
@@ -1133,18 +1167,19 @@ class TsdbTest
     val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          NotInExpr(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
 
@@ -1166,7 +1201,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1233,18 +1273,19 @@ class TsdbTest
       val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
           )
         )
 
@@ -1266,7 +1307,12 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+            Set[Expression[_]](
+              time,
+              metric(TestTableFields.TEST_FIELD),
+              dimension(TestDims.DIM_A),
+              dimension(TestDims.DIM_B)
+            ),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
@@ -1342,23 +1388,20 @@ class TsdbTest
       val c2 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c,
-            c2
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c,
+              c2
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c),
-              notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
-            ),
-            Replace(
-              Set(c2),
-              equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-            )
+          ConditionTransformation.replace(
+            Seq(c),
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         )
 
@@ -1366,23 +1409,20 @@ class TsdbTest
       val c4 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalog2ServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c3,
-            c4
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c3,
+              c4
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c3),
-              neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-            ),
-            Replace(
-              Set(c4),
-              in(dimension(TestDims.DIM_A), Set("test12", "test13"))
-            )
+          ConditionTransformation.replace(
+            Seq(c4),
+            in(dimension(TestDims.DIM_A), Set("test12", "test13"))
           )
         )
 
@@ -1404,12 +1444,17 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+            Set[Expression[_]](
+              time,
+              metric(TestTableFields.TEST_FIELD),
+              dimension(TestDims.DIM_A),
+              dimension(TestDims.DIM_B)
+            ),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.DIM_A), Set("test12", "test13")),
-              notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
+              notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
+              in(dimension(TestDims.DIM_A), Set("test12", "test13"))
             )
           ),
           *,
@@ -1477,33 +1522,31 @@ class TsdbTest
     val c4 = neq(link(TestLinks.TEST_LINK3, "testField3-2"), const("ccc"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c1,
-          c2,
-          c3,
-          c4
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c1,
+            c2,
+            c3,
+            c4
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c1),
-            neq(dimension(TestDims.DIM_A), const("test11"))
-          ),
-          Replace(
-            Set(c2),
-            notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          ),
-          Replace(
-            Set(c3),
-            notIn(dimension(TestDims.DIM_A), Set("test13"))
-          ),
-          Replace(
-            Set(c4),
-            notIn(dimension(TestDims.DIM_A), Set("test11", "test14"))
-          )
+        ConditionTransformation.replace(
+          Seq(c1),
+          neq(dimension(TestDims.DIM_A), const("test11"))
+        ) ++ ConditionTransformation.replace(
+          Seq(c2),
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
+        ) ++ ConditionTransformation.replace(
+          Seq(c3),
+          notIn(dimension(TestDims.DIM_A), Set("test13"))
+        ) ++ ConditionTransformation.replace(
+          Seq(c4),
+          notIn(dimension(TestDims.DIM_A), Set("test11", "test14"))
         )
       )
 
@@ -1513,13 +1556,18 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
+            notIn(dimension(TestDims.DIM_A), Set("test11", "test14")),
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
             notIn(dimension(TestDims.DIM_A), Set("test13")),
-            notIn(dimension(TestDims.DIM_A), Set("test11", "test14")),
             neq(dimension(TestDims.DIM_A), const("test11"))
           )
         ),
@@ -1580,23 +1628,20 @@ class TsdbTest
       val c2 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalogServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c1,
-            c2
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c1,
+              c2
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c1),
-              in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-            ),
-            Replace(
-              Set(c2),
-              equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
-            )
+          ConditionTransformation.replace(
+            Seq(c1),
+            in(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         )
 
@@ -1604,23 +1649,20 @@ class TsdbTest
       val c4 = equ(link(TestLinks.TEST_LINK2, "testField2"), const("testFieldValue2"))
       (testCatalog2ServiceMock.transformCondition _)
         .expects(
-          and(
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to))),
-            c3,
-            c4
+          FlatAndCondition.single(
+            calculator,
+            and(
+              ge(time, const(Time(from))),
+              lt(time, const(Time(to))),
+              c3,
+              c4
+            )
           )
         )
         .returning(
-          Seq(
-            Replace(
-              Set(c3),
-              equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-            ),
-            Replace(
-              Set(c4),
-              in(dimension(TestDims.DIM_A), Set("test12"))
-            )
+          ConditionTransformation.replace(
+            Seq(c4),
+            in(dimension(TestDims.DIM_A), Set("test12"))
           )
         )
 
@@ -1631,12 +1673,17 @@ class TsdbTest
         .expects(
           InternalQuery(
             TestSchema.testTable,
-            Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+            Set[Expression[_]](
+              time,
+              dimension(TestDims.DIM_A),
+              dimension(TestDims.DIM_B),
+              metric(TestTableFields.TEST_FIELD)
+            ),
             and(
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
-              in(dimension(TestDims.DIM_A), Set("test11", "test12")),
-              in(dimension(TestDims.DIM_A), Set("test12"))
+              in(dimension(TestDims.DIM_A), Set("test12")),
+              in(dimension(TestDims.DIM_A), Set("test11", "test12"))
             )
           ),
           *,
@@ -1699,46 +1746,40 @@ class TsdbTest
     val c2 = equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c1,
-          c2
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c1,
+            c2
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c1),
-            in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          ),
-          Replace(
-            Set(c2),
-            equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
-          )
+        ConditionTransformation.replace(
+          Seq(c1),
+          in(dimension(TestDims.DIM_A), Set("test11", "test12"))
         )
       )
     val c3 = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     val c4 = equ(link(TestLinks.TEST_LINK4, "testField4"), const("testFieldValue2"))
     (testCatalog4ServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c3,
-          c4
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c3,
+            c4
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c3),
-            equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
-          ),
-          Replace(
-            Set(c4),
-            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
-          )
+        ConditionTransformation.replace(
+          Seq(c4),
+          in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
         )
       )
 
@@ -1749,12 +1790,17 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.DIM_A), Set("test11", "test12")),
-            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort))
+            in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort)),
+            in(dimension(TestDims.DIM_A), Set("test11", "test12"))
           )
         ),
         *,
@@ -1810,18 +1856,19 @@ class TsdbTest
     val c = in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
         )
       )
 
@@ -1831,7 +1878,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -1860,7 +1912,7 @@ class TsdbTest
 
     val rs = res.sortBy(_.fields.toList.map(_.toString).mkString(","))
 
-    rs should have size (2)
+    rs should have size 2
 
     val r1 = rs(0)
 
@@ -1908,19 +1960,20 @@ class TsdbTest
     val c = in(link(TestLinks.TEST_LINK, "testField"), Set("testFieldValue1", "testFieldValue2"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
-          c
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            c
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
         )
       )
 
@@ -1930,12 +1983,17 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
-            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
           )
         ),
         *,
@@ -2046,7 +2104,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
@@ -2122,7 +2180,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_STRING_FIELD),
@@ -2252,7 +2310,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2327,7 +2385,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2389,7 +2452,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2445,7 +2513,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2498,18 +2571,19 @@ class TsdbTest
     val c = equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
     (testCatalogServiceMock.transformCondition _)
       .expects(
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          c
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c
+          )
         )
       )
       .returning(
-        Seq(
-          Replace(
-            Set(c),
-            in(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("test1", "test12"))
         )
       )
 
@@ -2533,7 +2607,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
@@ -2607,7 +2681,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2700,7 +2779,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A), dimension(TestDims.DIM_B)),
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2800,7 +2884,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2883,7 +2967,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -2935,7 +3019,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -3013,7 +3097,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -3080,7 +3164,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A)),
+          Set[Expression[_]](time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
@@ -3163,7 +3247,7 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, metric(TestTableFields.TEST_FIELD)),
+          Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))

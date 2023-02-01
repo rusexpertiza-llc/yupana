@@ -10,6 +10,8 @@ lazy val yupana = (project in file("."))
     proto,
     jdbc,
     utils,
+    settings,
+    cache,
     core,
     hbase,
     akka,
@@ -91,6 +93,26 @@ lazy val utils = (project in file("yupana-utils"))
   )
   .dependsOn(api)
 
+lazy val settings = (project in file("yupana-settings"))
+  .settings(
+    name := "yupana-settings",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
+    )
+  )
+
+lazy val cache = (project in file("yupana-cache"))
+  .settings(
+    name := "yupana-cache",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "javax.cache"                 %  "cache-api"                    % "1.1.1",
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+    )
+  ).dependsOn(api, settings)
+
 lazy val core = (project in file("yupana-core"))
   .settings(
     name := "yupana-core",
@@ -100,15 +122,15 @@ lazy val core = (project in file("yupana-core"))
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
-      "javax.cache"                   %  "cache-api"                    % "1.1.1",
       "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
-  .dependsOn(api, utils % Test)
+  .dependsOn(api, settings, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
+
 
 lazy val hbase = (project in file("yupana-hbase"))
   .settings(
@@ -116,38 +138,16 @@ lazy val hbase = (project in file("yupana-hbase"))
     allSettings,
     pbSettings,
     libraryDependencies ++= Seq(
-      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase,
-      "org.apache.hbase"            %  "hbase-client"                 % versions.hbase,
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop,
-      "org.apache.hadoop"           %  "hadoop-hdfs-client"           % versions.hadoop,
-      "com.thesamet.scalapb"        %% "scalapb-runtime"              % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
-      "com.google.protobuf"         %  "protobuf-java"                % versions.protobufJava force(),
-      "org.scalatest"               %% "scalatest"                    % versions.scalaTest                % Test,
-      "org.scalamock"               %% "scalamock"                    % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                   % versions.scalaCheck               % Test,
-      "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-server"                 % versions.hbase                    % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-common"                 % versions.hbase                    % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test,
-      "org.apache.hadoop"           %  "hadoop-hdfs"                  % versions.hadoop                   % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-common"                % versions.hadoop                   % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop-compat"          % versions.hbase                    % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-zookeeper"              % versions.hbase                    % Test classifier "tests",
-      "org.apache.hbase"            %  "hbase-http"                   % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-metrics-api"            % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-metrics"                % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-asyncfs"                % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-logging"                % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test,
-      "org.apache.hbase"            %  "hbase-hadoop2-compat"         % versions.hbase                    % Test classifier "tests",
-      "org.apache.hadoop"           %  "hadoop-mapreduce-client-core" % versions.hadoop                   % Test,
-      "junit"                       %  "junit"                        % "4.13"                            % Test,
-      "jakarta.ws.rs"               %  "jakarta.ws.rs-api"            % "2.1.5"                           % Test,
-      "ch.qos.logback"              %  "logback-classic"              % versions.logback                  % Test,
-      "org.slf4j"                   %  "log4j-over-slf4j"             % "1.7.30"                          % Test,
-      "javax.activation"            % "javax.activation-api"          % "1.2.0"                           % Test
+      "org.apache.hbase"            %  "hbase-common"                   % versions.hbase,
+      "org.apache.hbase"            %  "hbase-client"                   % versions.hbase,
+      "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop,
+      "org.apache.hadoop"           %  "hadoop-hdfs-client"             % versions.hadoop,
+      "com.thesamet.scalapb"        %% "scalapb-runtime"                % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
+      "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
+      "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
+      "org.scalacheck"              %% "scalacheck"                     % versions.scalaCheck               % Test,
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -156,7 +156,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
@@ -188,7 +188,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
     )
   )
-  .dependsOn(core, hbase, externalLinks)
+  .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
 
 lazy val schema = (project in file("yupana-schema"))
@@ -215,7 +215,7 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
-  .dependsOn(schema, core, ehcache % Test)
+  .dependsOn(schema, settings, cache, core, ehcache % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val ehcache = (project in file("yupana-ehcache"))
@@ -226,7 +226,7 @@ lazy val ehcache = (project in file("yupana-ehcache"))
       "org.ehcache"                   %  "ehcache"                      % versions.ehcache
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val caffeine = (project in file("yupana-caffeine"))
@@ -237,7 +237,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
       "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val ignite = (project in file("yupana-ignite"))
@@ -249,7 +249,7 @@ lazy val ignite = (project in file("yupana-ignite"))
       "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
@@ -349,27 +349,27 @@ lazy val docs = project
   )
 
 def minMaj(v: String, default: String): String = {
- val n = VersionNumber(v)
- val r = for {
-   f <- n._1
-   s <- n._2
- } yield s"$f.$s"
- r getOrElse default
+  val n = VersionNumber(v)
+  val r = for {
+    f <- n._1
+    s <- n._2
+  } yield s"$f.$s"
+  r getOrElse default
 }
 
 lazy val versions = new {
   val scala213 = "2.13.10"
 
-  val spark = "3.3.0"
+  val spark = "3.3.1"
 
-  val threeTenExtra = "1.7.0"
+  val threeTenExtra = "1.7.1"
 
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.4"
   val fastparse = "2.1.3"
-  val scopt = "4.0.1"
-  val prometheus = "0.9.0"
+  val scopt = "4.1.0"
+  val prometheus = "0.16.0"
 
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
@@ -462,10 +462,10 @@ val releaseSettings = Seq(
     setReleaseVersion,
     commitReleaseVersion,
     tagRelease,
-//    releaseStepCommandAndRemaining("+publishSigned"),
-//    releaseStepCommand("sonatypeBundleRelease"),
-//    setNextVersion,
-//    commitNextVersion,
+    //    releaseStepCommandAndRemaining("+publishSigned"),
+    //    releaseStepCommand("sonatypeBundleRelease"),
+    //    setNextVersion,
+    //    commitNextVersion,
     pushChanges
   )
 )
