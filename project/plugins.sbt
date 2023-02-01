@@ -20,7 +20,7 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.9.0")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
 
-addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.3")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.4")
 
 addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.3.6")
 addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")
