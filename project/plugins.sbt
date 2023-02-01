@@ -1,6 +1,6 @@
 addSbtPlugin("com.github.sbt" % "sbt-release" % "1.1.0")
 
-addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.15")
+addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.17")
 
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
 
@@ -10,7 +10,7 @@ addSbtPlugin("com.thesamet" % "sbt-protoc" % "0.99.34")
 
 libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.9.8"
 
-addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.2.0")
+addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.0")
 
 addSbtPlugin("io.github.davidmweber" % "flyway-sbt" % "7.4.0")
 
