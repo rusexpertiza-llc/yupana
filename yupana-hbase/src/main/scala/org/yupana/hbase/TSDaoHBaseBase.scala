@@ -161,6 +161,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       dimensionIds: Map[Dimension, PrefetchedSortedSetIterator[_]]
   ): Iterator[Map[Dimension, Seq[_]]] = {
 
+    val dimSeq = dimensionIds.keys
+
     val (completelyFetchedDimIts, partiallyFetchedDimIts) = dimensionIds.partition(_._2.isAllFetched)
 
     if (partiallyFetchedDimIts.size > 1) {
@@ -173,9 +175,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     val fetchedDimIds = completelyFetchedDimIts.map { case (dim, ids) => dim -> ids.fetched.toSeq }
 
     partiallyFetchedDimIts.headOption match {
-      case Some((pd, pids)) =>
+      case Some((_, pids)) =>
         pids.grouped(RANGE_FILTERS_LIMIT).map { batch =>
-          fetchedDimIds + (pd -> batch)
+          dimSeq.map(d => d -> fetchedDimIds.getOrElse(d, batch)).toMap
         }
 
       case None =>
