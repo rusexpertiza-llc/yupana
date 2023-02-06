@@ -10,6 +10,8 @@ lazy val yupana = (project in file("."))
     proto,
     jdbc,
     utils,
+    settings,
+    cache,
     core,
     hbase,
     akka,
@@ -35,8 +37,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalacheck"         %% "scalacheck"           % versions.scalaCheck        % Test,
-      "org.scalatestplus"      %% "scalacheck-1-16"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -91,6 +92,26 @@ lazy val utils = (project in file("yupana-utils"))
   )
   .dependsOn(api)
 
+lazy val settings = (project in file("yupana-settings"))
+  .settings(
+    name := "yupana-settings",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
+    )
+  )
+
+lazy val cache = (project in file("yupana-cache"))
+  .settings(
+    name := "yupana-cache",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "javax.cache"                 %  "cache-api"                    % "1.1.1",
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+    )
+  ).dependsOn(api, settings)
+
 lazy val core = (project in file("yupana-core"))
   .settings(
     name := "yupana-core",
@@ -100,15 +121,15 @@ lazy val core = (project in file("yupana-core"))
       "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
-      "javax.cache"                   %  "cache-api"                    % "1.1.1",
       "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
-  .dependsOn(api, utils % Test)
+  .dependsOn(api, settings, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
+
 
 lazy val hbase = (project in file("yupana-hbase"))
   .settings(
@@ -124,7 +145,6 @@ lazy val hbase = (project in file("yupana-hbase"))
       "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
-      "org.scalacheck"              %% "scalacheck"                     % versions.scalaCheck               % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
@@ -134,7 +154,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
-  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
+  .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
@@ -176,7 +196,7 @@ lazy val spark = (project in file("yupana-spark"))
     ),
     Test / fork := true
   )
-  .dependsOn(core, hbase, externalLinks)
+  .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
 
 lazy val schema = (project in file("yupana-schema"))
@@ -203,7 +223,7 @@ lazy val externalLinks = (project in file("yupana-external-links"))
       "ch.qos.logback"              %  "logback-classic"            % versions.logback          % Test
     )
   )
-  .dependsOn(schema, core, ehcache % Test)
+  .dependsOn(schema, settings, cache, core, ehcache % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val ehcache = (project in file("yupana-ehcache"))
@@ -214,7 +234,7 @@ lazy val ehcache = (project in file("yupana-ehcache"))
       "org.ehcache"                   %  "ehcache"                      % versions.ehcache
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val caffeine = (project in file("yupana-caffeine"))
@@ -225,7 +245,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
       "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val ignite = (project in file("yupana-ignite"))
@@ -237,7 +257,7 @@ lazy val ignite = (project in file("yupana-ignite"))
       "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
     )
   )
-  .dependsOn(core)
+  .dependsOn(cache, settings)
   .disablePlugins(AssemblyPlugin)
 
 lazy val writeAssemblyName = taskKey[Unit]("Writes assembly filename into file")
@@ -314,6 +334,7 @@ lazy val docs = project
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "mdoc",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
     Compile / resourceGenerators += Def.task {
@@ -377,9 +398,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.14"
-  val scalaCheck = "1.17.0"
-  val scalaTestCheck = "3.2.14.0"
+  val scalaTest = "3.2.15"
+  val scalaTestCheck = "3.2.15.0"
   val scalaMock = "5.2.0"
 }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.cache
+package org.yupana.cache
 
 import org.yupana.api.types.BoxingTag
 

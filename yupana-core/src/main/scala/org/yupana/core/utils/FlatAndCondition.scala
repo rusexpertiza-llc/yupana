@@ -84,10 +84,10 @@ object FlatAndCondition {
       .groupBy(tbc => (tbc.from, tbc.to))
       .map {
         case ((f, t), cs) =>
-          val c = OrExpr(cs.map(x => AndExpr(x.conditions)))
+          val c = OrExpr(cs.map(x => if (x.conditions.nonEmpty) AndExpr(x.conditions) else ConstantExpr(true)))
           val simplified = QueryOptimizer.simplifyCondition(c)
 
-          (f, t, if (simplified == ConstantExpr(true)) None else Some(simplified))
+          (f, t, if (simplified == ConstantExpr(true) || simplified == TrueExpr) None else Some(simplified))
       }
       .toSeq
   }

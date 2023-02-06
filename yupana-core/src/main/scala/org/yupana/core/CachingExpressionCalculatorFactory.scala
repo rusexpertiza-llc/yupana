@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, Query }
-import org.yupana.core.cache.{ Cache, CacheFactory }
+import org.yupana.cache.{ Cache, CacheFactory }
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 

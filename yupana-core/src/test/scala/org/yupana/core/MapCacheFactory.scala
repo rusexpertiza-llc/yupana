@@ -1,6 +1,6 @@
 package org.yupana.core
 
-import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory }
+import org.yupana.cache.{ Cache, CacheDescription, CacheFactory }
 
 class MapCache[K, V] extends Cache[K, V] {
   private var map = Map.empty[K, V]

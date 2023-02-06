@@ -53,14 +53,14 @@ object Main extends StrictLogging {
     hbaseConfiguration.set("hbase.zookeeper.quorum", config.hbaseZookeeperUrl)
     hbaseConfiguration.set("zookeeper.session.timeout", "180000")
     hbaseConfiguration.set("hbase.client.scanner.timeout.period", "180000")
-    hbaseConfiguration.set(hbaseRegionsMax, config.properties.getProperty(hbaseRegionsMax))
-    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.properties)
+    hbaseConfiguration.set(hbaseRegionsMax, config.settings(hbaseRegionsMax))
+    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.settings)
 
     HBaseAdmin.available(hbaseConfiguration)
     logger.info("TSDB HBase Configuration: {} works fine", hbaseConfiguration)
 
     val schema = ExampleSchema.schema
-    val jsonLinks = Option(config.properties.getProperty("yupana.json-catalogs-declaration"))
+    val jsonLinks = config.settings.opt[String]("yupana.json-catalogs-declaration")
     val schemaWithJson = jsonLinks
       .map(json =>
         JsonExternalLinkDeclarationsParser
@@ -94,7 +94,7 @@ object Main extends StrictLogging {
     }
 
     val tsdb =
-      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(
+      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.settings, tsdbConfig)(
         metricCreator
       )
 
@@ -106,7 +106,7 @@ object Main extends StrictLogging {
     )
     logger.info("Registering catalogs")
     val elRegistrator =
-      new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
+      new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.settings)
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 

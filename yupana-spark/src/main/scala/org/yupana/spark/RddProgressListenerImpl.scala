@@ -17,18 +17,17 @@
 package org.yupana.spark
 
 import org.apache.spark.Partition
-
-import java.util.Properties
+import org.yupana.settings.Settings
 
 class RddProgressListenerImpl[P <: Partition](
     fileName: String,
     storable: PartitionStorable[P],
-    properties: Properties
+    settings: Settings
 ) extends RddProgressListener[P]
     with Serializable {
 
   private var partitions: Map[Int, P] = Map.empty
-  private val progressSaver: ProgressSaver[P] = new HDFSProgressSaver[P](fileName, storable, properties)
+  private val progressSaver: ProgressSaver[P] = new HDFSProgressSaver[P](fileName, storable, settings)
 
   override def transformPartitions(ps: Seq[P]): Seq[P] = {
     val existing = progressSaver.readPartitions

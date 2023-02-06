@@ -1,19 +1,14 @@
-package org.yupana.akka
+package org.yupana.core.providers
 
-import org.scalatest.{ EitherValues, OptionValues }
-import org.yupana.api.schema._
-import org.yupana.api.types.DataType
-import org.yupana.api.utils.ItemFixer
-import org.yupana.core.providers.JdbcMetadataProvider
-import org.yupana.utils.{ RussianTokenizer, RussianTransliterator }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.time.{ LocalDateTime, ZoneOffset }
+import org.scalatest.{ EitherValues, OptionValues }
+import org.yupana.api.types.DataType
+import org.yupana.core.TestSchema
 
 class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues with EitherValues {
 
-  val metadataProvider = new JdbcMetadataProvider(TS.schema)
+  val metadataProvider = new JdbcMetadataProvider(TestSchema.schema)
 
   "JdbcMetadataProvider" should "return None when unknown table description has been requested" in {
     metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown table 'unknown_talbe'")
@@ -23,39 +18,37 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
     val res = metadataProvider.listTables
     res.fieldNames should contain theSameElementsAs metadataProvider.tableFieldNames
     res.dataTypes should contain only DataType[String]
-    val r = res.next()
-    val cols = metadataProvider.tableFieldNames.map(r.get[String])
+    val r = res.toList
+    val cols = r.map(row => metadataProvider.tableFieldNames.map(row.get[String]))
     cols should contain theSameElementsInOrderAs Seq(
-      null,
-      null,
-      "s1",
-      "TABLE",
-      null
+      Seq(null, null, "test_table", "TABLE", null),
+      Seq(null, null, "test_table_2", "TABLE", null),
+      Seq(null, null, "test_table_4", "TABLE", null)
     )
   }
 
   it should "describe table by name" in {
-    val res = metadataProvider.describeTable("s1").value
+    val res = metadataProvider.describeTable("test_table_4").value
     res.fieldNames should contain theSameElementsAs metadataProvider.columnFieldNames
     val r = res.toList
-    r should have size 6
+    r should have size 8
 
     val timeColDescription = r.find(_.get[String]("COLUMN_NAME").contains("time")).value
-    timeColDescription.get[String]("TABLE_NAME") shouldBe "s1"
+    timeColDescription.get[String]("TABLE_NAME") shouldBe "test_table_4"
     timeColDescription.get[Int]("DATA_TYPE") shouldBe 93
     timeColDescription.get[String]("TYPE_NAME") shouldBe "TIMESTAMP"
 
     val stringColsDescriptions = r.filter(_.get[String]("TYPE_NAME").contains("VARCHAR"))
-    stringColsDescriptions should have size 4
+    stringColsDescriptions should have size 2
     stringColsDescriptions foreach { d =>
-      d.get[String]("TABLE_NAME") shouldBe "s1"
+      d.get[String]("TABLE_NAME") shouldBe "test_table_4"
       d.get[Int]("DATA_TYPE") shouldBe 12
     }
     stringColsDescriptions.map(_.get[String]("COLUMN_NAME")) should
-      contain theSameElementsAs Seq("t1", "t2", "f2", "c1_f1")
+      contain theSameElementsAs Seq("X", "TestLink4_testField4")
 
-    val longColDescription = r.find(_.get[String]("COLUMN_NAME").contains("f1")).value
-    longColDescription.get[String]("TABLE_NAME") shouldBe "s1"
+    val longColDescription = r.find(_.get[String]("COLUMN_NAME").contains("Y")).value
+    longColDescription.get[String]("TABLE_NAME") shouldBe "test_table_4"
     longColDescription.get[Int]("DATA_TYPE") shouldBe -5
     longColDescription.get[String]("TYPE_NAME") shouldBe "BIGINT"
   }
@@ -118,25 +111,4 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
     metadataProvider.listFunctions("BUBBLE").left.value shouldEqual "Unknown type BUBBLE"
   }
 
-}
-
-object TS {
-
-  class C1 extends ExternalLink {
-    override type DimType = String
-    override val linkName: String = "c1"
-    override val dimension: Dimension.Aux[String] = DictionaryDimension("t1")
-    override val fields: Set[LinkField] = Set("f1").map(LinkField[String])
-  }
-
-  val S1 = new Table(
-    name = "s1",
-    rowTimeSpan = 12,
-    dimensionSeq = Seq(DictionaryDimension("t1"), DictionaryDimension("t2")),
-    metrics = Seq(Metric[Long]("f1", 1), Metric[String]("f2", 2)),
-    externalLinks = Seq(new C1),
-    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
-  )
-
-  val schema = Schema(Seq(S1), Seq.empty, ItemFixer.empty, RussianTokenizer, RussianTransliterator)
 }

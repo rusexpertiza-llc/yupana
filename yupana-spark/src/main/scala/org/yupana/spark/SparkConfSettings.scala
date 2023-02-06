@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.core.cache
+package org.yupana.spark
 
 import com.typesafe.scalalogging.StrictLogging
+import org.apache.spark.SparkConf
+import org.yupana.settings.Settings
 
-class DisabledCacheFactory extends CacheFactory with StrictLogging {
-  override val name: String = "Disabled"
+import scala.util.Try
 
-  override def initCache(description: CacheDescription): Cache[description.Key, description.Value] = {
-    logger.debug(s"Initializing cache ${description.name} in Disabled mode")
-    new DisabledCache[description.Key, description.Value]()
+case class SparkConfSettings(sc: SparkConf) extends Settings with Serializable with StrictLogging {
+  override def getByKey(k: String): Option[String] = {
+    val v = Try(sc.get(k)).toOption
+    logger.info("read setting value: " + settingToString(k, v))
+    v
   }
-  override def getCache(description: CacheDescription): Cache[description.Key, description.Value] = {
-    new DisabledCache[description.Key, description.Value]()
-  }
-
-  override def flushCaches(): Unit = {}
 }

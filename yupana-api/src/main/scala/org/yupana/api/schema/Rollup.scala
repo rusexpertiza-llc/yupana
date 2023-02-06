@@ -75,9 +75,9 @@ case class TsdbRollup(
     fieldNamesMap.getOrElse(fieldName, throw new Exception(s"Can't find result field for field name: $fieldName"))
   }
 
-  override def withFromTable(table: Table) = copy(fromTable = table)
+  override def withFromTable(table: Table): TsdbRollup = copy(fromTable = table)
 
-  override def withToTable(table: Table) = copy(toTable = table)
+  override def withToTable(table: Table): TsdbRollup = copy(toTable = table)
 
-  override def withName(newName: String) = copy(name = newName)
+  override def withName(newName: String): TsdbRollup = copy(name = newName)
 }

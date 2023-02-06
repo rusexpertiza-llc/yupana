@@ -8,14 +8,15 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
+import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.utils.{ SparseTable, FlatAndCondition }
+import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
@@ -37,7 +38,7 @@ class TsdbTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {

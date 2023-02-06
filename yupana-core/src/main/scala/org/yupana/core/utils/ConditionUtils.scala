@@ -41,26 +41,6 @@ object ConditionUtils {
     QueryOptimizer.simplifyCondition(mapped)
   }
 
-  def split(c: Condition)(p: Condition => Boolean): (Condition, Condition) = {
-    def doSplit(c: Condition): (Condition, Condition) = {
-      c match {
-        case AndExpr(cs) =>
-          val (a, b) = cs.map(doSplit).unzip
-          (AndExpr(a), AndExpr(b))
-
-        case OrExpr(cs) =>
-          val (a, b) = cs.map(doSplit).unzip
-          (OrExpr(a), OrExpr(b))
-
-        case x => if (p(x)) (x, ConstantExpr(true)) else (ConstantExpr(true), x)
-      }
-    }
-
-    val (a, b) = doSplit(c)
-
-    (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
-  }
-
   def transform(fac: FlatAndCondition, transformations: Seq[ConditionTransformation]): FlatAndCondition = {
     val (adds, removes) = transformations.partitionMap {
       case a: AddCondition    => Left(a)

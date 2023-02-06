@@ -6,11 +6,12 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConditionTransformation, Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
@@ -34,7 +35,7 @@ class TsdbDataFilterTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override def beforeEach(): Unit = {
@@ -836,5 +837,67 @@ class TsdbDataFilterTest
     rows.size shouldEqual 1
     val r1 = rows.head
     r1.get[Int]("B") shouldBe 15
+  }
+
+  it should "support OR conditions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT B, testField from test_table where (B IN (1,2,3) OR testField = 8)" + timeBounds()
+
+    val query = createQuery(sql)
+
+    (tsdbDaoMock.query _)
+      .expects(*, *, *)
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 1.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 4d)
+            .buildAndReset(),
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 2.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 8d)
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query).toList
+
+    rows should have size 2
+  }
+
+  it should "support OR on different times" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql = "SELECT time, B, testField from test_table where (B IN (1,2,3)" + timeBounds() +
+      ") OR (testField = 8" + timeBounds(from.minusYears(1), to.minusYears(1)) + ")"
+
+    val query = createQuery(sql)
+
+    (tsdbDaoMock.query _)
+      .expects(*, *, *)
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 1.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 4d)
+            .buildAndReset(),
+          b.set(Time(from.plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 2.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 8d)
+            .buildAndReset(),
+          b.set(Time(from.minusYears(1).plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 1.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 4d)
+            .buildAndReset(),
+          b.set(Time(from.minusYears(1).plusMinutes(2)))
+            .set(dimension(TestDims.DIM_B), 2.toShort)
+            .set(metric(TestTableFields.TEST_FIELD), 8d)
+            .buildAndReset()
+        )
+      )
+
+    val rows = tsdb.query(query).toList
+
+    rows should have size 3
+    rows.exists(r =>
+      r.get[Time]("time") == Time(from.minusYears(1).plusMinutes(2)) && r.get[Double]("testField") != 8d
+    ) shouldBe false
   }
 }

@@ -12,7 +12,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
@@ -21,6 +20,8 @@ import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible,
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 class TSDaoHBaseTest
@@ -42,7 +43,7 @@ class TSDaoHBaseTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {

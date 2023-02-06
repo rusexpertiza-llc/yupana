@@ -673,4 +673,39 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     result.get(qc, x) shouldEqual -1L
   }
+
+  it should "Support type conversions" in {
+    val now = OffsetDateTime.now()
+
+    val x = plus(metric(TestTableFields.TEST_FIELD), byte2Double(metric(TestTableFields.TEST_BYTE_FIELD)))
+
+    val y = plus(metric(TestTableFields.TEST_LONG_FIELD), short2Long(dimension(TestDims.DIM_B)))
+    val z =
+      divFrac(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(now.minusDays(3))),
+      const(Time(now)),
+      Seq(x as "x", y as "y", z as "z")
+    )
+
+    val qc = new QueryContext(query, None, ExpressionCalculatorFactory)
+
+    val builder = new InternalRowBuilder(qc)
+
+    val row = builder
+      .set(Time(now.minusDays(2)))
+      .set(metric(TestTableFields.TEST_FIELD), 10d)
+      .set(metric(TestTableFields.TEST_BYTE_FIELD), 1.toByte)
+      .set(dimension(TestDims.DIM_B), 7.toShort)
+      .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
+      .buildAndReset()
+
+    val result = qc.calculator.evaluateExpressions(RussianTokenizer, row)
+
+    result.get(qc, x) shouldEqual 11d
+    result.get(qc, y) shouldEqual 10L
+    result.isEmpty(qc, z) shouldBe true
+  }
 }

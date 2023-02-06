@@ -5,7 +5,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.query.{ AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.{ ConstantCalculator, TSDB }
 import org.yupana.externallinks.TestSchema
@@ -14,7 +13,9 @@ import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
+import org.yupana.cache.CacheFactory
 import org.yupana.core.utils.FlatAndCondition
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime
@@ -32,7 +33,7 @@ class ItemsInvertedIndexImplTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {
