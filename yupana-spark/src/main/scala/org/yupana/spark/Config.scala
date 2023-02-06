@@ -18,7 +18,6 @@ package org.yupana.spark
 
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
 
-import java.util.Properties
 import org.apache.spark.SparkConf
 import org.yupana.core.TsdbConfig
 
