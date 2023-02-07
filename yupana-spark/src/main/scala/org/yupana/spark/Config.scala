@@ -16,6 +16,8 @@
 
 package org.yupana.spark
 
+import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
+
 import org.apache.spark.SparkConf
 import org.yupana.core.TsdbConfig
 
@@ -43,6 +45,8 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
   override val putEnabled: Boolean = false
 
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
+
+  override val compression: String = sparkConf.getOption("tsdb.hbase.compression").getOrElse(Algorithm.SNAPPY.getName)
 
   override val reduceLimit: Int = Int.MaxValue
 

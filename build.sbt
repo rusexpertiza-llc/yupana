@@ -179,12 +179,22 @@ lazy val spark = (project in file("yupana-spark"))
     name := "yupana-spark",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
-      "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
-    )
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"               % Test
+
+    ),
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
+    ),
+    Test / fork := true
   )
   .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
