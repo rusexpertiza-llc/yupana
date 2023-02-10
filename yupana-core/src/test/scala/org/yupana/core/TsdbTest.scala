@@ -15,7 +15,7 @@ import org.yupana.core.dao.{ ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
-import org.yupana.core.utils.metric.{ NoMetricCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
+import org.yupana.core.utils.metric._
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
@@ -3285,7 +3285,11 @@ class TsdbTest
     val tsdbDaoMock = daoMock
     val changelogDaoMock = mock[ChangelogDao]
     val metricDao = mock[TsdbQueryMetricsDao]
-    val reporter = new PersistentMetricQueryReporter(() => metricDao)
+    val reporter =
+      new CombinedMetricReporter[MetricQueryCollector](
+        new PersistentMetricQueryReporter(() => metricDao),
+        new ConsoleMetricReporter[MetricQueryCollector]
+      )
 
     val tsdb =
       new TSDB(
