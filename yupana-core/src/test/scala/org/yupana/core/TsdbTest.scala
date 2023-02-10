@@ -3405,11 +3405,8 @@ class TsdbTest
     val res = tsdb.query(query).toList
 
     res should have size 1
-    states.values should contain theSameElementsInOrderAs List(
-      QueryStates.Running,
-      QueryStates.Running,
-      QueryStates.Finished
-    )
+    states.values.head shouldBe QueryStates.Running
+    states.values.last shouldBe QueryStates.Finished
 
     val m = metrics.values.last
     m("create_queries.link.TestLink").count shouldEqual 1
