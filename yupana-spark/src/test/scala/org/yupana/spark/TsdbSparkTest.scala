@@ -12,7 +12,7 @@ import org.yupana.core.dao.ChangelogDao
 import org.yupana.hbase.ChangelogDaoHBase
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
-import java.time.OffsetDateTime
+import java.time.{ OffsetDateTime, ZoneOffset }
 import java.time.temporal.ChronoUnit
 
 trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSession with SparkTestEnv {
@@ -46,7 +46,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
       override def externalLinkServices: Iterable[ExternalLinkService[_]] = Nil
     }
 
-    val now = OffsetDateTime.now()
+    val now = OffsetDateTime.now(ZoneOffset.UTC)
 
     val dps = sc.parallelize(
       Seq(
