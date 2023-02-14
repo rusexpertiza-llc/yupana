@@ -51,6 +51,20 @@ object ExprPair {
     }
   }
 
+  def exprCast[U, T](e: Expression[U], dataType: DataType.Aux[T]): Either[String, Expression[T]] = {
+    if (e.dataType == dataType) Right(e.asInstanceOf[Expression[T]])
+    else {
+      e match {
+        case c @ ConstantExpr(_, p) => constCast(c, dataType).map(v => ConstantExpr(v, p)(dataType))
+        case _ =>
+          TypeConverter(e.dataType, dataType.aux)
+            .orElse(TypeConverter.unsafe(e.dataType, dataType.aux))
+            .map(conv => TypeConvertExpr(conv, e))
+            .toRight(s"Cannot convert $e of type ${e.dataType} to $dataType")
+      }
+    }
+  }
+
   def alignTypes[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
       Right(ExprPair[T](ca, cb.asInstanceOf[Expression[T]]))

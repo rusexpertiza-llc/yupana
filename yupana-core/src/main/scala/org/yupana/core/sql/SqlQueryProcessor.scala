@@ -208,6 +208,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
       case parser.FunctionCall(f, _) =>
         Left(s"Undefined function $f")
+
+      case parser.CastExpr(e, t) =>
+        for {
+          ex <- createExpr(state, nameResolver, e, exprType)
+          tpe <- createType(t)
+          c <- ExprPair.exprCast(ex, tpe.aux)
+        } yield c
     }
 
     e.map {
@@ -217,6 +224,17 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case ex => ex
     }
   }
+
+  private def createType(name: String): Either[String, DataType] = {
+    DataType.bySqlName(name).toRight(s"Unknown type $name")
+  }
+
+//  private def castTo[T](expr: Expression[_], dataType: DataType.Aux[T]): Either[String, Expression[T]] = {
+//    expr match {
+//      case c @ ConstantExpr(_, p) => ExprPair.constCast(c, dataType.aux).map(t => ConstantExpr(t, p)(dataType))
+//      case e                      => ExprPair.exprCast(e, dataType.aux)
+//    }
+//  }
 
   private def createUMinus(
       state: SqlQueryProcessor.BuilderState,

@@ -16,6 +16,8 @@
 
 package org.yupana.api.types
 
+import org.yupana.api.Time
+
 /**
   * Converter from type `In` to `Out`. Usually works with numeric types, increasing precision.
   *
@@ -45,7 +47,13 @@ class PartialConverter[In, Out](
     val dataType: DataType.Aux[Out],
     val functionName: String,
     val convert: In => Option[Out]
-)
+) {
+  def toTotal: TypeConverter[In, Out] = new TypeConverter[In, Out](
+    dataType,
+    functionName,
+    v => convert.andThen(_.getOrElse(throw new ClassCastException(s"Cannot convert $v to $dataType")))(v)
+  )
+}
 
 object TypeConverter {
 
@@ -71,6 +79,18 @@ object TypeConverter {
     */
   def partial[T, U](implicit a: DataType.Aux[T], b: DataType.Aux[U]): Option[PartialConverter[T, U]] = {
     partials.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[PartialConverter[T, U]]]
+  }
+
+  /**
+    * Look up for total converter from T to U, for unsafe conversion. This means that it can throw error on some data.
+    * @param a input data type
+    * @param b output data type
+    * @tparam T input type
+    * @tparam U output type
+    * @return a converter instance if available
+    */
+  def unsafe[T, U](implicit a: DataType.Aux[T], b: DataType.Aux[U]): Option[TypeConverter[T, U]] = {
+    unsafeConverters.get((a.meta.sqlTypeName, b.meta.sqlTypeName)).asInstanceOf[Option[TypeConverter[T, U]]]
   }
 
   val double2BigDecimal: TypeConverter[Double, BigDecimal] = mkTotal(x => BigDecimal(x))
@@ -148,6 +168,19 @@ object TypeConverter {
     entry[Byte, Long](byte2Long),
     entry[Byte, BigDecimal](byte2BigDecimal),
     entry[Byte, Double](byte2Double)
+  )
+
+  def any2String[T](implicit dt: DataType.Aux[T]): TypeConverter[T, String] = mkTotal[T, String](_.toString)
+
+  private val unsafeConverters: Map[(String, String), TypeConverter[_, _]] = Map(
+    entry[BigDecimal, String](any2String),
+    entry[Double, String](any2String),
+    entry[Long, String](any2String),
+    entry[Int, String](any2String),
+    entry[Short, String](any2String),
+    entry[Byte, String](any2String),
+    entry[Boolean, String](any2String),
+    entry[Time, String](any2String)
   )
 
   private val partials: Map[(String, String), PartialConverter[_, _]] = Map(
