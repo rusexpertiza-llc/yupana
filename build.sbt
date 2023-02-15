@@ -4,6 +4,8 @@ import sbt.Keys.excludeDependencies
 
 ThisBuild / useCoursier := false
 
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
