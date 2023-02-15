@@ -30,7 +30,7 @@ trait TsdbMocks extends MockFactory {
     catalogService
   }
 
-  def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
+  def daoMock: TSTestDao = {
     val tsdbDaoMock = mock[TSTestDao]
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
@@ -74,6 +74,11 @@ trait TsdbMocks extends MockFactory {
       .onCall((_: MetricQueryCollector) => IteratorMapReducible.iteratorMR)
       .anyNumberOfTimes()
 
+    tsdbDaoMock
+  }
+
+  def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
+    val tsdbDaoMock = daoMock
     val changelogDaoMock = mock[ChangelogDao]
     val tsdb =
       new TSDB(
