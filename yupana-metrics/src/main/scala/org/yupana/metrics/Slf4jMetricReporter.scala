@@ -18,7 +18,7 @@ package org.yupana.metrics
 
 import com.typesafe.scalalogging.StrictLogging
 
-class Slf4jMetricReporter[C <: MetricCollector, S] extends MetricReporter[C, S] with StrictLogging {
+class Slf4jMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging {
   override def start(mc: C, partitionId: Option[String]): Unit = {
     logger.info(s"${mc.fullId}; operation: ${mc.operationName} started, meta: ${mc.meta}")
   }
@@ -35,7 +35,7 @@ class Slf4jMetricReporter[C <: MetricCollector, S] extends MetricReporter[C, S] 
     )
   }
 
-  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: S): Unit = {}
+  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryStates.QueryState): Unit = {}
 }
 
 object Slf4jMetricReporter {

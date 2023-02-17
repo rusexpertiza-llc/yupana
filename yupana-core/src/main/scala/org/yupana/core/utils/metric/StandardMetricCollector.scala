@@ -17,9 +17,7 @@
 package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
-import org.yupana.core.model.QueryStates
-import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.metrics.{ Metric, MetricCollector, MetricImpl, MetricReporter }
+import org.yupana.metrics.{ Metric, MetricCollector, MetricImpl, MetricReporter, QueryStates }
 
 import scala.collection.mutable
 
@@ -28,7 +26,7 @@ abstract class StandardMetricCollector(
     override val operationName: String,
     metricsUpdateInterval: Int,
     val isSparkQuery: Boolean,
-    reporter: MetricReporter[MetricQueryCollector, QueryState]
+    reporter: MetricReporter[MetricQueryCollector]
 ) extends MetricQueryCollector {
 
   import org.yupana.core.model.TsdbQueryMetrics._

@@ -16,11 +16,11 @@
 
 package org.yupana.metrics
 
-class CombinedMetricReporter[C <: MetricCollector, S](reporters: MetricReporter[C, S]*) extends MetricReporter[C, S] {
+class CombinedMetricReporter[C <: MetricCollector, S](reporters: MetricReporter[C]*) extends MetricReporter[C] {
   override def start(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.start(mc, partitionId))
 
   override def finish(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.finish(mc, partitionId))
 
-  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: S): Unit =
+  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryStates.QueryState): Unit =
     reporters.foreach(_.saveQueryMetrics(mc, partitionId, state))
 }

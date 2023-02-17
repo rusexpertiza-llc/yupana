@@ -17,14 +17,13 @@
 package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
-import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.metrics.MetricReporter
 
 class StandaloneMetricCollector(
     query: Query,
     operationName: String,
     metricsUpdateInterval: Int,
-    reporter: MetricReporter[MetricQueryCollector, QueryState]
+    reporter: MetricReporter[MetricQueryCollector]
 ) extends StandardMetricCollector(query, operationName, metricsUpdateInterval, false, reporter) {
   override val partitionId: Option[String] = None
 }
