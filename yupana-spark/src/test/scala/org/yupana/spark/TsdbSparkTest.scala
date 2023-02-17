@@ -1,8 +1,6 @@
 package org.yupana.spark
 
 import org.apache.hadoop.hbase.client.ConnectionFactory
-import org.apache.spark.rdd.RDD
-import org.apache.spark.streaming.{ Seconds, StreamingContext }
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
@@ -16,7 +14,6 @@ import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables 
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
-import scala.collection.mutable
 
 trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSession with SparkTestEnv {
 
@@ -118,21 +115,5 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
 
     result(0).get[BigDecimal]("min_price") shouldEqual BigDecimal(48)
 
-  }
-
-  "Etl" should "put data" in {
-    import ETLFunctions._
-
-    val ssc = new StreamingContext(sc, Seconds(1))
-    val ecfg = new EtlConfig(sc.getConf)
-    val ec = new EtlContext(ecfg, SchemaRegistry.defaultSchema)
-
-    val queue = new mutable.Queue[RDD[DataPoint]]
-    val stream = ssc.queueStream(queue)
-
-    ssc.start()
-    stream.saveDataPoints(ec)
-
-    ssc.awaitTermination()
   }
 }

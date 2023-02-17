@@ -16,7 +16,7 @@
 
 package org.yupana.metrics
 
-class CombinedMetricReporter[C <: MetricCollector, S](reporters: MetricReporter[C]*) extends MetricReporter[C] {
+class CombinedMetricReporter[C <: MetricCollector](reporters: MetricReporter[C]*) extends MetricReporter[C] {
   override def start(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.start(mc, partitionId))
 
   override def finish(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.finish(mc, partitionId))
