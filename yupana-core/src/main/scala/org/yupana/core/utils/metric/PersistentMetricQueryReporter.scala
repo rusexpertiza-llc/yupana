@@ -19,9 +19,10 @@ package org.yupana.core.utils.metric
 import org.yupana.core.dao.TsdbQueryMetricsDao
 import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ MetricData, QueryStates }
+import org.yupana.metrics.{ MetricCollector, MetricReporter }
 
 class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
-    extends MetricReporter[MetricQueryCollector] {
+    extends MetricReporter[MetricQueryCollector, QueryState] {
 
   override def start(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
     metricsDao().saveQueryMetrics(

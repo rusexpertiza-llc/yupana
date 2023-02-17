@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
 trait Metric extends Serializable {
   def name: String

@@ -24,8 +24,6 @@ import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
 import org.yupana.core.utils.metric.{
-  CombinedMetricReporter,
-  ConsoleMetricReporter,
   PersistentMetricQueryReporter,
   StandaloneMetricCollector
 }
@@ -36,6 +34,7 @@ import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
+import org.yupana.metrics.{CombinedMetricReporter, Slf4jMetricReporter}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -87,7 +86,7 @@ object Main extends StrictLogging {
         "query",
         tsdbConfig.metricsUpdateInterval,
         new CombinedMetricReporter(
-          new ConsoleMetricReporter,
+          new Slf4jMetricReporter,
           new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
         )
       )

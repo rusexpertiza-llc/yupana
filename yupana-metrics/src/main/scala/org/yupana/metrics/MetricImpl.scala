@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
 import java.util.concurrent.atomic.LongAdder
 
@@ -45,7 +45,7 @@ class MetricImpl(
       result
     } catch {
       case throwable: Throwable =>
-        metricCollector.queryStatus.lazySet(Failed(throwable))
+        metricCollector.setQueryStatus(Failed(throwable))
         metricCollector.finish()
         throw throwable
     }

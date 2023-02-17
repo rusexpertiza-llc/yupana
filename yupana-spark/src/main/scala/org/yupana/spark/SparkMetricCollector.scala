@@ -18,13 +18,15 @@ package org.yupana.spark
 
 import org.apache.spark.SparkEnv
 import org.yupana.api.query.Query
-import org.yupana.core.utils.metric.{ MetricQueryCollector, MetricReporter, StandardMetricCollector }
+import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.core.utils.metric.{ MetricQueryCollector, StandardMetricCollector }
+import org.yupana.metrics.MetricReporter
 
 class SparkMetricCollector(
     query: Query,
     opName: String,
     metricsUpdateInterval: Int,
-    reporter: MetricReporter[MetricQueryCollector]
+    reporter: MetricReporter[MetricQueryCollector, QueryState]
 ) extends StandardMetricCollector(query, opName, metricsUpdateInterval, true, reporter) {
   override def partitionId: Option[String] = Some(SparkEnv.get.executorId)
 }

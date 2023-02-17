@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
-import org.yupana.core.model.QueryStates.QueryState
+class CombinedMetricReporter[C <: MetricCollector, S](reporters: MetricReporter[C, S]*) extends MetricReporter[C, S] {
+  override def start(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.start(mc, partitionId))
 
-trait MetricReporter[Collector <: MetricCollector] extends Serializable {
-  def start(mc: Collector, partitionId: Option[String]): Unit
-  def finish(mc: Collector, partitionId: Option[String]): Unit
+  override def finish(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.finish(mc, partitionId))
 
-  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryState): Unit
+  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: S): Unit =
+    reporters.foreach(_.saveQueryMetrics(mc, partitionId, state))
 }

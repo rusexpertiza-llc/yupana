@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
-sealed trait QueryStatus extends Serializable
+trait MetricReporter[Collector <: MetricCollector, S] extends Serializable {
+  def start(mc: Collector, partitionId: Option[String]): Unit
+  def finish(mc: Collector, partitionId: Option[String]): Unit
 
-case object Unknown extends QueryStatus
-case object Success extends QueryStatus
-case class Failed(throwable: Throwable) extends QueryStatus {
-  override def toString: String = s"Failed: ${throwable.getMessage}"
+  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: S): Unit
 }

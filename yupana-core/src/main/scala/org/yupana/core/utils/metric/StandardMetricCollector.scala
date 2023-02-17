@@ -18,8 +18,9 @@ package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
 import org.yupana.core.model.QueryStates
+import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.metrics.{ Metric, MetricCollector, MetricImpl, MetricReporter }
 
-import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 
 abstract class StandardMetricCollector(
@@ -27,7 +28,7 @@ abstract class StandardMetricCollector(
     override val operationName: String,
     metricsUpdateInterval: Int,
     val isSparkQuery: Boolean,
-    reporter: MetricReporter[MetricQueryCollector]
+    reporter: MetricReporter[MetricQueryCollector, QueryState]
 ) extends MetricQueryCollector {
 
   import org.yupana.core.model.TsdbQueryMetrics._
@@ -54,8 +55,6 @@ abstract class StandardMetricCollector(
   override val reduceOperation: MetricImpl = createMetric(reduceOperationQualifier)
   override val postFilter: MetricImpl = createMetric(postFilterQualifier)
   override val collectResultRows: MetricImpl = createMetric(collectResultRowsQualifier)
-
-  override val queryStatus: AtomicReference[QueryStatus] = new AtomicReference[QueryStatus](Unknown)
 
   override def dynamicMetric(name: String): Metric = dynamicMetrics.getOrElseUpdate(name, createMetric(name))
 
