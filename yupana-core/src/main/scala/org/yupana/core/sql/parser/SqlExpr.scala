@@ -43,7 +43,7 @@ case class FunctionCall(function: String, exprs: List[SqlExpr]) extends SqlExpr 
   }
 }
 
-case class Case(conditionalValues: Seq[(Condition, SqlExpr)], defaultValue: SqlExpr) extends SqlExpr {
+case class Case(conditionalValues: Seq[(SqlExpr, SqlExpr)], defaultValue: SqlExpr) extends SqlExpr {
   override def proposedName: Option[String] = None
 }
 
@@ -81,4 +81,77 @@ case class Divide(a: SqlExpr, b: SqlExpr) extends SqlExpr {
 
 case class UMinus(x: SqlExpr) extends SqlExpr {
   override def proposedName: Option[String] = x.proposedName.map(n => s"minus_$n")
+}
+
+case class IsNull(e: SqlExpr) extends SqlExpr {
+  override def proposedName: Option[String] = e.proposedName.map(n => s"${n}_is_null")
+}
+case class IsNotNull(e: SqlExpr) extends SqlExpr {
+  override def proposedName: Option[String] = e.proposedName.map(n => s"${n}_is_not_null")
+}
+
+sealed trait Comparison extends SqlExpr {
+  val a: SqlExpr
+  val b: SqlExpr
+}
+
+case class Eq(a: SqlExpr, b: SqlExpr) extends Comparison {
+  override def proposedName: Option[String] = for {
+    x <- a.proposedName
+    y <- b.proposedName
+  } yield s"${x}_eq_${y}"
+}
+
+case class Ne(a: SqlExpr, b: SqlExpr) extends Comparison {
+  override def proposedName: Option[String] = for {
+    x <- a.proposedName
+    y <- b.proposedName
+  } yield s"${x}_ne_${y}"
+}
+
+case class Gt(a: SqlExpr, b: SqlExpr) extends Comparison {
+  override def proposedName: Option[String] = for {
+    x <- a.proposedName
+    y <- b.proposedName
+  } yield s"${x}_gt_${y}"
+}
+
+case class Ge(a: SqlExpr, b: SqlExpr) extends Comparison {
+  override def proposedName: Option[String] = for {
+    x <- a.proposedName
+    y <- b.proposedName
+  } yield s"${x}_ge_${y}"
+}
+
+case class Lt(a: SqlExpr, b: SqlExpr) extends Comparison {
+  override def proposedName: Option[String] = for {
+    x <- a.proposedName
+    y <- b.proposedName
+  } yield s"${x}_lt_${y}"
+}
+
+case class Le(a: SqlExpr, b: SqlExpr) extends Comparison {
+  override def proposedName: Option[String] = for {
+    x <- a.proposedName
+    y <- b.proposedName
+  } yield s"${x}_le_${y}"
+}
+
+case class And(cs: Seq[SqlExpr]) extends SqlExpr {
+  override def proposedName: Option[String] = None
+}
+
+case class Or(cs: Seq[SqlExpr]) extends SqlExpr {
+  override def proposedName: Option[String] = None
+}
+
+case class In(expr: SqlExpr, values: Seq[Value]) extends SqlExpr {
+  override def proposedName: Option[String] = None
+}
+case class NotIn(expr: SqlExpr, values: Seq[Value]) extends SqlExpr {
+  override def proposedName: Option[String] = None
+}
+
+case class BetweenCondition(expr: SqlExpr, from: Value, to: Value) extends SqlExpr {
+  override def proposedName: Option[String] = None
 }

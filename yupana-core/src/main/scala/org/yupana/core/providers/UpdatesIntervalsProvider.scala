@@ -24,17 +24,18 @@ import org.yupana.core.FlatQueryEngine
 import org.yupana.core.sql.parser._
 
 import java.time.OffsetDateTime
+import scala.util.matching.Regex
 
 object UpdatesIntervalsProvider extends StrictLogging {
   import org.yupana.core.model.UpdateInterval._
 
   implicit class CaseInsensitiveRegex(val sc: StringContext) extends AnyVal {
-    def ci = ("(?i)" + sc.parts.mkString).r
+    def ci: Regex = ("(?i)" + sc.parts.mkString).r
   }
 
   def handleGetUpdatesIntervals(
       flatQueryEngine: FlatQueryEngine,
-      maybeCondition: Option[Condition],
+      maybeCondition: Option[SqlExpr],
       parameters: Map[Int, Value]
   ): Either[String, Result] = {
 
@@ -91,10 +92,10 @@ object UpdatesIntervalsProvider extends StrictLogging {
   }
 
   def createFilter(
-      maybeCondition: Option[Condition],
+      maybeCondition: Option[SqlExpr],
       params: Map[Int, Value] = Map.empty
   ): Either[String, UpdatesIntervalsFilter] = {
-    def addSimpleCondition(f: UpdatesIntervalsFilter, c: Condition): Either[String, UpdatesIntervalsFilter] = {
+    def addSimpleCondition(f: UpdatesIntervalsFilter, c: SqlExpr): Either[String, UpdatesIntervalsFilter] = {
       c match {
         case Eq(FieldName(ci"table"), Constant(x)) => getString(x).map(s => f.withTableName(s))
         case Eq(Constant(x), FieldName(ci"table")) => getString(x).map(s => f.withTableName(s))

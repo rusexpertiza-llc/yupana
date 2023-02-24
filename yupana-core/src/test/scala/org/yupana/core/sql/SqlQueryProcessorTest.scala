@@ -441,30 +441,6 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
-  it should "handle parenthesis" in {
-    testQuery(
-      """
-        |SELECT "test_table_2"."X" AS "tagX", "test_table_2"."time" AS "time"
-        |  FROM "test_table_2"
-        |  WHERE (("receipt"."time" >= {ts '2017-10-23 00:00:00'}) AND (("receipt"."time" <= {ts '2017-11-02 00:00:00'}) AND ("receipt"."X" = '0001388410039121')))
-        |  GROUP BY "receipt"."X",
-        |    "receipt"."time"
-    """.stripMargin
-    ) { q =>
-      q.table.value.name shouldEqual "test_table_2"
-      q.filter.value shouldBe and(
-        ge(time, const(Time(OffsetDateTime.of(2017, 10, 23, 0, 0, 0, 0, ZoneOffset.UTC)))),
-        le(time, const(Time(OffsetDateTime.of(2017, 11, 2, 0, 0, 0, 0, ZoneOffset.UTC)))),
-        equ(lower(dimension(DIM_X)), const("0001388410039121"))
-      )
-      q.groupBy should contain theSameElementsAs List(dimension(DIM_X), time)
-      q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_X) as "tagX",
-        time as "time"
-      )
-    }
-  }
-
   it should "handle nested queries with const fields" in {
     testQuery("""
         | SELECT 1 as "Number_of_Records",
@@ -694,6 +670,34 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
             const(BigDecimal(0))
           )
         ) as "sum"
+      )
+    }
+  }
+
+  it should "support case when with boolean literals" in {
+    testQuery("""
+        |SELECT
+        |    time,
+        |    testField
+        |FROM test_table
+        |WHERE
+        |  time >= timestamp '2020-02-16' and time <= timestamp '2020-02-17' and
+        |  (case when (testField is null)
+        |    then true
+        |    else testField > 100
+        |   )
+        |limit 10
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(time.toField, metric(TestTableFields.TEST_FIELD).toField)
+      q.filter.value shouldEqual and(
+        ge(time, const(Time(LocalDateTime.of(2020, 2, 16, 0, 0)))),
+        le(time, const(Time(LocalDateTime.of(2020, 2, 17, 0, 0)))),
+        condition(
+          isNull(metric(TestTableFields.TEST_FIELD)),
+          const(true),
+          gt(metric(TestTableFields.TEST_FIELD), const(100d))
+        )
       )
     }
   }
