@@ -380,14 +380,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
-  private def mkSetTypeConvertExpr(state: State, row: TermName, e: Expression[_], a: Expression[_]): State = {
-    val mapper = typeConverters.getOrElse(
-      (a.dataType.meta.sqlTypeName, e.dataType.meta.sqlTypeName),
-      throw new IllegalArgumentException(s"Unsupported type conversion ${a.dataType} to ${e.dataType}")
-    )
-    mkSetUnary(state, row, e, a, mapper)
-  }
-
   private def mkSetBinary(
       state: State,
       row: TermName,
@@ -460,30 +452,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       mkSetBinary(newState, row, e, a, b, (x, y) => q"$ord.$ordFunName($x, $y)")
     }
   }
-
-  private def tcEntry[A, B](
-      aToB: Tree => Tree
-  )(implicit a: DataType.Aux[A], b: DataType.Aux[B]): ((String, String), Tree => Tree) = {
-    ((a.meta.sqlTypeName, b.meta.sqlTypeName), aToB)
-  }
-
-  private val typeConverters: Map[(String, String), Tree => Tree] = Map(
-    tcEntry[Double, BigDecimal](d => q"BigDecimal($d)"),
-    tcEntry[Long, BigDecimal](l => q"BigDecimal($l)"),
-    tcEntry[Long, Double](l => q"$l.toDouble"),
-    tcEntry[Int, Long](i => q"$i.toLong"),
-    tcEntry[Int, BigDecimal](i => q"BigDecimal($i)"),
-    tcEntry[Int, Double](i => q"$i.toDouble"),
-    tcEntry[Short, BigDecimal](s => q"BigDecimal($s)"),
-    tcEntry[Short, Double](s => q"$s.toDouble"),
-    tcEntry[Short, Int](s => q"$s.toInt"),
-    tcEntry[Short, Long](s => q"$s.toLong"),
-    tcEntry[Byte, BigDecimal](b => q"BigDecimal($b)"),
-    tcEntry[Byte, Double](b => q"$b.toDouble"),
-    tcEntry[Byte, Short](b => q"$b.toShort"),
-    tcEntry[Byte, Int](b => q"$b.toInt"),
-    tcEntry[Byte, Long](b => q"$b.toLong")
-  )
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
   private val monday = q"_root_.java.time.DayOfWeek.MONDAY"
@@ -583,7 +551,27 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case DivIntExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x / $y""")
         case DivFracExpr(a, b) => mkDivFrac(state, row, e, a, b)
 
-        case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
+        case Double2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, d => q"BigDecimal($d)")
+
+        case Long2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, l => q"BigDecimal($l)")
+        case Long2DoubleExpr(a)     => mkSetUnary(state, row, e, a, l => q"$l.toDouble")
+
+        case Int2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, i => q"BigDecimal($i)")
+        case Int2DoubleExpr(a)     => mkSetUnary(state, row, e, a, i => q"$i.toDouble")
+        case Int2LongExpr(a)       => mkSetUnary(state, row, e, a, i => q"$i.toLong")
+
+        case Short2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, s => q"BigDecimal($s)")
+        case Short2DoubleExpr(a)     => mkSetUnary(state, row, e, a, s => q"$s.toDouble")
+        case Short2LongExpr(a)       => mkSetUnary(state, row, e, a, s => q"$s.toLong")
+        case Short2IntExpr(a)        => mkSetUnary(state, row, e, a, s => q"$s.toInt")
+
+        case Byte2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, b => q"BigDecimal($b)")
+        case Byte2DoubleExpr(a)     => mkSetUnary(state, row, e, a, b => q"$b.toDouble")
+        case Byte2LongExpr(a)       => mkSetUnary(state, row, e, a, b => q"$b.toLong")
+        case Byte2IntExpr(a)        => mkSetUnary(state, row, e, a, b => q"$b.toInt")
+        case Byte2ShortExpr(a)      => mkSetUnary(state, row, e, a, b => q"$b.toShort")
+
+        case ToStringExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toString")
 
         case TruncYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
         case TruncMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfMonth)($x)")

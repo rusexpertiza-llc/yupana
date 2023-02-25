@@ -20,8 +20,9 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
+import org.yupana.core.ConstantCalculator
 
-object FunctionRegistry {
+class FunctionRegistry(calculator: ConstantCalculator) {
 
   type ArrayExpr[T] = Expression[Seq[T]]
 
@@ -201,7 +202,7 @@ object FunctionRegistry {
     Function2Desc(
       "/",
       (a: Expression[_], b: Expression[_]) =>
-        ExprPair.alignTypes(a, b) match {
+        ExprPair.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.integral.isDefined =>
             Right(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
           case Right(pair) if pair.dataType.fractional.isDefined =>
@@ -381,7 +382,7 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        ExprPair.alignTypes(a, b) match {
+        ExprPair.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.ordering.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.ordering.get))
           case Right(_) => Left(s"Cannot compare types ${a.dataType} and ${b.dataType}")
@@ -397,7 +398,7 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        ExprPair.alignTypes(a, b) match {
+        ExprPair.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.numeric.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.numeric.get))
           case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
@@ -409,7 +410,7 @@ object FunctionRegistry {
   private def biSame(fn: String, create: Bind2[Expression, Expression, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) => ExprPair.alignTypes(a, b).map(pair => create(pair.a, pair.b))
+      (a, b) => ExprPair.alignTypes(a, b, calculator).map(pair => create(pair.a, pair.b))
     )
   }
 

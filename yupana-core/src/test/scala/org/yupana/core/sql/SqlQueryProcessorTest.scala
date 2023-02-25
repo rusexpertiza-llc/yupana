@@ -10,7 +10,6 @@ import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.TypeConverter
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
@@ -1094,7 +1093,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.table.value shouldEqual TestSchema.testTable
       q.fields should contain theSameElementsInOrderAs Seq(
         sum(long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "sum",
-        TypeConvertExpr(TypeConverter.any2String[Time], time) as "sTime"
+        ToStringExpr(truncDay(time)) as "sTime"
       )
     }
   }
