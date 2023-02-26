@@ -159,7 +159,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           converted.flatMap { conv =>
             conv.foldRight(Right(ve): Either[String, Expression[_]]) {
               case ((condition, value), Right(e)) =>
-                ExprPair
+                DataTypeUtils
                   .alignTypes(value, e, calculator)
                   .map(pair => ConditionExpr(condition, pair.a, pair.b).asInstanceOf[Expression[_]])
 
@@ -214,7 +214,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         for {
           ex <- createExpr(state, nameResolver, e, exprType)
           tpe <- createType(t)
-          c <- ExprPair.exprCast(ex, tpe.aux, calculator)
+          c <- DataTypeUtils.exprCast(ex, tpe.aux, calculator)
         } yield c
     }
 
@@ -229,13 +229,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   private def createType(name: String): Either[String, DataType] = {
     DataType.bySqlName(name).toRight(s"Unknown type $name")
   }
-
-//  private def castTo[T](expr: Expression[_], dataType: DataType.Aux[T]): Either[String, Expression[T]] = {
-//    expr match {
-//      case c @ ConstantExpr(_, p) => ExprPair.constCast(c, dataType.aux).map(t => ConstantExpr(t, p)(dataType))
-//      case e                      => ExprPair.exprCast(e, dataType.aux)
-//    }
-//  }
 
   private def createUMinus(
       state: SqlQueryProcessor.BuilderState,
@@ -371,7 +364,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   }
 
   private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
-    convertValue(state, v, ExprType.Cmp).flatMap(const => ExprPair.constCast(const, dataType, calculator))
+    convertValue(state, v, ExprType.Cmp).flatMap(const => DataTypeUtils.constCast(const, dataType, calculator))
   }
 
   private def convertValue(
@@ -535,7 +528,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
-    idx.map(values).flatMap(c => ExprPair.constCast(c, DataType[Time], calculator)).map(_.millis)
+    idx.map(values).flatMap(c => DataTypeUtils.constCast(c, DataType[Time], calculator)).map(_.millis)
   }
 
   private def getDimensionValues(
@@ -545,7 +538,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
-      idx.map(values).flatMap(c => ExprPair.constCast(c, dim.dataType, calculator)).map(dim -> _)
+      idx.map(values).flatMap(c => DataTypeUtils.constCast(c, dim.dataType, calculator)).map(dim -> _)
     }
 
     CollectionUtils.collectErrors(dimValues).map(_.toMap)
@@ -557,7 +550,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        val x: Either[String, Any] = ExprPair.constCast(values(idx), m.dataType, calculator)
+        val x: Either[String, Any] = DataTypeUtils.constCast(values(idx), m.dataType, calculator)
         x.map(v => MetricValue(m, v))
     }
 

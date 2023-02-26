@@ -1093,7 +1093,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       q.table.value shouldEqual TestSchema.testTable
       q.fields should contain theSameElementsInOrderAs Seq(
         sum(long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "sum",
-        ToStringExpr(truncDay(time)) as "sTime"
+        x2String(truncDay(time)) as "sTime"
       )
     }
   }

@@ -17,6 +17,7 @@
 package org.yupana.api.query.syntax
 
 import org.yupana.api.query._
+import org.yupana.api.types.DataType
 
 trait DataTypeConverterSyntax {
   def byte2BigDecimal(e: Expression[Byte]): Expression[BigDecimal] = Byte2BigDecimalExpr(e)
@@ -36,6 +37,8 @@ trait DataTypeConverterSyntax {
 
   def long2BigDecimal(e: Expression[Long]): Expression[BigDecimal] = Long2BigDecimalExpr(e)
   def long2Double(e: Expression[Long]): Expression[Double] = Long2DoubleExpr(e)
+
+  def x2String[T: DataType.Aux](e: Expression[T]): Expression[String] = ToStringExpr(e)
 
   def double2bigDecimal(e: Expression[Double]): Expression[BigDecimal] = Double2BigDecimalExpr(e)
 }

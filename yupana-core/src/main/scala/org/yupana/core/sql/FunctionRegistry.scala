@@ -202,7 +202,7 @@ class FunctionRegistry(calculator: ConstantCalculator) {
     Function2Desc(
       "/",
       (a: Expression[_], b: Expression[_]) =>
-        ExprPair.alignTypes(a, b, calculator) match {
+        DataTypeUtils.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.integral.isDefined =>
             Right(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
           case Right(pair) if pair.dataType.fractional.isDefined =>
@@ -382,7 +382,7 @@ class FunctionRegistry(calculator: ConstantCalculator) {
     Function2Desc(
       fn,
       (a, b) =>
-        ExprPair.alignTypes(a, b, calculator) match {
+        DataTypeUtils.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.ordering.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.ordering.get))
           case Right(_) => Left(s"Cannot compare types ${a.dataType} and ${b.dataType}")
@@ -398,7 +398,7 @@ class FunctionRegistry(calculator: ConstantCalculator) {
     Function2Desc(
       fn,
       (a, b) =>
-        ExprPair.alignTypes(a, b, calculator) match {
+        DataTypeUtils.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.numeric.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.numeric.get))
           case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
@@ -410,7 +410,7 @@ class FunctionRegistry(calculator: ConstantCalculator) {
   private def biSame(fn: String, create: Bind2[Expression, Expression, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) => ExprPair.alignTypes(a, b, calculator).map(pair => create(pair.a, pair.b))
+      (a, b) => DataTypeUtils.alignTypes(a, b, calculator).map(pair => create(pair.a, pair.b))
     )
   }
 
