@@ -999,6 +999,24 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
+  it should "parse tuples" in {
+    val sql =
+      """
+        | SELECT a, b
+        |   FROM table
+        |   WHERE (a, b) IN ((1, 2), (3, 4))""".stripMargin
+
+    parsed(sql) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
+        condition shouldEqual In(
+          Tuple(FieldName("a"), FieldName("b")),
+          Seq(TupleValue(NumericValue(1), NumericValue(2)), TupleValue(NumericValue(3), NumericValue(4)))
+        )
+    }
+  }
+
   it should "support cast" in {
     val sql =
       """

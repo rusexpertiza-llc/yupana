@@ -176,6 +176,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         val consts = CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, exprType)))
         consts.flatMap(createArrayExpr)
 
+      case parser.Tuple(a, b) =>
+        for {
+          ae <- createExpr(state, nameResolver, a, exprType)
+          be <- createExpr(state, nameResolver, b, exprType)
+        } yield createTuple(ae, be)
+
       case parser.UMinus(a) =>
         createUMinus(state, nameResolver, a, ExprType.Math)
 
@@ -323,6 +329,20 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
   }
 
+  private def createTuple[T, U](a: Expression[T], b: Expression[U]): Expression[_] =
+    TupleExpr(a, b)(a.dataType, b.dataType)
+
+  private def createTupleValue[T, U](
+      a: ConstantExpr[T],
+      b: ConstantExpr[U],
+      prepared: Boolean
+  ): Either[String, ConstantExpr[_]] = {
+    for {
+      av <- DataTypeUtils.constCast(a, a.dataType, calculator)
+      bv <- DataTypeUtils.constCast(b, b.dataType, calculator)
+    } yield ConstantExpr((av, bv), prepared)(DataType.tupleDt(a.dataType, b.dataType))
+  }
+
   private def createBinary(
       state: BuilderState,
       nameResolver: NameResolver,
@@ -405,6 +425,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         }
 
       case parser.PeriodValue(p) => Right(ConstantExpr(p, prepared))
+
+      case parser.TupleValue(a, b) =>
+        for {
+          ae <- convertValue(state, a, exprType, prepared)
+          be <- convertValue(state, b, exprType, prepared)
+          te <- createTupleValue(ae, be, prepared)
+        } yield te
 
       case parser.Placeholder(id) =>
         state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))

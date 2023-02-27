@@ -135,8 +135,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
       override def executeScans(
           queryContext: InternalQueryContext,
-          from: Long,
-          to: Long,
+          itnervals: Seq[(Long, Long)],
           rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
       ): Iterator[HResult] = {
         rows.iterator

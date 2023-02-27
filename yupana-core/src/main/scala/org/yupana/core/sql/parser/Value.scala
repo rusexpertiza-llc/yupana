@@ -52,3 +52,7 @@ object TimestampValue {
 case class PeriodValue(value: PeriodDuration) extends Value {
   override def asString: String = value.toString
 }
+
+case class TupleValue(a: Value, b: Value) extends Value {
+  override def asString: String = s"${a.asString}_${b.asString}"
+}

@@ -39,19 +39,22 @@ class TSDaoHBase(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Iterator[HResult] = {
 
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
-        queryContext.metricsCollector.createScans.measure(1) {
-          val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
-          createScan(queryContext, filter, Seq.empty, from, to)
-        } match {
-          case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
-          case None       => Iterator.empty
+        queryContext.metricsCollector.createScans.measure(intervals.size) {
+          intervals.flatMap {
+            case (from, to) =>
+              val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
+              createScan(queryContext, filter, Seq.empty, from, to) match {
+                case Some(scan) =>
+                  executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
+                case None => Iterator.empty
+              }
+          }
         }
       }
     } else {

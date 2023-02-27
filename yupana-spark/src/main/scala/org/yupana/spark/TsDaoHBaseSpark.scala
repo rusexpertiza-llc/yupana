@@ -48,25 +48,27 @@ class TsDaoHBaseSpark(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
     val progressFile = queryContext.hints.collectFirst { case ProgressHint(fileName) => fileName }
     if (rangeScanDims.nonEmpty) {
-      val rdds = rangeScanDims.zipWithIndex.map {
+      val rdds = rangeScanDims.zipWithIndex.flatMap {
         case (dimIds, index) =>
-          val listener = progressFile match {
-            case Some(f) =>
-              new RddProgressListenerImpl[HBaseScanPartition](
-                s"${f}_$index",
-                new HBaseScanPartition.HBaseScanPartitionStorable(from, to, queryContext, dimIds),
-                config.settings
-              )
-            case None => new DummyProgressListener[HBaseScanPartition]
+          intervals.map {
+            case (from, to) =>
+              val listener = progressFile match {
+                case Some(f) =>
+                  new RddProgressListenerImpl[HBaseScanPartition](
+                    s"${f}_${from}-${to}_${index}",
+                    new HBaseScanPartition.HBaseScanPartitionStorable(from, to, queryContext, dimIds),
+                    config.settings
+                  )
+                case None => new DummyProgressListener[HBaseScanPartition]
+              }
+              sparkListener.addListener(listener)
+              new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds, listener)
           }
-          sparkListener.addListener(listener)
-          new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds, listener)
       }
       sparkContext.union(rdds.toSeq)
     } else {

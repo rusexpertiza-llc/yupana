@@ -152,7 +152,12 @@ object ValueParser {
     P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue)
   }
 
-  def value[_: P]: P[Value] = P(numericValue | timestampValue | periodValue | stringValue | booleanValue | placeholder)
+  def tupleValue[_: P]: P[TupleValue] =
+    P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map(TupleValue.tupled)
+
+  def value[_: P]: P[Value] = P(
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | placeholder | tupleValue
+  )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])
 }

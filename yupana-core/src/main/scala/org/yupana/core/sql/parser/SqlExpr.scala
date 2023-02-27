@@ -159,3 +159,11 @@ case class BetweenCondition(expr: SqlExpr, from: Value, to: Value) extends SqlEx
 case class CastExpr(e: SqlExpr, resultType: String) extends SqlExpr {
   override def proposedName: Option[String] = e.proposedName.map(n => s"${n}_as_$resultType")
 }
+
+case class Tuple(a: SqlExpr, b: SqlExpr) extends SqlExpr {
+  override def proposedName: Option[String] =
+    for {
+      aName <- a.proposedName
+      bName <- b.proposedName
+    } yield s"${aName}_$bName"
+}
