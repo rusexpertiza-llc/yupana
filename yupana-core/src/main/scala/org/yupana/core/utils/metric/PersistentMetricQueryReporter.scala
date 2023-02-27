@@ -17,8 +17,8 @@
 package org.yupana.core.utils.metric
 
 import org.yupana.core.dao.TsdbQueryMetricsDao
-import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.core.model.{ MetricData, QueryStates }
+import org.yupana.core.model.MetricData
+import org.yupana.metrics.{ MetricCollector, MetricReporter, QueryStates }
 
 class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     extends MetricReporter[MetricQueryCollector] {
@@ -45,7 +45,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao)
     }.toMap
   }
 
-  def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryState): Unit = {
+  def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryStates.QueryState): Unit = {
     val metricsData = createMetricsData(mc)
     metricsDao().saveQueryMetrics(
       mc.query,

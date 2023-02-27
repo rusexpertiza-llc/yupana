@@ -17,8 +17,7 @@
 package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
-
-import java.util.concurrent.atomic.AtomicReference
+import org.yupana.metrics.{ Metric, NoMetric }
 
 object NoMetricCollector extends MetricQueryCollector {
   override val createDimensionFilters: Metric = NoMetric
@@ -34,8 +33,6 @@ object NoMetricCollector extends MetricQueryCollector {
   override val collectResultRows: Metric = NoMetric
 
   override def dynamicMetric(name: String): Metric = NoMetric
-
-  override val queryStatus: AtomicReference[QueryStatus] = new AtomicReference[QueryStatus](Unknown)
 
   override val partitionId: Option[String] = None
 
@@ -54,16 +51,4 @@ object NoMetricCollector extends MetricQueryCollector {
   override val operationName: String = "UNKNOWN"
   override def startTime: Long = 0L
   override def resultDuration: Long = 0L
-}
-
-object NoMetric extends Metric {
-  override val name: String = "NONE"
-
-  override val time: Long = 0L
-  override val count: Long = 0L
-
-  override def reset(): Unit = {}
-
-  @inline
-  override def measure[T](count: Int)(f: => T): T = f
 }

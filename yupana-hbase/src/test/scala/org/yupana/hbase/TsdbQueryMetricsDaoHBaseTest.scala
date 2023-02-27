@@ -5,9 +5,10 @@ import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
 import org.yupana.core.{ TestDims, TestSchema }
 import org.yupana.core.dao.QueryMetricsFilter
-import org.yupana.core.model.{ MetricData, QueryStates }
+import org.yupana.core.model.MetricData
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.yupana.metrics.QueryStates
 
 import java.time.temporal.ChronoUnit
 import java.time.{ OffsetDateTime, ZoneOffset }

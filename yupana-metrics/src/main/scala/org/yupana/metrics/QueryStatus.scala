@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
-import org.yupana.core.model.QueryStates.QueryState
+sealed trait QueryStatus extends Serializable
 
-class CombinedMetricReporter[C <: MetricCollector](reporters: MetricReporter[C]*) extends MetricReporter[C] {
-  override def start(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.start(mc, partitionId))
+case object Unknown extends QueryStatus
+case object Success extends QueryStatus
 
-  override def finish(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.finish(mc, partitionId))
-
-  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryState): Unit =
-    reporters.foreach(_.saveQueryMetrics(mc, partitionId, state))
+case class Failed(throwable: Throwable) extends QueryStatus {
+  override def toString: String = s"Failed: ${throwable.getMessage}"
 }
