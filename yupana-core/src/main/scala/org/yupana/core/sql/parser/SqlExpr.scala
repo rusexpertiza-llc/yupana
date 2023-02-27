@@ -82,3 +82,7 @@ case class Divide(a: SqlExpr, b: SqlExpr) extends SqlExpr {
 case class UMinus(x: SqlExpr) extends SqlExpr {
   override def proposedName: Option[String] = x.proposedName.map(n => s"minus_$n")
 }
+
+case class CastExpr(e: SqlExpr, resultType: String) extends SqlExpr {
+  override def proposedName: Option[String] = e.proposedName.map(n => s"${n}_as_$resultType")
+}
