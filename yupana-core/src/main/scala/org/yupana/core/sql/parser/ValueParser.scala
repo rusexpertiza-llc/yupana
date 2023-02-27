@@ -33,6 +33,9 @@ object ValueParser {
 
   private def toWord[_: P] = P(IgnoreCase("TO"))
 
+  private def trueConst[_: P]: P[Boolean] = P(IgnoreCase("TRUE")).map(_ => true)
+  private def falseConst[_: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
+
   def placeholder[_: P]: P[Placeholder] = {
     val p = P("?")
     val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
@@ -64,7 +67,7 @@ object ValueParser {
   }
 
   def string[_: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
-  def boolean[_: P]: P[Boolean] = string.map(_.toBoolean)
+  def boolean[_: P]: P[Boolean] = P(trueConst | falseConst)
 
   private def year[_: P] = P(digit.rep(exactly = 4).!.map(_.toInt))
   private def twoDigitInt[_: P] = P(digit.rep(min = 1, max = 2).map(_.mkString.toInt))
@@ -104,6 +107,7 @@ object ValueParser {
 
   def numericValue[_: P]: P[NumericValue] = P(number).map(NumericValue)
   def stringValue[_: P]: P[StringValue] = P(string).map(StringValue)
+  def booleanValue[_: P]: P[BooleanValue] = P(boolean).map(BooleanValue)
   def timestampValue[_: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
 
   def INTERVAL_PARTS[_: P]: List[IntervalPart] = List(
@@ -151,7 +155,9 @@ object ValueParser {
   def tupleValue[_: P]: P[TupleValue] =
     P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map(TupleValue.tupled)
 
-  def value[_: P]: P[Value] = P(numericValue | timestampValue | periodValue | stringValue | placeholder | tupleValue)
+  def value[_: P]: P[Value] = P(
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | placeholder | tupleValue
+  )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])
 }

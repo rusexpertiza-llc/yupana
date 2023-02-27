@@ -120,7 +120,9 @@ object SqlParser {
     }
   }
 
-  def expr[_: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def mathExpr[_: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+
+  def expr[_: P]: P[SqlExpr] = P(condition)
 
   def minusMathTerm[_: P]: P[SqlExpr] = P("-" ~ mathTerm).map(UMinus)
 
@@ -144,57 +146,65 @@ object SqlParser {
   def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
 
   def op[_: P]: P[(SqlExpr, SqlExpr) => Comparison] = P(
-    P("=").map(_ => Eq) |
-      P("<>").map(_ => Ne) |
-      P("!=").map(_ => Ne) |
-      P(">=").map(_ => Ge) |
+    P(">=").map(_ => Ge) |
       P(">").map(_ => Gt) |
       P("<=").map(_ => Le) |
-      P("<").map(_ => Lt)
+      P("<" ~ !">").map(_ => Lt)
+  )
+
+  def eqOp[_: P]: P[(SqlExpr, SqlExpr) => Comparison] = P(
+    P("=").map(_ => Eq) |
+      P("<>").map(_ => Ne) |
+      P("!=").map(_ => Ne)
   )
 
   def callOrField[_: P]: P[SqlExpr] = functionCallExpr | fieldNameExpr
 
-  def comparison[_: P]: P[SqlExpr => Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
+  def comparison[_: P]: P[SqlExpr => SqlExpr] = P(op ~/ mathExpr).map { case (o, b) => a => o(a, b) }
 
-  def in[_: P]: P[SqlExpr => Condition] =
+  def equasion[_: P]: P[SqlExpr] = P(boolExpr ~ (eqOp ~/ boolExpr).?).map {
+    case (a, Some((o, b))) => o(a, b)
+    case (a, None)         => a
+  }
+
+  def in[_: P]: P[SqlExpr => SqlExpr] =
     P(inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
-  def notIn[_: P]: P[SqlExpr => Condition] =
+  def notIn[_: P]: P[SqlExpr => SqlExpr] =
     P(notWord ~ inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
-  def isNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ nullWord).map(_ => IsNull)
+  def isNull[_: P]: P[SqlExpr => SqlExpr] = P(isWord ~ nullWord).map(_ => IsNull)
 
-  def isNotNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull)
+  def isNotNull[_: P]: P[SqlExpr => SqlExpr] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull)
 
-  def between[_: P]: P[SqlExpr => Condition] = P(betweenWord ~/ ValueParser.value ~ andWord ~/ ValueParser.value).map {
+  def between[_: P]: P[SqlExpr => SqlExpr] = P(betweenWord ~/ ValueParser.value ~ andWord ~/ ValueParser.value).map {
     case (f, t) => e => BetweenCondition(e, f, t)
   }
 
-  def condition[_: P]: P[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
+  def condition[_: P]: P[SqlExpr] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => Or(x +: y)
     case (x, _)               => x
   }
 
-  def logicalTerm[_: P]: P[Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
+  def logicalTerm[_: P]: P[SqlExpr] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
     case (x, y) if y.nonEmpty => And(x +: y)
     case (x, _)               => x
   }
 
-  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull | between).?).map {
+  def boolExpr[_: P]: P[SqlExpr] = P(mathExpr ~ (comparison | in | notIn | isNull | isNotNull | between).?).map {
     case (e, Some(f)) => f(e)
-    case (e, None)    => ExprCondition(e)
+    case (e, None)    => e
   }
 
-  def logicalFactor[_: P]: P[Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
+  def logicalFactor[_: P]: P[SqlExpr] = P(equasion | ("(" ~ condition ~ ")"))
 
-  def where[_: P]: P[Condition] = P(whereWord ~/ condition)
+  def where[_: P]: P[SqlExpr] = P(whereWord ~/ condition)
 
   def grouping[_: P]: P[SqlExpr] = callOrField
 
   def groupings[_: P]: P[Seq[SqlExpr]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
 
-  def having[_: P]: P[Condition] = P(havingWord ~/ condition)
+  def having[_: P]: P[SqlExpr] = P(havingWord ~/ condition)
 
   def limit[_: P]: P[Int] = P(limitWord ~/ ValueParser.intNumber)
 

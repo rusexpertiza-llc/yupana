@@ -7,23 +7,23 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{Dimension, MetricValue}
+import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ChangelogDao, TsdbQueryMetricsDao}
+import org.yupana.core.dao.{ ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.sql.parser.{Select, SqlParser}
+import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.metric._
-import org.yupana.core.utils.{FlatAndCondition, SparseTable}
-import org.yupana.metrics.{CombinedMetricReporter, QueryStates, Slf4jMetricReporter}
+import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
+import org.yupana.metrics.{ CombinedMetricReporter, QueryStates, Slf4jMetricReporter }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{LocalDateTime, ZoneOffset}
+import java.time.{ LocalDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbTest
