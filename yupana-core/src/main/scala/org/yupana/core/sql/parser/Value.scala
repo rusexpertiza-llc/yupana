@@ -32,6 +32,10 @@ case class NumericValue(value: BigDecimal) extends Value {
   override def asString: String = value.toString
 }
 
+case class BooleanValue(value: Boolean) extends Value {
+  override def asString: String = value.toString
+}
+
 case class StringValue(value: String) extends Value {
   override def asString: String = value
 }

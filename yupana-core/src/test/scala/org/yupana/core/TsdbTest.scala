@@ -17,6 +17,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.metric._
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
+import org.yupana.metrics.{ CombinedMetricReporter, QueryStates, Slf4jMetricReporter }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
@@ -3288,7 +3289,7 @@ class TsdbTest
     val reporter =
       new CombinedMetricReporter[MetricQueryCollector](
         new PersistentMetricQueryReporter(() => metricDao),
-        new ConsoleMetricReporter[MetricQueryCollector]
+        new Slf4jMetricReporter[MetricQueryCollector]
       )
 
     val tsdb =
