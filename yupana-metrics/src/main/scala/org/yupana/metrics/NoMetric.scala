@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
-sealed trait QueryStatus extends Serializable
+object NoMetric extends Metric {
+  override val name: String = "NONE"
 
-case object Unknown extends QueryStatus
-case object Success extends QueryStatus
-case class Failed(throwable: Throwable) extends QueryStatus {
-  override def toString: String = s"Failed: ${throwable.getMessage}"
+  override val time: Long = 0L
+  override val count: Long = 0L
+
+  override def reset(): Unit = {}
+
+  @inline
+  override def measure[T](count: Int)(f: => T): T = f
 }

@@ -155,3 +155,7 @@ case class NotIn(expr: SqlExpr, values: Seq[Value]) extends SqlExpr {
 case class BetweenCondition(expr: SqlExpr, from: Value, to: Value) extends SqlExpr {
   override def proposedName: Option[String] = None
 }
+
+case class CastExpr(e: SqlExpr, resultType: String) extends SqlExpr {
+  override def proposedName: Option[String] = e.proposedName.map(n => s"${n}_as_$resultType")
+}

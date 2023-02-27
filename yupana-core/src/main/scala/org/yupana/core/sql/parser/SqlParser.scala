@@ -47,6 +47,7 @@ object SqlParser {
   private def isWord[_: P] = P(IgnoreCase("IS"))
   private def nullWord[_: P] = P(IgnoreCase("NULL"))
   private def notWord[_: P] = P(IgnoreCase("NOT"))
+  private def castWord[_: P] = P(IgnoreCase("CAST"))
   private def queryIdWord[_: P] = P(IgnoreCase("QUERY_ID"))
   private def stateWord[_: P] = P(IgnoreCase("STATE"))
   private def killWord[_: P] = P(IgnoreCase("KILL"))
@@ -128,7 +129,11 @@ object SqlParser {
   def mathTerm[_: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
 
   def mathFactor[_: P]: P[SqlExpr] =
-    P(functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | "(" ~ expr ~ ")")
+    P(castExpr | functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | "(" ~ expr ~ ")")
+
+  def dataType[_: P]: P[String] = P(CharsWhileIn("a-zA-Z").!)
+
+  def castExpr[_: P]: P[SqlExpr] = P(castWord ~ "(" ~/ expr ~ asWord ~ dataType ~ ")").map(CastExpr.tupled)
 
   def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
 

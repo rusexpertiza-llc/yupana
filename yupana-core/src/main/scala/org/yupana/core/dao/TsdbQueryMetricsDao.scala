@@ -17,8 +17,8 @@
 package org.yupana.core.dao
 
 import org.yupana.api.query.Query
-import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
+import org.yupana.metrics.QueryStates
 
 trait TsdbQueryMetricsDao {
 
@@ -28,7 +28,7 @@ trait TsdbQueryMetricsDao {
       query: Query,
       partitionId: Option[String],
       startDate: Long,
-      queryState: QueryState,
+      queryState: QueryStates.QueryState,
       totalDuration: Long,
       metricValues: Map[String, MetricData],
       sparkQuery: Boolean
@@ -39,5 +39,5 @@ trait TsdbQueryMetricsDao {
 
 case class QueryMetricsFilter(
     queryId: Option[String] = None,
-    queryState: Option[QueryState] = None
+    queryState: Option[QueryStates.QueryState] = None
 )

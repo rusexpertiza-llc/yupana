@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
-import org.yupana.api.query.Query
-import org.yupana.metrics.MetricReporter
+class CombinedMetricReporter[C <: MetricCollector](reporters: MetricReporter[C]*) extends MetricReporter[C] {
+  override def start(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.start(mc, partitionId))
 
-class StandaloneMetricCollector(
-    query: Query,
-    operationName: String,
-    metricsUpdateInterval: Int,
-    reporter: MetricReporter[MetricQueryCollector]
-) extends StandardMetricCollector(query, operationName, metricsUpdateInterval, false, reporter) {
-  override val partitionId: Option[String] = None
+  override def finish(mc: C, partitionId: Option[String]): Unit = reporters.foreach(_.finish(mc, partitionId))
+
+  override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryStates.QueryState): Unit =
+    reporters.foreach(_.saveQueryMetrics(mc, partitionId, state))
 }

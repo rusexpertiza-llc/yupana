@@ -11,7 +11,7 @@ import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
 import org.yupana.core.dao._
-import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, StandaloneMetricCollector }
 
 import java.util.Properties
 import scala.util.Random
@@ -19,6 +19,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.cache.CacheFactory
 import org.yupana.core.model.UpdateInterval
+import org.yupana.metrics.Slf4jMetricReporter
 import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
@@ -209,7 +210,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new StandaloneMetricCollector(query, "test", 10, new ConsoleMetricReporter)
+    val mc = new StandaloneMetricCollector(query, "test", 10, new Slf4jMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(

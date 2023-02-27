@@ -32,7 +32,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   import SqlQueryProcessor._
 
-  private val expressionCalculator = new ConstantCalculator(schema.tokenizer)
+  private val calculator = new ConstantCalculator(schema.tokenizer)
+  private val functionRegistry = new FunctionRegistry(calculator)
 
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)
@@ -158,8 +159,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           converted.flatMap { conv =>
             conv.foldRight(Right(ve): Either[String, Expression[_]]) {
               case ((condition, value), Right(e)) =>
-                ExprPair
-                  .alignTypes(value, e)
+                DataTypeUtils
+                  .alignTypes(value, e, calculator)
                   .map(pair => ConditionExpr(condition, pair.a, pair.b).asInstanceOf[Expression[_]])
 
               case (_, Left(msg)) => Left(msg)
@@ -252,18 +253,25 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.FunctionCall(f, e :: Nil) =>
         for {
           ex <- createExpr(state, nameResolver, e, exprType)
-          fexpr <- FunctionRegistry.unary(f, ex)
+          fexpr <- functionRegistry.unary(f, ex)
         } yield fexpr
 
       case parser.FunctionCall(f, e1 :: e2 :: Nil) =>
         for {
           a <- createExpr(state, nameResolver, e1, exprType)
           b <- createExpr(state, nameResolver, e2, exprType)
-          fexpr <- FunctionRegistry.bi(f, a, b)
+          fexpr <- functionRegistry.bi(f, a, b)
         } yield fexpr
 
       case parser.FunctionCall(f, _) =>
         Left(s"Undefined function $f")
+
+      case parser.CastExpr(e, t) =>
+        for {
+          ex <- createExpr(state, nameResolver, e, exprType)
+          tpe <- createType(t)
+          c <- DataTypeUtils.exprCast(ex, tpe.aux, calculator)
+        } yield c
     }
 
     e.map {
@@ -272,6 +280,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         LowerExpr(ex.asInstanceOf[Expression[String]])
       case ex => ex
     }
+  }
+
+  private def createType(name: String): Either[String, DataType] = {
+    DataType.bySqlName(name).toRight(s"Unknown type $name")
   }
 
   private def createUMinus(
@@ -286,7 +298,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case _ =>
         for {
           e <- createExpr(state, resolver, expr, exprType)
-          u <- FunctionRegistry.unary("-", e)
+          u <- functionRegistry.unary("-", e)
         } yield u
     }
   }
@@ -322,7 +334,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     for {
       le <- createExpr(state, nameResolver, l, exprType)
       re <- createExpr(state, nameResolver, r, exprType)
-      biFunction <- FunctionRegistry.bi(fun, le, re)
+      biFunction <- functionRegistry.bi(fun, le, re)
     } yield biFunction
 
   private def createBooleanExpr(
@@ -330,7 +342,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       r: Expression[_],
       fun: String
   ): Either[String, Expression[Boolean]] = {
-    FunctionRegistry.bi(fun, l, r).flatMap { e =>
+    functionRegistry.bi(fun, l, r).flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
       else Left(s"$fun result has type ${e.dataType.meta.sqlType} but BOOLEAN required")
     }
@@ -362,7 +374,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   }
 
   private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
-    convertValue(state, v, ExprType.Cmp).flatMap(const => ExprPair.constCast(const, dataType))
+    convertValue(state, v, ExprType.Cmp).flatMap(const => DataTypeUtils.constCast(const, dataType, calculator))
   }
 
   private def convertValue(
@@ -512,7 +524,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
         case Right(e: Expression[t]) if e.kind == Const =>
-          val eval = expressionCalculator.evaluateConstant[t](e)
+          val eval = calculator.evaluateConstant[t](e)
           if (eval != null) {
             Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
           } else {
@@ -529,7 +541,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
-    idx.map(values).flatMap(c => ExprPair.constCast(c, DataType[Time])).map(_.millis)
+    idx.map(values).flatMap(c => DataTypeUtils.constCast(c, DataType[Time], calculator)).map(_.millis)
   }
 
   private def getDimensionValues(
@@ -539,7 +551,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
-      idx.map(values).flatMap(c => ExprPair.constCast(c, dim.dataType)).map(dim -> _)
+      idx.map(values).flatMap(c => DataTypeUtils.constCast(c, dim.dataType, calculator)).map(dim -> _)
     }
 
     CollectionUtils.collectErrors(dimValues).map(_.toMap)
@@ -551,7 +563,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        val x: Either[String, Any] = ExprPair.constCast(values(idx), m.dataType)
+        val x: Either[String, Any] = DataTypeUtils.constCast(values(idx), m.dataType, calculator)
         x.map(v => MetricValue(m, v))
     }
 

@@ -76,7 +76,22 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case IsNullExpr(e)    => evaluateConstant(e) == null
       case IsNotNullExpr(e) => evaluateConstant(e) != null
 
-      case TypeConvertExpr(tc, e) => tc.convert(evaluateConstant(e))
+      case Double2BigDecimalExpr(e) => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Long2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Long2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
+      case Int2LongExpr(e)          => evaluateUnary(e)(_.toLong)
+      case Int2BigDecimalExpr(e)    => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Int2DoubleExpr(e)        => evaluateUnary(e)(_.toDouble)
+      case Short2IntExpr(e)         => evaluateUnary(e)(_.toInt)
+      case Short2LongExpr(e)        => evaluateUnary(e)(_.toLong)
+      case Short2BigDecimalExpr(e)  => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Short2DoubleExpr(e)      => evaluateUnary(e)(_.toDouble)
+      case Byte2ShortExpr(e)        => evaluateUnary(e)(_.toShort)
+      case Byte2IntExpr(e)          => evaluateUnary(e)(_.toInt)
+      case Byte2LongExpr(e)         => evaluateUnary(e)(_.toLong)
+      case Byte2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Byte2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
+      case ToStringExpr(e)          => evaluateUnary(e)(_.toString)
 
       case InExpr(e, vs) => vs contains evaluateConstant(e)
 
@@ -122,7 +137,9 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
       case ArrayExpr(es) => es.map(e => evaluateConstant(e))
 
-      case x => throw new IllegalArgumentException(s"Expression is not constant $x")
+      case MetricExpr(_) | DimensionExpr(_) | TimeExpr | LinkExpr(_, _) | DimIdInExpr(_, _) | DimIdNotInExpr(_, _) |
+          DimensionIdExpr(_) | LagExpr(_) | _: AggregateExpr[_, _, _] =>
+        throw new IllegalArgumentException(s"Expression is not constant $expr")
     }
   }
 

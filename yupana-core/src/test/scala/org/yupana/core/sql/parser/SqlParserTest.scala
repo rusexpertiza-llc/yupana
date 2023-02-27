@@ -999,6 +999,29 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
+  it should "support cast" in {
+    val sql =
+      """
+        |SELECT cast (a as DOUBLE), b, cast(foo(x) as BIGINT) as foo
+        |  FROM table
+        |  where contain(cast(x as TEXT), '0')
+        |""".stripMargin
+
+    parsed(sql) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(
+          SqlField(CastExpr(FieldName("a"), "DOUBLE")),
+          SqlField(FieldName("b")),
+          SqlField(CastExpr(FunctionCall("foo", List(FieldName("x"))), "BIGINT"), Some("foo"))
+        )
+        condition shouldEqual FunctionCall(
+          "contain",
+          List(CastExpr(FieldName("x"), "TEXT"), Constant(StringValue("0")))
+        )
+    }
+  }
+
   it should "parse SHOW TABLES statements" in {
     SqlParser.parse("SHOW TABLES") shouldBe Right(ShowTables)
   }

@@ -18,7 +18,8 @@ package org.yupana.spark
 
 import org.apache.spark.SparkEnv
 import org.yupana.api.query.Query
-import org.yupana.core.utils.metric.{ MetricQueryCollector, MetricReporter, StandardMetricCollector }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, StandardMetricCollector }
+import org.yupana.metrics.MetricReporter
 
 class SparkMetricCollector(
     query: Query,

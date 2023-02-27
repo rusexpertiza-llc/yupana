@@ -19,11 +19,14 @@ package org.yupana.core.providers
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.schema._
 import org.yupana.api.types.{ DataType, DataTypeMeta }
+import org.yupana.core.ConstantCalculator
 import org.yupana.core.sql.FunctionRegistry
 
 import java.sql.DatabaseMetaData
 
 class JdbcMetadataProvider(schema: Schema) {
+
+  val functionRegistry = new FunctionRegistry(new ConstantCalculator(schema.tokenizer))
 
   private[providers] val columnFieldNames = List(
     "TABLE_CAT",
@@ -108,7 +111,7 @@ class JdbcMetadataProvider(schema: Schema) {
 
   def listFunctions(typeName: String): Either[String, Result] = {
     DataType.bySqlName(typeName).map { t =>
-      val fs = FunctionRegistry.functionsForType(t)
+      val fs = functionRegistry.functionsForType(t)
       SimpleResult("FUNCTIONS", Seq("NAME"), Seq(DataType[String]), fs.map(f => Array[Any](f)).iterator)
     } toRight s"Unknown type $typeName"
   }

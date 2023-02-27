@@ -1086,6 +1086,22 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "allow manual casts" in {
+    testQuery("""SELECT
+        |    sum(cast(testLongField as DOUBLE)) as sum,
+        |    cast(day(time) as VARCHAR) as sTime
+        |  FROM test_table
+        |  WHERE time >= timestamp '2023-02-06' and time < timestamp '2023-02-15'
+        |  GROUP BY sTime
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+      q.fields should contain theSameElementsInOrderAs Seq(
+        sum(long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "sum",
+        x2String(truncDay(time)) as "sTime"
+      )
+    }
+  }
+
   it should "handle dimension ids" in {
     testQuery("""SELECT id(A) as a_id, A as a
         |  FROM test_table
