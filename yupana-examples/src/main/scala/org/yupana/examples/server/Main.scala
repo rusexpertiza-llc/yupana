@@ -23,12 +23,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.akka.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
-import org.yupana.core.utils.metric.{
-  CombinedMetricReporter,
-  ConsoleMetricReporter,
-  PersistentMetricQueryReporter,
-  StandaloneMetricCollector
-}
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
@@ -36,6 +31,7 @@ import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
+import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -53,14 +49,14 @@ object Main extends StrictLogging {
     hbaseConfiguration.set("hbase.zookeeper.quorum", config.hbaseZookeeperUrl)
     hbaseConfiguration.set("zookeeper.session.timeout", "180000")
     hbaseConfiguration.set("hbase.client.scanner.timeout.period", "180000")
-    hbaseConfiguration.set(hbaseRegionsMax, config.properties.getProperty(hbaseRegionsMax))
-    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.properties)
+    hbaseConfiguration.set(hbaseRegionsMax, config.settings(hbaseRegionsMax))
+    HdfsFileUtils.addHdfsPathToConfiguration(hbaseConfiguration, config.settings)
 
     HBaseAdmin.available(hbaseConfiguration)
     logger.info("TSDB HBase Configuration: {} works fine", hbaseConfiguration)
 
     val schema = ExampleSchema.schema
-    val jsonLinks = Option(config.properties.getProperty("yupana.json-catalogs-declaration"))
+    val jsonLinks = config.settings.opt[String]("yupana.json-catalogs-declaration")
     val schemaWithJson = jsonLinks
       .map(json =>
         JsonExternalLinkDeclarationsParser
@@ -87,14 +83,14 @@ object Main extends StrictLogging {
         "query",
         tsdbConfig.metricsUpdateInterval,
         new CombinedMetricReporter(
-          new ConsoleMetricReporter,
+          new Slf4jMetricReporter,
           new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
         )
       )
     }
 
     val tsdb =
-      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.properties, tsdbConfig)(
+      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.settings, tsdbConfig)(
         metricCreator
       )
 
@@ -106,7 +102,7 @@ object Main extends StrictLogging {
     )
     logger.info("Registering catalogs")
     val elRegistrator =
-      new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.properties)
+      new ExternalLinkRegistrator(tsdb, hbaseConfiguration, config.hbaseNamespace, config.settings)
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 

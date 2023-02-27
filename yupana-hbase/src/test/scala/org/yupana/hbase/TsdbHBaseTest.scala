@@ -6,6 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.core.{ SimpleTsdbConfig, TestDims, TestSchema, TestTableFields }
+import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
 import java.util.Properties
@@ -23,7 +24,7 @@ trait TsdbHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
         "test",
         TestSchema.schema,
         identity,
-        props,
+        Settings(props),
         SimpleTsdbConfig(compression = "none", putEnabled = true),
         None
       )

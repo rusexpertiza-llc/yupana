@@ -26,6 +26,10 @@ trait Rollup {
   val fromTable: Table
   val toTable: Table
   val filter: Option[Condition]
+
+  def withFromTable(table: Table): Rollup
+  def withToTable(table: Table): Rollup
+  def withName(newName: String): Rollup
 }
 
 /**
@@ -70,4 +74,10 @@ case class TsdbRollup(
   def getResultFieldForMeasureName(fieldName: String): String = {
     fieldNamesMap.getOrElse(fieldName, throw new Exception(s"Can't find result field for field name: $fieldName"))
   }
+
+  override def withFromTable(table: Table): TsdbRollup = copy(fromTable = table)
+
+  override def withToTable(table: Table): TsdbRollup = copy(toTable = table)
+
+  override def withName(newName: String): TsdbRollup = copy(name = newName)
 }

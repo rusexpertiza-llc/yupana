@@ -18,13 +18,13 @@ package org.yupana.core
 
 import scala.reflect.ClassTag
 
-import scala.collection.compat.IterableOnce
-
 /**
   * Defines basic operations on `Collection`
   * @tparam Collection collection for which operations are defined
   */
 trait MapReducible[Collection[_]] extends Serializable {
+  def empty[A: ClassTag]: Collection[A]
+
   def singleton[A: ClassTag](a: A): Collection[A]
   def filter[A: ClassTag](c: Collection[A])(f: A => Boolean): Collection[A]
 
@@ -44,6 +44,8 @@ trait MapReducible[Collection[_]] extends Serializable {
   def distinct[A: ClassTag](c: Collection[A]): Collection[A]
 
   def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
+
+  def concat[A: ClassTag](a: Collection[A], b: Collection[A]): Collection[A]
 
   def materialize[A: ClassTag](c: Collection[A]): Seq[A]
 }

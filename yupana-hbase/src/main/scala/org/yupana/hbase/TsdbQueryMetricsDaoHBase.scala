@@ -23,16 +23,17 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableName }
 import org.yupana.api.query.Query
 import org.yupana.api.utils.GroupByIterator
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.TsdbQueryMetrics._
-import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
-import org.yupana.core.utils.metric.{ MetricCollector, NoMetricCollector }
+import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
+import org.yupana.metrics.QueryStates.QueryState
+import org.yupana.metrics.{ MetricCollector, QueryStates }
 
 import java.time.{ Duration, Instant, OffsetDateTime, ZoneOffset }
 import scala.jdk.CollectionConverters._
+import scala.util.Using
 
 object TsdbQueryMetricsDaoHBase {
   val TABLE_NAME: String = "ts_query_metrics"
@@ -84,7 +85,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       put.addColumn(FAMILY, Bytes.toBytes(metricName + "_" + metricSpeed), Bytes.toBytes(speed))
 
     }
-    using(getTable)(_.put(put))
+    Using.resource(getTable)(_.put(put))
   }
 
   override def queriesByFilter(
@@ -246,7 +247,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   private def checkTablesExistsElseCreate(): Unit = {
     try {
       val tableName = getTableName(namespace)
-      using(connection.getAdmin) { admin =>
+      Using.resource(connection.getAdmin) { admin =>
         if (!admin.tableExists(tableName)) {
           val desc = TableDescriptorBuilder
             .newBuilder(tableName)

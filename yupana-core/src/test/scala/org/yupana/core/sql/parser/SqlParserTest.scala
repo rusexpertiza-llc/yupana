@@ -22,6 +22,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "support escaped text" in {
     parse("'slash \\\\'", ValueParser.value(_)).value shouldEqual StringValue("slash \\")
     parse("'\\'escaped\\' quotes'", ValueParser.value(_)).value shouldEqual StringValue("'escaped' quotes")
+    parse("'multi\\nline'", ValueParser.value(_)).value shouldEqual StringValue("multi\nline")
+    parse("'multi\\n\\rline'", ValueParser.value(_)).value shouldEqual StringValue("multi\n\rline")
+    parse("'col1\\tcol2'", ValueParser.value(_)).value shouldEqual StringValue("col1\tcol2")
+    parse("'test\\g'", ValueParser.value(_)).error should include("found \"g'")
   }
 
   it should "parse integer numbers" in {
@@ -974,6 +978,28 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         condition shouldEqual In(
           Tuple(FieldName("a"), FieldName("b")),
           Seq(TupleValue(NumericValue(1), NumericValue(2)), TupleValue(NumericValue(3), NumericValue(4)))
+        )
+    }
+  }
+
+  it should "support cast" in {
+    val sql =
+      """
+        |SELECT cast (a as DOUBLE), b, cast(foo(x) as BIGINT) as foo
+        |  FROM table
+        |  where contain(cast(x as TEXT), '0')
+        |""".stripMargin
+
+    parsed(sql) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(
+          SqlField(CastExpr(FieldName("a"), "DOUBLE")),
+          SqlField(FieldName("b")),
+          SqlField(CastExpr(FunctionCall("foo", List(FieldName("x"))), "BIGINT"), Some("foo"))
+        )
+        condition shouldEqual ExprCondition(
+          FunctionCall("contain", List(CastExpr(FieldName("x"), "TEXT"), Constant(StringValue("0"))))
         )
     }
   }

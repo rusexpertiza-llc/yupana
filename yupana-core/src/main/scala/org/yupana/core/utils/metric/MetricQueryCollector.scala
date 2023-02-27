@@ -17,6 +17,7 @@
 package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
+import org.yupana.metrics.{ Metric, MetricCollector }
 
 trait MetricQueryCollector extends MetricCollector {
   def query: Query

@@ -12,15 +12,17 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ MapReducible, IteratorMapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, TestDims, TestSchema, TestTableFields }
 
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
+import org.yupana.utils.RussianTokenizer
 
 class TSDaoHBaseTest
     extends AnyFlatSpec
@@ -36,10 +38,12 @@ class TSDaoHBaseTest
 
   type QueryRunner = MockFunction1[Seq[Scan], Iterator[HResult]]
 
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
+
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {
@@ -50,7 +54,7 @@ class TSDaoHBaseTest
     time - (time % testTable.rowTimeSpan)
   }
 
-  private def scan(from: Long, to: Long) = {
+  private def scan(from: Long, to: Long): FunctionAdapter1[Seq[Scan], Boolean] = {
     where { (scans: Seq[Scan]) =>
       val scan = scans.head
       baseTime(from) == Bytes.toLong(scan.getStartRow) &&
@@ -74,7 +78,7 @@ class TSDaoHBaseTest
       val rowRanges = filter.getRowRanges.asScala
 
       val rangesChecks = for {
-        time <- (baseTime(from) to baseTime(to) by table.rowTimeSpan)
+        time <- baseTime(from) to baseTime(to) by table.rowTimeSpan
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
@@ -449,13 +453,11 @@ class TSDaoHBaseTest
     res(1).get[Double](2) shouldEqual 5d
   }
 
-  it should "do nothing if IN values are empty" in withMock { (dao, _, queryRunner) =>
+  it should "do nothing if IN values are empty" in withMock { (dao, _, _) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
-
-    queryRunner.expects(Seq()).returning(Iterator.empty)
 
     val res = dao
       .query(
@@ -827,13 +829,11 @@ class TSDaoHBaseTest
     results should have size 1
   }
 
-  it should "do nothing if exclude produce empty set" in withMock { (dao, _, queryRunner) =>
+  it should "do nothing if exclude produce empty set" in withMock { (dao, _, _) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
-
-    queryRunner.expects(Seq.empty).returning(Iterator.empty)
 
     val results = dao
       .query(
@@ -1259,6 +1259,159 @@ class TSDaoHBaseTest
     res(3).get[Time](0) shouldEqual Time(pointTime2)
     res(3).get[String](1) shouldEqual "test51"
     res(3).get[Double](2) shouldEqual 33d
+  }
+
+  it should "union same dimensions in OR conditions" in withMock { (dao, _, queryRunner) =>
+
+    val from = 100000L
+    val to = 200000L
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 100500L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from, to, Set(Seq(dimAHash("foo")), Seq(dimAHash("bar")), Seq(dimAHash("baz"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          or(
+            equ(dimension(TestDims.DIM_A), const("foo")),
+            in(dimension(TestDims.DIM_A), Set("bar", "baz"))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res should have size 1
+  }
+
+  it should "support negative conditions in OR" in withMock { (dao, _, queryRunner) =>
+
+    val from = 100000L
+    val to = 200000L
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 100500L
+
+    queryRunner
+      .expects(scan(from, to))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow,
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("bar"), 2.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 33d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          or(
+            neq(dimension(TestDims.DIM_A), const("foo")),
+            notIn(dimension(TestDims.DIM_A), Set("foo", "bar"))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res should have size 1
+  }
+
+  it should "handle multiple time bounds" in withMock { (dao, _, queryRunner) =>
+    val from1 = 100000L
+    val to1 = 200000L
+
+    val from2 = 300000L
+    val to2 = 400000L
+
+    val exprs = Seq[Expression[_]](time, metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 123500L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from1, to1, Set(Seq(dimAHash("foo"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val pointTime2 = 345678L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from2, to2, Set(Seq(dimAHash("foo"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime2 - (pointTime2 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          equ(dimension(TestDims.DIM_A), const("foo")),
+          or(
+            and(ge(time, const(Time(from1))), lt(time, const(Time(to1)))),
+            and(ge(time, const(Time(from2))), lt(time, const(Time(to2))))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res.toList.map(r => r.get[Time](0)) should have size 2
   }
 
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)

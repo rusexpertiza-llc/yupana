@@ -26,7 +26,6 @@ import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
-import org.yupana.jdbc.compat.LazyList
 
 import java.time.ZonedDateTime
 
@@ -249,7 +248,7 @@ class YupanaResultSet protected[jdbc] (
     getPrimitive(columnNameIndex(name), default)
   }
 
-  private def getReference[T >: Null](i: Int, f: Any => T): T = {
+  private def getReference[T <: AnyRef](i: Int, f: AnyRef => T): T = {
     checkRow()
     val cell = currentRow.get[T](i - 1)
 
@@ -261,37 +260,29 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
-  private def getReferenceByName[T >: Null](name: String, f: Any => T): T = {
+  private def getReferenceByName[T <: AnyRef](name: String, f: AnyRef => T): T = {
     getReference(columnNameIndex(name), f)
   }
 
-  private def getReference[T >: Null](i: Int): T = {
-    getReference(i, _.asInstanceOf[T])
-  }
+  private def toBigDecimal(a: AnyRef): BigDecimal = a.asInstanceOf[scala.math.BigDecimal].underlying()
 
-  private def getReferenceByName[T >: Null](name: String): T = {
-    getReference(columnNameIndex(name))
-  }
-
-  private def toBigDecimal(a: Any): BigDecimal = a.asInstanceOf[scala.math.BigDecimal].underlying()
-
-  private def toSQLDate(a: Any): Date = {
+  private def toSQLDate(a: AnyRef): Date = {
     a match {
-      case t: ApiTime => new Date(t.millis)
+      case t: ApiTime => Date.valueOf(t.toLocalDateTime.toLocalDate)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Date")
     }
   }
 
-  private def toSQLTime(a: Any): Time = {
+  private def toSQLTime(a: AnyRef): Time = {
     a match {
-      case t: ApiTime => new Time(t.millis)
+      case t: ApiTime => Time.valueOf(t.toLocalDateTime.toLocalTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Time")
     }
   }
 
-  private def toSQLTimestamp(a: Any): Timestamp = {
+  private def toSQLTimestamp(a: AnyRef): Timestamp = {
     a match {
-      case t: ApiTime => new Timestamp(t.millis)
+      case t: ApiTime => Timestamp.valueOf(t.toLocalDateTime)
       case x          => throw new SQLException(s"Cannot cast $x to java.sql.Timestamp")
     }
   }
@@ -300,6 +291,13 @@ class YupanaResultSet protected[jdbc] (
     a match {
       case t: ApiTime => t.toLocalDateTime.atZone(c.getTimeZone.toZoneId)
       case x          => throw new SQLException(s"Cannot cast $x to Time")
+    }
+  }
+
+  private def fixTimestamp(a: AnyRef): AnyRef = {
+    a match {
+      case t: ApiTime => toSQLTimestamp(t)
+      case x          => x
     }
   }
 
@@ -431,10 +429,10 @@ class YupanaResultSet protected[jdbc] (
   override def getTimestamp(s: String): Timestamp = getReferenceByName(s, a => toSQLTimestamp(a))
 
   @throws[SQLException]
-  override def getObject(i: Int): AnyRef = getReference(i)
+  override def getObject(i: Int): AnyRef = getReference(i, fixTimestamp)
 
   @throws[SQLException]
-  override def getObject(s: String): AnyRef = getReferenceByName(s)
+  override def getObject(s: String): AnyRef = getReferenceByName(s, fixTimestamp)
 
   @throws[SQLException]
   override def getBigDecimal(i: Int): BigDecimal = getReference(i, toBigDecimal)

@@ -41,7 +41,7 @@ object ConditionMatchers {
   }
 
   trait GtMatcher[T] {
-    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Expression[T])] = {
       condition match {
         case GtExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _            => None
@@ -50,7 +50,7 @@ object ConditionMatchers {
   }
 
   trait LtMatcher[T] {
-    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Expression[T])] = {
       condition match {
         case LtExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _            => None
@@ -59,7 +59,7 @@ object ConditionMatchers {
   }
 
   trait GeMatcher[T] {
-    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Expression[T])] = {
       condition match {
         case GeExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _            => None
@@ -68,7 +68,7 @@ object ConditionMatchers {
   }
 
   trait LeMatcher[T] {
-    def unapply(condition: Expression[_]): Option[(Expression[T], Expression[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Expression[T])] = {
       condition match {
         case LeExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[T]]))
         case _            => None
@@ -77,7 +77,7 @@ object ConditionMatchers {
   }
 
   trait InMatcher[T] {
-    def unapply(condition: Expression[_]): Option[(Expression[T], Set[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Set[T])] = {
       condition match {
         case InExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[T]]))
         case _            => None
@@ -86,7 +86,7 @@ object ConditionMatchers {
   }
 
   trait NotInMatcher[T] {
-    def unapply(condition: Expression[_]): Option[(Expression[T], Set[T])] = {
+    def unapply(condition: SimpleCondition): Option[(Expression[T], Set[T])] = {
       condition match {
         case NotInExpr(a, b) => Some((a.asInstanceOf[Expression[T]], b.asInstanceOf[Set[T]]))
         case _               => None

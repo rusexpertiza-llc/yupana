@@ -35,7 +35,7 @@ abstract class CustomRollup(
 ) extends Rollup
     with Serializable {
 
-  protected val sqlQueryProcessor: SqlQueryProcessor
+  val sqlQueryProcessor: SqlQueryProcessor
 
   def doRollup(
       tsdbSpark: TsdbSparkBase,

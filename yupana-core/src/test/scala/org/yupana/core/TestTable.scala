@@ -1,5 +1,7 @@
 package org.yupana.core
 
+import org.yupana.api.Time
+
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import org.yupana.api.schema._
@@ -23,12 +25,15 @@ object TestTableFields {
   val TEST_FIELD2: Metric.Aux[Double] = Metric[Double]("testField2", 3, 2)
   val TEST_LONG_FIELD: Metric.Aux[Long] = Metric[Long]("testLongField", 4, 2)
   val TEST_BIGDECIMAL_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testBigDecimalField", 5)
+  val TEST_TIME_FIELD: Metric.Aux[Time] = Metric[Time]("testTimeField", 6)
+  val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 7)
 }
 
 object TestTable2Fields {
   val TEST_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testField", 1)
   val TEST_FIELD2: Metric.Aux[Double] = Metric[Double]("testField2", 2)
   val TEST_FIELD3: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testField3", 3)
+  val TEST_FIELD4: Metric.Aux[Int] = Metric[Int]("testField4", 3)
 }
 
 object TestLinks {
@@ -91,7 +96,9 @@ object TestSchema {
       TestTableFields.TEST_STRING_FIELD,
       TestTableFields.TEST_FIELD2,
       TestTableFields.TEST_LONG_FIELD,
-      TestTableFields.TEST_BIGDECIMAL_FIELD
+      TestTableFields.TEST_BIGDECIMAL_FIELD,
+      TestTableFields.TEST_TIME_FIELD,
+      TestTableFields.TEST_BYTE_FIELD
     ),
     externalLinks =
       Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),
@@ -102,13 +109,18 @@ object TestSchema {
     name = "test_table_2",
     rowTimeSpan = 7 * 24 * 3600 * 1000,
     dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y),
-    metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
+    metrics = Seq(
+      TestTable2Fields.TEST_FIELD,
+      TestTable2Fields.TEST_FIELD2,
+      TestTable2Fields.TEST_FIELD3,
+      TestTable2Fields.TEST_FIELD4
+    ),
     externalLinks = Seq(),
     LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
   val testTable3 = new Table(
-    name = "test_table",
+    name = "test_table_3",
     rowTimeSpan = 24 * 60 * 60 * 1000,
     dimensionSeq = Seq(TestDims.DIM_A, TestDims.DIM_B, TestDims.DIM_X),
     metrics = Seq(
@@ -123,5 +135,15 @@ object TestSchema {
     LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
   )
 
-  val schema = Schema(Seq(testTable, testTable2), Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
+  val testTable4 = new Table(
+    name = "test_table_4",
+    rowTimeSpan = 7 * 24 * 3600 * 1000,
+    dimensionSeq = Seq(TestDims.DIM_X, TestDims.DIM_Y, TestDims.DIM_B),
+    metrics = Seq(TestTable2Fields.TEST_FIELD, TestTable2Fields.TEST_FIELD2, TestTable2Fields.TEST_FIELD3),
+    externalLinks = Seq(TestLinks.TEST_LINK4),
+    LocalDateTime.of(2016, 1, 1, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
+  )
+
+  val schema =
+    Schema(Seq(testTable, testTable2, testTable4), Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
 }

@@ -3,16 +3,22 @@ package org.yupana.externallinks.items
 import java.util.Properties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.query.{ DimIdInExpr, DimIdNotInExpr, Replace }
+import org.yupana.api.query.{ AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.TSDB
+import org.yupana.core.{ ConstantCalculator, TSDB }
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.Time
+import org.yupana.cache.CacheFactory
+import org.yupana.core.utils.FlatAndCondition
+import org.yupana.settings.Settings
+import org.yupana.utils.RussianTokenizer
+
+import java.time.LocalDateTime
 
 class ItemsInvertedIndexImplTest
     extends AnyFlatSpec
@@ -22,10 +28,12 @@ class ItemsInvertedIndexImplTest
     with BeforeAndAfterEach
     with Inside {
 
+  private val calculator = new ConstantCalculator(RussianTokenizer)
+
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {
@@ -50,22 +58,27 @@ class ItemsInvertedIndexImplTest
       lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)),
       const("хол копчения")
     )
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 0)
+    val t2 = t1.plusWeeks(1)
     val actual = index.transformCondition(
-      and(
-        c1,
-        c2
-      )
+      FlatAndCondition(
+        calculator,
+        and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
+          c1,
+          c2
+        )
+      ).head
     )
 
-    actual shouldEqual Seq(
-      Replace(
-        Set(c1),
+    actual should contain theSameElementsAs Seq(
+      RemoveCondition(c1),
+      AddCondition(
         DimIdInExpr(Dimensions.ITEM, si("колбаса вареная", "колбаса вареная молочная", "щупальца кальмара"))
       ),
-      Replace(
-        Set(c2),
-        DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения"))
-      )
+      RemoveCondition(c2),
+      AddCondition(DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения")))
     )
   }
 
@@ -85,12 +98,21 @@ class ItemsInvertedIndexImplTest
     (dao.values _).expects("yablok").returning(si("еще красное яблоко", "красное яблоко", "сок яблоко"))
     (dao.values _).expects("zhelt").returning(si("желтый банан"))
     (dao.valuesByPrefix _).expects("banan").returning(si("желтый банан", "зеленый банан"))
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 3)
+    val t2 = t1.plusWeeks(1)
     val res = index.transformCondition(
-      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
+      FlatAndCondition(
+        calculator,
+        and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
+          in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
+        )
+      ).head
     )
 
     inside(res) {
-      case Seq(Replace(_, DimIdInExpr(d, vs))) =>
+      case Seq(RemoveCondition(_), AddCondition(DimIdInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
         vs.toList should contain theSameElementsInOrderAs si(
           "красное яблоко",
@@ -104,13 +126,21 @@ class ItemsInvertedIndexImplTest
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
-
+    val t1 = LocalDateTime.of(2022, 10, 27, 1, 4)
+    val t2 = t1.plusWeeks(1)
     val res = index.transformCondition(
-      notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
+      FlatAndCondition(
+        calculator,
+        and(
+          ge(time, const(Time(t1))),
+          le(time, const(Time(t2))),
+          notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
+        )
+      ).head
     )
 
     inside(res) {
-      case Seq(Replace(_, DimIdNotInExpr(d, vs))) =>
+      case Seq(RemoveCondition(_), AddCondition(DimIdNotInExpr(d, vs))) =>
         d shouldEqual Dimensions.ITEM
         vs.toSeq should contain theSameElementsInOrderAs si("сигареты винстон", "сигареты бонд").toList
     }

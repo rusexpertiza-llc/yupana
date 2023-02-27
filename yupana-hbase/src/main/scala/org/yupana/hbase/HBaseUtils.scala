@@ -27,7 +27,6 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.api.utils.ResourceUtils.using
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
@@ -40,6 +39,7 @@ import java.time.{ Instant, LocalDate, OffsetDateTime, ZoneOffset }
 import scala.collection.AbstractIterator
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable.NumericRange
+import scala.util.Using
 
 object HBaseUtils extends StrictLogging {
 
@@ -142,7 +142,7 @@ object HBaseUtils extends StrictLogging {
     val putsWithIntervalsByTable = createPuts(dataPointsBatch, dictionaryProvider, username)
     putsWithIntervalsByTable.flatMap {
       case (table, puts, updateIntervals) =>
-        using(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+        Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
           puts
             .sliding(putsBatchSize, putsBatchSize)
             .foreach(putsBatch => hbaseTable.put(putsBatch.asJava))
@@ -368,7 +368,7 @@ object HBaseUtils extends StrictLogging {
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
 
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       if (admin.tableExists(metaTableName)) {
         ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
       } else {
@@ -383,7 +383,7 @@ object HBaseUtils extends StrictLogging {
   }
 
   def readTsdbSchema(connection: Connection, namespace: String): Array[Byte] = {
-    using(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
+    Using.resource(connection.getTable(TableName.valueOf(namespace, tsdbSchemaTableName))) { table =>
       val get = new Get(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField)
       table.get(get).getValue(tsdbSchemaFamily, tsdbSchemaField)
     }
@@ -393,7 +393,7 @@ object HBaseUtils extends StrictLogging {
     logger.info(s"Writing TSDB Schema definition to namespace $namespace")
 
     val metaTableName = TableName.valueOf(namespace, tsdbSchemaTableName)
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       if (!admin.tableExists(metaTableName)) {
         val tableDesc = TableDescriptorBuilder
           .newBuilder(metaTableName)
@@ -406,7 +406,7 @@ object HBaseUtils extends StrictLogging {
           .build()
         admin.createTable(tableDesc)
       }
-      using(connection.getTable(metaTableName)) { table =>
+      Using.resource(connection.getTable(metaTableName)) { table =>
         val put = new Put(tsdbSchemaKey).addColumn(tsdbSchemaFamily, tsdbSchemaField, schemaBytes)
         table.put(put)
       }
@@ -422,20 +422,58 @@ object HBaseUtils extends StrictLogging {
       checkTableExistsElseCreate(connection, namespace, t, config.maxRegions, config.compression)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
-    checkSchemaDefinition(connection, namespace, schema) match {
-      case Success      => logger.info("TSDB table definition checked successfully")
-      case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
-      case Error(msg)   => throw new RuntimeException("TSDB table definition check failed: " + msg)
+    if (config.needCheckSchema) {
+      checkSchemaDefinition(connection, namespace, schema) match {
+        case Success      => logger.info("TSDB table definition checked successfully")
+        case Warning(msg) => logger.warn("TSDB table definition check warnings: " + msg)
+        case Error(msg)   => throw new RuntimeException("TSDB table definition check failed: " + msg)
+      }
     }
   }
 
   def checkNamespaceExistsElseCreate(connection: Connection, namespace: String): Unit = {
-    using(connection.getAdmin) { admin =>
+    Using.resource(connection.getAdmin) { admin =>
       if (!admin.listNamespaceDescriptors.exists(_.getName == namespace)) {
         val namespaceDescriptor = NamespaceDescriptor.create(namespace).build()
         admin.createNamespace(namespaceDescriptor)
       }
     }
+  }
+
+  private def createTable(
+      table: Table,
+      tableName: TableName,
+      maxRegions: Int,
+      compressionAlgorithm: String,
+      admin: Admin
+  ): Unit = {
+    val algorithm = Compression.getCompressionAlgorithmByName(compressionAlgorithm)
+    val fieldGroups = table.metrics.map(_.group).toSet
+    val families = fieldGroups map (group =>
+      ColumnFamilyDescriptorBuilder
+        .newBuilder(family(group))
+        .setDataBlockEncoding(DataBlockEncoding.PREFIX)
+        .setCompactionCompressionType(algorithm)
+        .build()
+    )
+    val desc = TableDescriptorBuilder
+      .newBuilder(tableName)
+      .setColumnFamilies(families.asJavaCollection)
+      .build()
+    val endTime = LocalDate
+      .now()
+      .`with`(TemporalAdjusters.firstDayOfNextYear())
+      .atStartOfDay(ZoneOffset.UTC)
+      .toInstant
+      .toEpochMilli
+    val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
+    val regions = math.min(r, maxRegions)
+    admin.createTable(
+      desc,
+      Bytes.toBytes(baseTime(table.epochTime, table)),
+      Bytes.toBytes(baseTime(endTime, table)),
+      regions
+    )
   }
 
   def checkTableExistsElseCreate(
@@ -444,40 +482,14 @@ object HBaseUtils extends StrictLogging {
       table: Table,
       maxRegions: Int,
       compressionAlgorithm: String
-  ): Unit = {
-    val algorithm = Compression.getCompressionAlgorithmByName(compressionAlgorithm)
-    val hbaseTable = tableName(namespace, table)
-    using(connection.getAdmin) { admin =>
-      if (!admin.tableExists(hbaseTable)) {
-        val fieldGroups = table.metrics.map(_.group).toSet
-        val families = fieldGroups map (group =>
-          ColumnFamilyDescriptorBuilder
-            .newBuilder(family(group))
-            .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-            .setCompactionCompressionType(algorithm)
-            .build()
-        )
-        val desc = TableDescriptorBuilder
-          .newBuilder(hbaseTable)
-          .setColumnFamilies(families.asJavaCollection)
-          .build()
-        val endTime = LocalDate
-          .now()
-          .`with`(TemporalAdjusters.firstDayOfNextYear())
-          .atStartOfDay(ZoneOffset.UTC)
-          .toInstant
-          .toEpochMilli
-        val r = ((endTime - table.epochTime) / table.rowTimeSpan).toInt * 10
-        val regions = math.min(r, maxRegions)
-        admin.createTable(
-          desc,
-          Bytes.toBytes(baseTime(table.epochTime, table)),
-          Bytes.toBytes(baseTime(endTime, table)),
-          regions
-        )
+  ): Unit =
+    Using.resource(connection.getAdmin) { admin =>
+      val name = tableName(namespace, table)
+
+      if (!admin.tableExists(name)) {
+        createTable(table, name, maxRegions, compressionAlgorithm, admin)
       }
     }
-  }
 
   def getFirstKey(connection: Connection, tableName: TableName): Array[Byte] = {
     getFirstOrLastKey(connection, tableName, first = true)
@@ -491,7 +503,7 @@ object HBaseUtils extends StrictLogging {
     val table = connection.getTable(tableName)
     val scan = new Scan().setOneRowLimit().setFilter(new FirstKeyOnlyFilter).setReversed(!first)
 
-    using(table.getScanner(scan)) { scanner =>
+    Using.resource(table.getScanner(scan)) { scanner =>
 
       val result = scanner.next()
       if (result != null) result.getRow else Array.empty
@@ -549,7 +561,12 @@ object HBaseUtils extends StrictLogging {
   def family(group: Int): Array[Byte] = s"d$group".getBytes
 
   def valuesByGroup(table: Table, dataPoints: Seq[DataPoint]): ValuesByGroup = {
-    dataPoints.map(partitionValuesByGroup(table)).reduce(mergeMaps).map { case (k, v) => k -> v.toArray }
+    dataPoints
+      .map(partitionValuesByGroup(table))
+      .reduce((a, b) => CollectionUtils.mergeMaps[Int, Seq[TimeShiftedValue]](a, b, _ ++ _))
+      .map {
+        case (k, v) => k -> v.toArray
+      }
   }
 
   private def partitionValuesByGroup(table: Table)(dp: DataPoint): Map[Int, Seq[TimeShiftedValue]] = {
@@ -557,13 +574,6 @@ object HBaseUtils extends StrictLogging {
     dp.metrics
       .groupBy(_.metric.group)
       .map { case (k, metricValues) => k -> Seq((timeShift, fieldsToBytes(table, dp.dimensions, metricValues))) }
-  }
-
-  private def mergeMaps(
-      m1: Map[Int, Seq[TimeShiftedValue]],
-      m2: Map[Int, Seq[TimeShiftedValue]]
-  ): Map[Int, Seq[TimeShiftedValue]] = {
-    (m1.keySet ++ m2.keySet).map(k => (k, m1.getOrElse(k, Seq.empty) ++ m2.getOrElse(k, Seq.empty))).toMap
   }
 
   private def fieldsToBytes(

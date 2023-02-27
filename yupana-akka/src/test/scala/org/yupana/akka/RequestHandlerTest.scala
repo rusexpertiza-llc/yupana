@@ -8,7 +8,7 @@ import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
 import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
+import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
@@ -24,8 +24,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.cache.CacheFactory
+import org.yupana.metrics.QueryStates
+import org.yupana.settings.Settings
 
 import java.time.{ OffsetDateTime, ZoneOffset }
 import java.util.Properties
@@ -44,7 +46,7 @@ class RequestHandlerTest
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   "RequestHandler" should "send version on ping" in {
@@ -257,7 +259,6 @@ class RequestHandlerTest
   class MockedTsdb
       extends TSDB(
         SchemaRegistry.defaultSchema,
-        null,
         null,
         null,
         identity,

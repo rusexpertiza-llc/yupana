@@ -19,10 +19,10 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
-import org.yupana.core.{ MapReducible, IteratorMapReducible }
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.{ IteratorMapReducible, MapReducible }
 import org.yupana.hbase.HBaseUtils._
 
 class TSDaoHBase(

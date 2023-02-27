@@ -20,8 +20,9 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
+import org.yupana.core.ConstantCalculator
 
-object FunctionRegistry {
+class FunctionRegistry(calculator: ConstantCalculator) {
 
   type ArrayExpr[T] = Expression[Seq[T]]
 
@@ -88,6 +89,12 @@ object FunctionRegistry {
       "abs",
       new Bind2R[Expression, Numeric, Expression] {
         override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = AbsExpr(e)(n)
+      }
+    ),
+    uNum(
+      "avg",
+      new Bind2[Expression, Numeric, Expression[BigDecimal]] {
+        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[BigDecimal] = AvgExpr(e)(n)
       }
     ),
     uTyped("year", TruncYearExpr),
@@ -195,7 +202,7 @@ object FunctionRegistry {
     Function2Desc(
       "/",
       (a: Expression[_], b: Expression[_]) =>
-        ExprPair.alignTypes(a, b) match {
+        DataTypeUtils.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.integral.isDefined =>
             Right(DivIntExpr(pair.a, pair.b)(pair.dataType.integral.get))
           case Right(pair) if pair.dataType.fractional.isDefined =>
@@ -238,9 +245,18 @@ object FunctionRegistry {
       (a: Expression[_], c: Expression[_]) =>
         c match {
           case ConstantExpr(v, _) =>
-            c.dataType.numeric
-              .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
-              .toRight(s"$c must be a number")
+            val tpe = a.dataType.meta.sqlTypeName
+            val std_err = v.asInstanceOf[BigDecimal]
+            if (!Set("VARCHAR", "BIGINT", "SHORT", "TIMESTAMP").contains(tpe)) {
+              Left("hll_count is not defined for given datatype: " + tpe)
+            } else if (std_err < 0.00003 || std_err > 0.367) {
+              Left("std_err must be in range (0.00003, 0.367), but: std_err=" + std_err)
+            } else {
+              c.dataType.numeric
+                .map(n => HLLCountExpr(a, n.toDouble(v.asInstanceOf[c.dataType.T])))
+                .toRight(s"$c must be a number")
+            }
+
           case _ => Left(s"Expected constant but got $c")
         }
     )
@@ -302,6 +318,22 @@ object FunctionRegistry {
     )
   }
 
+  private def uNum[T](
+      fn: String,
+      create: Bind2[Expression, Numeric, Expression[T]]
+  ): FunctionDesc = {
+    FunctionDesc(
+      fn,
+      NumberParam,
+      {
+        case e: Expression[t] =>
+          e.dataType.numeric.fold[Either[String, Expression[T]]](Left(s"$fn requires a number, but got ${e.dataType}"))(
+            num => Right(create(e, num))
+          )
+      }
+    )
+  }
+
   private def uOrd(
       fn: String,
       create: Bind2R[Expression, Ordering, Expression]
@@ -350,7 +382,7 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        ExprPair.alignTypes(a, b) match {
+        DataTypeUtils.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.ordering.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.ordering.get))
           case Right(_) => Left(s"Cannot compare types ${a.dataType} and ${b.dataType}")
@@ -366,7 +398,7 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (a, b) =>
-        ExprPair.alignTypes(a, b) match {
+        DataTypeUtils.alignTypes(a, b, calculator) match {
           case Right(pair) if pair.dataType.numeric.isDefined =>
             Right(create(pair.a, pair.b, pair.dataType.numeric.get))
           case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
@@ -378,7 +410,7 @@ object FunctionRegistry {
   private def biSame(fn: String, create: Bind2[Expression, Expression, Expression[_]]): Function2Desc = {
     Function2Desc(
       fn,
-      (a, b) => ExprPair.alignTypes(a, b).map(pair => create(pair.a, pair.b))
+      (a, b) => DataTypeUtils.alignTypes(a, b, calculator).map(pair => create(pair.a, pair.b))
     )
   }
 

@@ -56,7 +56,12 @@ object ValueParser {
   }
 
   private def stringCharacter[_: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
-  private def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\").!)
+  def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\nrt").!).map {
+    case "n" => "\n"
+    case "r" => "\r"
+    case "t" => "\t"
+    case x   => x
+  }
 
   def string[_: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
   def boolean[_: P]: P[Boolean] = string.map(_.toBoolean)

@@ -196,7 +196,7 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
 
     val tts = m.getTableTypes
     val tt = Iterator.continually(tts).takeWhile(_.next()).map(r => r.getString("TABLE_TYPE")).toSeq
-    tt shouldEqual Seq("TABLE")
+    tt shouldEqual Seq("TABLE", "ROLLUP")
   }
 
   it should "provide driver info" in {

@@ -62,7 +62,7 @@ class TsDaoHBaseSpark(
                   new RddProgressListenerImpl[HBaseScanPartition](
                     s"${f}_${from}-${to}_${index}",
                     new HBaseScanPartition.HBaseScanPartitionStorable(from, to, queryContext, dimIds),
-                    config.properties
+                    config.settings
                   )
                 case None => new DummyProgressListener[HBaseScanPartition]
               }
@@ -97,7 +97,7 @@ object TsDaoHBaseSpark {
     configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
     configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)
     if (config.addHdfsToConfiguration) {
-      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.properties)
+      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.settings)
     }
     configuration
   }

@@ -23,7 +23,7 @@ import org.apache.ignite.logger.slf4j.Slf4jLogger
 import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi
 import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder
 import org.apache.ignite.{ Ignite, Ignition }
-import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory, JCache }
+import org.yupana.cache.{ Cache, CacheDescription, CacheFactory, JCache }
 
 import scala.jdk.CollectionConverters._
 
@@ -56,12 +56,12 @@ class IgniteCacheFactory extends CacheFactory with StrictLogging {
   }
 
   private def initIgnite(): Unit = {
-    val props = CacheFactory.propsForPrefix("analytics.caches.default.ignite")
+    val settings = CacheFactory.settings.inner("analytics.caches.default.ignite.")
     val config = new IgniteConfiguration()
 
     config.setGridLogger(new Slf4jLogger())
 
-    props.get("servers") match {
+    settings.opt[String]("servers") match {
       case Some(servers) =>
         val serverList = servers.split(",").map(_.trim).toList
         val ipFinder = new TcpDiscoveryVmIpFinder()
@@ -74,8 +74,7 @@ class IgniteCacheFactory extends CacheFactory with StrictLogging {
         logger.info("Zookeeper is not set for Ignite, using default discovery")
     }
 
-    defaultCacheSize =
-      props.getOrElse("maxSize", throw new IllegalArgumentException("Default max cache size is not defined")).toInt
+    defaultCacheSize = settings[Int]("maxSize")
 
     config.setClientMode(true)
     ignite = Some(Ignition.start(config))
@@ -105,14 +104,14 @@ class IgniteCacheFactory extends CacheFactory with StrictLogging {
       CacheConfiguration[description.Key, description.Value],
       NearCacheConfiguration[description.Key, description.Value]
   ) = {
-    val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
+    val settings = CacheFactory.settings.inner(s"analytics.caches.${description.name}.")
 
     val config = new CacheConfiguration[description.Key, description.Value](description.fullName)
 
-    val maxSize = props.get("maxSize").map(_.toInt).getOrElse(defaultCacheSize)
+    val maxSize = settings("maxSize", defaultCacheSize)
 //    config.setEvictionPolicyFactory(new LruEvictionPolicyFactory(0, 1, maxSize))
 
-    val nearSize = props.get("nearSize").map(_.toInt).getOrElse(maxSize / 10)
+    val nearSize = settings("nearSize", maxSize / 10)
     val nearConfig = new NearCacheConfiguration[description.Key, description.Value]()
     nearConfig.setNearEvictionPolicyFactory(new LruEvictionPolicyFactory(0, 1, nearSize))
 
