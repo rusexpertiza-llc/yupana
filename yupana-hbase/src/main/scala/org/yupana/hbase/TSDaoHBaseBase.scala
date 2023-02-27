@@ -91,10 +91,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
               if (xFrom == iTo) ((iFrom, xTo), iVs ++ xVs) :: xs else i :: x :: xs
             case (i, Nil) => i :: Nil
           }
-          .map { x =>
-            println(s"X = ${x}")
-            x._2.head -> (x._2.last + 1)
-          }
+          .map(x => x._2.head -> (x._2.last + 1))
     }
   }
 
