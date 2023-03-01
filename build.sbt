@@ -383,7 +383,7 @@ lazy val versions = new {
 
   val spark = "3.3.2"
 
-  val threeTenExtra = "1.7.1"
+  val threeTenExtra = "1.7.2"
 
   val protobufJava = "2.6.1"
 
