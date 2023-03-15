@@ -22,7 +22,7 @@ import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
 import org.yupana.core.ConstantCalculator
 
-class FunctionRegistry(calculator: ConstantCalculator) {
+class FunctionRegistry(calculator: ConstantCalculator) extends Serializable {
 
   type ArrayExpr[T] = Expression[Seq[T]]
 
