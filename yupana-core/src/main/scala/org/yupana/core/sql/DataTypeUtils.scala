@@ -64,7 +64,14 @@ object DataTypeUtils {
     if (e.dataType == dataType) Right(e.asInstanceOf[Expression[T]])
     else {
       e match {
-        case c @ ConstantExpr(_, p) => constCast(c, dataType, calculator).map(v => ConstantExpr(v, p)(dataType))
+        case c @ ConstantExpr(_, p) =>
+          constCast(c, dataType, calculator)
+            .orElse(
+              manualConverter(e.dataType, dataType.aux)
+                .map(conv => calculator.evaluateConstant[T](conv(e)))
+                .toRight(s"Cannot convert $e of type ${e.dataType} to $dataType")
+            )
+            .map(x => ConstantExpr(x, p)(dataType.aux))
         case _ =>
           autoConverter(e.dataType, dataType.aux)
             .orElse(manualConverter(e.dataType, dataType.aux))

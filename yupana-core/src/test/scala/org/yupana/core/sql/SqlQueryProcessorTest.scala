@@ -1114,7 +1114,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   it should "allow manual casts" in {
     testQuery("""SELECT
         |    sum(cast(testLongField as DOUBLE)) as sum,
-        |    cast(day(time) as VARCHAR) as sTime
+        |    cast(day(time) as varchar) as sTime
         |  FROM test_table
         |  WHERE time >= timestamp '2023-02-06' and time < timestamp '2023-02-15'
         |  GROUP BY sTime
@@ -1124,6 +1124,23 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         sum(long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "sum",
         x2String(truncDay(time)) as "sTime"
       )
+    }
+  }
+
+  it should "be able to manual cast constants" in {
+    testQuery("""SELECT cast(1 as double) 1d, cast (1 as varchar) 1s, cast(1 as TINYINT) as 1b""") { q =>
+      q.table shouldBe empty
+      q.fields should contain theSameElementsInOrderAs Seq(
+        const(1d) as "1d",
+        const("1") as "1s",
+        const(1.toByte) as "1b"
+      )
+    }
+  }
+
+  it should "fail on incorrect constant convertions" in {
+    testError("""SELECT cast (1000 as tinyint)""") {
+      _ shouldEqual "Cannot convert const(1000:BigDecimal) of type DECIMAL to TINYINT"
     }
   }
 
