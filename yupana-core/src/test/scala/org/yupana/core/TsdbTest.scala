@@ -1,5 +1,6 @@
 package org.yupana.core
 
+import org.scalamock.matchers.ArgCapture.CaptureAll
 import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -10,11 +11,11 @@ import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.ChangelogDao
+import org.yupana.core.dao.{ ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
-import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.core.utils.metric._
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
@@ -3274,5 +3275,149 @@ class TsdbTest
     row.get[Long]("count_testField") shouldBe 0
     row.get[Long]("distinct_count_testField") shouldBe 0
     row.get[Long]("record_count") shouldBe 2
+  }
+
+  it should "correct metrics during query execution" in {
+    val qtime = LocalDateTime.of(2023, 2, 7, 1, 45).atOffset(ZoneOffset.UTC)
+    val from = qtime
+    val to = qtime.plusDays(1)
+
+    val tsdbDaoMock = daoMock
+    val changelogDaoMock = mock[ChangelogDao]
+    val metricDao = mock[TsdbQueryMetricsDao]
+    val reporter =
+      new CombinedMetricReporter[MetricQueryCollector](
+        new PersistentMetricQueryReporter(() => metricDao),
+        new ConsoleMetricReporter[MetricQueryCollector]
+      )
+
+    val tsdb =
+      new TSDB(
+        TestSchema.schema,
+        tsdbDaoMock,
+        changelogDaoMock,
+        identity,
+        SimpleTsdbConfig(collectMetrics = true),
+        { q: Query => new StandaloneMetricCollector(q, "query", metricsUpdateInterval = 1000, reporter) }
+      )
+
+    val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(from)),
+      const(Time(to)),
+      Seq(
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B",
+        link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
+      ),
+      Some(
+        NeqExpr(
+          link(TestLinks.TEST_LINK, "testField"),
+          const("testFieldValue")
+        )
+      ),
+      Seq(
+        truncDay(time),
+        dimension(TestDims.DIM_A),
+        dimension(TestDims.DIM_B),
+        link(TestLinks.TEST_LINK, "testField")
+      )
+    )
+
+    val c = neq(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))
+    (testCatalogServiceMock.transformCondition _)
+      .expects(
+        FlatAndCondition.single(
+          calculator,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            c
+          )
+        )
+      )
+      .returning(
+        ConditionTransformation.replace(
+          Seq(c),
+          notIn(dimension(TestDims.DIM_A), Set("test1", "test12"))
+        )
+      )
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            notIn(dimension(TestDims.DIM_A), Set("test1", "test12"))
+          )
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(time, Time(from.plusHours(2)))
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .buildAndReset(),
+          b.set(time, Time(from.plusHours(5)))
+            .set(dimension(TestDims.DIM_A), "test1")
+            .set(dimension(TestDims.DIM_B), "test2")
+            .set(metric(TestTableFields.TEST_FIELD), 1d)
+            .buildAndReset()
+        )
+      )
+
+    (testCatalogServiceMock.setLinkedValues _)
+      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
+      .onCall((qc, datas, _) => {
+        setCatalogValueByTag(
+          qc,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable("test13" -> Map("testField" -> "test value 3"))
+        )
+      })
+
+    val metrics = CaptureAll[Map[String, MetricData]]()
+    val states = CaptureAll[QueryStates.QueryState]()
+    (metricDao.saveQueryMetrics _)
+      .expects(
+        query,
+        None,
+        *,
+        capture(states),
+        *,
+        capture(metrics),
+        false
+      )
+      .atLeastOnce()
+
+    val res = tsdb.query(query).toList
+
+    res should have size 1
+    states.values.head shouldBe QueryStates.Running
+    states.values.last shouldBe QueryStates.Finished
+
+    val m = metrics.values.last
+    m("create_queries.link.TestLink").count shouldEqual 1
+    m(TsdbQueryMetrics.extractDataComputationQualifier).count shouldEqual 2
+    m(TsdbQueryMetrics.readExternalLinksQualifier).count shouldEqual 2
+    m(TsdbQueryMetrics.reduceOperationQualifier).count shouldEqual 1
+    m(TsdbQueryMetrics.postFilterQualifier).count shouldEqual 0
+    m(TsdbQueryMetrics.collectResultRowsQualifier).count shouldEqual 1
   }
 }

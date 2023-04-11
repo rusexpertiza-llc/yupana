@@ -22,7 +22,7 @@ import org.apache.hadoop.hbase.client.metrics.ScanMetrics
 import org.apache.hadoop.hbase.client.{ Table => _, _ }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter.RowRange
 import org.apache.hadoop.hbase.filter._
-import org.apache.hadoop.hbase.io.compress.Compression.Algorithm
+import org.apache.hadoop.hbase.io.compress.Compression
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
@@ -419,7 +419,7 @@ object HBaseUtils extends StrictLogging {
     val dictDao = new DictionaryDaoHBase(connection, namespace)
 
     schema.tables.values.foreach { t =>
-      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions)
+      checkTableExistsElseCreate(connection, namespace, t, config.maxRegions, config.compression)
       t.dimensionSeq.foreach(dictDao.checkTablesExistsElseCreate)
     }
     if (config.needCheckSchema) {
@@ -440,13 +440,20 @@ object HBaseUtils extends StrictLogging {
     }
   }
 
-  private def createTable(table: Table, tableName: TableName, maxRegions: Int, admin: Admin): Unit = {
+  private def createTable(
+      table: Table,
+      tableName: TableName,
+      maxRegions: Int,
+      compressionAlgorithm: String,
+      admin: Admin
+  ): Unit = {
+    val algorithm = Compression.getCompressionAlgorithmByName(compressionAlgorithm)
     val fieldGroups = table.metrics.map(_.group).toSet
     val families = fieldGroups map (group =>
       ColumnFamilyDescriptorBuilder
         .newBuilder(family(group))
         .setDataBlockEncoding(DataBlockEncoding.PREFIX)
-        .setCompactionCompressionType(Algorithm.SNAPPY)
+        .setCompactionCompressionType(algorithm)
         .build()
     )
     val desc = TableDescriptorBuilder
@@ -469,12 +476,18 @@ object HBaseUtils extends StrictLogging {
     )
   }
 
-  def checkTableExistsElseCreate(connection: Connection, namespace: String, table: Table, maxRegions: Int): Unit =
+  def checkTableExistsElseCreate(
+      connection: Connection,
+      namespace: String,
+      table: Table,
+      maxRegions: Int,
+      compressionAlgorithm: String
+  ): Unit =
     Using.resource(connection.getAdmin) { admin =>
       val name = tableName(namespace, table)
 
       if (!admin.tableExists(name)) {
-        createTable(table, name, maxRegions, admin)
+        createTable(table, name, maxRegions, compressionAlgorithm, admin)
       }
     }
 
