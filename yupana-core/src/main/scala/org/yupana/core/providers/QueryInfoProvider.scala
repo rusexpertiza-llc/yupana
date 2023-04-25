@@ -21,9 +21,8 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.FlatQueryEngine
 import org.yupana.core.dao.QueryMetricsFilter
-import org.yupana.core.model.QueryStates
 import org.yupana.core.sql.parser.MetricsFilter
-import org.yupana.core.utils.metric.MetricCollector
+import org.yupana.metrics.{ MetricCollector, QueryStates }
 
 object QueryInfoProvider {
 

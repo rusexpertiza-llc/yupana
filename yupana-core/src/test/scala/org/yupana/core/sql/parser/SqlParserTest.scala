@@ -70,6 +70,11 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     )
   }
 
+  it should "parse booleans" in {
+    parse("true", ValueParser.value(_)).value shouldEqual BooleanValue(true)
+    parse("FALSE", ValueParser.value(_)).value shouldEqual BooleanValue(false)
+  }
+
   it should "support single field SQL intervals" in {
     val cases = Table(
       ("SQL", "Period"),
@@ -298,12 +303,44 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
+  it should "handle boolean operations priority" in {
+    parsed("""SELECT x, y
+        |  FROM table
+        |  WHERE x > 100 = y + 50 <= 1000
+        |""".stripMargin) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(SqlField(FieldName("x")), SqlField(FieldName("y")))
+        condition shouldEqual Eq(
+          Gt(FieldName("x"), Constant(NumericValue(100))),
+          Le(Plus(FieldName("y"), Constant(NumericValue(50))), Constant(NumericValue(1000)))
+        )
+    }
+  }
+
+  it should "support boolean operations as a fields" in {
+    parsed("""SELECT quantity > 100 as more_100, quantity / 2 < 1000 as less_1000
+        |  FROM items
+        |""".stripMargin) {
+      case Select(Some(table), SqlFieldList(fields), None, Nil, None, None) =>
+        table shouldEqual "items"
+        fields should contain theSameElementsInOrderAs List(
+          SqlField(Gt(FieldName("quantity"), Constant(NumericValue(100))), Some("more_100")),
+          SqlField(
+            Lt(Divide(FieldName("quantity"), Constant(NumericValue(2))), Constant(NumericValue(1000))),
+            Some("less_1000")
+          )
+        )
+
+    }
+  }
+
   it should "parse SQL statements with grouping" in {
     val statement = "SELECT SUM(quantity), day(time) FROM items WHERE item = 'биг мак' GROUP BY day(time);"
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "items"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "items"
         condition shouldEqual Eq(FieldName("item"), Constant(StringValue("биг мак")))
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
@@ -316,8 +353,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "parse SQL statements with 'AS' aliases" in {
     val statement = "SELECT SUM(quantity), day(time) as d FROM items WHERE (quantity < 2.5) GROUP BY d"
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "items"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "items"
         condition shouldEqual Lt(FieldName("quantity"), Constant(NumericValue(2.5)))
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
@@ -331,7 +368,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     errorMessage("SELECT 2x2") {
       case msg =>
         msg should include(
-          """Expect ("." | "*" | "/" | "+" | "-" | [ \t\n] | "," | "FROM" | "WHERE" | "GROUP" | "HAVING" | "LIMIT" | ";" | end-of-input), but got "x2""""
+          """Expect ("." | "*" | "/" | "+" | "-" | ">=" | ">" | "<=" | "<" | "IN" | "NOT" | "IS" | "BETWEEN" | "=" | "<>" | "!=" | "AND" | "OR" | [ \t\n] | "," | "FROM" | "WHERE" | "GROUP" | "HAVING" | "LIMIT" | ";" | end-of-input), but got "x2""""
         )
     }
   }
@@ -339,8 +376,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "parse SQL statements with aliases" in {
     val statement = "SELECT SUM(quantity), day(time) d FROM tickets WHERE sum <= 1000 GROUP BY d "
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "tickets"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "tickets"
         condition shouldEqual Le(FieldName("sum"), Constant(NumericValue(1000)))
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil)),
@@ -354,8 +391,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = "select quantity as q, sum s from items where q >= 10"
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "items"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "items"
         fields should contain theSameElementsAs List(
           SqlField(FieldName("quantity"), Some("q")),
           SqlField(FieldName("sum"), Some("s"))
@@ -369,8 +406,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = "select (a), (b) as c, d, (f(g)), (h(j)) as k from foo"
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), None, Nil, None, None) =>
-        schema shouldEqual "foo"
+      case Select(Some(table), SqlFieldList(fields), None, Nil, None, None) =>
+        table shouldEqual "foo"
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("a")),
           SqlField(FieldName("b"), Some("c")),
@@ -385,8 +422,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = "SELECT SUM(quantity) sum, name n FROM tickets WHERE n <> 'картошка' GROUP BY n"
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "tickets"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "tickets"
         fields should contain theSameElementsAs List(
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("sum")),
           SqlField(FieldName("name"), Some("n"))
@@ -400,8 +437,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = "SELECT foo FROM bar WHERE day(time) = 28"
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "bar"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FieldName("foo")))
         condition shouldEqual Eq(FunctionCall("day", FieldName("time") :: Nil), Constant(NumericValue(28)))
         groupings shouldBe empty
@@ -416,8 +453,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "foo"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "foo"
         fields should contain(SqlField(FieldName("field")))
         condition shouldEqual Le(FieldName("bar"), Constant(NumericValue(5)))
         groupings should contain(FieldName("baz"))
@@ -431,8 +468,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "foo"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "foo"
         fields should contain(SqlField(FieldName("field")))
         condition shouldEqual And(
           Seq(
@@ -448,8 +485,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = """SELECT "field" as "f" from "table" WHERE "f" = 'hello'"""
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "table"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "table"
         fields should contain theSameElementsAs List(SqlField(FieldName("field"), Some("f")))
         condition shouldEqual Eq(FieldName("f"), Constant(StringValue("hello")))
         groupings shouldBe empty
@@ -460,8 +497,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = """SELECT "table"."field" as "field" FROM "table""""
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), None, groupings, None, None) =>
-        schema shouldEqual "table"
+      case Select(Some(table), SqlFieldList(fields), None, groupings, None, None) =>
+        table shouldEqual "table"
         fields should contain theSameElementsAs List(SqlField(FieldName("field"), Some("field")))
         groupings shouldBe empty
     }
@@ -471,8 +508,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = """SELECT foo FROM bar WHERE qux = 5 LIMIT 10"""
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, Some(limit)) =>
-        schema shouldEqual "bar"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, Some(limit)) =>
+        table shouldEqual "bar"
         fields should contain theSameElementsAs Seq(SqlField(FieldName("foo")))
         condition shouldEqual Eq(FieldName("qux"), Constant(NumericValue(5)))
         groupings shouldBe empty
@@ -484,8 +521,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = """SELECT foo FROM bar WHERE qux = 5 GROUP BY time, q LIMIT 10"""
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, Some(limit)) =>
-        schema shouldEqual "bar"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, Some(limit)) =>
+        table shouldEqual "bar"
         fields should contain theSameElementsAs Seq(SqlField(FieldName("foo")))
         condition shouldEqual Eq(FieldName("qux"), Constant(NumericValue(5)))
         groupings should contain theSameElementsAs Seq(FieldName("time"), FieldName("q"))
@@ -493,15 +530,15 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
-  it should "support schema name in function calls" in {
+  it should "support table name in function calls" in {
     val statement = """SELECT day("receipt"."time") AS "time" , "receipt"."cashSum" AS "cashSum"
                       |  FROM "receipt"
                       |  WHERE "receipt"."time" >= TIMESTAMP '2017-10-01' AND "receipt"."time" < TIMESTAMP '2017-10-30'
                       |    GROUP BY "time"""".stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "receipt"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "receipt"
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("time")),
           SqlField(FieldName("cashSum"), Some("cashSum"))
@@ -526,8 +563,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
-        schema shouldEqual "qux"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "qux"
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("foo")),
           SqlField(FieldName("barbarian"), Some("bar"))
@@ -548,8 +585,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "kkm_items"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "kkm_items"
         fields should contain theSameElementsInOrderAs List(
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d")),
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("quantity")),
@@ -583,8 +620,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "kkm_items"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "kkm_items"
         fields should contain theSameElementsInOrderAs List(
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d")),
           SqlField(FunctionCall("sum", FieldName("quantity") :: Nil), Some("amount"))
@@ -619,8 +656,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "kkm_items"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "kkm_items"
         fields should contain theSameElementsInOrderAs List(
           SqlField(Constant(NumericValue(1)), Some("Number_of_Records")),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d")),
@@ -646,8 +683,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |SELECT foo + bar as baz, qux
         |  FROM (SELECT 1 - sum / quantity as foo, test FROM table WHERE x > 100)
       """.stripMargin) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
-        schema shouldEqual "table"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
         fields should contain theSameElementsInOrderAs List(
           SqlField(
             Plus(
@@ -675,8 +712,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
-        schema shouldEqual "foo"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "foo"
         fields should contain theSameElementsAs List(
           SqlField(
             Case(
@@ -710,8 +747,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "foo"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "foo"
 
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("item")),
@@ -743,8 +780,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "foo"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "foo"
 
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("item")),
@@ -770,8 +807,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     val statement = "SELECT lag(time) FROM bar WHERE day(time) = 28"
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "bar"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "bar"
         fields should contain theSameElementsAs List(SqlField(FunctionCall("lag", FieldName("time") :: Nil)))
         condition shouldEqual Eq(FunctionCall("day", FieldName("time") :: Nil), Constant(NumericValue(28)))
         groupings shouldBe empty
@@ -796,8 +833,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, Some(having), Some(limit)) =>
-        schema shouldEqual "receipt"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, Some(having), Some(limit)) =>
+        table shouldEqual "receipt"
         fields should contain theSameElementsInOrderAs List(
           SqlField(FieldName("kkmId")),
           SqlField(FieldName("time"), Some("t")),
@@ -847,8 +884,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |""".stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
-        schema shouldEqual "itemsKkm"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+        table shouldEqual "itemsKkm"
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FieldName("kkmId")),
           SqlField(FunctionCall("day", FieldName("time") :: Nil), Some("d")),
@@ -883,7 +920,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |""".stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FieldName("kkmId")),
           SqlField(Plus(FieldName("cardSum"), FieldName("cashSum")), Some("total"))
@@ -901,7 +938,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |""".stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         fields should contain theSameElementsAs Seq(
           SqlField(FieldName("day")),
           SqlField(
@@ -922,7 +959,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         |""".stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), groupings, None, None) =>
+      case Select(Some(table), SqlFieldList(fields), Some(condition), groupings, None, None) =>
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FieldName("kkmId")),
           SqlField(
@@ -952,14 +989,53 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         | """.stripMargin
 
     parsed(sql) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
-        schema shouldEqual "table"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
         fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
-        condition shouldEqual ExprCondition(
-          FunctionCall(
-            "containsall",
-            List(FieldName("x"), SqlArray(Seq(NumericValue(1), NumericValue(2), NumericValue(3))))
-          )
+        condition shouldEqual FunctionCall(
+          "containsall",
+          List(FieldName("x"), SqlArray(Seq(NumericValue(1), NumericValue(2), NumericValue(3))))
+        )
+    }
+  }
+
+  it should "parse tuples" in {
+    val sql =
+      """
+        | SELECT a, b
+        |   FROM table
+        |   WHERE (a, b) IN ((1, 2), (3, 4))""".stripMargin
+
+    parsed(sql) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(SqlField(FieldName("a")), SqlField(FieldName("b")))
+        condition shouldEqual In(
+          Tuple(FieldName("a"), FieldName("b")),
+          Seq(TupleValue(NumericValue(1), NumericValue(2)), TupleValue(NumericValue(3), NumericValue(4)))
+        )
+    }
+  }
+
+  it should "support cast" in {
+    val sql =
+      """
+        |SELECT cast (a as DOUBLE), b, cast(foo(x) as BIGINT) as foo
+        |  FROM table
+        |  where contain(cast(x as TEXT), '0')
+        |""".stripMargin
+
+    parsed(sql) {
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table"
+        fields should contain theSameElementsInOrderAs List(
+          SqlField(CastExpr(FieldName("a"), "DOUBLE")),
+          SqlField(FieldName("b")),
+          SqlField(CastExpr(FunctionCall("foo", List(FieldName("x"))), "BIGINT"), Some("foo"))
+        )
+        condition shouldEqual FunctionCall(
+          "contain",
+          List(CastExpr(FieldName("x"), "TEXT"), Constant(StringValue("0")))
         )
     }
   }
@@ -1067,19 +1143,17 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
       """.stripMargin
 
     parsed(statement) {
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
-        schema shouldEqual "table_x"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "table_x"
         fields should contain theSameElementsAs Seq(SqlField(FieldName("value")))
         condition shouldEqual And(
           Seq(
-            ExprCondition(FunctionCall("isvalid", List(FieldName("value")))),
-            ExprCondition(
-              FunctionCall(
-                "isthesame",
-                List(
-                  FunctionCall("toarray", List(FieldName("foo"))),
-                  FunctionCall("toarray", List(Constant(StringValue("bar"))))
-                )
+            FunctionCall("isvalid", List(FieldName("value"))),
+            FunctionCall(
+              "isthesame",
+              List(
+                FunctionCall("toarray", List(FieldName("foo"))),
+                FunctionCall("toarray", List(Constant(StringValue("bar"))))
               )
             )
           )
@@ -1097,8 +1171,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
              |AND -quantity < -100
              |""".stripMargin) {
 
-      case Select(Some(schema), SqlFieldList(fields), Some(condition), Nil, None, None) =>
-        schema shouldEqual "items_kkm"
+      case Select(Some(table), SqlFieldList(fields), Some(condition), Nil, None, None) =>
+        table shouldEqual "items_kkm"
         fields should contain theSameElementsInOrderAs Seq(
           SqlField(FunctionCall("abs", List(FunctionCall("sum", List(UMinus(FieldName("quantity")))))), Some("abs1")),
           SqlField(
@@ -1168,7 +1242,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
 
   }
 
-  it should "parse selects without schema" in {
+  it should "parse selects without table" in {
     parsed("""SELECT field, sum(sum) sum WHERE time > TIMESTAMP '2017-01-03'""") {
       case Select(None, SqlFieldList(fields), Some(condition), Nil, None, None) =>
         fields should contain theSameElementsInOrderAs Seq(

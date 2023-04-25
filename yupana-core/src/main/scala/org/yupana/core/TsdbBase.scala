@@ -24,8 +24,9 @@ import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
-import org.yupana.core.utils.metric.{ Failed, MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
+import org.yupana.metrics.Failed
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -146,7 +147,7 @@ trait TsdbBase extends StrictLogging {
 
           case None =>
             val th = new IllegalArgumentException("Empty condition")
-            metricCollector.queryStatus.set(Failed(th))
+            metricCollector.setQueryStatus(Failed(th))
             throw th
         }
 

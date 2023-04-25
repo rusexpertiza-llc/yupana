@@ -32,12 +32,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   import SqlQueryProcessor._
 
-  private val expressionCalculator = new ConstantCalculator(schema.tokenizer)
+  private val calculator = new ConstantCalculator(schema.tokenizer)
 
   def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
     val state = new BuilderState(parameters)
     val query = for {
-      table <- getTable(select.schemaName)
+      table <- getTable(select.tableName)
       fields <- getFields(table, select, state)
       filter <- getFilter(table, fields, select.condition, state)
       groupBy <- getGroupBy(select, table, state)
@@ -57,7 +57,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
     if (upsert.values.forall(_.size == upsert.fieldNames.size)) {
       (for {
-        mayBeTable <- getTable(Some(upsert.schemaName))
+        mayBeTable <- getTable(Some(upsert.tableName))
         table <- mayBeTable.toRight("Table is not defined")
         fieldMap <- getFieldMap(table, upsert.fieldNames)
       } yield (table, fieldMap)).flatMap {
@@ -150,7 +150,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           case (condition, value) =>
             for {
               et <- createExpr(state, nameResolver, value, exprType)
-              c <- createCondition(state, nameResolver, condition.simplify)
+              c <- createCondition(state, nameResolver, condition)
             } yield (c, et)
         })
 
@@ -158,8 +158,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           converted.flatMap { conv =>
             conv.foldRight(Right(ve): Either[String, Expression[_]]) {
               case ((condition, value), Right(e)) =>
-                ExprPair
-                  .alignTypes(value, e)
+                DataTypeUtils
+                  .alignTypes(value, e, calculator)
                   .map(pair => ConditionExpr(condition, pair.a, pair.b).asInstanceOf[Expression[_]])
 
               case (_, Left(msg)) => Left(msg)
@@ -174,6 +174,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.SqlArray(vs) =>
         val consts = CollectionUtils.collectErrors(vs.map(v => convertValue(state, v, exprType)))
         consts.flatMap(createArrayExpr)
+
+      case parser.Tuple(a, b) =>
+        for {
+          ae <- createExpr(state, nameResolver, a, exprType)
+          be <- createExpr(state, nameResolver, b, exprType)
+        } yield createTuple(ae, be)
 
       case parser.UMinus(a) =>
         createUMinus(state, nameResolver, a, ExprType.Math)
@@ -193,21 +199,84 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.FunctionCall(f, Nil) =>
         function0Registry.get(f).map(_(state)).toRight(s"Unknown nullary function $f")
 
+      case parser.Eq(l, r) =>
+        createBinaryBool(state, nameResolver, l, r, "=")
+
+      case parser.Ne(l, r) =>
+        createBinaryBool(state, nameResolver, l, r, "<>")
+
+      case parser.Ge(l, r) =>
+        createBinaryBool(state, nameResolver, l, r, ">=")
+
+      case parser.Gt(l, r) =>
+        createBinaryBool(state, nameResolver, l, r, ">")
+
+      case parser.Le(l, r) =>
+        createBinaryBool(state, nameResolver, l, r, "<=")
+
+      case parser.Lt(l, r) =>
+        createBinaryBool(state, nameResolver, l, r, "<")
+
+      case parser.IsNull(e) =>
+        createExpr(state, nameResolver, e, ExprType.Math).map(ne => IsNullExpr(ne))
+
+      case parser.IsNotNull(e) =>
+        createExpr(state, nameResolver, e, ExprType.Math).map(nne => IsNotNullExpr(nne))
+
+      case parser.In(e, vs) =>
+        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
+          case ce: Expression[t] =>
+            CollectionUtils
+              .collectErrors(vs.map(v => convertValue(state, v, ce.dataType)))
+              .map(cvs => InExpr(ce, cvs.toSet))
+        }
+
+      case parser.NotIn(e, vs) =>
+        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
+          case ce: Expression[t] =>
+            CollectionUtils
+              .collectErrors(vs.map(v => convertValue(state, v, ce.dataType)))
+              .map(cvs => NotInExpr(ce, cvs.toSet))
+        }
+      case parser.And(cs) =>
+        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(AndExpr)
+
+      case parser.Or(cs) =>
+        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(OrExpr)
+
+      case parser.BetweenCondition(e, f, t) =>
+        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
+          case ex: Expression[t] =>
+            for {
+              from <- convertValue(state, f, ex.dataType)
+              to <- convertValue(state, t, ex.dataType)
+              ge <- createBooleanExpr(ex, ConstantExpr(from)(ex.dataType), ">=")
+              le <- createBooleanExpr(ex, ConstantExpr(to)(ex.dataType), "<=")
+            } yield AndExpr(Seq(ge, le))
+        }
+
       case parser.FunctionCall(f, e :: Nil) =>
         for {
           ex <- createExpr(state, nameResolver, e, exprType)
-          fexpr <- FunctionRegistry.unary(f, ex)
+          fexpr <- FunctionRegistry.unary(f, calculator, ex)
         } yield fexpr
 
       case parser.FunctionCall(f, e1 :: e2 :: Nil) =>
         for {
           a <- createExpr(state, nameResolver, e1, exprType)
           b <- createExpr(state, nameResolver, e2, exprType)
-          fexpr <- FunctionRegistry.bi(f, a, b)
+          fexpr <- FunctionRegistry.bi(f, calculator, a, b)
         } yield fexpr
 
       case parser.FunctionCall(f, _) =>
         Left(s"Undefined function $f")
+
+      case parser.CastExpr(e, t) =>
+        for {
+          ex <- createExpr(state, nameResolver, e, exprType)
+          tpe <- createType(t)
+          c <- DataTypeUtils.exprCast(ex, tpe.aux, calculator)
+        } yield c
     }
 
     e.map {
@@ -216,6 +285,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         LowerExpr(ex.asInstanceOf[Expression[String]])
       case ex => ex
     }
+  }
+
+  private def createType(name: String): Either[String, DataType] = {
+    DataType.bySqlName(name).toRight(s"Unknown type $name")
   }
 
   private def createUMinus(
@@ -230,7 +303,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case _ =>
         for {
           e <- createExpr(state, resolver, expr, exprType)
-          u <- FunctionRegistry.unary("-", e)
+          u <- FunctionRegistry.unary("-", calculator, e)
         } yield u
     }
   }
@@ -255,6 +328,20 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
   }
 
+  private def createTuple[T, U](a: Expression[T], b: Expression[U]): Expression[_] =
+    TupleExpr(a, b)(a.dataType, b.dataType)
+
+  private def createTupleValue[T, U](
+      a: ConstantExpr[T],
+      b: ConstantExpr[U],
+      prepared: Boolean
+  ): Either[String, ConstantExpr[_]] = {
+    for {
+      av <- DataTypeUtils.constCast(a, a.dataType, calculator)
+      bv <- DataTypeUtils.constCast(b, b.dataType, calculator)
+    } yield ConstantExpr((av, bv), prepared)(DataType.tupleDt(a.dataType, b.dataType))
+  }
+
   private def createBinary(
       state: BuilderState,
       nameResolver: NameResolver,
@@ -266,93 +353,47 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     for {
       le <- createExpr(state, nameResolver, l, exprType)
       re <- createExpr(state, nameResolver, r, exprType)
-      biFunction <- FunctionRegistry.bi(fun, le, re)
+      biFunction <- FunctionRegistry.bi(fun, calculator, le, re)
     } yield biFunction
 
-  def createBooleanExpr(l: Expression[_], r: Expression[_], fun: String): Either[String, Expression[Boolean]] = {
-    FunctionRegistry.bi(fun, l, r).flatMap { e =>
+  private def createBooleanExpr(
+      l: Expression[_],
+      r: Expression[_],
+      fun: String
+  ): Either[String, Expression[Boolean]] = {
+    FunctionRegistry.bi(fun, calculator, l, r).flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
-      else Left(s"$fun result type is ${e.dataType.meta.sqlType} but BOOLEAN required")
+      else Left(s"$fun result has type ${e.dataType.meta.sqlType} but BOOLEAN required")
     }
+  }
+
+  private def createBinaryBool(
+      state: BuilderState,
+      resolver: NameResolver,
+      a: parser.SqlExpr,
+      b: parser.SqlExpr,
+      cmpName: String
+  ): Either[String, Condition] = {
+    for {
+      l <- createExpr(state, resolver, a, ExprType.Cmp)
+      r <- createExpr(state, resolver, b, ExprType.Cmp)
+      op <- createBooleanExpr(l, r, cmpName)
+    } yield op
   }
 
   private def createCondition(
       state: BuilderState,
-      nameResolver: NameResolver,
-      c: parser.Condition
+      resolver: NameResolver,
+      e: parser.SqlExpr
   ): Either[String, Condition] = {
-
-    def construct(cmpName: String, a: parser.SqlExpr, b: parser.SqlExpr): Either[String, Condition] = {
-      for {
-        l <- createExpr(state, nameResolver, a, ExprType.Cmp)
-        r <- createExpr(state, nameResolver, b, ExprType.Cmp)
-        op <- createBooleanExpr(l, r, cmpName)
-      } yield op
-    }
-
-    c match {
-      case parser.Eq(e, v) => construct("=", e, v)
-      case parser.Ne(e, v) => construct("<>", e, v)
-      case parser.Lt(e, v) => construct("<", e, v)
-      case parser.Gt(e, v) => construct(">", e, v)
-      case parser.Le(e, v) => construct("<=", e, v)
-      case parser.Ge(e, v) => construct(">=", e, v)
-
-      case parser.IsNull(e) =>
-        for {
-          ne <- createExpr(state, nameResolver, e, ExprType.Math)
-        } yield IsNullExpr(ne)
-
-      case parser.IsNotNull(e) =>
-        for {
-          nne <- createExpr(state, nameResolver, e, ExprType.Math)
-        } yield IsNotNullExpr(nne)
-
-      case parser.In(e, vs) =>
-        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
-          case ce: Expression[t] =>
-            CollectionUtils
-              .collectErrors(vs.map(v => convertValue(state, v, ce.dataType)))
-              .map(cvs => InExpr(ce, cvs.toSet))
-        }
-
-      case parser.NotIn(e, vs) =>
-        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
-          case ce: Expression[t] =>
-            CollectionUtils
-              .collectErrors(vs.map(v => convertValue(state, v, ce.dataType)))
-              .map(cvs => NotInExpr(ce, cvs.toSet))
-        }
-      case parser.And(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(AndExpr)
-
-      case parser.Or(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(OrExpr)
-
-      case parser.ExprCondition(e) =>
-        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap { ex =>
-          if (ex.dataType == DataType[Boolean]) {
-            Right(ex.asInstanceOf[Expression[Boolean]])
-          } else {
-            Left(s"$ex has type ${ex.dataType}, but BOOLEAN is required")
-          }
-        }
-
-      case parser.BetweenCondition(e, f, t) =>
-        createExpr(state, nameResolver, e, ExprType.Cmp).flatMap {
-          case ex: Expression[t] =>
-            for {
-              from <- convertValue(state, f, ex.dataType)
-              to <- convertValue(state, t, ex.dataType)
-              ge <- createBooleanExpr(ex, ConstantExpr(from)(ex.dataType), ">=")
-              le <- createBooleanExpr(ex, ConstantExpr(to)(ex.dataType), "<=")
-            } yield AndExpr(Seq(ge, le))
-        }
-    }
+    createExpr(state, resolver, e, ExprType.Cmp).flatMap(e =>
+      if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Condition])
+      else Left(s"$e has type ${e.dataType}, but BOOLEAN is required")
+    )
   }
 
   private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
-    convertValue(state, v, ExprType.Cmp).flatMap(const => ExprPair.constCast(const, dataType))
+    convertValue(state, v, ExprType.Cmp).flatMap(const => DataTypeUtils.constCast(const, dataType, calculator))
   }
 
   private def convertValue(
@@ -369,6 +410,9 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.NumericValue(n) =>
         Right(ConstantExpr(n, prepared))
 
+      case parser.BooleanValue(b) =>
+        Right(ConstantExpr(b, prepared))
+
       case parser.TimestampValue(t) =>
         Right(ConstantExpr(Time(t), prepared))
 
@@ -381,6 +425,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
       case parser.PeriodValue(p) => Right(ConstantExpr(p, prepared))
 
+      case parser.TupleValue(a, b) =>
+        for {
+          ae <- convertValue(state, a, exprType, prepared)
+          be <- convertValue(state, b, exprType, prepared)
+          te <- createTupleValue(ae, be, prepared)
+        } yield te
+
       case parser.Placeholder(id) =>
         state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))
     }
@@ -389,13 +440,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   private def getFilter(
       table: Option[Table],
       fields: Seq[QueryField],
-      condition: Option[parser.Condition],
+      condition: Option[parser.SqlExpr],
       state: BuilderState
   ): Either[String, Option[Condition]] = {
     val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
     condition match {
       case Some(c) =>
-        createCondition(state, resolver, c.simplify).map(Some(_))
+        createCondition(state, resolver, c).map(Some(_))
       case None => Right(None)
     }
   }
@@ -403,13 +454,13 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   private def getPostFilter(
       table: Option[Table],
       fields: Seq[QueryField],
-      condition: Option[parser.Condition],
+      condition: Option[parser.SqlExpr],
       state: BuilderState
   ): Either[String, Option[Condition]] = {
     val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
     condition match {
       case Some(c) =>
-        createCondition(state, resolver, c.simplify).map(Some(_))
+        createCondition(state, resolver, c).map(Some(_))
       case None => Right(None)
     }
   }
@@ -499,7 +550,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
         case Right(e: Expression[t]) if e.kind == Const =>
-          val eval = expressionCalculator.evaluateConstant[t](e)
+          val eval = calculator.evaluateConstant[t](e)
           if (eval != null) {
             Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
           } else {
@@ -516,7 +567,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
-    idx.map(values).flatMap(c => ExprPair.constCast(c, DataType[Time])).map(_.millis)
+    idx.map(values).flatMap(c => DataTypeUtils.constCast(c, DataType[Time], calculator)).map(_.millis)
   }
 
   private def getDimensionValues(
@@ -526,7 +577,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
-      idx.map(values).flatMap(c => ExprPair.constCast(c, dim.dataType)).map(dim -> _)
+      idx.map(values).flatMap(c => DataTypeUtils.constCast(c, dim.dataType, calculator)).map(dim -> _)
     }
 
     CollectionUtils.collectErrors(dimValues).map(_.toMap)
@@ -538,7 +589,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        val x: Either[String, Any] = ExprPair.constCast(values(idx), m.dataType)
+        val x: Either[String, Any] = DataTypeUtils.constCast(values(idx), m.dataType, calculator)
         x.map(v => MetricValue(m, v))
     }
 

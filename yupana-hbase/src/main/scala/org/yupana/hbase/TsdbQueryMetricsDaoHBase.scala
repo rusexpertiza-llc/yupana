@@ -24,11 +24,12 @@ import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableNam
 import org.yupana.api.query.Query
 import org.yupana.api.utils.GroupByIterator
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.QueryStates.QueryState
 import org.yupana.core.model.TsdbQueryMetrics._
-import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
-import org.yupana.core.utils.metric.{ MetricCollector, NoMetricCollector }
+import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase.TsdbQueryMetricsDaoHBase._
+import org.yupana.metrics.QueryStates.QueryState
+import org.yupana.metrics.{ MetricCollector, QueryStates }
 
 import java.time.{ Duration, Instant, OffsetDateTime, ZoneOffset }
 import scala.jdk.CollectionConverters._
