@@ -112,8 +112,17 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override val dataType: DataType.Aux[I] = expr.dataType
 }
 
+sealed trait ConstExpr[T] extends Expression[T] {
+  override val kind: ExprKind = Const
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
+}
+
+final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
+  override def encode: String = "null"
+}
+
 final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit override val dataType: DataType.Aux[T])
-    extends Expression[T] {
+    extends ConstExpr[T] {
   override def encode: String = {
     if (dataType.kind == TypeKind.Array) {
       val adt = dataType.asInstanceOf[ArrayDataType[T]]
@@ -123,9 +132,6 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
       s"const($v:${v.getClass.getSimpleName})"
     }
   }
-  override val kind: ExprKind = Const
-
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
 case object TimeExpr extends Expression[Time] {
@@ -324,16 +330,12 @@ sealed trait SimpleCondition extends Expression[Boolean] {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case object TrueExpr extends SimpleCondition {
-  override val kind: ExprKind = Simple
+case object TrueExpr extends SimpleCondition with ConstExpr[Boolean] {
   override def encode: String = "true"
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
-case object FalseExpr extends SimpleCondition {
-  override val kind: ExprKind = Simple
+case object FalseExpr extends SimpleCondition with ConstExpr[Boolean] {
   override def encode: String = "false"
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
 final case class EqExpr[T](override val a: Expression[T], override val b: Expression[T])

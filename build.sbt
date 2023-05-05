@@ -426,8 +426,7 @@ val commonSettings = Seq(
     "-feature",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Wconf:msg=Top-level:s"
+    "-Ywarn-dead-code"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),

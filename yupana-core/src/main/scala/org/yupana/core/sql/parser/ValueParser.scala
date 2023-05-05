@@ -25,18 +25,20 @@ import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 object ValueParser {
   private val PLACEHOLDER_ID = "PLACEHOLDER_ID"
 
-  private def wsp[_: P] = P(CharsWhileIn(" \t", 0))
+  private def wsp[$: P] = P(CharsWhileIn(" \t", 0))
 
-  private def timestampWord[_: P] = P(IgnoreCase("TIMESTAMP"))
-  private def tsWord[_: P] = P(IgnoreCase("TS"))
-  private def intervalWord[_: P] = P(IgnoreCase("INTERVAL"))
+  private def timestampWord[$: P] = P(IgnoreCase("TIMESTAMP"))
+  private def tsWord[$: P] = P(IgnoreCase("TS"))
+  private def intervalWord[$: P] = P(IgnoreCase("INTERVAL"))
 
-  private def toWord[_: P] = P(IgnoreCase("TO"))
+  private def toWord[$: P] = P(IgnoreCase("TO"))
 
-  private def trueConst[_: P]: P[Boolean] = P(IgnoreCase("TRUE")).map(_ => true)
-  private def falseConst[_: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
+  private def nullWord[$: P] = P(IgnoreCase("NULL"))
 
-  def placeholder[_: P]: P[Placeholder] = {
+  private def trueConst[$: P]: P[Boolean] = P(IgnoreCase("TRUE")).map(_ => true)
+  private def falseConst[$: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
+
+  def placeholder[$: P]: P[Placeholder] = {
     val p = P("?")
     val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
 
@@ -48,69 +50,70 @@ object ValueParser {
     }
   }
 
-  private def digit[_: P] = P(CharIn("0-9").!)
+  private def digit[$: P] = P(CharIn("0-9").!)
 
-  private def digits[_: P]: P[String] = P(CharsWhileIn("0-9").!)
+  private def digits[$: P]: P[String] = P(CharsWhileIn("0-9").!)
 
-  def intNumber[_: P]: P[Int] = P(digits).map(_.toInt)
+  def intNumber[$: P]: P[Int] = P(digits).map(_.toInt)
 
-  def number[_: P]: P[BigDecimal] = P("-".!.? ~ digits ~ ("." ~ digits).!.?).map {
+  def number[$: P]: P[BigDecimal] = P("-".!.? ~ digits ~ ("." ~ digits).!.?).map {
     case (m, x, y) => BigDecimal(m.getOrElse("") + x + y.getOrElse(""))
   }
 
-  private def stringCharacter[_: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
-  def escapedCharacter[_: P] = P("\\" ~/ CharIn("'\\\\nrt").!).map {
+  private def stringCharacter[$: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
+  def escapedCharacter[$: P] = P("\\" ~/ CharIn("'\\\\nrt").!).map {
     case "n" => "\n"
     case "r" => "\r"
     case "t" => "\t"
     case x   => x
   }
 
-  def string[_: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
-  def boolean[_: P]: P[Boolean] = P(trueConst | falseConst)
+  def string[$: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
+  def boolean[$: P]: P[Boolean] = P(trueConst | falseConst)
 
-  private def year[_: P] = P(digit.rep(exactly = 4).!.map(_.toInt))
-  private def twoDigitInt[_: P] = P(digit.rep(min = 1, max = 2).map(_.mkString.toInt))
-  private def month[_: P] = P(twoDigitInt.filter(x => x > 0 && x <= 12))
-  private def day[_: P] = P(twoDigitInt.filter(x => x > 0 && x <= 31))
-  def date[_: P]: P[(Int, Int, Int)] = P(year ~ "-" ~ month ~ "-" ~ day)
+  private def year[$: P] = P(digit.rep(exactly = 4).!.map(_.toInt))
+  private def twoDigitInt[$: P] = P(digit.rep(min = 1, max = 2).map(_.mkString.toInt))
+  private def month[$: P] = P(twoDigitInt.filter(x => x > 0 && x <= 12))
+  private def day[$: P] = P(twoDigitInt.filter(x => x > 0 && x <= 31))
+  def date[$: P]: P[(Int, Int, Int)] = P(year ~ "-" ~ month ~ "-" ~ day)
 
-  private def hours[_: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 23))
-  private def minutes[_: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 59))
-  private def millis[_: P] =
+  private def hours[$: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 23))
+  private def minutes[$: P] = P(twoDigitInt.filter(x => x >= 0 && x <= 59))
+  private def millis[$: P] =
     P(
       digit
         .rep(min = 1, max = 3)
         .map(s => (s.mkString + ("0" * (3 - s.length))).toInt)
     )
 
-  def time[_: P]: P[(Int, Int, Int, Int)] =
+  def time[$: P]: P[(Int, Int, Int, Int)] =
     P(hours ~ ":" ~ minutes ~ ":" ~ minutes ~ ("." ~ millis).?.map(_.getOrElse(0)))
 
-  def dateAndTime[_: P]: P[OffsetDateTime] = P(date ~/ (" " ~ time).?).map {
+  def dateAndTime[$: P]: P[OffsetDateTime] = P(date ~/ (" " ~ time).?).map {
     case (y, m, d, None)                  => OffsetDateTime.of(y, m, d, 0, 0, 0, 0, ZoneOffset.UTC)
     case (y, m, d, Some((h, mm, ss, ms))) => OffsetDateTime.of(y, m, d, h, mm, ss, ms, ZoneOffset.UTC)
   }
 
-  def duration[_: P]: P[PeriodDuration] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
+  def duration[$: P]: P[PeriodDuration] = P("'" ~ (intNumber ~ " ").? ~ time ~ "'").map {
     case (d, (h, m, s, ms)) =>
       PeriodDuration
         .of(Period.of(0, 0, d.getOrElse(0)), Duration.ofHours(h).plusMinutes(m).plusSeconds(s).plusMillis(ms))
   }
 
-  private def pgTimestamp[_: P]: P[OffsetDateTime] = {
+  private def pgTimestamp[$: P]: P[OffsetDateTime] = {
     P(timestampWord ~/ wsp ~ "'" ~ dateAndTime ~ "'")
   }
-  private def msTimestamp[_: P]: P[OffsetDateTime] = {
+  private def msTimestamp[$: P]: P[OffsetDateTime] = {
     P("{" ~ wsp ~ tsWord ~/ wsp ~ "'" ~ dateAndTime ~ "'" ~ wsp ~ "}")
   }
 
-  def numericValue[_: P]: P[NumericValue] = P(number).map(NumericValue)
-  def stringValue[_: P]: P[StringValue] = P(string).map(StringValue)
-  def booleanValue[_: P]: P[BooleanValue] = P(boolean).map(BooleanValue)
-  def timestampValue[_: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
+  def numericValue[$: P]: P[NumericValue] = P(number).map(NumericValue)
+  def stringValue[$: P]: P[StringValue] = P(string).map(StringValue)
+  def booleanValue[$: P]: P[BooleanValue] = P(boolean).map(BooleanValue)
+  def nullValue[$: P]: P[NullValue.type] = P(nullWord).map(_ => NullValue)
+  def timestampValue[$: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
 
-  def INTERVAL_PARTS[_: P]: List[IntervalPart] = List(
+  def INTERVAL_PARTS[$: P]: List[IntervalPart] = List(
     IntervalPart(
       "SECOND",
       () =>
@@ -126,7 +129,7 @@ object ValueParser {
     IntervalPart("YEAR", () => intNumber.map(y => PeriodDuration.of(Period.ofYears(y))), () => P("-"))
   )
 
-  def singleFieldDuration[_: P]: P[PeriodDuration] = {
+  def singleFieldDuration[$: P]: P[PeriodDuration] = {
     val variants = INTERVAL_PARTS.tails.flatMap(_.inits).toList
 
     val parsers = variants.flatMap {
@@ -148,15 +151,15 @@ object ValueParser {
     parsers.reduceLeft((x, y) => () => x() | y())()
   }
 
-  def periodValue[_: P]: P[PeriodValue] = {
+  def periodValue[$: P]: P[PeriodValue] = {
     P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue)
   }
 
-  def tupleValue[_: P]: P[TupleValue] =
+  def tupleValue[$: P]: P[TupleValue] =
     P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map(TupleValue.tupled)
 
-  def value[_: P]: P[Value] = P(
-    numericValue | timestampValue | periodValue | stringValue | booleanValue | placeholder | tupleValue
+  def value[$: P]: P[Value] = P(
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue | placeholder | tupleValue
   )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])

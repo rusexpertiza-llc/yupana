@@ -510,6 +510,9 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case FalseExpr =>
           val (v, s) = mapValue(state, e.dataType)(false)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case NullExpr(_) =>
+          val (v, s) = mapValue(state, e.dataType)(null)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
 
         case TimeExpr             => state.withExpr(e)
         case DimensionExpr(_)     => state.withExpr(e)
