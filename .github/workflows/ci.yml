@@ -42,7 +42,7 @@ jobs:
     name: Compile and test
     strategy:
       matrix:
-        scala: [2.13.10]
+        scala: [ 2.13.10, 3.2.2 ]
 
     runs-on: ubuntu-latest
 
