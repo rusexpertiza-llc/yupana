@@ -22,40 +22,40 @@ import MultiLineWhitespace._
 
 object SqlParser {
 
-  private def selectWord[_: P] = P(IgnoreCase("SELECT"))
-  private def showWord[_: P] = P(IgnoreCase("SHOW"))
-  private def tablesWord[_: P] = P(IgnoreCase("TABLES"))
-  private def columnsWord[_: P] = P(IgnoreCase("COLUMNS"))
-  private def queriesWord[_: P] = P(IgnoreCase("QUERIES"))
-  private def updatesIntervalsWord[_: P] = P(IgnoreCase("UPDATES_INTERVALS"))
-  private def queryWord[_: P] = P(IgnoreCase("QUERY"))
-  private def fromWord[_: P] = P(IgnoreCase("FROM"))
-  private def whereWord[_: P] = P(IgnoreCase("WHERE"))
-  private def andWord[_: P] = P(IgnoreCase("AND"))
-  private def orWord[_: P] = P(IgnoreCase("OR"))
-  private def asWord[_: P] = P(IgnoreCase("AS"))
-  private def betweenWord[_: P] = P(IgnoreCase("BETWEEN"))
-  private def groupWord[_: P] = P(IgnoreCase("GROUP"))
-  private def byWord[_: P] = P(IgnoreCase("BY"))
-  private def limitWord[_: P] = P(IgnoreCase("LIMIT"))
-  private def caseWord[_: P] = P(IgnoreCase("CASE"))
-  private def whenWord[_: P] = P(IgnoreCase("WHEN"))
-  private def thenWord[_: P] = P(IgnoreCase("THEN"))
-  private def elseWord[_: P] = P(IgnoreCase("ELSE"))
-  private def havingWord[_: P] = P(IgnoreCase("HAVING"))
-  private def inWord[_: P] = P(IgnoreCase("IN"))
-  private def isWord[_: P] = P(IgnoreCase("IS"))
-  private def nullWord[_: P] = P(IgnoreCase("NULL"))
-  private def notWord[_: P] = P(IgnoreCase("NOT"))
-  private def queryIdWord[_: P] = P(IgnoreCase("QUERY_ID"))
-  private def stateWord[_: P] = P(IgnoreCase("STATE"))
-  private def killWord[_: P] = P(IgnoreCase("KILL"))
-  private def deleteWord[_: P] = P(IgnoreCase("DELETE"))
-  private def upsertWord[_: P] = P(IgnoreCase("UPSERT"))
-  private def intoWord[_: P] = P(IgnoreCase("INTO"))
-  private def valuesWord[_: P] = P(IgnoreCase("VALUES"))
-  private def functionsWord[_: P] = P(IgnoreCase("FUNCTIONS"))
-  private def forWord[_: P] = P(IgnoreCase("FOR"))
+  private def selectWord[$: P] = P(IgnoreCase("SELECT"))
+  private def showWord[$: P] = P(IgnoreCase("SHOW"))
+  private def tablesWord[$: P] = P(IgnoreCase("TABLES"))
+  private def columnsWord[$: P] = P(IgnoreCase("COLUMNS"))
+  private def queriesWord[$: P] = P(IgnoreCase("QUERIES"))
+  private def updatesIntervalsWord[$: P] = P(IgnoreCase("UPDATES_INTERVALS"))
+  private def queryWord[$: P] = P(IgnoreCase("QUERY"))
+  private def fromWord[$: P] = P(IgnoreCase("FROM"))
+  private def whereWord[$: P] = P(IgnoreCase("WHERE"))
+  private def andWord[$: P] = P(IgnoreCase("AND"))
+  private def orWord[$: P] = P(IgnoreCase("OR"))
+  private def asWord[$: P] = P(IgnoreCase("AS"))
+  private def betweenWord[$: P] = P(IgnoreCase("BETWEEN"))
+  private def groupWord[$: P] = P(IgnoreCase("GROUP"))
+  private def byWord[$: P] = P(IgnoreCase("BY"))
+  private def limitWord[$: P] = P(IgnoreCase("LIMIT"))
+  private def caseWord[$: P] = P(IgnoreCase("CASE"))
+  private def whenWord[$: P] = P(IgnoreCase("WHEN"))
+  private def thenWord[$: P] = P(IgnoreCase("THEN"))
+  private def elseWord[$: P] = P(IgnoreCase("ELSE"))
+  private def havingWord[$: P] = P(IgnoreCase("HAVING"))
+  private def inWord[$: P] = P(IgnoreCase("IN"))
+  private def isWord[$: P] = P(IgnoreCase("IS"))
+  private def nullWord[$: P] = P(IgnoreCase("NULL"))
+  private def notWord[$: P] = P(IgnoreCase("NOT"))
+  private def queryIdWord[$: P] = P(IgnoreCase("QUERY_ID"))
+  private def stateWord[$: P] = P(IgnoreCase("STATE"))
+  private def killWord[$: P] = P(IgnoreCase("KILL"))
+  private def deleteWord[$: P] = P(IgnoreCase("DELETE"))
+  private def upsertWord[$: P] = P(IgnoreCase("UPSERT"))
+  private def intoWord[$: P] = P(IgnoreCase("INTO"))
+  private def valuesWord[$: P] = P(IgnoreCase("VALUES"))
+  private def functionsWord[$: P] = P(IgnoreCase("FUNCTIONS"))
+  private def forWord[$: P] = P(IgnoreCase("FOR"))
   private val keywords = Set(
     "select",
     "from",
@@ -77,120 +77,120 @@ object SqlParser {
     "null",
     "not"
   )
-  private def asterisk[_: P] = P("*")
+  private def asterisk[$: P] = P("*")
 
-  private def plus[_: P] = P("+").map(_ => Plus)
-  private def minus[_: P] = P("-").map(_ => Minus)
-  private def multiply[_: P] = P("*").map(_ => Multiply)
-  private def divide[_: P] = P("/").map(_ => Divide)
+  private def plus[$: P] = P("+").map(_ => (Plus.apply _))
+  private def minus[$: P] = P("-").map(_ => (Minus.apply _))
+  private def multiply[$: P] = P("*").map(_ => (Multiply.apply _))
+  private def divide[$: P] = P("/").map(_ => (Divide.apply _))
 
-  def name[_: P]: P[String] = P(CharsWhileIn("a-zA-Z0-9_").!.filter(s => s.nonEmpty && s.exists(_.isLetter)))
+  def name[$: P]: P[String] = P(CharsWhileIn("a-zA-Z0-9_").!.filter(s => s.nonEmpty && s.exists(_.isLetter)))
 
-  def schemaName[_: P]: P[String] = P(name | "\"" ~ name ~ "\"")
-  def fieldWithSchema[_: P]: P[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
+  def schemaName[$: P]: P[String] = P(name | "\"" ~ name ~ "\"")
+  def fieldWithSchema[$: P]: P[String] = P((schemaName ~ ".").? ~ schemaName).map(_._2)
 
-  def notKeyword[_: P]: P[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
+  def notKeyword[$: P]: P[String] = P(schemaName.filter(s => !keywords.contains(s.toLowerCase)))
 
-  def alias[_: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
+  def alias[$: P]: P[String] = P(CharsWhileIn(" \t\n", 1) ~~ asWord.? ~ notKeyword)
 
-  def functionCallExpr[_: P]: P[FunctionCall] = P(name ~ "(" ~ expr.rep(sep = ",") ~ ")").map {
+  def functionCallExpr[$: P]: P[FunctionCall] = P(name ~ "(" ~ expr.rep(sep = ",") ~ ")").map {
     case (f, vs) => FunctionCall(f.toLowerCase, vs.toList)
   }
 
-  def fieldNameExpr[_: P]: P[FieldName] = P(fieldWithSchema).map(FieldName)
+  def fieldNameExpr[$: P]: P[FieldName] = P(fieldWithSchema).map(FieldName.apply)
 
-  def constExpr[_: P]: P[Constant] = P(ValueParser.value).map(Constant)
+  def constExpr[$: P]: P[Constant] = P(ValueParser.value).map(Constant.apply)
 
-  def arrayExpr[_: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
+  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray.apply)
 
-  def caseExpr[_: P]: P[Case] =
+  def caseExpr[$: P]: P[Case] =
     P(
       caseWord ~/
         (whenWord ~/ condition ~ thenWord ~/ expr).rep(1) ~
         elseWord ~/ expr
     ).map { case (cs, d) => Case(cs, d) }
 
-  private def chained[E, _: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
+  private def chained[E, $: P](elem: => P[E], op: => P[(E, E) => E]): P[E] = chained1(elem, elem, op)
 
-  private def chained1[E, _: P](firstElem: => P[E], elem: => P[E], op: => P[(E, E) => E]): P[E] = {
+  private def chained1[E, $: P](firstElem: => P[E], elem: => P[E], op: => P[(E, E) => E]): P[E] = {
     P(firstElem ~ (op ~ elem).rep).map {
       case (first, rest) =>
         rest.foldLeft(first) { case (l, (fun, r)) => fun(l, r) }
     }
   }
 
-  def expr[_: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def expr[$: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
 
-  def minusMathTerm[_: P]: P[SqlExpr] = P("-" ~ mathTerm).map(UMinus)
+  def minusMathTerm[$: P]: P[SqlExpr] = P("-" ~ mathTerm).map(UMinus.apply)
 
-  def mathTerm[_: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
+  def mathTerm[$: P]: P[SqlExpr] = chained(mathFactor, multiply | divide)
 
-  def mathFactor[_: P]: P[SqlExpr] =
+  def mathFactor[$: P]: P[SqlExpr] =
     P(functionCallExpr | caseExpr | constExpr | arrayExpr | fieldNameExpr | "(" ~ expr ~ ")")
 
-  def field[_: P]: P[SqlField] = P(expr ~~ alias.?).map(SqlField.tupled)
+  def field[$: P]: P[SqlField] = P(expr ~~ alias.?).map((SqlField.apply _).tupled)
 
-  def fieldList[_: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList)
-  def allFields[_: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
+  def fieldList[$: P]: P[SqlFieldList] = P(field.rep(min = 1, sep = ",")).map(SqlFieldList.apply)
+  def allFields[$: P]: P[SqlFieldsAll.type] = P(asterisk).map(_ => SqlFieldsAll)
 
-  def op[_: P]: P[(SqlExpr, SqlExpr) => Comparison] = P(
-    P("=").map(_ => Eq) |
-      P("<>").map(_ => Ne) |
-      P("!=").map(_ => Ne) |
-      P(">=").map(_ => Ge) |
-      P(">").map(_ => Gt) |
-      P("<=").map(_ => Le) |
-      P("<").map(_ => Lt)
+  def op[$: P]: P[(SqlExpr, SqlExpr) => Comparison] = P(
+    P("=").map(_ => (Eq.apply _)) |
+      P("<>").map(_ => (Ne.apply _)) |
+      P("!=").map(_ => (Ne.apply _)) |
+      P(">=").map(_ => (Ge.apply _)) |
+      P(">").map(_ => (Gt.apply _)) |
+      P("<=").map(_ => (Le.apply _)) |
+      P("<").map(_ => (Lt.apply _))
   )
 
-  def callOrField[_: P]: P[SqlExpr] = functionCallExpr | fieldNameExpr
+  def callOrField[$: P]: P[SqlExpr] = functionCallExpr | fieldNameExpr
 
-  def comparison[_: P]: P[SqlExpr => Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
+  def comparison[$: P]: P[SqlExpr => Condition] = P(op ~/ expr).map { case (o, b) => a => o(a, b) }
 
-  def in[_: P]: P[SqlExpr => Condition] =
+  def in[$: P]: P[SqlExpr => Condition] =
     P(inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
-  def notIn[_: P]: P[SqlExpr => Condition] =
+  def notIn[$: P]: P[SqlExpr => Condition] =
     P(notWord ~ inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
-  def isNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ nullWord).map(_ => IsNull)
+  def isNull[$: P]: P[SqlExpr => Condition] = P(isWord ~ nullWord).map(_ => IsNull.apply)
 
-  def isNotNull[_: P]: P[SqlExpr => Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull)
+  def isNotNull[$: P]: P[SqlExpr => Condition] = P(isWord ~ notWord ~ nullWord).map(_ => IsNotNull.apply)
 
-  def between[_: P]: P[SqlExpr => Condition] = P(betweenWord ~/ ValueParser.value ~ andWord ~/ ValueParser.value).map {
+  def between[$: P]: P[SqlExpr => Condition] = P(betweenWord ~/ ValueParser.value ~ andWord ~/ ValueParser.value).map {
     case (f, t) => e => BetweenCondition(e, f, t)
   }
 
-  def condition[_: P]: P[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
+  def condition[$: P]: P[Condition] = P(logicalTerm ~ (orWord ~/ logicalTerm).rep).map {
     case (x, y) if y.nonEmpty => Or(x +: y)
     case (x, _)               => x
   }
 
-  def logicalTerm[_: P]: P[Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
+  def logicalTerm[$: P]: P[Condition] = P(logicalFactor ~ (andWord ~/ logicalFactor).rep).map {
     case (x, y) if y.nonEmpty => And(x +: y)
     case (x, _)               => x
   }
 
-  def boolExpr[_: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull | between).?).map {
+  def boolExpr[$: P]: P[Condition] = P(expr ~ (comparison | in | notIn | isNull | isNotNull | between).?).map {
     case (e, Some(f)) => f(e)
     case (e, None)    => ExprCondition(e)
   }
 
-  def logicalFactor[_: P]: P[Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
+  def logicalFactor[$: P]: P[Condition] = P(boolExpr | ("(" ~ condition ~ ")"))
 
-  def where[_: P]: P[Condition] = P(whereWord ~/ condition)
+  def where[$: P]: P[Condition] = P(whereWord ~/ condition)
 
-  def grouping[_: P]: P[SqlExpr] = callOrField
+  def grouping[$: P]: P[SqlExpr] = callOrField
 
-  def groupings[_: P]: P[Seq[SqlExpr]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
+  def groupings[$: P]: P[Seq[SqlExpr]] = P(groupWord ~/ byWord ~ grouping.rep(1, ","))
 
-  def having[_: P]: P[Condition] = P(havingWord ~/ condition)
+  def having[$: P]: P[Condition] = P(havingWord ~/ condition)
 
-  def limit[_: P]: P[Int] = P(limitWord ~/ ValueParser.intNumber)
+  def limit[$: P]: P[Int] = P(limitWord ~/ ValueParser.intNumber)
 
-  def selectFields[_: P]: P[SqlFields] = P(selectWord ~/ (fieldList | allFields))
+  def selectFields[$: P]: P[SqlFields] = P(selectWord ~/ (fieldList | allFields))
 
-  def nestedSelectFrom[_: P](fields: SqlFields): P[Select] = {
+  def nestedSelectFrom[$: P](fields: SqlFields): P[Select] = {
     P(fromWord ~ "(" ~/ select ~ ")" ~/ (asWord.? ~ notKeyword).?).map {
       case (sel, _) =>
         fields match {
@@ -208,17 +208,17 @@ object SqlParser {
     }
   }
 
-  def normalSelectFrom[_: P](fields: SqlFields): P[Select] = {
+  def normalSelectFrom[$: P](fields: SqlFields): P[Select] = {
     P((fromWord ~ schemaName).? ~/ where.? ~ groupings.? ~ having.? ~ limit.?).map {
       case (s, c, gs, h, l) => Select(s, fields, c, gs.getOrElse(Seq.empty), h, l)
     }
   }
 
-  def selectFrom[_: P](fields: SqlFields): P[Select] = {
+  def selectFrom[$: P](fields: SqlFields): P[Select] = {
     P(nestedSelectFrom(fields) | normalSelectFrom(fields))
   }
 
-  def select[_: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)))
+  def select[$: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)))
 
   def substituteNested(expr: SqlExpr, nestedFields: Seq[SqlField]): SqlExpr = {
     expr match {
@@ -236,47 +236,47 @@ object SqlParser {
     }
   }
 
-  def tables[_: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
+  def tables[$: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
-  def columns[_: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
+  def columns[$: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns.apply)
 
-  def metricQueryIdFilter[_: P]: P[MetricsFilter] =
+  def metricQueryIdFilter[$: P]: P[MetricsFilter] =
     P(queryIdWord ~ "=" ~/ ValueParser.string).map(queryId => MetricsFilter(queryId = Some(queryId)))
-  def metricStateFilter[_: P]: P[MetricsFilter] =
+  def metricStateFilter[$: P]: P[MetricsFilter] =
     P(stateWord ~ "=" ~/ ValueParser.string).map(state => MetricsFilter(state = Some(state)))
-  def queryMetricsFilter[_: P]: P[MetricsFilter] = P(
+  def queryMetricsFilter[$: P]: P[MetricsFilter] = P(
     whereWord ~ (metricQueryIdFilter | metricStateFilter)
   )
 
-  def queries[_: P]: P[ShowQueryMetrics] =
-    P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map(ShowQueryMetrics.tupled)
+  def queries[$: P]: P[ShowQueryMetrics] =
+    P(queriesWord ~/ queryMetricsFilter.? ~/ limit.?).map((ShowQueryMetrics.apply _).tupled)
 
-  def updatesIntervals[_: P]: P[ShowUpdatesIntervals] =
-    P(updatesIntervalsWord ~ (whereWord ~ condition).?).map(ShowUpdatesIntervals)
+  def updatesIntervals[$: P]: P[ShowUpdatesIntervals] =
+    P(updatesIntervalsWord ~ (whereWord ~ condition).?).map(ShowUpdatesIntervals.apply)
 
-  def query[_: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery)
+  def query[$: P]: P[KillQuery] = P(queryWord ~/ whereWord ~ metricQueryIdFilter).map(KillQuery.apply)
 
-  def functions[_: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
+  def functions[$: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions.apply)
 
-  def show[_: P]: P[Statement] =
+  def show[$: P]: P[Statement] =
     P(showWord ~/ (columns | tables | queries | functions | updatesIntervals))
 
-  def kill[_: P]: P[Statement] = P(killWord ~/ query)
+  def kill[$: P]: P[Statement] = P(killWord ~/ query)
 
-  def delete[_: P]: P[DeleteQueryMetrics] =
-    P(deleteWord ~/ queriesWord ~/ queryMetricsFilter).map(DeleteQueryMetrics)
+  def delete[$: P]: P[DeleteQueryMetrics] =
+    P(deleteWord ~/ queriesWord ~/ queryMetricsFilter).map(DeleteQueryMetrics.apply)
 
-  def upsertFields[_: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
+  def upsertFields[$: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
 
-  def values[_: P](count: Int): P[Seq[Seq[SqlExpr]]] =
+  def values[$: P](count: Int): P[Seq[Seq[SqlExpr]]] =
     ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
 
-  def upsert[_: P]: P[Upsert] =
+  def upsert[$: P]: P[Upsert] =
     P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {
       case (table, fields) => values(fields.size).map(vs => Upsert(table, fields, vs))
     }
 
-  def statement[_: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
+  def statement[$: P]: P[Statement] = P((select | upsert | show | kill | delete) ~ ";".? ~ End)
 
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {

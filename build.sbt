@@ -63,7 +63,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     scala3Settings,
     libraryDependencies ++= Seq(
       "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
-      "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
+//      "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
     buildInfoKeys := {
       val vn = VersionNumber(version.value)
@@ -100,6 +100,7 @@ lazy val settings = (project in file("yupana-settings"))
   .settings(
     name := "yupana-settings",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
@@ -110,26 +111,41 @@ lazy val cache = (project in file("yupana-cache"))
   .settings(
     name := "yupana-cache",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "javax.cache"                 %  "cache-api"                    % "1.1.1",
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
-    )
+    ),
+    scalacOptions ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+//        case Some ((3, _)) => Seq("-Ytasty-reader")
+        case _             => Seq.empty
+      }
+    }
   ).dependsOn(api, settings)
 
 lazy val core = (project in file("yupana-core"))
   .settings(
     name := "yupana-core",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
-      "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
-      "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
-      "com.twitter"                   %% "algebird-core"                % "0.13.9",
+ //     "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
-      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
-    )
+//      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
+    ),
+    libraryDependencies ++= {
+      CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((2, 13)) => Seq(
+          "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value,
+          "org.scala-lang"                %  "scala-compiler"               % scalaVersion.value,
+        )
+        case _             => Seq.empty
+      }
+    }
   )
   .dependsOn(api, settings, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
@@ -165,13 +181,14 @@ lazy val akka = (project in file("yupana-akka"))
   .settings(
     name := "yupana-akka",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "com.typesafe.akka"             %% "akka-actor"                 % versions.akka,
       "com.typesafe.akka"             %% "akka-stream"                % versions.akka,
       "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
       "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
       "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
-      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test,
+//      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test,
       "com.typesafe.akka"             %% "akka-stream-testkit"        % versions.akka                     % Test
     )
   )
@@ -197,6 +214,7 @@ lazy val schema = (project in file("yupana-schema"))
   .settings(
     name := "yupana-schema",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test
     )
@@ -224,6 +242,7 @@ lazy val ehcache = (project in file("yupana-ehcache"))
   .settings(
     name := "yupana-ehcache",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.ehcache"                   %  "ehcache"                      % versions.ehcache
     )
@@ -235,6 +254,7 @@ lazy val caffeine = (project in file("yupana-caffeine"))
   .settings(
     name := "yupana-caffeine",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "com.github.ben-manes.caffeine" %  "caffeine"                     % versions.caffeine
     )
@@ -246,6 +266,7 @@ lazy val ignite = (project in file("yupana-ignite"))
   .settings(
     name := "yupana-ignite",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.apache.ignite"             %  "ignite-core"                  % versions.ignite,
       "org.apache.ignite"             %  "ignite-slf4j"                 % versions.ignite
@@ -370,7 +391,7 @@ lazy val versions = new {
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.4"
-  val fastparse = "2.1.3"
+  val fastparse = "3.0.0"
   val scopt = "4.1.0"
   val prometheus = "0.16.0"
 

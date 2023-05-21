@@ -138,7 +138,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
       )
     }
 
-    createStatement()
+    createStatement
   }
 
   @throws[SQLException]

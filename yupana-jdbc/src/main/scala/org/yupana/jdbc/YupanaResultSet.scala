@@ -236,8 +236,8 @@ class YupanaResultSet protected[jdbc] (
   private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
     checkRow()
     val cell = currentRow.get[T](i - 1)
-    wasNullValue = cell == null
-    if (cell == null) {
+    wasNullValue = currentRow.isEmpty(i - 1)
+    if (wasNullValue) {
       default
     } else {
       cell
@@ -475,7 +475,7 @@ class YupanaResultSet protected[jdbc] (
     val dt = dataTypes(i - 1)
     if (dt.kind == TypeKind.Array) {
       val dtt = dt.asInstanceOf[ArrayDataType[_]]
-      new YupanaArray(name, v.asInstanceOf[Seq[dtt.valueType.T]].toArray, dtt.valueType)
+      new YupanaArray(name, v.asInstanceOf[Seq[dtt.valueType.T]].toArray(dtt.valueType.classTag), dtt.valueType)
     } else {
       throw new SQLException(s"$dt is not an array")
     }

@@ -324,10 +324,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
               .map(cvs => NotInExpr(ce, cvs.toSet))
         }
       case parser.And(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(AndExpr)
+        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(AndExpr.apply)
 
       case parser.Or(cs) =>
-        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(OrExpr)
+        CollectionUtils.collectErrors(cs.map(c => createCondition(state, nameResolver, c))).map(OrExpr.apply)
 
       case parser.ExprCondition(e) =>
         createExpr(state, nameResolver, e, ExprType.Cmp).flatMap { ex =>
@@ -538,7 +538,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
-        val x: Either[String, Any] = ExprPair.constCast(values(idx), m.dataType)
+        val x: Either[String, m.T] = ExprPair.constCast(values(idx), m.dataType)
         x.map(v => MetricValue(m, v))
     }
 

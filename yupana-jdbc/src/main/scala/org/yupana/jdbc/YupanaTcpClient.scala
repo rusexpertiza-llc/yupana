@@ -212,7 +212,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
       private def readNext(): Unit = {
         current = null
-        do {
+        while ({
           responses.next() match {
             case Response.Resp.Result(result) =>
               current = result
@@ -235,7 +235,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
             case Response.Resp.Empty =>
           }
-        } while (current == null && statistics == null && errorMessage == null && responses.hasNext)
+          current == null && statistics == null && errorMessage == null && responses.hasNext
+        }) ()
 
         if (statistics != null || errorMessage != null) {
           channel.close()

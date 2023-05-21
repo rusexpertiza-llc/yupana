@@ -36,10 +36,10 @@ case class RemoveCondition(c: SimpleCondition) extends ConditionTransformation
 
 object ConditionTransformation {
   def replace(in: Seq[SimpleCondition], out: Seq[SimpleCondition]): Seq[ConditionTransformation] = {
-    in.map(RemoveCondition) ++ out.map(AddCondition)
+    in.map(RemoveCondition.apply) ++ out.map(AddCondition.apply)
   }
 
   def replace(in: Seq[SimpleCondition], out: SimpleCondition): Seq[ConditionTransformation] = {
-    in.map(RemoveCondition) :+ AddCondition(out)
+    in.map(RemoveCondition.apply) :+ AddCondition(out)
   }
 }

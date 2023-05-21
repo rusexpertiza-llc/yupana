@@ -210,7 +210,7 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
 
   @throws[SQLException]
   override def setByte(parameterIndex: Int, x: Byte): Unit = {
-    setParameter(parameterIndex, NumericValue(x))
+    setParameter(parameterIndex, NumericValue(BigDecimal(x)))
   }
 
   @throws[SQLException]
