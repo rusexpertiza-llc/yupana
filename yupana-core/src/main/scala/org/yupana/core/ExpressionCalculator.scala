@@ -17,12 +17,12 @@
 package org.yupana.core
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit }
-
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
+import java.time.OffsetDateTime
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
@@ -49,6 +49,10 @@ object ExpressionCalculator {
 
   def truncateTime(unit: TemporalUnit)(time: Time): Time = {
     Time(time.toDateTime.truncatedTo(unit))
+  }
+
+  def truncateTimeBy(f: OffsetDateTime => OffsetDateTime)(time: Time): Time = {
+    Time(f(time.toDateTime).truncatedTo(ChronoUnit.DAYS))
   }
 
   def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {

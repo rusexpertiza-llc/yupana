@@ -245,6 +245,10 @@ final case class ExtractYearExpr(expr: Expression[Time]) extends UnaryOperationE
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
 
+final case class ExtractQuarterExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractYear") {
+  override val dataType: DataType.Aux[Int] = DataType[Int]
+}
+
 final case class ExtractMonthExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractMonth") {
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
@@ -268,6 +272,10 @@ final case class ExtractSecondExpr(expr: Expression[Time])
 }
 
 final case class TruncYearExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncYear") {
+  override val dataType: DataType.Aux[Time] = DataType[Time]
+}
+
+final case class TruncQuarterExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncQuarter") {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
