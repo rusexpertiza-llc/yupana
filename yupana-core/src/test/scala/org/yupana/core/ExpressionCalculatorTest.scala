@@ -353,6 +353,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       const(Time(pointTime.plusDays(1))),
       Seq(
         truncYear(time) as "ty",
+        truncQuarter(time) as "tq",
         truncMonth(time) as "tM",
         truncWeek(time) as "tw",
         truncDay(time) as "td",
@@ -380,6 +381,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val result = calc.evaluateExpressions(RussianTokenizer, row)
 
     result.get(qc, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncQuarter(time)) shouldEqual Time(OffsetDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC))
     result.get(qc, truncMonth(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))
     result.get(qc, truncWeek(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))
     result.get(qc, truncDay(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 0, 0, 0, 0, ZoneOffset.UTC))

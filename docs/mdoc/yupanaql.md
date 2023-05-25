@@ -17,7 +17,7 @@ title: Язык запросов Yupana (YupanaQL)
 ## Правила наименования полей
 
 1. Время для любой схемы указывается как поле `time` типа TIMESTAMP. Доступны следующие функции для работы со временем:
- `trunc_second`, `trunc_minute`, `trunc_hour`, `trunc_day`, `trunc_month`, `trunc_year`.
+ `trunc_second`, `trunc_minute`, `trunc_hour`, `trunc_day`, `trunc_month`, `trunc_quarter`, `trunc_year`.
  `extract_second`, `extract_minute`, `extract_hour`, `extract_day`, `extract_month`, `extract_year`.
 
 2. Поля таблицы указываются:

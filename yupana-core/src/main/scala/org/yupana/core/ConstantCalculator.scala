@@ -29,6 +29,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
     assert(expr.kind == Const)
 
     import ExpressionCalculator.truncateTime
+    import ExpressionCalculator.truncateTimeBy
 
     expr match {
       case ConstantExpr(x, _) => x
@@ -43,20 +44,27 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
           evaluateConstant(negative)
         }
 
-      case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear()))
-      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth()))
+      case TruncYearExpr(e) => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear))
+      case TruncQuarterExpr(e) =>
+        evaluateUnary(e)(
+          truncateTimeBy(dTime =>
+            dTime.`with`(TemporalAdjusters.firstDayOfMonth).withMonth(dTime.getMonth.firstMonthOfQuarter.getValue)
+          )
+        )
+      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth))
       case TruncWeekExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
       case TruncDayExpr(e)    => evaluateUnary(e)(truncateTime(ChronoUnit.DAYS))
       case TruncHourExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.HOURS))
       case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.MINUTES))
       case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.SECONDS))
 
-      case ExtractYearExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getYear)
-      case ExtractMonthExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMonthValue)
-      case ExtractDayExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getDayOfMonth)
-      case ExtractHourExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getHour)
-      case ExtractMinuteExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getMinute)
-      case ExtractSecondExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getSecond)
+      case ExtractYearExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getYear)
+      case ExtractQuarterExpr(e) => evaluateUnary(e)(t => 1 + (t.toLocalDateTime.getMonth.getValue - 1) / 3)
+      case ExtractMonthExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getMonthValue)
+      case ExtractDayExpr(e)     => evaluateUnary(e)(_.toLocalDateTime.getDayOfMonth)
+      case ExtractHourExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getHour)
+      case ExtractMinuteExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMinute)
+      case ExtractSecondExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getSecond)
 
       case p @ PlusExpr(a, b)    => evaluateBinary(a, b)(p.numeric.plus)
       case m @ MinusExpr(a, b)   => evaluateBinary(a, b)(m.numeric.minus)
