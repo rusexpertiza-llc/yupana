@@ -1,5 +1,6 @@
 package org.yupana.khipu
 
+import jdk.incubator.foreign.MemorySegment
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{
@@ -40,7 +41,7 @@ import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
 import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, UpdateInterval }
-import org.yupana.core.utils.TimeBoundedCondition
+import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import java.io.File
@@ -160,6 +161,12 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
     }
   }
 
+  private def baseTimeList(fromTime: Long, toTime: Long, table: Table): Seq[Long] = {
+    val startBaseTime = fromTime - (fromTime % table.rowTimeSpan)
+    val stopBaseTime = toTime - (toTime % table.rowTimeSpan)
+    startBaseTime to stopBaseTime by table.rowTimeSpan
+  }
+
   private def executeScans(
       context: InternalQueryContext,
       from: Long,
@@ -168,13 +175,41 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
       metricCollector: MetricQueryCollector
   ): Iterator[(Array[Byte], Array[Byte])] = {
 
+    val prefixes = if (rangeScanDims.nonEmpty) {
+      val dimBytes = rangeScanDims.map {
+        case (dim, ids) =>
+          ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
+      }
+
+      val crossJoinedDims = CollectionUtils.crossJoin(dimBytes.toList)
+
+      for {
+        baseTime <- baseTimeList(from, to, context.table)
+        dimValues <- crossJoinedDims
+      } yield {
+        val size = 8 + dimValues.foldLeft(0)(_ + _.length)
+        val seg = MemorySegment.ofArray(Array.ofDim[Byte](size))
+        StorageFormat.setLong(baseTime, seg, 0)
+        var offset = 8
+        dimValues.foreach { v =>
+          StorageFormat.setBytes(v, 0, seg, offset, v.length)
+          offset += v.length
+        }
+        StorageFormat.getBytes(seg, 0, size)
+      }
+    } else {
+      Seq.empty
+    }
+
     val ktable = db.tables(context.table.name)
 
-    val cursor = ktable.scan()
+    import StorageFormat.byteArrayDimOrdering
+
+    val cursor = ktable.scan(SortedSetIterator(prefixes.iterator))
 
     new AbstractIterator[(Array[Byte], Array[Byte])] {
 
-      var isValid = cursor.next()
+      private var isValid = cursor.next()
 
       override def hasNext: Boolean = isValid
 

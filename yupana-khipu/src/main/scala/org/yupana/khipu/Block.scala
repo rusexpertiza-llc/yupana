@@ -23,7 +23,6 @@ trait Block {
   def id: Int
   def table: KTable
   def put(rows: Seq[Row]): List[Block]
-
 }
 
 object Block {

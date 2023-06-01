@@ -5,6 +5,7 @@ import jdk.internal.foreign.AbstractMemorySegmentImpl
 import jdk.internal.misc.Unsafe
 import org.yupana.api.Time
 import org.yupana.api.schema.{ Dimension, RawDimension, Table }
+import org.yupana.api.utils.DimOrdering
 import org.yupana.core.model.InternalRowBuilder
 
 import java.nio.ByteBuffer
@@ -14,6 +15,9 @@ object StorageFormat {
 
   private val UNSAFE = Unsafe.getUnsafe
   private val BYTE_ARRAY_BASE_OFFSET = UNSAFE.arrayBaseOffset(classOf[Array[Byte]])
+
+  implicit val byteArrayDimOrdering: DimOrdering[Array[Byte]] =
+    DimOrdering.fromCmp(StorageFormat.BYTES_COMPARATOR.compare)
 
 //  import java.nio.ByteOrder
 
@@ -33,6 +37,12 @@ object StorageFormat {
   final def getLong(segment: MemorySegment, offset: Long): Long = {
     val s = segment.asInstanceOf[AbstractMemorySegmentImpl]
     UNSAFE.getLong(s.unsafeGetBase(), s.unsafeGetOffset() + offset)
+  }
+
+  @inline
+  final def setLong(v: Long, segment: MemorySegment, offset: Long): Unit = {
+    val s = segment.asInstanceOf[AbstractMemorySegmentImpl]
+    UNSAFE.putLong(s.unsafeGetBase(), s.unsafeGetOffset() + offset, v)
   }
 
   @inline
@@ -290,6 +300,44 @@ object StorageFormat {
     while (i < size) {
       val a = a1(offset1 + i) & 0xFF
       val b = a2(offset2 + i) & 0xFF
+      if (a != b) return a - b
+      i += 1
+    }
+    0
+  }
+
+  def compareTo(a1: MemorySegment, a2: MemorySegment, size: Int): Int = {
+    compareTo(a1, 0, a2, 0, size)
+  }
+  def compareTo(a1: MemorySegment, offset1: Int, a2: MemorySegment, offset2: Int, size: Int): Int = {
+
+    // Short circuit equal case
+    if ((a1 eq a2) && offset1 == offset2) return 0
+
+    val stride = 8
+    val strideLimit = size & ~(stride - 1)
+    val offset1Adj = offset1 + BYTE_ARRAY_BASE_OFFSET
+    val offset2Adj = offset2 + BYTE_ARRAY_BASE_OFFSET
+    var i = 0
+    /*
+     * Compare 8 bytes at a time. Benchmarking on x86 shows a stride of 8 bytes is no slower
+     * than 4 bytes even on 32-bit. On the other hand, it is substantially faster on 64-bit.
+     */
+    i = 0
+    while (i < strideLimit) {
+      val lw = getLong(a1, offset1Adj + i)
+      val rw = getLong(a2, offset2Adj + i)
+      if (lw != rw) {
+        val n: Int = java.lang.Long.numberOfTrailingZeros(lw ^ rw) & ~0x7
+        return (((lw >>> n) & 0xFF).toInt) - (((rw >>> n) & 0xFF).toInt)
+      }
+      i += stride
+    }
+    // The epilogue to cover the last (minLength % stride) elements.
+
+    while (i < size) {
+      val a = getByte(a1, offset1 + i) & 0xFF
+      val b = getByte(a2, offset2 + i) & 0xFF
       if (a != b) return a - b
       i += 1
     }

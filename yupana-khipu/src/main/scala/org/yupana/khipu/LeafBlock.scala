@@ -5,6 +5,7 @@ import org.yupana.api.schema.Table
 import org.yupana.khipu.KhipuMetricCollector.Metrics
 
 import scala.collection.AbstractIterator
+import scala.collection.compat.immutable.ArraySeq
 
 /**
   * Format:
@@ -118,7 +119,7 @@ class LeafBlock(override val id: Int, override val table: KTable) extends Block 
       offset += srcRowSize
       i += 1
     }
-    rows
+    ArraySeq.unsafeWrapArray(rows)
   }
 
   private def writeBlock(rows: Iterator[Row], start: Array[Byte], end: Array[Byte]): LeafBlock = {

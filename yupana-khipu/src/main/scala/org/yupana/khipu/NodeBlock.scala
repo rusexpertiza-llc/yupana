@@ -28,7 +28,7 @@ class NodeBlock(override val id: Int, override val table: KTable) extends Block 
 
   @tailrec
   private def doPut(rows: Seq[Row], nodes: Seq[NodeBlock.Child], result: Seq[NodeBlock.Child]): Seq[NodeBlock.Child] = {
-    nodes match {
+    nodes.toList match {
       case child :: tail =>
         val (childRows, tailRows) = rows.span(r => StorageFormat.BYTES_COMPARATOR.compare(r.key, child.endKey) <= 0)
         val blocks = if (childRows.nonEmpty) {

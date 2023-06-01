@@ -19,6 +19,7 @@ class BTree(root: NodeBlock, table: KTable) {
         case l: LeafBlock =>
           minRows = math.min(l.numOfRecords, minRows)
           maxRows = math.max(l.numOfRecords, maxRows)
+        case u => throw new IllegalStateException(s"Unknown block $u")
       }
     }
 
@@ -40,10 +41,9 @@ class BTree(root: NodeBlock, table: KTable) {
 
     def loop(block: Block): Seq[Int] = {
       block match {
-        case b: NodeBlock =>
-          b.id +: b.children.flatMap(c => loop(table.block(c.id)))
-        case l: LeafBlock =>
-          Seq(l.id)
+        case b: NodeBlock => b.id +: b.children.flatMap(c => loop(table.block(c.id)))
+        case l: LeafBlock => Seq(l.id)
+        case u            => throw new IllegalStateException(s"Unknown block $u")
       }
     }
 
@@ -65,17 +65,16 @@ class BTree(root: NodeBlock, table: KTable) {
     val newRootSeq = loop(newTopLevelBlocks)
 
     // val newRootSeq =  NodeBlock.splitAndWriteBlocks(table, newTopLevelBlocks, root.startKey, root.endKey)
-    require(newRootSeq.size == 1, "Something went wrong, tree construction returns more then  one root block")
+    require(newRootSeq.size == 1, "Something went wrong, tree have more then one root block")
     new BTree(newRootSeq.head, table)
   }
 
-  def getLeafBlocks: Seq[LeafBlock] = {
-    def loop(block: Block): Seq[LeafBlock] = {
+  def getLeafBlocks: Iterator[LeafBlock] = {
+    def loop(block: Block): Iterator[LeafBlock] = {
       block match {
-        case b: NodeBlock =>
-          b.children.flatMap(c => loop(table.block(c.id)))
-        case l: LeafBlock =>
-          Seq(l)
+        case b: NodeBlock => b.children.iterator.flatMap(c => loop(table.block(c.id)))
+        case l: LeafBlock => Iterator(l)
+        case u            => throw new IllegalStateException(s"Unknown block $u")
       }
     }
     loop(root)
@@ -86,7 +85,7 @@ class BTree(root: NodeBlock, table: KTable) {
       block match {
         case b: NodeBlock =>
           Seq(b) ++ b.children.flatMap(c => loop(table.block(c.id)))
-        case l: LeafBlock =>
+        case _ =>
           Seq.empty
       }
     }

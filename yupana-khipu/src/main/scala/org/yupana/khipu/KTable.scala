@@ -6,6 +6,7 @@ import org.yupana.api.schema.Table
 import java.nio.channels.FileChannel.MapMode
 import java.nio.file.Path
 import KhipuMetricCollector.Metrics
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.khipu.KTable.{ HEADER_SEGMENT_SIZE, HEADER_SIZE, MAGIC, ROOT_ID_OFFSET, SEGMENT_SIZE }
 
 import java.io.RandomAccessFile
@@ -48,14 +49,15 @@ trait KTable {
     }
   }
 
-  def getLeafBlocks(): Seq[LeafBlock] = {
+  def getLeafBlocks: Iterator[LeafBlock] = {
     bTree.getLeafBlocks
   }
-  def getNodeBlocks(): Seq[NodeBlock] = {
+  def getNodeBlocks: Seq[NodeBlock] = {
     bTree.getNodeBlocks
   }
 
-  def scan(): Cursor = new Cursor(table, bTree.getLeafBlocks, None)
+  def scan(prefixes: SortedSetIterator[Array[Byte]]): Cursor =
+    new Cursor(table, getLeafBlocks, prefixes)
 
   def put(row: Row): Unit = {
     put(Seq(row))
@@ -107,6 +109,7 @@ trait KTable {
     Block.checkFormatAndGetBlockKind(id, this) match {
       case Block.NODE_KIND => new NodeBlock(id, this)
       case Block.LEAF_KIND => new LeafBlock(id, this)
+      case u               => throw new IllegalStateException(s"Unknown block $u")
     }
   }
 
