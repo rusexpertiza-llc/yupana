@@ -13,6 +13,7 @@ lazy val yupana = (project in file("."))
     jdbc,
     utils,
     settings,
+    metrics,
     cache,
     core,
     hbase,
@@ -104,12 +105,21 @@ lazy val settings = (project in file("yupana-settings"))
     )
   )
 
+lazy val metrics = (project in file("yupana-metrics"))
+  .settings(
+    name := "yupana-metrics",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging
+    )
+  )
+
 lazy val cache = (project in file("yupana-cache"))
   .settings(
     name := "yupana-cache",
     allSettings,
     libraryDependencies ++= Seq(
-      "javax.cache"                 %  "cache-api"                    % "1.1.1",
+      "javax.cache"                 %  "cache-api"                     % "1.1.1",
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
     )
   ).dependsOn(api, settings)
@@ -129,7 +139,7 @@ lazy val core = (project in file("yupana-core"))
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     )
   )
-  .dependsOn(api, settings, cache, utils % Test)
+  .dependsOn(api, settings, metrics, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 
@@ -371,9 +381,9 @@ def minMaj(v: String, default: String): String = {
 lazy val versions = new {
   val scala213 = "2.13.10"
 
-  val spark = "3.3.1"
+  val spark = "3.3.2"
 
-  val threeTenExtra = "1.7.1"
+  val threeTenExtra = "1.7.2"
 
   val protobufJava = "2.6.1"
 

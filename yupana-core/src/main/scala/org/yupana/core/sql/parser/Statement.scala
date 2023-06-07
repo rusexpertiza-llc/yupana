@@ -19,16 +19,16 @@ package org.yupana.core.sql.parser
 sealed trait Statement
 
 case class Select(
-    schemaName: Option[String],
+    tableName: Option[String],
     fields: SqlFields,
-    condition: Option[Condition],
+    condition: Option[SqlExpr],
     groupings: Seq[SqlExpr],
-    having: Option[Condition],
+    having: Option[SqlExpr],
     limit: Option[Int]
 ) extends Statement
 
 case class Upsert(
-    schemaName: String,
+    tableName: String,
     fieldNames: Seq[String],
     values: Seq[Seq[SqlExpr]]
 ) extends Statement
@@ -47,4 +47,4 @@ case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 
 case class ShowFunctions(dataType: String) extends Statement
 
-case class ShowUpdatesIntervals(condition: Option[Condition]) extends Statement
+case class ShowUpdatesIntervals(condition: Option[SqlExpr]) extends Statement

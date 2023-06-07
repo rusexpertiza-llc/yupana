@@ -54,7 +54,7 @@ object DataTypeMeta {
   implicit val stringMeta: DataTypeMeta[String] =
     DataTypeMeta(Types.VARCHAR, Integer.MAX_VALUE, "VARCHAR", classOf[java.lang.String], Integer.MAX_VALUE, 0)
   implicit val byteMeta: DataTypeMeta[Byte] =
-    DataTypeMeta(Types.TINYINT, 3, "TINYINT", classOf[java.lang.Short], 3, 0)
+    DataTypeMeta(Types.TINYINT, 3, "TINYINT", classOf[java.lang.Byte], 3, 0)
   implicit val shortMeta: DataTypeMeta[Short] =
     DataTypeMeta(Types.SMALLINT, 5, "SMALLINT", classOf[java.lang.Short], 5, 0)
   implicit val intMeta: DataTypeMeta[Int] =

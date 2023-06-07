@@ -57,10 +57,43 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
   def executeScans(
       queryContext: InternalQueryContext,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Collection[HResult]
+
+  private def calculateTimeIntervals(
+      table: Table,
+      from: Long,
+      to: Long,
+      includeTime: Option[Set[Time]],
+      excludeTime: Option[Set[Time]]
+  ): Seq[(Long, Long)] = {
+
+    includeTime match {
+      case None =>
+        Seq((from, to))
+
+      case Some(inc) =>
+        val timePoints = (inc.map(_.millis) -- excludeTime.map(_.map(_.millis)).getOrElse(Set.empty)).toSeq
+
+        val intervals = timePoints
+          .groupBy { t =>
+            val s = HBaseUtils.baseTime(t, table)
+            s -> (s + table.rowTimeSpan)
+          }
+          .map { case (k, vs) => k -> vs.sorted }
+          .toSeq
+
+        intervals
+          .sortBy(_._1._1)
+          .foldRight(List.empty[((Long, Long), Seq[Long])]) {
+            case (i @ ((iFrom, iTo), iVs), (x @ ((xFrom, xTo), xVs)) :: xs) =>
+              if (xFrom == iTo) ((iFrom, xTo), iVs ++ xVs) :: xs else i :: x :: xs
+            case (i, Nil) => i :: Nil
+          }
+          .map(x => x._2.head -> (x._2.last + 1))
+    }
+  }
 
   override def query(
       query: InternalQuery,
@@ -83,6 +116,8 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           createFilters(c)
         }
 
+        val intervals = calculateTimeIntervals(query.table, from, to, filters.includeTime, filters.excludeTime)
+
         val dimFilter = filters.allIncludes
         val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
 
@@ -102,7 +137,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           }.toMap
           val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
 
-          val rows = executeScans(context, from, to, rangeScanDimIds)
+          val rows = executeScans(context, intervals, rangeScanDimIds)
 
           val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
@@ -110,10 +145,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
           val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
           val timeFilter = createTimeFilter(
-            from,
-            to,
-            filters.includeTime.map(_.toSet).getOrElse(Set.empty),
-            filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
+            intervals,
+            filters.includeTime.getOrElse(Set.empty),
+            filters.excludeTime.getOrElse(Set.empty)
           )
 
           import org.yupana.core.utils.metric.MetricUtils._
@@ -186,12 +220,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   }
 
   private def createTimeFilter(
-      fromTime: Long,
-      toTime: Long,
+      intervals: Seq[(Long, Long)],
       includeSet: Set[Time],
       excludeSet: Set[Time]
   ): TimeFilter = {
-    val baseFilter: TimeFilter = t => t >= fromTime && t < toTime
+    val baseFilter: TimeFilter = t => intervals.exists { case (from, to) => t >= from && t < to }
     val incMillis = includeSet.map(_.millis)
     val excMillis = excludeSet.map(_.millis)
 
