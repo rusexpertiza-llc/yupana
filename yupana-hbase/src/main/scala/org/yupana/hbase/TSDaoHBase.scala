@@ -46,7 +46,7 @@ class TSDaoHBase(
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
         queryContext.metricsCollector.createScans.measure(intervals.size) {
-          intervals.flatMap {
+          intervals.iterator.flatMap {
             case (from, to) =>
               val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
               createScan(queryContext, filter, Seq.empty, from, to) match {
