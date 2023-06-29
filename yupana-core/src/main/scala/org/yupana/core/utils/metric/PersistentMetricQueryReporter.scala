@@ -22,7 +22,7 @@ import org.yupana.metrics.{ MetricCollector, MetricReporter, QueryStates }
 
 import java.util.{ Timer, TimerTask }
 import java.util.concurrent.ConcurrentLinkedQueue
-import scala.jdk.CollectionConverters.IteratorHasAsScala
+import scala.collection.mutable
 
 class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, forceSaving: Boolean)
     extends MetricReporter[MetricQueryCollector] {
@@ -44,8 +44,12 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, force
 
   private def saveMetricsBuffer(): Unit = {
     if (asyncBuffer.size() > 0) {
-      val metricsToSave = asyncBuffer.iterator().asScala.toList
-      metricsDao().saveQueryMetrics(metricsToSave)
+      val metricsToSave = mutable.ListBuffer.empty[InternalMetricData]
+      while (asyncBuffer.size() > 0) {
+        metricsToSave += asyncBuffer.poll()
+      }
+      println("metricsToSave: " + metricsToSave.size)
+      metricsDao().saveQueryMetrics(metricsToSave.toList)
     }
   }
 
