@@ -19,6 +19,5 @@ package org.yupana.metrics
 trait MetricReporter[Collector <: MetricCollector] extends Serializable {
   def start(mc: Collector, partitionId: Option[String]): Unit
   def finish(mc: Collector, partitionId: Option[String]): Unit
-
   def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryStates.QueryState): Unit
 }
