@@ -76,7 +76,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     put
   }
 
-  override def saveQueryMetrics(metrics: List[InternalMetricData]): Unit = {
+  override def saveQueryMetrics(metrics: List[InternalMetricData]): Unit = withTables {
     val puts = metrics.map(createMetricPut)
     Using.resource(getTable)(_.put(puts.asJava))
   }
