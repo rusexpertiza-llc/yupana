@@ -24,13 +24,13 @@ import java.util.{ Timer, TimerTask }
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable
 
-class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, forceSaving: Boolean)
+class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, asyncSaving: Boolean = true)
     extends MetricReporter[MetricQueryCollector] {
 
   private val UPDATE_INTERVAL = 60 * 1000L
   private val asyncBuffer = new ConcurrentLinkedQueue[InternalMetricData]
 
-  if (!forceSaving) {
+  if (asyncSaving) {
     new Timer().scheduleAtFixedRate(
       new TimerTask {
         def run(): Unit = {
@@ -48,7 +48,6 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, force
       while (asyncBuffer.size() > 0) {
         metricsToSave += asyncBuffer.poll()
       }
-      println("metricsToSave: " + metricsToSave.size)
       metricsDao().saveQueryMetrics(metricsToSave.toList)
     }
   }
@@ -78,7 +77,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, force
         mc.isSparkQuery
       )
     )
-    if (forceSaving) {
+    if (!asyncSaving) {
       saveMetricsBuffer()
     }
   }

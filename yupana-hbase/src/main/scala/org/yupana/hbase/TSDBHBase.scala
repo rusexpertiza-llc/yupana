@@ -40,7 +40,7 @@ object TSDBHBase {
         query,
         "query",
         tsdbConfig.metricsUpdateInterval,
-        new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase, forceSaving = false)
+        new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
       )
     }
   }

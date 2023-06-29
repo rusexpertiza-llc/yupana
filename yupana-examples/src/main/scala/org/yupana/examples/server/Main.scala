@@ -84,7 +84,7 @@ object Main extends StrictLogging {
         tsdbConfig.metricsUpdateInterval,
         new CombinedMetricReporter(
           new Slf4jMetricReporter,
-          new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase, forceSaving = false)
+          new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
         )
       )
     }

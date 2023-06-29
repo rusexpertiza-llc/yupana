@@ -63,7 +63,7 @@ object TsdbSparkBase extends StrictLogging {
       query,
       opName,
       config.metricsUpdateInterval,
-      new PersistentMetricQueryReporter(() => getMetricsDao(config), forceSaving = false)
+      new PersistentMetricQueryReporter(() => getMetricsDao(config))
     )
   }
 }
