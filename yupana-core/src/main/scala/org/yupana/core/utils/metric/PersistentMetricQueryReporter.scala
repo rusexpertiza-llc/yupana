@@ -24,7 +24,7 @@ import java.util.{ Timer, TimerTask }
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, forceSaving: Boolean = false)
+class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, forceSaving: Boolean)
     extends MetricReporter[MetricQueryCollector] {
 
   private val UPDATE_INTERVAL = 60 * 1000L
