@@ -268,7 +268,7 @@ class RequestHandlerTest
             q,
             "test",
             5,
-            new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
+            new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao], forceSaving = true)
           )
         }
       )
