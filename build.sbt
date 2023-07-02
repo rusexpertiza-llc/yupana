@@ -168,6 +168,7 @@ lazy val hbase = (project in file("yupana-hbase"))
   .settings(
     name := "yupana-hbase",
     allSettings,
+    scala3Settings,
     pbSettings,
     libraryDependencies ++= Seq(
       "org.apache.hbase"            %  "hbase-common"                   % versions.hbase,
@@ -177,7 +178,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "com.thesamet.scalapb"        %% "scalapb-runtime"                % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
-      "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
+//      "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
@@ -407,7 +408,7 @@ def minMaj(v: String, default: String): String = {
 
 lazy val versions = new {
   val scala213 = "2.13.11"
-  val scala3 = "3.2.2"
+  val scala3 = "3.3.0"
 
   val spark = "3.4.1"
 
