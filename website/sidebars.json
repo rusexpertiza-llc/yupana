@@ -10,6 +10,7 @@
     ],
     "Язык запросов": [
        "yupanaql",
+       "functions",
        "select",
        "upsert",
        "show",

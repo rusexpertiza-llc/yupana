@@ -18,14 +18,14 @@ package org.yupana.hbase
 
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, RawDimension }
-import org.yupana.api.utils.{ DimOrdering, SortedSetIterator }
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.utils.CollectionUtils
 
 class Filters(
     includes: Map[Dimension, SortedSetIterator[_]],
     excludes: Map[Dimension, SortedSetIterator[_]],
-    val includeTime: Option[SortedSetIterator[Time]],
-    val excludeTime: Option[SortedSetIterator[Time]]
+    val includeTime: Option[Set[Time]],
+    val excludeTime: Option[Set[Time]]
 ) {
 
   def allIncludes: Map[Dimension, SortedSetIterator[_]] = {
@@ -56,8 +56,8 @@ object Filters {
       private val excValues: Map[Dimension, SortedSetIterator[_]],
       private val incIds: Map[Dimension, SortedSetIterator[_]],
       private val excIds: Map[Dimension, SortedSetIterator[_]],
-      private val incTime: Option[SortedSetIterator[Time]],
-      private val excTime: Option[SortedSetIterator[Time]]
+      private val incTime: Option[Set[Time]],
+      private val excTime: Option[Set[Time]]
   ) {
     def getIncValues[T](dimension: Dimension.Aux2[T, _]): Option[SortedSetIterator[T]] = {
       incValues.get(dimension).asInstanceOf[Option[SortedSetIterator[dimension.T]]]
@@ -96,13 +96,13 @@ object Filters {
       new Builder(valuesToIds, incValues, excValues, incIds, excIds + (dim -> newIds), incTime, excTime)
     }
 
-    def includeTime(times: SortedSetIterator[Time]): Builder = {
-      val newTime = intersect(incTime, times)
+    def includeTime(times: Set[Time]): Builder = {
+      val newTime = incTime.map(_ intersect times).getOrElse(times)
       new Builder(valuesToIds, incValues, excValues, incIds, excIds, Some(newTime), excTime)
     }
 
-    def excludeTime(times: SortedSetIterator[Time]): Builder = {
-      val newTime = union(excTime, times)
+    def excludeTime(times: Set[Time]): Builder = {
+      val newTime = excTime.map(_ union times).getOrElse(times)
       new Builder(valuesToIds, incValues, excValues, incIds, excIds, incTime, Some(newTime))
     }
 
@@ -123,19 +123,11 @@ object Filters {
     }
 
     def includeTime(t: Time): Builder = {
-      includeTime(SortedSetIterator(t))
-    }
-
-    def includeTime(t: Set[Time]): Builder = {
-      includeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
+      includeTime(Set(t))
     }
 
     def excludeTime(t: Time): Builder = {
-      excludeTime(SortedSetIterator(t))
-    }
-
-    def excludeTime(t: Set[Time]): Builder = {
-      excludeTime(SortedSetIterator(t.toList.sortWith(implicitly[DimOrdering[Time]].lt).iterator))
+      excludeTime(Set(t))
     }
 
     def includeIds[R](dim: Dimension.Aux2[_, R], ids: Seq[R]): Builder = {
@@ -169,8 +161,8 @@ object Filters {
         CollectionUtils.mergeMaps(a.excValues, b.excValues, intersect),
         CollectionUtils.mergeMaps[Dimension, SortedSetIterator[_]](a.incIds, b.incIds, union),
         CollectionUtils.mergeMaps(a.excIds, b.excIds, intersect),
-        unionOptIterators(a.incTime, b.incTime),
-        intersectOptIterators(a.excTime, b.excTime)
+        unionOptSets(a.incTime, b.incTime),
+        intersectOptSets(a.excTime, b.excTime)
       )
     }
 
@@ -183,6 +175,15 @@ object Filters {
         ids2: Option[SortedSetIterator[T]]
     ): Option[SortedSetIterator[T]] = {
 
+      (ids1, ids2) match {
+        case (Some(i1), Some(i2)) => Some(i1 intersect i2)
+        case (Some(i1), None)     => Some(i1)
+        case (None, Some(i2))     => Some(i2)
+        case (None, None)         => None
+      }
+    }
+
+    private def intersectOptSets[T](ids1: Option[Set[T]], ids2: Option[Set[T]]): Option[Set[T]] = {
       (ids1, ids2) match {
         case (Some(i1), Some(i2)) => Some(i1 intersect i2)
         case (Some(i1), None)     => Some(i1)
@@ -215,6 +216,15 @@ object Filters {
         ids2: Option[SortedSetIterator[T]]
     ): Option[SortedSetIterator[T]] = {
 
+      (ids1, ids2) match {
+        case (Some(i1), Some(i2)) => Some(i1 union i2)
+        case (Some(i1), None)     => Some(i1)
+        case (None, Some(i2))     => Some(i2)
+        case (None, None)         => None
+      }
+    }
+
+    private def unionOptSets[T](ids1: Option[Set[T]], ids2: Option[Set[T]]): Option[Set[T]] = {
       (ids1, ids2) match {
         case (Some(i1), Some(i2)) => Some(i1 union i2)
         case (Some(i1), None)     => Some(i1)

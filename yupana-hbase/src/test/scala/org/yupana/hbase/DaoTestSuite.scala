@@ -18,6 +18,7 @@ class DaoTestSuite
     with DictionaryDaoHBaseTest
     with TsdbQueryMetricsDaoHBaseTest
     with ChangelogDaoHBaseTest
+    with TsdbHBaseTest
     with ForAllTestContainer
     with StrictLogging {
 

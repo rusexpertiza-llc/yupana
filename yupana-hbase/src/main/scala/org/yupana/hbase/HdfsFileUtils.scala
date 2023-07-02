@@ -125,7 +125,7 @@ object HdfsFileUtils {
     configuration.set(s"dfs.namenode.rpc-address.$cluster.nn2", settings(s"dfs.namenode.rpc-address.$cluster.nn2"))
 
     configuration.set(
-      s"dfs.client.failover.proxy.provider.mycluster",
+      s"dfs.client.failover.proxy.provider.$cluster",
       "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"
     )
   }

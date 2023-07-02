@@ -14,18 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.model.QueryStates
 
-class ConsoleMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging {
+class Slf4jMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging {
   override def start(mc: C, partitionId: Option[String]): Unit = {
     logger.info(s"${mc.fullId}; operation: ${mc.operationName} started, meta: ${mc.meta}")
   }
 
   override def finish(mc: C, partitionId: Option[String]): Unit = {
-    import ConsoleMetricReporter._
+    import Slf4jMetricReporter._
     mc.allMetrics.sortBy(_.name).foreach { metric =>
       logger.info(
         s"${mc.fullId}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
@@ -39,7 +38,7 @@ class ConsoleMetricReporter[C <: MetricCollector] extends MetricReporter[C] with
   override def saveQueryMetrics(mc: C, partitionId: Option[String], state: QueryStates.QueryState): Unit = {}
 }
 
-object ConsoleMetricReporter {
+object Slf4jMetricReporter {
   private def formatNanoTime(value: Long): String = {
     new java.text.DecimalFormat("#.##########").format(value / 1000000000.0)
   }

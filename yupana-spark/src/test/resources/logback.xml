@@ -1,0 +1,16 @@
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date [%-20t] [%-5level] %-30logger{30} | %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <logger name="org.apache" level="error"/>
+    <logger name="org.epicsquad.kkm" level="info"/>
+    <logger name="org.yupana.core" level="info"/>
+    <logger name="org.yupana.hbase" level="info"/>
+</configuration>

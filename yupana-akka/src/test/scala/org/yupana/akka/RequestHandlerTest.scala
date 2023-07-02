@@ -8,7 +8,7 @@ import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
 import org.yupana.api.types.Storable
 import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ MetricData, QueryStates, TsdbQueryMetrics }
+import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
@@ -26,6 +26,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
+import org.yupana.metrics.QueryStates
 import org.yupana.settings.Settings
 
 import java.time.{ OffsetDateTime, ZoneOffset }
@@ -267,7 +268,7 @@ class RequestHandlerTest
             q,
             "test",
             5,
-            new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao])
+            new PersistentMetricQueryReporter(mockFunction[TsdbQueryMetricsDao], asyncSaving = false)
           )
         }
       )

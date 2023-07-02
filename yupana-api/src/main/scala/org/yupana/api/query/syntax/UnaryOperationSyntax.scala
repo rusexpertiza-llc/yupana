@@ -21,6 +21,7 @@ import org.yupana.api.query._
 
 trait UnaryOperationSyntax {
   def truncYear(e: Expression[Time]) = TruncYearExpr(e)
+  def truncQuarter(e: Expression[Time]) = TruncQuarterExpr(e)
   def truncMonth(e: Expression[Time]) = TruncMonthExpr(e)
   def truncDay(e: Expression[Time]) = TruncDayExpr(e)
   def truncHour(e: Expression[Time]) = TruncHourExpr(e)
@@ -29,6 +30,7 @@ trait UnaryOperationSyntax {
   def truncWeek(e: Expression[Time]) = TruncWeekExpr(e)
 
   def extractYear(e: Expression[Time]) = ExtractYearExpr(e)
+  def extractQuarter(e: Expression[Time]) = ExtractQuarterExpr(e)
   def extractMonth(e: Expression[Time]) = ExtractMonthExpr(e)
   def extractDay(e: Expression[Time]) = ExtractDayExpr(e)
   def extractHour(e: Expression[Time]) = ExtractHourExpr(e)

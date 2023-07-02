@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
-trait Metric extends Serializable {
-  def name: String
-  def measure[T](count: Int)(f: => T): T
+object NoMetric extends Metric {
+  override val name: String = "NONE"
 
-  def reset(): Unit
+  override val time: Long = 0L
+  override val count: Long = 0L
 
-  def time: Long
-  def count: Long
+  override def reset(): Unit = {}
+
+  @inline
+  override def measure[T](count: Int)(f: => T): T = f
 }

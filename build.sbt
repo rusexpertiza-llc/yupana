@@ -4,6 +4,8 @@ import sbt.Keys.excludeDependencies
 
 ThisBuild / useCoursier := false
 
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
@@ -11,6 +13,7 @@ lazy val yupana = (project in file("."))
     jdbc,
     utils,
     settings,
+    metrics,
     cache,
     core,
     hbase,
@@ -107,13 +110,23 @@ lazy val settings = (project in file("yupana-settings"))
     )
   )
 
+lazy val metrics = (project in file("yupana-metrics"))
+  .settings(
+    name := "yupana-metrics",
+    allSettings,
+    scala3Settings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging
+    )
+  )
+
 lazy val cache = (project in file("yupana-cache"))
   .settings(
     name := "yupana-cache",
     allSettings,
     scala3Settings,
     libraryDependencies ++= Seq(
-      "javax.cache"                 %  "cache-api"                    % "1.1.1",
+      "javax.cache"                 %  "cache-api"                     % "1.1.1",
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
     ),
     scalacOptions ++= {
@@ -147,7 +160,7 @@ lazy val core = (project in file("yupana-core"))
       }
     }
   )
-  .dependsOn(api, settings, cache, utils % Test)
+  .dependsOn(api, settings, metrics, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 
@@ -200,12 +213,22 @@ lazy val spark = (project in file("yupana-spark"))
     name := "yupana-spark",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
-      "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
+      "org.apache.spark"            %% "spark-core"                     % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-sql"                      % versions.spark          % Provided,
+      "org.apache.spark"            %% "spark-streaming"                % versions.spark          % Provided,
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
-      "org.scalatest"               %% "scalatest"                      % versions.scalaTest            % Test
-    )
+      "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
+      "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"               % Test
+
+    ),
+    excludeDependencies ++= Seq(
+      // workaround for https://github.com/sbt/sbt/issues/3618
+      // include "jakarta.ws.rs" % "jakarta.ws.rs-api" instead
+      "javax.ws.rs" % "javax.ws.rs-api",
+      "org.slf4j" % "slf4j-log4j12"
+    ),
+    Test / fork := true
   )
   .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
@@ -226,6 +249,7 @@ lazy val externalLinks = (project in file("yupana-external-links"))
   .settings(
     name := "yupana-external-links",
     allSettings,
+    scala3Settings,
     libraryDependencies ++= Seq(
       "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
@@ -349,6 +373,7 @@ lazy val docs = project
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
+    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     mdocIn := (LocalRootProject / baseDirectory).value / "docs" / "mdoc",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "target" / "docs",
     Compile / resourceGenerators += Def.task {
@@ -381,12 +406,12 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.10"
+  val scala213 = "2.13.11"
   val scala3 = "3.2.2"
 
-  val spark = "3.3.1"
+  val spark = "3.4.1"
 
-  val threeTenExtra = "1.7.1"
+  val threeTenExtra = "1.7.2"
 
   val protobufJava = "2.6.1"
 
@@ -409,12 +434,12 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
-  val logback = "1.2.11"
+  val logback = "1.2.12"
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.15"
-  val scalaTestCheck = "3.2.15.0"
+  val scalaTest = "3.2.16"
+  val scalaTestCheck = "3.2.16.0"
   val scalaMock = "5.2.0"
 }
 

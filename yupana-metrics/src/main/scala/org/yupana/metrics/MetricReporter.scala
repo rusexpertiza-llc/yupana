@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
-
-import org.yupana.core.model.QueryStates.QueryState
+package org.yupana.metrics
 
 trait MetricReporter[Collector <: MetricCollector] extends Serializable {
   def start(mc: Collector, partitionId: Option[String]): Unit
   def finish(mc: Collector, partitionId: Option[String]): Unit
-
-  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryState): Unit
+  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryStates.QueryState): Unit
 }

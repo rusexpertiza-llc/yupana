@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.core.utils.metric
+package org.yupana.metrics
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -29,6 +29,7 @@ trait MetricCollector extends Serializable {
 
   protected var startAt: Long = 0L
   protected var finishAt: Long = 0L
+  private val qs: AtomicReference[QueryStatus] = new AtomicReference[QueryStatus](Unknown)
 
   def dynamicMetric(name: String): Metric
 
@@ -44,7 +45,9 @@ trait MetricCollector extends Serializable {
   def startTime: Long = System.currentTimeMillis()
   def resultDuration: Long = finishAt - startAt
 
-  def queryStatus: AtomicReference[QueryStatus]
+  def queryStatus: QueryStatus = qs.get()
+
+  def setQueryStatus(newStatus: QueryStatus): Unit = qs.lazySet(newStatus)
 }
 
 object MetricCollector {

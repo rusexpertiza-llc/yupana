@@ -1,0 +1,13 @@
+<Configuration>
+  <Appenders>
+    <Console name="STDOUT" target="SYSTEM_OUT">
+      <PatternLayout pattern="%level - %m%n"/>
+    </Console>
+  </Appenders>
+  <Loggers>
+    <Logger name="org.yupana" level="info" />
+    <Root level="error">
+      <AppenderRef ref="STDOUT"/>
+    </Root>
+  </Loggers>
+</Configuration>

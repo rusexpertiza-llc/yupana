@@ -33,6 +33,9 @@ object ValueParser {
 
   private def toWord[$: P] = P(IgnoreCase("TO"))
 
+  private def trueConst[$: P]: P[Boolean] = P(IgnoreCase("TRUE")).map(_ => true)
+  private def falseConst[$: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
+
   def placeholder[$: P]: P[Placeholder] = {
     val p = P("?")
     val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
@@ -56,7 +59,8 @@ object ValueParser {
   }
 
   private def stringCharacter[$: P] = CharPred(c => c != '\'' && CharPredicates.isPrintableChar(c)).!
-  def escapedCharacter[$: P] = P("\\" ~/ CharIn("'\\\\nrt").!).map {
+
+  private def escapedCharacter[$: P]: P[String] = P("\\" ~/ CharIn("'\\\\nrt").!).map {
     case "n" => "\n"
     case "r" => "\r"
     case "t" => "\t"
@@ -64,7 +68,7 @@ object ValueParser {
   }
 
   def string[$: P]: P[String] = P("'" ~/ (escapedCharacter | stringCharacter).rep ~ "'").map(_.mkString)
-  def boolean[$: P]: P[Boolean] = string.map(_.toBoolean)
+  def boolean[$: P]: P[Boolean] = P(trueConst | falseConst)
 
   private def year[$: P] = P(digit.rep(exactly = 4).!.map(_.toInt))
   private def twoDigitInt[$: P] = P(digit.rep(min = 1, max = 2).map(_.mkString.toInt))
@@ -104,6 +108,7 @@ object ValueParser {
 
   def numericValue[$: P]: P[NumericValue] = P(number).map(NumericValue.apply)
   def stringValue[$: P]: P[StringValue] = P(string).map(StringValue.apply)
+  def booleanValue[$: P]: P[BooleanValue] = P(boolean).map(BooleanValue.apply)
   def timestampValue[$: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
 
   def INTERVAL_PARTS[$: P]: List[IntervalPart] = List(
@@ -148,7 +153,12 @@ object ValueParser {
     P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue.apply)
   }
 
-  def value[$: P]: P[Value] = P(numericValue | timestampValue | periodValue | stringValue | placeholder)
+  def tupleValue[$: P]: P[TupleValue] =
+    P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map((TupleValue.apply _).tupled)
+
+  def value[$: P]: P[Value] = P(
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | placeholder | tupleValue
+  )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])
 }

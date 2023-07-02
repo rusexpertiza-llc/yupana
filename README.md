@@ -3,7 +3,7 @@
 [![Join the chat at https://gitter.im/rusexpertiza-llc/yupana](https://badges.gitter.im/rusexpertiza-llc/yupana.svg)](https://gitter.im/rusexpertiza-llc/yupana?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://github.com/rusexpertiza-llc/yupana/actions/workflows/ci.yml/badge.svg)](https://github.com/rusexpertiza-llc/yupana/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rusexpertiza-llc/yupana/branch/master/graph/badge.svg)](https://codecov.io/gh/rusexpertiza-llc/yupana)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.yupana/yupana-core_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.yupana/yupana-core_2.12)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.yupana/yupana-core_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.yupana/yupana-core_2.13)
 
 Yupana -- is an open-source big data analytics platform.
 

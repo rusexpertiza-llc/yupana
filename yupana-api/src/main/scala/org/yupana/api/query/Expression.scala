@@ -245,6 +245,10 @@ final case class ExtractYearExpr(expr: Expression[Time]) extends UnaryOperationE
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
 
+final case class ExtractQuarterExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractYear") {
+  override val dataType: DataType.Aux[Int] = DataType[Int]
+}
+
 final case class ExtractMonthExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractMonth") {
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
@@ -268,6 +272,10 @@ final case class ExtractSecondExpr(expr: Expression[Time])
 }
 
 final case class TruncYearExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncYear") {
+  override val dataType: DataType.Aux[Time] = DataType[Time]
+}
+
+final case class TruncQuarterExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncQuarter") {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
@@ -302,16 +310,6 @@ final case class IsNullExpr[T](expr: Expression[T])
 final case class IsNotNullExpr[T](expr: Expression[T])
     extends UnaryOperationExpr[T, Boolean](expr, "isNotNull")
     with SimpleCondition
-
-final case class TypeConvertExpr[T, U](tc: TypeConverter[T, U], expr: Expression[T]) extends Expression[U] {
-  override val dataType: DataType.Aux[U] = tc.dataType
-  override val kind: ExprKind = expr.kind
-
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = expr.fold(f(z, this))(f)
-
-  override def encode: String = s"${tc.functionName}(${expr.encode})"
-  override def toString: String = s"${tc.functionName}(${expr})"
-}
 
 sealed abstract class BinaryOperationExpr[T, U, Out](
     val a: Expression[T],
@@ -558,3 +556,32 @@ final case class OrExpr(conditions: Seq[Condition]) extends Expression[Boolean] 
   override def toString: String = conditions.mkString("(", " OR ", ")")
   override def encode: String = conditions.map(_.encode).sorted.mkString("or(", ",", ")")
 }
+
+sealed abstract class TypeConvertExpr[T, U](expr: Expression[T])(implicit dtt: DataType.Aux[T], dtu: DataType.Aux[U])
+    extends UnaryOperationExpr[T, U](expr, dtt.meta.sqlTypeName.toLowerCase + "2" + dtu.meta.sqlTypeName.toLowerCase) {
+
+  override val dataType: DataType.Aux[U] = dtu
+}
+
+final case class Double2BigDecimalExpr(expr: Expression[Double]) extends TypeConvertExpr[Double, BigDecimal](expr)
+
+final case class Long2BigDecimalExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, BigDecimal](expr)
+final case class Long2DoubleExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, Double](expr)
+
+final case class Int2LongExpr(expr: Expression[Int]) extends TypeConvertExpr[Int, Long](expr)
+final case class Int2BigDecimalExpr(expr: Expression[Int]) extends TypeConvertExpr[Int, BigDecimal](expr)
+final case class Int2DoubleExpr(expr: Expression[Int]) extends TypeConvertExpr[Int, Double](expr)
+
+final case class Short2IntExpr(expr: Expression[Short]) extends TypeConvertExpr[Short, Int](expr)
+final case class Short2LongExpr(expr: Expression[Short]) extends TypeConvertExpr[Short, Long](expr)
+final case class Short2BigDecimalExpr(expr: Expression[Short]) extends TypeConvertExpr[Short, BigDecimal](expr)
+final case class Short2DoubleExpr(expr: Expression[Short]) extends TypeConvertExpr[Short, Double](expr)
+
+final case class Byte2ShortExpr(expr: Expression[Byte]) extends TypeConvertExpr[Byte, Short](expr)
+final case class Byte2IntExpr(expr: Expression[Byte]) extends TypeConvertExpr[Byte, Int](expr)
+final case class Byte2LongExpr(expr: Expression[Byte]) extends TypeConvertExpr[Byte, Long](expr)
+final case class Byte2BigDecimalExpr(expr: Expression[Byte]) extends TypeConvertExpr[Byte, BigDecimal](expr)
+final case class Byte2DoubleExpr(expr: Expression[Byte]) extends TypeConvertExpr[Byte, Double](expr)
+
+final case class ToStringExpr[T](expr: Expression[T])(implicit dt: DataType.Aux[T])
+    extends TypeConvertExpr[T, String](expr)
