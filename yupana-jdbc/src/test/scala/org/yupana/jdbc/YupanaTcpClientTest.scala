@@ -51,7 +51,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     server.readBytesSendResponse(Array(1))
-    the[IOException] thrownBy client.ping(12345) should have message "Invalid server response"
+    the[IOException] thrownBy client.ping(12345) should have message "Unexpected end of response"
   }
 
   it should "handle if there are no response" in {
@@ -79,6 +79,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   }
 
   it should "handle query" in {
+
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
 
@@ -103,7 +104,9 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val data1 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
+        ResultChunk(
+          Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная")))
+        )
       )
     )
 
@@ -123,10 +126,13 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val reqF = server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
 
-    val sql = """
-                |SELECT time, item FROM items_kkm 
-                |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
-                |  """.stripMargin
+    val sql =
+      """
+          |SELECT time, item FROM items_kkm
+          |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
+          |  """.stripMargin
+
+    val start = System.currentTimeMillis()
 
     val result = client.query(
       sql,
@@ -149,11 +155,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val rows = result.toList
 
+    println(s"!!!!!!!!!!!! ${System.currentTimeMillis() - start}")
+
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
 
     rows(1).get[Time]("time") shouldEqual Time(21112L)
     rows(1).get[String]("item") shouldEqual null
+
   }
 
   it should "handle batch query" in {
@@ -288,15 +297,19 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
                 |  """.stripMargin
 
     server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
-    the[IllegalArgumentException] thrownBy client.query(
-      sql,
-      Map(
-        1 -> TimestampValue(12345L),
-        2 -> TimestampValue(23456L),
-        3 -> NumericValue(1000),
-        4 -> StringValue("икра баклажанная")
+
+    the[IOException] thrownBy {
+      val res = client.query(
+        sql,
+        Map(
+          1 -> TimestampValue(12345L),
+          2 -> TimestampValue(23456L),
+          3 -> NumericValue(1000),
+          4 -> StringValue("икра баклажанная")
+        )
       )
-    ) should have message "Unexpected end of response"
+      res.next()
+    } should have message "Unexpected end of response"
   }
 
 }
