@@ -1,8 +1,8 @@
 package org.yupana.jdbc
 
-import java.io.{ByteArrayInputStream, IOException}
+import java.io.{ ByteArrayInputStream, IOException }
 import java.nio.ByteBuffer
-import java.nio.channels.{Channels, ReadableByteChannel}
+import java.nio.channels.{ Channels, ReadableByteChannel }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
