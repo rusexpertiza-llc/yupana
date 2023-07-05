@@ -132,8 +132,6 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
           |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
           |  """.stripMargin
 
-    val start = System.currentTimeMillis()
-
     val result = client.query(
       sql,
       Map(
@@ -154,8 +152,6 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     result.name shouldEqual "items_kkm"
 
     val rows = result.toList
-
-    println(s"!!!!!!!!!!!! ${System.currentTimeMillis() - start}")
 
     rows(0).get[Time]("time") shouldEqual Time(13333L)
     rows(0).get[String]("item") shouldEqual "икра баклажанная"
