@@ -19,7 +19,7 @@ package org.yupana.akka
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
 
-class RepackIterator(it: Iterator[ByteString], packetSize: Int) extends Iterator[ByteString] with StrictLogging {
+class RepackIterator(it: Iterator[ByteString], packetSize: Int) extends Iterator[ByteString] {
 
   private val buf = new ByteStringBuilder
   buf.sizeHint(packetSize)
