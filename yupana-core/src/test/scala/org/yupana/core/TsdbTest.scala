@@ -3410,6 +3410,7 @@ class TsdbTest
     val res = tsdb.query(query).toList
 
     res should have size 1
+    println(states.values.mkString(", "))
     states.values.head shouldBe QueryStates.Running
     states.values.last shouldBe QueryStates.Finished
 
