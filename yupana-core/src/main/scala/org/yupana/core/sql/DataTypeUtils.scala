@@ -30,29 +30,39 @@ object DataTypeUtils {
     def dataType: DataType.Aux[T] = a.dataType
   }
 
-  def apply[T0](x: Expression[T0], y: Expression[T0]): ExprPair = new ExprPair {
+  def pair[T0](x: Expression[T0], y: Expression[T0]): ExprPair = new ExprPair {
     override type T = T0
     override val a: Expression[T0] = x
     override val b: Expression[T0] = y
   }
 
   def constCast[U, T](
-      const: ConstantExpr[U],
+      const: ConstExpr[U],
       dataType: DataType.Aux[T],
       calc: ConstantCalculator
   ): Either[String, T] = {
-    if (const.dataType == dataType) {
-      Right(const.v.asInstanceOf[T])
-    } else {
-      autoConverter(const.dataType, dataType.aux)
-        .map(conv => calc.evaluateConstant(conv(const)))
-        .orElse(
-          partial(const.dataType, dataType.aux)
-            .flatMap(conv => conv(const.v))
-        )
-        .toRight(
-          s"Cannot convert value '${const.v}' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
-        )
+    const match {
+      case ConstantExpr(v, _) =>
+        if (const.dataType == dataType) {
+          Right(v.asInstanceOf[T])
+        } else {
+          autoConverter(const.dataType, dataType.aux)
+            .map(conv => calc.evaluateConstant(conv(const)))
+            .orElse(
+              partial(const.dataType, dataType.aux)
+                .flatMap(conv => conv(v))
+            )
+            .toRight(
+              s"Cannot convert value '$v' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
+            )
+        }
+      case NullExpr(_) => Right(null.asInstanceOf[T])
+      case TrueExpr =>
+        if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
+        else Left(s"Cannot convert TRUE to data type $dataType")
+      case FalseExpr =>
+        if (dataType == DataType[Boolean]) Right(false.asInstanceOf[T])
+        else Left(s"Cannot convert FALSE to data type $dataType")
     }
   }
 
@@ -83,30 +93,34 @@ object DataTypeUtils {
 
   def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
-      Right(DataTypeUtils[T](ca, cb.asInstanceOf[Expression[T]]))
+      Right(DataTypeUtils.pair[T](ca, cb.asInstanceOf[Expression[T]]))
     } else {
       (ca, cb) match {
         case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
 
-        case (c: ConstantExpr[_], _) =>
-          constCast(c, cb.dataType, calc).map(cc => DataTypeUtils(ConstantExpr(cc)(cb.dataType), cb))
+        case (c: ConstExpr[_], _) =>
+          constCast(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(wrapConstant(cc, cb.dataType), cb))
 
-        case (_, c: ConstantExpr[_]) =>
-          constCast(c, ca.dataType, calc).map(cc => DataTypeUtils(ca, ConstantExpr(cc)(ca.dataType)))
+        case (_, c: ConstExpr[_]) =>
+          constCast(c, ca.dataType, calc).map(cc => DataTypeUtils.pair(ca, wrapConstant(cc, ca.dataType)))
 
         case (_, _) => convertRegular(ca, cb)
       }
     }
   }
 
+  private def wrapConstant[T](v: T, dt: DataType.Aux[T]): ConstExpr[T] = {
+    if (v != null) ConstantExpr(v)(dt) else NullExpr(dt)
+  }
+
   private def convertRegular[T, U](ca: Expression[T], cb: Expression[U]): Either[String, ExprPair] = {
     autoConverter(ca.dataType, cb.dataType)
-      .map(aToB => DataTypeUtils[U](aToB(ca), cb))
+      .map(aToB => DataTypeUtils.pair[U](aToB(ca), cb))
       .orElse(
         autoConverter(cb.dataType, ca.dataType)
-          .map(bToA => DataTypeUtils[T](ca, bToA(cb)))
+          .map(bToA => DataTypeUtils.pair[T](ca, bToA(cb)))
       )
-      .toRight(s"Incompatible types ${ca.dataType.meta.sqlTypeName}($ca) and ${cb.dataType.meta.sqlTypeName}($cb)")
+      .toRight(s"Incompatible types ${ca.dataType}($ca) and ${cb.dataType}($cb)")
   }
 
   type ToTypeConverter[T, U] = Expression[T] => TypeConvertExpr[T, U]

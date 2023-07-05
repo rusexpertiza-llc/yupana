@@ -10,6 +10,7 @@ import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
+import org.yupana.api.types.DataType
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
@@ -723,6 +724,30 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           const(true),
           gt(metric(TestTableFields.TEST_FIELD), const(100d))
         )
+      )
+    }
+  }
+
+  it should "support null in case when expressions" in {
+    testQuery("""
+        | SELECT
+        |   sum(case
+        |     WHEN testField > 0 THEN testLongField / testField
+        |     ELSE null
+        |  ) AS d
+        |  FROM test_table
+        |  WHERE time >= TIMESTAMP '2018-1-1' and time < TIMESTAMP '2018-2-1'
+        |  GROUP BY d
+      """.stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(
+        sum(
+          condition(
+            gt(metric(TestTableFields.TEST_FIELD), const(0d)),
+            divFrac(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)),
+            NullExpr(DataType[Double])
+          )
+        ) as "d"
       )
     }
   }

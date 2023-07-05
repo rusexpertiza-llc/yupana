@@ -27,6 +27,7 @@ object ExpressionUtils {
   def transform[T](t: Transformer)(expr: Expression[T]): Expression[T] = {
     t(expr).getOrElse(expr match {
       case TimeExpr             => expr
+      case NullExpr(_)          => expr
       case ConstantExpr(_, _)   => expr
       case TrueExpr             => expr
       case FalseExpr            => expr

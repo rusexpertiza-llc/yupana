@@ -33,6 +33,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
     expr match {
       case ConstantExpr(x, _) => x
+      case NullExpr(_)        => null.asInstanceOf[T]
       case TrueExpr           => true
       case FalseExpr          => false
 
