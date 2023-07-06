@@ -3396,18 +3396,15 @@ class TsdbTest
     val capturedMetrics = CaptureAll[List[InternalMetricData]]()
     (metricDao.saveQueryMetrics _)
       .expects(capture(capturedMetrics))
-      .atLeastOnce()
+      .once()
 
     val res = tsdb.query(query).toList
 
     res should have size 1
-    val metrics = capturedMetrics.values.flatten
-    println(s"metric states before: ${capturedMetrics.values.map(_.map(_.queryState)).mkString(", ")}")
-    println(s"metric states after: ${metrics.map(_.queryState).mkString(", ")}")
-    metrics.head.queryState shouldBe QueryStates.Running
-    metrics.last.queryState shouldBe QueryStates.Finished
+    val metrics = capturedMetrics.values.head.head
+    metrics.queryState shouldBe QueryStates.Finished
 
-    val finalMetricValues = metrics.last.metricValues
+    val finalMetricValues = metrics.metricValues
     finalMetricValues("create_queries.link.TestLink").count shouldEqual 1
     finalMetricValues(TsdbQueryMetrics.extractDataComputationQualifier).count shouldEqual 2
     finalMetricValues(TsdbQueryMetrics.readExternalLinksQualifier).count shouldEqual 2
