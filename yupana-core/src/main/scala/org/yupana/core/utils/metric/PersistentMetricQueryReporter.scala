@@ -66,7 +66,6 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
 
   def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryStates.QueryState): Unit = {
     val metricsData = createMetricsData(mc)
-    println(s"saveQueryMetrics: $state")
     asyncBuffer.add(
       InternalMetricData(
         mc.query,
