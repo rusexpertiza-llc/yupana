@@ -526,6 +526,8 @@ final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetI
 
   override def encode: String = s"idIn($dim, (Iterator))"
   override def toString: String = s"$dim ID IN (Iterator)"
+
+  override def equals(that: Any): Boolean = false
 }
 
 final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
