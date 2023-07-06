@@ -279,36 +279,32 @@ object HBaseUtils extends StrictLogging {
 
   def multiRowRangeFilter(
       table: Table,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       dimIds: Map[Dimension, Seq[_]]
   ): Option[MultiRowRangeFilter] = {
-
-    val baseTimeLs = baseTimeList(from, to, table)
-
-    val dimIdsList = dimIds.toList.map {
-      case (dim, ids) =>
-        dim -> ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
-    }
-
-    val crossJoinedDimIds = {
-      CollectionUtils.crossJoin(dimIdsList.map(_._2))
-    }
-
-    val keySize = tableKeySize(table)
-
-    val ranges = for {
-      time <- baseTimeLs
-      cids <- crossJoinedDimIds if cids.nonEmpty
-    } yield {
-      rowRange(time, keySize, cids.toArray)
-    }
-
+    val ranges = intervals.flatMap { case (from, to) => rowRanges(table, from, to, dimIds) }
     if (ranges.nonEmpty) {
       val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
       Some(filter)
     } else {
       None
+    }
+
+  }
+
+  private def rowRanges(table: Table, from: Long, to: Long, dimIds: Map[Dimension, Seq[_]]): Seq[RowRange] = {
+    val baseTimeLs = baseTimeList(from, to, table)
+    val dimIdsList = dimIds.toList.map {
+      case (dim, ids) =>
+        ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
+    }
+    val crossJoinedDimIds = CollectionUtils.crossJoin(dimIdsList)
+    val keySize = tableKeySize(table)
+    for {
+      time <- baseTimeLs
+      cids <- crossJoinedDimIds
+    } yield {
+      rowRange(time, keySize, cids.toArray)
     }
   }
 
