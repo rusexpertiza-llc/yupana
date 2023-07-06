@@ -3402,6 +3402,8 @@ class TsdbTest
 
     res should have size 1
     val metrics = capturedMetrics.values.flatten
+    println(s"metric states before: ${capturedMetrics.values.mkString(", ")}")
+    println(s"metric states after: ${metrics.mkString(", ")}")
     metrics.head.queryState shouldBe QueryStates.Running
     metrics.last.queryState shouldBe QueryStates.Finished
 
