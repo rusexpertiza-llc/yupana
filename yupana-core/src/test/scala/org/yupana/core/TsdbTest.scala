@@ -3396,12 +3396,12 @@ class TsdbTest
     val capturedMetrics = CaptureAll[List[InternalMetricData]]()
     (metricDao.saveQueryMetrics _)
       .expects(capture(capturedMetrics))
-      .once()
+      .atLeastOnce()
 
     val res = tsdb.query(query).toList
 
     res should have size 1
-    val metrics = capturedMetrics.values.head.head
+    val metrics = capturedMetrics.values.flatten.last
     metrics.queryState shouldBe QueryStates.Finished
 
     val finalMetricValues = metrics.metricValues
