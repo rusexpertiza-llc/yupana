@@ -109,7 +109,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     val squashedCondition = OrExpr(flatAndConditions)
 
     val squashedFilters = metricCollector.createDimensionFilters.measure(1) {
-      createFilters(Some(squashedCondition)) // todo fix createFilters to handle OR properly
+      createFilters(Some(squashedCondition))
     }
 
     val intervals = conditionByTime.flatMap {

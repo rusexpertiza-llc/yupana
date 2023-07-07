@@ -511,7 +511,7 @@ class TSDaoHBaseTest
       ),
       valueDataBuilder,
       NoMetricCollector
-    )
+    ).toList
   }
 
   it should "cross join different IN conditions for different tags" in withMock { (dao, _, queryRunner) =>
@@ -758,7 +758,7 @@ class TSDaoHBaseTest
       ),
       valueDataBuilder,
       NoMetricCollector
-    )
+    ).toList
   }
 
   it should "filter by exclude conditions" in withMock { (dao, _, queryRunner) =>
