@@ -271,6 +271,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         val (name, ns) = state.withNewRef(v.asInstanceOf[AnyRef], mkType(e.dataType))
         Some(q"$name" -> ns)
 
+      case NullExpr(_) =>
+        val (v, ns) = mapValue(state, e.dataType)(null)
+        Some(q"$v.asInstanceOf[$tpe]" -> ns)
+
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
         val (lits, newState) = exprs.foldLeft((Seq.empty[Tree], state)) {
           case ((ts, s), ConstantExpr(v, _)) =>
@@ -307,6 +311,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     e match {
       case ConstantExpr(_, _)                                                   => None
+      case NullExpr(_)                                                          => None
       case TimeExpr                                                             => None
       case DimensionExpr(_)                                                     => None
       case CountExpr(_)                                                         => None
