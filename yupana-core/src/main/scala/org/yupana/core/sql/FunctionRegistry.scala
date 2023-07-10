@@ -121,7 +121,7 @@ object FunctionRegistry {
     uTyped("second", TruncSecondExpr),
     uTyped("trunc_second", TruncSecondExpr),
     uTyped("extract_year", ExtractYearExpr),
-    uTyped("extract_quarter", TruncQuarterExpr),
+    uTyped("extract_quarter", ExtractQuarterExpr),
     uTyped("extract_month", ExtractMonthExpr),
     uTyped("extract_day", ExtractDayExpr),
     uTyped("extract_hour", ExtractHourExpr),
