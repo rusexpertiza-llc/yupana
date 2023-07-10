@@ -18,18 +18,17 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
-import org.apache.hadoop.hbase.client.{Result => HResult}
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema._
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.api.utils.{PrefetchedSortedSetIterator, SortedSetIterator}
+import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao._
-import org.yupana.core.model.{InternalQuery, InternalRow, InternalRowBuilder}
+import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.utils.metric.MetricUtils.SavedMetrics
 
 import scala.util.Try
 
@@ -138,35 +137,33 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
       val rows = executeScans(context, intervals, rangeScanDimIds)
 
-      if (flatAndConditions.distinct.size == 1) {
+      val rowPostFilter: RowFilter = if (flatAndConditions.distinct.size == 1) {
         val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
 
         val excludeRowFilter = squashedFilters.allExcludes.filter {
           case (d, _) => !sizeLimitedRangeScanDims.contains(d)
         }
 
-        val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
-        val timeFilter = createTimeFilter(
-          intervals,
-          squashedFilters.includeTime.getOrElse(Set.empty),
-          squashedFilters.excludeTime.getOrElse(Set.empty)
-        )
+        createRowFilter(query.table, includeRowFilter, excludeRowFilter)
 
-        import org.yupana.core.utils.metric.MetricUtils._
+      } else { _ => true }
 
-        mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-          val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-            rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, query.table)))
-          }
+      val timeFilter = createTimeFilter(
+        intervals,
+        squashedFilters.includeTime.getOrElse(Set.empty),
+        squashedFilters.excludeTime.getOrElse(Set.empty)
+      )
 
-          new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-            .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
-        }.withSavedMetrics(context.metricsCollector)
-      } else {
-        mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-          new TSDHBaseRowIterator(context, rs.iterator, internalRowBuilder)
-        }.withSavedMetrics(context.metricsCollector)
-      }
+      import org.yupana.core.utils.metric.MetricUtils._
+
+      mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
+        val filtered = context.metricsCollector.filterRows.measure(rs.size) {
+          rs.filter(r => rowPostFilter(HBaseUtils.parseRowKey(r.getRow, query.table)))
+        }
+
+        new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
+          .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+      }.withSavedMetrics(context.metricsCollector)
     }
   }
 
