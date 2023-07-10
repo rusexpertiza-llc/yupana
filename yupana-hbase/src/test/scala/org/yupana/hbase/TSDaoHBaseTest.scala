@@ -497,21 +497,23 @@ class TSDaoHBaseTest
         )
       )
 
-    dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_A), Set("test1", "test2")),
-          equ(dimension(TestDims.DIM_B), const(21.toShort)),
-          in(dimension(TestDims.DIM_A), Set("test2", "test3"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_A), Set("test1", "test2")),
+            equ(dimension(TestDims.DIM_B), const(21.toShort)),
+            in(dimension(TestDims.DIM_A), Set("test2", "test3"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
   }
 
   it should "cross join different IN conditions for different tags" in withMock { (dao, _, queryRunner) =>
@@ -745,20 +747,22 @@ class TSDaoHBaseTest
         )
       )
 
-    dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
-          notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    ).toList
+    dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
   }
 
   it should "filter by exclude conditions" in withMock { (dao, _, queryRunner) =>

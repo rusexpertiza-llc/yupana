@@ -286,11 +286,13 @@ trait TsdbBase extends StrictLogging {
 
     flatAndConditions.map { tbc =>
 
-      val linkServices = tbc.conditions.flatMap(c =>
-        c.flatten.collect {
-          case LinkExpr(c, _) => linkService(c)
-        }
-      ).distinct
+      val linkServices = tbc.conditions
+        .flatMap(c =>
+          c.flatten.collect {
+            case LinkExpr(c, _) => linkService(c)
+          }
+        )
+        .distinct
 
       val transformations = linkServices.flatMap(service =>
         metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {

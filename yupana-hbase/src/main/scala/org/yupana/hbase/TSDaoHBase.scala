@@ -51,7 +51,7 @@ class TSDaoHBase(
         val filter = multiRowRangeFilter(queryContext.table, intervals, dimIds)
         createScan(queryContext, filter, Seq.empty, totalFrom, totalTo) match {
           case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
-          case None => Iterator.empty
+          case None       => Iterator.empty
         }
       }
     } else {
