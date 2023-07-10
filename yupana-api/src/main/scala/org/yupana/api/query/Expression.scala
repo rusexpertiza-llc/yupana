@@ -539,6 +539,8 @@ final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedS
 
   override def encode: String = s"idNotIn($dim, (Iterator))"
   override def toString: String = s"$dim ID NOT IN (Iterator)"
+
+  override def equals(that: Any): Boolean = false
 }
 
 final case class AndExpr(conditions: Seq[Condition]) extends Expression[Boolean] {
