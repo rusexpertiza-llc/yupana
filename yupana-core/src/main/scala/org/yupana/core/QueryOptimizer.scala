@@ -112,9 +112,6 @@ object QueryOptimizer {
       ConstantExpr(eval)(
         e.dataType
       )
-    } else {
-      throw new IllegalAccessException(s"Cannot evaluate constant expression $e")
-    }
-
+    } else NullExpr[T](e.dataType)
   }
 }
