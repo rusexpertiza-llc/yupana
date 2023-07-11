@@ -731,7 +731,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val r1 = builder
       .set(Time(now.minusDays(4)))
       .set(metric(TestTableFields.TEST_FIELD), 5d)
-      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(5))
+      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(4))
       .buildAndReset()
 
     val r2 = builder
@@ -748,7 +748,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val result = qc.calculator.evaluatePostMap(RussianTokenizer, s)
 
-    result.get(qc, a) shouldEqual BigDecimal(2)
+    result.get(qc, a) shouldEqual BigDecimal(5)
   }
 
   it should "handle null literals in case when in aggregation" in {
@@ -756,8 +756,8 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val a = sum(
       condition(
-        gt(metric(TestTableFields.TEST_FIELD), const(3d)),
-        divFrac(double2bigDecimal(metric(TestTableFields.TEST_FIELD)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD)),
+        gt(dimension(TestDims.DIM_B), const(3.toShort)),
+        divFrac(short2BigDecimal(dimension(TestDims.DIM_B)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD)),
         NullExpr[BigDecimal](DataType[BigDecimal])
       )
     )
@@ -769,14 +769,14 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val r1 = builder
       .set(Time(now.minusDays(4)))
-      .set(metric(TestTableFields.TEST_FIELD), 1d)
+      .set(dimension(TestDims.DIM_B), 2.toShort)
       .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(5))
       .buildAndReset()
 
     val r2 = builder
       .set(Time(now.minusDays(3)))
-      .set(metric(TestTableFields.TEST_FIELD), 5d)
-      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(5))
+      .set(dimension(TestDims.DIM_B), 5.toShort)
+      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
       .buildAndReset()
 
     val e1 = qc.calculator.evaluateExpressions(RussianTokenizer, r1)
@@ -788,6 +788,6 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
 
     val result = qc.calculator.evaluatePostMap(RussianTokenizer, s)
 
-    result.get(qc, a) shouldEqual BigDecimal(2)
+    result.get(qc, a) shouldEqual BigDecimal(2.5)
   }
 }

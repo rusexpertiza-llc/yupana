@@ -311,7 +311,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     e match {
       case ConstantExpr(_, _)                                                   => None
-      case NullExpr(_)                                                          => None
+      case NullExpr(_)                                                          => Some(q"false")
       case TimeExpr                                                             => None
       case DimensionExpr(_)                                                     => None
       case CountExpr(_)                                                         => None
@@ -500,6 +500,32 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     result -> updatedState
   }
 
+  private def mkSetCondition(state: State, row: TermName, c: ConditionExpr[_]): State = {
+    val newState = mkSet(state, row, c.condition)
+    mkGet(newState, row, c.condition) match {
+      case Some((getIf, ifState)) =>
+        val (getThen, thenState) = mkInner("t", ifState, row, c.positive)
+        val (getElse, elseState) = mkInner("e", thenState, row, c.negative)
+        val thenDef = mkIsDefined(elseState, row, c.positive)
+        val elseDef = mkIsDefined(elseState, row, c.negative)
+        val readCondition = (thenDef, elseDef) match {
+          case (Some(td), Some(ed)) => Some(q"($getIf && $td) || (!$getIf && $ed)")
+          case (Some(td), None)     => Some(q"!$getIf || $td")
+          case (None, Some(ed))     => Some(q"$getIf || $ed")
+          case (None, None)         => None
+        }
+        readCondition match {
+          case Some(cond) => elseState.withDefineIf(row, c, cond, q"if ($getIf) $getThen else $getElse")
+          case None       => elseState.withDefine(row, c, q"if ($getIf) $getThen else $getElse")
+        }
+
+      case None =>
+        val thenState = mkSet(newState, row, c.positive)
+        val elseState = mkSet(thenState, row, c.negative)
+        elseState.withUnfinished(c)
+    }
+  }
+
   private def mkSet(state: State, row: TermName, e: Expression[_]): State = {
 
     if (state.index.contains(e)) {
@@ -620,19 +646,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case LowerExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLowerCase")
         case UpperExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toUpperCase")
 
-        case ConditionExpr(c, p, n) =>
-          val newState = mkSet(state, row, c)
-          mkGet(newState, row, c) match {
-            case Some((getIf, ifState)) =>
-              val (getThen, thenState) = mkInner("t", ifState, row, p)
-              val (getElse, elseState) = mkInner("e", thenState, row, n)
-              elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
-
-            case None =>
-              val thenState = mkSet(newState, row, p)
-              val elseState = mkSet(thenState, row, n)
-              elseState.withUnfinished(e)
-          }
+        case c @ ConditionExpr(_, _, _) => mkSetCondition(state, row, c)
 
         case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
         case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
