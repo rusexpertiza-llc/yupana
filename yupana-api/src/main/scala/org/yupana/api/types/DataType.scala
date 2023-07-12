@@ -106,7 +106,8 @@ object DataType {
     DataType[BigDecimal],
     DataType[Time],
     DataType[Blob],
-    DataType[Boolean]
+    DataType[Boolean],
+    DataType[Null]
   ).map(t => t.meta.sqlTypeName.toUpperCase -> t).toMap
 
   private val ARRAY_PREFIX = "ARRAY["

@@ -497,21 +497,23 @@ class TSDaoHBaseTest
         )
       )
 
-    dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_A), Set("test1", "test2")),
-          equ(dimension(TestDims.DIM_B), const(21.toShort)),
-          in(dimension(TestDims.DIM_A), Set("test2", "test3"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    )
+    dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_A), Set("test1", "test2")),
+            equ(dimension(TestDims.DIM_B), const(21.toShort)),
+            in(dimension(TestDims.DIM_A), Set("test2", "test3"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
   }
 
   it should "cross join different IN conditions for different tags" in withMock { (dao, _, queryRunner) =>
@@ -745,20 +747,22 @@ class TSDaoHBaseTest
         )
       )
 
-    dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
-          notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    )
+    dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
   }
 
   it should "filter by exclude conditions" in withMock { (dao, _, queryRunner) =>
@@ -1364,10 +1368,11 @@ class TSDaoHBaseTest
     val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
 
     val pointTime1 = 123500L
+    val pointTime2 = 345678L
 
     queryRunner
       .expects(
-        scanMultiRanges(testTable, from1, to1, Set(Seq(dimAHash("foo"))))
+        scanMultiRanges(testTable, from1, to2, Set(Seq(dimAHash("foo"))))
       )
       .returning(
         Iterator(
@@ -1375,18 +1380,7 @@ class TSDaoHBaseTest
             .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
             .cell("d1", pointTime1 % testTable.rowTimeSpan)
             .field(TestTableFields.TEST_FIELD.tag, 3d)
-            .hbaseRow
-        )
-      )
-
-    val pointTime2 = 345678L
-
-    queryRunner
-      .expects(
-        scanMultiRanges(testTable, from2, to2, Set(Seq(dimAHash("foo"))))
-      )
-      .returning(
-        Iterator(
+            .hbaseRow,
           HBaseTestUtils
             .row(pointTime2 - (pointTime2 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
             .cell("d1", pointTime2 % testTable.rowTimeSpan)
@@ -1424,14 +1418,22 @@ class TSDaoHBaseTest
         intervals: Seq[(Long, Long)],
         rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
     ): Iterator[HResult] = {
-      val scans = rangeScanDims.flatMap { dimIds =>
-        intervals.flatMap {
-          case (from, to) =>
-            val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
-            HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
+
+      val totalFrom = intervals.map(_._1).min
+      val totalTo = intervals.map(_._2).max
+
+      if (rangeScanDims.nonEmpty) {
+        rangeScanDims.flatMap { dimIds =>
+          val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, intervals, dimIds)
+          HBaseUtils.createScan(queryContext, filter, Seq.empty, totalFrom, totalTo) match {
+            case Some(scan) => queryRunner(Seq(scan))
+            case None       => Iterator.empty
+          }
         }
+      } else {
+        Iterator.empty
       }
-      queryRunner(scans.toSeq)
+
     }
 
     override val schema: Schema = TestSchema.schema

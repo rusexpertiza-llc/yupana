@@ -87,8 +87,7 @@ class HBaseScanRDD(
       val filter =
         HBaseUtils.multiRowRangeFilter(
           partition.queryContext.table,
-          partition.fromTime,
-          partition.toTime,
+          Seq(partition.fromTime -> partition.toTime),
           partition.rangeScanDimsIds
         )
 
