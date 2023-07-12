@@ -251,7 +251,8 @@ final case class ExtractYearExpr(expr: Expression[Time]) extends UnaryOperationE
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
 
-final case class ExtractQuarterExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractYear") {
+final case class ExtractQuarterExpr(expr: Expression[Time])
+    extends UnaryOperationExpr[Time, Int](expr, "extractQuarter") {
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
 
@@ -517,9 +518,7 @@ final case class NotInExpr[T](expr: Expression[T], values: Set[T]) extends Expre
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean]
-    with SimpleCondition {
+final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends SimpleCondition {
   override val kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
@@ -530,9 +529,7 @@ final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetI
   override def equals(that: Any): Boolean = false
 }
 
-final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean]
-    with SimpleCondition {
+final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends SimpleCondition {
   override val kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
