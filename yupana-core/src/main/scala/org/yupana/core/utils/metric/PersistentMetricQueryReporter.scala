@@ -31,7 +31,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
   private val asyncBuffer = new ConcurrentLinkedQueue[InternalMetricData]
 
   if (asyncSaving) {
-    new Timer().scheduleAtFixedRate(
+    new Timer(true).scheduleAtFixedRate(
       new TimerTask {
         def run(): Unit = {
           saveMetricsBuffer()
