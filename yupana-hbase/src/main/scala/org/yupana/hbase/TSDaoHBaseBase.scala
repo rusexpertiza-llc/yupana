@@ -156,9 +156,11 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
       import org.yupana.core.utils.metric.MetricUtils._
 
+      val table = query.table // prevent query serialization in Spark
+
       mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
         val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-          rs.filter(r => rowPostFilter(HBaseUtils.parseRowKey(r.getRow, query.table)))
+          rs.filter(r => rowPostFilter(HBaseUtils.parseRowKey(r.getRow, table)))
         }
 
         new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
