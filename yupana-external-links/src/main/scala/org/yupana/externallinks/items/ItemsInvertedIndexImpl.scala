@@ -121,7 +121,7 @@ class ItemsInvertedIndexImpl(
     }
   }
 
-  def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
+  private def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
     val stemmedWords = words.flatMap(schema.tokenizer.transliteratedTokens)

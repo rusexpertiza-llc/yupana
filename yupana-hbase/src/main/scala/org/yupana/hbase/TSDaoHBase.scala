@@ -43,18 +43,15 @@ class TSDaoHBase(
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Iterator[HResult] = {
 
+    val totalFrom = intervals.map(_._1).min
+    val totalTo = intervals.map(_._2).max
+
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
-        queryContext.metricsCollector.createScans.measure(intervals.size) {
-          intervals.iterator.flatMap {
-            case (from, to) =>
-              val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
-              createScan(queryContext, filter, Seq.empty, from, to) match {
-                case Some(scan) =>
-                  executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
-                case None => Iterator.empty
-              }
-          }
+        val filter = multiRowRangeFilter(queryContext.table, intervals, dimIds)
+        createScan(queryContext, filter, Seq.empty, totalFrom, totalTo) match {
+          case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
+          case None       => Iterator.empty
         }
       }
     } else {

@@ -379,9 +379,9 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.10"
+  val scala213 = "2.13.11"
 
-  val spark = "3.3.2"
+  val spark = "3.4.1"
 
   val threeTenExtra = "1.7.2"
 
@@ -406,12 +406,12 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
-  val logback = "1.2.11"
+  val logback = "1.2.12"
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.15"
-  val scalaTestCheck = "3.2.15.0"
+  val scalaTest = "3.2.16"
+  val scalaTestCheck = "3.2.16.0"
   val scalaMock = "5.2.0"
 }
 
@@ -426,8 +426,7 @@ val commonSettings = Seq(
     "-feature",
     "-Xlint",
     "-Xfatal-warnings",
-    "-Ywarn-dead-code",
-    "-Wconf:msg=Top-level:s"
+    "-Ywarn-dead-code"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),

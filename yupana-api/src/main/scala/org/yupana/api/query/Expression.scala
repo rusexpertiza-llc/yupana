@@ -112,8 +112,17 @@ final case class DistinctRandomExpr[I](override val expr: Expression[I])
   override val dataType: DataType.Aux[I] = expr.dataType
 }
 
+sealed trait ConstExpr[T] extends Expression[T] {
+  override val kind: ExprKind = Const
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
+}
+
+final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
+  override def encode: String = "null"
+}
+
 final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit override val dataType: DataType.Aux[T])
-    extends Expression[T] {
+    extends ConstExpr[T] {
   override def encode: String = {
     if (dataType.kind == TypeKind.Array) {
       val adt = dataType.asInstanceOf[ArrayDataType[T]]
@@ -123,9 +132,6 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
       s"const($v:${v.getClass.getSimpleName})"
     }
   }
-  override val kind: ExprKind = Const
-
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
 case object TimeExpr extends Expression[Time] {
@@ -245,6 +251,11 @@ final case class ExtractYearExpr(expr: Expression[Time]) extends UnaryOperationE
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
 
+final case class ExtractQuarterExpr(expr: Expression[Time])
+    extends UnaryOperationExpr[Time, Int](expr, "extractQuarter") {
+  override val dataType: DataType.Aux[Int] = DataType[Int]
+}
+
 final case class ExtractMonthExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Int](expr, "extractMonth") {
   override val dataType: DataType.Aux[Int] = DataType[Int]
 }
@@ -268,6 +279,10 @@ final case class ExtractSecondExpr(expr: Expression[Time])
 }
 
 final case class TruncYearExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncYear") {
+  override val dataType: DataType.Aux[Time] = DataType[Time]
+}
+
+final case class TruncQuarterExpr(expr: Expression[Time]) extends UnaryOperationExpr[Time, Time](expr, "truncQuarter") {
   override val dataType: DataType.Aux[Time] = DataType[Time]
 }
 
@@ -324,16 +339,12 @@ sealed trait SimpleCondition extends Expression[Boolean] {
   override val dataType: DataType.Aux[Boolean] = DataType[Boolean]
 }
 
-case object TrueExpr extends SimpleCondition {
-  override val kind: ExprKind = Simple
+case object TrueExpr extends SimpleCondition with ConstExpr[Boolean] {
   override def encode: String = "true"
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
-case object FalseExpr extends SimpleCondition {
-  override val kind: ExprKind = Simple
+case object FalseExpr extends SimpleCondition with ConstExpr[Boolean] {
   override def encode: String = "false"
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
 final case class EqExpr[T](override val a: Expression[T], override val b: Expression[T])
@@ -507,26 +518,26 @@ final case class NotInExpr[T](expr: Expression[T], values: Set[T]) extends Expre
     expr.toString + CollectionUtils.mkStringWithLimit(values, 10, " NOT IN (", ", ", ")")
 }
 
-final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean]
-    with SimpleCondition {
+final case class DimIdInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends SimpleCondition {
   override val kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 
   override def encode: String = s"idIn($dim, (Iterator))"
   override def toString: String = s"$dim ID IN (Iterator)"
+
+  override def equals(that: Any): Boolean = false
 }
 
-final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R])
-    extends Expression[Boolean]
-    with SimpleCondition {
+final case class DimIdNotInExpr[T, R](dim: Dimension.Aux2[T, R], values: SortedSetIterator[R]) extends SimpleCondition {
   override val kind: ExprKind = Simple
 
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 
   override def encode: String = s"idNotIn($dim, (Iterator))"
   override def toString: String = s"$dim ID NOT IN (Iterator)"
+
+  override def equals(that: Any): Boolean = false
 }
 
 final case class AndExpr(conditions: Seq[Condition]) extends Expression[Boolean] {

@@ -56,3 +56,7 @@ case class PeriodValue(value: PeriodDuration) extends Value {
 case class TupleValue(a: Value, b: Value) extends Value {
   override def asString: String = s"${a.asString}_${b.asString}"
 }
+
+case object NullValue extends Value {
+  override def asString: String = "null"
+}

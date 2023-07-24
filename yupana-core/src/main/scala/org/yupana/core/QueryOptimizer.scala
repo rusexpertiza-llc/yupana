@@ -17,7 +17,7 @@
 package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, FalseExpr, OrExpr, Query, QueryField, TrueExpr }
+import org.yupana.api.query._
 import org.yupana.core.utils.ExpressionUtils
 import org.yupana.core.utils.ExpressionUtils.Transformer
 
@@ -112,9 +112,6 @@ object QueryOptimizer {
       ConstantExpr(eval)(
         e.dataType
       )
-    } else {
-      throw new IllegalAccessException(s"Cannot evaluate constant expression $e")
-    }
-
+    } else NullExpr[T](e.dataType)
   }
 }

@@ -18,12 +18,13 @@ package org.yupana.akka
 
 import akka.actor.ActorSystem
 import akka.stream.Attributes.CancellationStrategy
-import akka.stream.scaladsl.{ Flow, Framing, Source, Tcp }
+import akka.stream.scaladsl.{ Flow, Source, Tcp }
 import akka.stream.{ ActorAttributes, Attributes, Supervision }
 import akka.util.{ ByteString, ByteStringBuilder }
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.proto.{ Request, Response }
 
+import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -60,8 +61,6 @@ class TsdbTcp(
 
     logger.info(s"Get TCP connection from ${conn.remoteAddress}")
 
-    val protocol = Framing.simpleFramingProtocol(FRAME_SIZE).reversed
-
     val heartbeat =
       Source
         .tick(HEART_BEAT_INTERVAL.seconds, HEART_BEAT_INTERVAL.seconds, HEART_BEAT_INTERVAL)
@@ -69,7 +68,7 @@ class TsdbTcp(
         .drop(1)
         .map { time =>
           logger.debug(s"Heartbeat($time), connection: ${conn.remoteAddress}")
-          ByteString(Response(Response.Resp.Heartbeat(time.toString)).toByteArray)
+          Iterator(Response(Response.Resp.Heartbeat(time.toString)))
         }
 
     val requestFlow = Flow[ByteString]
@@ -82,7 +81,11 @@ class TsdbTcp(
           if (b.length > REQUEST_SIZE_LIMIT) {
             throw new IllegalArgumentException(s"Request is too big")
           }
-          b -> Try(Request.parseFrom(b.toArray)).toOption
+
+          unpackRequest(b) match {
+            case Some(r) => ByteString.empty -> Some(r)
+            case None    => b -> None
+          }
       }
       .collect {
         case (_, Some(r)) =>
@@ -111,39 +114,27 @@ class TsdbTcp(
           logger.error(s)
           throw new Exception(s)
       }
+      .merge(heartbeat, eagerComplete = true)
       .flatMapConcat { rs =>
         val it = rs.map { resp =>
-          ByteString(resp.toByteArray)
+          packResponse(resp)
         }
-        new AsyncIteratorSource(it, 1000)
+        val repacked = new RepackIterator(it, 32768)
+        Source.fromIterator(() => repacked)
       }
       .recover {
         case e: Throwable =>
           logger.error("Message was not handled", e)
           val resp = Response(Response.Resp.Error(e.getMessage))
-          ByteString(resp.toByteArray)
+          packResponse(resp)
       }
-      .merge(heartbeat, eagerComplete = true)
 
-    val connHandler = protocol
-      .join(requestFlow)
-      .groupedWeightedWithin(32767, 10.millis)(_.length)
-      .map { bsIt =>
-        val b = new ByteStringBuilder()
-        b.sizeHint(32767)
-
-        bsIt.foreach(b.append)
-        val bs = b.result()
-        val ss = sentSize.addAndGet(bs.length)
-        val sc = sentChunks.incrementAndGet()
-        if (sc % 100 == 0) logger.trace(s"Sent ${humanReadableByteSize(ss)}, $sc chunks")
-        bs
-      }
+    val connHandler = requestFlow
       .watchTermination() { (_, done) =>
         done.onComplete {
           case Success(_) =>
-            logger.info(
-              s"Response sent to client: ${conn.remoteAddress}, bytes ${humanReadableByteSize(sentSize.get)}, ${sentChunks.get()} chunks"
+            logger.debug(
+              s"Connection closed: ${conn.remoteAddress}, bytes sent ${humanReadableByteSize(sentSize.get)}, chunks ${sentChunks.get()} "
             )
           case Failure(ex) =>
             logger.error(s"Error : $ex")
@@ -153,11 +144,44 @@ class TsdbTcp(
     conn.handleWith(connHandler.withAttributes(ActorAttributes.supervisionStrategy(decider)))
   }
 
-  def humanReadableByteSize(fileSize: Long): String = {
+  private def packResponse(response: Response): ByteString = {
+    implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+
+    val b = new ByteStringBuilder
+    val bytes = response.toByteArray
+    b.putInt(bytes.length)
+    b.putBytes(bytes)
+    b.result()
+  }
+
+  private def unpackRequest(bs: ByteString): Option[Request] = {
+    implicit val byteOrder: ByteOrder = ByteOrder.BIG_ENDIAN
+
+    val it = bs.iterator
+
+    val size = Try {
+      it.getInt
+    }
+
+    size.toOption.foreach { s =>
+      if (s > REQUEST_SIZE_LIMIT) throw new IllegalArgumentException(s"Request size is too big")
+    }
+
+    size.map { s =>
+      val bytes = it.getBytes(s)
+      Request.parseFrom(bytes)
+    }.toOption
+  }
+
+  private def humanReadableByteSize(fileSize: Long): String = {
     if (fileSize <= 0) return "0 B"
     // kilo, Mega, Giga, Tera, Peta, Exa, Zetta, Yotta
     val units: Array[String] = Array("B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
     val digitGroup: Int = (Math.log10(fileSize.toDouble) / Math.log10(1024)).toInt
-    f"${fileSize / Math.pow(1024, digitGroup)}%3.3f ${units(digitGroup)}"
+    if (digitGroup == 0) {
+      f"${fileSize / Math.pow(1024, digitGroup)}%3.0f ${units(digitGroup)}"
+    } else {
+      f"${fileSize / Math.pow(1024, digitGroup)}%3.1f ${units(digitGroup)}"
+    }
   }
 }

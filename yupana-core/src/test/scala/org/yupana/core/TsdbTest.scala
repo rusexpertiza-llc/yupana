@@ -3288,7 +3288,7 @@ class TsdbTest
     val metricDao = mock[TsdbQueryMetricsDao]
     val reporter =
       new CombinedMetricReporter[MetricQueryCollector](
-        new PersistentMetricQueryReporter(() => metricDao),
+        new PersistentMetricQueryReporter(() => metricDao, asyncSaving = false),
         new Slf4jMetricReporter[MetricQueryCollector]
       )
 
@@ -3393,32 +3393,23 @@ class TsdbTest
         )
       })
 
-    val metrics = CaptureAll[Map[String, MetricData]]()
-    val states = CaptureAll[QueryStates.QueryState]()
+    val capturedMetrics = CaptureAll[List[InternalMetricData]]()
     (metricDao.saveQueryMetrics _)
-      .expects(
-        query,
-        None,
-        *,
-        capture(states),
-        *,
-        capture(metrics),
-        false
-      )
+      .expects(capture(capturedMetrics))
       .atLeastOnce()
 
     val res = tsdb.query(query).toList
 
     res should have size 1
-    states.values.head shouldBe QueryStates.Running
-    states.values.last shouldBe QueryStates.Finished
+    val metrics = capturedMetrics.values.flatten.last
+    metrics.queryState shouldBe QueryStates.Finished
 
-    val m = metrics.values.last
-    m("create_queries.link.TestLink").count shouldEqual 1
-    m(TsdbQueryMetrics.extractDataComputationQualifier).count shouldEqual 2
-    m(TsdbQueryMetrics.readExternalLinksQualifier).count shouldEqual 2
-    m(TsdbQueryMetrics.reduceOperationQualifier).count shouldEqual 1
-    m(TsdbQueryMetrics.postFilterQualifier).count shouldEqual 0
-    m(TsdbQueryMetrics.collectResultRowsQualifier).count shouldEqual 1
+    val finalMetricValues = metrics.metricValues
+    finalMetricValues("create_queries.link.TestLink").count shouldEqual 1
+    finalMetricValues(TsdbQueryMetrics.extractDataComputationQualifier).count shouldEqual 2
+    finalMetricValues(TsdbQueryMetrics.readExternalLinksQualifier).count shouldEqual 2
+    finalMetricValues(TsdbQueryMetrics.reduceOperationQualifier).count shouldEqual 1
+    finalMetricValues(TsdbQueryMetrics.postFilterQualifier).count shouldEqual 0
+    finalMetricValues(TsdbQueryMetrics.collectResultRowsQualifier).count shouldEqual 1
   }
 }

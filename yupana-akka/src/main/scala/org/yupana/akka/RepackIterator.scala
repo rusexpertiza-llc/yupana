@@ -14,10 +14,26 @@
  * limitations under the License.
  */
 
-package org.yupana.metrics
+package org.yupana.akka
 
-trait MetricReporter[Collector <: MetricCollector] extends Serializable {
-  def start(mc: Collector, partitionId: Option[String]): Unit
-  def finish(mc: Collector, partitionId: Option[String]): Unit
-  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryStates.QueryState): Unit
+import akka.util.{ ByteString, ByteStringBuilder }
+
+class RepackIterator(it: Iterator[ByteString], packetSize: Int) extends Iterator[ByteString] {
+
+  private val buf = new ByteStringBuilder
+  buf.sizeHint(packetSize)
+
+  override def hasNext: Boolean = {
+    it.hasNext || buf.nonEmpty
+  }
+
+  override def next(): ByteString = {
+    while (buf.length < packetSize && it.hasNext) {
+      buf.append(it.next())
+    }
+    val (r, b) = buf.result().splitAt(packetSize)
+    buf.clear()
+    buf.append(b)
+    r
+  }
 }

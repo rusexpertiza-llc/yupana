@@ -44,7 +44,7 @@ class ItemsInvertedIndexImplTest
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("kolbas").returning(si("колбаса копчения", "колбаса вареная", "колбаса вареная молочная"))
-    (dao.values _).expects("varen").returning(si("колбаса копчения", "колбаса вареная", "колбаса вареная молочная"))
+    (dao.values _).expects("varen").returning(si("колбаса полуварёная", "колбаса вареная", "колбаса вареная молочная"))
     (dao.values _).expects("shchupalc").returning(si("щупальца краба", "щупальца кальмара"))
     (dao.values _).expects("kalmar").returning(si("щупальца кальмара", "щупальца кальмара", "кальмар красный"))
     (dao.values _).expects("hol").returning(si("мясо хол", "колбаса хол копчения"))
@@ -72,14 +72,29 @@ class ItemsInvertedIndexImplTest
       ).head
     )
 
-    actual should contain theSameElementsAs Seq(
-      RemoveCondition(c1),
-      AddCondition(
-        DimIdInExpr(Dimensions.ITEM, si("колбаса вареная", "колбаса вареная молочная", "щупальца кальмара"))
-      ),
-      RemoveCondition(c2),
-      AddCondition(DimIdNotInExpr(Dimensions.ITEM, si("колбаса хол копчения")))
-    )
+    actual should have size 4
+    val rc1 = actual.head
+    rc1 shouldBe RemoveCondition(c1)
+    val ac1 = actual(1)
+    ac1 shouldBe a[AddCondition]
+    val dimIn1 = ac1.asInstanceOf[AddCondition].c
+    dimIn1 shouldBe a[DimIdInExpr[_, _]]
+    dimIn1.asInstanceOf[DimIdInExpr[String, (Int, Long)]].dim shouldBe Dimensions.ITEM
+    dimIn1.asInstanceOf[DimIdInExpr[String, (Int, Long)]].values.toList should contain theSameElementsAs si(
+      "колбаса вареная",
+      "колбаса вареная молочная",
+      "щупальца кальмара"
+    ).toSeq
+    val rc2 = actual(2)
+    rc2 shouldBe RemoveCondition(c2)
+    val ac2 = actual(3)
+    ac2 shouldBe a[AddCondition]
+    val dimIn2 = ac2.asInstanceOf[AddCondition].c
+    dimIn2 shouldBe a[DimIdNotInExpr[_, _]]
+    dimIn2.asInstanceOf[DimIdNotInExpr[String, (Int, Long)]].dim shouldBe Dimensions.ITEM
+    dimIn2.asInstanceOf[DimIdNotInExpr[String, (Int, Long)]].values.toList should contain theSameElementsAs si(
+      "колбаса хол копчения"
+    ).toSeq
   }
 
   it should "put values storage" in withMocks { (index, dao, tsdb) =>

@@ -27,6 +27,7 @@ object ExpressionUtils {
   def transform[T](t: Transformer)(expr: Expression[T]): Expression[T] = {
     t(expr).getOrElse(expr match {
       case TimeExpr             => expr
+      case NullExpr(_)          => expr
       case ConstantExpr(_, _)   => expr
       case TrueExpr             => expr
       case FalseExpr            => expr
@@ -94,20 +95,22 @@ object ExpressionUtils {
       case TokensExpr(e)    => TokensExpr(transform(t)(e))
       case LengthExpr(e)    => LengthExpr(transform(t)(e))
 
-      case ExtractYearExpr(e)   => ExtractYearExpr(transform(t)(e))
-      case ExtractMonthExpr(e)  => ExtractMonthExpr(transform(t)(e))
-      case ExtractDayExpr(e)    => ExtractDayExpr(transform(t)(e))
-      case ExtractHourExpr(e)   => ExtractHourExpr(transform(t)(e))
-      case ExtractMinuteExpr(e) => ExtractMinuteExpr(transform(t)(e))
-      case ExtractSecondExpr(e) => ExtractSecondExpr(transform(t)(e))
+      case ExtractYearExpr(e)    => ExtractYearExpr(transform(t)(e))
+      case ExtractQuarterExpr(e) => ExtractQuarterExpr(transform(t)(e))
+      case ExtractMonthExpr(e)   => ExtractMonthExpr(transform(t)(e))
+      case ExtractDayExpr(e)     => ExtractDayExpr(transform(t)(e))
+      case ExtractHourExpr(e)    => ExtractHourExpr(transform(t)(e))
+      case ExtractMinuteExpr(e)  => ExtractMinuteExpr(transform(t)(e))
+      case ExtractSecondExpr(e)  => ExtractSecondExpr(transform(t)(e))
 
-      case TruncYearExpr(e)   => TruncYearExpr(transform(t)(e))
-      case TruncMonthExpr(e)  => TruncMonthExpr(transform(t)(e))
-      case TruncWeekExpr(e)   => TruncWeekExpr(transform(t)(e))
-      case TruncDayExpr(e)    => TruncDayExpr(transform(t)(e))
-      case TruncHourExpr(e)   => TruncHourExpr(transform(t)(e))
-      case TruncMinuteExpr(e) => TruncMinuteExpr(transform(t)(e))
-      case TruncSecondExpr(e) => TruncSecondExpr(transform(t)(e))
+      case TruncYearExpr(e)    => TruncYearExpr(transform(t)(e))
+      case TruncQuarterExpr(e) => TruncQuarterExpr(transform(t)(e))
+      case TruncMonthExpr(e)   => TruncMonthExpr(transform(t)(e))
+      case TruncWeekExpr(e)    => TruncWeekExpr(transform(t)(e))
+      case TruncDayExpr(e)     => TruncDayExpr(transform(t)(e))
+      case TruncHourExpr(e)    => TruncHourExpr(transform(t)(e))
+      case TruncMinuteExpr(e)  => TruncMinuteExpr(transform(t)(e))
+      case TruncSecondExpr(e)  => TruncSecondExpr(transform(t)(e))
 
       case PeriodPlusPeriodExpr(a, b) => PeriodPlusPeriodExpr(transform(t)(a), transform(t)(b))
       case TimeMinusExpr(a, b)        => TimeMinusExpr(transform(t)(a), transform(t)(b))

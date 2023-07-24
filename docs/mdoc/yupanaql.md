@@ -17,8 +17,8 @@ title: Язык запросов Yupana (YupanaQL)
 ## Правила наименования полей
 
 1. Время для любой схемы указывается как поле `time` типа TIMESTAMP. Доступны следующие функции для работы со временем:
- `trunc_second`, `trunc_minute`, `trunc_hour`, `trunc_day`, `trunc_month`, `trunc_year`.
- `extract_second`, `extract_minute`, `extract_hour`, `extract_day`, `extract_month`, `extract_year`.
+ `trunc_second`, `trunc_minute`, `trunc_hour`, `trunc_day`, `trunc_month`, `trunc_quarter`, `trunc_year`.
+ `extract_second`, `extract_minute`, `extract_hour`, `extract_day`, `extract_month`, `extract_quarter`, `extract_year`.
 
 2. Поля таблицы указываются:
  - как есть (`quantity` или `"quantity"`)
@@ -55,7 +55,8 @@ title: Язык запросов Yupana (YupanaQL)
  - `INTERVAL '3-10' MONTH TO DAY` -- 3 месяца и 10 дней
 5. Массивы: `{1, 2, 3,}`, `{ 'one', 'two', 'three' }`.
 6. `true` или `false`
-7. Кортежи арности 2: `('one', 1)`, `(5, TIMESTAMP '2022-05-01')`.
+7. `null`
+8. Кортежи арности 2: `('one', 1)`, `(5, TIMESTAMP '2022-05-01')`.
 
 > Важно понимать, что интервалы содержащие месяца и/или годы не могут быть использованы при сравнении длительности
 > интервала между двумя датами.  Это обуславливается тем что длина месяца или года зависит от определенной даты.

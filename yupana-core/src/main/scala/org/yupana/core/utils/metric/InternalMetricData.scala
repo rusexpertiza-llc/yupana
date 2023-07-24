@@ -14,10 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.metrics
+package org.yupana.core.utils.metric
 
-trait MetricReporter[Collector <: MetricCollector] extends Serializable {
-  def start(mc: Collector, partitionId: Option[String]): Unit
-  def finish(mc: Collector, partitionId: Option[String]): Unit
-  def saveQueryMetrics(mc: Collector, partitionId: Option[String], state: QueryStates.QueryState): Unit
-}
+import org.yupana.api.query.Query
+import org.yupana.core.model.MetricData
+import org.yupana.metrics.QueryStates
+
+case class InternalMetricData(
+    query: Query,
+    partitionId: Option[String],
+    startDate: Long,
+    queryState: QueryStates.QueryState,
+    totalDuration: Long,
+    metricValues: Map[String, MetricData],
+    sparkQuery: Boolean
+)

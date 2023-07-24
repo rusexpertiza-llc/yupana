@@ -308,7 +308,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
   }
 
-  private def createArrayExpr(expressions: Seq[ConstantExpr[_]]): Either[String, Expression[_]] = {
+  private def createArrayExpr(expressions: Seq[ConstExpr[_]]): Either[String, Expression[_]] = {
     // we assume all expressions have exact same type, but it might require to align type in future
     val first = expressions.head
 
@@ -332,10 +332,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     TupleExpr(a, b)(a.dataType, b.dataType)
 
   private def createTupleValue[T, U](
-      a: ConstantExpr[T],
-      b: ConstantExpr[U],
+      a: ConstExpr[T],
+      b: ConstExpr[U],
       prepared: Boolean
-  ): Either[String, ConstantExpr[_]] = {
+  ): Either[String, ConstExpr[_]] = {
     for {
       av <- DataTypeUtils.constCast(a, a.dataType, calculator)
       bv <- DataTypeUtils.constCast(b, b.dataType, calculator)
@@ -401,7 +401,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       v: parser.Value,
       exprType: ExprType,
       prepared: Boolean = false
-  ): Either[String, ConstantExpr[_]] = {
+  ): Either[String, ConstExpr[_]] = {
     v match {
       case parser.StringValue(s) =>
         val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
@@ -415,6 +415,9 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
       case parser.TimestampValue(t) =>
         Right(ConstantExpr(Time(t), prepared))
+
+      case parser.NullValue =>
+        Right(NullExpr(DataType[Null]))
 
       case parser.PeriodValue(p) if exprType == ExprType.Cmp =>
         if (p.getPeriod.getYears == 0 && p.getPeriod.getMonths == 0) {

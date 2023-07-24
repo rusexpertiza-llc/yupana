@@ -5,7 +5,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
-import org.yupana.api.query.{ ConcatExpr, LengthExpr, Query }
+import org.yupana.api.query.{ ConcatExpr, LengthExpr, NullExpr, Query }
+import org.yupana.api.types.DataType
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.utils.RussianTokenizer
 
@@ -353,6 +354,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       const(Time(pointTime.plusDays(1))),
       Seq(
         truncYear(time) as "ty",
+        truncQuarter(time) as "tq",
         truncMonth(time) as "tM",
         truncWeek(time) as "tw",
         truncDay(time) as "td",
@@ -380,6 +382,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     val result = calc.evaluateExpressions(RussianTokenizer, row)
 
     result.get(qc, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(qc, truncQuarter(time)) shouldEqual Time(OffsetDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC))
     result.get(qc, truncMonth(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))
     result.get(qc, truncWeek(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))
     result.get(qc, truncDay(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 0, 0, 0, 0, ZoneOffset.UTC))
@@ -707,5 +710,84 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     result.get(qc, x) shouldEqual 11d
     result.get(qc, y) shouldEqual 10L
     result.isEmpty(qc, z) shouldBe true
+  }
+
+  it should "handle nulls in case when in aggregation" in {
+    val now = OffsetDateTime.now()
+
+    val a = sum(
+      condition(
+        gt(metric(TestTableFields.TEST_FIELD), const(3d)),
+        double2bigDecimal(metric(TestTableFields.TEST_FIELD)),
+        metric(TestTableFields.TEST_BIGDECIMAL_FIELD)
+      )
+    )
+
+    val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
+    val qc = new QueryContext(query = query, postCondition = None, calculatorFactory = ExpressionCalculatorFactory)
+
+    val builder = new InternalRowBuilder(qc)
+
+    val r1 = builder
+      .set(Time(now.minusDays(4)))
+      .set(metric(TestTableFields.TEST_FIELD), 5d)
+      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(4))
+      .buildAndReset()
+
+    val r2 = builder
+      .set(Time(now.minusDays(3)))
+      .set(metric(TestTableFields.TEST_FIELD), 1d)
+      .buildAndReset()
+
+    val e1 = qc.calculator.evaluateExpressions(RussianTokenizer, r1)
+    val e2 = qc.calculator.evaluateExpressions(RussianTokenizer, r2)
+
+    val z = qc.calculator.evaluateZero(RussianTokenizer, e1)
+
+    val s = qc.calculator.evaluateSequence(RussianTokenizer, z, e2)
+
+    val result = qc.calculator.evaluatePostMap(RussianTokenizer, s)
+
+    result.get(qc, a) shouldEqual BigDecimal(5)
+  }
+
+  it should "handle null literals in case when in aggregation" in {
+    val now = OffsetDateTime.now()
+
+    val a = sum(
+      condition(
+        gt(dimension(TestDims.DIM_B), const(3.toShort)),
+        divFrac(short2BigDecimal(dimension(TestDims.DIM_B)), metric(TestTableFields.TEST_BIGDECIMAL_FIELD)),
+        NullExpr[BigDecimal](DataType[BigDecimal])
+      )
+    )
+
+    val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
+    val qc = new QueryContext(query = query, postCondition = None, calculatorFactory = ExpressionCalculatorFactory)
+
+    val builder = new InternalRowBuilder(qc)
+
+    val r1 = builder
+      .set(Time(now.minusDays(4)))
+      .set(dimension(TestDims.DIM_B), 2.toShort)
+      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(5))
+      .buildAndReset()
+
+    val r2 = builder
+      .set(Time(now.minusDays(3)))
+      .set(dimension(TestDims.DIM_B), 5.toShort)
+      .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
+      .buildAndReset()
+
+    val e1 = qc.calculator.evaluateExpressions(RussianTokenizer, r1)
+    val e2 = qc.calculator.evaluateExpressions(RussianTokenizer, r2)
+
+    val z = qc.calculator.evaluateZero(RussianTokenizer, e1)
+
+    val s = qc.calculator.evaluateSequence(RussianTokenizer, z, e2)
+
+    val result = qc.calculator.evaluatePostMap(RussianTokenizer, s)
+
+    result.get(qc, a) shouldEqual BigDecimal(2.5)
   }
 }

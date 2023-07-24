@@ -271,6 +271,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         val (name, ns) = state.withNewRef(v.asInstanceOf[AnyRef], mkType(e.dataType))
         Some(q"$name" -> ns)
 
+      case NullExpr(_) =>
+        val (v, ns) = mapValue(state, e.dataType)(null)
+        Some(q"$v.asInstanceOf[$tpe]" -> ns)
+
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
         val (lits, newState) = exprs.foldLeft((Seq.empty[Tree], state)) {
           case ((ts, s), ConstantExpr(v, _)) =>
@@ -307,6 +311,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     e match {
       case ConstantExpr(_, _)                                                   => None
+      case NullExpr(_)                                                          => Some(q"false")
       case TimeExpr                                                             => None
       case DimensionExpr(_)                                                     => None
       case CountExpr(_)                                                         => None
@@ -454,6 +459,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   }
 
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
+  private val truncTimeBy = q"_root_.org.yupana.core.ExpressionCalculator.truncateTimeBy"
   private val monday = q"_root_.java.time.DayOfWeek.MONDAY"
   private val cru = q"_root_.java.time.temporal.ChronoUnit"
   private val adj = q"_root_.java.time.temporal.TemporalAdjusters"
@@ -494,6 +500,32 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     result -> updatedState
   }
 
+  private def mkSetCondition(state: State, row: TermName, c: ConditionExpr[_]): State = {
+    val newState = mkSet(state, row, c.condition)
+    mkGet(newState, row, c.condition) match {
+      case Some((getIf, ifState)) =>
+        val (getThen, thenState) = mkInner("t", ifState, row, c.positive)
+        val (getElse, elseState) = mkInner("e", thenState, row, c.negative)
+        val thenDef = mkIsDefined(elseState, row, c.positive)
+        val elseDef = mkIsDefined(elseState, row, c.negative)
+        val readCondition = (thenDef, elseDef) match {
+          case (Some(td), Some(ed)) => Some(q"($getIf && $td) || (!$getIf && $ed)")
+          case (Some(td), None)     => Some(q"!$getIf || $td")
+          case (None, Some(ed))     => Some(q"$getIf || $ed")
+          case (None, None)         => None
+        }
+        readCondition match {
+          case Some(cond) => elseState.withDefineIf(row, c, cond, q"if ($getIf) $getThen else $getElse")
+          case None       => elseState.withDefine(row, c, q"if ($getIf) $getThen else $getElse")
+        }
+
+      case None =>
+        val thenState = mkSet(newState, row, c.positive)
+        val elseState = mkSet(thenState, row, c.negative)
+        elseState.withUnfinished(c)
+    }
+  }
+
   private def mkSet(state: State, row: TermName, e: Expression[_]): State = {
 
     if (state.index.contains(e)) {
@@ -509,6 +541,9 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
         case FalseExpr =>
           val (v, s) = mapValue(state, e.dataType)(false)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case NullExpr(_) =>
+          val (v, s) = mapValue(state, e.dataType)(null)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
 
         case TimeExpr             => state.withExpr(e)
@@ -573,7 +608,16 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
         case ToStringExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toString")
 
-        case TruncYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
+        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
+        case TruncQuarterExpr(a) =>
+          mkSetUnary(
+            state,
+            row,
+            e,
+            a,
+            x =>
+              q"$truncTimeBy(dTime => dTime.`with`($adj.firstDayOfMonth).withMonth(dTime.getMonth.firstMonthOfQuarter.getValue))($x)"
+          )
         case TruncMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfMonth)($x)")
         case TruncWeekExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.previousOrSame($monday))($x)")
         case TruncDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.DAYS)($x)")
@@ -581,7 +625,9 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case TruncMinuteExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.MINUTES)($x)")
         case TruncSecondExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.SECONDS)($x)")
 
-        case ExtractYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
+        case ExtractYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
+        case ExtractQuarterExpr(a) =>
+          mkSetUnary(state, row, e, a, x => q"1 + ($x.toLocalDateTime.getMonth.getValue - 1) / 3")
         case ExtractMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthValue")
         case ExtractDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
         case ExtractHourExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHour")
@@ -600,19 +646,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case LowerExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLowerCase")
         case UpperExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toUpperCase")
 
-        case ConditionExpr(c, p, n) =>
-          val newState = mkSet(state, row, c)
-          mkGet(newState, row, c) match {
-            case Some((getIf, ifState)) =>
-              val (getThen, thenState) = mkInner("t", ifState, row, p)
-              val (getElse, elseState) = mkInner("e", thenState, row, n)
-              elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
-
-            case None =>
-              val thenState = mkSet(newState, row, p)
-              val elseState = mkSet(thenState, row, n)
-              elseState.withUnfinished(e)
-          }
+        case c @ ConditionExpr(_, _, _) => mkSetCondition(state, row, c)
 
         case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
         case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
