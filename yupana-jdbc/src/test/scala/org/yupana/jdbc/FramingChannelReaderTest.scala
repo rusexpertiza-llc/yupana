@@ -29,6 +29,8 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
     }
 
     (channel.read _).expects(*).onCall((_: ByteBuffer) => -1)
+    (channel.isOpen _).expects().onCall(() => true)
+    (channel.close _).expects().once()
 
     an[IOException] should be thrownBy iterator.readFrame()
   }
