@@ -16,12 +16,12 @@
 
 package org.yupana.examples.server
 
-import akka.actor.ActorSystem
+import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
-import org.yupana.akka.{ RequestHandler, TsdbTcp }
+import org.yupana.pekko.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.providers.JdbcMetadataProvider

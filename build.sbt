@@ -18,6 +18,7 @@ lazy val yupana = (project in file("."))
     core,
     hbase,
     akka,
+    pekko,
     spark,
     schema,
     externalLinks,
@@ -179,8 +180,23 @@ lazy val akka = (project in file("yupana-akka"))
       "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
       "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
       "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
-      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test,
-      "com.typesafe.akka"             %% "akka-stream-testkit"        % versions.akka                     % Test
+      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test
+    )
+  )
+  .dependsOn(proto, core, schema % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val pekko = (project in file("yupana-pekko"))
+  .settings(
+    name := "yupana-pekko",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.apache.pekko"              %% "pekko-actor"                % versions.pekko,
+      "org.apache.pekko"              %% "pekko-stream"               % versions.pekko,
+      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
+      "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
+      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
+      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test
     )
   )
   .dependsOn(proto, core, schema % Test)
@@ -310,7 +326,7 @@ lazy val examples = (project in file("yupana-examples"))
     },
     assembly := assembly.dependsOn(writeAssemblyName).value
   )
-  .dependsOn(spark, akka, hbase, schema, externalLinks, ehcache % Runtime)
+  .dependsOn(spark, pekko, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))
@@ -395,7 +411,8 @@ lazy val versions = new {
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.6.20"
+  val akka = "2.6.21"
+  val pekko = "1.0.1"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
