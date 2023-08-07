@@ -63,7 +63,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def ensureConnected(): Unit = {
-    if (channel == null || !channel.isConnected) {
+    if (channel == null || !channel.isOpen || !channel.isConnected) {
       logger.info(s"Connect to $host:$port")
       channel = SocketChannel.open()
       channel.configureBlocking(false)
@@ -218,11 +218,20 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def tryToReadHeartbeat(): Unit = {
-    chanelReader.readFrame().foreach { frame =>
-      Response.parseFrom(frame).resp match {
-        case Response.Resp.Heartbeat(time) => heartbeat(time)
-        case Response.Resp.Empty           =>
-        case _                             => throw new IOException("Unexpected response")
+    if (channel.isOpen && channel.isConnected) {
+      val fr =
+        try {
+          chanelReader.readFrame()
+        } catch {
+          case _: IOException => None
+        }
+
+      fr.foreach { frame =>
+        Response.parseFrom(frame).resp match {
+          case Response.Resp.Heartbeat(time) => heartbeat(time)
+          case Response.Resp.Empty           =>
+          case _                             => throw new IOException("Unexpected response")
+        }
       }
     }
   }

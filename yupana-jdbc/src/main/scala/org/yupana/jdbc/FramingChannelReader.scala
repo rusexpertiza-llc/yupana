@@ -35,29 +35,37 @@ class FramingChannelReader(
   }
 
   final def readFrame(): Option[Array[Byte]] = {
-    val r = channel.read(buffer)
-    if (r == -1 && buffer.position() < 4) throw new IOException("Unexpected end of response")
-    if (buffer.position() >= 4) {
-      val size = buffer.getInt(0)
-      var lastRead = 0
-      while (buffer.position() < size + 4 && lastRead >= 0) {
-        lastRead = channel.read(buffer)
-        if (lastRead == 0) Thread.sleep(1)
+    buffer.synchronized {
+      try {
+        val r = channel.read(buffer)
+        if (r == -1 && buffer.position() < 4) throw new IOException("Unexpected end of response")
+        if (buffer.position() >= 4) {
+          val size = buffer.getInt(0)
+          var lastRead = 0
+          while (buffer.position() < size + 4 && lastRead >= 0) {
+            lastRead = channel.read(buffer)
+            if (lastRead == 0) Thread.sleep(1)
+          }
+          val result = Array.ofDim[Byte](size)
+          if (buffer.position() < size + 4) throw new IOException("Unexpected end of response")
+          val totalRead = buffer.position()
+
+          buffer.position(4)
+          buffer.get(result)
+
+          val restSize = totalRead - 4 - size
+          System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
+          buffer.position(restSize)
+
+          Some(result)
+        } else {
+          None
+        }
+      } catch {
+        case t: Throwable =>
+          if (channel.isOpen) channel.close()
+          throw t
       }
-      val result = Array.ofDim[Byte](size)
-      if (buffer.position() < size + 4) throw new IOException("Unexpected end of response")
-      val totalRead = buffer.position()
-
-      buffer.position(4)
-      buffer.get(result)
-
-      val restSize = totalRead - 4 - size
-      System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
-      buffer.position(restSize)
-
-      Some(result)
-    } else {
-      None
     }
   }
 
