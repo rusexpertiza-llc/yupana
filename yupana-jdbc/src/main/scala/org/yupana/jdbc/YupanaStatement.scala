@@ -21,6 +21,7 @@ import java.sql.{ Array => _, _ }
 class YupanaStatement(val connection: YupanaConnection) extends Statement {
   private var maxRows = 0
   private var fetchSize = 0
+  private var closed = false
   protected var lastResultSet: YupanaResultSet = _
 
   @throws[SQLException]
@@ -42,7 +43,11 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
 
   @throws[SQLException]
   override def close(): Unit = {
-    connection.close()
+    if (lastResultSet != null) {
+      lastResultSet.close()
+      lastResultSet = null
+    }
+    closed = true
   }
 
   @throws[SQLException]
@@ -86,7 +91,10 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
     throw new SQLFeatureNotSupportedException("Method not supported: setCursorName(String)")
 
   @throws[SQLException]
-  override def getResultSet: ResultSet = lastResultSet
+  override def getResultSet: ResultSet = {
+    if (closed) throw new SQLException("This statement is already closed")
+    lastResultSet
+  }
 
   @throws[SQLException]
   override def getUpdateCount: Int = -1
@@ -166,7 +174,7 @@ class YupanaStatement(val connection: YupanaConnection) extends Statement {
   override def getResultSetHoldability: Int = ResultSet.CLOSE_CURSORS_AT_COMMIT
 
   @throws[SQLException]
-  override def isClosed: Boolean = connection.isClosed
+  override def isClosed: Boolean = closed
 
   @throws[SQLException]
   override def setPoolable(b: Boolean): Unit = throw new SQLFeatureNotSupportedException("Pooling is not supported")
