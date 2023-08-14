@@ -31,10 +31,11 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
     rs.next()
     rs.getString("item") shouldEqual "thing"
 
-    (conn.close _).expects()
+    rs.isClosed shouldBe false
+
     statement.close()
 
-    (conn.isClosed _).expects().returning(true)
+    rs.isClosed shouldBe true
     statement.isClosed shouldBe true
   }
 
