@@ -144,8 +144,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         extractProtoResult(h, r)
 
       case Left(e) =>
-        cancelHeartbeatTimer()
-        channel.close()
+        close()
         throw new IllegalArgumentException(e)
     }
   }
@@ -206,7 +205,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         readResultHeader()
 
       case Response.Resp.Error(e) =>
-        channel.close()
+        close()
         Left(error(e))
 
       case Response.Resp.ResultStatistics(_) =>
@@ -297,7 +296,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
         if (statistics != null || errorMessage != null) {
           if (errorMessage != null) {
-            channel.close()
+            close()
             throw new IllegalArgumentException(errorMessage)
           }
         }
@@ -307,6 +306,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   override def close(): Unit = {
     logger.fine("Close connection")
+    cancelHeartbeatTimer()
+    channel.close()
   }
 
   private def createProtoPing(reqTime: Long): Request = {
