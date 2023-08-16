@@ -36,8 +36,6 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
       .returning(SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty))
 
     statement.execute()
-
-    (conn.close _).expects()
     statement.close()
   }
 
