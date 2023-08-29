@@ -16,7 +16,7 @@ addSbtPlugin("io.github.davidmweber" % "flyway-sbt" % "7.4.0")
 
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.8")
 
-addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.9.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.10.0")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
 
