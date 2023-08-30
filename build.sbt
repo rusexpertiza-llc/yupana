@@ -143,7 +143,6 @@ lazy val core = (project in file("yupana-core"))
   .dependsOn(api, settings, metrics, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
-
 lazy val hbase = (project in file("yupana-hbase"))
   .settings(
     name := "yupana-hbase",
@@ -169,6 +168,16 @@ lazy val hbase = (project in file("yupana-hbase"))
   )
   .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
   .disablePlugins(AssemblyPlugin)
+
+lazy val netty = (project in file("yupana-netty"))
+  .settings(
+    name := "yupana-netty",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "io.netty"                    %  "netty-all"                     % versions.netty,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
+    )
+  ).disablePlugins(AssemblyPlugin)
 
 lazy val akka = (project in file("yupana-akka"))
   .settings(
@@ -413,6 +422,7 @@ lazy val versions = new {
 
   val akka = "2.6.21"
   val pekko = "1.0.1"
+  val netty = "4.1.97.Final"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
