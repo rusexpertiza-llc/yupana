@@ -174,7 +174,11 @@ lazy val netty = (project in file("yupana-netty"))
     name := "yupana-netty",
     allSettings,
     libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
       "io.netty"                    %  "netty-all"                     % versions.netty,
+
+      "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Runtime,
+
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   ).disablePlugins(AssemblyPlugin)
@@ -433,8 +437,8 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
-  val logback = "1.2.12"
-  val h2Jdbc = "1.4.200"
+  val logback = "1.4.11"
+  val h2Jdbc = "2.2.222"
   val postgresqlJdbc = "42.3.3"
 
   val scalaTest = "3.2.16"

@@ -23,6 +23,12 @@ async function createSiteConfig() {
 
     staticDirectories: ['static'],
 
+    markdown: {
+      mermaid: true,
+    },
+
+    themes: ['@docusaurus/theme-mermaid'],
+
     presets: [
       [
         'classic',

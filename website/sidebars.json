@@ -16,6 +16,10 @@
        "show",
        "kill",
        "delete"
+    ],
+    "Описание протокола": [
+      "connect",
+      "query"
     ]
   }
 }
