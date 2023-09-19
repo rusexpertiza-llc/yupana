@@ -21,7 +21,7 @@ class YupanaServer(host: String, port: Int) extends StrictLogging {
         .channel(classOf[NioServerSocketChannel])
         .childHandler(new ChannelInitializer[SocketChannel] {
           override def initChannel(ch: SocketChannel): Unit = {
-            ch.pipeline().addLast(new FrameDecoder())
+            ch.pipeline().addLast(new FrameCodec())
           }
         })
         .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))

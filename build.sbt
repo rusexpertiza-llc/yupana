@@ -438,7 +438,7 @@ lazy val versions = new {
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
   val logback = "1.3.11"
-  val h2Jdbc = "2.2.222"
+  val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
   val scalaTest = "3.2.16"

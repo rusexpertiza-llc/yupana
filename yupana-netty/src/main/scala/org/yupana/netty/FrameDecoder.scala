@@ -11,6 +11,6 @@ class FrameDecoder extends ReplayingDecoder[Frame] {
     val msgType = in.readByte()
     val len = in.readInt()
     val payload = in.readRetainedSlice(len)
-    out.add(Frame(msgType, len, payload))
+    out.add(Frame(msgType, payload))
   }
 }
