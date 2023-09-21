@@ -64,7 +64,7 @@ sbt -Dflyway.url=jdbc:postgresql://server:port/db_name \
 
 ### 1. Server
 
-Реализация сервера на базе yupana-akka.
+Реализация сервера на базе yupana-pekko.
 
 Запуск из sbt:
 
