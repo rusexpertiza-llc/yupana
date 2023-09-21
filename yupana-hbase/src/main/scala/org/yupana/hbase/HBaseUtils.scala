@@ -92,10 +92,11 @@ object HBaseUtils extends StrictLogging {
         case (table, points) =>
           loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
-          val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
+          val grouped = points.groupBy(rowKeyBuffer(_, table, keySize, dictionaryProvider))
           val (puts, intervals) = grouped
             .map {
-              case (key, dps) =>
+              case (keyBuffer, dps) =>
+                val key = keyBuffer.array()
                 val baseTime = Bytes.toLong(key)
                 (
                   createPutOperation(table, key, dps),
@@ -510,12 +511,12 @@ object HBaseUtils extends StrictLogging {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map(_.rStorable.size).sum
   }
 
-  private[hbase] def rowKey(
+  private[hbase] def rowKeyBuffer(
       dataPoint: DataPoint,
       table: Table,
       keySize: Int,
       dictionaryProvider: DictionaryProvider
-  ): Array[Byte] = {
+  ): ByteBuffer = {
     val bt = HBaseUtils.baseTime(dataPoint.time, table)
     val baseTimeBytes = Bytes.toBytes(bt)
 
@@ -547,7 +548,8 @@ object HBaseUtils extends StrictLogging {
       buffer.put(bytes)
     }
 
-    buffer.array()
+    buffer.rewind()
+    buffer
   }
 
   private def scanMetricsToString(metrics: ScanMetrics): String = {
