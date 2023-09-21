@@ -201,7 +201,7 @@ class JsonExternalLinkDeclarationsParserTest extends AnyFlatSpec with Matchers w
 
     val e3 = JsonExternalLinkDeclarationsParser.parse(testSchema, badLinks).left.value
     e3 shouldEqual Seq(
-      """Can not parse external link {"description":{"source":"bad source"}}: bad source field.""",
+      """Can not parse external link {"description":{"source":"bad source"}}: bad source field, no usable value for description.linkName, no usable value for description.dimensionName, no usable value for description.fieldsNames, no usable value for description.tables, no usable value for connection.""",
       """Can not parse external link 'CaseClassExtractionError': """ +
         "no usable value for description.dimensionName, no usable value for description.fieldsNames, " +
         "no usable value for description.tables, no usable value for connection.",
