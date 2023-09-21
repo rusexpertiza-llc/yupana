@@ -10,6 +10,7 @@ import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
+import org.yupana.api.types.DataType
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
@@ -404,6 +405,31 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "handle tuples" in {
+    testQuery("""
+        |SELECT min(testField) mtf, hour(time) h
+        |  FROM test_table
+        |  WHERE time >= TIMESTAMP '2022-05-01' and time < TIMESTAMP '2022-05-05'
+        |    AND (testStringField, testLongField) IN (('foo', 1), ('bar', 21))
+        |  GROUP BY h""".stripMargin) { q =>
+
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs Seq(
+        min(metric(TestTableFields.TEST_FIELD)) as "mtf",
+        truncHour(time) as "h"
+      )
+      q.filter.value shouldEqual and(
+        ge(time, const(Time(LocalDateTime.of(2022, 5, 1, 0, 0)))),
+        lt(time, const(Time(LocalDateTime.of(2022, 5, 5, 0, 0)))),
+        in(
+          tuple(lower(metric(TestTableFields.TEST_STRING_FIELD)), metric(TestTableFields.TEST_LONG_FIELD)),
+          Set(("foo", 1L), ("bar", 21L))
+        )
+      )
+      q.groupBy should contain theSameElementsAs Seq(truncHour(time))
+    }
+  }
+
   it should "substitute passed placeholders values" in {
     val statement =
       """SELECT SUM(TestField), month(time) as m, b FROM test_table
@@ -427,9 +453,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          equ(lower(dimension(DIM_A)), const("123456789"))
+          ge(time, ConstantExpr(Time(from), prepared = true)),
+          lt(time, ConstantExpr(Time(to), prepared = true)),
+          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
         )
         q.groupBy should contain theSameElementsAs List(dimension(DIM_B), truncMonth(time))
         q.fields should contain theSameElementsInOrderAs List(
@@ -438,30 +464,6 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           dimension(DIM_B) as "b"
         )
       case Left(msg) => fail(msg)
-    }
-  }
-
-  it should "handle parenthesis" in {
-    testQuery(
-      """
-        |SELECT "test_table_2"."X" AS "tagX", "test_table_2"."time" AS "time"
-        |  FROM "test_table_2"
-        |  WHERE (("receipt"."time" >= {ts '2017-10-23 00:00:00'}) AND (("receipt"."time" <= {ts '2017-11-02 00:00:00'}) AND ("receipt"."X" = '0001388410039121')))
-        |  GROUP BY "receipt"."X",
-        |    "receipt"."time"
-    """.stripMargin
-    ) { q =>
-      q.table.value.name shouldEqual "test_table_2"
-      q.filter.value shouldBe and(
-        ge(time, const(Time(OffsetDateTime.of(2017, 10, 23, 0, 0, 0, 0, ZoneOffset.UTC)))),
-        le(time, const(Time(OffsetDateTime.of(2017, 11, 2, 0, 0, 0, 0, ZoneOffset.UTC)))),
-        equ(lower(dimension(DIM_X)), const("0001388410039121"))
-      )
-      q.groupBy should contain theSameElementsAs List(dimension(DIM_X), time)
-      q.fields should contain theSameElementsInOrderAs List(
-        dimension(DIM_X) as "tagX",
-        time as "time"
-      )
     }
   }
 
@@ -513,8 +515,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
-          ge(time, const(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
-          lt(time, const(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC))))
+          ge(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)), prepared = false)),
+          lt(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC)), prepared = true))
         )
         q.groupBy shouldBe empty
         q.fields should contain theSameElementsInOrderAs List(
@@ -698,6 +700,58 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "support case when with boolean literals" in {
+    testQuery("""
+        |SELECT
+        |    time,
+        |    testField
+        |FROM test_table
+        |WHERE
+        |  time >= timestamp '2020-02-16' and time <= timestamp '2020-02-17' and
+        |  (case when (testField is null)
+        |    then true
+        |    else testField > 100
+        |   )
+        |limit 10
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(time.toField, metric(TestTableFields.TEST_FIELD).toField)
+      q.filter.value shouldEqual and(
+        ge(time, const(Time(LocalDateTime.of(2020, 2, 16, 0, 0)))),
+        le(time, const(Time(LocalDateTime.of(2020, 2, 17, 0, 0)))),
+        condition(
+          isNull(metric(TestTableFields.TEST_FIELD)),
+          const(true),
+          gt(metric(TestTableFields.TEST_FIELD), const(100d))
+        )
+      )
+    }
+  }
+
+  it should "support null in case when expressions" in {
+    testQuery("""
+        | SELECT
+        |   sum(case
+        |     WHEN testField > 0 THEN testLongField / testField
+        |     ELSE null
+        |  ) AS d
+        |  FROM test_table
+        |  WHERE time >= TIMESTAMP '2018-1-1' and time < TIMESTAMP '2018-2-1'
+        |  GROUP BY d
+      """.stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+      q.fields should contain theSameElementsInOrderAs List(
+        sum(
+          condition(
+            gt(metric(TestTableFields.TEST_FIELD), const(0d)),
+            divFrac(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)),
+            NullExpr(DataType[Double])
+          )
+        ) as "d"
+      )
+    }
+  }
+
   it should "support having expressions" in {
     testQuery("""
         | SELECT
@@ -809,14 +863,14 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           inside(from) {
             case GeTime(
                   te,
-                  TruncDayExpr(TimeMinusPeriodExpr(ConstantExpr(t), ConstantExpr(p)))
+                  TruncDayExpr(TimeMinusPeriodExpr(ConstantExpr(t, _), ConstantExpr(p, _)))
                 ) =>
               te shouldEqual TimeExpr
               t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
               p shouldEqual PeriodDuration.of(Period.ofMonths(3))
           }
           inside(to) {
-            case LtTime(te, TruncDayExpr(ConstantExpr(t))) =>
+            case LtTime(te, TruncDayExpr(ConstantExpr(t, _))) =>
               te shouldEqual TimeExpr
               t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
           }
@@ -1067,6 +1121,51 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         le(time, const(Time(OffsetDateTime.of(2019, 4, 11, 0, 0, 0, 0, ZoneOffset.UTC)))),
         lt(minus(metric(TestTableFields.TEST_LONG_FIELD)), const(-100L))
       )
+    }
+  }
+
+  it should "align numeric types" in {
+    testQuery("""SELECT testField4 / testField2 as div
+        |  FROM test_table_2
+        |  WHERE time >= timestamp '2023-01-01' and time < timestamp '2023-02-01'
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable2
+      q.fields should contain theSameElementsInOrderAs Seq(
+        divFrac(int2Double(metric(TestTable2Fields.TEST_FIELD4)), metric(TestTable2Fields.TEST_FIELD2)) as "div"
+      )
+    }
+  }
+
+  it should "allow manual casts" in {
+    testQuery("""SELECT
+        |    sum(cast(testLongField as DOUBLE)) as sum,
+        |    cast(day(time) as varchar) as sTime
+        |  FROM test_table
+        |  WHERE time >= timestamp '2023-02-06' and time < timestamp '2023-02-15'
+        |  GROUP BY sTime
+        |""".stripMargin) { q =>
+      q.table.value shouldEqual TestSchema.testTable
+      q.fields should contain theSameElementsInOrderAs Seq(
+        sum(long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "sum",
+        x2String(truncDay(time)) as "sTime"
+      )
+    }
+  }
+
+  it should "be able to manual cast constants" in {
+    testQuery("""SELECT cast(1 as double) 1d, cast (1 as varchar) 1s, cast(1 as TINYINT) as 1b""") { q =>
+      q.table shouldBe empty
+      q.fields should contain theSameElementsInOrderAs Seq(
+        const(1d) as "1d",
+        const("1") as "1s",
+        const(1.toByte) as "1b"
+      )
+    }
+  }
+
+  it should "fail on incorrect constant convertions" in {
+    testError("""SELECT cast (1000 as tinyint)""") {
+      _ shouldEqual "Cannot convert const(1000:BigDecimal) of type DECIMAL to TINYINT"
     }
   }
 

@@ -17,10 +17,11 @@
 package org.yupana.core
 
 import org.yupana.core.utils.CollectionUtils
-import scala.collection.compat.IterableOnce
 import scala.reflect.ClassTag
 
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
+
+  override def empty[A: ClassTag]: Iterator[A] = Iterator.empty
   override def singleton[A: ClassTag](a: A): Iterator[A] = Iterator(a)
   override def filter[A: ClassTag](it: Iterator[A])(f: A => Boolean): Iterator[A] = it.filter(f)
 
@@ -41,12 +42,18 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
     CollectionUtils.reduceByKey(it, reduceLimit)(f)
   }
 
+  override def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
+      it: Iterator[(K, A)]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Iterator[(K, B)] =
+    CollectionUtils.foldByKey(it)(createZero, seqOp)
+
   override def distinct[A: ClassTag](it: Iterator[A]): Iterator[A] = it.toSet.iterator
 
   override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)
 
   override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toList
 
+  override def concat[A: ClassTag](a: Iterator[A], b: Iterator[A]): Iterator[A] = a ++ b
 }
 
 object IteratorMapReducible {

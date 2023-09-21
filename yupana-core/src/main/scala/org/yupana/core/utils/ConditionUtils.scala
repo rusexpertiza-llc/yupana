@@ -25,8 +25,9 @@ object ConditionUtils {
     def doFlat(xs: Seq[Condition]): Seq[Condition] = {
       xs.flatMap(x =>
         flatMap(x)(f) match {
-          case ConstantExpr(true) => None
-          case nonEmpty           => Some(nonEmpty)
+          case ConstantExpr(true, _) => None
+          case TrueExpr              => None
+          case nonEmpty              => Some(nonEmpty)
         }
       )
     }
@@ -40,39 +41,17 @@ object ConditionUtils {
     QueryOptimizer.simplifyCondition(mapped)
   }
 
-  def split(c: Condition)(p: Condition => Boolean): (Condition, Condition) = {
-    def doSplit(c: Condition): (Condition, Condition) = {
-      c match {
-        case AndExpr(cs) =>
-          val (a, b) = cs.map(doSplit).unzip
-          (AndExpr(a), AndExpr(b))
-
-        case OrExpr(cs) =>
-          val (a, b) = cs.map(doSplit).unzip
-          (OrExpr(a), OrExpr(b))
-
-        case x => if (p(x)) (x, ConstantExpr(true)) else (ConstantExpr(true), x)
-      }
+  def transform(fac: FlatAndCondition, transformations: Seq[ConditionTransformation]): FlatAndCondition = {
+    val (adds, removes) = transformations.partitionMap {
+      case a: AddCondition    => Left(a)
+      case r: RemoveCondition => Right(r)
     }
+    val afterRemove = removes.foldLeft(fac)((c, t) => c.copy(conditions = c.conditions.filterNot(_ == t.c)))
 
-    val (a, b) = doSplit(c)
-
-    (QueryOptimizer.simplifyCondition(a), QueryOptimizer.simplifyCondition(b))
-  }
-
-  def transform(tbc: TimeBoundedCondition, transform: TransformCondition): TimeBoundedCondition = {
-    transform match {
-      case Replace(from, to) =>
-        val filtered = tbc.conditions.filterNot { c =>
-          from.contains(c) || c == to
-        }
-        if (filtered.size != tbc.conditions.size)
-          tbc.copy(conditions = filtered :+ to)
-        else
-          tbc
-      case Original(_) =>
-        // TODO: looks like, no need to do anything with 'other' conditions
-        tbc
-    }
+    adds.foldLeft(afterRemove)((c, t) =>
+      if (!c.conditions.contains(t.c))
+        c.copy(conditions = t.c +: c.conditions)
+      else c
+    )
   }
 }

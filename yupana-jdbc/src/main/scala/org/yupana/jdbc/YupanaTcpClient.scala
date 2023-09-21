@@ -29,19 +29,49 @@ import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
 
+import java.util.{ Timer, TimerTask }
+
 class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private val logger = Logger.getLogger(classOf[YupanaTcpClient].getName)
 
+  logger.info("New instance of YupanaTcpClient")
+
   private val CHUNK_SIZE = 1024 * 100
+  private val HEARTBEAT_PERIOD = 5000
 
   private var channel: SocketChannel = _
+  private var chanelReader: FramingChannelReader = _
+
+  private var heartbeatTimer: java.util.Timer = _
+  private var heartbeatTimerScheduled = false
+
+  private def scheduleHeartbeatTimer(): Unit = {
+    heartbeatTimer = new Timer()
+    val heartbeatTask = new TimerTask {
+      override def run(): Unit = tryToReadHeartbeat()
+    }
+    heartbeatTimerScheduled = true
+    heartbeatTimer.schedule(heartbeatTask, HEARTBEAT_PERIOD, HEARTBEAT_PERIOD)
+  }
+  private def cancelHeartbeatTimer(): Unit = {
+    if (heartbeatTimerScheduled) {
+      heartbeatTimerScheduled = false
+      heartbeatTimer.cancel()
+      heartbeatTimer.purge()
+    }
+  }
 
   private def ensureConnected(): Unit = {
-    if (channel == null || !channel.isConnected) {
+    if (channel == null || !channel.isOpen || !channel.isConnected) {
+      logger.info(s"Connect to $host:$port")
       channel = SocketChannel.open()
-      channel.configureBlocking(true)
+      channel.configureBlocking(false)
       channel.connect(new InetSocketAddress(host, port))
+      while (!channel.finishConnect()) {
+        Thread.sleep(1)
+      }
+      chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + 4)
     }
   }
 
@@ -56,13 +86,13 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   def ping(reqTime: Long): Option[Version] = {
+    logger.fine("Ping")
     val request = createProtoPing(reqTime)
     execPing(request) match {
       case Right(response) =>
         if (response.reqTime != reqTime) {
           throw new Exception("got wrong ping response")
         }
-        channel.close()
         response.version
 
       case Left(msg) => throw new IOException(msg)
@@ -71,10 +101,11 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def execPing(request: Request): Either[String, Pong] = {
     ensureConnected()
+    cancelHeartbeatTimer()
     sendRequest(request)
-    val pong = fetchResponse()
+    val pong = Response.parseFrom(chanelReader.awaitAndReadFrame())
 
-    pong.resp match {
+    val result = pong.resp match {
       case Response.Resp.Pong(r) =>
         if (r.getVersion.protocol != ProtocolVersion.value) {
           Left(
@@ -83,6 +114,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
             )
           )
         } else {
+          logger.fine("Received pong response")
           Right(r)
         }
 
@@ -93,46 +125,56 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         Left(error("Unexpected response on ping"))
 
     }
+
+    scheduleHeartbeatTimer()
+    result
   }
 
   private def execRequestQuery(request: Request): Result = {
+    logger.fine(s"Exec request query $request")
+    cancelHeartbeatTimer()
     ensureConnected()
     sendRequest(request)
-    val it = new FramingChannelIterator(channel, CHUNK_SIZE + 4)
-      .map(bytes => Response.parseFrom(bytes).resp)
 
-    val header = it.map(resp => handleResultHeader(resp)).find(_.isDefined).flatten
+    val header = readResultHeader()
 
     header match {
-      case Some(Right(h)) =>
-        val r = resultIterator(it)
+      case Right(h) =>
+        val r = resultIterator()
         extractProtoResult(h, r)
 
-      case Some(Left(e)) =>
-        channel.close()
+      case Left(e) =>
+        close()
         throw new IllegalArgumentException(e)
-
-      case None =>
-        channel.close()
-        throw new IllegalArgumentException(error("Result not received"))
     }
   }
 
   private def sendRequest(request: Request): Unit = {
     try {
-      channel.write(createChunks(request.toByteArray))
+      write(request)
     } catch {
       case io: IOException =>
         logger.warning(s"Caught $io while trying to write to channel, let's retry")
         Thread.sleep(1000)
+        channel = null
         ensureConnected()
-        channel.write(createChunks(request.toByteArray))
+        write(request)
+    }
+  }
+
+  private def write(request: Request): Unit = {
+    val chunks = createChunks(request.toByteArray)
+    chunks.foreach { chunk =>
+      while (chunk.hasRemaining) {
+        val writed = channel.write(chunk)
+        if (writed == 0) Thread.sleep(1)
+      }
     }
   }
 
   private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
     data
-      .sliding(CHUNK_SIZE, CHUNK_SIZE)
+      .grouped(CHUNK_SIZE)
       .map { ch =>
         val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
         bb.putInt(ch.length)
@@ -143,43 +185,53 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
       .toArray
   }
 
-  private def fetchResponse(): Response = {
-    val bb = ByteBuffer.allocate(CHUNK_SIZE + 4).order(ByteOrder.BIG_ENDIAN)
-    val bytesRead = channel.read(bb)
-    if (bytesRead < 0) throw new IOException("Broken pipe")
-    else if (bytesRead < 4) throw new IOException("Invalid server response")
-    bb.flip()
-    val chunkSize = bb.getInt()
-    val bytes = Array.ofDim[Byte](chunkSize)
-    bb.get(bytes)
-    Response.parseFrom(bytes)
-  }
+  private def readResultHeader(): Either[String, ResultHeader] = {
+    val p = chanelReader.awaitAndReadFrame()
+    val resp = Response.parseFrom(p).resp
 
-  private def handleResultHeader(resp: Response.Resp): Option[Either[String, ResultHeader]] = {
     resp match {
       case Response.Resp.ResultHeader(h) =>
-        logger.info("Received result header " + h)
-        Some(Right(h))
+        logger.fine("Received result header " + h)
+        Right(h)
 
       case Response.Resp.Result(_) =>
-        Some(Left(error("Data chunk received before header")))
+        Left(error("Data chunk received before header"))
 
       case Response.Resp.Pong(_) =>
-        Some(Left(error("Unexpected TspPong response")))
+        Left(error("Unexpected TspPong response"))
 
       case Response.Resp.Heartbeat(time) =>
         heartbeat(time)
-        None
+        readResultHeader()
 
       case Response.Resp.Error(e) =>
-        channel.close()
-        Some(Left(error(e)))
+        close()
+        Left(error(e))
 
       case Response.Resp.ResultStatistics(_) =>
-        Some(Left(error("Unexpected ResultStatistics response")))
+        Left(error("Unexpected ResultStatistics response"))
 
       case Response.Resp.Empty =>
-        None
+        readResultHeader()
+    }
+  }
+
+  private def tryToReadHeartbeat(): Unit = {
+    if (channel.isOpen && channel.isConnected) {
+      val fr =
+        try {
+          chanelReader.readFrame()
+        } catch {
+          case _: IOException => None
+        }
+
+      fr.foreach { frame =>
+        Response.parseFrom(frame).resp match {
+          case Response.Resp.Heartbeat(time) => heartbeat(time)
+          case Response.Resp.Empty           =>
+          case _                             => throw new IOException("Unexpected response")
+        }
+      }
     }
   }
 
@@ -190,30 +242,34 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private def heartbeat(time: String): Unit = {
     val msg = s"Heartbeat($time)"
-    logger.info(msg)
+    logger.fine(msg)
   }
 
-  private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
+  private def resultIterator(): Iterator[ResultChunk] = {
     new Iterator[ResultChunk] {
 
-      var statistics: ResultStatistics = null
-      var current: ResultChunk = null
-      var errorMessage: String = null
+      var statistics: ResultStatistics = _
+      var current: ResultChunk = _
+      var errorMessage: String = _
 
       readNext()
 
-      override def hasNext: Boolean = responses.hasNext && statistics == null && errorMessage == null
+      override def hasNext: Boolean = {
+        statistics == null
+      }
 
       override def next(): ResultChunk = {
         val result = current
-        readNext()
+        if (statistics == null) readNext() else current = null
         result
       }
 
       private def readNext(): Unit = {
         current = null
         do {
-          responses.next() match {
+          val resp = Response.parseFrom(chanelReader.awaitAndReadFrame()).resp
+
+          resp match {
             case Response.Resp.Result(result) =>
               current = result
 
@@ -231,29 +287,26 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
             case Response.Resp.ResultStatistics(stat) =>
               logger.fine(s"Got statistics $stat")
+              scheduleHeartbeatTimer()
               statistics = stat
 
             case Response.Resp.Empty =>
           }
-        } while (current == null && statistics == null && errorMessage == null && responses.hasNext)
+        } while (current == null && statistics == null && errorMessage == null)
 
         if (statistics != null || errorMessage != null) {
-          channel.close()
           if (errorMessage != null) {
+            close()
             throw new IllegalArgumentException(errorMessage)
           }
         }
-
-        if (!responses.hasNext && statistics == null) {
-          channel.close()
-          throw new IllegalArgumentException("Unexpected end of response")
-        }
       }
-
     }
   }
 
   override def close(): Unit = {
+    logger.fine("Close connection")
+    cancelHeartbeatTimer()
     channel.close()
   }
 

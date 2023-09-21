@@ -19,7 +19,7 @@ package org.yupana.api.schema
 /**
   * Metric and it's value
   */
-trait MetricValue {
+trait MetricValue extends Serializable {
   val metric: Metric
   val value: metric.T
 

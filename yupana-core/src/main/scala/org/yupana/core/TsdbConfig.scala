@@ -24,6 +24,8 @@ trait TsdbConfig {
   val putEnabled: Boolean
   val maxRegions: Int
   val reduceLimit: Int
+  val needCheckSchema: Boolean
+  val compression: String
 }
 
 case class SimpleTsdbConfig(
@@ -33,5 +35,7 @@ case class SimpleTsdbConfig(
     putBatchSize: Int = 1000,
     putEnabled: Boolean = false,
     maxRegions: Int = 50,
-    reduceLimit: Int = Int.MaxValue
+    reduceLimit: Int = Int.MaxValue,
+    needCheckSchema: Boolean = true,
+    compression: String = "snappy"
 ) extends TsdbConfig

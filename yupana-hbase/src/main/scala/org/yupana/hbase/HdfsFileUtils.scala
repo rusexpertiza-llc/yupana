@@ -19,10 +19,10 @@ package org.yupana.hbase
 import java.io._
 import java.net.URI
 import java.nio.charset.StandardCharsets
-import java.util.Properties
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{ FSDataOutputStream, FileStatus, FileSystem, Path }
 import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.yupana.settings.Settings
 
 import scala.annotation.tailrec
 
@@ -112,13 +112,21 @@ object HdfsFileUtils {
     fs.listStatus(ppath)
   }
 
-  def addHdfsPathToConfiguration(configuration: Configuration, properties: Properties): Unit = {
-    import scala.jdk.CollectionConverters._
-    configuration.set("fs.defaultFS", properties.getProperty("fs.defaultFS"))
+  def addHdfsPathToConfiguration(configuration: Configuration, settings: Settings): Unit = {
+    configuration.set("fs.defaultFS", settings("fs.defaultFS"))
     configuration.set("fs.hdfs.impl", classOf[org.apache.hadoop.hdfs.DistributedFileSystem].getName)
-    properties.asScala.foreach {
-      case (key, value) =>
-        if (key.startsWith("dfs.")) configuration.set(key, value)
-    }
+    configuration.set("dfs.ha.automatic-failover.enabled", "true")
+
+    val cluster = settings[String]("dfs.nameservices")
+    configuration.set("dfs.nameservices", cluster)
+    configuration.set(s"dfs.ha.namenodes.$cluster", "nn1,nn2")
+
+    configuration.set(s"dfs.namenode.rpc-address.$cluster.nn1", settings(s"dfs.namenode.rpc-address.$cluster.nn1"))
+    configuration.set(s"dfs.namenode.rpc-address.$cluster.nn2", settings(s"dfs.namenode.rpc-address.$cluster.nn2"))
+
+    configuration.set(
+      s"dfs.client.failover.proxy.provider.$cluster",
+      "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"
+    )
   }
 }

@@ -19,10 +19,10 @@ package org.yupana.hbase
 import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, Schema }
-import org.yupana.core.{ MapReducible, IteratorMapReducible }
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.core.{ IteratorMapReducible, MapReducible }
 import org.yupana.hbase.HBaseUtils._
 
 class TSDaoHBase(
@@ -39,17 +39,17 @@ class TSDaoHBase(
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: IdType,
-      to: IdType,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): Iterator[HResult] = {
 
+    val totalFrom = intervals.map(_._1).min
+    val totalTo = intervals.map(_._2).max
+
     if (rangeScanDims.nonEmpty) {
       rangeScanDims.flatMap { dimIds =>
-        queryContext.metricsCollector.createScans.measure(1) {
-          val filter = multiRowRangeFilter(queryContext.table, from, to, dimIds)
-          createScan(queryContext, filter, Seq.empty, from, to)
-        } match {
+        val filter = multiRowRangeFilter(queryContext.table, intervals, dimIds)
+        createScan(queryContext, filter, Seq.empty, totalFrom, totalTo) match {
           case Some(scan) => executeScan(connection, namespace, scan, queryContext, TSDaoHBaseBase.EXTRACT_BATCH_SIZE)
           case None       => Iterator.empty
         }

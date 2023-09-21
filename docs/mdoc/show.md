@@ -7,21 +7,32 @@ title: SHOW
 
 ## SHOW TABLES
 
-`SHOW TABLES` выдает информацию обо всех имеющихся таблицах.
+```sql
+SHOW TABLES
+```
+выдает информацию обо всех имеющихся таблицах.
 
 ## SHOW COLUMNS
 
-`SHOW COLUMNS FROM <table_name>` выдает информацию о полях указанной таблицы.
+```sql
+SHOW COLUMNS FROM <table_name>
+```
+выдает информацию о полях указанной таблицы.
 
 ## SHOW QUERIES
 
-`SHOW QUERIES` выдает информацию об истории запросов.
+```sql
+SHOW QUERIES
+```
+выдает информацию об истории запросов.
 
-`SHOW QUERIES [WHERE (QUERY_ID|STATE) = ?] [limit n];` 
+```sql
+SHOW QUERIES [WHERE (QUERY_ID|STATE) = ?] [limit n];
+```
 
 Где:
-  - `QUERY_ID` - возвращается набор метрик для конкретного запроса. 
-  - `STATE` - возвращаются все наборы метрик для запросов в указанном статусе. 
+  - `QUERY_ID` - возвращается набор метрик для конкретного запроса.
+  - `STATE` - возвращаются все наборы метрик для запросов в указанном статусе.
   - `limit` ограничивает размер результата, где `n` - целое число
 
 ## SHOW UPDATES_INTERVALS
@@ -30,10 +41,16 @@ title: SHOW
   1. Информация об актуальности сверток по периодам.
   2. Информация о пересчете сверток.
 
-`SHOW UPDATES_INTERVALS WHERE TABLE = '<tableName>' AND UPDATED_AT BETWEEN <FROM> AND <TO>`
-  
+```sql
+SHOW UPDATES_INTERVALS
+  WHERE
+    TABLE = '<tableName>' AND
+    UPDATED_AT BETWEEN <FROM> AND <TO> AND
+    RECALCULATED_AT BETWEEN <FROM> AND <TO>
+```
+
 Где:
 
-  - `tableName` - имя таблицы
-  - `FROM` - Начало периода
-  - `TO` - Конец периода
+- `tableName` - имя таблицы, в которую свертка складывает данные
+- `UPDATED_AT` - фильтр по дате завершения свертки, где `FROM` - начало периода, `TO` - конец периода
+- `RECALCULATED_AT` - фильтр по датам, за которые сверткой были пересчитаны данные, где `FROM` - начало периода, `TO` - конец периода

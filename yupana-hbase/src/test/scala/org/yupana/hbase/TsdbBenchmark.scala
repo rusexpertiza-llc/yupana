@@ -10,15 +10,17 @@ import org.yupana.api.query.syntax.All._
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.TestSchema.testTable
 import org.yupana.core._
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao._
-import org.yupana.core.utils.metric.{ ConsoleMetricReporter, MetricQueryCollector, StandaloneMetricCollector }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, StandaloneMetricCollector }
 
 import java.util.Properties
 import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
 import org.yupana.core.model.UpdateInterval
+import org.yupana.metrics.Slf4jMetricReporter
+import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
@@ -107,7 +109,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
 
     val dao = new TSDaoHBaseBase[Iterator] with TSDao[Iterator, Long] {
 
@@ -133,8 +135,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
       override def executeScans(
           queryContext: InternalQueryContext,
-          from: Long,
-          to: Long,
+          itnervals: Seq[(Long, Long)],
           rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
       ): Iterator[HResult] = {
         rows.iterator
@@ -187,6 +188,8 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
           tableName: Option[String],
           updatedAfter: Option[Long],
           updatedBefore: Option[Long],
+          recalculatedAfter: Option[Long],
+          recalculatedBefore: Option[Long],
           updatedBy: Option[String]
       ): Iterable[UpdateInterval] = ???
     }
@@ -206,14 +209,13 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new StandaloneMetricCollector(query, "test", 10, new ConsoleMetricReporter)
+    val mc = new StandaloneMetricCollector(query, "test", 10, new Slf4jMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(
           TestSchema.schema,
           dao,
           changelogDao,
-          dictProvider,
           identity,
           SimpleTsdbConfig(putEnabled = true),
           { _ =>
@@ -229,7 +231,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
 
     (1 to 1500) foreach { p =>
       val s = System.nanoTime()
-      val result = tsdb.query(query).iterator
+      val result = tsdb.query(query)
 
       val r1 = result.next()
       r1.get[Double]("sum_testField") shouldBe N.toDouble

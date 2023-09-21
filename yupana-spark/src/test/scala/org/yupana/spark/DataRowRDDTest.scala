@@ -1,25 +1,21 @@
 package org.yupana.spark
 
-import org.apache.spark.sql.SparkSession
-
 import java.sql.Timestamp
+
 import org.apache.spark.sql.types._
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.types.DataTypeMeta
-import org.yupana.core.QueryContext
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.model.InternalRowBuilder
-
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class DataRowRDDTest extends AnyFlatSpec with Matchers {
+trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSession {
 
   import org.yupana.api.query.syntax.All._
-
-  lazy val spark: SparkSession = SparkSession.builder().master("local").appName("yupana test").getOrCreate()
 
   "DataRowRDD" should "convert itself to DataFrame" in {
     val query = Query(
@@ -33,7 +29,7 @@ class DataRowRDDTest extends AnyFlatSpec with Matchers {
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = QueryContext(query, None)
+    val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
 
     val builder = new InternalRowBuilder(queryContext)
 

@@ -1,14 +1,14 @@
 package org.yupana.core
 
 import java.util.Properties
-
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
 import org.yupana.api.schema.DictionaryDimension
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.DictionaryDao
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 
 class DictionaryTest
     extends AnyFlatSpec
@@ -21,7 +21,7 @@ class DictionaryTest
   override def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override def beforeEach(): Unit = {

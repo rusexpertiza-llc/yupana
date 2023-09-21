@@ -16,28 +16,20 @@
 
 package org.yupana.core.dao
 
-import org.yupana.api.query.Query
-import org.yupana.core.model.QueryStates.QueryState
-import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
+import org.yupana.core.model.TsdbQueryMetrics
+import org.yupana.core.utils.metric.InternalMetricData
+import org.yupana.metrics.QueryStates
 
 trait TsdbQueryMetricsDao {
 
   def queriesByFilter(filter: Option[QueryMetricsFilter], limit: Option[Int]): Iterator[TsdbQueryMetrics]
 
-  def saveQueryMetrics(
-      query: Query,
-      partitionId: Option[String],
-      startDate: Long,
-      queryState: QueryState,
-      totalDuration: Long,
-      metricValues: Map[String, MetricData],
-      sparkQuery: Boolean
-  ): Unit
+  def saveQueryMetrics(metrics: List[InternalMetricData]): Unit
 
   def deleteMetrics(filter: QueryMetricsFilter): Int
 }
 
 case class QueryMetricsFilter(
     queryId: Option[String] = None,
-    queryState: Option[QueryState] = None
+    queryState: Option[QueryStates.QueryState] = None
 )

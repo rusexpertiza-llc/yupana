@@ -16,8 +16,6 @@
 
 package org.yupana.core.utils
 
-import scala.collection.compat.IterableOnce
-
 trait Table[R, C, +V] extends TableOps[R, C, V, Table]
 
 trait TableOps[R, C, +V, +TT[_, _, _]] {

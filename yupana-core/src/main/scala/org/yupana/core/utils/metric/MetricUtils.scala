@@ -16,6 +16,8 @@
 
 package org.yupana.core.utils.metric
 
+import org.yupana.metrics.Failed
+
 object MetricUtils {
 
   implicit class SavedMetrics[T](func: => T) {
@@ -23,7 +25,7 @@ object MetricUtils {
       try func
       catch {
         case throwable: Throwable =>
-          metricCollector.queryStatus.lazySet(Failed(throwable))
+          metricCollector.setQueryStatus(Failed(throwable))
           metricCollector.finish()
           throw throwable
       }

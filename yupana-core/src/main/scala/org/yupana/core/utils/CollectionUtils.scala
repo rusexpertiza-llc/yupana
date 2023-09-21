@@ -16,13 +16,14 @@
 
 package org.yupana.core.utils
 
+import java.util
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 
 object CollectionUtils {
 
   def reduceByKey[K, A](it: Iterator[(K, A)], limit: Int = Int.MaxValue)(func: (A, A) => A): Iterator[(K, A)] = {
-    val map = new java.util.HashMap[K, A]()
+    val map = new util.HashMap[K, A]()
     it.foreach {
       case (k, v) =>
         val old = map.get(k)
@@ -31,6 +32,17 @@ object CollectionUtils {
         if (limit < map.size()) {
           throw new IllegalStateException(s"reduceByKey operation is out of limit = $limit")
         }
+    }
+    map.asScala.iterator
+  }
+
+  def foldByKey[K, A, B](it: Iterator[(K, A)])(z: A => B, func: (B, A) => B): Iterator[(K, B)] = {
+    val map = new util.HashMap[K, B]()
+    it.foreach {
+      case (k, v) =>
+        val old = map.get(k)
+        val n = if (old != null) func(old, v) else z(v)
+        map.put(k, n)
     }
     map.asScala.iterator
   }
@@ -64,4 +76,19 @@ object CollectionUtils {
   def intersectAll[T](sets: Seq[Set[T]]): Set[T] = {
     if (sets.nonEmpty) sets.reduce(_ intersect _) else Set.empty
   }
+
+  def mergeMaps[K, V, U](a: Map[K, V], b: Map[K, V], map: V => U, reduce: (U, U) => U): Map[K, U] = {
+    (a.keySet ++ b.keySet).map { k =>
+      val v = (a.get(k), b.get(k)) match {
+        case (Some(x), Some(y)) => reduce(map(x), map(y))
+        case (Some(x), None)    => map(x)
+        case (None, Some(y))    => map(y)
+        case _                  => throw new IllegalStateException("This should never happen")
+      }
+      k -> v
+    }.toMap
+  }
+
+  def mergeMaps[K, V](a: Map[K, V], b: Map[K, V], reduce: (V, V) => V): Map[K, V] =
+    mergeMaps[K, V, V](a, b, identity, reduce)
 }

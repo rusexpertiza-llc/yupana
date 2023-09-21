@@ -21,13 +21,13 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.yupana.api.query.Query
+import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector, PersistentMetricQueryReporter }
-import org.yupana.core.{ QueryContext, TsdbBase }
+import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
@@ -40,7 +40,7 @@ object TsdbSparkBase extends StrictLogging {
     configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
     configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)
     if (config.addHdfsToConfiguration) {
-      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.properties)
+      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.settings)
     }
     configuration
   }
@@ -68,6 +68,8 @@ object TsdbSparkBase extends StrictLogging {
   }
 }
 
+case class ProgressHint(fileName: String) extends QueryHint
+
 abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
@@ -84,6 +86,8 @@ abstract class TsdbSparkBase(
   override val extractBatchSize: Int = conf.extractBatchSize
   override val putBatchSize: Int = conf.putBatchSize
 
+  override val calculatorFactory: ExpressionCalculatorFactory = ExpressionCalculatorFactory
+
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
     conf.hbaseNamespace,
@@ -91,7 +95,7 @@ abstract class TsdbSparkBase(
     conf
   )
 
-  override val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
+  private val dictionaryProvider: DictionaryProvider = new SparkDictionaryProvider(conf)
 
   override val dao: TSDao[RDD, Long] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)

@@ -78,7 +78,7 @@ class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging
 
   private def resultToProto(result: Result): Iterator[proto.Response] = {
     val rts = result.dataTypes.zipWithIndex
-    val results = result.iterator.map { row =>
+    val results = result.map { row =>
       val bytes = rts.map {
         case (rt, idx) =>
           val v = row.get[rt.T](idx)

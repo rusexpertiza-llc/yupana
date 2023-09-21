@@ -20,8 +20,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.Query
 import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.yupana.cache.CacheFactory
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }
@@ -32,7 +32,7 @@ object TsdbSpark {
 
 class TsdbSpark(
     override val dao: TSDao[RDD, Long],
-    val changelogDao: ChangelogDao,
+    @transient val changelogDao: ChangelogDao,
     sparkContext: SparkContext,
     prepareQuery: Query => Query,
     conf: Config,
@@ -44,13 +44,13 @@ class TsdbSpark(
       this,
       TsDaoHBaseSpark.hbaseConfiguration(conf),
       conf.hbaseNamespace,
-      conf.properties
+      conf.settings
     )
 
   override def linkService(el: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {
     if (!TsdbSpark.externalLinks.contains(el.linkName)) {
       logger.info(s"${el.linkName} is not registered yet, so let's create and register it")
-      CacheFactory.init(conf.properties)
+      CacheFactory.init(conf.settings)
       elRegistrator.registerExternalLink(el)
     }
     TsdbSpark.externalLinks

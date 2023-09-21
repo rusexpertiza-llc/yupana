@@ -34,6 +34,7 @@ class ConstantCalculatorTest extends AnyFlatSpec with Matchers with OptionValues
     calculator.evaluateConstant(extractSecond(t)) shouldEqual 42
 
     calculator.evaluateConstant(truncYear(t)) shouldEqual Time(LocalDateTime.of(2020, 1, 1, 0, 0))
+    calculator.evaluateConstant(truncQuarter(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 1, 0, 0))
     calculator.evaluateConstant(truncMonth(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 1, 0, 0))
     calculator.evaluateConstant(truncDay(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 21, 0, 0))
     calculator.evaluateConstant(truncWeek(t)) shouldEqual Time(LocalDateTime.of(2020, 10, 19, 0, 0))

@@ -24,8 +24,6 @@ import org.yupana.api.types._
 trait ExpressionSyntax {
   val time: TimeExpr.type = TimeExpr
 
-  def convert[T, U](tc: TypeConverter[T, U], e: Expression[T]) = TypeConvertExpr(tc, e)
-
   def tuple[T, U](e1: Expression[T], e2: Expression[U])(implicit rtt: DataType.Aux[T], rtu: DataType.Aux[U]) =
     TupleExpr(e1, e2)
   def array[T](es: Expression[T]*)(implicit dtt: DataType.Aux[T]) = ArrayExpr[T](Seq(es: _*))
@@ -39,8 +37,8 @@ trait ExpressionSyntax {
   def condition[T](condition: Condition, positive: Expression[T], negative: Expression[T]) =
     ConditionExpr(condition, positive, negative)
 
-  def in[T](e: Expression[T], consts: Set[T]): Condition = InExpr(e, consts)
-  def notIn[T](e: Expression[T], consts: Set[T]): Condition = NotInExpr(e, consts)
+  def in[T](e: Expression[T], consts: Set[T]): InExpr[T] = InExpr(e, consts)
+  def notIn[T](e: Expression[T], consts: Set[T]): NotInExpr[T] = NotInExpr(e, consts)
 
   def and(exprs: Condition*): Condition = AndExpr(Seq(exprs: _*))
   def or(exprs: Condition*): Condition = OrExpr(Seq(exprs: _*))

@@ -16,11 +16,8 @@
 
 package org.yupana.core.utils
 
-import org.yupana.api.Time
-import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ DimensionExpr, Expression, LinkExpr, MetricExpr }
-import org.yupana.api.schema.{ Dimension, Metric }
-import org.yupana.core.ConstantCalculator
+import org.yupana.api.query.{ Expression, MetricExpr }
+import org.yupana.api.schema.Metric
 
 object QueryUtils {
   def requiredMetrics(e: Expression[_]): Set[Metric] = {
@@ -29,27 +26,4 @@ object QueryUtils {
       case (s, _)             => s
     }
   }
-
-  def requiredDimensions(e: Expression[_]): Set[Dimension] = {
-    e.fold(Set.empty[Dimension]) {
-      case (s, DimensionExpr(d)) => s + d
-      case (s, LinkExpr(l, _))   => s + l.dimension
-      case (s, _)                => s
-    }
-  }
-
-  def requiredLinks(e: Expression[_]): Set[LinkExpr[_]] = {
-    e.fold(Set.empty[LinkExpr[_]]) {
-      case (s, l: LinkExpr[_]) => s + l
-      case (s, _)              => s
-    }
-  }
-
-  def getFromTo(filter: Condition, constantCalculator: ConstantCalculator): (Time, Time) = {
-    val tbc = TimeBoundedCondition.single(constantCalculator, filter)
-    val from = tbc.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-    val to = tbc.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
-    Time(from) -> Time(to)
-  }
-
 }

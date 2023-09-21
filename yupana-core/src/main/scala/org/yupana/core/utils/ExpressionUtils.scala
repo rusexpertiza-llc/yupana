@@ -27,7 +27,10 @@ object ExpressionUtils {
   def transform[T](t: Transformer)(expr: Expression[T]): Expression[T] = {
     t(expr).getOrElse(expr match {
       case TimeExpr             => expr
-      case ConstantExpr(_)      => expr
+      case NullExpr(_)          => expr
+      case ConstantExpr(_, _)   => expr
+      case TrueExpr             => expr
+      case FalseExpr            => expr
       case LinkExpr(_, _)       => expr
       case MetricExpr(_)        => expr
       case DimensionExpr(_)     => expr
@@ -57,7 +60,22 @@ object ExpressionUtils {
       case e @ UnaryMinusExpr(a) => UnaryMinusExpr(transform(t)(a))(e.num)
       case e @ AbsExpr(a)        => AbsExpr(transform(t)(a))(e.num)
 
-      case TypeConvertExpr(c, e) => TypeConvertExpr(c, transform(t)(e))
+      case Double2BigDecimalExpr(e) => Double2BigDecimalExpr(transform(t)(e))
+      case Long2DoubleExpr(e)       => Long2DoubleExpr(transform(t)(e))
+      case Long2BigDecimalExpr(e)   => Long2BigDecimalExpr(transform(t)(e))
+      case Int2LongExpr(e)          => Int2LongExpr(transform(t)(e))
+      case Int2DoubleExpr(e)        => Int2DoubleExpr(transform(t)(e))
+      case Int2BigDecimalExpr(e)    => Int2BigDecimalExpr(transform(t)(e))
+      case Short2IntExpr(e)         => Short2IntExpr(transform(t)(e))
+      case Short2LongExpr(e)        => Short2LongExpr(transform(t)(e))
+      case Short2DoubleExpr(e)      => Short2DoubleExpr(transform(t)(e))
+      case Short2BigDecimalExpr(e)  => Short2BigDecimalExpr(transform(t)(e))
+      case Byte2ShortExpr(e)        => Byte2ShortExpr(transform(t)(e))
+      case Byte2IntExpr(e)          => Byte2IntExpr(transform(t)(e))
+      case Byte2LongExpr(e)         => Byte2LongExpr(transform(t)(e))
+      case Byte2DoubleExpr(e)       => Byte2DoubleExpr(transform(t)(e))
+      case Byte2BigDecimalExpr(e)   => Byte2BigDecimalExpr(transform(t)(e))
+      case ToStringExpr(e)          => ToStringExpr(transform(t)(e))(e.dataType)
 
       case TupleExpr(a, b)    => TupleExpr(transform(t)(a), transform(t)(b))(a.dataType, b.dataType)
       case ae @ ArrayExpr(es) => ArrayExpr(es.map(transform(t)))(ae.elementDataType)
@@ -77,20 +95,22 @@ object ExpressionUtils {
       case TokensExpr(e)    => TokensExpr(transform(t)(e))
       case LengthExpr(e)    => LengthExpr(transform(t)(e))
 
-      case ExtractYearExpr(e)   => ExtractYearExpr(transform(t)(e))
-      case ExtractMonthExpr(e)  => ExtractMonthExpr(transform(t)(e))
-      case ExtractDayExpr(e)    => ExtractDayExpr(transform(t)(e))
-      case ExtractHourExpr(e)   => ExtractHourExpr(transform(t)(e))
-      case ExtractMinuteExpr(e) => ExtractMinuteExpr(transform(t)(e))
-      case ExtractSecondExpr(e) => ExtractSecondExpr(transform(t)(e))
+      case ExtractYearExpr(e)    => ExtractYearExpr(transform(t)(e))
+      case ExtractQuarterExpr(e) => ExtractQuarterExpr(transform(t)(e))
+      case ExtractMonthExpr(e)   => ExtractMonthExpr(transform(t)(e))
+      case ExtractDayExpr(e)     => ExtractDayExpr(transform(t)(e))
+      case ExtractHourExpr(e)    => ExtractHourExpr(transform(t)(e))
+      case ExtractMinuteExpr(e)  => ExtractMinuteExpr(transform(t)(e))
+      case ExtractSecondExpr(e)  => ExtractSecondExpr(transform(t)(e))
 
-      case TruncYearExpr(e)   => TruncYearExpr(transform(t)(e))
-      case TruncMonthExpr(e)  => TruncMonthExpr(transform(t)(e))
-      case TruncWeekExpr(e)   => TruncWeekExpr(transform(t)(e))
-      case TruncDayExpr(e)    => TruncDayExpr(transform(t)(e))
-      case TruncHourExpr(e)   => TruncHourExpr(transform(t)(e))
-      case TruncMinuteExpr(e) => TruncMinuteExpr(transform(t)(e))
-      case TruncSecondExpr(e) => TruncSecondExpr(transform(t)(e))
+      case TruncYearExpr(e)    => TruncYearExpr(transform(t)(e))
+      case TruncQuarterExpr(e) => TruncQuarterExpr(transform(t)(e))
+      case TruncMonthExpr(e)   => TruncMonthExpr(transform(t)(e))
+      case TruncWeekExpr(e)    => TruncWeekExpr(transform(t)(e))
+      case TruncDayExpr(e)     => TruncDayExpr(transform(t)(e))
+      case TruncHourExpr(e)    => TruncHourExpr(transform(t)(e))
+      case TruncMinuteExpr(e)  => TruncMinuteExpr(transform(t)(e))
+      case TruncSecondExpr(e)  => TruncSecondExpr(transform(t)(e))
 
       case PeriodPlusPeriodExpr(a, b) => PeriodPlusPeriodExpr(transform(t)(a), transform(t)(b))
       case TimeMinusExpr(a, b)        => TimeMinusExpr(transform(t)(a), transform(t)(b))
@@ -99,12 +119,14 @@ object ExpressionUtils {
 
       case ConditionExpr(c, p, n) => ConditionExpr(transform(t)(c), transform(t)(p), transform(t)(n))
 
-      case s @ SumExpr(e)        => SumExpr(transform(t)(e))(s.numeric)
-      case m @ MaxExpr(e)        => MaxExpr(transform(t)(e))(m.ord)
-      case m @ MinExpr(e)        => MinExpr(transform(t)(e))(m.ord)
-      case CountExpr(e)          => CountExpr(transform(t)(e))
-      case DistinctCountExpr(e)  => DistinctCountExpr(transform(t)(e))
-      case DistinctRandomExpr(e) => DistinctRandomExpr(transform(t)(e))
+      case s @ SumExpr(e)            => SumExpr(transform(t)(e))(s.numeric)
+      case m @ MaxExpr(e)            => MaxExpr(transform(t)(e))(m.ord)
+      case m @ MinExpr(e)            => MinExpr(transform(t)(e))(m.ord)
+      case s @ AvgExpr(e)            => AvgExpr(transform(t)(e))(s.numeric)
+      case CountExpr(e)              => CountExpr(transform(t)(e))
+      case DistinctCountExpr(e)      => DistinctCountExpr(transform(t)(e))
+      case HLLCountExpr(e, accuracy) => HLLCountExpr(transform(t)(e), accuracy)
+      case DistinctRandomExpr(e)     => DistinctRandomExpr(transform(t)(e))
 
       case LagExpr(e) => LagExpr(transform(t)(e))
 
