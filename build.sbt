@@ -243,7 +243,8 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     name := "yupana-external-links",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
+      "io.circe"                    %% "circe-parser"               % versions.circe,
+      "io.circe"                    %% "circe-generic"              % versions.circe,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -419,7 +420,7 @@ lazy val versions = new {
   val ehcache = "3.9.7"
   val caffeine = "2.9.3"
 
-  val json4s = "3.7.0-M11" // Same version with Spark
+  val circe = "0.14.5" // To have same cats version wuth Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
@@ -441,7 +442,7 @@ val commonSettings = Seq(
     "-deprecation",
     "-unchecked",
     "-feature",
-    "-Xlint",
+    "-Xlint:-byname-implicit,_",
     "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ),
