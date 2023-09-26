@@ -14,12 +14,20 @@
  * limitations under the License.
  */
 
-package org.yupana.netty
+package org.yupana.netty.protocol
 
-import io.netty.channel.CombinedChannelDuplexHandler
+import io.netty.buffer.ByteBuf
+import org.yupana.netty.Frame
 
-class FrameCodec
-    extends CombinedChannelDuplexHandler[FrameDecoder, FrameEncoder](
-      new FrameDecoder(),
-      new FrameEncoder()
-    ) {}
+trait ReadWrite[T] {
+  def read(buf: ByteBuf): Either[String, T]
+}
+
+object Extractor {
+
+  def extract[C <: Command: ReadWrite](frame: Frame): Either[ErrorMessage, C] = {
+    val s = implicitly[ReadWrite[C]]
+    s.read(frame.payload).left.map(ErrorMessage.apply)
+  }
+
+}

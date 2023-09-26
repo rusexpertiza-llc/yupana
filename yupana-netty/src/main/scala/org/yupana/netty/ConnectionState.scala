@@ -16,10 +16,26 @@
 
 package org.yupana.netty
 
-import io.netty.channel.CombinedChannelDuplexHandler
+import org.yupana.netty.protocol._
 
-class FrameCodec
-    extends CombinedChannelDuplexHandler[FrameDecoder, FrameEncoder](
-      new FrameDecoder(),
-      new FrameEncoder()
-    ) {}
+trait ConnectionState {
+  def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command]]
+
+  def processCommand(command: Command): Seq[Response]
+}
+
+class Connecting extends ConnectionState {
+  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command]] = {
+    if (frame.frameType == Hello.tag) {
+      Extractor.extract[Hello]
+    } else {
+      Left(ErrorMessage("Expect Hello"))
+    }
+  }
+
+  override def processCommand(command: Command): Seq[Response] = {
+    command match {
+      case Hello(v, cv) => Seq(HelloResponse("123"))
+    }
+  }
+}

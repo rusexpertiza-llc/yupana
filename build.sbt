@@ -19,6 +19,7 @@ lazy val yupana = (project in file("."))
     hbase,
     akka,
     pekko,
+    netty,
     spark,
     schema,
     externalLinks,
@@ -181,7 +182,7 @@ lazy val netty = (project in file("yupana-netty"))
 
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
-  ).disablePlugins(AssemblyPlugin)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api)
 
 lazy val akka = (project in file("yupana-akka"))
   .settings(

@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-package org.yupana.netty
+package org.yupana.netty.protocol
 
-import io.netty.channel.CombinedChannelDuplexHandler
+trait Response
 
-class FrameCodec
-    extends CombinedChannelDuplexHandler[FrameDecoder, FrameEncoder](
-      new FrameDecoder(),
-      new FrameEncoder()
-    ) {}
+case class ErrorMessage(message: String) extends Response
+case class HelloResponse(version: String) extends Response
