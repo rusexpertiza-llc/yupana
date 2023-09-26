@@ -95,6 +95,7 @@ lazy val utils = (project in file("yupana-utils"))
     )
   )
   .dependsOn(api)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val settings = (project in file("yupana-settings"))
   .settings(
@@ -105,6 +106,7 @@ lazy val settings = (project in file("yupana-settings"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   )
+  .disablePlugins(AssemblyPlugin)
 
 lazy val metrics = (project in file("yupana-metrics"))
   .settings(
@@ -114,6 +116,7 @@ lazy val metrics = (project in file("yupana-metrics"))
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging
     )
   )
+  .disablePlugins(AssemblyPlugin)
 
 lazy val cache = (project in file("yupana-cache"))
   .settings(
@@ -123,7 +126,9 @@ lazy val cache = (project in file("yupana-cache"))
       "javax.cache"                 %  "cache-api"                     % "1.1.1",
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
     )
-  ).dependsOn(api, settings)
+  )
+  .dependsOn(api, settings)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val core = (project in file("yupana-core"))
   .settings(
@@ -350,11 +355,13 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
+  .disablePlugins(AssemblyPlugin)
 
 lazy val docs = project
   .in(file("yupana-docs"))
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
+  .disablePlugins(AssemblyPlugin)
   .settings(
     scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
