@@ -18,6 +18,8 @@ package org.yupana.netty.protocol
 
 import io.netty.buffer.ByteBuf
 
+import java.nio.charset.StandardCharsets
+
 trait Command
 
 trait CommandHelper[C <: Command] {
@@ -26,13 +28,13 @@ trait CommandHelper[C <: Command] {
   def decode(b: ByteBuf): C
 }
 
-case class Hello(protocolVersion: Int, clientVersion: String) extends Command
+case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command
 
 object Hello extends CommandHelper[Hello] {
   override val tag: Byte = 1
 
   override def encode(c: Hello, out: ByteBuf): Unit = {
-    out.writeByte(tag).writeInt(4).writeBytes("version".getBytes(Ch))
+    out.writeByte(tag).writeInt(4).writeBytes("version".getBytes(StandardCharsets.UTF_8))
   }
 
   override def decode(b: ByteBuf): Hello = ???
