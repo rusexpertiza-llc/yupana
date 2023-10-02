@@ -14,13 +14,13 @@ addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "2.1.1")
 
 addSbtPlugin("io.github.davidmweber" % "flyway-sbt" % "7.4.0")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.8")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.9")
 
-addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.9.0")
+addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.10.0")
 
-addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
+addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
 
-addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.5")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.6")
 
 addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.3.7")
 addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")

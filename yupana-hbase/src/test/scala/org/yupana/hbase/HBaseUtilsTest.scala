@@ -34,9 +34,9 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
     (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "c value").returning(Some(31L))
 
-    val bytes = HBaseUtils.rowKey(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
+    val bytes = HBaseUtils.rowKeyBuffer(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
     val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(4), Some(1L), Some(31L)))
-    val actualRowKey = HBaseUtils.parseRowKey(bytes, TestTable)
+    val actualRowKey = HBaseUtils.parseRowKey(bytes.array(), TestTable)
 
     actualRowKey should be(expectedRowKey)
   }
@@ -59,7 +59,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     pbt should have size 2
 
     val puts = pbt.find(_._1 == TestTable).value._2
-    puts should have size 2
+    puts should have size 1
 
     val put1 =
       puts.find(p => !p.get(HBaseUtils.family(1), Bytes.toBytes(HBaseUtils.restTime(time, TestTable))).isEmpty).get
