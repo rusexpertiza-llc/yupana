@@ -33,6 +33,17 @@ case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String
 object Hello extends CommandHelper[Hello] {
   override val tag: Byte = 1
 
+  implicit val rw: ReadWrite[Hello] = new ReadWrite[Hello] {
+    override def read(buf: ByteBuf): Hello = {
+      Hello(buf.readInt(), implicitly[ReadWrite[String]].read(buf), Map.empty)
+    }
+
+    override def write(buf: ByteBuf, t: Hello): Unit = {
+      buf.writeInt(t.protocolVersion)
+      implicitly[ReadWrite[String]].write(buf, t.clientVersion)
+    }
+  }
+
   override def encode(c: Hello, out: ByteBuf): Unit = {
     out.writeByte(tag).writeInt(4).writeBytes("version".getBytes(StandardCharsets.UTF_8))
   }

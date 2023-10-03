@@ -16,18 +16,15 @@
 
 package org.yupana.netty.protocol
 
-import io.netty.buffer.ByteBuf
 import org.yupana.netty.Frame
 
-trait ReadWrite[T] {
-  def read(buf: ByteBuf): Either[String, T]
-}
+import scala.util.Try
 
 object Extractor {
 
   def extract[C <: Command: ReadWrite](frame: Frame): Either[ErrorMessage, C] = {
     val s = implicitly[ReadWrite[C]]
-    s.read(frame.payload).left.map(ErrorMessage.apply)
+    Try(s.read(frame.payload)).toEither.left.map(e => ErrorMessage(e.getMessage))
   }
 
 }

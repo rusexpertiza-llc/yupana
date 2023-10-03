@@ -27,7 +27,7 @@ trait ConnectionState {
 class Connecting extends ConnectionState {
   override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command]] = {
     if (frame.frameType == Hello.tag) {
-      Extractor.extract[Hello]
+      Extractor.extract[Hello](frame).map(Some(_))
     } else {
       Left(ErrorMessage("Expect Hello"))
     }
@@ -35,7 +35,8 @@ class Connecting extends ConnectionState {
 
   override def processCommand(command: Command): Seq[Response] = {
     command match {
-      case Hello(v, cv) => Seq(HelloResponse("123"))
+      case Hello(pv, v, _) => Seq(HelloResponse("123"))
+      case _               => Seq.empty
     }
   }
 }

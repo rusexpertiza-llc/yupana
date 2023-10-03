@@ -40,7 +40,7 @@ class YupanaServer(host: String, port: Int) extends StrictLogging {
           override def initChannel(ch: SocketChannel): Unit = {
             ch.pipeline().addLast(new FrameCodec())
 //            ch.pipeline().addLast(new IdleStateHandler(0, 60, 0))
-            ch.pipeline().addLast(new MessageHandler())
+//            ch.pipeline().addLast(new MessageHandler())
           }
         })
         .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))

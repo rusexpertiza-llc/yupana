@@ -1,3 +1,3 @@
-package org.yupana.netty.protocol
-
-trait Response
+//package org.yupana.netty.protocol
+//
+//trait Response
