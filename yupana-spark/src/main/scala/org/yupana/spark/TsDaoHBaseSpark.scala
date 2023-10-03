@@ -39,19 +39,36 @@ class TsDaoHBaseSpark(
     with TSDao[RDD, Long]
     with Serializable {
 
+  private val sparkListener = new ProgressListener[HBaseScanPartition]
+  sparkContext.addSparkListener(sparkListener)
+
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[RDD] = {
     new RddMapReducible(sparkContext, metricQueryCollector)
   }
 
   override def executeScans(
       queryContext: InternalQueryContext,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
   ): RDD[HResult] = {
+    val progressFile = queryContext.hints.collectFirst { case ProgressHint(fileName) => fileName }
     if (rangeScanDims.nonEmpty) {
-      val rdds = rangeScanDims.map { dimIds =>
-        new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds)
+      val rdds = rangeScanDims.zipWithIndex.flatMap {
+        case (dimIds, index) =>
+          intervals.map {
+            case (from, to) =>
+              val listener = progressFile match {
+                case Some(f) =>
+                  new RddProgressListenerImpl[HBaseScanPartition](
+                    s"${f}_${from}-${to}_${index}",
+                    new HBaseScanPartition.HBaseScanPartitionStorable(from, to, queryContext, dimIds),
+                    config.settings
+                  )
+                case None => new DummyProgressListener[HBaseScanPartition]
+              }
+              sparkListener.addListener(listener)
+              new HBaseScanRDD(sparkContext, config, queryContext, from, to, dimIds, listener)
+          }
       }
       sparkContext.union(rdds.toSeq)
     } else {
@@ -80,7 +97,7 @@ object TsDaoHBaseSpark {
     configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
     configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)
     if (config.addHdfsToConfiguration) {
-      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.properties)
+      HdfsFileUtils.addHdfsPathToConfiguration(configuration, config.settings)
     }
     configuration
   }

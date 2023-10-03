@@ -61,7 +61,7 @@ class EtlContext(
         cfg.hbaseNamespace,
         schema,
         identity,
-        cfg.properties,
+        cfg.settings,
         cfg,
         None
       )

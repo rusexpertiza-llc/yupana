@@ -19,7 +19,7 @@ package org.yupana.caffeine
 import com.github.benmanes.caffeine.cache.{ Cache => CCache, Caffeine }
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.cache.{ Cache, CacheDescription, CacheFactory }
+import org.yupana.cache.{ Cache, CacheDescription, CacheFactory }
 
 import java.util.concurrent.TimeUnit
 
@@ -33,24 +33,23 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
     init()
 
     if (!caches.contains(description)) {
-      val props = CacheFactory.propsForPrefix("analytics.caches." + description.name)
-      val defaultProps = CacheFactory.propsForPrefix("analytics.caches.default.caffeine")
+      val settings = CacheFactory.settings.inner(s"analytics.caches.${description.name}.")
+      val defaultSettings = CacheFactory.settings.inner("analytics.caches.default.caffeine.")
       val builder = Caffeine
         .newBuilder()
         .recordStats()
 
-      props
-        .get("maxElements")
-        .orElse(defaultProps.get("maxElements"))
-        .map(_.toLong)
+      settings
+        .opt[Long]("maxElements")
+        .orElse(defaultSettings.opt[Long]("maxElements"))
         .foreach(maxSize => builder.maximumSize(maxSize))
 
-      val eternal = props.getOrElse("eternal", "false").toBoolean
+      val eternal = settings[Boolean]("eternal", false)
       val (expiry, idle) = if (eternal) {
         (TimeUnit.MILLISECONDS.toNanos(Long.MaxValue), None)
       } else {
-        val ttl = props.get("timeToLive").orElse(defaultProps.get("timeToLive")).map(_.toLong).getOrElse(DEFAULT_TTL)
-        val tti = props.get("timeToIdle").orElse(defaultProps.get("timeToIdle")).map(_.toLong)
+        val ttl = settings("timeToLive", defaultSettings("timeToLive", DEFAULT_TTL))
+        val tti = settings.opt[Long]("timeToIdle").orElse(defaultSettings.opt[Long]("timeToIdle"))
 
         (TimeUnit.SECONDS.toNanos(ttl), tti.map(TimeUnit.SECONDS.toNanos))
       }

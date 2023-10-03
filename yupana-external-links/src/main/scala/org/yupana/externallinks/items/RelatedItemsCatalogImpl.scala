@@ -17,12 +17,11 @@
 package org.yupana.externallinks.items
 
 import org.yupana.api.Time
-import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
 import org.yupana.core.model.InternalRow
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
+import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
@@ -35,74 +34,53 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
 
   import org.yupana.api.query.syntax.All._
 
-  def includeTransform(
-      fieldsValues: Seq[(Condition, String, Set[String])],
+  private def includeTransform(
+      fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
       to: Long
-  ): TransformCondition = {
+  ): Seq[ConditionTransformation] = {
     val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
     val tuples = CollectionUtils.intersectAll(info)
-    Replace(
-      fieldsValues.map(_._1).toSet,
-      in(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
-    )
+    ConditionTransformation.replace(fieldsValues.map(_._1), in(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
 
-  def excludeTransform(
-      fieldsValues: Seq[(Condition, String, Set[String])],
+  private def excludeTransform(
+      fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
       to: Long
-  ): TransformCondition = {
+  ): Seq[ConditionTransformation] = {
     val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
     val tuples = info.fold(Set.empty)(_ union _)
-    Replace(
-      fieldsValues.map(_._1).toSet,
-      notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples)
-    )
+    ConditionTransformation.replace(fieldsValues.map(_._1), notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
-    val tbcs = TimeBoundedCondition(constantCalculator, condition)
+  override def transformCondition(tbc: FlatAndCondition): Seq[ConditionTransformation] = {
 
-    tbcs.flatMap { tbc =>
-      val from = tbc.from.getOrElse(
-        throw new IllegalArgumentException(s"FROM time is not defined for condition ${tbc.toCondition}")
-      )
-      val to =
-        tbc.to.getOrElse(throw new IllegalArgumentException(s"TO time is not defined for condition ${tbc.toCondition}"))
+    // TODO: Here we can take KKM related conditions from other, to speed up transactions request
 
-      // TODO: Here we can take KKM related conditions from other, to speed up transactions request
+    val (includeExprValues, excludeExprValues, _) =
+      ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
-      val (includeExprValues, excludeExprValues, other) =
-        ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
-
-      val include = if (includeExprValues.nonEmpty) {
-        Some(includeTransform(includeExprValues, from, to))
-      } else {
-        None
-      }
-
-      val exclude = if (excludeExprValues.nonEmpty) {
-        Some(excludeTransform(excludeExprValues, from, to))
-      } else {
-        None
-      }
-
-      val result =
-        if (other.nonEmpty)
-          Seq(include, exclude, Some(Original(other.toSet))).flatten
-        else
-          Seq(include, exclude).flatten
-
-      result
+    val include = if (includeExprValues.nonEmpty) {
+      includeTransform(includeExprValues, tbc.from, tbc.to)
+    } else {
+      Seq.empty
     }
+
+    val exclude = if (excludeExprValues.nonEmpty) {
+      excludeTransform(excludeExprValues, tbc.from, tbc.to)
+    } else {
+      Seq.empty
+    }
+
+    include ++ exclude
   }
 
-  protected def createFilter(fieldValues: Seq[(Condition, String, Set[String])]): Seq[Condition] = {
+  protected def createFilter(fieldValues: Seq[(SimpleCondition, String, Set[String])]): Seq[SimpleCondition] = {
     fieldValues.map { case (_, f, vs) => createFilter(f, vs) }
   }
 
-  protected def createFilter(field: String, values: Set[String]): Condition = {
+  protected def createFilter(field: String, values: Set[String]): SimpleCondition = {
     field match {
       case externalLink.ITEM_FIELD   => in(lower(dimension(Dimensions.ITEM)), values)
       case externalLink.PHRASE_FIELD => in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), values)
@@ -110,7 +88,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     }
   }
 
-  private def getTransactions(filter: Condition, from: Long, to: Long): Seq[(Time, Int)] = {
+  private def getTransactions(filter: SimpleCondition, from: Long, to: Long): Seq[(Time, Int)] = {
     val q = Query(
       table = Tables.itemsKkmTable,
       from = const(Time(from)),

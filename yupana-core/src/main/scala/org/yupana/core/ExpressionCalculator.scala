@@ -17,19 +17,20 @@
 package org.yupana.core
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit }
-
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.model.InternalRow
 
+import java.time.OffsetDateTime
 import scala.collection.AbstractIterator
 
 trait ExpressionCalculator {
   def evaluateFilter(tokenizer: Tokenizer, internalRow: InternalRow): Boolean
   def evaluateExpressions(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
-  def evaluateMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
-  def evaluateReduce(tokenizer: Tokenizer, a: InternalRow, b: InternalRow): InternalRow
+  def evaluateZero(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
+  def evaluateSequence(tokenizer: Tokenizer, accumulator: InternalRow, internalRow: InternalRow): InternalRow
+  def evaluateCombine(tokenizer: Tokenizer, a: InternalRow, b: InternalRow): InternalRow
   def evaluatePostMap(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluatePostAggregateExprs(tokenizer: Tokenizer, internalRow: InternalRow): InternalRow
   def evaluatePostFilter(tokenizer: Tokenizer, row: InternalRow): Boolean
@@ -48,6 +49,10 @@ object ExpressionCalculator {
 
   def truncateTime(unit: TemporalUnit)(time: Time): Time = {
     Time(time.toDateTime.truncatedTo(unit))
+  }
+
+  def truncateTimeBy(f: OffsetDateTime => OffsetDateTime)(time: Time): Time = {
+    Time(f(time.toDateTime).truncatedTo(ChronoUnit.DAYS))
   }
 
   def splitBy(s: String, p: Char => Boolean): Iterator[String] = new AbstractIterator[String] {

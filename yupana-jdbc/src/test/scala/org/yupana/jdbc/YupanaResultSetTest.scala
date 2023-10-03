@@ -1,17 +1,19 @@
 package org.yupana.jdbc
 
-import java.io.{ ByteArrayInputStream, CharArrayReader }
-import java.sql.{ Array => _, _ }
-import java.util.{ Calendar, Scanner, TimeZone }
-import java.{ util, math => jm }
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.{ DataType, DataTypeMeta }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-import java.time.{ LocalDateTime, ZoneId, ZoneOffset }
+import java.io.{ ByteArrayInputStream, CharArrayReader }
+import java.nio.charset.StandardCharsets
+import java.sql.{ Array => _, _ }
+import java.time.temporal.ChronoUnit
+import java.time.{ LocalDateTime, ZoneId }
+import java.util.{ Calendar, Scanner, TimeZone }
+import java.{ util, math => jm }
 
 class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -267,7 +269,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         DataType[Boolean],
         DataType[Int],
         DataType[String],
-        DataType[BigDecimal],
+        DataType[Double],
         DataType[Long],
         DataType[BigDecimal]
       ),
@@ -288,8 +290,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val resultSet = new YupanaResultSet(statement, result)
     resultSet.next
 
-    resultSet.getTimestamp(1) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
-    resultSet.getTimestamp("time") shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTimestamp(1) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+    resultSet.getTimestamp("time") shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
     resultSet.getTimestamp(1, Calendar.getInstance()) shouldEqual new Timestamp(
       time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli
     )
@@ -300,8 +302,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       time.atZone(ZoneId.of("Europe/Helsinki")).toInstant.toEpochMilli
     )
 
-    resultSet.getDate(1) shouldEqual new Date(time.toInstant(ZoneOffset.UTC).toEpochMilli)
-    resultSet.getDate("time") shouldEqual new Date(time.toInstant(ZoneOffset.UTC).toEpochMilli)
+    resultSet.getDate(1) shouldEqual Date.valueOf(time.atZone(ZoneId.systemDefault()).toLocalDate)
+    resultSet.getDate("time") shouldEqual Date.valueOf(time.atZone(ZoneId.systemDefault()).toLocalDate)
     resultSet.getDate(1, Calendar.getInstance()) shouldEqual Date.valueOf(
       time.atZone(ZoneId.systemDefault()).toLocalDate
     )
@@ -309,8 +311,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       time.atZone(ZoneId.of("Pacific/Honolulu")).toLocalDate
     )
 
-    resultSet.getTime(1) shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
-    resultSet.getTime("time") shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTime(1) shouldEqual java.sql.Time.valueOf(time.atZone(ZoneId.systemDefault()).toLocalTime)
+    resultSet.getTime("time") shouldEqual java.sql.Time.valueOf(time.atZone(ZoneId.systemDefault()).toLocalTime)
     resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Africa/Lome"))) shouldEqual java.sql.Time.valueOf(
       time.atZone(ZoneId.of("Africa/Lome")).toLocalTime
     )
@@ -319,12 +321,18 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         time.atZone(ZoneId.of("Asia/Tokyo")).toLocalTime
       )
 
+    resultSet.getObject(1) shouldEqual Timestamp.valueOf(
+      time.atZone(ZoneId.systemDefault()).toLocalDateTime.truncatedTo(ChronoUnit.MILLIS)
+    )
+    resultSet.getObject("time") shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+
     resultSet.getBoolean(2) shouldEqual false
     resultSet.getBoolean("bool") shouldEqual false
 
     resultSet.getInt(3) shouldEqual 42
     resultSet.getInt("int") shouldEqual 42
     resultSet.wasNull shouldBe false
+    resultSet.getObject(3) shouldEqual 42
 
     resultSet.getString(4) shouldEqual "foo"
     resultSet.getString("string") shouldEqual "foo"
@@ -359,6 +367,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getInt(3) shouldEqual 0
     resultSet.getInt("int") shouldEqual 0
     resultSet.wasNull shouldBe true
+    resultSet.getObject("int") shouldEqual null
 
     resultSet.getString(4) shouldEqual null
     resultSet.getString("string") shouldEqual null
@@ -396,7 +405,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getDouble(3) shouldEqual 0d
     resultSet.wasNull shouldBe true
 
-    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
     resultSet.wasNull shouldBe false
 
     resultSet.next
@@ -542,6 +551,25 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val bytes2 = new Array[Byte](3)
     blob2.getBinaryStream(2, 3).read(bytes2)
     bytes2 should contain theSameElementsInOrderAs Seq[Byte](12, 85, 0)
+  }
+
+  it should "return BLOB as bytes correctly" in {
+    import org.yupana.api.{ Blob => ApiBlob }
+
+    val statement = mock[Statement]
+
+    val result = SimpleResult(
+      "test",
+      Seq("bytes"),
+      Seq(DataType[ApiBlob]),
+      Iterator(Array[Any]("hello world!".getBytes(StandardCharsets.UTF_8)))
+    )
+
+    val rs = new YupanaResultSet(statement, result)
+    rs.next
+
+    val bytes: Array[Byte] = rs.getBytes("bytes")
+    new String(bytes, StandardCharsets.UTF_8) shouldEqual "hello world!"
   }
 
   it should "throw exception on update operation" in {

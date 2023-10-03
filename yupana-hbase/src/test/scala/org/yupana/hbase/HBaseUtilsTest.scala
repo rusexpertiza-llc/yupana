@@ -9,12 +9,13 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.{ BeforeAndAfterAll, OptionValues }
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProviderImpl }
 
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 
@@ -33,9 +34,9 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
     (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "c value").returning(Some(31L))
 
-    val bytes = HBaseUtils.rowKey(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
+    val bytes = HBaseUtils.rowKeyBuffer(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
     val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(4), Some(1L), Some(31L)))
-    val actualRowKey = HBaseUtils.parseRowKey(bytes, TestTable)
+    val actualRowKey = HBaseUtils.parseRowKey(bytes.array(), TestTable)
 
     actualRowKey should be(expectedRowKey)
   }
@@ -58,7 +59,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     pbt should have size 2
 
     val puts = pbt.find(_._1 == TestTable).value._2
-    puts should have size 2
+    puts should have size 1
 
     val put1 =
       puts.find(p => !p.get(HBaseUtils.family(1), Bytes.toBytes(HBaseUtils.restTime(time, TestTable))).isEmpty).get
@@ -118,7 +119,7 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     bb.rewind()
     bb.put(1.toByte)
       .putDouble(2.0)
-      .put(Table.DIM_TAG_OFFSET.toByte)
+      .put(Table.DIM_TAG_OFFSET)
       .putInt("test2".length)
       .put("test2".getBytes(StandardCharsets.UTF_8))
       .put((Table.DIM_TAG_OFFSET + 2).toByte)
@@ -147,17 +148,10 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     CacheFactory.flushCaches()
   }
 
-  it should "test" in {
-    val i1 = -1
-    val i2 = 1
-
-    Bytes.compareTo(Bytes.toBytes(i1), Bytes.toBytes(i2)) > 0 shouldEqual java.lang.Long.compareUnsigned(i1, i2) > 0
-  }
-
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
     super.beforeAll()
   }
 }

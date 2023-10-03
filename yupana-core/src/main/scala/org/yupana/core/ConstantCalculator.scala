@@ -29,9 +29,13 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
     assert(expr.kind == Const)
 
     import ExpressionCalculator.truncateTime
+    import ExpressionCalculator.truncateTimeBy
 
     expr match {
       case ConstantExpr(x, _) => x
+      case NullExpr(_)        => null.asInstanceOf[T]
+      case TrueExpr           => true
+      case FalseExpr          => false
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateConstant(condition)
@@ -41,20 +45,27 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
           evaluateConstant(negative)
         }
 
-      case TruncYearExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear()))
-      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth()))
+      case TruncYearExpr(e) => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfYear))
+      case TruncQuarterExpr(e) =>
+        evaluateUnary(e)(
+          truncateTimeBy(dTime =>
+            dTime.`with`(TemporalAdjusters.firstDayOfMonth).withMonth(dTime.getMonth.firstMonthOfQuarter.getValue)
+          )
+        )
+      case TruncMonthExpr(e)  => evaluateUnary(e)(truncateTime(TemporalAdjusters.firstDayOfMonth))
       case TruncWeekExpr(e)   => evaluateUnary(e)(truncateTime(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)))
       case TruncDayExpr(e)    => evaluateUnary(e)(truncateTime(ChronoUnit.DAYS))
       case TruncHourExpr(e)   => evaluateUnary(e)(truncateTime(ChronoUnit.HOURS))
       case TruncMinuteExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.MINUTES))
       case TruncSecondExpr(e) => evaluateUnary(e)(truncateTime(ChronoUnit.SECONDS))
 
-      case ExtractYearExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getYear)
-      case ExtractMonthExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMonthValue)
-      case ExtractDayExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getDayOfMonth)
-      case ExtractHourExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getHour)
-      case ExtractMinuteExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getMinute)
-      case ExtractSecondExpr(e) => evaluateUnary(e)(_.toLocalDateTime.getSecond)
+      case ExtractYearExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getYear)
+      case ExtractQuarterExpr(e) => evaluateUnary(e)(t => 1 + (t.toLocalDateTime.getMonth.getValue - 1) / 3)
+      case ExtractMonthExpr(e)   => evaluateUnary(e)(_.toLocalDateTime.getMonthValue)
+      case ExtractDayExpr(e)     => evaluateUnary(e)(_.toLocalDateTime.getDayOfMonth)
+      case ExtractHourExpr(e)    => evaluateUnary(e)(_.toLocalDateTime.getHour)
+      case ExtractMinuteExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getMinute)
+      case ExtractSecondExpr(e)  => evaluateUnary(e)(_.toLocalDateTime.getSecond)
 
       case p @ PlusExpr(a, b)    => evaluateBinary(a, b)(p.numeric.plus)
       case m @ MinusExpr(a, b)   => evaluateBinary(a, b)(m.numeric.minus)
@@ -74,7 +85,22 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case IsNullExpr(e)    => evaluateConstant(e) == null
       case IsNotNullExpr(e) => evaluateConstant(e) != null
 
-      case TypeConvertExpr(tc, e) => tc.convert(evaluateConstant(e))
+      case Double2BigDecimalExpr(e) => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Long2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Long2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
+      case Int2LongExpr(e)          => evaluateUnary(e)(_.toLong)
+      case Int2BigDecimalExpr(e)    => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Int2DoubleExpr(e)        => evaluateUnary(e)(_.toDouble)
+      case Short2IntExpr(e)         => evaluateUnary(e)(_.toInt)
+      case Short2LongExpr(e)        => evaluateUnary(e)(_.toLong)
+      case Short2BigDecimalExpr(e)  => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Short2DoubleExpr(e)      => evaluateUnary(e)(_.toDouble)
+      case Byte2ShortExpr(e)        => evaluateUnary(e)(_.toShort)
+      case Byte2IntExpr(e)          => evaluateUnary(e)(_.toInt)
+      case Byte2LongExpr(e)         => evaluateUnary(e)(_.toLong)
+      case Byte2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case Byte2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
+      case ToStringExpr(e)          => evaluateUnary(e)(_.toString)
 
       case InExpr(e, vs) => vs contains evaluateConstant(e)
 
@@ -120,7 +146,9 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
       case ArrayExpr(es) => es.map(e => evaluateConstant(e))
 
-      case x => throw new IllegalArgumentException(s"Expression is not constant $x")
+      case MetricExpr(_) | DimensionExpr(_) | TimeExpr | LinkExpr(_, _) | DimIdInExpr(_, _) | DimIdNotInExpr(_, _) |
+          DimensionIdExpr(_) | LagExpr(_) | _: AggregateExpr[_, _, _] =>
+        throw new IllegalArgumentException(s"Expression is not constant $expr")
     }
   }
 

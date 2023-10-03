@@ -16,7 +16,7 @@
 
 package org.yupana.core.model
 
-import org.yupana.core.model.QueryStates.QueryState
+import org.yupana.metrics.QueryStates
 
 import java.time.OffsetDateTime
 
@@ -26,7 +26,7 @@ case class TsdbQueryMetrics(
     startDate: OffsetDateTime,
     totalDuration: Long = 0L,
     query: String,
-    state: QueryState,
+    state: QueryStates.QueryState,
     engine: String,
     metrics: Map[String, MetricData]
 )
@@ -89,30 +89,4 @@ object TsdbQueryMetrics {
     parseScanResultQualifier,
     dictionaryScanQualifier
   )
-}
-
-object QueryStates {
-
-  sealed abstract class QueryState(val name: String) {
-    override def toString: String = name
-  }
-
-  case object Running extends QueryState("RUNNING")
-
-  case object Finished extends QueryState("FINISHED")
-
-  case object Cancelled extends QueryState("CANCELLED")
-
-  def combine(a: QueryState, b: QueryState): QueryState = {
-    if (a == b) a
-    else if (a == Cancelled || b == Cancelled) Cancelled
-    else if (a == Finished || b == Finished) Finished
-    else Running
-  }
-
-  val states = List(Running, Finished, Cancelled)
-
-  def getByName(name: String): QueryState =
-    states.find(_.name == name).getOrElse(throw new IllegalArgumentException(s"State with name $name not found"))
-
 }

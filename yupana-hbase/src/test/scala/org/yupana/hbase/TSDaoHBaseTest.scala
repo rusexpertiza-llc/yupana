@@ -12,15 +12,17 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression }
 import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.cache.CacheFactory
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core.{ MapReducible, IteratorMapReducible, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, TestDims, TestSchema, TestTableFields }
 
 import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.cache.CacheFactory
+import org.yupana.settings.Settings
+import org.yupana.utils.RussianTokenizer
 
 class TSDaoHBaseTest
     extends AnyFlatSpec
@@ -36,10 +38,12 @@ class TSDaoHBaseTest
 
   type QueryRunner = MockFunction1[Seq[Scan], Iterator[HResult]]
 
+  implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
+
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
     properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
-    CacheFactory.init(properties)
+    CacheFactory.init(Settings(properties))
   }
 
   override protected def beforeEach(): Unit = {
@@ -50,7 +54,7 @@ class TSDaoHBaseTest
     time - (time % testTable.rowTimeSpan)
   }
 
-  private def scan(from: Long, to: Long) = {
+  private def scan(from: Long, to: Long): FunctionAdapter1[Seq[Scan], Boolean] = {
     where { (scans: Seq[Scan]) =>
       val scan = scans.head
       baseTime(from) == Bytes.toLong(scan.getStartRow) &&
@@ -74,7 +78,7 @@ class TSDaoHBaseTest
       val rowRanges = filter.getRowRanges.asScala
 
       val rangesChecks = for {
-        time <- (baseTime(from) to baseTime(to) by table.rowTimeSpan)
+        time <- baseTime(from) to baseTime(to) by table.rowTimeSpan
         range <- ranges
       } yield {
         rowRanges.exists { rowRange =>
@@ -118,7 +122,7 @@ class TSDaoHBaseTest
     }
   }
 
-  "TSDaoHBase" should "execute time bounded queries" in withMock { (dao, dictionary, queryRunner) =>
+  "TSDaoHBase" should "execute time bounded queries" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
@@ -233,7 +237,7 @@ class TSDaoHBaseTest
     r.get[Time](1) shouldEqual 3d
   }
 
-  it should "skip values with fields not defined in schema" in withMock { (dao, dictionary, queryRunner) =>
+  it should "skip values with fields not defined in schema" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs =
@@ -283,7 +287,7 @@ class TSDaoHBaseTest
     r2.get[AnyRef](3) shouldEqual null
   }
 
-  it should "set tag filter for equ" in withMock { (dao, dictionary, queryRunner) =>
+  it should "set tag filter for equ" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs =
@@ -325,7 +329,7 @@ class TSDaoHBaseTest
     r.get[Double](3) shouldEqual 1d
   }
 
-  it should "handle tag repr overflow while filtering" in withMock { (dao, dictionary, queryRunner) =>
+  it should "handle tag repr overflow while filtering" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs =
@@ -397,7 +401,7 @@ class TSDaoHBaseTest
 //    res shouldBe empty
 //  }
 
-  it should "support IN operation for tags" in withMock { (dao, dictionary, queryRunner) =>
+  it should "support IN operation for tags" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
@@ -449,13 +453,11 @@ class TSDaoHBaseTest
     res(1).get[Double](2) shouldEqual 5d
   }
 
-  it should "do nothing if IN values are empty" in withMock { (dao, dictionary, queryRunner) =>
+  it should "do nothing if IN values are empty" in withMock { (dao, _, _) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
-
-    queryRunner.expects(Seq()).returning(Iterator.empty)
 
     val res = dao
       .query(
@@ -472,7 +474,7 @@ class TSDaoHBaseTest
     res shouldBe empty
   }
 
-  it should "intersect different conditions for same tag" in withMock { (dao, dictionary, queryRunner) =>
+  it should "intersect different conditions for same tag" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
@@ -495,24 +497,26 @@ class TSDaoHBaseTest
         )
       )
 
-    dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_A), Set("test1", "test2")),
-          equ(dimension(TestDims.DIM_B), const(21.toShort)),
-          in(dimension(TestDims.DIM_A), Set("test2", "test3"))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    )
+    dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_A), Set("test1", "test2")),
+            equ(dimension(TestDims.DIM_B), const(21.toShort)),
+            in(dimension(TestDims.DIM_A), Set("test2", "test3"))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
   }
 
-  it should "cross join different IN conditions for different tags" in withMock { (dao, dictionary, queryRunner) =>
+  it should "cross join different IN conditions for different tags" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs =
@@ -652,83 +656,75 @@ class TSDaoHBaseTest
     res should have size 2
   }
 
-////  it should "use post filter if there are too many combinations" in withMock { (dao, dictionary, queryRunner) =>
-////    val from = 1000
-////    val to = 5000
-////    val exprs = Seq[Expression[_]](time, dimension(TestTable.DIM_A), dimension(TestTable.DIM_B), metric(TestTable.TEST_FIELD))
-////    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap)
-////
-////    val pointTime1 = 2000
-////    val pointTime2 = 2500
-////
-////    val manyAs = (1 to 200).map(_.toString)
-////    val manyBs = (1 to 3000).map(_.toString)
-////
-////
-////    queryRunner.expects(where { tsdQueries: Seq[TSDQuery] =>
-////      tsdQueries.size  == 200 &&
-////      tsdQueries.sortBy(_.dimensionFilter(0)).zipWithIndex.forall { case (tsdQuery, idx) =>
-////        (tsdQuery.dimensionFilter sameElements idx + 1), None)) &&
-////        tsdQuery.from == from &&
-////        tsdQuery.to == to }
-////    }).returning(
-////      Iterator(
-////        TSDOutputRow(
-////          pointTime1 - (pointTime1 % TestTable.rowTimeSpan), 2, 2))),
-////          Array(
-////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 1d),
-////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 5d)
-////          )
-////        ),
-////        TSDOutputRow(
-////          pointTime1 - (pointTime1 % TestTable.rowTimeSpan), 5, 6000))),
-////          Array(
-////            pointTime1 % TestTable.rowTimeSpan ->  tagged(1, 2d),
-////            pointTime2 % TestTable.rowTimeSpan ->  tagged(1, 3d)
-////          )
-////        )
-////      )
-////    )
-////
-////    (dictionary.getIdsByValues _)
-////      .expects(where { (tag, values) => tag == TestTable.DIM_A && values == manyAs.toSet })
-////      .returning(manyBs.map(x => x -> x.toLong).toMap)
-////    (dictionary.getIdsByValues _)
-////      .expects(where { (tag, values) => tag == TestTable.DIM_B && values == manyBs.toSet })
-////      .returning(manyBs.map(x => x -> x.toLong).toMap)
-////
-////    (dictionary.getValuesByIds _).expects(TestTable.DIM_A, Set(2l)).returning(Map(2l -> "2"))
-////    (dictionary.getValuesByIds _).expects(TestTable.DIM_B, Set(2l)).returning(Map(2l -> "2"))
-////
-////    val res = dao.query(
-////      InternalQuery(
-////        TestTable,
-////        exprs.toSet,
-////        and(
-////          ge(time, const(Time(from))),
-////          lt(time, const(Time(to))),
-////          in(dimension(TestTable.DIM_A), manyAs.toSet),
-////          in(dimension(TestTable.DIM_B), manyBs.toSet)
-////        )
-////      ),
-////      valueDataBuilder,
-////      NoMetricCollector
-////    ).toList
-////
-////    res should have size 2
-////
-////    res(0).get(0).value shouldEqual Time(pointTime1)
-////    res(0).get(1).value shouldEqual "2"
-////    res(0).get(2).value shouldEqual "2"
-////    res(0).get(3).value shouldEqual 1d
-////
-////    res(1).get(0).value shouldEqual Time(pointTime2)
-////    res(1).get(1).value shouldEqual "2"
-////    res(1).get(2).value shouldEqual "2"
-////    res(1).get(3).value shouldEqual 5d
-////  }
-////
-  it should "exclude NOT IN from IN" in withMock { (dao, dictionary, queryRunner) =>
+  it should "use post filter if there are too many combinations" in withMock { (dao, _, queryRunner) =>
+    val from = 1000
+    val to = 5000
+    val exprs =
+      Seq[Expression[_]](time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
+    val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(testTable))
+
+    val pointTime1 = 2000
+    val pointTime2 = 2500
+
+    val manyAs = (1 to 200).map(x => s"A $x")
+    val manyBs = (1 to 3000).map(_.toShort)
+
+    queryRunner
+      .expects(scanMultiRanges(testTable, from, to, manyAs.map(s => Seq(dimAHash(s))).toSet))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("A 1"), 2.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 1d)
+            .field(Table.DIM_TAG_OFFSET, "A 1")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 5d)
+            .field(Table.DIM_TAG_OFFSET, "A 1")
+            .hbaseRow,
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("A 2"), 6000.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 2d)
+            .field(Table.DIM_TAG_OFFSET, "A 2")
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .field(Table.DIM_TAG_OFFSET, "A 2")
+            .hbaseRow
+        )
+      )
+
+    val res = dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_A), manyAs.toSet),
+            in(dimension(TestDims.DIM_B), manyBs.toSet)
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
+
+    res should have size 2
+
+    res(0).get[Time](0) shouldEqual Time(pointTime1)
+    res(0).get[String](1) shouldEqual "A 1"
+    res(0).get[Short](2) shouldEqual 2
+    res(0).get[Double](3) shouldEqual 1d
+
+    res(1).get[Time](0) shouldEqual Time(pointTime2)
+    res(1).get[String](1) shouldEqual "A 1"
+    res(1).get[Short](2) shouldEqual 2
+    res(1).get[Double](3) shouldEqual 5d
+  }
+
+  it should "exclude NOT IN from IN" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
@@ -751,23 +747,25 @@ class TSDaoHBaseTest
         )
       )
 
-    dao.query(
-      InternalQuery(
-        testTable,
-        exprs.toSet,
-        and(
-          ge(time, const(Time(from))),
-          lt(time, const(Time(to))),
-          in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
-          notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
-        )
-      ),
-      valueDataBuilder,
-      NoMetricCollector
-    )
+    dao
+      .query(
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
+            notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
+          )
+        ),
+        valueDataBuilder,
+        NoMetricCollector
+      )
+      .toList
   }
 
-  it should "filter by exclude conditions" in withMock { (dao, dictionary, queryRunner) =>
+  it should "filter by exclude conditions" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
@@ -835,13 +833,11 @@ class TSDaoHBaseTest
     results should have size 1
   }
 
-  it should "do nothing if exclude produce empty set" in withMock { (dao, dictionary, queryRunner) =>
+  it should "do nothing if exclude produce empty set" in withMock { (dao, _, _) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
     val valueDataBuilder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
-
-    queryRunner.expects(Seq.empty).returning(Iterator.empty)
 
     val results = dao
       .query(
@@ -863,7 +859,7 @@ class TSDaoHBaseTest
     results shouldBe empty
   }
 
-  it should "handle tag ID IN" in withMock { (dao, dictionary, queryRunner) =>
+  it should "handle tag ID IN" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
@@ -925,7 +921,7 @@ class TSDaoHBaseTest
     res(1).get[Double](2) shouldEqual 5d
   }
 
-  it should "handle tag ID NOT IN condition" in withMock { (dao, dictionary, queryRunner) =>
+  it should "handle tag ID NOT IN condition" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD))
@@ -1085,7 +1081,7 @@ class TSDaoHBaseTest
     res(0).get[String](3) shouldEqual "Bar"
   }
 
-  it should "support exact time values" in withMock { (dao, dictionaryDao, queryRunner) =>
+  it should "support exact time values" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
@@ -1134,7 +1130,7 @@ class TSDaoHBaseTest
     res.head.get[Double](2) shouldEqual 7d
   }
 
-  it should "support EQ filter for tuples" in withMock { (dao, dictionaryDao, queryRunner) =>
+  it should "support EQ filter for tuples" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
@@ -1184,7 +1180,7 @@ class TSDaoHBaseTest
 
   }
 
-  it should "perform pre-filtering by IN for tuples" in withMock { (dao, dictionaryDao, queryRunner) =>
+  it should "perform pre-filtering by IN for tuples" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
@@ -1269,6 +1265,149 @@ class TSDaoHBaseTest
     res(3).get[Double](2) shouldEqual 33d
   }
 
+  it should "union same dimensions in OR conditions" in withMock { (dao, _, queryRunner) =>
+
+    val from = 100000L
+    val to = 200000L
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 100500L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from, to, Set(Seq(dimAHash("foo")), Seq(dimAHash("bar")), Seq(dimAHash("baz"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          or(
+            equ(dimension(TestDims.DIM_A), const("foo")),
+            in(dimension(TestDims.DIM_A), Set("bar", "baz"))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res should have size 1
+  }
+
+  it should "support negative conditions in OR" in withMock { (dao, _, queryRunner) =>
+
+    val from = 100000L
+    val to = 200000L
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 100500L
+
+    queryRunner
+      .expects(scan(from, to))
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow,
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("bar"), 2.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 33d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          ge(time, const(Time(from))),
+          lt(time, const(Time(to))),
+          or(
+            neq(dimension(TestDims.DIM_A), const("foo")),
+            notIn(dimension(TestDims.DIM_A), Set("foo", "bar"))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res should have size 1
+  }
+
+  it should "handle multiple time bounds" in withMock { (dao, _, queryRunner) =>
+    val from1 = 100000L
+    val to1 = 200000L
+
+    val from2 = 300000L
+    val to2 = 400000L
+
+    val exprs = Seq[Expression[_]](time, metric(TestTableFields.TEST_FIELD))
+
+    val builder = new InternalRowBuilder(exprs.zipWithIndex.toMap, Some(TestSchema.testTable))
+
+    val pointTime1 = 123500L
+    val pointTime2 = 345678L
+
+    queryRunner
+      .expects(
+        scanMultiRanges(testTable, from1, to2, Set(Seq(dimAHash("foo"))))
+      )
+      .returning(
+        Iterator(
+          HBaseTestUtils
+            .row(pointTime1 - (pointTime1 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime1 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow,
+          HBaseTestUtils
+            .row(pointTime2 - (pointTime2 % testTable.rowTimeSpan), dimAHash("foo"), 5.toShort)
+            .cell("d1", pointTime2 % testTable.rowTimeSpan)
+            .field(TestTableFields.TEST_FIELD.tag, 3d)
+            .hbaseRow
+        )
+      )
+
+    val res = dao.query(
+      InternalQuery(
+        testTable,
+        exprs.toSet,
+        and(
+          equ(dimension(TestDims.DIM_A), const("foo")),
+          or(
+            and(ge(time, const(Time(from1))), lt(time, const(Time(to1)))),
+            and(ge(time, const(Time(from2))), lt(time, const(Time(to2))))
+          )
+        )
+      ),
+      builder,
+      NoMetricCollector
+    )
+
+    res.toList.map(r => r.get[Time](0)) should have size 2
+  }
+
   class TestDao(override val dictionaryProvider: DictionaryProvider, queryRunner: QueryRunner)
       extends TSDaoHBaseBase[Iterator] {
     override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
@@ -1276,15 +1415,25 @@ class TSDaoHBaseTest
 
     override def executeScans(
         queryContext: InternalQueryContext,
-        from: IdType,
-        to: IdType,
+        intervals: Seq[(Long, Long)],
         rangeScanDims: Iterator[Map[Dimension, Seq[_]]]
     ): Iterator[HResult] = {
-      val scans = rangeScanDims.flatMap { dimIds =>
-        val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, from, to, dimIds)
-        HBaseUtils.createScan(queryContext, filter, Seq.empty, from, to)
+
+      val totalFrom = intervals.map(_._1).min
+      val totalTo = intervals.map(_._2).max
+
+      if (rangeScanDims.nonEmpty) {
+        rangeScanDims.flatMap { dimIds =>
+          val filter = HBaseUtils.multiRowRangeFilter(queryContext.table, intervals, dimIds)
+          HBaseUtils.createScan(queryContext, filter, Seq.empty, totalFrom, totalTo) match {
+            case Some(scan) => queryRunner(Seq(scan))
+            case None       => Iterator.empty
+          }
+        }
+      } else {
+        Iterator.empty
       }
-      queryRunner(scans.toSeq)
+
     }
 
     override val schema: Schema = TestSchema.schema

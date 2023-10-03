@@ -17,13 +17,13 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.InternalRow
+import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
@@ -84,22 +84,16 @@ class ItemsInvertedIndexImpl(
     invertedIndexDao.valuesByPrefix(prefix)
   }
 
-  private def includeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+  private def includeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.intersectAll(ids)
-    Replace(
-      values.map(_._1).toSet,
-      DimIdInExpr(externalLink.dimension, it)
-    )
+    ConditionTransformation.replace(values.map(_._1), DimIdInExpr(externalLink.dimension, it))
   }
 
-  private def excludeTransform(values: Seq[(Condition, String, Set[String])]): TransformCondition = {
+  private def excludeTransform(values: Seq[(SimpleCondition, String, Set[String])]): Seq[ConditionTransformation] = {
     val ids = getPhraseIds(values)
     val it = SortedSetIterator.unionAll(ids)
-    Replace(
-      values.map(_._1).toSet,
-      DimIdNotInExpr(externalLink.dimension, it)
-    )
+    ConditionTransformation.replace(values.map(_._1), DimIdNotInExpr(externalLink.dimension, it))
   }
 
   // Read only external link
@@ -109,9 +103,8 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def transformCondition(condition: Condition): Seq[TransformCondition] = {
+  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](
-      constantCalculator,
       externalLink.linkName,
       condition,
       includeTransform,
@@ -120,7 +113,7 @@ class ItemsInvertedIndexImpl(
   }
 
   private def getPhraseIds(
-      fieldsValues: Seq[(Condition, String, Set[String])]
+      fieldsValues: Seq[(SimpleCondition, String, Set[String])]
   ): Seq[SortedSetIterator[ItemDimension.KeyType]] = {
     fieldsValues.map {
       case (_, PHRASE_FIELD, phrases) => SortedSetIterator.unionAll(phrases.toSeq.map(dimIdsForPhrase))
@@ -128,7 +121,7 @@ class ItemsInvertedIndexImpl(
     }
   }
 
-  def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
+  private def dimIdsForPhrase(phrase: String): SortedSetIterator[ItemDimension.KeyType] = {
     val (prefixes, words) = phrase.split(' ').partition(_.endsWith("%"))
 
     val stemmedWords = words.flatMap(schema.tokenizer.transliteratedTokens)

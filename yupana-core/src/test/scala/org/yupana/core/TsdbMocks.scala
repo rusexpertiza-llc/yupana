@@ -5,13 +5,15 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.dao.{ ChangelogDao, DictionaryDao, DictionaryProviderImpl }
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.InternalRow
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.utils.RussianTokenizer
+
+trait TSTestDao extends TSDao[Iterator, Long]
 
 trait TsdbMocks extends MockFactory {
 
@@ -28,7 +30,7 @@ trait TsdbMocks extends MockFactory {
     catalogService
   }
 
-  def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
+  def daoMock: TSTestDao = {
     val tsdbDaoMock = mock[TSTestDao]
     (tsdbDaoMock.isSupportedCondition _)
       .expects(*)
@@ -72,15 +74,17 @@ trait TsdbMocks extends MockFactory {
       .onCall((_: MetricQueryCollector) => IteratorMapReducible.iteratorMR)
       .anyNumberOfTimes()
 
-    val dictionaryDaoMock = mock[DictionaryDao]
+    tsdbDaoMock
+  }
+
+  def withTsdbMock(body: (TSDB, TSTestDao) => Unit): Unit = {
+    val tsdbDaoMock = daoMock
     val changelogDaoMock = mock[ChangelogDao]
-    val dictionaryProvider = new DictionaryProviderImpl(dictionaryDaoMock)
     val tsdb =
       new TSDB(
         TestSchema.schema,
         tsdbDaoMock,
         changelogDaoMock,
-        dictionaryProvider,
         identity,
         SimpleTsdbConfig(),
         { _: Query => NoMetricCollector }

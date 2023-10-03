@@ -18,6 +18,7 @@ package org.yupana.examples.server
 
 import java.util.Properties
 import com.typesafe.config.{ Config => TypesafeConfig }
+import org.yupana.settings.Settings
 
 import scala.jdk.CollectionConverters._
 
@@ -26,7 +27,7 @@ case class Config(
     hbaseNamespace: String,
     host: String = "localhost",
     port: Int = 12345,
-    properties: Properties
+    settings: Settings
 )
 
 object Config {
@@ -34,6 +35,7 @@ object Config {
     val props = new Properties()
     cfg.entrySet().asScala.foreach(x => props.setProperty(x.getKey, x.getValue.unwrapped().toString))
 
+    val settings = Settings(props)
     val namespace = if (cfg.hasPath("yupana.hbaseNamespace")) cfg.getString("yupana.hbaseNamespace") else "default"
 
     Config(
@@ -41,7 +43,7 @@ object Config {
       namespace,
       cfg.getString("yupana.host"),
       cfg.getInt("yupana.port"),
-      props
+      settings
     )
   }
 }

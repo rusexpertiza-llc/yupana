@@ -22,13 +22,14 @@ import org.yupana.core.MapReducible
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.collection.compat.IterableOnce
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 import scala.reflect.ClassTag
 
 class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector: MetricQueryCollector)
     extends MapReducible[RDD]
     with Serializable {
+
+  override def empty[A: ClassTag]: RDD[A] = sparkContext.emptyRDD[A]
 
   override def singleton[A: ClassTag](a: A): RDD[A] = sparkContext.parallelize(Seq(a))
 
@@ -44,6 +45,13 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
 
   override def flatMap[A: ClassTag, B: ClassTag](rdd: RDD[A])(f: A => Iterable[B]): RDD[B] = {
     val r = rdd.flatMap(f)
+    saveMetricOnCompleteRdd(r)
+  }
+
+  override def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
+      rdd: RDD[(K, A)]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): RDD[(K, B)] = {
+    val r = rdd.combineByKeyWithClassTag(createZero, seqOp, combOp)
     saveMetricOnCompleteRdd(r)
   }
 
@@ -75,6 +83,8 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     val r = sparkContext.parallelize(ArraySeq.unsafeWrapArray(rdd.take(n)))
     saveMetricOnCompleteRdd(r)
   }
+
+  override def concat[A: ClassTag](a: RDD[A], b: RDD[A]): RDD[A] = sparkContext.union(a, b)
 
   override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = ArraySeq.unsafeWrapArray(c.collect())
 

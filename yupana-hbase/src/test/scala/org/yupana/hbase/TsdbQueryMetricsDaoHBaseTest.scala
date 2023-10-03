@@ -5,9 +5,11 @@ import org.scalatest.GivenWhenThen
 import org.yupana.api.query.Query
 import org.yupana.core.{ TestDims, TestSchema }
 import org.yupana.core.dao.QueryMetricsFilter
-import org.yupana.core.model.{ MetricData, QueryStates }
+import org.yupana.core.model.MetricData
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.utils.metric.InternalMetricData
+import org.yupana.metrics.QueryStates
 
 import java.time.temporal.ChronoUnit
 import java.time.{ OffsetDateTime, ZoneOffset }
@@ -31,13 +33,17 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
 
     When("metric dao initialized")
     dao.saveQueryMetrics(
-      query,
-      None,
-      startTime.toInstant.toEpochMilli,
-      QueryStates.Running,
-      0L,
-      Map.empty,
-      sparkQuery = false
+      List(
+        InternalMetricData(
+          query,
+          None,
+          startTime.toInstant.toEpochMilli,
+          QueryStates.Running,
+          0L,
+          Map.empty,
+          sparkQuery = false
+        )
+      )
     )
 
     Then("all metrics shall be zero")
@@ -54,13 +60,17 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
 
     When("metrics are updated")
     dao.saveQueryMetrics(
-      query,
-      None,
-      startTime.toInstant.toEpochMilli,
-      QueryStates.Finished,
-      10000000000L,
-      Map("create_scans" -> MetricData(1, 2, 3)),
-      sparkQuery = false
+      List(
+        InternalMetricData(
+          query,
+          None,
+          startTime.toInstant.toEpochMilli,
+          QueryStates.Finished,
+          10000000000L,
+          Map("create_scans" -> MetricData(1, 2, 3)),
+          sparkQuery = false
+        )
+      )
     )
 
     Then("it should return updated data")
@@ -92,22 +102,30 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
 
     When("metric dao initialized")
     dao.saveQueryMetrics(
-      query,
-      Some("1"),
-      startTime.toInstant.toEpochMilli,
-      QueryStates.Running,
-      0L,
-      Map.empty,
-      sparkQuery = false
+      List(
+        InternalMetricData(
+          query,
+          Some("1"),
+          startTime.toInstant.toEpochMilli,
+          QueryStates.Running,
+          0L,
+          Map.empty,
+          sparkQuery = false
+        )
+      )
     )
     dao.saveQueryMetrics(
-      query,
-      Some("2"),
-      startTime.plusSeconds(3).toInstant.toEpochMilli,
-      QueryStates.Running,
-      0L,
-      Map.empty,
-      sparkQuery = false
+      List(
+        InternalMetricData(
+          query,
+          Some("2"),
+          startTime.plusSeconds(3).toInstant.toEpochMilli,
+          QueryStates.Running,
+          0L,
+          Map.empty,
+          sparkQuery = false
+        )
+      )
     )
 
     Then("all metrics shall be zero")
@@ -124,23 +142,31 @@ trait TsdbQueryMetricsDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike wi
 
     When("metrics are updated")
     dao.saveQueryMetrics(
-      query,
-      Some("1"),
-      startTime.toInstant.toEpochMilli,
-      QueryStates.Finished,
-      4000000000L,
-      Map("create_scans" -> MetricData(1, 2, 3)),
-      sparkQuery = false
+      List(
+        InternalMetricData(
+          query,
+          Some("1"),
+          startTime.toInstant.toEpochMilli,
+          QueryStates.Finished,
+          4000000000L,
+          Map("create_scans" -> MetricData(1, 2, 3)),
+          sparkQuery = false
+        )
+      )
     )
 
     dao.saveQueryMetrics(
-      query,
-      Some("2"),
-      startTime.plusSeconds(3).toInstant.toEpochMilli,
-      QueryStates.Finished,
-      2000000000L,
-      Map("create_scans" -> MetricData(2, 3, 1)),
-      sparkQuery = false
+      List(
+        InternalMetricData(
+          query,
+          Some("2"),
+          startTime.plusSeconds(3).toInstant.toEpochMilli,
+          QueryStates.Finished,
+          2000000000L,
+          Map("create_scans" -> MetricData(2, 3, 1)),
+          sparkQuery = false
+        )
+      )
     )
 
     Then("it should return updated data")

@@ -16,8 +16,6 @@
 
 package org.yupana.core
 
-import java.sql.Types
-
 import com.typesafe.scalalogging.StrictLogging
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
@@ -26,6 +24,7 @@ import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 
+import java.sql.Types
 import scala.reflect.{ ClassTag, classTag }
 
 trait ExpressionCalculatorFactory {
@@ -61,11 +60,16 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       refs: Seq[(AnyRef, Decl)],
       globalDecls: Seq[(Any, Decl)],
       localDecls: Seq[LocalDecl],
+      typeDecls: Map[TypeName, Tree],
       trees: Seq[Tree],
       exprId: Int,
       prefix: String = "",
       parent: Option[State] = None
   ) {
+    def withDeclaration(className: TypeName, tree: Tree): State = {
+      if (typeDecls.contains(className)) this else this.copy(typeDecls = this.typeDecls + (className -> tree))
+    }
+
     def withRequired(e: Expression[_]): State = copy(required = required + e).withExpr(e)
 
     def withExpr(e: Expression[_]): State = {
@@ -157,7 +161,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
 
     def fresh: (Tree, State) = {
-      render -> State(index, required, unfinished, refs, globalDecls, Seq.empty, Seq.empty, exprId)
+      render -> State(index, required, unfinished, refs, globalDecls, Seq.empty, typeDecls, Seq.empty, exprId)
     }
 
     def nested(prefix: String): State = State(
@@ -167,6 +171,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       refs,
       globalDecls,
       Seq.empty,
+      Map.empty,
       Seq.empty,
       exprId,
       prefix + this.prefix,
@@ -254,8 +259,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
-  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[(Tree, State)] = {
-    val tpe = mkType(e)
+  private def mkGet(state: State, row: TermName, e: Expression[_], tpe: Tree): Option[(Tree, State)] = {
     e match {
       case x if state.unfinished.contains(x) => None
 
@@ -266,6 +270,10 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       case ConstantExpr(v, true) =>
         val (name, ns) = state.withNewRef(v.asInstanceOf[AnyRef], mkType(e.dataType))
         Some(q"$name" -> ns)
+
+      case NullExpr(_) =>
+        val (v, ns) = mapValue(state, e.dataType)(null)
+        Some(q"$v.asInstanceOf[$tpe]" -> ns)
 
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
         val (lits, newState) = exprs.foldLeft((Seq.empty[Tree], state)) {
@@ -288,15 +296,31 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
+  private def mkGet(state: State, row: TermName, e: Expression[_]): Option[(Tree, State)] = {
+    mkGet(state, row, e, mkType(e))
+  }
+
+  private def mkGetNow(state: State, row: TermName, e: Expression[_], tpe: Tree): (Tree, State) = {
+    mkGet(state, row, e, tpe) getOrElse (throw new IllegalStateException(s"Unknown expression $e"))
+  }
+
   private def mkGetNow(state: State, row: TermName, e: Expression[_]): (Tree, State) = {
     mkGet(state, row, e) getOrElse (throw new IllegalStateException(s"Unknown expression $e"))
   }
 
   private def mkIsDefined(state: State, row: TermName, e: Expression[_]): Option[Tree] = {
     e match {
-      case ConstantExpr(_, _) => None
-      case TimeExpr           => None
-      case DimensionExpr(_)   => None
+      case ConstantExpr(_, _)                                                   => None
+      case NullExpr(_)                                                          => Some(q"false")
+      case TimeExpr                                                             => None
+      case DimensionExpr(_)                                                     => None
+      case CountExpr(_)                                                         => None
+      case DistinctCountExpr(_)                                                 => None
+      case DistinctRandomExpr(_)                                                => None
+      case AvgExpr(_)                                                           => None
+      case HLLCountExpr(_, _)                                                   => None
+      case e: AggregateExpr[_, _, _] if mkIsDefined(state, row, e.expr).isEmpty => None
+
       case TupleExpr(e1, e2) =>
         val d1 = mkIsDefined(state, row, e1)
         val d2 = mkIsDefined(state, row, e2)
@@ -359,14 +383,6 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           q"DataType.bySqlName(${e.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].fractional.get"
         )
     }
-  }
-
-  private def mkSetTypeConvertExpr(state: State, row: TermName, e: Expression[_], a: Expression[_]): State = {
-    val mapper = typeConverters.getOrElse(
-      (a.dataType.meta.sqlTypeName, e.dataType.meta.sqlTypeName),
-      throw new IllegalArgumentException(s"Unsupported type conversion ${a.dataType} to ${e.dataType}")
-    )
-    mkSetUnary(state, row, e, a, mapper)
   }
 
   private def mkSetBinary(
@@ -442,23 +458,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
-  private def tcEntry[A, B](
-      aToB: Tree => Tree
-  )(implicit a: DataType.Aux[A], b: DataType.Aux[B]): ((String, String), Tree => Tree) = {
-    ((a.meta.sqlTypeName, b.meta.sqlTypeName), aToB)
-  }
-
-  private val typeConverters: Map[(String, String), Tree => Tree] = Map(
-    tcEntry[Double, BigDecimal](d => q"BigDecimal($d)"),
-    tcEntry[Long, BigDecimal](l => q"BigDecimal($l)"),
-    tcEntry[Long, Double](l => q"$l.toDouble"),
-    tcEntry[Int, Long](i => q"$i.toLong"),
-    tcEntry[Int, BigDecimal](i => q"BigDecimal($i)"),
-    tcEntry[Short, BigDecimal](s => q"BigDecimal($s)"),
-    tcEntry[Byte, BigDecimal](b => q"BigDecimal($b)")
-  )
-
   private val truncTime = q"_root_.org.yupana.core.ExpressionCalculator.truncateTime"
+  private val truncTimeBy = q"_root_.org.yupana.core.ExpressionCalculator.truncateTimeBy"
   private val monday = q"_root_.java.time.DayOfWeek.MONDAY"
   private val cru = q"_root_.java.time.temporal.ChronoUnit"
   private val adj = q"_root_.java.time.temporal.TemporalAdjusters"
@@ -499,6 +500,32 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     result -> updatedState
   }
 
+  private def mkSetCondition(state: State, row: TermName, c: ConditionExpr[_]): State = {
+    val newState = mkSet(state, row, c.condition)
+    mkGet(newState, row, c.condition) match {
+      case Some((getIf, ifState)) =>
+        val (getThen, thenState) = mkInner("t", ifState, row, c.positive)
+        val (getElse, elseState) = mkInner("e", thenState, row, c.negative)
+        val thenDef = mkIsDefined(elseState, row, c.positive)
+        val elseDef = mkIsDefined(elseState, row, c.negative)
+        val readCondition = (thenDef, elseDef) match {
+          case (Some(td), Some(ed)) => Some(q"($getIf && $td) || (!$getIf && $ed)")
+          case (Some(td), None)     => Some(q"!$getIf || $td")
+          case (None, Some(ed))     => Some(q"$getIf || $ed")
+          case (None, None)         => None
+        }
+        readCondition match {
+          case Some(cond) => elseState.withDefineIf(row, c, cond, q"if ($getIf) $getThen else $getElse")
+          case None       => elseState.withDefine(row, c, q"if ($getIf) $getThen else $getElse")
+        }
+
+      case None =>
+        val thenState = mkSet(newState, row, c.positive)
+        val elseState = mkSet(thenState, row, c.negative)
+        elseState.withUnfinished(c)
+    }
+  }
+
   private def mkSet(state: State, row: TermName, e: Expression[_]): State = {
 
     if (state.index.contains(e)) {
@@ -508,6 +535,15 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       e match {
         case ConstantExpr(c, _) =>
           val (v, s) = mapValue(state, e.dataType)(c)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case TrueExpr =>
+          val (v, s) = mapValue(state, e.dataType)(true)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case FalseExpr =>
+          val (v, s) = mapValue(state, e.dataType)(false)
+          if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case NullExpr(_) =>
+          val (v, s) = mapValue(state, e.dataType)(null)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
 
         case TimeExpr             => state.withExpr(e)
@@ -550,9 +586,38 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case DivIntExpr(a, b)  => mkSetBinary(state, row, e, a, b, (x, y) => q"""$x / $y""")
         case DivFracExpr(a, b) => mkDivFrac(state, row, e, a, b)
 
-        case TypeConvertExpr(_, a) => mkSetTypeConvertExpr(state, row, e, a)
+        case Double2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, d => q"BigDecimal($d)")
 
-        case TruncYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
+        case Long2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, l => q"BigDecimal($l)")
+        case Long2DoubleExpr(a)     => mkSetUnary(state, row, e, a, l => q"$l.toDouble")
+
+        case Int2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, i => q"BigDecimal($i)")
+        case Int2DoubleExpr(a)     => mkSetUnary(state, row, e, a, i => q"$i.toDouble")
+        case Int2LongExpr(a)       => mkSetUnary(state, row, e, a, i => q"$i.toLong")
+
+        case Short2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, s => q"BigDecimal($s)")
+        case Short2DoubleExpr(a)     => mkSetUnary(state, row, e, a, s => q"$s.toDouble")
+        case Short2LongExpr(a)       => mkSetUnary(state, row, e, a, s => q"$s.toLong")
+        case Short2IntExpr(a)        => mkSetUnary(state, row, e, a, s => q"$s.toInt")
+
+        case Byte2BigDecimalExpr(a) => mkSetUnary(state, row, e, a, b => q"BigDecimal($b)")
+        case Byte2DoubleExpr(a)     => mkSetUnary(state, row, e, a, b => q"$b.toDouble")
+        case Byte2LongExpr(a)       => mkSetUnary(state, row, e, a, b => q"$b.toLong")
+        case Byte2IntExpr(a)        => mkSetUnary(state, row, e, a, b => q"$b.toInt")
+        case Byte2ShortExpr(a)      => mkSetUnary(state, row, e, a, b => q"$b.toShort")
+
+        case ToStringExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toString")
+
+        case TruncYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfYear)($x)")
+        case TruncQuarterExpr(a) =>
+          mkSetUnary(
+            state,
+            row,
+            e,
+            a,
+            x =>
+              q"$truncTimeBy(dTime => dTime.`with`($adj.firstDayOfMonth).withMonth(dTime.getMonth.firstMonthOfQuarter.getValue))($x)"
+          )
         case TruncMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.firstDayOfMonth)($x)")
         case TruncWeekExpr(a)   => mkSetUnary(state, row, e, a, x => q"$truncTime($adj.previousOrSame($monday))($x)")
         case TruncDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.DAYS)($x)")
@@ -560,7 +625,9 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case TruncMinuteExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.MINUTES)($x)")
         case TruncSecondExpr(a) => mkSetUnary(state, row, e, a, x => q"$truncTime($cru.SECONDS)($x)")
 
-        case ExtractYearExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
+        case ExtractYearExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getYear")
+        case ExtractQuarterExpr(a) =>
+          mkSetUnary(state, row, e, a, x => q"1 + ($x.toLocalDateTime.getMonth.getValue - 1) / 3")
         case ExtractMonthExpr(a)  => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getMonthValue")
         case ExtractDayExpr(a)    => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getDayOfMonth")
         case ExtractHourExpr(a)   => mkSetUnary(state, row, e, a, x => q"$x.toLocalDateTime.getHour")
@@ -579,19 +646,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case LowerExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toLowerCase")
         case UpperExpr(a) => mkSetUnary(state, row, e, a, x => q"$x.toUpperCase")
 
-        case ConditionExpr(c, p, n) =>
-          val newState = mkSet(state, row, c)
-          mkGet(newState, row, c) match {
-            case Some((getIf, ifState)) =>
-              val (getThen, thenState) = mkInner("t", ifState, row, p)
-              val (getElse, elseState) = mkInner("e", thenState, row, n)
-              elseState.withDefine(row, e, q"if ($getIf) $getThen else $getElse")
-
-            case None =>
-              val thenState = mkSet(newState, row, p)
-              val elseState = mkSet(thenState, row, n)
-              elseState.withUnfinished(e)
-          }
+        case c @ ConditionExpr(_, _, _) => mkSetCondition(state, row, c)
 
         case AbsExpr(a)        => mkSetMathUnary(state, row, e, a, TermName("abs"))
         case UnaryMinusExpr(a) => mkSetMathUnary(state, row, e, a, TermName("negate"))
@@ -629,6 +684,8 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
   private def mkFilter(state: State, row: TermName, condition: Option[Condition]): State = {
     condition match {
       case Some(ConstantExpr(v, _)) => state.appendLocal(q"$v")
+      case Some(TrueExpr)           => state.appendLocal(q"true")
+      case Some(FalseExpr)          => state.appendLocal(q"false")
 
       case Some(cond) =>
         val newState = mkSet(state, row, cond)
@@ -663,7 +720,49 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     mkSetExprs(state, row, query.fields.map(_.expr).toList ++ query.groupBy)
   }
 
-  private def mkMap(
+  private def avgClassName(dataType: DataType): TypeName = TypeName(s"Avg_${dataType.meta.sqlTypeName}")
+
+  private def mkAvg(dataType: DataType, state: State): State = {
+    val tpe = mkType(dataType)
+    val accTpe = if (Set("Short", "Byte").contains(className(dataType))) {
+      Ident(TypeName("Long"))
+    } else {
+      tpe
+    }
+
+    val cn = avgClassName(dataType)
+
+    val tree = q"""
+       class $cn {
+       
+         var a: $accTpe = 0
+         var c: Int = 0
+         
+         def prepare(initial: $tpe): $cn = {
+             a = initial
+             c = 1
+             this
+         }
+
+         def +(x: $tpe): $cn = {
+             a += x
+             c += 1
+             this
+         }
+
+         def ++(that: $cn): $cn = {
+           this.a += that.a
+           this.c += that.c
+           this
+         }
+
+         def result: BigDecimal = if (c != 0) { BigDecimal(a.toDouble / c) } else  { null }
+       }
+     """
+    state.withDeclaration(cn, tree)
+  }
+
+  private def mkZero(
       state: State,
       aggregates: Seq[AggregateExpr[_, _, _]],
       row: TermName
@@ -684,6 +783,33 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
               q"DataType.bySqlName(${ae.expr.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].ordering.get"
             )
 
+        case AvgExpr(_) =>
+          val avgClass = avgClassName(ae.expr.dataType)
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) =>
+              mkAvg(ae.expr.dataType, s).withDefine(
+                row,
+                ae,
+                q"""
+                 val avg = new $avgClass()
+                 if ($d) {
+                  avg.prepare($exprValue)
+                 } else {
+                  avg
+                 }
+                """
+              )
+            case None =>
+              mkAvg(ae.expr.dataType, s).withDefine(
+                row,
+                ae,
+                q"""
+                  val avg = new $avgClass()
+                  avg.prepare($exprValue)
+                """
+              )
+          }
+
         case CountExpr(_) =>
           mkIsDefined(s, row, ae.expr) match {
             case Some(d) => s.withDefine(row, ae, q"if ($d) 1L else 0L")
@@ -695,11 +821,131 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             case Some(d) => s.withDefine(row, ae, q"if ($d) Set($exprValue) else Set.empty")
             case None    => s.withDefine(row, ae, q"Set($exprValue)")
           }
-
+        case HLLCountExpr(_, b) =>
+          val valTpe = mkType(ae.expr)
+          mkIsDefined(s, row, ae.expr) match {
+            case Some(d) =>
+              s.withDefine(
+                row,
+                ae,
+                q"""
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
+                if ($d) {
+                  agg.prepare($exprValue)
+                } else {
+                  agg.monoid.empty
+                }
+              """
+              )
+            case None =>
+              s.withDefine(
+                row,
+                ae,
+                q"""
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($b)
+                agg.prepare($exprValue)
+              """
+              )
+          }
       }
     }
   }
 
+  private def mkFold(
+      state: State,
+      aggregates: Seq[AggregateExpr[_, _, _]],
+      acc: TermName,
+      row: TermName
+  ): State = {
+
+    aggregates.foldLeft(state) { (s, ae) =>
+      ae match {
+        case SumExpr(_) => mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"$a + $r")
+
+        case MinExpr(_) =>
+          mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.min($a, $r)")
+
+        case MaxExpr(_) =>
+          mkSetFold(s, acc, row, ae, identity, None, (a, r) => q"${ordValName(ae.expr.dataType)}.max($a, $r)")
+
+        case AvgExpr(_) =>
+          mkSetFold(
+            s,
+            acc,
+            tq"${avgClassName(ae.expr.dataType)}",
+            row,
+            ae,
+            identity,
+            None,
+            (a, r) => q"$a + ($r)"
+          )
+
+        case CountExpr(_) =>
+          mkSetFold(s, acc, row, ae, _ => q"1L", Some(q"0L"), (a, r) => q"$a + $r")
+        case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
+          val valTpe = mkType(ae.expr)
+          mkSetFold(s, acc, tq"Set[$valTpe]", row, ae, identity, None, (a, r) => q"$a + $r")
+        case HLLCountExpr(_, e) =>
+          val valTpe = mkType(ae.expr)
+          mkSetFold(
+            s,
+            acc,
+            tq"_root_.com.twitter.algebird.HLL",
+            row,
+            ae,
+            identity,
+            None,
+            (a, r) => q"""
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valTpe]($e)
+                agg.append($a, $r)
+              """
+          )
+      }
+    }
+  }
+
+  private def mkSetFold(
+      state: State,
+      acc: TermName,
+      row: TermName,
+      ae: AggregateExpr[_, _, _],
+      map: Tree => Tree,
+      default: Option[Tree],
+      fold: (Tree, Tree) => Tree
+  ): State = {
+    mkSetFold(state, acc, mkType(ae), row, ae, map, default, fold)
+  }
+
+  private def mkSetFold(
+      state: State,
+      acc: TermName,
+      accType: Tree,
+      row: TermName,
+      ae: AggregateExpr[_, _, _],
+      map: Tree => Tree,
+      default: Option[Tree],
+      fold: (Tree, Tree) => Tree
+  ): State = {
+    val (aValue, s1) = mkGetNow(state, acc, ae, accType)
+    val s2 = mkSet(s1, row, ae.expr)
+    val (rValue, s3) = mkGetNow(s2, row, ae.expr)
+
+    (mkIsDefined(s3, acc, ae), mkIsDefined(s3, row, ae.expr), default) match {
+      case (Some(ad), Some(rd), Some(d)) =>
+        val s4 = s3.withDefine(row, ae.expr, q"if ($rd) ${map(rValue)} else $d")
+        val (rOrDefault, s5) = mkGetNow(s4, row, ae.expr, accType)
+        s5.withDefine(acc, ae, q"if ($ad) ${fold(aValue, rOrDefault)} else $rOrDefault")
+
+      case (Some(ad), Some(rd), None) =>
+        s3.withDefineIf(acc, ae, rd, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
+
+      case (None, Some(rd), Some(d)) => s3.withDefine(acc, ae, fold(aValue, q"if ($rd) ${map(rValue)} else $d"))
+      case (None, Some(rd), None)    => s3.withDefineIf(acc, ae, rd, fold(aValue, map(rValue)))
+
+      case (Some(ad), None, _) => s3.withDefine(acc, ae, q"if ($ad) ${fold(aValue, map(rValue))} else ${map(rValue)}")
+      case (None, None, _)     => s3.withDefine(acc, ae, fold(aValue, map(rValue)))
+    }
+  }
   private def mkSetReduce(
       state: State,
       rowA: TermName,
@@ -707,8 +953,19 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       ae: AggregateExpr[_, _, _],
       f: (Tree, Tree) => Tree
   ): State = {
-    val (aValue, s1) = mkGetNow(state, rowA, ae)
-    val (bValue, s2) = mkGetNow(s1, rowB, ae)
+    mkSetReduce(state, rowA, rowB, mkType(ae), ae, f)
+  }
+
+  private def mkSetReduce(
+      state: State,
+      rowA: TermName,
+      rowB: TermName,
+      tpe: Tree,
+      ae: AggregateExpr[_, _, _],
+      f: (Tree, Tree) => Tree
+  ): State = {
+    val (aValue, s1) = mkGetNow(state, rowA, ae, tpe)
+    val (bValue, s2) = mkGetNow(s1, rowB, ae, tpe)
 
     (mkIsDefined(s2, rowA, ae), mkIsDefined(s2, rowB, ae)) match {
       case (Some(da), Some(db)) =>
@@ -725,21 +982,44 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     }
   }
 
-  private def mkReduce(state: State, aggregates: Seq[AggregateExpr[_, _, _]], rowA: TermName, rowB: TermName): State = {
+  private def mkCombine(
+      state: State,
+      aggregates: Seq[AggregateExpr[_, _, _]],
+      rowA: TermName,
+      rowB: TermName
+  ): State = {
 
     aggregates.foldLeft(state) { (s, ae) =>
-      val idx = state.index(ae)
       val valueTpe = mkType(ae.expr)
-
       ae match {
-        case SumExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
-        case MinExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.min($a, $b)")
-        case MaxExpr(_)   => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.max($a, $b)")
-        case CountExpr(_) => s.withDefine(rowA, ae, q"$rowA.get[Long]($idx) + $rowB.get[Long]($idx)")
-        case DistinctCountExpr(_) =>
-          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
-        case DistinctRandomExpr(_) =>
-          s.withDefine(rowA, ae, q"$rowA.get[Set[$valueTpe]]($idx) ++ $rowB.get[Set[$valueTpe]]($idx)")
+        case SumExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
+        case MinExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.min($a, $b)")
+        case MaxExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"${ordValName(ae.expr.dataType)}.max($a, $b)")
+        case AvgExpr(_) =>
+          mkSetReduce(
+            s,
+            rowA,
+            rowB,
+            tq"${avgClassName(ae.expr.dataType)}",
+            ae,
+            (a, b) => q"$a ++ $b"
+          )
+        case CountExpr(_) => mkSetReduce(s, rowA, rowB, ae, (a, b) => q"$a + $b")
+        case DistinctCountExpr(_) | DistinctRandomExpr(_) =>
+          mkSetReduce(s, rowA, rowB, tq"Set[$valueTpe]", ae, (a, b) => q"$a ++ $b")
+        case HLLCountExpr(_, e) =>
+          mkSetReduce(
+            s,
+            rowA,
+            rowB,
+            tq"_root_.com.twitter.algebird.HLL",
+            ae,
+            (a, b) => q"""
+                val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valueTpe]($e)
+                val hll = agg.monoid
+                hll.combine($a, $b)
+               """
+          )
       }
     }
   }
@@ -761,8 +1041,15 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
           Some(mkIsDefined(state, row, ae).fold(oldValue)(d => q"if ($d) $oldValue else $z") -> ns)
         case MinExpr(_)           => None
         case MaxExpr(_)           => None
+        case AvgExpr(_)           => Some(q"$row.get[${avgClassName(ae.expr.dataType)}]($idx).result" -> s)
         case CountExpr(_)         => None
         case DistinctCountExpr(_) => Some(q"$row.get[Set[$valueTpe]]($idx).size" -> s)
+        case HLLCountExpr(_, _) =>
+          Some(
+            q"""
+              $row.get[_root_.com.twitter.algebird.HLL]($idx).approximateSize.estimate
+            """ -> s
+          )
         case DistinctRandomExpr(_) =>
           Some(
             q"""
@@ -808,6 +1095,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         Seq.empty,
         Seq.empty,
         Seq.empty,
+        Map.empty,
         Seq.empty,
         0
       )
@@ -822,11 +1110,15 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
 
     val beforeAggregationState = evaluatedState.copy(unfinished = Set.empty)
 
-    val (map, mappedState) = mkMap(beforeAggregationState, knownAggregates, internalRow).fresh
+    val acc = TermName("acc")
+
+    val (map, mappedState) = mkZero(beforeAggregationState, knownAggregates, internalRow).fresh
+
+    val (fold, foldedState) = mkFold(mappedState, knownAggregates, acc, internalRow).fresh
 
     val rowA = TermName("rowA")
     val rowB = TermName("rowB")
-    val (reduce, reducedState) = mkReduce(mappedState, knownAggregates, rowA, rowB).fresh
+    val (reduce, reducedState) = mkCombine(foldedState, knownAggregates, rowA, rowB).fresh
 
     val (postMap, postMappedState) = mkPostMap(reducedState, knownAggregates, internalRow).fresh
 
@@ -838,12 +1130,18 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
     val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
       finalState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
 
+    val typeDecls = finalState.typeDecls.values
+
     val tree = q"""
       import _root_.org.yupana.api.Time
       import _root_.org.yupana.api.types.DataType
       import _root_.org.yupana.api.utils.Tokenizer
       import _root_.org.yupana.core.model.InternalRow
       import _root_.org.threeten.extra.PeriodDuration
+      import _root_.org.threeten.extra.PeriodDuration
+      import _root_.org.yupana.core.utils.Hash128Utils.timeHash
+
+      ..$typeDecls
 
       ($params: Array[Any]) =>
         new _root_.org.yupana.core.ExpressionCalculator {
@@ -856,12 +1154,17 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
             $internalRow
           }
           
-          override def evaluateMap($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
+          override def evaluateZero($tokenizer: Tokenizer, $internalRow: InternalRow): InternalRow = {
             $map
             $internalRow
           }
           
-          override def evaluateReduce($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
+          override def evaluateSequence($tokenizer: Tokenizer, $acc: InternalRow, $internalRow: InternalRow): InternalRow = {
+            $fold
+            $acc
+          }
+          
+          override def evaluateCombine($tokenizer: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
             $reduce
             $rowA
           }
@@ -913,8 +1216,12 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
       .replaceAll("\\.\\$bang\\$eq", " != ")
       .replaceAll("\\.\\$eq\\$eq", " == ")
       .replaceAll("\\.\\$amp\\$amp", " && ")
+      .replaceAll("\\.\\$bar\\$bar", " || ")
       .replaceAll("\\.\\$plus\\$plus", " ++ ")
+      .replaceAll("\\$plus\\$plus", "++")
+      .replaceAll("\\.\\$plus\\$eq", " += ")
       .replaceAll("\\.\\$plus", " + ")
+      .replaceAll("\\$plus", "+")
       .replaceAll("\\.\\$minus", " - ")
       .replaceAll("\\.\\$div", " / ")
       .replaceAll("\\.\\$greater\\$eq", " >= ")

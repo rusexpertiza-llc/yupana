@@ -106,17 +106,19 @@ object DataType {
     DataType[BigDecimal],
     DataType[Time],
     DataType[Blob],
-    DataType[Boolean]
-  ).map(t => t.meta.sqlTypeName -> t).toMap
+    DataType[Boolean],
+    DataType[Null]
+  ).map(t => t.meta.sqlTypeName.toUpperCase -> t).toMap
 
   private val ARRAY_PREFIX = "ARRAY["
   private val ARRAY_SUFFIX = "]"
 
   def bySqlName(sqlName: String): Option[DataType] = {
-    if (!sqlName.startsWith(ARRAY_PREFIX) || !sqlName.endsWith(ARRAY_SUFFIX)) {
-      types.get(sqlName)
+    val upperCased = sqlName.toUpperCase
+    if (!upperCased.startsWith(ARRAY_PREFIX) || !upperCased.endsWith(ARRAY_SUFFIX)) {
+      types.get(upperCased)
     } else {
-      val innerType = sqlName.substring(ARRAY_PREFIX.length, sqlName.length - ARRAY_SUFFIX.length)
+      val innerType = upperCased.substring(ARRAY_PREFIX.length, upperCased.length - ARRAY_SUFFIX.length)
       types.get(innerType).map(t => arrayDt(t))
     }
   }

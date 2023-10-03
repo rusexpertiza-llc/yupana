@@ -17,7 +17,7 @@
 package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ AndExpr, Const, ConstantExpr, Expression, OrExpr, Query, QueryField }
+import org.yupana.api.query._
 import org.yupana.core.utils.ExpressionUtils
 import org.yupana.core.utils.ExpressionUtils.Transformer
 
@@ -61,7 +61,7 @@ object QueryOptimizer {
     cs match {
       case Nil                 => List(and(topAnd.reverse))
       case AndExpr(as) :: rest => optimizeAnd(topAnd, as.toList ::: rest)
-      case OrExpr(os) :: rest  => os.flatMap(optimizeOr).flatMap(o => optimizeAnd(o :: topAnd, rest)).toList
+      case OrExpr(os) :: rest  => os.flatMap(optimizeOr).flatMap(o => optimizeAnd(topAnd, o :: rest)).toList
       case x :: rest           => optimizeAnd(x :: topAnd, rest)
     }
   }
@@ -74,24 +74,32 @@ object QueryOptimizer {
   }
 
   private def and(conditions: Seq[Condition]): Condition = {
-    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
-    if (nonEmpty.size == 1) {
-      nonEmpty.head
-    } else if (nonEmpty.nonEmpty) {
-      AndExpr(nonEmpty)
+    if (conditions.exists(c => c == ConstantExpr(false) || c == FalseExpr)) {
+      FalseExpr
     } else {
-      ConstantExpr(true)
+      val nonEmpty = conditions.filterNot(c => c == ConstantExpr(true) || c == TrueExpr)
+      if (nonEmpty.size == 1) {
+        nonEmpty.head
+      } else if (nonEmpty.nonEmpty) {
+        AndExpr(nonEmpty)
+      } else {
+        TrueExpr
+      }
     }
   }
 
   private def or(conditions: Seq[Condition]): Condition = {
-    val nonEmpty = conditions.filterNot(_ == ConstantExpr(true))
-    if (nonEmpty.size == 1) {
-      nonEmpty.head
-    } else if (nonEmpty.nonEmpty) {
-      OrExpr(nonEmpty)
+    if (conditions.exists(c => c == ConstantExpr(true) || c == TrueExpr)) {
+      TrueExpr
     } else {
-      ConstantExpr(true)
+      val nonEmpty = conditions.filterNot(c => c == ConstantExpr(false) || c == FalseExpr)
+      if (nonEmpty.size == 1) {
+        nonEmpty.head
+      } else if (nonEmpty.nonEmpty) {
+        OrExpr(nonEmpty)
+      } else {
+        TrueExpr
+      }
     }
   }
 
@@ -104,9 +112,6 @@ object QueryOptimizer {
       ConstantExpr(eval)(
         e.dataType
       )
-    } else {
-      throw new IllegalAccessException(s"Cannot evaluate constant expression $e")
-    }
-
+    } else NullExpr[T](e.dataType)
   }
 }

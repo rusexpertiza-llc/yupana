@@ -61,7 +61,6 @@ class BenchTsdb
       SchemaRegistry.defaultSchema,
       null,
       null,
-      null,
       identity,
       SimpleTsdbConfig(),
       _ => NoMetricCollector

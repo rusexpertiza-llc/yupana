@@ -17,7 +17,7 @@
 package org.yupana.caffeine
 
 import com.github.benmanes.caffeine.cache.{ Cache => CCache }
-import org.yupana.core.cache.Cache
+import org.yupana.cache.Cache
 
 import scala.jdk.CollectionConverters._
 

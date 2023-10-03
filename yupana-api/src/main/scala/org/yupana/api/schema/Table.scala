@@ -125,5 +125,5 @@ class Table(
 object Table {
   val MAX_TAGS: Int = 256
   val TIME_FIELD_NAME: String = "time"
-  val DIM_TAG_OFFSET = 214.toByte
+  val DIM_TAG_OFFSET: Byte = 214.toByte
 }
