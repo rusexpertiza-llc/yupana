@@ -21,7 +21,7 @@ import org.yupana.netty.protocol._
 trait ConnectionState {
   def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command]]
 
-  def processCommand(command: Command): Seq[Response]
+  def processCommand(command: Command): (ConnectionState, Seq[Response])
 }
 
 class Connecting extends ConnectionState {
@@ -33,10 +33,10 @@ class Connecting extends ConnectionState {
     }
   }
 
-  override def processCommand(command: Command): Seq[Response] = {
+  override def processCommand(command: Command): (ConnectionState, Seq[Response]) = {
     command match {
-      case Hello(pv, v, _) => Seq(HelloResponse("123"))
-      case _               => Seq.empty
+      case Hello(pv, v, _) => (this, Seq(HelloResponse("123")))
+      case _               => throw new IllegalAccessException(s"Unexpected command $command")
     }
   }
 }

@@ -16,14 +16,27 @@
 
 package org.yupana.netty
 
-import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.codec.MessageToMessageCodec
-import org.yupana.netty.protocol.Response
+import com.typesafe.scalalogging.StrictLogging
+import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
+import org.yupana.netty.protocol.Command
 
-import java.util
+class MessageHandler extends SimpleChannelInboundHandler[Frame] with StrictLogging {
 
-class MessageHandler extends MessageToMessageCodec[Frame, Response] {
-  override def encode(ctx: ChannelHandlerContext, msg: Response, out: util.List[AnyRef]): Unit = ???
+  private var state: ConnectionState = new Connecting()
+  override def channelRead0(ctx: ChannelHandlerContext, msg: Frame): Unit = {
+    state.extractCommand(msg) match {
+      case Right(Some(cmd)) => handleCommand(ctx, cmd)
+      case Right(None)      => logger.debug(s"Ignoring command with type: ${msg.frameType}")
+      case Left(err) =>
+        logger.error(err.message)
+        ctx.write(err)
+    }
+  }
 
-  override def decode(ctx: ChannelHandlerContext, msg: Frame, out: util.List[AnyRef]): Unit = ???
+  private def handleCommand(ctx: ChannelHandlerContext, command: Command) = {
+    val (newState, responses) = state.processCommand(command)
+    responses.foreach(ctx.write)
+    ctx.flush()
+    state = newState
+  }
 }

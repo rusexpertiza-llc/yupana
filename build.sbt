@@ -182,6 +182,7 @@ lazy val netty = (project in file("yupana-netty"))
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
       "io.netty"                    %  "netty-all"                     % versions.netty,
+      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
 
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
