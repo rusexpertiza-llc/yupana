@@ -22,4 +22,4 @@ class FrameCodec
     extends CombinedChannelDuplexHandler[FrameDecoder, FrameEncoder](
       new FrameDecoder(),
       new FrameEncoder()
-    ) {}
+    )

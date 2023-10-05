@@ -18,14 +18,11 @@ package org.yupana.netty.protocol
 
 import io.netty.buffer.ByteBuf
 
-import java.nio.charset.StandardCharsets
-
 trait Command
 
 trait CommandHelper[C <: Command] {
   val tag: Byte
-  def encode(c: C, out: ByteBuf): Unit
-  def decode(b: ByteBuf): C
+  val readWrite: ReadWrite[C]
 }
 
 case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command
@@ -33,22 +30,19 @@ case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String
 object Hello extends CommandHelper[Hello] {
   override val tag: Byte = 1
 
-  implicit val rw: ReadWrite[Hello] = new ReadWrite[Hello] {
+  implicit override val readWrite: ReadWrite[Hello] = new ReadWrite[Hello] {
     override def read(buf: ByteBuf): Hello = {
-      Hello(buf.readInt(), implicitly[ReadWrite[String]].read(buf), Map.empty)
+      Hello(
+        buf.readInt(),
+        implicitly[ReadWrite[String]].read(buf),
+        implicitly[ReadWrite[Map[String, String]]].read(buf)
+      )
     }
 
     override def write(buf: ByteBuf, t: Hello): Unit = {
       buf.writeInt(t.protocolVersion)
       implicitly[ReadWrite[String]].write(buf, t.clientVersion)
+      implicitly[ReadWrite[Map[String, String]]].write(buf, t.params)
     }
   }
-
-  override def encode(c: Hello, out: ByteBuf): Unit = {
-    out.writeByte(tag).writeInt(4).writeBytes("version".getBytes(StandardCharsets.UTF_8))
-  }
-
-  override def decode(b: ByteBuf): Hello = ???
 }
-
-object Command {}
