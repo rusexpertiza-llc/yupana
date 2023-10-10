@@ -16,7 +16,8 @@
 
 package org.yupana.netty.protocol
 
-trait Response extends Message
+object ProtocolVersion {
 
-case class ErrorMessage(message: String) extends Response
-case class HelloResponse(version: String) extends Response
+  /** This constant defines current protocol version, and have to be increased if the new protocol is incompatible with previous one. */
+  val value = 0x03
+}

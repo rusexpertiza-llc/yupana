@@ -20,22 +20,29 @@ import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
 import org.yupana.netty.protocol.Command
 
-class MessageHandler extends SimpleChannelInboundHandler[Frame] with StrictLogging {
+class MessageHandler(major: Int, minor: Int, version: String)
+    extends SimpleChannelInboundHandler[Frame]
+    with StrictLogging {
 
   private var state: ConnectionState = new Connecting()
-  override def channelRead0(ctx: ChannelHandlerContext, msg: Frame): Unit = {
-    state.extractCommand(msg) match {
+  override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
+    println(s"GOT A FRAME ${frame.frameType}")
+    state.extractCommand(frame) match {
       case Right(Some(cmd)) => handleCommand(ctx, cmd)
-      case Right(None)      => logger.debug(s"Ignoring command with type: ${msg.frameType}")
+      case Right(None)      => logger.debug(s"Ignoring command with type: ${frame.frameType}")
+
       case Left(err) =>
         logger.error(err.message)
         ctx.write(err)
     }
   }
 
-  private def handleCommand(ctx: ChannelHandlerContext, command: Command) = {
+  private def handleCommand(ctx: ChannelHandlerContext, command: Command): Unit = {
     val (newState, responses) = state.processCommand(command)
-    responses.foreach(ctx.write)
+    responses.foreach { msg =>
+      logger.debug(s"Write response $msg")
+      ctx.write(Frame(1.toByte, msg.toFrame))
+    }
     ctx.flush()
     state = newState
   }

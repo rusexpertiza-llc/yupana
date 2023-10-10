@@ -16,18 +16,29 @@
 
 package org.yupana.netty.protocol
 
-import io.netty.buffer.ByteBuf
+import io.netty.buffer.{ ByteBuf, Unpooled }
+import org.yupana.netty.Frame
 
-trait Command
+trait Message {
+  def toFrame: Frame
+}
 
-trait CommandHelper[C <: Command] {
+trait Command extends Message
+
+trait MessageHelper[M <: Message] {
   val tag: Byte
-  val readWrite: ReadWrite[C]
+  val readWrite: ReadWrite[M]
+
+  def toFrame(c: M): Frame = {
+    val buf = Unpooled.buffer()
+    readWrite.write(buf, c)
+    Frame(tag, buf)
+  }
 }
 
 case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command
 
-object Hello extends CommandHelper[Hello] {
+object Hello extends MessageHelper[Hello] {
   override val tag: Byte = 1
 
   implicit override val readWrite: ReadWrite[Hello] = new ReadWrite[Hello] {

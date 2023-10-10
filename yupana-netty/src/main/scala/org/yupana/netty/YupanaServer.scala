@@ -24,7 +24,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ ChannelInitializer, ChannelOption }
 //import io.netty.handler.timeout.IdleStateHandler
 
-class YupanaServer(host: String, port: Int) extends StrictLogging {
+class YupanaServer(host: String, port: Int, majorVersion: Int, minorVersion: Int, version: String)
+    extends StrictLogging {
 
   def start(): Unit = {
 
@@ -38,9 +39,9 @@ class YupanaServer(host: String, port: Int) extends StrictLogging {
         .channel(classOf[NioServerSocketChannel])
         .childHandler(new ChannelInitializer[SocketChannel] {
           override def initChannel(ch: SocketChannel): Unit = {
-            ch.pipeline().addLast(new FrameCodec())
+            ch.pipeline().addLast("frame", new FrameCodec())
 //            ch.pipeline().addLast(new IdleStateHandler(0, 60, 0))
-            ch.pipeline().addLast(new MessageHandler())
+            ch.pipeline().addLast("handler", new MessageHandler(majorVersion, minorVersion, version))
           }
         })
         .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))
@@ -59,7 +60,7 @@ class YupanaServer(host: String, port: Int) extends StrictLogging {
 
 object YupanaServer {
   def main(args: Array[String]): Unit = {
-    val server = new YupanaServer("localhost", 10101)
+    val server = new YupanaServer("localhost", 10101, 0, 1, "0.1")
 
     server.start()
   }
