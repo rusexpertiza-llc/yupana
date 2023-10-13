@@ -18,13 +18,11 @@ package org.yupana.netty.protocol
 
 import org.yupana.netty.Frame
 
-import scala.util.Try
-
-object Extractor {
-
-  def extract[C <: Command: ReadWrite](frame: Frame): Either[ErrorMessage, C] = {
-    val s = implicitly[ReadWrite[C]]
-    Try(s.read(frame.payload)).toEither.left.map(e => ErrorMessage(e.getMessage))
-  }
-
+trait Message[M <: Message[M]] { self: M =>
+  def helper: MessageHelper[M]
+  def toFrame: Frame = helper.toFrame(this)
 }
+
+abstract class Command[C <: Message[C]](override val helper: MessageHelper[C]) extends Message[C] { self: C => }
+
+abstract class Response[R <: Response[R]](override val helper: MessageHelper[R]) extends Message[R] { self: R => }

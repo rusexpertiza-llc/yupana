@@ -18,13 +18,18 @@ package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.netty.protocol.Command
+import org.yupana.netty.protocol.{ Command, Response }
 
 class MessageHandler(major: Int, minor: Int, version: String)
     extends SimpleChannelInboundHandler[Frame]
     with StrictLogging {
 
   private var state: ConnectionState = new Connecting()
+
+  override def channelActive(ctx: ChannelHandlerContext): Unit = {
+    writeResponses(ctx, state.init())
+  }
+
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
     println(s"GOT A FRAME ${frame.frameType}")
     state.extractCommand(frame) match {
@@ -37,13 +42,17 @@ class MessageHandler(major: Int, minor: Int, version: String)
     }
   }
 
-  private def handleCommand(ctx: ChannelHandlerContext, command: Command): Unit = {
+  private def handleCommand(ctx: ChannelHandlerContext, command: Command[_]): Unit = {
     val (newState, responses) = state.processCommand(command)
+    writeResponses(ctx, responses)
+    state = newState
+  }
+
+  private def writeResponses(ctx: ChannelHandlerContext, responses: Seq[Response[_]]): Unit = {
     responses.foreach { msg =>
       logger.debug(s"Write response $msg")
-      ctx.write(Frame(1.toByte, msg.toFrame))
+      ctx.write(msg.toFrame)
     }
     ctx.flush()
-    state = newState
   }
 }

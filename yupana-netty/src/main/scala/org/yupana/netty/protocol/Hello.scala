@@ -19,13 +19,7 @@ package org.yupana.netty.protocol
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import org.yupana.netty.Frame
 
-trait Message {
-  def toFrame: Frame
-}
-
-trait Command extends Message
-
-trait MessageHelper[M <: Message] {
+trait MessageHelper[M <: Message[M]] {
   val tag: Byte
   val readWrite: ReadWrite[M]
 
@@ -34,9 +28,17 @@ trait MessageHelper[M <: Message] {
     readWrite.write(buf, c)
     Frame(tag, buf)
   }
+
+  def readFrameOpt(f: Frame): Option[M] = {
+    if (f.frameType == tag) Some(readFrame(f)) else None
+  }
+
+  def readFrame(f: Frame): M = {
+    readWrite.read(f.payload)
+  }
 }
 
-case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command
+case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command[Hello](Hello)
 
 object Hello extends MessageHelper[Hello] {
   override val tag: Byte = 1

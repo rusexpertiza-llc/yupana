@@ -16,13 +16,12 @@
 
 package org.yupana.netty
 
-import org.yupana.netty.protocol._
+import org.yupana.netty.protocol.{ Command, ErrorMessage, Response }
 
-trait ConnectionState {
+class Auth extends ConnectionState {
+  override def init(): Seq[Response[_]] = ???
 
-  def init(): Seq[Response[_]]
+  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = ???
 
-  def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]]
-
-  def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]])
+  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = ???
 }
