@@ -10,12 +10,11 @@ import org.yupana.api.types.{ DataType, DataTypeMeta }
 import java.io.{ ByteArrayInputStream, CharArrayReader }
 import java.nio.charset.StandardCharsets
 import java.sql.{ Array => _, _ }
-import java.time.temporal.ChronoUnit
 import java.time.{ LocalDateTime, ZoneId }
 import java.util.{ Calendar, Scanner, TimeZone }
 import java.{ util, math => jm }
 
-class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
+class   YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "Result set" should "provide common information" in {
     val statement = mock[Statement]
@@ -290,8 +289,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val resultSet = new YupanaResultSet(statement, result)
     resultSet.next
 
-    resultSet.getTimestamp(1) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
-    resultSet.getTimestamp("time") shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+    resultSet.getTimestamp(1) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTimestamp("time") shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.getTimestamp(1, Calendar.getInstance()) shouldEqual new Timestamp(
       time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli
     )
@@ -302,8 +301,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       time.atZone(ZoneId.of("Europe/Helsinki")).toInstant.toEpochMilli
     )
 
-    resultSet.getDate(1) shouldEqual Date.valueOf(time.atZone(ZoneId.systemDefault()).toLocalDate)
-    resultSet.getDate("time") shouldEqual Date.valueOf(time.atZone(ZoneId.systemDefault()).toLocalDate)
+    resultSet.getTime(1) shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTime("time") shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.getDate(1, Calendar.getInstance()) shouldEqual Date.valueOf(
       time.atZone(ZoneId.systemDefault()).toLocalDate
     )
@@ -311,8 +310,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       time.atZone(ZoneId.of("Pacific/Honolulu")).toLocalDate
     )
 
-    resultSet.getTime(1) shouldEqual java.sql.Time.valueOf(time.atZone(ZoneId.systemDefault()).toLocalTime)
-    resultSet.getTime("time") shouldEqual java.sql.Time.valueOf(time.atZone(ZoneId.systemDefault()).toLocalTime)
+    resultSet.getTime(1) shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getTime("time") shouldEqual new java.sql.Time(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.getTime(1, Calendar.getInstance(TimeZone.getTimeZone("Africa/Lome"))) shouldEqual java.sql.Time.valueOf(
       time.atZone(ZoneId.of("Africa/Lome")).toLocalTime
     )
@@ -321,10 +320,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         time.atZone(ZoneId.of("Asia/Tokyo")).toLocalTime
       )
 
-    resultSet.getObject(1) shouldEqual Timestamp.valueOf(
-      time.atZone(ZoneId.systemDefault()).toLocalDateTime.truncatedTo(ChronoUnit.MILLIS)
-    )
-    resultSet.getObject("time") shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+    resultSet.getObject(1) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
+    resultSet.getObject("time") shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
 
     resultSet.getBoolean(2) shouldEqual false
     resultSet.getBoolean("bool") shouldEqual false
@@ -405,7 +402,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getDouble(3) shouldEqual 0d
     resultSet.wasNull shouldBe true
 
-    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.systemDefault()).toInstant.toEpochMilli)
+    resultSet.getTimestamp(4) shouldEqual new Timestamp(time.atZone(ZoneId.of("UTC")).toInstant.toEpochMilli)
     resultSet.wasNull shouldBe false
 
     resultSet.next
