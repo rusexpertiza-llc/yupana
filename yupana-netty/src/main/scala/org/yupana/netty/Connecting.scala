@@ -16,13 +16,15 @@
 
 package org.yupana.netty
 
-import org.yupana.netty.protocol._
+import io.netty.buffer.ByteBuf
+import org.yupana.protocol._
 
 class Connecting extends ConnectionState {
+  import NettyBuffer._
 
   override def init(): Seq[Response[_]] = Nil
 
-  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
+  override def extractCommand(frame: Frame[ByteBuf]): Either[ErrorMessage, Option[Command[_]]] = {
     Hello.readFrameOpt(frame).toRight(ErrorMessage("Expect Hello")).map(Some(_))
   }
 

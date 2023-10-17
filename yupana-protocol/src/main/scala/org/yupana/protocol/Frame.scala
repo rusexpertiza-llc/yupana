@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-package org.yupana.netty.protocol
+package org.yupana.protocol
 
-import org.yupana.netty.Frame
-
-trait Message[M <: Message[M]] { self: M =>
-  def helper: MessageHelper[M]
-  def toFrame: Frame = helper.toFrame(this)
-}
-
-abstract class Command[C <: Message[C]](override val helper: MessageHelper[C]) extends Message[C] { self: C => }
-
-abstract class Response[R <: Response[R]](override val helper: MessageHelper[R]) extends Message[R] { self: R => }
+case class Frame[B: Buffer](frameType: Byte, payload: B)

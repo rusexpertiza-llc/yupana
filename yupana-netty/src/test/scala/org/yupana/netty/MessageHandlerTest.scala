@@ -3,7 +3,7 @@ package org.yupana.netty
 import io.netty.channel.embedded.EmbeddedChannel
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.netty.protocol.{ Hello, HelloResponse, ProtocolVersion }
+import org.yupana.protocol.{Hello, HelloResponse, ProtocolVersion}
 
 class MessageHandlerTest extends AnyFlatSpec with Matchers {
 
@@ -15,6 +15,6 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers {
 
     val resp = ch.readOutbound[HelloResponse]()
 
-    resp.version shouldBe "1.2.3"
+    resp.protocolVersion shouldBe ProtocolVersion.value
   }
 }

@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.netty.protocol
-import io.netty.buffer.ByteBuf
+package org.yupana.protocol
 
 case class ErrorMessage(message: String) extends Response[ErrorMessage](ErrorMessage)
 
@@ -23,8 +22,8 @@ object ErrorMessage extends MessageHelper[ErrorMessage] {
   override val tag: Byte = Tags.ERROR_MESSAGE
 
   implicit override val readWrite: ReadWrite[ErrorMessage] = new ReadWrite[ErrorMessage] {
-    override def read(buf: ByteBuf): ErrorMessage = ErrorMessage(implicitly[ReadWrite[String]].read(buf))
-    override def write(buf: ByteBuf, t: ErrorMessage): Unit = implicitly[ReadWrite[String]].write(buf, t.message)
+    override def read[B: Buffer](buf: B): ErrorMessage = ErrorMessage(implicitly[ReadWrite[String]].read(buf))
+    override def write[B: Buffer](buf: B, t: ErrorMessage): Unit = implicitly[ReadWrite[String]].write(buf, t.message)
   }
 }
 case class HelloResponse(protocolVersion: Int) extends Response[HelloResponse](HelloResponse)
@@ -32,13 +31,8 @@ case class HelloResponse(protocolVersion: Int) extends Response[HelloResponse](H
 object HelloResponse extends MessageHelper[HelloResponse] {
   override val tag: Byte = Tags.HELLO_RESPONSE
   override val readWrite: ReadWrite[HelloResponse] = new ReadWrite[HelloResponse] {
-    override def read(buf: ByteBuf): HelloResponse = HelloResponse(implicitly[ReadWrite[Int]].read(buf))
-    override def write(buf: ByteBuf, t: HelloResponse): Unit = implicitly[ReadWrite[Int]].write(buf, t.protocolVersion)
+    override def read[B: Buffer](buf: B): HelloResponse = HelloResponse(implicitly[ReadWrite[Int]].read(buf))
+    override def write[B: Buffer](buf: B, t: HelloResponse): Unit =
+      implicitly[ReadWrite[Int]].write(buf, t.protocolVersion)
   }
-}
-
-object Tags {
-  val HELLO: Byte = 0x01.toByte
-  val HELLO_RESPONSE: Byte = 0x81.toByte
-  val ERROR_MESSAGE: Byte = 0xFF.toByte
 }

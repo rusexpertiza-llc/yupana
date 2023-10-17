@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.netty
+package org.yupana.protocol
 
-import io.netty.buffer.ByteBuf
-
-case class Frame(frameType: Byte, payload: ByteBuf)
+object Tags {
+  val HELLO: Byte = 0x01.toByte
+  val HELLO_RESPONSE: Byte = 0x81.toByte
+  val ERROR_MESSAGE: Byte = 0xFF.toByte
+}

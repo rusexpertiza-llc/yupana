@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.netty.protocol
+package org.yupana.protocol
 
 object ProtocolVersion {
 

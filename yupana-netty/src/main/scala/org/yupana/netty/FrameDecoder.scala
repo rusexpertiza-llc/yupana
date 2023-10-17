@@ -21,8 +21,10 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ReplayingDecoder
 
 import java.util
+import NettyBuffer._
+import org.yupana.protocol.Frame
 
-class FrameDecoder extends ReplayingDecoder[Frame] {
+class FrameDecoder extends ReplayingDecoder[Frame[ByteBuf]] {
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
     val msgType = in.readByte()
     val len = in.readInt()

@@ -7,25 +7,27 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.MessageToMessageEncoder
-import org.yupana.netty.protocol.{ Command, Hello, Response }
+import org.yupana.protocol.{Command, Frame, Hello, Response}
 
 import java.net.InetSocketAddress
 import java.util
 
-class TestClientHandler extends SimpleChannelInboundHandler[Response] {
+class TestClientHandler extends SimpleChannelInboundHandler[Response[_]] {
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
     println("ololo ololo")
     ctx.writeAndFlush(Hello(42, "HELLO VERSION", Map.empty))
   }
 
-  override def channelRead0(ctx: ChannelHandlerContext, msg: Response): Unit = {
+  override def channelRead0(ctx: ChannelHandlerContext, msg: Response[_]): Unit = {
     println(s"GOT IT $msg")
   }
 }
 
-class CommandEncoder extends MessageToMessageEncoder[Command] {
-  override def encode(ctx: ChannelHandlerContext, msg: Command, out: util.List[AnyRef]): Unit = {
+class CommandEncoder extends MessageToMessageEncoder[Command[_]] {
+  import NettyBuffer._
+
+  override def encode(ctx: ChannelHandlerContext, msg: Command[_], out: util.List[AnyRef]): Unit = {
     val bb = Unpooled.buffer()
     Hello.readWrite.write(bb, msg.asInstanceOf[Hello])
     out.add(Frame(Hello.tag, bb))

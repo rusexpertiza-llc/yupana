@@ -10,6 +10,7 @@ lazy val yupana = (project in file("."))
   .aggregate(
     api,
     proto,
+    protocol,
     jdbc,
     utils,
     settings,
@@ -56,6 +57,13 @@ lazy val proto = (project in file("yupana-proto"))
       "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"    %  "protobuf-java"        % versions.protobufJava force()
     )
+  )
+  .disablePlugins(AssemblyPlugin)
+
+lazy val protocol = (project in file("yupana-protocol"))
+  .settings(
+    name := "yupana-protocol",
+    allSettings
   )
   .disablePlugins(AssemblyPlugin)
 
@@ -182,13 +190,13 @@ lazy val netty = (project in file("yupana-netty"))
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
       "io.netty"                    %  "netty-all"                     % versions.netty,
-      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
 
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
       "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, protocol)
 
 lazy val akka = (project in file("yupana-akka"))
   .settings(

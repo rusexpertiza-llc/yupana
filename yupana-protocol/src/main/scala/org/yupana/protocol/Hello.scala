@@ -14,46 +14,24 @@
  * limitations under the License.
  */
 
-package org.yupana.netty.protocol
-
-import io.netty.buffer.{ ByteBuf, Unpooled }
-import org.yupana.netty.Frame
-
-trait MessageHelper[M <: Message[M]] {
-  val tag: Byte
-  val readWrite: ReadWrite[M]
-
-  def toFrame(c: M): Frame = {
-    val buf = Unpooled.buffer()
-    readWrite.write(buf, c)
-    Frame(tag, buf)
-  }
-
-  def readFrameOpt(f: Frame): Option[M] = {
-    if (f.frameType == tag) Some(readFrame(f)) else None
-  }
-
-  def readFrame(f: Frame): M = {
-    readWrite.read(f.payload)
-  }
-}
+package org.yupana.protocol
 
 case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command[Hello](Hello)
 
 object Hello extends MessageHelper[Hello] {
-  override val tag: Byte = 1
+  override val tag: Byte = Tags.HELLO
 
   implicit override val readWrite: ReadWrite[Hello] = new ReadWrite[Hello] {
-    override def read(buf: ByteBuf): Hello = {
+    override def read[B: Buffer](buf: B): Hello = {
       Hello(
-        buf.readInt(),
+        implicitly[ReadWrite[Int]].read(buf),
         implicitly[ReadWrite[String]].read(buf),
         implicitly[ReadWrite[Map[String, String]]].read(buf)
       )
     }
 
-    override def write(buf: ByteBuf, t: Hello): Unit = {
-      buf.writeInt(t.protocolVersion)
+    override def write[B: Buffer](buf: B, t: Hello): Unit = {
+      implicitly[ReadWrite[Int]].write(buf, t.protocolVersion)
       implicitly[ReadWrite[String]].write(buf, t.clientVersion)
       implicitly[ReadWrite[Map[String, String]]].write(buf, t.params)
     }

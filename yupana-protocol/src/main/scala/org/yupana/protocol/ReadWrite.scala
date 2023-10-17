@@ -14,47 +14,43 @@
  * limitations under the License.
  */
 
-package org.yupana.netty.protocol
-
-import io.netty.buffer.ByteBuf
-
-import java.nio.charset.StandardCharsets
+package org.yupana.protocol
 
 trait ReadWrite[T] {
-  def read(buf: ByteBuf): T
-  def write(buf: ByteBuf, t: T): Unit
+  def read[B: Buffer](buf: B): T
+  def write[B: Buffer](buf: B, t: T): Unit
 }
 
 object ReadWrite {
   implicit val rwInt: ReadWrite[Int] = new ReadWrite[Int] {
-    override def read(buf: ByteBuf): Int = buf.readInt()
-    override def write(buf: ByteBuf, t: Int): Unit = buf.writeInt(t)
+    override def read[B: Buffer](buf: B): Int = implicitly[Buffer[B]].readInt(buf)
+    override def write[B: Buffer](buf: B, t: Int): Unit = implicitly[Buffer[B]].writeInt(buf, t)
   }
 
   implicit val rwString: ReadWrite[String] = new ReadWrite[String] {
-    override def read(buf: ByteBuf): String = {
-      val size = buf.readInt()
-      buf.readCharSequence(size, StandardCharsets.UTF_8).toString
+    override def read[B](buf: B)(implicit b: Buffer[B]): String = {
+      val size = b.readInt(buf)
+      b.readString(buf, size)
     }
 
-    override def write(buf: ByteBuf, t: String): Unit = {
-      val bytes = t.getBytes(StandardCharsets.UTF_8)
-      buf.writeInt(bytes.length)
-      buf.writeBytes(bytes)
+    override def write[B](buf: B, t: String)(implicit b: Buffer[B]): Unit = {
+//      val bytes = t.getBytes(StandardCharsets.UTF_8)
+      b.writeInt(buf, t.length)
+      b.writeString(buf, t)
     }
   }
 
   implicit def readMap[K, V](implicit rwk: ReadWrite[K], rwv: ReadWrite[V]): ReadWrite[Map[K, V]] =
     new ReadWrite[Map[K, V]] {
-      override def read(buf: ByteBuf): Map[K, V] = {
-        val len = buf.readInt()
+      override def read[B](buf: B)(implicit b: Buffer[B]): Map[K, V] = {
+        val len = b.readInt(buf)
         (0 until len).map { _ =>
-          rwk.read(buf) -> rwv.read(buf)
+          rwk.read[B](buf) -> rwv.read(buf)
         }.toMap
       }
 
-      override def write(buf: ByteBuf, t: Map[K, V]): Unit = {
-        buf.writeInt(t.size)
+      override def write[B](buf: B, t: Map[K, V])(implicit b: Buffer[B]): Unit = {
+        b.writeInt(buf, t.size)
         t foreach {
           case (k, v) =>
             rwk.write(buf, k)
