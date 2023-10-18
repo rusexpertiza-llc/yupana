@@ -16,15 +16,25 @@
 
 package org.yupana.protocol
 
-trait ReadWrite[T] {
+trait ReadWrite[T] { self =>
   def read[B: Buffer](buf: B): T
   def write[B: Buffer](buf: B, t: T): Unit
+
+  def imap[A](f: T => A)(g: A => T): ReadWrite[A] = new ReadWrite[A] {
+    override def read[B: Buffer](buf: B): A = f(self.read(buf))
+    override def write[B: Buffer](buf: B, t: A): Unit = self.write(buf, g(t))
+  }
 }
 
 object ReadWrite {
   implicit val rwInt: ReadWrite[Int] = new ReadWrite[Int] {
     override def read[B: Buffer](buf: B): Int = implicitly[Buffer[B]].readInt(buf)
     override def write[B: Buffer](buf: B, t: Int): Unit = implicitly[Buffer[B]].writeInt(buf, t)
+  }
+
+  implicit val rwLong: ReadWrite[Long] = new ReadWrite[Long] {
+    override def read[B](buf: B)(implicit b: Buffer[B]): Long = b.readLong(buf)
+    override def write[B](buf: B, t: Long)(implicit b: Buffer[B]): Unit = b.writeLong(buf, t)
   }
 
   implicit val rwString: ReadWrite[String] = new ReadWrite[String] {
@@ -39,6 +49,8 @@ object ReadWrite {
       b.writeString(buf, t)
     }
   }
+
+  implicit val rwBigDecimal: ReadWrite[BigDecimal] = implicitly[ReadWrite[String]].imap(BigDecimal.apply)(_.toString())
 
   implicit def readMap[K, V](implicit rwk: ReadWrite[K], rwv: ReadWrite[V]): ReadWrite[Map[K, V]] =
     new ReadWrite[Map[K, V]] {

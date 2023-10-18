@@ -16,7 +16,7 @@
 
 package org.yupana.jdbc
 
-import org.yupana.jdbc.model.{ NumericValue, ParameterValue, StringValue, TimestampValue }
+import org.yupana.protocol.{ NumericValue, ParameterValue, StringValue, TimestampValue }
 
 import java.io.{ InputStream, Reader }
 import java.net.URL

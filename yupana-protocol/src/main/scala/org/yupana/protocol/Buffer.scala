@@ -25,8 +25,14 @@ trait Buffer[B] {
   def wrap(data: Array[Byte]): B
   def getBytes(b: B): Array[Byte]
 
+  def readByte(b: B): Byte
+  def writeByte(b: B, v: Byte): B
+
   def readInt(b: B): Int
   def writeInt(b: B, i: Int): B
+
+  def readLong(b: B): Long
+  def writeLong(b: B, l: Long): B
 
   def readDouble(b: B): Double
   def writeDouble(b: B, d: Double): B
@@ -49,8 +55,14 @@ object Buffer {
       b.array()
     }
 
+    override def readByte(b: ByteBuffer): Byte = b.get
+    override def writeByte(b: ByteBuffer, v: Byte): ByteBuffer = b.put(v)
+
     override def readInt(b: ByteBuffer): Int = b.getInt
     override def writeInt(b: ByteBuffer, i: Int): ByteBuffer = b.putInt(i)
+
+    override def readLong(b: ByteBuffer): Long = b.getLong()
+    override def writeLong(b: ByteBuffer, l: Long): ByteBuffer = b.putLong(l)
 
     override def readDouble(b: ByteBuffer): Double = b.getDouble
     override def writeDouble(b: ByteBuffer, d: Double): ByteBuffer = b.putDouble(d)

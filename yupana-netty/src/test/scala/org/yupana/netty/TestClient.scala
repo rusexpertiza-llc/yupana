@@ -7,7 +7,7 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.MessageToMessageEncoder
-import org.yupana.protocol.{Command, Frame, Hello, Response}
+import org.yupana.protocol.{ Command, Frame, Hello, Response }
 
 import java.net.InetSocketAddress
 import java.util

@@ -17,7 +17,7 @@
 package org.yupana.netty
 
 import io.netty.buffer.ByteBuf
-import org.yupana.protocol.{Command, ErrorMessage, Frame, Response}
+import org.yupana.protocol.{ Command, ErrorMessage, Frame, Response }
 
 class Auth extends ConnectionState {
   override def init(): Seq[Response[_]] = ???

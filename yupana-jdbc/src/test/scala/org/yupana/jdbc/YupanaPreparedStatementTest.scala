@@ -9,7 +9,7 @@ import org.yupana.api.query.SimpleResult
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.types.DataType
-import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
+import org.yupana.protocol.{ NumericValue, StringValue, TimestampValue }
 
 class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMockFactory {
 

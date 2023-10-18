@@ -8,7 +8,7 @@ import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto.Version
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.jdbc.model.ParameterValue
+import org.yupana.protocol.ParameterValue
 
 class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
 

@@ -17,10 +17,12 @@
 package org.yupana.jdbc
 
 import java.sql.{ Connection, DatabaseMetaData, ResultSet, RowIdLifetime, SQLException }
-
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
+import org.yupana.jdbc.YupanaDatabaseMetaData.Version
 import org.yupana.jdbc.build.BuildInfo
+
+import scala.util.Using
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 
@@ -143,11 +145,11 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def supportsMixedCaseIdentifiers() = false
 
-  override def getDatabaseProductVersion: String = connection.serverVersion.map(_.version).getOrElse("Unknown")
+  override def getDatabaseProductVersion: String = getVersion.full
 
-  override def getDatabaseMajorVersion: Int = connection.serverVersion.map(_.major).getOrElse(0)
+  override def getDatabaseMajorVersion: Int = getVersion.major
 
-  override def getDatabaseMinorVersion: Int = connection.serverVersion.map(_.minor).getOrElse(0)
+  override def getDatabaseMinorVersion: Int = getVersion.minor
 
   override def getSQLKeywords = ""
 
@@ -467,4 +469,16 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
     val fs = Iterator.continually(rs).takeWhile(_.next()).map(_.getString("NAME")).toSeq
     fs mkString ","
   }
+  private def getVersion: Version = {
+    val sql = "SHOW VERSION"
+    val stmt = connection.createStatement()
+    Using.resource(stmt.executeQuery(sql)) { rs =>
+      rs.next()
+      Version(rs.getInt("MAJOR"), rs.getInt("MINOR"), rs.getString("VERSION"))
+    }
+  }
+}
+
+object YupanaDatabaseMetaData {
+  case class Version(major: Int, minor: Int, full: String)
 }

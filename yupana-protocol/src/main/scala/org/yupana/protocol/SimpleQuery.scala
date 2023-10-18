@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc.model
+package org.yupana.protocol
 
-sealed trait ParameterValue
+case class SimpleQuery(query: String) extends Command[SimpleQuery](SimpleQuery)
 
-case class NumericValue(value: BigDecimal) extends ParameterValue
-
-case class StringValue(value: String) extends ParameterValue
-
-case class TimestampValue(millis: Long) extends ParameterValue
+object SimpleQuery extends MessageHelper[SimpleQuery] {
+  override val tag: Byte = Tags.SIMPLE_QUERY
+  override val readWrite: ReadWrite[SimpleQuery] = implicitly[ReadWrite[String]].imap(SimpleQuery.apply)(_.query)
+}

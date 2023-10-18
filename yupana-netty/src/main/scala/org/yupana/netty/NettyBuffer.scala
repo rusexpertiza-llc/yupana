@@ -29,8 +29,14 @@ object NettyBuffer {
     override def wrap(data: Array[Byte]): ByteBuf = Unpooled.wrappedBuffer(data)
     override def getBytes(b: ByteBuf): Array[Byte] = b.array()
 
+    override def readByte(b: ByteBuf): Byte = b.readByte()
+    override def writeByte(b: ByteBuf, v: Byte): ByteBuf = b.writeByte(v)
+
     override def readInt(b: ByteBuf): Int = b.readInt()
     override def writeInt(b: ByteBuf, i: Int): ByteBuf = b.writeInt(i)
+
+    override def readLong(b: ByteBuf): Long = b.readLong()
+    override def writeLong(b: ByteBuf, l: Long): ByteBuf = b.writeLong(l)
 
     override def readDouble(b: ByteBuf): Double = b.readDouble()
     override def writeDouble(b: ByteBuf, d: Double): ByteBuf = b.writeDouble(d)

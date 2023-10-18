@@ -17,7 +17,11 @@
 package org.yupana.protocol
 
 object Tags {
-  val HELLO: Byte = 0x01.toByte
-  val HELLO_RESPONSE: Byte = 0x81.toByte
-  val ERROR_MESSAGE: Byte = 0xFF.toByte
+  val ERROR_MESSAGE: Byte = 'E'
+
+  val HELLO: Byte = 'h'
+  val HELLO_RESPONSE: Byte = 'H'
+
+  val SIMPLE_QUERY: Byte = 'q'
+  val PREPARE_QUERY: Byte = 'p'
 }

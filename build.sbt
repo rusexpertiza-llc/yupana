@@ -92,7 +92,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
-  .dependsOn(api, proto)
+  .dependsOn(api, protocol)
 
 lazy val utils = (project in file("yupana-utils"))
   .settings(

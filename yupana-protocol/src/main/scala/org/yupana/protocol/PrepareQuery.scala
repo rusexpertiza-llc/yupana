@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.protocol
 
-import java.sql.Connection
-import org.yupana.api.query.Result
-import org.yupana.protocol.ParameterValue
+case class PrepareQuery(query: String, params: Map[Int, ParameterValue]) extends Command[PrepareQuery](PrepareQuery)
 
-trait YupanaConnection extends Connection {
-  def runQuery(query: String, params: Map[Int, ParameterValue]): Result
-  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result
-  def url: String
+object PrepareQuery extends MessageHelper[PrepareQuery] {
+  override val tag: Byte = Tags.PREPARE_QUERY
+  override val readWrite: ReadWrite[PrepareQuery] = new ReadWrite[PrepareQuery] {
+    override def read[B: Buffer](buf: B): PrepareQuery = ???
+
+    override def write[B: Buffer](buf: B, t: PrepareQuery): Unit = ???
+  }
 }

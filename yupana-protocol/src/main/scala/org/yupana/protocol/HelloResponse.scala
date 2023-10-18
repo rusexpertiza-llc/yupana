@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.protocol
 
-import java.sql.Connection
-import org.yupana.api.query.Result
-import org.yupana.protocol.ParameterValue
+case class HelloResponse(protocolVersion: Int) extends Response[HelloResponse](HelloResponse)
 
-trait YupanaConnection extends Connection {
-  def runQuery(query: String, params: Map[Int, ParameterValue]): Result
-  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result
-  def url: String
+object HelloResponse extends MessageHelper[HelloResponse] {
+  override val tag: Byte = Tags.HELLO_RESPONSE
+  override val readWrite: ReadWrite[HelloResponse] =
+    implicitly[ReadWrite[Int]].imap(HelloResponse.apply)(_.protocolVersion)
 }

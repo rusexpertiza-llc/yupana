@@ -6,7 +6,7 @@ import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.jdbc.model.ParameterValue
+import org.yupana.protocol.ParameterValue
 
 class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
 

@@ -25,9 +25,8 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
-import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
-import org.yupana.proto._
-import org.yupana.proto.util.ProtocolVersion
+import org.yupana.protocol._
+import org.yupana.protocol.ProtocolVersion
 
 import java.util.{ Timer, TimerTask }
 
@@ -75,12 +74,12 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     }
   }
 
-  def query(query: String, params: Map[Int, model.ParameterValue]): Result = {
+  def query(query: String, params: Map[Int, ParameterValue]): Result = {
     val request = createProtoQuery(query, params)
     execRequestQuery(request)
   }
 
-  def batchQuery(query: String, params: Seq[Map[Int, model.ParameterValue]]): Result = {
+  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
     val request = creteProtoBatchQuery(query, params)
     execRequestQuery(request)
   }
@@ -347,7 +346,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)
   }
 
-  private def createProtoQuery(query: String, params: Map[Int, model.ParameterValue]): Request = {
+  private def createProtoQuery(query: String, params: Map[Int, ParameterValue]): Request = {
     Request(
       Request.Req.SqlQuery(
         SqlQuery(
@@ -360,7 +359,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     )
   }
 
-  private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, model.ParameterValue]]): Request = {
+  private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Request = {
     Request(
       Request.Req.BatchSqlQuery(
         BatchSqlQuery(
@@ -375,7 +374,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     )
   }
 
-  private def createProtoValue(value: model.ParameterValue): Value = {
+  private def createProtoValue(value: ParameterValue): Value = {
     value match {
       case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
       case StringValue(s)    => Value(Value.Value.TextValue(s))

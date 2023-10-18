@@ -19,7 +19,7 @@ package org.yupana.netty
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.buffer.ByteBuf
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.protocol.{Command, Frame, Response}
+import org.yupana.protocol.{ Command, Frame, Response }
 
 class MessageHandler(major: Int, minor: Int, version: String)
     extends SimpleChannelInboundHandler[Frame[ByteBuf]]
