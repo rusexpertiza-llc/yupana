@@ -14,7 +14,7 @@ import java.time.{ LocalDateTime, ZoneId }
 import java.util.{ Calendar, Scanner, TimeZone }
 import java.{ util, math => jm }
 
-class   YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
+class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "Result set" should "provide common information" in {
     val statement = mock[Statement]
