@@ -243,7 +243,8 @@ lazy val externalLinks = (project in file("yupana-external-links"))
     name := "yupana-external-links",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.json4s"                  %% "json4s-jackson"             % versions.json4s,
+      "io.circe"                    %% "circe-parser"               % versions.circe,
+      "io.circe"                    %% "circe-generic"              % versions.circe,
       "org.scalatest"               %% "scalatest"                  % versions.scalaTest        % Test,
       "org.scalamock"               %% "scalamock"                  % versions.scalaMock        % Test,
       "com.h2database"              %  "h2"                         % versions.h2Jdbc           % Test,
@@ -395,15 +396,15 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.11"
+  val scala213 = "2.13.12"
 
-  val spark = "3.4.1"
+  val spark = "3.5.0"
 
   val threeTenExtra = "1.7.2"
 
   val protobufJava = "2.6.1"
 
-  val scalaLogging = "3.9.4"
+  val scalaLogging = "3.9.5"
   val fastparse = "2.1.3"
   val scopt = "4.1.0"
   val prometheus = "0.16.0"
@@ -419,7 +420,7 @@ lazy val versions = new {
   val ehcache = "3.9.7"
   val caffeine = "2.9.3"
 
-  val json4s = "3.7.0-M11" // Same version with Spark
+  val circe = "0.14.5" // To have same cats version wuth Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
@@ -427,8 +428,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.16"
-  val scalaTestCheck = "3.2.16.0"
+  val scalaTest = "3.2.17"
+  val scalaTestCheck = "3.2.17.0"
   val scalaMock = "5.2.0"
 }
 
@@ -441,7 +442,7 @@ val commonSettings = Seq(
     "-deprecation",
     "-unchecked",
     "-feature",
-    "-Xlint",
+    "-Xlint:-byname-implicit,_",
     "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ),
