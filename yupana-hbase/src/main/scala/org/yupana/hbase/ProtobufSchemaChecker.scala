@@ -19,7 +19,9 @@ package org.yupana.hbase
 import org.yupana.api.Blob
 import org.yupana.api.schema._
 import org.yupana.api.types.DataType
-import org.yupana.hbase.proto.{ Metric => ProtoMetric, SchemaRegistry => ProtoRegistry, Table => ProtoTable }
+import org.yupana.hbase.model.{ MetricInfo, SchemaInfo, TableInfo }
+
+import java.nio.charset.StandardCharsets
 
 object ProtobufSchemaChecker extends SchemaChecker {
 
@@ -29,11 +31,11 @@ object ProtobufSchemaChecker extends SchemaChecker {
     ).map { case (f, t) => f.meta.sqlTypeName -> t.meta.sqlTypeName }
 
   override def toBytes(schema: Schema): Array[Byte] =
-    new ProtoRegistry(schema.tables.values.map(asProto).toSeq).toByteArray
+    SchemaInfo(schema.tables.values.map(toInfo).toList).toJson.getBytes(StandardCharsets.UTF_8)
 
   override def check(schema: Schema, expectedSchemaBytes: Array[Byte]): SchemaCheckResult = {
-    val expectedSchema = ProtoRegistry.parseFrom(expectedSchemaBytes)
-    val actualSchema = new ProtoRegistry(schema.tables.values.map(asProto).toSeq)
+    val expectedSchema = SchemaInfo.fromJson(new String(expectedSchemaBytes, StandardCharsets.UTF_8))
+    val actualSchema = SchemaInfo(schema.tables.values.map(toInfo).toList)
     var checks = Seq.empty[SchemaCheckResult]
     if (actualSchema.tables.size != expectedSchema.tables.size) {
       checks :+= Warning(
@@ -51,7 +53,7 @@ object ProtobufSchemaChecker extends SchemaChecker {
     checks.fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
   }
 
-  private def verifyTags(t: ProtoTable): SchemaCheckResult = {
+  private def verifyTags(t: TableInfo): SchemaCheckResult = {
     t.metrics
       .groupBy(_.tag)
       .filter {
@@ -66,7 +68,7 @@ object ProtobufSchemaChecker extends SchemaChecker {
       .fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
   }
 
-  private def compareTables(a: ProtoTable, e: ProtoTable): SchemaCheckResult = {
+  private def compareTables(a: TableInfo, e: TableInfo): SchemaCheckResult = {
     var checks = Seq(
       if (a.rowTimeSpan == e.rowTimeSpan)
         Success
@@ -92,12 +94,12 @@ object ProtobufSchemaChecker extends SchemaChecker {
     checks.fold(SchemaCheckResult.empty)(SchemaCheckResult.combine)
   }
 
-  def asProto(table: Table): ProtoTable = {
-    ProtoTable(
+  def toInfo(table: Table): TableInfo = {
+    TableInfo(
       table.name,
       table.rowTimeSpan,
-      table.dimensionSeq.map(_.name),
-      table.metrics.map(f => ProtoMetric(f.name, f.tag, storageType(f.dataType.meta.sqlTypeName), f.group))
+      table.dimensionSeq.map(_.name).toList,
+      table.metrics.map(f => MetricInfo(f.name, f.tag, storageType(f.dataType.meta.sqlTypeName), f.group)).toList
     )
   }
 

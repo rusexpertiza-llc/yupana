@@ -161,14 +161,13 @@ lazy val hbase = (project in file("yupana-hbase"))
   .settings(
     name := "yupana-hbase",
     allSettings,
-    pbSettings,
     libraryDependencies ++= Seq(
       "org.apache.hbase"            %  "hbase-common"                   % versions.hbase,
       "org.apache.hbase"            %  "hbase-client"                   % versions.hbase,
       "org.apache.hadoop"           %  "hadoop-common"                  % versions.hadoop,
       "org.apache.hadoop"           %  "hadoop-hdfs-client"             % versions.hadoop,
-      "com.thesamet.scalapb"        %% "scalapb-runtime"                % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
-      "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
+      "io.circe"                    %% "circe-parser"                   % versions.circe,
+      "io.circe"                    %% "circe-generic"                  % versions.circe,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
       "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test

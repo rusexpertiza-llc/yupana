@@ -16,7 +16,8 @@
 
 package org.yupana.protocol
 
-case class Hello(protocolVersion: Int, clientVersion: String, params: Map[String, String]) extends Command[Hello](Hello)
+case class Hello(protocolVersion: Int, clientVersion: String, timestamp: Long, params: Map[String, String])
+    extends Command[Hello](Hello)
 
 object Hello extends MessageHelper[Hello] {
   override val tag: Byte = Tags.HELLO
@@ -26,6 +27,7 @@ object Hello extends MessageHelper[Hello] {
       Hello(
         implicitly[ReadWrite[Int]].read(buf),
         implicitly[ReadWrite[String]].read(buf),
+        implicitly[ReadWrite[Long]].read(buf),
         implicitly[ReadWrite[Map[String, String]]].read(buf)
       )
     }
@@ -33,6 +35,7 @@ object Hello extends MessageHelper[Hello] {
     override def write[B: Buffer](buf: B, t: Hello): Unit = {
       implicitly[ReadWrite[Int]].write(buf, t.protocolVersion)
       implicitly[ReadWrite[String]].write(buf, t.clientVersion)
+      implicitly[ReadWrite[Long]].write(buf, t.timestamp)
       implicitly[ReadWrite[Map[String, String]]].write(buf, t.params)
     }
   }
