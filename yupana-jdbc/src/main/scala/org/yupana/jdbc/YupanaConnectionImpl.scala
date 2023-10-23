@@ -33,7 +33,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
 
   override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
     try {
-      tcpClient.query(query, params)
+      tcpClient.prepareQuery(query, params)
     } catch {
       case e: Throwable =>
         throw new SQLException(e)

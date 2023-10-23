@@ -16,6 +16,9 @@
 
 package org.yupana.jdbc
 
+import org.yupana.jdbc.FramingChannelReader.PAYLOAD_OFFSET
+import org.yupana.protocol.Frame
+
 import java.io.IOException
 import java.nio.channels.ReadableByteChannel
 import java.nio.{ ByteBuffer, ByteOrder }
@@ -34,30 +37,31 @@ class FramingChannelReader(
     buf
   }
 
-  final def readFrame(): Option[Array[Byte]] = {
+  final def readFrame(): Option[Frame[ByteBuffer]] = {
     buffer.synchronized {
       try {
         val r = channel.read(buffer)
-        if (r == -1 && buffer.position() < 4) throw new IOException("Unexpected end of response")
-        if (buffer.position() >= 4) {
+        if (r == -1 && buffer.position() < PAYLOAD_OFFSET) throw new IOException("Unexpected end of response")
+        if (buffer.position() >= PAYLOAD_OFFSET) {
+          val tag = buffer.get()
           val size = buffer.getInt(0)
           var lastRead = 0
-          while (buffer.position() < size + 4 && lastRead >= 0) {
+          while (buffer.position() < size + PAYLOAD_OFFSET && lastRead >= 0) {
             lastRead = channel.read(buffer)
             if (lastRead == 0) Thread.sleep(1)
           }
           val result = Array.ofDim[Byte](size)
-          if (buffer.position() < size + 4) throw new IOException("Unexpected end of response")
+          if (buffer.position() < size + PAYLOAD_OFFSET) throw new IOException("Unexpected end of response")
           val totalRead = buffer.position()
 
-          buffer.position(4)
+          buffer.position(PAYLOAD_OFFSET)
           buffer.get(result)
 
-          val restSize = totalRead - 4 - size
+          val restSize = totalRead - PAYLOAD_OFFSET - size
           System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
           buffer.position(restSize)
 
-          Some(result)
+          Some(Frame(tag, ByteBuffer.wrap(result)))
         } else {
           None
         }
@@ -70,7 +74,7 @@ class FramingChannelReader(
   }
 
   @tailrec
-  final def awaitAndReadFrame(): Array[Byte] = {
+  final def awaitAndReadFrame(): Frame[ByteBuffer] = {
     readFrame() match {
       case Some(r) => r
       case None =>
@@ -78,4 +82,8 @@ class FramingChannelReader(
         awaitAndReadFrame()
     }
   }
+}
+
+object FramingChannelReader {
+  val PAYLOAD_OFFSET: Int = 1 + 4 // TAG: Byte || SIZE: Int || PAYLOAD
 }

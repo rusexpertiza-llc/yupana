@@ -44,6 +44,7 @@ object NettyBuffer {
     override def readString(b: ByteBuf, size: Int): String = b.readCharSequence(size, StandardCharsets.UTF_8).toString
     override def writeString(b: ByteBuf, s: String): Int = b.writeCharSequence(s, StandardCharsets.UTF_8)
 
+    override def read(b: ByteBuf, dst: Array[Byte]): Unit = b.readBytes(dst)
     override def write(b: ByteBuf, bytes: Array[Byte]): ByteBuf = b.writeBytes(bytes)
   }
 }

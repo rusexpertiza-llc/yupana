@@ -16,17 +16,10 @@
 
 package org.yupana.protocol
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+case class ResultFooter(millis: Long, rows: Int) extends Response[ResultFooter](ResultFooter)
 
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
-
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
+object ResultFooter extends MessageHelper[ResultFooter] {
+  override val tag: Byte = Tags.RESULT_FOOTER
+  override val readWrite: ReadWrite[ResultFooter] =
+    ReadWrite.product2[ResultFooter, Long, Int](f => (f.millis, f.rows))(ResultFooter.apply)
 }

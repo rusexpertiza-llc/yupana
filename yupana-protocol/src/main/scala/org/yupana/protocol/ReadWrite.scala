@@ -27,6 +27,12 @@ trait ReadWrite[T] { self =>
 }
 
 object ReadWrite {
+//  implicit val rwBytes: ReadWrite[Array[Byte]] = new ReadWrite[Array[Byte]] {
+//    override def read[B: Buffer](buf: B): Array[Byte] = implicitly[Buffer[B]].read(buf)
+//
+//    override def write[B: Buffer](buf: B, t: Array[Byte]): Unit = implicitly[Buffer[B]].write(buf, t)
+//  }
+
   implicit val rwInt: ReadWrite[Int] = new ReadWrite[Int] {
     override def read[B: Buffer](buf: B): Int = implicitly[Buffer[B]].readInt(buf)
     override def write[B: Buffer](buf: B, t: Int): Unit = implicitly[Buffer[B]].writeInt(buf, t)

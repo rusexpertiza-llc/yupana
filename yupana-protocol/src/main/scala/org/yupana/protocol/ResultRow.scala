@@ -16,17 +16,13 @@
 
 package org.yupana.protocol
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+case class ResultRow(values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow)
 
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
+object ResultRow extends MessageHelper[ResultRow] {
+  override val tag: Byte = Tags.RESULT_ROW
+  override val readWrite: ReadWrite[ResultRow] = new ReadWrite[ResultRow] {
+    override def read[B: Buffer](buf: B): ResultRow = ???
 
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
+    override def write[B: Buffer](buf: B, t: ResultRow): Unit = ???
+  }
 }

@@ -40,6 +40,7 @@ trait Buffer[B] {
   def readString(b: B, size: Int): String
   def writeString(b: B, s: String): Int
 
+  def read(b: B, dst: Array[Byte]): Unit
   def write(b: B, bytes: Array[Byte]): B
 }
 
@@ -77,6 +78,7 @@ object Buffer {
       bytes.length
     }
 
+    override def read(b: ByteBuffer, dst: Array[Byte]): Unit = b.get(dst)
     override def write(t: ByteBuffer, bytes: Array[Byte]): ByteBuffer = t.put(bytes)
   }
 }

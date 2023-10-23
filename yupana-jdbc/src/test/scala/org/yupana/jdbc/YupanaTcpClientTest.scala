@@ -132,7 +132,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
           |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
           |  """.stripMargin
 
-    val result = client.query(
+    val result = client.prepareQuery(
       sql,
       Map(
         1 -> TimestampValue(12345L),
@@ -252,7 +252,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     val err = Response(Response.Resp.Error("Internal error"))
     server.readBytesSendResponseChunked(err.toByteArray)
-    val e = the[IllegalArgumentException] thrownBy client.query("SHOW TABLES", Map.empty)
+    val e = the[IllegalArgumentException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
 
@@ -295,7 +295,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
 
     the[IOException] thrownBy {
-      val res = client.query(
+      val res = client.prepareQuery(
         sql,
         Map(
           1 -> TimestampValue(12345L),
