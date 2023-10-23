@@ -18,10 +18,15 @@ package org.yupana.protocol
 
 object Tags {
   val ERROR_MESSAGE: Byte = 'E'
+  val HEARTBEAT: Byte = 'B'
 
   val HELLO: Byte = 'h'
   val HELLO_RESPONSE: Byte = 'H'
 
   val SIMPLE_QUERY: Byte = 'q'
   val PREPARE_QUERY: Byte = 'p'
+
+  val RESULT_HEADER: Byte = 'R'
+  val RESULT_DATA: Byte = 'D'
+  val RESULT_FOOTER: Byte = 'F'
 }

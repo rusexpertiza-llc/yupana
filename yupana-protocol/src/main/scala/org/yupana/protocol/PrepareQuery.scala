@@ -20,9 +20,6 @@ case class PrepareQuery(query: String, params: Map[Int, ParameterValue]) extends
 
 object PrepareQuery extends MessageHelper[PrepareQuery] {
   override val tag: Byte = Tags.PREPARE_QUERY
-  override val readWrite: ReadWrite[PrepareQuery] = new ReadWrite[PrepareQuery] {
-    override def read[B: Buffer](buf: B): PrepareQuery = ???
-
-    override def write[B: Buffer](buf: B, t: PrepareQuery): Unit = ???
-  }
+  override val readWrite: ReadWrite[PrepareQuery] =
+    ReadWrite.product2[PrepareQuery, String, Map[Int, ParameterValue]](q => (q.query, q.params))(PrepareQuery.apply)
 }

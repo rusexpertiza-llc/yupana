@@ -16,14 +16,9 @@
 
 package org.yupana.protocol
 
-case class Hello(protocolVersion: Int, clientVersion: String, timestamp: Long, params: Map[String, String])
-    extends Command[Hello](Hello)
+case class Heartbeat(time: Int) extends Response[Heartbeat](Heartbeat)
 
-object Hello extends MessageHelper[Hello] {
-  override val tag: Byte = Tags.HELLO
-
-  implicit override val readWrite: ReadWrite[Hello] =
-    ReadWrite.product4[Hello, Int, String, Long, Map[String, String]](h =>
-      (h.protocolVersion, h.clientVersion, h.timestamp, h.params)
-    )(Hello.apply)
+object Heartbeat extends MessageHelper[Heartbeat] {
+  override val tag: Byte = Tags.HEARTBEAT
+  override val readWrite: ReadWrite[Heartbeat] = implicitly[ReadWrite[Int]].imap(Heartbeat.apply)(_.time)
 }

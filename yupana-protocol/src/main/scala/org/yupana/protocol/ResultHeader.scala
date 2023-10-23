@@ -16,14 +16,14 @@
 
 package org.yupana.protocol
 
-case class Hello(protocolVersion: Int, clientVersion: String, timestamp: Long, params: Map[String, String])
-    extends Command[Hello](Hello)
+case class ResultField(name: String, typeName: String)
+case class ResultHeader(tableName: String, fields: Seq[ResultField]) extends Response[ResultHeader](ResultHeader)
 
-object Hello extends MessageHelper[Hello] {
-  override val tag: Byte = Tags.HELLO
+object ResultHeader extends MessageHelper[ResultHeader] {
+  implicit val rwResultField: ReadWrite[ResultField] =
+    ReadWrite.product2[ResultField, String, String](x => (x.name, x.typeName))(ResultField.apply)
 
-  implicit override val readWrite: ReadWrite[Hello] =
-    ReadWrite.product4[Hello, Int, String, Long, Map[String, String]](h =>
-      (h.protocolVersion, h.clientVersion, h.timestamp, h.params)
-    )(Hello.apply)
+  override val tag: Byte = Tags.RESULT_HEADER
+  override val readWrite: ReadWrite[ResultHeader] =
+    ReadWrite.product2[ResultHeader, String, Seq[ResultField]](x => (x.tableName, x.fields))(ResultHeader.apply)
 }

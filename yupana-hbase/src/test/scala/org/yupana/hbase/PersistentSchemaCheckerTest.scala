@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
+class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
   val DIM_A = DictionaryDimension("dim_a")
   val DIM_B = RawDimension[Int]("dim_b")
@@ -50,16 +50,16 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
   val tables = Seq(table1, table2)
 
   val expectedSchema = Schema(tables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-  val expectedSchemaBytes = ProtobufSchemaChecker.toBytes(expectedSchema)
+  val expectedSchemaBytes = PersistentSchemaChecker.toBytes(expectedSchema)
 
   "ProtobufSchemaChecker" should "successfully validate schema against itself" in {
-    ProtobufSchemaChecker.check(expectedSchema, expectedSchemaBytes) shouldBe Success
+    PersistentSchemaChecker.check(expectedSchema, expectedSchemaBytes) shouldBe Success
   }
 
   it should "return tables size diff warning" in {
     val mutatedTables = Seq(table1)
     val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-    ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes) shouldBe Warning(
+    PersistentSchemaChecker.check(actualSchema, expectedSchemaBytes) shouldBe Warning(
       "2 tables expected, but 1 actually present in registry"
     )
   }
@@ -76,7 +76,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
     val mutatedTables = Seq(significantlyDifferentTable1, table2)
     val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-    inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
+    inside(PersistentSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldEqual "Expected rowTimeSpan for table table_1: 2592000000, actual: 2678400000\n" +
           "Expected dimensions for table table_1: dim_b, dim_a, dim_c, dim_d; actual: dim_a, dim_c\n" +
@@ -99,7 +99,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
     val mutatedTables = Seq(table1WithChangedGroups, table2)
     val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-    inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
+    inside(PersistentSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
           """In table table_1 metric metric_b:BIGINT has been removed or updated
@@ -121,7 +121,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
     val mutatedTables = Seq(table1WithChangedTag, table2)
     val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-    inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
+    inside(PersistentSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
           """In table table_1 metric metric_b:BIGINT has been removed or updated
@@ -141,7 +141,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
     val mutatedTables = Seq(slightlyDifferentTable1, table2)
     val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-    inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
+    inside(PersistentSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Warning(msg) =>
         msg shouldBe
           "In table table_1 metric extra_metric:DECIMAL is unknown (new)".stripMargin
@@ -162,7 +162,7 @@ class ProtobufSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside {
 
     val mutatedTables = Seq(table1WithNewMetric, table2)
     val actualSchema = Schema(mutatedTables, Seq.empty, OfdItemFixer, RussianTokenizer, RussianTransliterator)
-    inside(ProtobufSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
+    inside(PersistentSchemaChecker.check(actualSchema, expectedSchemaBytes)) {
       case Error(msg) =>
         msg shouldBe
           "In table table_1 2 metrics (metric_b, new_metric) share the same tag: 2\n" +

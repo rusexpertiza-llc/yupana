@@ -367,11 +367,11 @@ object HBaseUtils extends StrictLogging {
 
     Using.resource(connection.getAdmin) { admin =>
       if (admin.tableExists(metaTableName)) {
-        ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+        PersistentSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
       } else {
 
-        val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
-        ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
+        val tsdbSchemaBytes = PersistentSchemaChecker.toBytes(schema)
+        PersistentSchemaChecker.check(schema, tsdbSchemaBytes)
 
         writeTsdbSchema(connection, namespace, tsdbSchemaBytes)
         Success

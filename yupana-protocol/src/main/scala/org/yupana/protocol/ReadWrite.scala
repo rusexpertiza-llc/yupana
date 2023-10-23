@@ -52,22 +52,68 @@ object ReadWrite {
 
   implicit val rwBigDecimal: ReadWrite[BigDecimal] = implicitly[ReadWrite[String]].imap(BigDecimal.apply)(_.toString())
 
-  implicit def readMap[K, V](implicit rwk: ReadWrite[K], rwv: ReadWrite[V]): ReadWrite[Map[K, V]] =
-    new ReadWrite[Map[K, V]] {
-      override def read[B](buf: B)(implicit b: Buffer[B]): Map[K, V] = {
+  implicit def readSeq[T](implicit rwt: ReadWrite[T]): ReadWrite[Seq[T]] =
+    new ReadWrite[Seq[T]] {
+      override def read[B](buf: B)(implicit b: Buffer[B]): Seq[T] = {
         val len = b.readInt(buf)
         (0 until len).map { _ =>
-          rwk.read[B](buf) -> rwv.read(buf)
-        }.toMap
-      }
-
-      override def write[B](buf: B, t: Map[K, V])(implicit b: Buffer[B]): Unit = {
-        b.writeInt(buf, t.size)
-        t foreach {
-          case (k, v) =>
-            rwk.write(buf, k)
-            rwv.write(buf, v)
+          rwt.read(buf)
         }
       }
+
+      override def write[B](buf: B, t: Seq[T])(implicit b: Buffer[B]): Unit = {
+        b.writeInt(buf, t.length)
+        t.foreach(x => rwt.write(buf, x))
+      }
     }
+
+  implicit def readTuple[X, Y](implicit rwx: ReadWrite[X], rwy: ReadWrite[Y]): ReadWrite[(X, Y)] =
+    product2[(X, Y), X, Y](identity)(Tuple2.apply)
+
+  implicit def readMap[K, V](implicit rwk: ReadWrite[K], rwv: ReadWrite[V]): ReadWrite[Map[K, V]] =
+    implicitly[ReadWrite[Seq[(K, V)]]].imap(_.toMap)(_.toSeq)
+
+  def product2[T, F1, F2](
+      from: T => (F1, F2)
+  )(to: (F1, F2) => T)(implicit rwf1: ReadWrite[F1], rwf2: ReadWrite[F2]): ReadWrite[T] = new ReadWrite[T] {
+    override def read[B: Buffer](buf: B): T = to(rwf1.read(buf), rwf2.read(buf))
+
+    override def write[B: Buffer](buf: B, t: T): Unit = {
+      val (f1, f2) = from(t)
+      rwf1.write(buf, f1)
+      rwf2.write(buf, f2)
+    }
+  }
+
+  def product3[T, F1, F2, F3](
+      from: T => (F1, F2, F3)
+  )(to: (F1, F2, F3) => T)(implicit rwf1: ReadWrite[F1], rwf2: ReadWrite[F2], rwf3: ReadWrite[F3]): ReadWrite[T] =
+    new ReadWrite[T] {
+      override def read[B: Buffer](buf: B): T = to(rwf1.read(buf), rwf2.read(buf), rwf3.read(buf))
+
+      override def write[B: Buffer](buf: B, t: T): Unit = {
+        val (f1, f2, f3) = from(t)
+        rwf1.write(buf, f1)
+        rwf2.write(buf, f2)
+        rwf3.write(buf, f3)
+      }
+    }
+
+  def product4[T, F1, F2, F3, F4](
+      from: T => (F1, F2, F3, F4)
+  )(
+      to: (F1, F2, F3, F4) => T
+  )(implicit rwf1: ReadWrite[F1], rwf2: ReadWrite[F2], rwf3: ReadWrite[F3], rwf4: ReadWrite[F4]): ReadWrite[T] =
+    new ReadWrite[T] {
+      override def read[B: Buffer](buf: B): T = to(rwf1.read(buf), rwf2.read(buf), rwf3.read(buf), rwf4.read(buf))
+
+      override def write[B: Buffer](buf: B, t: T): Unit = {
+        val (f1, f2, f3, f4) = from(t)
+        rwf1.write(buf, f1)
+        rwf2.write(buf, f2)
+        rwf3.write(buf, f3)
+        rwf4.write(buf, f4)
+      }
+    }
+
 }

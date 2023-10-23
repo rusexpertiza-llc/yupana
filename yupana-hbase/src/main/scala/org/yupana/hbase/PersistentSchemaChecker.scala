@@ -23,7 +23,7 @@ import org.yupana.hbase.model.{ MetricInfo, SchemaInfo, TableInfo }
 
 import java.nio.charset.StandardCharsets
 
-object ProtobufSchemaChecker extends SchemaChecker {
+object PersistentSchemaChecker extends SchemaChecker {
 
   private def typeMap: Map[String, String] =
     Map(
