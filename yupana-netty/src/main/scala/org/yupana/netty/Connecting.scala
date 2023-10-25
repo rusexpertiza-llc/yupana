@@ -16,7 +16,6 @@
 
 package org.yupana.netty
 
-import io.netty.buffer.ByteBuf
 import org.yupana.protocol._
 
 class Connecting extends ConnectionState {
@@ -24,14 +23,15 @@ class Connecting extends ConnectionState {
 
   override def init(): Seq[Response[_]] = Nil
 
-  override def extractCommand(frame: Frame[ByteBuf]): Either[ErrorMessage, Option[Command[_]]] = {
+  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
     Hello.readFrameOpt(frame).toRight(ErrorMessage("Expect Hello")).map(Some(_))
   }
 
   override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
     command match {
-      case Hello(pv, _, _) if pv == ProtocolVersion.value => (new Auth, Seq(HelloResponse(ProtocolVersion.value)))
-      case Hello(pv, _, _) =>
+      case Hello(pv, _, time, _) if pv == ProtocolVersion.value =>
+        (new Auth, Seq(HelloResponse(ProtocolVersion.value, time)))
+      case Hello(pv, _, _, _) =>
         (this, Seq(ErrorMessage(s"Unsupported protocol version $pv, required ${ProtocolVersion.value}")))
       case _ => throw new IllegalAccessException(s"Unexpected command $command")
     }

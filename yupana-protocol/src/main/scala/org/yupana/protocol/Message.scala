@@ -18,25 +18,26 @@ package org.yupana.protocol
 
 trait Message[M <: Message[M]] { self: M =>
   def helper: MessageHelper[M]
-  def toFrame[B: Buffer]: Frame[B] = helper.toFrame(this)
+  def toFrame[B: Buffer]: Frame = helper.toFrame(this)
 }
 
 trait MessageHelper[M <: Message[M]] {
   val tag: Byte
   val readWrite: ReadWrite[M]
 
-  def toFrame[B: Buffer](c: M): Frame[B] = {
-    val buf = implicitly[Buffer[B]].alloc()
+  def toFrame[B: Buffer](c: M): Frame = {
+    val b = implicitly[Buffer[B]]
+    val buf = b.alloc()
     readWrite.write(buf, c)
-    Frame(tag, buf)
+    Frame(tag, b.getBytes(buf))
   }
 
-  def readFrameOpt[B: Buffer](f: Frame[B]): Option[M] = {
+  def readFrameOpt[B: Buffer](f: Frame): Option[M] = {
     if (f.frameType == tag) Some(readFrame(f)) else None
   }
 
-  def readFrame[B: Buffer](f: Frame[B]): M = {
-    readWrite.read(f.payload)
+  def readFrame[B: Buffer](f: Frame): M = {
+    readWrite.read(implicitly[Buffer[B]].wrap(f.payload))
   }
 }
 

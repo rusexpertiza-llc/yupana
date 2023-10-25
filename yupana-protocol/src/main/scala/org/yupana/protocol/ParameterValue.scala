@@ -39,6 +39,17 @@ object ParameterValue {
       }
     }
 
-    override def write[B: Buffer](buf: B, t: ParameterValue): Unit = ???
+    override def write[B: Buffer](buf: B, t: ParameterValue): Unit = {
+      t match {
+        case NumericValue(value)   => write(buf, TYPE_N, value)
+        case StringValue(value)    => write(buf, TYPE_S, value)
+        case TimestampValue(value) => write(buf, TYPE_T, value)
+      }
+    }
+
+    private def write[T, B](buf: B, tag: Byte, t: T)(implicit b: Buffer[B], tw: ReadWrite[T]): Unit = {
+      b.writeByte(buf, tag)
+      tw.write(buf, t)
+    }
   }
 }

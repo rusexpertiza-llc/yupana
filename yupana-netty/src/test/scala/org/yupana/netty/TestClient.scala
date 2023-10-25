@@ -16,7 +16,7 @@ class TestClientHandler extends SimpleChannelInboundHandler[Response[_]] {
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
     println("ololo ololo")
-    ctx.writeAndFlush(Hello(42, "HELLO VERSION", Map.empty))
+    ctx.writeAndFlush(Hello(42, "HELLO VERSION", System.currentTimeMillis(), Map.empty))
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, msg: Response[_]): Unit = {
@@ -30,7 +30,7 @@ class CommandEncoder extends MessageToMessageEncoder[Command[_]] {
   override def encode(ctx: ChannelHandlerContext, msg: Command[_], out: util.List[AnyRef]): Unit = {
     val bb = Unpooled.buffer()
     Hello.readWrite.write(bb, msg.asInstanceOf[Hello])
-    out.add(Frame(Hello.tag, bb))
+    out.add(Frame(Hello.tag, bb.array()))
   }
 }
 object TestClient extends App {

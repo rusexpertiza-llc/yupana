@@ -24,7 +24,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val pong =
       Response(Response.Resp.Pong(Pong(12345678, 12345679, Some(Version(ProtocolVersion.value, 5, 4, "5.4.22")))))
     val reqF = server.readBytesSendResponseChunked(pong.toByteArray).map(Request.parseFrom)
-    val version = client.ping(12345678)
+    val version = client.hello(12345678)
 
     version.value shouldEqual Version(ProtocolVersion.value, 5, 4, "5.4.22")
     val req = Await.result(reqF, 100.millis)
@@ -42,7 +42,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val pong =
       Response(Response.Resp.Pong(Pong(12345678, 12345679, Some(Version(ProtocolVersion.value + 1, 5, 4, "5.4.22")))))
     server.readBytesSendResponseChunked(pong.toByteArray)
-    the[IOException] thrownBy client.ping(
+    the[IOException] thrownBy client.hello(
       12345678
     ) should have message "Incompatible protocol versions: 3 on server and 2 in this driver"
   }
@@ -51,14 +51,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     server.readBytesSendResponse(Array(1))
-    the[IOException] thrownBy client.ping(12345) should have message "Unexpected end of response"
+    the[IOException] thrownBy client.hello(12345) should have message "Unexpected end of response"
   }
 
   it should "handle if there are no response" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     server.closeOnReceive()
-    an[IOException] should be thrownBy client.ping(12345)
+    an[IOException] should be thrownBy client.hello(12345)
   }
 
   it should "handle error response on ping" in {
@@ -66,7 +66,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     val err = Response(Response.Resp.Error("Internal error"))
     server.readBytesSendResponseChunked(err.toByteArray)
-    val e = the[IOException] thrownBy client.ping(23456789)
+    val e = the[IOException] thrownBy client.hello(23456789)
     e.getMessage should include("Internal error")
   }
 
@@ -75,7 +75,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val client = new YupanaTcpClient("127.0.0.1", server.port)
     val err = Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("A", "VARCHAR")))))
     server.readBytesSendResponseChunked(err.toByteArray)
-    the[IOException] thrownBy client.ping(23456789) should have message "Unexpected response on ping"
+    the[IOException] thrownBy client.hello(23456789) should have message "Unexpected response on ping"
   }
 
   it should "handle query" in {

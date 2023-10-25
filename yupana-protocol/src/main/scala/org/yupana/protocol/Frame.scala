@@ -16,4 +16,4 @@
 
 package org.yupana.protocol
 
-case class Frame[B: Buffer](frameType: Byte, payload: B)
+case class Frame(frameType: Byte, payload: Array[Byte])

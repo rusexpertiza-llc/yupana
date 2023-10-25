@@ -16,13 +16,12 @@
 
 package org.yupana.netty
 
-import io.netty.buffer.ByteBuf
 import org.yupana.protocol.{ Command, ErrorMessage, Frame, Response }
 
 class Auth extends ConnectionState {
   override def init(): Seq[Response[_]] = ???
 
-  override def extractCommand(frame: Frame[ByteBuf]): Either[ErrorMessage, Option[Command[_]]] = ???
+  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = ???
 
   override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = ???
 }

@@ -37,7 +37,7 @@ class FramingChannelReader(
     buf
   }
 
-  final def readFrame(): Option[Frame[ByteBuffer]] = {
+  final def readFrame(): Option[Frame] = {
     buffer.synchronized {
       try {
         val r = channel.read(buffer)
@@ -61,7 +61,7 @@ class FramingChannelReader(
           System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
           buffer.position(restSize)
 
-          Some(Frame(tag, ByteBuffer.wrap(result)))
+          Some(Frame(tag, result))
         } else {
           None
         }
@@ -74,7 +74,7 @@ class FramingChannelReader(
   }
 
   @tailrec
-  final def awaitAndReadFrame(): Frame[ByteBuffer] = {
+  final def awaitAndReadFrame(): Frame = {
     readFrame() match {
       case Some(r) => r
       case None =>

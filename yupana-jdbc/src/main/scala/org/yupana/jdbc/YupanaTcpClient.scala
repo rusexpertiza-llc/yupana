@@ -16,18 +16,17 @@
 
 package org.yupana.jdbc
 
-import java.io.IOException
-import java.net.InetSocketAddress
-import java.nio.channels.SocketChannel
-import java.nio.{ ByteBuffer, ByteOrder }
-import java.util.logging.Logger
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
-import org.yupana.protocol.ProtocolVersion
 
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.nio.ByteBuffer
+import java.nio.channels.SocketChannel
+import java.util.logging.Logger
 import java.util.{ Timer, TimerTask }
 
 class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
@@ -71,6 +70,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         Thread.sleep(1)
       }
       chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + 4)
+      hello(System.currentTimeMillis())
     }
   }
 
@@ -83,28 +83,27 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
-    val request = creteProtoBatchQuery(query, params)
-    execRequestQuery(request)
+    throw new UnsupportedOperationException("not implemented yet")
+//    execRequestQuery(request)
   }
 
-  def ping(reqTime: Long): Option[Version] = {
-    logger.fine("Ping")
+  def hello(reqTime: Long): Unit = {
+    logger.fine("Hello")
     val request = Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty)
-    execPing(request) match {
+    execHello(request) match {
       case Right(response) =>
         if (response.reqTime != reqTime) {
-          throw new Exception("got wrong ping response")
+          throw new Exception("got wrong hello response")
         }
-        response.version
 
       case Left(msg) => throw new IOException(msg)
     }
   }
 
-  private def execPing(request: Hello): Either[String, HelloResponse] = {
+  private def execHello(hello: Hello): Either[String, HelloResponse] = {
     ensureConnected()
     cancelHeartbeatTimer()
-    sendRequest(request)
+    sendRequest(hello)
     val frame = chanelReader.awaitAndReadFrame()
 
     val result = frame.frameType match {
@@ -167,26 +166,17 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   }
 
   private def write(request: Command[_]): Unit = {
-    val chunks = createChunks(request.toFrame[ByteBuffer])
-    chunks.foreach { chunk =>
-      while (chunk.hasRemaining) {
-        val writed = channel.write(chunk)
-        if (writed == 0) Thread.sleep(1)
-      }
-    }
-  }
+    val f = request.toFrame
+    val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
+    bb.put(f.frameType)
+    bb.putInt(f.payload.length)
+    bb.put(f.payload)
 
-  private def createChunks(data: Frame[ByteBuffer]): Array[ByteBuffer] = {
-    data
-      .grouped(CHUNK_SIZE)
-      .map { ch =>
-        val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
-        bb.putInt(ch.length)
-        bb.put(ch)
-        bb.flip()
-        bb
-      }
-      .toArray
+    while (bb.hasRemaining) {
+      val written = channel.write(bb)
+      if (written == 0) Thread.sleep(1)
+    }
+
   }
 
   private def readResultHeader(): Either[String, ResultHeader] = {
@@ -283,6 +273,10 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
               logger.fine(s"Got footer $ftr")
               scheduleHeartbeatTimer()
               footer = ftr
+
+            case x =>
+              logger.severe(s"Unexpected message type '${x.toChar}'")
+              throw new IllegalStateException(s"Unexpected message type '${x.toChar}'")
           }
         } while (current == null && footer == null && errorMessage == null)
 
