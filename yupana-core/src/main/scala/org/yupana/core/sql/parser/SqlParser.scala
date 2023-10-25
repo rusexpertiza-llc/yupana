@@ -301,11 +301,11 @@ object SqlParser {
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {
       case Parsed.Success(s, _) => Right(s)
-      case f @ Parsed.Failure(_, index, extra) =>
+      case f: Parsed.Failure =>
         val trace = f.trace()
         val expected = trace.terminals.render
-        val actual = Util.literalize(extra.input.slice(index, index + 10))
-        val position = extra.input.prettyIndex(index)
+        val actual = Util.literalize(f.extra.input.slice(f.index, f.index + 10))
+        val position = f.extra.input.prettyIndex(f.index)
 
         Left(
           s"""Invalid SQL statement: '$sql'

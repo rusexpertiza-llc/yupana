@@ -434,7 +434,7 @@ lazy val versions = new {
   val protobufJava = "2.6.1"
 
   val scalaLogging = "3.9.5"
-  val fastparse = "2.1.3"
+  val fastparse = "2.3.1"
   val scopt = "4.1.0"
   val prometheus = "0.16.0"
 
