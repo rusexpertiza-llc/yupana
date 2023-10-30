@@ -5,7 +5,6 @@ import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
-import org.yupana.proto.Version
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.protocol.ParameterValue
@@ -221,7 +220,6 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     (() => conn.url).expects().returning("jdbc:yupana://example.com:10101")
     m.getURL shouldEqual "jdbc:yupana://example.com:10101"
 
-    (() => conn.serverVersion).expects().returning(Some(Version(9, 1, 2, "1.2.3"))).anyNumberOfTimes()
     m.getDatabaseMajorVersion shouldEqual 1
     m.getDatabaseMinorVersion shouldEqual 2
     m.getDatabaseProductVersion shouldEqual "1.2.3"

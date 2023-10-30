@@ -16,20 +16,10 @@
 
 package org.yupana.protocol
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+case class Credentials(method: String, user: String, password: String) extends Command[Credentials](Credentials)
 
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
-
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
-
-  val CREDENTIALS_REQUEST: Byte = 'C'
-  val CREDENTIALS: Byte = 'c'
+object Credentials extends MessageHelper[Credentials] {
+  override val tag: Byte = Tags.CREDENTIALS
+  override val readWrite: ReadWrite[Credentials] =
+    ReadWrite.product3[Credentials, String, String, String](c => (c.method, c.user, c.password))(Credentials.apply)
 }

@@ -1,19 +1,18 @@
 package org.yupana.jdbc
 
 import java.io.IOException
-import com.google.protobuf.ByteString
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.types.Storable
-import org.yupana.jdbc.build.BuildInfo
-import org.yupana.proto.util.ProtocolVersion
-import org.yupana.proto._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.protocol.{ NumericValue, StringValue, TimestampValue }
+import org.yupana.jdbc.build.BuildInfo
+import org.yupana.protocol._
+
+import java.nio.ByteBuffer
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,16 +20,16 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   "TCP client" should "handle ping/pong" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    val pong =
-      Response(Response.Resp.Pong(Pong(12345678, 12345679, Some(Version(ProtocolVersion.value, 5, 4, "5.4.22")))))
-    val reqF = server.readBytesSendResponseChunked(pong.toByteArray).map(Request.parseFrom)
-    val version = client.hello(12345678)
+    val pong = HelloResponse(ProtocolVersion.value, 12345678)
+    val reqF = server.readBytesSendResponseChunked(pong).map(readMessage(Hello.readFrame[ByteBuffer]))
+    client.hello(12345678)
 
-    version.value shouldEqual Version(ProtocolVersion.value, 5, 4, "5.4.22")
     val req = Await.result(reqF, 100.millis)
-    req.getPing shouldEqual Ping(
+    req shouldEqual Hello(
+      ProtocolVersion.value,
+      BuildInfo.version,
       12345678,
-      Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
+      Map.empty
     )
 
     server.close()
@@ -39,9 +38,8 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "fail if protocol version does not match" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    val pong =
-      Response(Response.Resp.Pong(Pong(12345678, 12345679, Some(Version(ProtocolVersion.value + 1, 5, 4, "5.4.22")))))
-    server.readBytesSendResponseChunked(pong.toByteArray)
+    val pong = HelloResponse(ProtocolVersion.value + 1, 12345678)
+    server.readBytesSendResponseChunked(pong)
     the[IOException] thrownBy client.hello(
       12345678
     ) should have message "Incompatible protocol versions: 3 on server and 2 in this driver"
@@ -50,7 +48,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "handle if response is too small" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    server.readBytesSendResponse(Array(1))
+    server.readBytesSendResponse(Array(1.toByte))
     the[IOException] thrownBy client.hello(12345) should have message "Unexpected end of response"
   }
 
@@ -64,8 +62,8 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "handle error response on ping" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    val err = Response(Response.Resp.Error("Internal error"))
-    server.readBytesSendResponseChunked(err.toByteArray)
+    val err = ErrorMessage("Internal error")
+    server.readBytesSendResponseChunked(err)
     val e = the[IOException] thrownBy client.hello(23456789)
     e.getMessage should include("Internal error")
   }
@@ -73,8 +71,8 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "fail on unexpected response on ping" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    val err = Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("A", "VARCHAR")))))
-    server.readBytesSendResponseChunked(err.toByteArray)
+    val err = ResultHeader("table", Seq(ResultField("A", "VARCHAR")))
+    server.readBytesSendResponseChunked(err)
     the[IOException] thrownBy client.hello(23456789) should have message "Unexpected response on ping"
   }
 
@@ -83,48 +81,28 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
 
-    val header = Response(
-      Response.Resp.ResultHeader(
-        ResultHeader(
-          Seq(
-            ResultField("time", "TIMESTAMP"),
-            ResultField("item", "VARCHAR")
-          ),
-          Some("items_kkm")
-        )
+    val header = ResultHeader(
+      "items_kkm",
+      Seq(
+        ResultField("time", "TIMESTAMP"),
+        ResultField("item", "VARCHAR")
       )
     )
 
-    val hb = Response(
-      Response.Resp.Heartbeat("1")
-    )
+    val hb = Heartbeat(1)
 
     val ts = implicitly[Storable[Time]]
     val ss = implicitly[Storable[String]]
 
-    val data1 = Response(
-      Response.Resp.Result(
-        ResultChunk(
-          Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная")))
-        )
-      )
-    )
+    val data1 = ResultRow(Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-    val data2 = Response(
-      Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.EMPTY))
-      )
-    )
+    val data2 = ResultRow(Seq(ts.write(Time(21112L)), Array.empty))
 
-    val footer = Response(
-      Response.Resp.ResultStatistics(
-        ResultStatistics(1, 2)
-      )
-    )
+    val footer = ResultFooter(1, 2)
 
-    val responses = Seq(header, hb, data1, data2, footer).map(_.toByteArray)
+    val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
+    val reqF = server.readBytesSendResponsesChunked(responses).map(readMessage(PrepareQuery.readFrame[ByteBuffer]))
 
     val sql =
       """
@@ -144,7 +122,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val req = Await.result(reqF, 100.millis)
     inside(req) {
-      case Request(Request.Req.SqlQuery(SqlQuery(q, f))) =>
+      case PrepareQuery(q, f) =>
         q shouldEqual sql
 
     }
@@ -165,46 +143,29 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
 
-    val header = Response(
-      Response.Resp.ResultHeader(
-        ResultHeader(
-          Seq(
-            ResultField("time", "TIMESTAMP"),
-            ResultField("item", "VARCHAR")
-          ),
-          Some("items_kkm")
+    val header =
+      ResultHeader(
+        "items_kkm",
+        Seq(
+          ResultField("time", "TIMESTAMP"),
+          ResultField("item", "VARCHAR")
         )
       )
-    )
 
-    val hb = Response(
-      Response.Resp.Heartbeat("1")
-    )
+    val hb = Heartbeat(1)
 
     val ts = implicitly[Storable[Time]]
     val ss = implicitly[Storable[String]]
 
-    val data1 = Response(
-      Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
-      )
-    )
+    val data1 = ResultRow(Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-    val data2 = Response(
-      Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.EMPTY))
-      )
-    )
+    val data2 = ResultRow(Seq(ts.write(Time(21112L)), Array.empty))
 
-    val footer = Response(
-      Response.Resp.ResultStatistics(
-        ResultStatistics(1, 2)
-      )
-    )
+    val footer = ResultFooter(1, 2)
 
-    val responses = Seq(header, hb, data1, data2, footer).map(_.toByteArray)
+    val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
+    val reqF = server.readBytesSendResponsesChunked(responses).map(readMessage(PrepareQuery.readFrame[ByteBuffer]))
 
     val sql = """
                 |SELECT time, item FROM items_kkm
@@ -231,7 +192,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val req = Await.result(reqF, 100.millis)
     inside(req) {
-      case Request(Request.Req.BatchSqlQuery(BatchSqlQuery(q, fs))) =>
+      case PrepareQuery(q, fs) =>
         q shouldEqual sql
         fs should have size 2
     }
@@ -250,8 +211,8 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "handle error response on query" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    val err = Response(Response.Resp.Error("Internal error"))
-    server.readBytesSendResponseChunked(err.toByteArray)
+    val err = ErrorMessage("Internal error")
+    server.readBytesSendResponseChunked(err)
     val e = the[IllegalArgumentException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
@@ -260,39 +221,30 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
 
-    val header = Response(
-      Response.Resp.ResultHeader(
-        ResultHeader(
-          Seq(
-            ResultField("time", "TIMESTAMP"),
-            ResultField("item", "VARCHAR")
-          ),
-          Some("items_kkm")
+    val header =
+      ResultHeader(
+        "items_kkm",
+        Seq(
+          ResultField("time", "TIMESTAMP"),
+          ResultField("item", "VARCHAR")
         )
       )
-    )
 
-    val hb = Response(
-      Response.Resp.Heartbeat("1")
-    )
+    val hb = Heartbeat(1)
 
     val ts = implicitly[Storable[Time]]
     val ss = implicitly[Storable[String]]
 
-    val data = Response(
-      Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
-      )
-    )
+    val data = ResultRow(Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-    val responses = Seq(header, hb, data).map(_.toByteArray)
+    val responses = Seq(header, hb, data)
 
     val sql = """
                 |SELECT time, item FROM items_kkm
                 |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
                 |  """.stripMargin
 
-    server.readBytesSendResponsesChunked(responses).map(Request.parseFrom)
+    server.readBytesSendResponsesChunked(responses).map(readMessage(PrepareQuery.readFrame[ByteBuffer]))
 
     the[IOException] thrownBy {
       val res = client.prepareQuery(
@@ -306,6 +258,16 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       )
       res.next()
     } should have message "Unexpected end of response"
+  }
+
+  private def readMessage[T](f: Frame => T)(bytes: Array[Byte]): T = {
+    val bb = ByteBuffer.wrap(bytes)
+    val tpe = bb.get()
+    val len = bb.getInt()
+    val payload = new Array[Byte](len)
+    bb.get(payload)
+    val frame = Frame(tpe, payload)
+    f(frame)
   }
 
 }

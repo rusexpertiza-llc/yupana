@@ -16,20 +16,11 @@
 
 package org.yupana.protocol
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+case class CredentialsRequest(method: String) extends Response[CredentialsRequest](CredentialsRequest)
 
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
+object CredentialsRequest extends MessageHelper[CredentialsRequest] {
+  val METHOD_PLAIN: String = "plain"
 
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
-
-  val CREDENTIALS_REQUEST: Byte = 'C'
-  val CREDENTIALS: Byte = 'c'
+  override val tag: Byte = Tags.CREDENTIALS_REQUEST
+  override val readWrite: ReadWrite[CredentialsRequest] = ReadWrite[String].imap(CredentialsRequest.apply)(_.method)
 }

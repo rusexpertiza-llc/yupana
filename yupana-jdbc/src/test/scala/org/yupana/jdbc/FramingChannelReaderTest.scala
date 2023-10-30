@@ -15,7 +15,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
     val reader = new FramingChannelReader(channel, 100)
 
     val bytes = reader.readFrame()
-    bytes.value should contain theSameElementsAs Array(1, 2, 3, 4, 5)
+    bytes.value.payload should contain theSameElementsAs Array(1, 2, 3, 4, 5)
   }
 
   it should "throw an exception when channel is closed unexpectedly" in {
@@ -50,9 +50,9 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
     )
     val reader = new FramingChannelReader(channel, 100)
 
-    reader.readFrame().value should contain theSameElementsAs Array(1, 2, 3)
-    reader.readFrame().value should contain theSameElementsAs Array(4, 5, 6, 7)
-    reader.readFrame().value should contain theSameElementsAs Array(8, 9)
+    reader.readFrame().value.payload should contain theSameElementsAs Array(1, 2, 3)
+    reader.readFrame().value.payload should contain theSameElementsAs Array(4, 5, 6, 7)
+    reader.readFrame().value.payload should contain theSameElementsAs Array(8, 9)
   }
 
   it should "handle create a single chunk from parts" in {
@@ -72,7 +72,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
       2
     }
 
-    iterator.readFrame().value should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
+    iterator.readFrame().value.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
   }
 
   it should "handle buffer overflow" in {
@@ -90,7 +90,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
       }
       .once()
 
-    reader.readFrame().value should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
+    reader.readFrame().value.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
 
     (channel.read _)
       .expects(*)
@@ -109,11 +109,12 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
       }
       .once()
 
-    reader.readFrame().value should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
+    reader.readFrame().value.payload should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
   }
 
   private def createFrame(data: Byte*): Array[Byte] = {
     val bb = ByteBuffer.allocate(data.length + 4)
+    bb.put(42.toByte)
     bb.putInt(data.length)
     bb.put(data.toArray)
     bb.array()

@@ -46,6 +46,10 @@ class MessageHandler(major: Int, minor: Int, version: String)
     val (newState, responses) = state.processCommand(command)
     writeResponses(ctx, responses)
     state = newState
+    val initial = state.init()
+    if (initial.nonEmpty) {
+      writeResponses(ctx, initial)
+    }
   }
 
   private def writeResponses(ctx: ChannelHandlerContext, responses: Seq[Response[_]]): Unit = {

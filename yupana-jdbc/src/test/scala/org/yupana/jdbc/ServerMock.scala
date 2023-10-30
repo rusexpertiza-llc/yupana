@@ -1,10 +1,11 @@
 package org.yupana.jdbc
 
+import org.yupana.protocol.{ Message, Response }
+
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
 import java.util.concurrent.TimeUnit
-
 import scala.concurrent.{ Future, Promise }
 
 class ServerMock {
@@ -13,19 +14,22 @@ class ServerMock {
 
   def port: Int = serverSock.getLocalAddress.asInstanceOf[InetSocketAddress].getPort
 
-  def readBytesSendResponseChunked(response: Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponses(Seq(response), ServerMock.chunked)
+  def readBytesSendResponseChunked(response: Response[_]): Future[Array[Byte]] = {
+    readBytesSendResponses(Seq(response), ServerMock.pack)
   }
 
-  def readBytesSendResponsesChunked(responses: Seq[Array[Byte]]): Future[Array[Byte]] = {
-    readBytesSendResponses(responses, ServerMock.chunked)
+  def readBytesSendResponsesChunked(responses: Seq[Response[_]]): Future[Array[Byte]] = {
+    readBytesSendResponses(responses, ServerMock.pack)
   }
 
-  def readBytesSendResponse(response: Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponses(Seq(response), ServerMock.raw)
+  def readBytesSendResponse(raw: Array[Byte]): Future[Array[Byte]] = {
+    readBytesSendResponses(Seq(raw), ByteBuffer.wrap)
+  }
+  def readBytesSendResponse(response: Response[_]): Future[Array[Byte]] = {
+    readBytesSendResponses(Seq(response), ServerMock.pack)
   }
 
-  def readBytesSendResponses(responses: Seq[Array[Byte]], pack: Array[Byte] => ByteBuffer): Future[Array[Byte]] = {
+  def readBytesSendResponses[T](responses: Seq[T], pack: T => ByteBuffer): Future[Array[Byte]] = {
     val p = Promise[Array[Byte]]()
 
     serverSock.accept(
@@ -76,14 +80,13 @@ class ServerMock {
 }
 
 object ServerMock {
-  def chunked(data: Array[Byte]): ByteBuffer = {
-    val resp = ByteBuffer.allocate(data.length + 4)
-    resp.putInt(data.length)
-    resp.put(data)
+  def pack(data: Message[_]): ByteBuffer = {
+    val frame = data.toFrame[ByteBuffer]
+    val resp = ByteBuffer.allocate(frame.payload.length + 4 + 1)
+    resp.put(frame.frameType)
+    resp.putInt(frame.payload.length)
+    resp.put(frame.payload)
     resp.flip()
     resp
   }
-
-  def raw(data: Array[Byte]): ByteBuffer = ByteBuffer.wrap(data)
-
 }

@@ -16,12 +16,19 @@
 
 package org.yupana.netty
 
-import org.yupana.protocol.{ Command, ErrorMessage, Frame, Response }
+import io.netty.buffer.ByteBuf
+import org.yupana.protocol._
 
 class Auth extends ConnectionState {
-  override def init(): Seq[Response[_]] = ???
+  import NettyBuffer._
+  override def init(): Seq[Response[_]] = Seq(CredentialsRequest(CredentialsRequest.METHOD_PLAIN))
 
-  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = ???
+  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
+    frame.frameType match {
+      case Tags.CREDENTIALS => Right(Some(Credentials.readFrame[ByteBuf](frame)))
+      case x                => Left(ErrorMessage(s"Unexpected command type '$x'"))
+    }
+  }
 
   override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = ???
 }
