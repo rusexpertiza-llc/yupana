@@ -29,7 +29,7 @@ trait MessageHelper[M <: Message[M]] {
     val b = implicitly[Buffer[B]]
     val buf = b.alloc()
     readWrite.write(buf, c)
-    Frame(tag, b.getBytes(buf))
+    Frame(tag, b.toByteArray(buf))
   }
 
   def readFrameOpt[B: Buffer](f: Frame): Option[M] = {

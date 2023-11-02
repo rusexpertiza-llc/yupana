@@ -27,7 +27,7 @@ object NettyBuffer {
     override def alloc(): ByteBuf = Unpooled.buffer()
     override def alloc(capacity: Int): ByteBuf = Unpooled.buffer(capacity)
     override def wrap(data: Array[Byte]): ByteBuf = Unpooled.wrappedBuffer(data)
-    override def getBytes(b: ByteBuf): Array[Byte] = b.array()
+    override def toByteArray(b: ByteBuf): Array[Byte] = b.array()
 
     override def readByte(b: ByteBuf): Byte = b.readByte()
     override def writeByte(b: ByteBuf, v: Byte): ByteBuf = b.writeByte(v)

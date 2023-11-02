@@ -48,7 +48,7 @@ class BufferTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenProperty
     forAll { t: T =>
       val b1 = B1.alloc(1000)
       w(B1)(b1, t)
-      val data = B1.getBytes(b1)
+      val data = B1.toByteArray(b1)
 
       val b2 = B2.wrap(data)
       r(B2)(b2) shouldEqual t

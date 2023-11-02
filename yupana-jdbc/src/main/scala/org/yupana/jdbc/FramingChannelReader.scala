@@ -43,8 +43,8 @@ class FramingChannelReader(
         val r = channel.read(buffer)
         if (r == -1 && buffer.position() < PAYLOAD_OFFSET) throw new IOException("Unexpected end of response")
         if (buffer.position() >= PAYLOAD_OFFSET) {
-          val tag = buffer.get()
-          val size = buffer.getInt(0)
+          val tag = buffer.get(0)
+          val size = buffer.getInt(1)
           var lastRead = 0
           while (buffer.position() < size + PAYLOAD_OFFSET && lastRead >= 0) {
             lastRead = channel.read(buffer)

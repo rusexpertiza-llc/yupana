@@ -23,7 +23,7 @@ trait Buffer[B] {
   def alloc(): B
   def alloc(capacity: Int): B
   def wrap(data: Array[Byte]): B
-  def getBytes(b: B): Array[Byte]
+  def toByteArray(b: B): Array[Byte]
 
   def readByte(b: B): Byte
   def writeByte(b: B, v: Byte): B
@@ -52,8 +52,11 @@ object Buffer {
     override def alloc(): ByteBuffer = alloc(DEFAULT_CAPACITY)
     override def alloc(capacity: Int): ByteBuffer = ByteBuffer.allocate(capacity)
     override def wrap(data: Array[Byte]): ByteBuffer = ByteBuffer.wrap(data)
-    override def getBytes(b: ByteBuffer): Array[Byte] = {
-      b.array()
+    override def toByteArray(b: ByteBuffer): Array[Byte] = {
+      val res = new Array[Byte](b.position())
+      b.flip()
+      b.get(res)
+      res
     }
 
     override def readByte(b: ByteBuffer): Byte = b.get

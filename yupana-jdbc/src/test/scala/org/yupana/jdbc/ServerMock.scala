@@ -1,6 +1,6 @@
 package org.yupana.jdbc
 
-import org.yupana.protocol.{ Message, Response }
+import org.yupana.protocol.{ Frame, Message, Response }
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -14,23 +14,23 @@ class ServerMock {
 
   def port: Int = serverSock.getLocalAddress.asInstanceOf[InetSocketAddress].getPort
 
-  def readBytesSendResponseChunked(response: Response[_]): Future[Array[Byte]] = {
+  def readBytesSendResponseChunked(response: Response[_]): Future[Frame] = {
     readBytesSendResponses(Seq(response), ServerMock.pack)
   }
 
-  def readBytesSendResponsesChunked(responses: Seq[Response[_]]): Future[Array[Byte]] = {
+  def readBytesSendResponsesChunked(responses: Seq[Response[_]]): Future[Frame] = {
     readBytesSendResponses(responses, ServerMock.pack)
   }
 
-  def readBytesSendResponse(raw: Array[Byte]): Future[Array[Byte]] = {
+  def readBytesSendResponse(raw: Array[Byte]): Future[Frame] = {
     readBytesSendResponses(Seq(raw), ByteBuffer.wrap)
   }
-  def readBytesSendResponse(response: Response[_]): Future[Array[Byte]] = {
+  def readBytesSendResponse(response: Response[_]): Future[Frame] = {
     readBytesSendResponses(Seq(response), ServerMock.pack)
   }
 
-  def readBytesSendResponses[T](responses: Seq[T], pack: T => ByteBuffer): Future[Array[Byte]] = {
-    val p = Promise[Array[Byte]]()
+  def readBytesSendResponses[T](responses: Seq[T], pack: T => ByteBuffer): Future[Frame] = {
+    val p = Promise[Frame]()
 
     serverSock.accept(
       null,
@@ -39,14 +39,16 @@ class ServerMock {
           val bb = ByteBuffer.allocate(16 * 1024)
           v.read(bb).get(1, TimeUnit.SECONDS)
           bb.flip()
+          val frameType = bb.get()
           val reqSize = bb.getInt()
           val bytes = new Array[Byte](reqSize)
           bb.get(bytes)
+          val frame = Frame(frameType, bytes)
           responses foreach { response =>
             val resp = pack(response)
             v.write(resp).get(1, TimeUnit.SECONDS)
           }
-          p.success(bytes)
+          p.success(frame)
           v.close()
         }
 

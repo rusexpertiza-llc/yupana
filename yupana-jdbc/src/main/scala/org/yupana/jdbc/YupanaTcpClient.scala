@@ -28,6 +28,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 import java.util.logging.Logger
 import java.util.{ Timer, TimerTask }
+import scala.annotation.tailrec
 
 class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
@@ -69,8 +70,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
       while (!channel.finishConnect()) {
         Thread.sleep(1)
       }
-      chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + 4)
-      hello(System.currentTimeMillis())
+      chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
+//      hello(System.currentTimeMillis())
     }
   }
 
@@ -171,6 +172,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     bb.put(f.frameType)
     bb.putInt(f.payload.length)
     bb.put(f.payload)
+    bb.flip()
 
     while (bb.hasRemaining) {
       val written = channel.write(bb)
@@ -179,6 +181,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   }
 
+  @tailrec
   private def readResultHeader(): Either[String, ResultHeader] = {
     val frame = chanelReader.awaitAndReadFrame()
 

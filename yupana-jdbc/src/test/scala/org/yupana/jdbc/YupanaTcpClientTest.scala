@@ -20,15 +20,21 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   "TCP client" should "handle ping/pong" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port)
-    val pong = HelloResponse(ProtocolVersion.value, 12345678)
-    val reqF = server.readBytesSendResponseChunked(pong).map(readMessage(Hello.readFrame[ByteBuffer]))
-    client.hello(12345678)
+    println(s"START ON PORT ${server.port}")
+    val pong = HelloResponse(ProtocolVersion.value, 12345678L)
+    val reqF = server
+      .readBytesSendResponseChunked(pong)
+      .map(frame => {
+        println(s"I HAVE FRAME ${frame.frameType.toChar}")
+        Hello.readFrame[ByteBuffer](frame)
+      })
+    client.hello(12345678L)
 
     val req = Await.result(reqF, 100.millis)
     req shouldEqual Hello(
       ProtocolVersion.value,
       BuildInfo.version,
-      12345678,
+      12345678L,
       Map.empty
     )
 
@@ -102,7 +108,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponsesChunked(responses).map(readMessage(PrepareQuery.readFrame[ByteBuffer]))
+    val reqF = server.readBytesSendResponsesChunked(responses).map(PrepareQuery.readFrame[ByteBuffer])
 
     val sql =
       """
@@ -165,7 +171,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponsesChunked(responses).map(readMessage(PrepareQuery.readFrame[ByteBuffer]))
+    val reqF = server.readBytesSendResponsesChunked(responses).map(PrepareQuery.readFrame[ByteBuffer])
 
     val sql = """
                 |SELECT time, item FROM items_kkm
@@ -244,7 +250,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
                 |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
                 |  """.stripMargin
 
-    server.readBytesSendResponsesChunked(responses).map(readMessage(PrepareQuery.readFrame[ByteBuffer]))
+    server.readBytesSendResponsesChunked(responses).map(PrepareQuery.readFrame[ByteBuffer])
 
     the[IOException] thrownBy {
       val res = client.prepareQuery(
@@ -259,15 +265,4 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       res.next()
     } should have message "Unexpected end of response"
   }
-
-  private def readMessage[T](f: Frame => T)(bytes: Array[Byte]): T = {
-    val bb = ByteBuffer.wrap(bytes)
-    val tpe = bb.get()
-    val len = bb.getInt()
-    val payload = new Array[Byte](len)
-    bb.get(payload)
-    val frame = Frame(tpe, payload)
-    f(frame)
-  }
-
 }
