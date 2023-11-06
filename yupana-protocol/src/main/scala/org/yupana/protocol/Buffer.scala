@@ -72,8 +72,9 @@ object Buffer {
     override def writeDouble(b: ByteBuffer, d: Double): ByteBuffer = b.putDouble(d)
 
     override def readString(b: ByteBuffer, size: Int): String = {
-//      b.get
-      ""
+      val bytes = new Array[Byte](size)
+      b.get(bytes)
+      new String(bytes, StandardCharsets.UTF_8)
     }
     override def writeString(b: ByteBuffer, s: String): Int = {
       val bytes = s.getBytes(StandardCharsets.UTF_8)

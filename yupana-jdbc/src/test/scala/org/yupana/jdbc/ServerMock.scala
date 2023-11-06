@@ -14,19 +14,16 @@ class ServerMock {
 
   def port: Int = serverSock.getLocalAddress.asInstanceOf[InetSocketAddress].getPort
 
-  def readBytesSendResponseChunked(response: Response[_]): Future[Frame] = {
+  def readBytesSendResponse(response: Response[_]): Future[Frame] = {
     readBytesSendResponses(Seq(response), ServerMock.pack)
   }
 
-  def readBytesSendResponsesChunked(responses: Seq[Response[_]]): Future[Frame] = {
+  def readBytesSendResponses(responses: Seq[Response[_]]): Future[Frame] = {
     readBytesSendResponses(responses, ServerMock.pack)
   }
 
   def readBytesSendResponse(raw: Array[Byte]): Future[Frame] = {
     readBytesSendResponses(Seq(raw), ByteBuffer.wrap)
-  }
-  def readBytesSendResponse(response: Response[_]): Future[Frame] = {
-    readBytesSendResponses(Seq(response), ServerMock.pack)
   }
 
   def readBytesSendResponses[T](responses: Seq[T], pack: T => ByteBuffer): Future[Frame] = {

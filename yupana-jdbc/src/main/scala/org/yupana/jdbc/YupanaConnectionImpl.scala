@@ -27,9 +27,12 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
   private var autoCommit = false
   private var closed = false
 
-  private val host = properties.getProperty("yupana.host")
-  private val port = properties.getProperty("yupana.port").toInt
-  private val tcpClient = new YupanaTcpClient(host, port)
+  private val tcpClient = new YupanaTcpClient(
+    properties.getProperty("yupana.host"),
+    properties.getProperty("yupana.port").toInt,
+    properties.getProperty("user"),
+    properties.getProperty("password")
+  )
 
   override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
     try {

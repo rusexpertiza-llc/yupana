@@ -16,24 +16,9 @@
 
 package org.yupana.protocol
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
-  val QUIT: Byte = 'Q'
+case class Idle() extends Response[Idle](Idle)
 
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
-
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
-
-  val CREDENTIALS_REQUEST: Byte = 'C'
-  val CREDENTIALS: Byte = 'c'
-  val AUTHORIZED: Byte = 'A'
-
-  val IDLE: Byte = 'I'
+object Idle extends MessageHelper[Idle] {
+  override val tag: Byte = Tags.IDLE
+  override val readWrite: ReadWrite[Idle] = ReadWrite.empty.imap(_ => Idle())(_ => ())
 }

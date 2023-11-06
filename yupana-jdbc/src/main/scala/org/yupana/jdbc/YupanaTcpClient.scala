@@ -30,7 +30,7 @@ import java.util.logging.Logger
 import java.util.{ Timer, TimerTask }
 import scala.annotation.tailrec
 
-class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
+class YupanaTcpClient(val host: String, val port: Int, user: String, password: String) extends AutoCloseable {
 
   private val logger = Logger.getLogger(classOf[YupanaTcpClient].getName)
 
@@ -44,6 +44,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private var heartbeatTimer: java.util.Timer = _
   private var heartbeatTimerScheduled = false
+
+  private var closed = true
 
   private def scheduleHeartbeatTimer(): Unit = {
     heartbeatTimer = new Timer()
@@ -61,18 +63,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     }
   }
 
-  private def ensureConnected(): Unit = {
-    if (channel == null || !channel.isOpen || !channel.isConnected) {
-      logger.info(s"Connect to $host:$port")
-      channel = SocketChannel.open()
-      channel.configureBlocking(false)
-      channel.connect(new InetSocketAddress(host, port))
-      while (!channel.finishConnect()) {
-        Thread.sleep(1)
-      }
-      chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
-//      hello(System.currentTimeMillis())
-    }
+  private def ensureNotClosed(): Unit = {
+    if (closed) throw new IOException("Connection is closed")
   }
 
   def query(query: String): Result = {
@@ -88,59 +80,75 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 //    execRequestQuery(request)
   }
 
-  def hello(reqTime: Long): Unit = {
+  def connect(reqTime: Long): Unit = {
     logger.fine("Hello")
+
+    if (channel == null || !channel.isOpen || !channel.isConnected) {
+      logger.info(s"Connect to $host:$port")
+      channel = SocketChannel.open()
+      channel.configureBlocking(false)
+      channel.connect(new InetSocketAddress(host, port))
+      while (!channel.finishConnect()) {
+        Thread.sleep(1)
+      }
+      chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
+      closed = false
+    }
+
     val request = Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty)
-    execHello(request) match {
+    sendRequest(request)
+    waitFor(Tags.HELLO_RESPONSE, HelloResponse.readFrame[ByteBuffer]) match {
       case Right(response) =>
+        if (response.protocolVersion != ProtocolVersion.value) {
+          throw new IOException(
+            error(
+              s"Incompatible protocol versions: ${response.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
+            )
+          )
+        }
         if (response.reqTime != reqTime) {
-          throw new Exception("got wrong hello response")
+          throw new IOException(error("got wrong hello response"))
         }
 
       case Left(msg) => throw new IOException(msg)
     }
+
+    waitFor(Tags.CREDENTIALS_REQUEST, CredentialsRequest.readFrame[ByteBuffer]) match {
+      case Right(cr) if cr.method == CredentialsRequest.METHOD_PLAIN =>
+        sendRequest(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
+
+      case Right(cr) => throw new IOException(error(s"Unsupported auth method ${cr.method}"))
+      case Left(msg) => throw new IOException(msg)
+    }
+    waitFor(Tags.AUTHORIZED, Authorized.readFrame[ByteBuffer])
+    waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])
+    scheduleHeartbeatTimer()
   }
 
-  private def execHello(hello: Hello): Either[String, HelloResponse] = {
-    ensureConnected()
-    cancelHeartbeatTimer()
-    sendRequest(hello)
+  @tailrec
+  private def waitFor[T](tag: Byte, get: Frame => T): Either[String, T] = {
     val frame = chanelReader.awaitAndReadFrame()
-
-    val result = frame.frameType match {
-      case Tags.HELLO_RESPONSE =>
-        val r = HelloResponse.readFrame(frame)
-        if (r.protocolVersion != ProtocolVersion.value) {
-          Left(
-            error(
-              s"Incompatible protocol versions: ${r.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
-            )
-          )
-        } else {
-          logger.fine("Received pong response")
-          Right(r)
-        }
-
+    frame.frameType match {
+      case `tag` => Right(get(frame))
+      case Tags.HEARTBEAT =>
+        val hb = Heartbeat.readFrame(frame)
+        heartbeat(hb.time)
+        waitFor(tag, get)
       case Tags.ERROR_MESSAGE =>
         val msg = ErrorMessage.readFrame(frame).message
-        Left(error(s"Got error response on ping, '$msg'"))
+        Left(error(s"Got error response on '${tag.toChar}', '$msg'"))
 
-      case x =>
-        Left(error(s"Unexpected response '${x.toChar}' on ping"))
-
+      case x => Left(error(s"Unexpected response '${x.toChar}, while waiting for '${tag.toChar}"))
     }
-
-    scheduleHeartbeatTimer()
-    result
   }
 
   private def execRequestQuery(command: Command[_]): Result = {
     logger.fine(s"Exec request query $command")
+    ensureNotClosed()
     cancelHeartbeatTimer()
-    ensureConnected()
     sendRequest(command)
 
-    val header = readResultHeader()
+    val header = waitFor(Tags.RESULT_HEADER, ResultHeader.readFrame[ByteBuffer])
 
     header match {
       case Right(h) =>
@@ -161,7 +169,6 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
         logger.warning(s"Caught $io while trying to write to channel, let's retry")
         Thread.sleep(1000)
         channel = null
-        ensureConnected()
         write(request)
     }
   }
@@ -179,31 +186,6 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
       if (written == 0) Thread.sleep(1)
     }
 
-  }
-
-  @tailrec
-  private def readResultHeader(): Either[String, ResultHeader] = {
-    val frame = chanelReader.awaitAndReadFrame()
-
-    frame.frameType match {
-      case Tags.RESULT_HEADER =>
-        logger.fine("Received result header ")
-        Right(ResultHeader.readFrame(frame))
-
-      case Tags.RESULT_ROW =>
-        Left(error("Data chunk received before header"))
-
-      case Tags.RESULT_FOOTER =>
-        Left(error("Unexpected result footer response"))
-
-      case Tags.HEARTBEAT =>
-        val hb = Heartbeat.readFrame(frame)
-        heartbeat(hb.time)
-        readResultHeader()
-
-      case x =>
-        Left(error(s"Expect result header frame, but got '${x.toChar}'"))
-    }
   }
 
   private def tryToReadHeartbeat(): Unit = {
@@ -296,6 +278,7 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
   override def close(): Unit = {
     logger.fine("Close connection")
     cancelHeartbeatTimer()
+    closed = true
     channel.close()
   }
 

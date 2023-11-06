@@ -17,18 +17,15 @@ import java.nio.ByteBuffer
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  "TCP client" should "handle ping/pong" in {
+  "TCP client" should "connect to the server" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
-    println(s"START ON PORT ${server.port}")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val pong = HelloResponse(ProtocolVersion.value, 12345678L)
+    val authReq = CredentialsRequest(CredentialsRequest.METHOD_PLAIN)
     val reqF = server
-      .readBytesSendResponseChunked(pong)
-      .map(frame => {
-        println(s"I HAVE FRAME ${frame.frameType.toChar}")
-        Hello.readFrame[ByteBuffer](frame)
-      })
-    client.hello(12345678L)
+      .readBytesSendResponses(Seq(pong, authReq))
+      .map(Hello.readFrame[ByteBuffer])
+    client.connect(12345678L)
 
     val req = Await.result(reqF, 100.millis)
     req shouldEqual Hello(
@@ -38,54 +35,59 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Map.empty
     )
 
+    val req2F = server.readBytesSendResponses(Seq(Authorized(), Idle())).map(Credentials.readFrame[ByteBuffer])
+
+    val req2 = Await.result(req2F, 100.millis)
+    req2 shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, "user", "password")
+
     server.close()
   }
 
   it should "fail if protocol version does not match" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val pong = HelloResponse(ProtocolVersion.value + 1, 12345678)
-    server.readBytesSendResponseChunked(pong)
-    the[IOException] thrownBy client.hello(
+    server.readBytesSendResponse(pong)
+    the[IOException] thrownBy client.connect(
       12345678
-    ) should have message "Incompatible protocol versions: 3 on server and 2 in this driver"
+    ) should have message "Incompatible protocol versions: 4 on server and 3 in this driver"
   }
 
   it should "handle if response is too small" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     server.readBytesSendResponse(Array(1.toByte))
-    the[IOException] thrownBy client.hello(12345) should have message "Unexpected end of response"
+    the[IOException] thrownBy client.connect(12345) should have message "Unexpected end of response"
   }
 
   it should "handle if there are no response" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     server.closeOnReceive()
-    an[IOException] should be thrownBy client.hello(12345)
+    an[IOException] should be thrownBy client.connect(12345)
   }
 
   it should "handle error response on ping" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val err = ErrorMessage("Internal error")
-    server.readBytesSendResponseChunked(err)
-    val e = the[IOException] thrownBy client.hello(23456789)
+    server.readBytesSendResponse(err)
+    val e = the[IOException] thrownBy client.connect(23456789)
     e.getMessage should include("Internal error")
   }
 
   it should "fail on unexpected response on ping" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val err = ResultHeader("table", Seq(ResultField("A", "VARCHAR")))
-    server.readBytesSendResponseChunked(err)
-    the[IOException] thrownBy client.hello(23456789) should have message "Unexpected response on ping"
+    server.readBytesSendResponse(err)
+    the[IOException] thrownBy client.connect(23456789) should have message "Unexpected response 'R' on ping"
   }
 
   it should "handle query" in {
 
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
 
     val header = ResultHeader(
       "items_kkm",
@@ -108,7 +110,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponsesChunked(responses).map(PrepareQuery.readFrame[ByteBuffer])
+    val reqF = server.readBytesSendResponses(responses).map(PrepareQuery.readFrame[ByteBuffer])
 
     val sql =
       """
@@ -147,7 +149,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "handle batch query" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
 
     val header =
       ResultHeader(
@@ -171,7 +173,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponsesChunked(responses).map(PrepareQuery.readFrame[ByteBuffer])
+    val reqF = server.readBytesSendResponses(responses).map(PrepareQuery.readFrame[ByteBuffer])
 
     val sql = """
                 |SELECT time, item FROM items_kkm
@@ -216,16 +218,16 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "handle error response on query" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val err = ErrorMessage("Internal error")
-    server.readBytesSendResponseChunked(err)
+    server.readBytesSendResponse(err)
     val e = the[IllegalArgumentException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
 
   it should "fail when no footer in result" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port)
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
 
     val header =
       ResultHeader(
@@ -250,7 +252,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
                 |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
                 |  """.stripMargin
 
-    server.readBytesSendResponsesChunked(responses).map(PrepareQuery.readFrame[ByteBuffer])
+    server.readBytesSendResponses(responses).map(PrepareQuery.readFrame[ByteBuffer])
 
     the[IOException] thrownBy {
       val res = client.prepareQuery(
