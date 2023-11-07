@@ -9,6 +9,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.ServerMock.Step
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
 
@@ -20,25 +21,28 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   "TCP client" should "connect to the server" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
-    val pong = HelloResponse(ProtocolVersion.value, 12345678L)
-    val authReq = CredentialsRequest(CredentialsRequest.METHOD_PLAIN)
     val reqF = server
-      .readBytesSendResponses(Seq(pong, authReq))
-      .map(Hello.readFrame[ByteBuffer])
+      .read2AndSendResponses[Hello, Credentials](
+        Step(Hello.readFrame[ByteBuffer])(h =>
+          Seq(
+            HelloResponse(ProtocolVersion.value, h.timestamp),
+            CredentialsRequest(CredentialsRequest.METHOD_PLAIN)
+          )
+        ),
+        Step(Credentials.readFrame[ByteBuffer])(_ => Seq(Authorized(), Idle()))
+      )
+
     client.connect(12345678L)
 
-    val req = Await.result(reqF, 100.millis)
-    req shouldEqual Hello(
+    val (hello, credentials) = Await.result(reqF, 100.millis)
+    hello shouldEqual Hello(
       ProtocolVersion.value,
       BuildInfo.version,
       12345678L,
       Map.empty
     )
 
-    val req2F = server.readBytesSendResponses(Seq(Authorized(), Idle())).map(Credentials.readFrame[ByteBuffer])
-
-    val req2 = Await.result(req2F, 100.millis)
-    req2 shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, "user", "password")
+    credentials shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, "user", "password")
 
     server.close()
   }
@@ -46,8 +50,9 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "fail if protocol version does not match" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
-    val pong = HelloResponse(ProtocolVersion.value + 1, 12345678)
-    server.readBytesSendResponse(pong)
+    server.readAndSendResponses(
+      Step(Hello.readFrame[ByteBuffer])(_ => Seq(HelloResponse(ProtocolVersion.value + 1, 12345678)))
+    )
     the[IOException] thrownBy client.connect(
       12345678
     ) should have message "Incompatible protocol versions: 4 on server and 3 in this driver"
@@ -56,7 +61,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "handle if response is too small" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
-    server.readBytesSendResponse(Array(1.toByte))
+    server.readAnySendRaw(Step(Hello.readFrame[ByteBuffer])(_ => Seq(Array(1.toByte))))
     the[IOException] thrownBy client.connect(12345) should have message "Unexpected end of response"
   }
 
@@ -67,21 +72,22 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     an[IOException] should be thrownBy client.connect(12345)
   }
 
-  it should "handle error response on ping" in {
+  it should "handle error response on hello" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
-    val err = ErrorMessage("Internal error")
-    server.readBytesSendResponse(err)
+    server.readAndSendResponses(Step(Hello.readFrame[ByteBuffer])(_ => Seq(ErrorMessage("Internal error"))))
     val e = the[IOException] thrownBy client.connect(23456789)
     e.getMessage should include("Internal error")
   }
 
-  it should "fail on unexpected response on ping" in {
+  it should "fail on unexpected response on hello" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val err = ResultHeader("table", Seq(ResultField("A", "VARCHAR")))
-    server.readBytesSendResponse(err)
-    the[IOException] thrownBy client.connect(23456789) should have message "Unexpected response 'R' on ping"
+    server.readAndSendResponses(Step(Hello.readFrame[ByteBuffer])(_ => Seq(err)))
+    the[IOException] thrownBy client.connect(
+      23456789
+    ) should have message "Unexpected response 'R' while waiting for 'H'"
   }
 
   it should "handle query" in {
@@ -110,7 +116,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponses(responses).map(PrepareQuery.readFrame[ByteBuffer])
+    val reqF = server.readAndSendResponses[PrepareQuery](Step(PrepareQuery.readFrame[ByteBuffer])(_ => responses))
 
     val sql =
       """
@@ -173,7 +179,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     val responses = Seq(header, hb, data1, data2, footer)
 
-    val reqF = server.readBytesSendResponses(responses).map(PrepareQuery.readFrame[ByteBuffer])
+    val reqF = server.readAndSendResponses(Step(PrepareQuery.readFrame[ByteBuffer])(_ => responses))
 
     val sql = """
                 |SELECT time, item FROM items_kkm
@@ -220,7 +226,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val err = ErrorMessage("Internal error")
-    server.readBytesSendResponse(err)
+    server.readAndSendResponses(Step(PrepareQuery.readFrame[ByteBuffer])(_ => Seq(err)))
     val e = the[IllegalArgumentException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
@@ -252,7 +258,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
                 |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
                 |  """.stripMargin
 
-    server.readBytesSendResponses(responses).map(PrepareQuery.readFrame[ByteBuffer])
+    server.readAndSendResponses(Step(PrepareQuery.readFrame[ByteBuffer])(_ => responses))
 
     the[IOException] thrownBy {
       val res = client.prepareQuery(

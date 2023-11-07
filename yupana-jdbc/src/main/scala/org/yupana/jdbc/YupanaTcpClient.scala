@@ -138,7 +138,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
         val msg = ErrorMessage.readFrame(frame).message
         Left(error(s"Got error response on '${tag.toChar}', '$msg'"))
 
-      case x => Left(error(s"Unexpected response '${x.toChar}, while waiting for '${tag.toChar}"))
+      case x => Left(error(s"Unexpected response '${x.toChar}' while waiting for '${tag.toChar}'"))
     }
   }
 
