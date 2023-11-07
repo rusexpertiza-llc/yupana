@@ -90,10 +90,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     ) should have message "Unexpected response 'R' while waiting for 'H'"
   }
 
-  it should "handle query" in {
-
-    val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
+  it should "handle query" in withServerConnected { (server, client) =>
 
     val header = ResultHeader(
       "items_kkm",
@@ -153,9 +150,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   }
 
-  it should "handle batch query" in {
-    val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
+  it should "handle batch query" in withServerConnected { (server, client) =>
 
     val header =
       ResultHeader(
@@ -222,18 +217,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     rows(1).get[String]("item") shouldEqual null
   }
 
-  it should "handle error response on query" in {
-    val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
+  it should "handle error response on query" in withServerConnected { (server, client) =>
     val err = ErrorMessage("Internal error")
     server.readAndSendResponses(Step(PrepareQuery.readFrame[ByteBuffer])(_ => Seq(err)))
     val e = the[IllegalArgumentException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
 
-  it should "fail when no footer in result" in {
-    val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
+  it should "fail when no footer in result" in withServerConnected { (server, client) =>
 
     val header =
       ResultHeader(
@@ -272,5 +263,26 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       )
       res.next()
     } should have message "Unexpected end of response"
+  }
+
+  private def withServerConnected(body: (ServerMock, YupanaTcpClient) => Unit): Unit = {
+    val server = new ServerMock
+    val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
+    val reqF = server
+      .read2AndSendResponses[Hello, Credentials](
+        Step(Hello.readFrame[ByteBuffer])(h =>
+          Seq(
+            HelloResponse(ProtocolVersion.value, h.timestamp),
+            CredentialsRequest(CredentialsRequest.METHOD_PLAIN)
+          )
+        ),
+        Step(Credentials.readFrame[ByteBuffer])(_ => Seq(Authorized(), Idle()))
+      )
+
+    client.connect(12345678L)
+    Await.result(reqF, 100.millis)
+
+    body(server, client)
+    server.close()
   }
 }
