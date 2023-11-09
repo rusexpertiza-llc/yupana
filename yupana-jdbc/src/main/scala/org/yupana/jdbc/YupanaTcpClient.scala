@@ -27,7 +27,6 @@ import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 import java.util.logging.Logger
-import java.util.{ Timer, TimerTask }
 import scala.annotation.tailrec
 
 class YupanaTcpClient(val host: String, val port: Int, user: String, password: String) extends AutoCloseable {
@@ -37,34 +36,33 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
   logger.info("New instance of YupanaTcpClient")
 
   private val CHUNK_SIZE = 1024 * 100
-  private val HEARTBEAT_PERIOD = 5000
 
   private var channel: SocketChannel = _
   private var chanelReader: FramingChannelReader = _
 
-  private var heartbeatTimer: java.util.Timer = _
-  private var heartbeatTimerScheduled = false
+//  private var heartbeatTimer: java.util.Timer = _
+//  private var heartbeatTimerScheduled = false
 
   private var closed = true
 
-  private def scheduleHeartbeatTimer(): Unit = {
-    heartbeatTimer = new Timer()
-    val heartbeatTask = new TimerTask {
-      override def run(): Unit = tryToReadHeartbeat()
-    }
-    heartbeatTimerScheduled = true
-    heartbeatTimer.schedule(heartbeatTask, HEARTBEAT_PERIOD, HEARTBEAT_PERIOD)
-  }
-  private def cancelHeartbeatTimer(): Unit = {
-    if (heartbeatTimerScheduled) {
-      heartbeatTimerScheduled = false
-      heartbeatTimer.cancel()
-      heartbeatTimer.purge()
-    }
-  }
+//  private def scheduleHeartbeatTimer(): Unit = {
+//    heartbeatTimer = new Timer()
+//    val heartbeatTask = new TimerTask {
+//      override def run(): Unit = tryToReadHeartbeat()
+//    }
+//    heartbeatTimerScheduled = true
+//    heartbeatTimer.schedule(heartbeatTask, HEARTBEAT_PERIOD, HEARTBEAT_PERIOD)
+//  }
+//  private def cancelHeartbeatTimer(): Unit = {
+//    if (heartbeatTimerScheduled) {
+//      heartbeatTimerScheduled = false
+//      heartbeatTimer.cancel()
+//      heartbeatTimer.purge()
+//    }
+//  }
 
   private def ensureNotClosed(): Unit = {
-    if (closed) throw new IOException("Connection is closed")
+    if (closed) throw new YupanaException("Connection is closed")
   }
 
   def query(query: String): Result = {
@@ -100,34 +98,35 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
     waitFor(Tags.HELLO_RESPONSE, HelloResponse.readFrame[ByteBuffer]) match {
       case Right(response) =>
         if (response.protocolVersion != ProtocolVersion.value) {
-          throw new IOException(
+          throw new YupanaException(
             error(
               s"Incompatible protocol versions: ${response.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
             )
           )
         }
         if (response.reqTime != reqTime) {
-          throw new IOException(error("got wrong hello response"))
+          throw new YupanaException(error("got wrong hello response"))
         }
 
-      case Left(msg) => throw new IOException(msg)
+      case Left(msg) => throw new YupanaException(msg)
     }
 
     waitFor(Tags.CREDENTIALS_REQUEST, CredentialsRequest.readFrame[ByteBuffer]) match {
       case Right(cr) if cr.method == CredentialsRequest.METHOD_PLAIN =>
         sendRequest(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
 
-      case Right(cr) => throw new IOException(error(s"Unsupported auth method ${cr.method}"))
-      case Left(msg) => throw new IOException(msg)
+      case Right(cr) => throw new YupanaException(error(s"Unsupported auth method ${cr.method}"))
+      case Left(msg) => throw new YupanaException(msg)
     }
     waitFor(Tags.AUTHORIZED, Authorized.readFrame[ByteBuffer])
     waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])
-    scheduleHeartbeatTimer()
+//    scheduleHeartbeatTimer()
   }
 
   @tailrec
   private def waitFor[T](tag: Byte, get: Frame => T): Either[String, T] = {
     val frame = chanelReader.awaitAndReadFrame()
+    println(s"WAIT ${tag.toChar} got ${frame.frameType.toChar}")
     frame.frameType match {
       case `tag` => Right(get(frame))
       case Tags.HEARTBEAT =>
@@ -145,8 +144,10 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
   private def execRequestQuery(command: Command[_]): Result = {
     logger.fine(s"Exec request query $command")
     ensureNotClosed()
-    cancelHeartbeatTimer()
+//    cancelHeartbeatTimer()
     sendRequest(command)
+
+    println("SENT cmd")
 
     val header = waitFor(Tags.RESULT_HEADER, ResultHeader.readFrame[ByteBuffer])
 
@@ -157,7 +158,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
 
       case Left(e) =>
         close()
-        throw new IllegalArgumentException(e)
+        throw new YupanaException(e)
     }
   }
 
@@ -188,23 +189,23 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
 
   }
 
-  private def tryToReadHeartbeat(): Unit = {
-    if (channel.isOpen && channel.isConnected) {
-      val fr =
-        try {
-          chanelReader.readFrame()
-        } catch {
-          case _: IOException => None
-        }
-
-      fr.foreach { frame =>
-        frame.frameType match {
-          case Tags.HEARTBEAT => heartbeat(Heartbeat.readFrame(frame).time)
-          case x              => throw new IOException(s"Unexpected response '${x.toChar}'")
-        }
-      }
-    }
-  }
+//  private def tryToReadHeartbeat(): Unit = {
+//    if (channel.isOpen && channel.isConnected) {
+//      val fr =
+//        try {
+//          chanelReader.readFrame()
+//        } catch {
+//          case _: IOException => None
+//        }
+//
+//      fr.foreach { frame =>
+//        frame.frameType match {
+//          case Tags.HEARTBEAT => heartbeat(Heartbeat.readFrame(frame).time)
+//          case x              => throw new IOException(s"Unexpected response '${x.toChar}'")
+//        }
+//      }
+//    }
+//  }
 
   private def error(e: String): String = {
     logger.warning(s"Got error message: $e")
@@ -256,7 +257,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
             case Tags.RESULT_FOOTER =>
               val ftr = ResultFooter.readFrame(frame)
               logger.fine(s"Got footer $ftr")
-              scheduleHeartbeatTimer()
+//              scheduleHeartbeatTimer()
               footer = ftr
 
             case x =>
@@ -268,7 +269,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
         if (footer != null || errorMessage != null) {
           if (errorMessage != null) {
             close()
-            throw new IllegalArgumentException(errorMessage)
+            throw new YupanaException(errorMessage)
           }
         }
       }
@@ -277,7 +278,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
 
   override def close(): Unit = {
     logger.fine("Close connection")
-    cancelHeartbeatTimer()
+//    cancelHeartbeatTimer()
     closed = true
     channel.close()
   }

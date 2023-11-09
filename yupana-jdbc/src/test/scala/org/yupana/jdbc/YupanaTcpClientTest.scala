@@ -53,7 +53,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     server.readAndSendResponses(
       Step(Hello.readFrame[ByteBuffer])(_ => Seq(HelloResponse(ProtocolVersion.value + 1, 12345678)))
     )
-    the[IOException] thrownBy client.connect(
+    the[YupanaException] thrownBy client.connect(
       12345678
     ) should have message "Incompatible protocol versions: 4 on server and 3 in this driver"
   }
@@ -76,7 +76,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     server.readAndSendResponses(Step(Hello.readFrame[ByteBuffer])(_ => Seq(ErrorMessage("Internal error"))))
-    val e = the[IOException] thrownBy client.connect(23456789)
+    val e = the[YupanaException] thrownBy client.connect(23456789)
     e.getMessage should include("Internal error")
   }
 
@@ -85,7 +85,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val client = new YupanaTcpClient("127.0.0.1", server.port, "user", "password")
     val err = ResultHeader("table", Seq(ResultField("A", "VARCHAR")))
     server.readAndSendResponses(Step(Hello.readFrame[ByteBuffer])(_ => Seq(err)))
-    the[IOException] thrownBy client.connect(
+    the[YupanaException] thrownBy client.connect(
       23456789
     ) should have message "Unexpected response 'R' while waiting for 'H'"
   }
@@ -220,7 +220,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "handle error response on query" in withServerConnected { (server, client) =>
     val err = ErrorMessage("Internal error")
     server.readAndSendResponses(Step(PrepareQuery.readFrame[ByteBuffer])(_ => Seq(err)))
-    val e = the[IllegalArgumentException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
+    val e = the[IOException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
   }
 
