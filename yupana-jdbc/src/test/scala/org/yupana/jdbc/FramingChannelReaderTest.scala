@@ -14,8 +14,9 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
     val channel = Channels.newChannel(new ByteArrayInputStream(createFrame(1, 2, 3, 4, 5)))
     val reader = new FramingChannelReader(channel, 100)
 
-    val bytes = reader.readFrame()
-    bytes.value.payload should contain theSameElementsAs Array(1, 2, 3, 4, 5)
+    val frame = reader.readFrame()
+    frame.value.frameType shouldEqual 42
+    frame.value.payload should contain theSameElementsAs Array(1, 2, 3, 4, 5)
   }
 
   it should "throw an exception when channel is closed unexpectedly" in {
@@ -23,9 +24,10 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
     val iterator = new FramingChannelReader(channel, 100)
 
     (channel.read _).expects(*).onCall { bb: ByteBuffer =>
+      bb.put(5.toByte)
       bb.putInt(10)
       bb.put(Array[Byte](1, 2, 3, 4, 5))
-      9
+      10
     }
 
     (channel.read _).expects(*).onCall((_: ByteBuffer) => -1)
@@ -62,9 +64,10 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
 
     (channel.isOpen _).expects().returning(true).anyNumberOfTimes()
     (channel.read _).expects(*).onCall { bb: ByteBuffer =>
+      bb.put(33.toByte)
       bb.putInt(5)
       bb.put(Array[Byte](1, 2, 3))
-      7
+      8
     }
 
     (channel.read _).expects(*).onCall { bb: ByteBuffer =>
@@ -84,20 +87,24 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
     (channel.read _)
       .expects(*)
       .onCall { bb: ByteBuffer =>
+        bb.put(1.toByte)
         bb.putInt(4)
         bb.put(Array[Byte](1, 2, 3, 4))
-        8
+        9
       }
       .once()
 
-    reader.readFrame().value.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
+    val frame1 = reader.readFrame().value
+    frame1.frameType shouldEqual 1
+    frame1.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
 
     (channel.read _)
       .expects(*)
       .onCall { bb: ByteBuffer =>
+        bb.put(2.toByte)
         bb.putInt(5)
         bb.put(Array[Byte](5, 6))
-        6
+        7
       }
       .once()
 
@@ -109,11 +116,13 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
       }
       .once()
 
-    reader.readFrame().value.payload should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
+    val frame2 = reader.readFrame().value
+    frame2.frameType shouldEqual 2
+    frame2.payload should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
   }
 
   private def createFrame(data: Byte*): Array[Byte] = {
-    val bb = ByteBuffer.allocate(data.length + 4)
+    val bb = ByteBuffer.allocate(data.length + 5)
     bb.put(42.toByte)
     bb.putInt(data.length)
     bb.put(data.toArray)

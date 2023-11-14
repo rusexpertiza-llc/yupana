@@ -23,6 +23,6 @@ object ResultRow extends MessageHelper[ResultRow] {
   override val readWrite: ReadWrite[ResultRow] = new ReadWrite[ResultRow] {
     override def read[B: Buffer](buf: B): ResultRow = ???
 
-    override def write[B: Buffer](buf: B, t: ResultRow): Unit = ???
+    override def write[B: Buffer](buf: B, t: ResultRow): Unit = {}
   }
 }

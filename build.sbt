@@ -453,7 +453,7 @@ lazy val versions = new {
   val circe = "0.14.5" // To have same cats version wuth Spark
 
   val flyway = "7.4.0"
-  val hikariCP = "3.4.5"
+  val hikariCP = "4.0.3"
   val logback = "1.3.11"
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"

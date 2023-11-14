@@ -34,6 +34,8 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
     properties.getProperty("password")
   )
 
+  tcpClient.connect(System.currentTimeMillis())
+
   override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
     try {
       tcpClient.prepareQuery(query, params)
