@@ -19,7 +19,7 @@ package org.yupana.netty
 import io.netty.buffer.ByteBuf
 import org.yupana.protocol._
 
-class Auth extends ConnectionState {
+class Auth(serverContext: ServerContext) extends ConnectionState {
   import NettyBuffer._
   override def init(): Seq[Response[_]] = Seq(CredentialsRequest(CredentialsRequest.METHOD_PLAIN))
 
@@ -32,9 +32,9 @@ class Auth extends ConnectionState {
 
   override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
     command match {
-      case Credentials(CredentialsRequest.METHOD_PLAIN, u, p) => (new Ready, Seq(Authorized()))
+      case Credentials(CredentialsRequest.METHOD_PLAIN, u, p) => (new Ready(serverContext), Seq(Authorized()))
       case Credentials(m, _, _) => (this, Seq(ErrorMessage(s"Unsupported auth method $m")))
-      case _                    => throw new IllegalAccessException(s"Unexpected command $command")
+      case _                    => throw new IllegalStateException(s"Unexpected command $command")
     }
   }
 }

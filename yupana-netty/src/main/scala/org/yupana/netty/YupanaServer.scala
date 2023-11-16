@@ -22,15 +22,17 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ ChannelInitializer, ChannelOption }
+import org.yupana.core.QueryEngineRouter
+import org.yupana.core.sql.SqlQueryProcessor
 //import io.netty.handler.timeout.IdleStateHandler
 
-class YupanaServer(host: String, port: Int, majorVersion: Int, minorVersion: Int, version: String)
-    extends StrictLogging {
+class YupanaServer(host: String, port: Int, nThreads: Int, serverContext: ServerContext) extends StrictLogging {
 
   def start(): Unit = {
 
     val parentGroup = new NioEventLoopGroup()
     val childGroup = new NioEventLoopGroup()
+    val yupanaGroup = new NioEventLoopGroup(nThreads)
     try {
       val bootstrap = new ServerBootstrap()
 
@@ -41,7 +43,7 @@ class YupanaServer(host: String, port: Int, majorVersion: Int, minorVersion: Int
           override def initChannel(ch: SocketChannel): Unit = {
             ch.pipeline().addLast("frame", new FrameCodec())
 //            ch.pipeline().addLast(new IdleStateHandler(0, 60, 0))
-            ch.pipeline().addLast("handler", new MessageHandler(majorVersion, minorVersion, version))
+            ch.pipeline().addLast(yupanaGroup, "handler", new MessageHandler(serverContext))
           }
         })
         .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))
@@ -51,6 +53,7 @@ class YupanaServer(host: String, port: Int, majorVersion: Int, minorVersion: Int
       logger.info(s"Starting YupanaServer on $host:$port")
       f.channel().closeFuture().sync()
     } finally {
+      yupanaGroup.shutdownGracefully()
       childGroup.shutdownGracefully()
       parentGroup.shutdownGracefully()
     }
@@ -60,7 +63,9 @@ class YupanaServer(host: String, port: Int, majorVersion: Int, minorVersion: Int
 
 object YupanaServer {
   def main(args: Array[String]): Unit = {
-    val server = new YupanaServer("localhost", 10101, 0, 1, "0.1")
+    val requestHandler = new RequestHandler(new QueryEngineRouter(null, null, null, new SqlQueryProcessor(null)))
+    val serverContext = new ServerContext(requestHandler)
+    val server = new YupanaServer("localhost", 10101, 4, serverContext)
 
     server.start()
   }

@@ -16,12 +16,10 @@
 
 package org.yupana.examples.server
 
-import org.apache.pekko.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
-import org.yupana.pekko.{ RequestHandler, TsdbTcp }
 import org.yupana.api.query.Query
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.providers.JdbcMetadataProvider
@@ -32,16 +30,11 @@ import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
-
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import org.yupana.netty.{ RequestHandler, ServerContext, YupanaServer }
 
 object Main extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
-
-    implicit val actorSystem: ActorSystem = ActorSystem("Yupana")
-
     val hbaseRegionsMax = "hbase.regions.initial.max"
     val config = Config.create(ConfigFactory.load())
 
@@ -97,7 +90,7 @@ object Main extends StrictLogging {
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
       new FlatQueryEngine(metricsDao, changelogDao),
-      new JdbcMetadataProvider(schemaWithJson),
+      new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
       new SqlQueryProcessor(schemaWithJson)
     )
     logger.info("Registering catalogs")
@@ -106,10 +99,9 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val requestHandler = new RequestHandler(queryEngineRouter)
-    new TsdbTcp(requestHandler, config.host, config.port, 1, 0, "1.0")
+    val ctx = new ServerContext(new RequestHandler(queryEngineRouter))
+    val server = new YupanaServer(config.host, config.port, 4, ctx)
+    server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
-
-    Await.ready(actorSystem.whenTerminated, Duration.Inf)
   }
 }

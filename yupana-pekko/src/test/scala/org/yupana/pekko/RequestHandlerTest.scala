@@ -41,7 +41,7 @@ class RequestHandlerTest
     with BeforeAndAfterAll {
 
   private val sqlQueryProcessor = new SqlQueryProcessor(SchemaRegistry.defaultSchema)
-  private val jdbcMetadataProvider = new JdbcMetadataProvider(SchemaRegistry.defaultSchema)
+  private val jdbcMetadataProvider = new JdbcMetadataProvider(SchemaRegistry.defaultSchema, 1, 5, "1.5")
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()

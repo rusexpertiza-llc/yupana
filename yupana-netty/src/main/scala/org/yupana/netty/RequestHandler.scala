@@ -23,19 +23,13 @@ import org.yupana.core.sql.parser._
 import org.yupana.protocol
 import org.yupana.protocol.{ PrepareQuery, Response, ResultField, ResultFooter, ResultHeader, ResultRow }
 
-import scala.concurrent.{ ExecutionContext, Future }
-
 class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging {
 
-  def handleQuery(sqlQuery: PrepareQuery)(
-      implicit ec: ExecutionContext
-  ): Future[Either[String, Iterator[Response[_]]]] = {
+  def handleQuery(sqlQuery: PrepareQuery): Either[String, Iterator[Response[_]]] = {
     logger.debug(s"""Processing SQL query: "${sqlQuery.query}"; parameters: ${sqlQuery.params}""")
 
-    Future {
-      val params = sqlQuery.params.map { case (index, p) => index -> convertValue(p) }
-      queryEngineRouter.query(sqlQuery.query, params).map(resultToProto)
-    }
+    val params = sqlQuery.params.map { case (index, p) => index -> convertValue(p) }
+    queryEngineRouter.query(sqlQuery.query, params).map(resultToProto)
   }
 
   private def resultToProto(result: Result): Iterator[Response[_]] = {

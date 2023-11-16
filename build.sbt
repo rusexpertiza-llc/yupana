@@ -324,6 +324,7 @@ lazy val examples = (project in file("yupana-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
+      "com.typesafe"                %  "config"                         % "1.4.3",
       "org.apache.spark"            %% "spark-core"                     % versions.spark                % Provided,
       "org.apache.spark"            %% "spark-sql"                      % versions.spark                % Provided,
       "org.apache.spark"            %% "spark-streaming"                % versions.spark                % Provided,
@@ -354,7 +355,7 @@ lazy val examples = (project in file("yupana-examples"))
     },
     assembly := assembly.dependsOn(writeAssemblyName).value
   )
-  .dependsOn(spark, pekko, hbase, schema, externalLinks, ehcache % Runtime)
+  .dependsOn(spark, netty, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))

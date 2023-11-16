@@ -42,6 +42,8 @@ class QueryEngineRouter(
 
       case ShowTables => Right(metadataProvider.listTables)
 
+      case ShowVersion => Right(metadataProvider.version)
+
       case ShowColumns(tableName) => metadataProvider.describeTable(tableName)
 
       case ShowFunctions(typeName) => metadataProvider.listFunctions(typeName)

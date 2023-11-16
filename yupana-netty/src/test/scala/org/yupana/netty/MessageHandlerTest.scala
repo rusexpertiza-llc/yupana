@@ -11,7 +11,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers {
   import NettyBuffer._
 
   "MessageHandler" should "process hello command" in {
-    val ch = new EmbeddedChannel(new MessageHandler(1, 2, "1.2.3"))
+    val ch = new EmbeddedChannel(new MessageHandler(null))
 
     val cmd = new Hello(ProtocolVersion.value, "3.2.1", 1234567L, Map("batchSize" -> "1000"))
     val frame = cmd.toFrame[ByteBuf]

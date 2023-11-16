@@ -18,13 +18,11 @@ package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.protocol.{ Command, Frame, Response }
+import org.yupana.protocol.{ Command, ErrorMessage, Frame, Response }
 
-class MessageHandler(major: Int, minor: Int, version: String)
-    extends SimpleChannelInboundHandler[Frame]
-    with StrictLogging {
+class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundHandler[Frame] with StrictLogging {
 
-  private var state: ConnectionState = new Connecting()
+  private var state: ConnectionState = new Connecting(serverContext)
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
     writeResponses(ctx, state.init())
@@ -38,8 +36,15 @@ class MessageHandler(major: Int, minor: Int, version: String)
 
       case Left(err) =>
         logger.error(err.message)
-        ctx.write(err)
+        ctx.writeAndFlush(err)
+        if (err.severity == ErrorMessage.SEVERITY_FATAL) ctx.close()
     }
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
+    super.exceptionCaught(ctx, cause)
+    ctx.writeAndFlush(ErrorMessage(s"Something goes wrong, ${cause.getMessage}", ErrorMessage.SEVERITY_FATAL))
+    ctx.close()
   }
 
   private def handleCommand(ctx: ChannelHandlerContext, command: Command[_]): Unit = {

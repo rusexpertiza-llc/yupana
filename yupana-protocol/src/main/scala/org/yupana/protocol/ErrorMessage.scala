@@ -16,11 +16,15 @@
 
 package org.yupana.protocol
 
-case class ErrorMessage(message: String) extends Response[ErrorMessage](ErrorMessage)
+case class ErrorMessage(message: String, severity: Byte = ErrorMessage.SEVERITY_ERROR)
+    extends Response[ErrorMessage](ErrorMessage)
 
 object ErrorMessage extends MessageHelper[ErrorMessage] {
   override val tag: Byte = Tags.ERROR_MESSAGE
 
+  val SEVERITY_FATAL: Byte = -1
+  val SEVERITY_ERROR: Byte = 0
+
   implicit override val readWrite: ReadWrite[ErrorMessage] =
-    implicitly[ReadWrite[String]].imap(ErrorMessage.apply)(_.message)
+    ReadWrite.product2[ErrorMessage, Byte, String](e => (e.severity, e.message))((s, m) => ErrorMessage(m, s))
 }

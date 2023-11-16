@@ -24,6 +24,7 @@ object SqlParser {
 
   private def selectWord[$: P] = P(IgnoreCase("SELECT"))
   private def showWord[$: P] = P(IgnoreCase("SHOW"))
+  private def versionWord[$: P] = P(IgnoreCase("VERSION"))
   private def tablesWord[$: P] = P(IgnoreCase("TABLES"))
   private def columnsWord[$: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[$: P] = P(IgnoreCase("QUERIES"))
@@ -57,6 +58,7 @@ object SqlParser {
   private def valuesWord[$: P] = P(IgnoreCase("VALUES"))
   private def functionsWord[$: P] = P(IgnoreCase("FUNCTIONS"))
   private def forWord[$: P] = P(IgnoreCase("FOR"))
+
   private val keywords = Set(
     "select",
     "from",
@@ -258,6 +260,8 @@ object SqlParser {
 
   def tables[$: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
+  def version[$: P]: P[ShowVersion.type] = P(versionWord).map(_ => ShowVersion)
+
   def columns[$: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns)
 
   def metricQueryIdFilter[$: P]: P[MetricsFilter] =
@@ -279,7 +283,7 @@ object SqlParser {
   def functions[$: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions)
 
   def show[$: P]: P[Statement] =
-    P(showWord ~/ (columns | tables | queries | functions | updatesIntervals))
+    P(showWord ~/ (columns | tables | version | queries | functions | updatesIntervals))
 
   def kill[$: P]: P[Statement] = P(killWord ~/ query)
 

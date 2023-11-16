@@ -45,8 +45,12 @@ object ReadWrite {
 
   val empty: ReadWrite[Unit] = new ReadWrite[Unit] {
     override def read[B: Buffer](buf: B): Unit = ()
-
     override def write[B: Buffer](buf: B, t: Unit): Unit = ()
+  }
+
+  implicit val rwByte: ReadWrite[Byte] = new ReadWrite[Byte] {
+    override def read[B: Buffer](buf: B): Byte = implicitly[Buffer[B]].readByte(buf)
+    override def write[B: Buffer](buf: B, t: Byte): Unit = implicitly[Buffer[B]].writeByte(buf, t)
   }
 
   implicit val rwInt: ReadWrite[Int] = new ReadWrite[Int] {

@@ -17,15 +17,27 @@
 package org.yupana.netty
 import org.yupana.protocol._
 
-class Ready extends ConnectionState {
+class Ready(serverContext: ServerContext) extends ConnectionState {
   override def init(): Seq[Response[_]] = Seq(Idle())
 
   override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
     frame.frameType match {
-//      case Tags.PREPARE_QUERY => Left(ErrorMessage("err"))
+      case Tags.PREPARE_QUERY =>
+        PrepareQuery.readFrameOpt(frame).toRight(ErrorMessage("")).map(Some(_))
+
       case x => Left(ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
   }
 
-  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = ???
+  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
+    command match {
+      case pq: PrepareQuery =>
+        serverContext.requestHandler.handleQuery(pq) match {
+          case Right(iter) => ???
+          case Left(msg)   => (new Ready(serverContext), Seq(ErrorMessage(msg)))
+        }
+
+      case _ => throw new IllegalStateException(s"Unexpected command $command")
+    }
+  }
 }

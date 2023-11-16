@@ -18,7 +18,7 @@ package org.yupana.netty
 
 import org.yupana.protocol._
 
-class Connecting extends ConnectionState {
+class Connecting(serverContext: ServerContext) extends ConnectionState {
   import NettyBuffer._
 
   override def init(): Seq[Response[_]] = Nil
@@ -30,7 +30,7 @@ class Connecting extends ConnectionState {
   override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
     command match {
       case Hello(pv, _, time, _) if pv == ProtocolVersion.value =>
-        (new Auth, Seq(HelloResponse(ProtocolVersion.value, time)))
+        (new Auth(serverContext), Seq(HelloResponse(ProtocolVersion.value, time)))
       case Hello(pv, _, _, _) =>
         (this, Seq(ErrorMessage(s"Unsupported protocol version $pv, required ${ProtocolVersion.value}")))
       case _ => throw new IllegalAccessException(s"Unexpected command $command")
