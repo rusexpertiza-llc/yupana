@@ -20,9 +20,5 @@ case class ResultRow(values: Seq[Array[Byte]]) extends Response[ResultRow](Resul
 
 object ResultRow extends MessageHelper[ResultRow] {
   override val tag: Byte = Tags.RESULT_ROW
-  override val readWrite: ReadWrite[ResultRow] = new ReadWrite[ResultRow] {
-    override def read[B: Buffer](buf: B): ResultRow = ???
-
-    override def write[B: Buffer](buf: B, t: ResultRow): Unit = {}
-  }
+  override val readWrite: ReadWrite[ResultRow] = implicitly[ReadWrite[Seq[Array[Byte]]]].imap(ResultRow.apply)(_.values)
 }

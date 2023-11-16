@@ -30,5 +30,11 @@ class Auth extends ConnectionState {
     }
   }
 
-  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = ???
+  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
+    command match {
+      case Credentials(CredentialsRequest.METHOD_PLAIN, u, p) => (new Ready, Seq(Authorized()))
+      case Credentials(m, _, _) => (this, Seq(ErrorMessage(s"Unsupported auth method $m")))
+      case _                    => throw new IllegalAccessException(s"Unexpected command $command")
+    }
+  }
 }

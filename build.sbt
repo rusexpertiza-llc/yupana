@@ -195,7 +195,7 @@ lazy val netty = (project in file("yupana-netty"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
       "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, protocol)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
 
 lazy val akka = (project in file("yupana-akka"))
   .settings(

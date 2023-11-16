@@ -29,11 +29,19 @@ trait ReadWrite[T] { self =>
 object ReadWrite {
   def apply[T](implicit ev: ReadWrite[T]): ReadWrite[T] = ev
 
-//  implicit val rwBytes: ReadWrite[Array[Byte]] = new ReadWrite[Array[Byte]] {
-//    override def read[B: Buffer](buf: B): Array[Byte] = implicitly[Buffer[B]].read(buf)
-//
-//    override def write[B: Buffer](buf: B, t: Array[Byte]): Unit = implicitly[Buffer[B]].write(buf, t)
-//  }
+  implicit val rwBytes: ReadWrite[Array[Byte]] = new ReadWrite[Array[Byte]] {
+    override def read[B](buf: B)(implicit b: Buffer[B]): Array[Byte] = {
+      val length = b.readInt(buf)
+      val result = new Array[Byte](length)
+      b.read(buf, result)
+      result
+    }
+
+    override def write[B](buf: B, t: Array[Byte])(implicit b: Buffer[B]): Unit = {
+      b.writeInt(buf, t.length)
+      b.write(buf, t)
+    }
+  }
 
   val empty: ReadWrite[Unit] = new ReadWrite[Unit] {
     override def read[B: Buffer](buf: B): Unit = ()

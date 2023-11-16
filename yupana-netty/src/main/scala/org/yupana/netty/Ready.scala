@@ -14,28 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.protocol
+package org.yupana.netty
+import org.yupana.protocol._
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+class Ready extends ConnectionState {
+  override def init(): Seq[Response[_]] = Seq(Idle())
 
-  val QUIT: Byte = 'q'
-  val CANCEL: Byte = 'x'
+  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
+    frame.frameType match {
+//      case Tags.PREPARE_QUERY => Left(ErrorMessage("err"))
+      case x => Left(ErrorMessage(s"Unexpected command '${x.toChar}'"))
+    }
+  }
 
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
-
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
-
-  val CREDENTIALS_REQUEST: Byte = 'C'
-  val CREDENTIALS: Byte = 'c'
-  val AUTHORIZED: Byte = 'A'
-
-  val IDLE: Byte = 'I'
+  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = ???
 }

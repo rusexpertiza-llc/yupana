@@ -18,8 +18,8 @@
        "delete"
     ],
     "Описание протокола": [
-      "connect",
-      "query"
+      "protocol/connect",
+      "protocol/query"
     ]
   }
 }
