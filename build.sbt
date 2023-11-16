@@ -1,4 +1,3 @@
-import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
 
@@ -9,7 +8,6 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
-    proto,
     protocol,
     jdbc,
     utils,
@@ -18,8 +16,6 @@ lazy val yupana = (project in file("."))
     cache,
     core,
     hbase,
-    akka,
-    pekko,
     netty,
     spark,
     schema,
@@ -44,18 +40,6 @@ lazy val api = (project in file("yupana-api"))
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
       "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
-    )
-  )
-  .disablePlugins(AssemblyPlugin)
-
-lazy val proto = (project in file("yupana-proto"))
-  .settings(
-    name := "yupana-proto",
-    allSettings,
-    pbSettings,
-    libraryDependencies ++= Seq(
-      "com.thesamet.scalapb"   %% "scalapb-runtime"      % scalapbVersion             % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
-      "com.google.protobuf"    %  "protobuf-java"        % versions.protobufJava force()
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -196,38 +180,6 @@ lazy val netty = (project in file("yupana-netty"))
       "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test
     )
   ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
-
-lazy val akka = (project in file("yupana-akka"))
-  .settings(
-    name := "yupana-akka",
-    allSettings,
-    libraryDependencies ++= Seq(
-      "com.typesafe.akka"             %% "akka-actor"                 % versions.akka,
-      "com.typesafe.akka"             %% "akka-stream"                % versions.akka,
-      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
-      "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
-      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
-      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test
-    )
-  )
-  .dependsOn(proto, core, schema % Test)
-  .disablePlugins(AssemblyPlugin)
-
-lazy val pekko = (project in file("yupana-pekko"))
-  .settings(
-    name := "yupana-pekko",
-    allSettings,
-    libraryDependencies ++= Seq(
-      "org.apache.pekko"              %% "pekko-actor"                % versions.pekko,
-      "org.apache.pekko"              %% "pekko-stream"               % versions.pekko,
-      "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
-      "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
-      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
-      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test
-    )
-  )
-  .dependsOn(proto, core, schema % Test)
-  .disablePlugins(AssemblyPlugin)
 
 lazy val spark = (project in file("yupana-spark"))
   .settings(
@@ -432,8 +384,6 @@ lazy val versions = new {
 
   val threeTenExtra = "1.7.2"
 
-  val protobufJava = "2.6.1"
-
   val scalaLogging = "3.9.5"
   val fastparse = "2.3.1"
   val scopt = "4.1.0"
@@ -442,8 +392,6 @@ lazy val versions = new {
   val hbase = "2.4.1"
   val hadoop = "3.0.3"
 
-  val akka = "2.6.21"
-  val pekko = "1.0.1"
   val netty = "4.1.97.Final"
 
   val lucene = "6.6.0"
@@ -480,7 +428,7 @@ val commonSettings = Seq(
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
-  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.proto\\..*;org\\.yupana\\.hbase\\.proto\\..*;org\\.yupana\\.benchmarks\\..*",
+  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.hbase\\.proto\\..*;org\\.yupana\\.benchmarks\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
 )
 
@@ -511,13 +459,6 @@ val publishSettings = Seq(
   ),
   developers := List(
     Developer("rusexpertiza", "Rusexpertiza LLC", "info@1-ofd.ru", url("https://www.1-ofd.ru"))
-  )
-)
-
-val pbSettings = Seq(
-  PB.protocVersion := "-v261",
-  Compile / PB.targets := Seq(
-    scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )
 )
 
