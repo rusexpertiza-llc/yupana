@@ -32,8 +32,8 @@ trait MessageHelper[M <: Message[M]] {
     Frame(tag, b.toByteArray(buf))
   }
 
-  def readFrameOpt[B: Buffer](f: Frame): Option[M] = {
-    if (f.frameType == tag) Some(readFrame(f)) else None
+  def readFrameSafe[B: Buffer](f: Frame): Either[String, M] = {
+    if (f.frameType == tag) Right(readFrame(f)) else Left(s"Expected '${tag.toChar}', got '${f.frameType.toChar}'")
   }
 
   def readFrame[B: Buffer](f: Frame): M = {

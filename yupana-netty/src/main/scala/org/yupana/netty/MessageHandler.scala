@@ -18,7 +18,7 @@ package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.protocol.{ Command, ErrorMessage, Frame, Response }
+import org.yupana.protocol.{ ErrorMessage, Frame, Response }
 
 class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundHandler[Frame] with StrictLogging {
 
@@ -30,9 +30,14 @@ class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundH
 
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
     println(s"GOT A FRAME ${frame.frameType}")
-    state.extractCommand(frame) match {
-      case Right(Some(cmd)) => handleCommand(ctx, cmd)
-      case Right(None)      => logger.debug(s"Ignoring command with type: ${frame.frameType}")
+    state.handleFrame(frame) match {
+      case Right((newState, responses)) =>
+        writeResponses(ctx, responses)
+        state = newState
+        val initial = state.init()
+        if (initial.nonEmpty) {
+          writeResponses(ctx, initial)
+        }
 
       case Left(err) =>
         logger.error(err.message)
@@ -45,16 +50,6 @@ class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundH
     super.exceptionCaught(ctx, cause)
     ctx.writeAndFlush(ErrorMessage(s"Something goes wrong, ${cause.getMessage}", ErrorMessage.SEVERITY_FATAL))
     ctx.close()
-  }
-
-  private def handleCommand(ctx: ChannelHandlerContext, command: Command[_]): Unit = {
-    val (newState, responses) = state.processCommand(command)
-    writeResponses(ctx, responses)
-    state = newState
-    val initial = state.init()
-    if (initial.nonEmpty) {
-      writeResponses(ctx, initial)
-    }
   }
 
   private def writeResponses(ctx: ChannelHandlerContext, responses: Seq[Response[_]]): Unit = {

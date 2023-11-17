@@ -16,13 +16,11 @@
 
 package org.yupana.netty
 
-import org.yupana.protocol.{ Command, ErrorMessage, Frame, Response }
+import org.yupana.protocol.{ ErrorMessage, Frame, Response }
 
 trait ConnectionState {
 
   def init(): Seq[Response[_]]
 
-  def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]]
-
-  def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]])
+  def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])]
 }

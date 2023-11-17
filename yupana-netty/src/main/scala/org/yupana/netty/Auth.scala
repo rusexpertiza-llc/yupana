@@ -23,18 +23,17 @@ class Auth(serverContext: ServerContext) extends ConnectionState {
   import NettyBuffer._
   override def init(): Seq[Response[_]] = Seq(CredentialsRequest(CredentialsRequest.METHOD_PLAIN))
 
-  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
+  override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
     frame.frameType match {
-      case Tags.CREDENTIALS => Right(Some(Credentials.readFrame[ByteBuf](frame)))
+      case Tags.CREDENTIALS => handleCredentials(Credentials.readFrame[ByteBuf](frame))
       case x                => Left(ErrorMessage(s"Unexpected command type '$x'"))
     }
   }
 
-  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
+  private def handleCredentials(command: Credentials): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
     command match {
-      case Credentials(CredentialsRequest.METHOD_PLAIN, u, p) => (new Ready(serverContext), Seq(Authorized()))
-      case Credentials(m, _, _) => (this, Seq(ErrorMessage(s"Unsupported auth method $m")))
-      case _                    => throw new IllegalStateException(s"Unexpected command $command")
+      case Credentials(CredentialsRequest.METHOD_PLAIN, u, p) => Right((new Ready(serverContext), Seq(Authorized())))
+      case Credentials(m, _, _) => Left(ErrorMessage(s"Unsupported auth method $m", ErrorMessage.SEVERITY_FATAL))
     }
   }
 }

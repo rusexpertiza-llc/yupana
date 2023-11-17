@@ -20,24 +20,22 @@ import org.yupana.protocol._
 class Ready(serverContext: ServerContext) extends ConnectionState {
   override def init(): Seq[Response[_]] = Seq(Idle())
 
-  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
+  override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
     frame.frameType match {
       case Tags.PREPARE_QUERY =>
-        PrepareQuery.readFrameOpt(frame).toRight(ErrorMessage("")).map(Some(_))
+        PrepareQuery.readFrameSafe(frame).left.map(ErrorMessage(_)).map(handleQuery)
 
       case x => Left(ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
   }
 
-  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
+  private def handleQuery(command: PrepareQuery): (ConnectionState, Seq[Response[_]]) = {
     command match {
       case pq: PrepareQuery =>
         serverContext.requestHandler.handleQuery(pq) match {
           case Right(iter) => (new Ready(serverContext), iter.toSeq)
           case Left(msg)   => (new Ready(serverContext), Seq(ErrorMessage(msg)))
         }
-
-      case _ => throw new IllegalStateException(s"Unexpected command $command")
     }
   }
 }

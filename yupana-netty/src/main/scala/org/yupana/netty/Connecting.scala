@@ -23,17 +23,21 @@ class Connecting(serverContext: ServerContext) extends ConnectionState {
 
   override def init(): Seq[Response[_]] = Nil
 
-  override def extractCommand(frame: Frame): Either[ErrorMessage, Option[Command[_]]] = {
-    Hello.readFrameOpt(frame).toRight(ErrorMessage("Expect Hello")).map(Some(_))
+  override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
+    Hello.readFrameSafe(frame).left.map(ErrorMessage(_)).flatMap(handleHello)
   }
 
-  override def processCommand(command: Command[_]): (ConnectionState, Seq[Response[_]]) = {
+  private def handleHello(command: Hello): Either[ErrorMessage, (ConnectionState, Seq[HelloResponse])] = {
     command match {
       case Hello(pv, _, time, _) if pv == ProtocolVersion.value =>
-        (new Auth(serverContext), Seq(HelloResponse(ProtocolVersion.value, time)))
+        Right((new Auth(serverContext), Seq(HelloResponse(ProtocolVersion.value, time))))
       case Hello(pv, _, _, _) =>
-        (this, Seq(ErrorMessage(s"Unsupported protocol version $pv, required ${ProtocolVersion.value}")))
-      case _ => throw new IllegalAccessException(s"Unexpected command $command")
+        Left(
+          ErrorMessage(
+            s"Unsupported protocol version $pv, required ${ProtocolVersion.value}",
+            ErrorMessage.SEVERITY_FATAL
+          )
+        )
     }
   }
 }
