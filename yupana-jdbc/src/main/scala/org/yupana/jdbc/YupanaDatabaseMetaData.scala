@@ -26,6 +26,7 @@ import scala.util.Using
 
 class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaData {
 
+  private var versionInfo: Option[Version] = None
   private def emptyResultSet = new YupanaResultSet(null, Result.empty)
 
   override def supportsMinimumSQLGrammar(): Boolean = false
@@ -470,12 +471,15 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
     fs mkString ","
   }
   private def getVersion: Version = {
-    val sql = "SHOW VERSION"
-    val stmt = connection.createStatement()
-    Using.resource(stmt.executeQuery(sql)) { rs =>
-      rs.next()
-      Version(rs.getInt("MAJOR"), rs.getInt("MINOR"), rs.getString("VERSION"))
+    if (versionInfo.isEmpty) {
+      val sql = "SHOW VERSION"
+      val stmt = connection.createStatement()
+      Using.resource(stmt.executeQuery(sql)) { rs =>
+        rs.next()
+        versionInfo = Some(Version(rs.getInt("MAJOR"), rs.getInt("MINOR"), rs.getString("VERSION")))
+      }
     }
+    versionInfo.get
   }
 }
 

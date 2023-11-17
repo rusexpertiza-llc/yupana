@@ -215,9 +215,24 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
 
   it should "provide connection info" in {
     val conn = mock[YupanaConnection]
+    val statement = mock[YupanaStatement]
     val m = new YupanaDatabaseMetaData(conn)
 
     (() => conn.url).expects().returning("jdbc:yupana://example.com:10101")
+    (() => conn.createStatement()).expects().returning(statement)
+    (statement.executeQuery _)
+      .expects("SHOW VERSION")
+      .returning(
+        new YupanaResultSet(
+          statement,
+          SimpleResult(
+            "VERSION",
+            List("MAJOR", "MINOR", "VERSION"),
+            List(DataType[Int], DataType[Int], DataType[String]),
+            Iterator(Array[Any](1, 2, "1.2.3"))
+          )
+        )
+      )
     m.getURL shouldEqual "jdbc:yupana://example.com:10101"
 
     m.getDatabaseMajorVersion shouldEqual 1
