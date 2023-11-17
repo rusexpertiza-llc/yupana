@@ -35,8 +35,6 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
 
   logger.info("New instance of YupanaTcpClient")
 
-  private val CHUNK_SIZE = 1024 * 100
-
   private var channel: SocketChannel = _
   private var chanelReader: FramingChannelReader = _
 
@@ -89,7 +87,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
       while (!channel.finishConnect()) {
         Thread.sleep(1)
       }
-      chanelReader = new FramingChannelReader(channel, CHUNK_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
+      chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
       closed = false
     }
 
@@ -126,7 +124,6 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
   @tailrec
   private def waitFor[T](tag: Byte, get: Frame => T): Either[String, T] = {
     val frame = chanelReader.awaitAndReadFrame()
-    println(s"WAIT ${tag.toChar} got ${frame.frameType.toChar}")
     frame.frameType match {
       case `tag` => Right(get(frame))
       case Tags.HEARTBEAT =>
@@ -146,8 +143,6 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
     ensureNotClosed()
 //    cancelHeartbeatTimer()
     sendRequest(command)
-
-    println("SENT cmd")
 
     val header = waitFor(Tags.RESULT_HEADER, ResultHeader.readFrame[ByteBuffer])
 
@@ -245,9 +240,6 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
             case Tags.RESULT_ROW =>
               current = ResultRow.readFrame(frame)
 
-            case Tags.RESULT_HEADER =>
-              errorMessage = error("Duplicate header received")
-
             case Tags.HEARTBEAT =>
               heartbeat(Heartbeat.readFrame(frame).time)
 
@@ -267,8 +259,8 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
         } while (current == null && footer == null && errorMessage == null)
 
         if (footer != null || errorMessage != null) {
+          waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])
           if (errorMessage != null) {
-            close()
             throw new YupanaException(errorMessage)
           }
         }

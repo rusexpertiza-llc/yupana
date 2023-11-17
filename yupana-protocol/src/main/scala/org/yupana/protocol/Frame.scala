@@ -17,3 +17,7 @@
 package org.yupana.protocol
 
 case class Frame(frameType: Byte, payload: Array[Byte])
+
+object Frame {
+  val MAX_FRAME_SIZE: Int = 1024 * 100
+}

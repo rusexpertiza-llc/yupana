@@ -21,52 +21,57 @@ import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.channel.{ ChannelInitializer, ChannelOption }
-import org.yupana.core.QueryEngineRouter
-import org.yupana.core.sql.SqlQueryProcessor
+import io.netty.channel.{ Channel, ChannelFuture, ChannelInitializer, ChannelOption }
+
+import scala.concurrent.{ Future, Promise }
 //import io.netty.handler.timeout.IdleStateHandler
 
 class YupanaServer(host: String, port: Int, nThreads: Int, serverContext: ServerContext) extends StrictLogging {
 
-  def start(): Unit = {
+  private var channel: Channel = _
 
+  def start(): Future[Unit] = {
+
+    if (channel != null) throw new IllegalStateException("Already started")
+
+    val closePromise = Promise[Unit]()
     val parentGroup = new NioEventLoopGroup()
     val childGroup = new NioEventLoopGroup()
     val yupanaGroup = new NioEventLoopGroup(nThreads)
-    try {
-      val bootstrap = new ServerBootstrap()
+    val bootstrap = new ServerBootstrap()
 
-      bootstrap
-        .group(parentGroup, childGroup)
-        .channel(classOf[NioServerSocketChannel])
-        .childHandler(new ChannelInitializer[SocketChannel] {
-          override def initChannel(ch: SocketChannel): Unit = {
-            ch.pipeline().addLast("frame", new FrameCodec())
+    bootstrap
+      .group(parentGroup, childGroup)
+      .channel(classOf[NioServerSocketChannel])
+      .childHandler(new ChannelInitializer[SocketChannel] {
+        override def initChannel(ch: SocketChannel): Unit = {
+          ch.pipeline().addLast("frame", new FrameCodec())
 //            ch.pipeline().addLast(new IdleStateHandler(0, 60, 0))
-            ch.pipeline().addLast(yupanaGroup, "handler", new MessageHandler(serverContext))
-          }
-        })
-        .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))
-        .childOption(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
+          ch.pipeline().addLast(yupanaGroup, "handler", new MessageHandler(serverContext))
+        }
+      })
+      .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))
+      .childOption(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
 
-      val f = bootstrap.bind(host, port).sync()
-      logger.info(s"Starting YupanaServer on $host:$port")
-      f.channel().closeFuture().sync()
-    } finally {
-      yupanaGroup.shutdownGracefully()
-      childGroup.shutdownGracefully()
-      parentGroup.shutdownGracefully()
-    }
+    val f = bootstrap.bind(host, port).sync()
+    logger.info(s"Starting YupanaServer on $host:$port")
+    channel = f.channel()
+    f.channel()
+      .closeFuture()
+      .addListener((_: ChannelFuture) => {
+        yupanaGroup.shutdownGracefully()
+        childGroup.shutdownGracefully()
+        parentGroup.shutdownGracefully()
+        closePromise.success(())
+      })
+
+    closePromise.future
   }
 
-}
-
-object YupanaServer {
-  def main(args: Array[String]): Unit = {
-    val requestHandler = new RequestHandler(new QueryEngineRouter(null, null, null, new SqlQueryProcessor(null)))
-    val serverContext = new ServerContext(requestHandler)
-    val server = new YupanaServer("localhost", 10101, 4, serverContext)
-
-    server.start()
+  def stop(): Unit = {
+    if (channel != null) {
+      channel.close().sync()
+      channel = null
+    }
   }
 }

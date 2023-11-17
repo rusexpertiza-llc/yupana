@@ -33,7 +33,7 @@ class Ready(serverContext: ServerContext) extends ConnectionState {
     command match {
       case pq: PrepareQuery =>
         serverContext.requestHandler.handleQuery(pq) match {
-          case Right(iter) => ???
+          case Right(iter) => (new Ready(serverContext), iter.toSeq)
           case Left(msg)   => (new Ready(serverContext), Seq(ErrorMessage(msg)))
         }
 

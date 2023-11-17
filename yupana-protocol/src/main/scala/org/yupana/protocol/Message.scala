@@ -27,7 +27,7 @@ trait MessageHelper[M <: Message[M]] {
 
   def toFrame[B: Buffer](c: M): Frame = {
     val b = implicitly[Buffer[B]]
-    val buf = b.alloc()
+    val buf = b.alloc(Frame.MAX_FRAME_SIZE)
     readWrite.write(buf, c)
     Frame(tag, b.toByteArray(buf))
   }

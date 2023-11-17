@@ -32,6 +32,9 @@ import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
 import org.yupana.netty.{ RequestHandler, ServerContext, YupanaServer }
 
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+
 object Main extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
@@ -101,7 +104,8 @@ object Main extends StrictLogging {
 
     val ctx = new ServerContext(new RequestHandler(queryEngineRouter))
     val server = new YupanaServer(config.host, config.port, 4, ctx)
-    server.start()
+    val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
+    Await.ready(f, Duration.Inf)
   }
 }
