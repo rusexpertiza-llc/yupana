@@ -16,4 +16,6 @@
 
 package org.yupana.netty
 
-class ServerContext(val requestHandler: RequestHandler)
+import org.yupana.core.QueryEngineRouter
+
+class ServerContext(val queryEngineRouter: QueryEngineRouter)

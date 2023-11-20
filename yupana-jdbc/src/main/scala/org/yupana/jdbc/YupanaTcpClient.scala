@@ -28,8 +28,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 import java.util.logging.Logger
 import scala.annotation.tailrec
+import scala.collection.mutable
 
-class YupanaTcpClient(val host: String, val port: Int, user: String, password: String) extends AutoCloseable {
+class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: String, password: String)
+    extends AutoCloseable {
 
   private val logger = Logger.getLogger(classOf[YupanaTcpClient].getName)
 
@@ -152,7 +154,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
         extractProtoResult(h, r)
 
       case Left(e) =>
-        close()
+//        close()
         throw new YupanaException(e)
     }
   }
@@ -216,29 +218,29 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
     new Iterator[ResultRow] {
 
       var footer: ResultFooter = _
-      var current: ResultRow = _
+      val queue: mutable.Queue[ResultRow] = mutable.Queue.empty
       var errorMessage: String = _
 
-      readNext()
+      fill()
 
       override def hasNext: Boolean = {
-        footer == null
+        queue.nonEmpty || footer == null
       }
 
       override def next(): ResultRow = {
-        val result = current
-        if (footer == null) readNext() else current = null
+        val result = queue.dequeue()
+        if (queue.isEmpty && footer == null) fill()
         result
       }
 
-      private def readNext(): Unit = {
-        current = null
+      private def fill(): Unit = {
+        sendRequest(Next(batchSize))
         do {
           val frame = chanelReader.awaitAndReadFrame()
 
           frame.frameType match {
             case Tags.RESULT_ROW =>
-              current = ResultRow.readFrame(frame)
+              queue.enqueue(ResultRow.readFrame(frame))
 
             case Tags.HEARTBEAT =>
               heartbeat(Heartbeat.readFrame(frame).time)
@@ -256,7 +258,7 @@ class YupanaTcpClient(val host: String, val port: Int, user: String, password: S
               logger.severe(s"Unexpected message type '${x.toChar}'")
               throw new IllegalStateException(s"Unexpected message type '${x.toChar}'")
           }
-        } while (current == null && footer == null && errorMessage == null)
+        } while (queue.size < batchSize && footer == null && errorMessage == null)
 
         if (footer != null || errorMessage != null) {
           waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])

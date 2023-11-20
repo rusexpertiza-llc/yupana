@@ -15,9 +15,13 @@
  */
 
 package org.yupana.netty
+import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.query.Result
+import org.yupana.core.sql.parser.{ NumericValue, StringValue, TimestampValue, Value }
+import org.yupana.protocol
 import org.yupana.protocol._
 
-class Ready(serverContext: ServerContext) extends ConnectionState {
+class Ready(serverContext: ServerContext) extends ConnectionState with StrictLogging {
   override def init(): Seq[Response[_]] = Seq(Idle())
 
   override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
@@ -32,10 +36,28 @@ class Ready(serverContext: ServerContext) extends ConnectionState {
   private def handleQuery(command: PrepareQuery): (ConnectionState, Seq[Response[_]]) = {
     command match {
       case pq: PrepareQuery =>
-        serverContext.requestHandler.handleQuery(pq) match {
-          case Right(iter) => (new Ready(serverContext), iter.toSeq)
-          case Left(msg)   => (new Ready(serverContext), Seq(ErrorMessage(msg)))
+        logger.debug(s"""Processing SQL query: "${pq.query}"; parameters: ${pq.params}""")
+
+        val params = pq.params.map { case (index, p) => index -> convertValue(p) }
+        serverContext.queryEngineRouter.query(pq.query, params) match {
+          case Right(result) => (new Streaming(serverContext, result), Seq(makeHeader(result)))
+          case Left(msg)     => (new Ready(serverContext), Seq(ErrorMessage(msg)))
         }
+    }
+  }
+
+  private def makeHeader(result: Result): ResultHeader = {
+    val resultFields = result.fieldNames.zip(result.dataTypes).map {
+      case (name, rt) => ResultField(name, rt.meta.sqlTypeName)
+    }
+    ResultHeader(result.name, resultFields)
+  }
+
+  private def convertValue(value: protocol.ParameterValue): Value = {
+    value match {
+      case protocol.StringValue(s)    => StringValue(s)
+      case protocol.NumericValue(n)   => NumericValue(n)
+      case protocol.TimestampValue(t) => TimestampValue(t)
     }
   }
 }

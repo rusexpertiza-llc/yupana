@@ -16,27 +16,9 @@
 
 package org.yupana.protocol
 
-object Tags {
-  val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+case class Next(batchSize: Int) extends Command[Next](Next)
 
-  val QUIT: Byte = 'q'
-  val CANCEL: Byte = 'x'
-
-  val HELLO: Byte = 'h'
-  val HELLO_RESPONSE: Byte = 'H'
-
-  val SIMPLE_QUERY: Byte = 'q'
-  val PREPARE_QUERY: Byte = 'p'
-  val NEXT: Byte = 'n'
-
-  val RESULT_HEADER: Byte = 'R'
-  val RESULT_ROW: Byte = 'D'
-  val RESULT_FOOTER: Byte = 'F'
-
-  val CREDENTIALS_REQUEST: Byte = 'C'
-  val CREDENTIALS: Byte = 'c'
-  val AUTHORIZED: Byte = 'A'
-
-  val IDLE: Byte = 'I'
+object Next extends MessageHelper[Next] {
+  override val tag: Byte = Tags.NEXT
+  override val readWrite: ReadWrite[Next] = ReadWrite[Int].imap(Next.apply)(_.batchSize)
 }

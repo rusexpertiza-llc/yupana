@@ -30,7 +30,7 @@ import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
-import org.yupana.netty.{ RequestHandler, ServerContext, YupanaServer }
+import org.yupana.netty.{ ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
