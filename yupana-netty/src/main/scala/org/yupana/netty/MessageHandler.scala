@@ -41,7 +41,7 @@ class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundH
 
       case Left(err) =>
         logger.error(err.message)
-        ctx.writeAndFlush(err)
+        ctx.writeAndFlush(err.toFrame)
         if (err.severity == ErrorMessage.SEVERITY_FATAL) ctx.close()
     }
   }

@@ -16,10 +16,17 @@
 
 package org.yupana.netty
 
-import org.yupana.core.QueryEngineRouter
+import org.yupana.protocol.CredentialsRequest
 
-case class ServerContext(
-    queryEngineRouter: QueryEngineRouter,
-    authorizer: Authorizer,
-    user: Option[String]
-)
+class NonEmptyUserAuthorizer extends Authorizer {
+  override def method: String = CredentialsRequest.METHOD_PLAIN
+
+  override def authorize(method: String, userName: String, password: String): Either[String, String] = {
+    if (method == CredentialsRequest.METHOD_PLAIN) {
+      val fixedName = userName.trim
+      Either.cond(fixedName.nonEmpty, fixedName, "Username should not be empty")
+    } else {
+      Left(s"Unsupported auth method '$method'")
+    }
+  }
+}

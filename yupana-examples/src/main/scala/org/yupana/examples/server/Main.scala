@@ -30,7 +30,7 @@ import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
-import org.yupana.netty.{ ServerContext, YupanaServer }
+import org.yupana.netty.{ NonEmptyUserAuthorizer, ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -102,7 +102,7 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val ctx = new ServerContext(queryEngineRouter)
+    val ctx = ServerContext(queryEngineRouter, new NonEmptyUserAuthorizer, None)
     val server = new YupanaServer(config.host, config.port, 4, ctx)
     val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")

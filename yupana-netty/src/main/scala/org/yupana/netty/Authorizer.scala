@@ -16,10 +16,9 @@
 
 package org.yupana.netty
 
-import org.yupana.core.QueryEngineRouter
+trait Authorizer {
 
-case class ServerContext(
-    queryEngineRouter: QueryEngineRouter,
-    authorizer: Authorizer,
-    user: Option[String]
-)
+  def method: String
+
+  def authorize(method: String, userName: String, password: String): Either[String, String]
+}

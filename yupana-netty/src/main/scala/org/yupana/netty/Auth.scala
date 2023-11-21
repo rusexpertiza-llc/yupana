@@ -21,7 +21,7 @@ import org.yupana.protocol._
 
 class Auth(serverContext: ServerContext) extends ConnectionState {
   import NettyBuffer._
-  override def init(): Seq[Response[_]] = Seq(CredentialsRequest(CredentialsRequest.METHOD_PLAIN))
+  override def init(): Seq[Response[_]] = Seq(CredentialsRequest(serverContext.authorizer.method))
 
   override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
     frame.frameType match {
@@ -32,8 +32,13 @@ class Auth(serverContext: ServerContext) extends ConnectionState {
 
   private def handleCredentials(command: Credentials): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
     command match {
-      case Credentials(CredentialsRequest.METHOD_PLAIN, u, p) => Right((new Ready(serverContext), Seq(Authorized())))
-      case Credentials(m, _, _) => Left(ErrorMessage(s"Unsupported auth method $m", ErrorMessage.SEVERITY_FATAL))
+      case Credentials(m, u, p) =>
+        serverContext.authorizer
+          .authorize(m, u, p)
+          .fold(
+            err => Left(ErrorMessage(err, ErrorMessage.SEVERITY_FATAL)),
+            user => Right((new Ready(serverContext.copy(user = Some(user))), Seq(Authorized())))
+          )
     }
   }
 }

@@ -111,7 +111,7 @@ class YupanaDatabaseMetaData(connection: YupanaConnection) extends DatabaseMetaD
 
   override def getMaxCharLiteralLength = 0
 
-  override def supportsMultipleOpenResults() = true
+  override def supportsMultipleOpenResults() = false
 
   override def getMaxRowSize = 0
 

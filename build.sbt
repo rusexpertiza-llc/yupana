@@ -177,7 +177,8 @@ lazy val netty = (project in file("yupana-netty"))
 
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
-      "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test
+      "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test,
+      "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
   ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
 
