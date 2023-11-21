@@ -40,7 +40,7 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     m.doesMaxRowSizeIncludeBlobs shouldBe false
 
     m.getMaxStatements shouldEqual 0
-    m.supportsMultipleOpenResults shouldBe true
+    m.supportsMultipleOpenResults shouldBe false
     m.supportsMultipleResultSets shouldBe false
 
     m.getSchemaTerm shouldEqual "schema"
