@@ -22,12 +22,18 @@ import org.yupana.protocol
 import org.yupana.protocol._
 
 class Ready(serverContext: ServerContext) extends ConnectionState with StrictLogging {
+
+  private var streams: Map[Int, Streaming] = Map.empty
+
   override def init(): Seq[Response[_]] = Seq(Idle())
 
   override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
     frame.frameType match {
-      case Tags.PREPARE_QUERY =>
-        PrepareQuery.readFrameSafe(frame).left.map(ErrorMessage(_)).map(handleQuery)
+      case Tags.PREPARE_QUERY => PrepareQuery.readFrameSafe(frame).left.map(ErrorMessage(_)).map(handleQuery)
+      case Tags.NEXT =>
+        Next.readFrameSafe(frame).left.map(ErrorMessage(_)).flatMap { n =>
+          streams.get(n.id).toRight(ErrorMessage(s"Unknown id ${n.id}")).map(s => (this, s.next(n.batchSize)))
+        }
 
       case x => Left(ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
@@ -40,17 +46,26 @@ class Ready(serverContext: ServerContext) extends ConnectionState with StrictLog
 
         val params = pq.params.map { case (index, p) => index -> convertValue(p) }
         serverContext.queryEngineRouter.query(pq.query, params) match {
-          case Right(result) => (new Streaming(serverContext, result), Seq(makeHeader(result)))
-          case Left(msg)     => (new Ready(serverContext), Seq(ErrorMessage(msg)))
+          case Right(result) =>
+            synchronized {
+              if (!streams.contains(pq.id)) {
+
+                streams += pq.id -> new Streaming(pq.id, result)
+                (this, Seq(makeHeader(pq.id, result)))
+              } else {
+                (this, Seq(ErrorMessage(s"ID ${pq.id} already used")))
+              }
+            }
+          case Left(msg) => (this, Seq(ErrorMessage(msg)))
         }
     }
   }
 
-  private def makeHeader(result: Result): ResultHeader = {
+  private def makeHeader(id: Int, result: Result): ResultHeader = {
     val resultFields = result.fieldNames.zip(result.dataTypes).map {
       case (name, rt) => ResultField(name, rt.meta.sqlTypeName)
     }
-    ResultHeader(result.name, resultFields)
+    ResultHeader(id, result.name, resultFields)
   }
 
   private def convertValue(value: protocol.ParameterValue): Value = {

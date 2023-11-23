@@ -16,9 +16,10 @@
 
 package org.yupana.protocol
 
-case class ResultRow(values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow)
+case class ResultRow(id: Int, values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow)
 
 object ResultRow extends MessageHelper[ResultRow] {
   override val tag: Byte = Tags.RESULT_ROW
-  override val readWrite: ReadWrite[ResultRow] = implicitly[ReadWrite[Seq[Array[Byte]]]].imap(ResultRow.apply)(_.values)
+  override val readWrite: ReadWrite[ResultRow] =
+    ReadWrite.product2[ResultRow, Int, Seq[Array[Byte]]](r => (r.id, r.values))(ResultRow.apply)
 }

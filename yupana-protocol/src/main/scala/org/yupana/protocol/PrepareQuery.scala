@@ -16,10 +16,13 @@
 
 package org.yupana.protocol
 
-case class PrepareQuery(query: String, params: Map[Int, ParameterValue]) extends Command[PrepareQuery](PrepareQuery)
+case class PrepareQuery(id: Int, query: String, params: Map[Int, ParameterValue])
+    extends Command[PrepareQuery](PrepareQuery)
 
 object PrepareQuery extends MessageHelper[PrepareQuery] {
   override val tag: Byte = Tags.PREPARE_QUERY
   override val readWrite: ReadWrite[PrepareQuery] =
-    ReadWrite.product2[PrepareQuery, String, Map[Int, ParameterValue]](q => (q.query, q.params))(PrepareQuery.apply)
+    ReadWrite.product3[PrepareQuery, Int, String, Map[Int, ParameterValue]](q => (q.id, q.query, q.params))(
+      PrepareQuery.apply
+    )
 }

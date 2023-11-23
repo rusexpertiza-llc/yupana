@@ -29,14 +29,15 @@ class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundH
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
-    println(s"GOT A FRAME ${frame.frameType}")
     state.handleFrame(frame) match {
       case Right((newState, responses)) =>
         writeResponses(ctx, responses)
-        state = newState
-        val initial = state.init()
-        if (initial.nonEmpty) {
-          writeResponses(ctx, initial)
+        if (state != newState) {
+          state = newState
+          val initial = state.init()
+          if (initial.nonEmpty) {
+            writeResponses(ctx, initial)
+          }
         }
 
       case Left(err) =>

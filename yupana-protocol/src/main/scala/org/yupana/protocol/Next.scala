@@ -16,9 +16,9 @@
 
 package org.yupana.protocol
 
-case class Next(batchSize: Int) extends Command[Next](Next)
+case class Next(id: Int, batchSize: Int) extends Command[Next](Next)
 
 object Next extends MessageHelper[Next] {
   override val tag: Byte = Tags.NEXT
-  override val readWrite: ReadWrite[Next] = ReadWrite[Int].imap(Next.apply)(_.batchSize)
+  override val readWrite: ReadWrite[Next] = ReadWrite.product2[Next, Int, Int](x => (x.id, x.batchSize))(Next.apply)
 }

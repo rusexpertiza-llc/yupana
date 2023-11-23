@@ -15,30 +15,21 @@
  */
 
 package org.yupana.netty
-import io.netty.buffer.ByteBuf
 import org.yupana.api.query.Result
-import org.yupana.protocol.{ ErrorMessage, Frame, Next, Response, ResultFooter, ResultRow, Tags }
+import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
 
-class Streaming(context: ServerContext, result: Result) extends ConnectionState {
+class Streaming(id: Int, result: Result) {
 
   private var rows = 0
   private val resultTypes = result.dataTypes.zipWithIndex
-  override def init(): Seq[Response[_]] = Nil
 
-  override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
-    import NettyBuffer._
+  def next(count: Int): Seq[Response[_]] = {
 
-    frame.frameType match {
-      case Tags.CANCEL => Right((new Ready(context), Nil))
-      case Tags.NEXT =>
-        val next = Next.readFrame[ByteBuf](frame)
-        val batch = createBatch(result, next.batchSize)
-        if (result.hasNext) {
-          Right((this, batch))
-        } else {
-          Right((new Ready(context), batch :+ createFooter(result)))
-        }
-      case x => Right((new Ready(context), Seq(ErrorMessage(s"Unexpected command ${x.toChar}"))))
+    val batch = createBatch(result, count)
+    if (result.hasNext) {
+      batch
+    } else {
+      batch :+ createFooter(result)
     }
   }
 
@@ -52,12 +43,12 @@ class Streaming(context: ServerContext, result: Result) extends ConnectionState 
             if (v != null) rt.storable.write(v) else Array.empty[Byte]
         }
         rows += 1
-        ResultRow(bytes)
+        ResultRow(id, bytes)
       }
       .toSeq
   }
 
   private def createFooter(result: Result): ResultFooter = {
-    new ResultFooter(-1, rows)
+    new ResultFooter(id, -1, rows)
   }
 }

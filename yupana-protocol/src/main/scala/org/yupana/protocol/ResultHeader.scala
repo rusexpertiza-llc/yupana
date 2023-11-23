@@ -17,7 +17,8 @@
 package org.yupana.protocol
 
 case class ResultField(name: String, typeName: String)
-case class ResultHeader(tableName: String, fields: Seq[ResultField]) extends Response[ResultHeader](ResultHeader)
+case class ResultHeader(id: Int, tableName: String, fields: Seq[ResultField])
+    extends Response[ResultHeader](ResultHeader)
 
 object ResultHeader extends MessageHelper[ResultHeader] {
   implicit val rwResultField: ReadWrite[ResultField] =
@@ -25,5 +26,7 @@ object ResultHeader extends MessageHelper[ResultHeader] {
 
   override val tag: Byte = Tags.RESULT_HEADER
   override val readWrite: ReadWrite[ResultHeader] =
-    ReadWrite.product2[ResultHeader, String, Seq[ResultField]](x => (x.tableName, x.fields))(ResultHeader.apply)
+    ReadWrite.product3[ResultHeader, Int, String, Seq[ResultField]](x => (x.id, x.tableName, x.fields))(
+      ResultHeader.apply
+    )
 }

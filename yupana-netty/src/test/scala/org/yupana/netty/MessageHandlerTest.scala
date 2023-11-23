@@ -10,6 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.core.QueryEngineRouter
+import org.yupana.core.sql.parser
 import org.yupana.protocol._
 
 class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen with MockFactory {
@@ -26,17 +27,12 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     When("Hello command received")
     ch.writeInbound(frame) //  shouldBe true
 
-    val respFrame = ch.readOutbound[Frame]()
     Then("Hello response and credentials req should be replied")
-    respFrame.frameType shouldEqual Tags.HELLO_RESPONSE
-    val resp = HelloResponse.readFrame(respFrame)
-
+    val resp = readMessage(ch, HelloResponse)
     resp.protocolVersion shouldBe ProtocolVersion.value
     resp.reqTime shouldEqual 1234567L
 
-    val credentialsFrame = ch.readOutbound[Frame]()
-    credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST
-    val credentials = CredentialsRequest.readFrame(credentialsFrame)
+    val credentials = readMessage(ch, CredentialsRequest)
     credentials.method shouldEqual CredentialsRequest.METHOD_PLAIN
 
     When("Credentials sent")
@@ -68,10 +64,8 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(Credentials("SECURE", "test", "pass").toFrame[ByteBuf])
     ch.finish() shouldBe true
 
-    val errFrame = ch.readOutbound[Frame]()
+    val err = readMessage(ch, ErrorMessage)
     ch.isOpen shouldBe false
-    errFrame.frameType shouldEqual Tags.ERROR_MESSAGE
-    val err = ErrorMessage.readFrame(errFrame)
     err.message shouldEqual "Unsupported auth method 'SECURE'"
     err.severity shouldEqual ErrorMessage.SEVERITY_FATAL
   }
@@ -91,16 +85,13 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "", "").toFrame[ByteBuf])
     ch.finish() shouldBe true
 
-    val errFrame = ch.readOutbound[Frame]()
+    val err = readMessage(ch, ErrorMessage)
     ch.isOpen shouldBe false
-    errFrame.frameType shouldEqual Tags.ERROR_MESSAGE
-    val err = ErrorMessage.readFrame(errFrame)
     err.message shouldEqual "Username should not be empty"
     err.severity shouldEqual ErrorMessage.SEVERITY_FATAL
   }
 
   it should "handle query" in {
-    import org.yupana.core.sql.parser
     val queryEngine = mock[QueryEngineRouter]
     val ch = new EmbeddedChannel(new MessageHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer, None)))
     auth(ch)
@@ -129,6 +120,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     When("Query is sent")
     ch.writeInbound(
       PrepareQuery(
+        11,
         "SELECT ? + ? as five, ? as s, ? epoch",
         Map(1 -> NumericValue(3), 2 -> NumericValue(2), 3 -> StringValue("str"), 4 -> TimestampValue(0L))
       ).toFrame[ByteBuf]
@@ -136,6 +128,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     Then("Sent header as reply")
     val header = readMessage(ch, ResultHeader)
+    header.id shouldEqual 11
     header.fields should contain theSameElementsInOrderAs List(
       ResultField("five", "INTEGER"),
       ResultField("s", "VARCHAR"),
@@ -143,10 +136,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     )
 
     When("client request for batch")
-    ch.writeInbound(Next(10).toFrame[ByteBuf])
+    ch.writeInbound(Next(11, 10).toFrame[ByteBuf])
 
     Then("reply with actual data")
     val row = readMessage(ch, ResultRow)
+    row.id shouldEqual 11
     row.values should contain theSameElementsInOrderAs List(
       Array(5),
       Array(0, 0, 0, 3) ++ "abc".getBytes(),
@@ -155,12 +149,56 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     Then("reply with footer")
     val footer = readMessage(ch, ResultFooter)
+    footer.id shouldEqual 11
     footer.rows shouldEqual 1
+  }
+
+  it should "handle multiple queries simultaneously" in {
+    val queryEngine = mock[QueryEngineRouter]
+    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer, None)))
+    auth(ch)
+
+    (queryEngine.query _)
+      .expects("SELECT 1", Map.empty[Int, parser.Value])
+      .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array(1)))))
+
+    (queryEngine.query _)
+      .expects("SELECT 2", Map.empty[Int, parser.Value])
+      .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array(2)))))
+
+    ch.writeInbound(PrepareQuery(1, "SELECT 1", Map.empty).toFrame)
+    ch.writeInbound(PrepareQuery(2, "SELECT 2", Map.empty).toFrame)
+
+    val header1 = readMessage(ch, ResultHeader)
+    header1.id shouldEqual 1
+    header1.tableName shouldEqual "result 1"
+    header1.fields should contain theSameElementsInOrderAs List(
+      ResultField("1", "INTEGER")
+    )
+
+    val header2 = readMessage(ch, ResultHeader)
+    header2.id shouldEqual 2
+    header2.tableName shouldEqual "result 2"
+    header2.fields should contain theSameElementsInOrderAs List(
+      ResultField("2", "INTEGER")
+    )
+
+    ch.writeInbound(Next(2, 10))
+    val data2 = readMessage(ch, ResultRow)
+    data2.id shouldEqual 2
+    data2.values shouldEqual Array(2)
+
+    val footer2 = readMessage(ch, ResultFooter)
+    footer2.id shouldEqual 2
   }
 
   private def readMessage[T <: Message[T]](ch: EmbeddedChannel, messageHelper: MessageHelper[T]): T = {
     val frame = ch.readOutbound[Frame]()
-    frame.frameType shouldEqual messageHelper.tag
+    if (frame.frameType == Tags.ERROR_MESSAGE && messageHelper.tag != Tags.ERROR_MESSAGE) {
+      val em = ErrorMessage.readFrame(frame)
+      fail(em.message)
+    }
+    frame.frameType.toChar shouldEqual messageHelper.tag.toChar
     messageHelper.readFrame(frame)
   }
 
