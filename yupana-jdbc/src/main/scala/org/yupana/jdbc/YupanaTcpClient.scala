@@ -26,6 +26,7 @@ import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -39,6 +40,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   private var channel: SocketChannel = _
   private var chanelReader: FramingChannelReader = _
+  private val nextId: AtomicInteger = new AtomicInteger(0)
 
 //  private var heartbeatTimer: java.util.Timer = _
 //  private var heartbeatTimerScheduled = false
@@ -70,7 +72,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   def prepareQuery(query: String, params: Map[Int, ParameterValue]): Result = {
-    execRequestQuery(PrepareQuery(query, params))
+    execRequestQuery(PrepareQuery(nextId.incrementAndGet(), query, params))
   }
 
   def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {

@@ -19,12 +19,11 @@ package org.yupana.netty
 import org.yupana.protocol._
 
 class Connecting(serverContext: ServerContext) extends ConnectionState {
-  import NettyBuffer._
 
   override def init(): Seq[Response[_]] = Nil
 
   override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
-    Hello.readFrameSafe(frame).left.map(ErrorMessage(_)).flatMap(handleHello)
+    MessageHandler.readMessage(frame, Hello).flatMap(handleHello)
   }
 
   private def handleHello(command: Hello): Either[ErrorMessage, (ConnectionState, Seq[HelloResponse])] = {

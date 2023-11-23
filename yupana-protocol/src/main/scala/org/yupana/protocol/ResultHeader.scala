@@ -22,11 +22,11 @@ case class ResultHeader(id: Int, tableName: String, fields: Seq[ResultField])
 
 object ResultHeader extends MessageHelper[ResultHeader] {
   implicit val rwResultField: ReadWrite[ResultField] =
-    ReadWrite.product2[ResultField, String, String](x => (x.name, x.typeName))(ResultField.apply)
+    ReadWrite.product2[ResultField, String, String](ResultField.apply)(x => (x.name, x.typeName))
 
   override val tag: Byte = Tags.RESULT_HEADER
   override val readWrite: ReadWrite[ResultHeader] =
-    ReadWrite.product3[ResultHeader, Int, String, Seq[ResultField]](x => (x.id, x.tableName, x.fields))(
-      ResultHeader.apply
+    ReadWrite.product3[ResultHeader, Int, String, Seq[ResultField]](ResultHeader.apply)(x =>
+      (x.id, x.tableName, x.fields)
     )
 }

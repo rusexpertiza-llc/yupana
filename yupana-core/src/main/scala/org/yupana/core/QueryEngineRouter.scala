@@ -77,7 +77,7 @@ class QueryEngineRouter(
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       timeSeriesQueryEngine.put(dps)
       Right(
-        SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
+        SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array[Any]("OK")))
       )
     }
   }

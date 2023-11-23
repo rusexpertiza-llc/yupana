@@ -20,10 +20,10 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
 
 class TSDB(

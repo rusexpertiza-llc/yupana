@@ -21,5 +21,5 @@ case class HelloResponse(protocolVersion: Int, reqTime: Long) extends Response[H
 object HelloResponse extends MessageHelper[HelloResponse] {
   override val tag: Byte = Tags.HELLO_RESPONSE
   override val readWrite: ReadWrite[HelloResponse] =
-    ReadWrite.product2[HelloResponse, Int, Long](x => (x.protocolVersion, x.reqTime))(HelloResponse.apply)
+    ReadWrite.product2[HelloResponse, Int, Long](HelloResponse.apply)(x => (x.protocolVersion, x.reqTime))
 }

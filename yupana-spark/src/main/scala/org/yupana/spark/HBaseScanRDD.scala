@@ -22,7 +22,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
-import org.yupana.core.utils.CloseableIterator
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
 import scala.annotation.tailrec

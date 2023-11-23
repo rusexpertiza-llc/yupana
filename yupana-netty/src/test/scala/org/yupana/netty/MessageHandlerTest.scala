@@ -112,7 +112,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
             "result",
             Seq("five", "s", "epoch"),
             Seq(DataType[Int], DataType[String], DataType[Time]),
-            Iterator(Array(5, "abc", Time(0L)))
+            Iterator(Array[Any](5, "abc", Time(0L)))
           )
         )
       )
@@ -160,11 +160,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     (queryEngine.query _)
       .expects("SELECT 1", Map.empty[Int, parser.Value])
-      .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array(1)))))
+      .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     (queryEngine.query _)
       .expects("SELECT 2", Map.empty[Int, parser.Value])
-      .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array(2)))))
+      .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array[Any](2)))))
 
     ch.writeInbound(PrepareQuery(1, "SELECT 1", Map.empty).toFrame)
     ch.writeInbound(PrepareQuery(2, "SELECT 2", Map.empty).toFrame)
@@ -183,13 +183,44 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
       ResultField("2", "INTEGER")
     )
 
-    ch.writeInbound(Next(2, 10))
+    ch.writeInbound(Next(2, 10).toFrame)
     val data2 = readMessage(ch, ResultRow)
     data2.id shouldEqual 2
-    data2.values shouldEqual Array(2)
+    data2.values should contain theSameElementsInOrderAs List(Array(2))
 
     val footer2 = readMessage(ch, ResultFooter)
     footer2.id shouldEqual 2
+
+    ch.writeInbound(Next(1, 10).toFrame)
+    val data1 = readMessage(ch, ResultRow)
+    data1.id shouldEqual 1
+    data1.values should contain theSameElementsInOrderAs List(Array(1))
+
+    val footer1 = readMessage(ch, ResultFooter)
+    footer1.id shouldEqual 1
+  }
+
+  it should "should handle cancel queries" in {
+    val queryEngine = mock[QueryEngineRouter]
+    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer, None)))
+    auth(ch)
+
+    (queryEngine.query _)
+      .expects("SELECT 1", Map.empty[Int, parser.Value])
+      .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
+
+    ch.writeInbound(PrepareQuery(1, "SELECT 1", Map.empty).toFrame)
+
+    val header = readMessage(ch, ResultHeader)
+    header.id shouldEqual 1
+    header.tableName shouldEqual "result 1"
+
+    ch.writeInbound(Cancel(1).toFrame)
+    readMessage(ch, Canceled).id shouldEqual 1
+
+    ch.writeInbound(Next(1, 10).toFrame)
+    val err = readMessage(ch, ErrorMessage)
+    err.message shouldEqual "Unknown stream id 1"
   }
 
   private def readMessage[T <: Message[T]](ch: EmbeddedChannel, messageHelper: MessageHelper[T]): T = {

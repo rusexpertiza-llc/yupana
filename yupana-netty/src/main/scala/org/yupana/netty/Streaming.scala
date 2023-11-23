@@ -23,6 +23,8 @@ class Streaming(id: Int, result: Result) {
   private var rows = 0
   private val resultTypes = result.dataTypes.zipWithIndex
 
+  def close(): Unit = result.close()
+
   def next(count: Int): Seq[Response[_]] = {
 
     val batch = createBatch(result, count)

@@ -20,5 +20,5 @@ case class Next(id: Int, batchSize: Int) extends Command[Next](Next)
 
 object Next extends MessageHelper[Next] {
   override val tag: Byte = Tags.NEXT
-  override val readWrite: ReadWrite[Next] = ReadWrite.product2[Next, Int, Int](x => (x.id, x.batchSize))(Next.apply)
+  override val readWrite: ReadWrite[Next] = ReadWrite.product2[Next, Int, Int](Next.apply)(x => (x.id, x.batchSize))
 }

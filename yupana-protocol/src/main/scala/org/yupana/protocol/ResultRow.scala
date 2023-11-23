@@ -21,5 +21,5 @@ case class ResultRow(id: Int, values: Seq[Array[Byte]]) extends Response[ResultR
 object ResultRow extends MessageHelper[ResultRow] {
   override val tag: Byte = Tags.RESULT_ROW
   override val readWrite: ReadWrite[ResultRow] =
-    ReadWrite.product2[ResultRow, Int, Seq[Array[Byte]]](r => (r.id, r.values))(ResultRow.apply)
+    ReadWrite.product2[ResultRow, Int, Seq[Array[Byte]]](ResultRow.apply)(r => (r.id, r.values))
 }

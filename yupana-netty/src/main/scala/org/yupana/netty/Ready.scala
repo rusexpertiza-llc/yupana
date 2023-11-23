@@ -27,19 +27,26 @@ class Ready(serverContext: ServerContext) extends ConnectionState with StrictLog
 
   override def init(): Seq[Response[_]] = Seq(Idle())
 
+  override def close(): Unit = {
+    streams.foreach(_._2.close())
+  }
+
   override def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])] = {
+    println(s"GOT '${frame.frameType.toChar}' streams size = ${streams.size}")
     frame.frameType match {
-      case Tags.PREPARE_QUERY => PrepareQuery.readFrameSafe(frame).left.map(ErrorMessage(_)).map(handleQuery)
+      case Tags.PREPARE_QUERY => MessageHandler.readMessage(frame, PrepareQuery).map(pq => (this, handleQuery(pq)))
       case Tags.NEXT =>
-        Next.readFrameSafe(frame).left.map(ErrorMessage(_)).flatMap { n =>
-          streams.get(n.id).toRight(ErrorMessage(s"Unknown id ${n.id}")).map(s => (this, s.next(n.batchSize)))
+        MessageHandler.readMessage(frame, Next).flatMap { n =>
+          streams.get(n.id).toRight(ErrorMessage(s"Unknown stream id ${n.id}")).map(s => (this, s.next(n.batchSize)))
         }
+      case Tags.CANCEL =>
+        MessageHandler.readMessage(frame, Cancel).flatMap(cancelStream).map(this -> _)
 
       case x => Left(ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
   }
 
-  private def handleQuery(command: PrepareQuery): (ConnectionState, Seq[Response[_]]) = {
+  private def handleQuery(command: PrepareQuery): Seq[Response[_]] = {
     command match {
       case pq: PrepareQuery =>
         logger.debug(s"""Processing SQL query: "${pq.query}"; parameters: ${pq.params}""")
@@ -49,15 +56,26 @@ class Ready(serverContext: ServerContext) extends ConnectionState with StrictLog
           case Right(result) =>
             synchronized {
               if (!streams.contains(pq.id)) {
-
                 streams += pq.id -> new Streaming(pq.id, result)
-                (this, Seq(makeHeader(pq.id, result)))
+                Seq(makeHeader(pq.id, result))
               } else {
-                (this, Seq(ErrorMessage(s"ID ${pq.id} already used")))
+                Seq(ErrorMessage(s"ID ${pq.id} already used"))
               }
             }
-          case Left(msg) => (this, Seq(ErrorMessage(msg)))
+          case Left(msg) => Seq(ErrorMessage(msg))
         }
+    }
+  }
+
+  private def cancelStream(cancel: Cancel): Either[ErrorMessage, Seq[Response[_]]] = {
+    synchronized {
+      streams.get(cancel.id) match {
+        case Some(s) =>
+          streams -= cancel.id
+          s.close()
+          Right(Seq(Canceled(cancel.id)))
+        case None => Left(ErrorMessage(s"Unknown stream id ${cancel.id}"))
+      }
     }
   }
 

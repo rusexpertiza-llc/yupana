@@ -26,5 +26,5 @@ object ErrorMessage extends MessageHelper[ErrorMessage] {
   val SEVERITY_ERROR: Byte = 0
 
   implicit override val readWrite: ReadWrite[ErrorMessage] =
-    ReadWrite.product2[ErrorMessage, Byte, String](e => (e.severity, e.message))((s, m) => ErrorMessage(m, s))
+    ReadWrite.product2[ErrorMessage, Byte, String]((s, m) => ErrorMessage(m, s))(e => (e.severity, e.message))
 }

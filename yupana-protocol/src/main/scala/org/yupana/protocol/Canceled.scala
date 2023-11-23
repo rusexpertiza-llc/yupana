@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.netty
+package org.yupana.protocol
 
-import org.yupana.protocol.{ ErrorMessage, Frame, Response }
+case class Canceled(id: Int) extends Response[Canceled](Canceled)
 
-trait ConnectionState {
-
-  def init(): Seq[Response[_]]
-
-  def handleFrame(frame: Frame): Either[ErrorMessage, (ConnectionState, Seq[Response[_]])]
-
-  def close(): Unit = {}
+object Canceled extends MessageHelper[Canceled] {
+  override val tag: Byte = Tags.CANCELED
+  override val readWrite: ReadWrite[Canceled] = ReadWrite[Int].imap(Canceled.apply)(_.id)
 }

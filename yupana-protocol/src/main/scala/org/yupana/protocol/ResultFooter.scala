@@ -21,5 +21,5 @@ case class ResultFooter(id: Int, millis: Long, rows: Int) extends Response[Resul
 object ResultFooter extends MessageHelper[ResultFooter] {
   override val tag: Byte = Tags.RESULT_FOOTER
   override val readWrite: ReadWrite[ResultFooter] =
-    ReadWrite.product3[ResultFooter, Int, Long, Int](f => (f.id, f.millis, f.rows))(ResultFooter.apply)
+    ReadWrite.product3[ResultFooter, Int, Long, Int](ResultFooter.apply)(f => (f.id, f.millis, f.rows))
 }

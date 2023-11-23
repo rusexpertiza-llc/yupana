@@ -20,8 +20,8 @@ object Tags {
   val ERROR_MESSAGE: Byte = 'E'
   val HEARTBEAT: Byte = 'B'
 
-  val QUIT: Byte = 'q'
   val CANCEL: Byte = 'x'
+  val CANCELED: Byte = 'X'
 
   val HELLO: Byte = 'h'
   val HELLO_RESPONSE: Byte = 'H'

@@ -21,5 +21,5 @@ case class Credentials(method: String, user: String, password: String) extends C
 object Credentials extends MessageHelper[Credentials] {
   override val tag: Byte = Tags.CREDENTIALS
   override val readWrite: ReadWrite[Credentials] =
-    ReadWrite.product3[Credentials, String, String, String](c => (c.method, c.user, c.password))(Credentials.apply)
+    ReadWrite.product3[Credentials, String, String, String](Credentials.apply)(c => (c.method, c.user, c.password))
 }

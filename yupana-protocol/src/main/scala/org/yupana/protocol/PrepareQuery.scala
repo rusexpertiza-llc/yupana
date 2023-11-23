@@ -22,7 +22,7 @@ case class PrepareQuery(id: Int, query: String, params: Map[Int, ParameterValue]
 object PrepareQuery extends MessageHelper[PrepareQuery] {
   override val tag: Byte = Tags.PREPARE_QUERY
   override val readWrite: ReadWrite[PrepareQuery] =
-    ReadWrite.product3[PrepareQuery, Int, String, Map[Int, ParameterValue]](q => (q.id, q.query, q.params))(
-      PrepareQuery.apply
+    ReadWrite.product3[PrepareQuery, Int, String, Map[Int, ParameterValue]](PrepareQuery.apply)(q =>
+      (q.id, q.query, q.params)
     )
 }

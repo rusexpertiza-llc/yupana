@@ -23,7 +23,7 @@ object Hello extends MessageHelper[Hello] {
   override val tag: Byte = Tags.HELLO
 
   implicit override val readWrite: ReadWrite[Hello] =
-    ReadWrite.product4[Hello, Int, String, Long, Map[String, String]](h =>
+    ReadWrite.product4[Hello, Int, String, Long, Map[String, String]](Hello.apply)(h =>
       (h.protocolVersion, h.clientVersion, h.timestamp, h.params)
-    )(Hello.apply)
+    )
 }

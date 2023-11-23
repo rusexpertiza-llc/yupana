@@ -17,8 +17,9 @@
 package org.yupana.api.query
 
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CloseableIterator
 
-trait Result extends Iterator[DataRow] {
+trait Result extends Iterator[DataRow] with AutoCloseable {
 
   def name: String
 
@@ -26,10 +27,12 @@ trait Result extends Iterator[DataRow] {
   def dataTypes: Seq[DataType]
   def dataIndexForFieldName(name: String): Int
   def dataIndexForFieldIndex(idx: Int): Int
-  def rows: Iterator[Array[Any]]
+  def rows: CloseableIterator[Array[Any]]
 
   override def hasNext: Boolean = rows.hasNext
   override def next(): DataRow = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
+
+  override def close(): Unit = rows.close()
 }
 
 object Result {
@@ -44,7 +47,7 @@ object Result {
 
     override def dataIndexForFieldIndex(idx: Int): Int = 0
 
-    override def rows: Iterator[Array[Any]] = Iterator.empty
+    override def rows: CloseableIterator[Array[Any]] = CloseableIterator.empty
   }
 }
 
@@ -52,13 +55,24 @@ case class SimpleResult(
     override val name: String,
     fieldNames: Seq[String],
     dataTypes: Seq[DataType],
-    rows: Iterator[Array[Any]]
+    rows: CloseableIterator[Array[Any]]
 ) extends Result {
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap
 
   override def dataIndexForFieldName(name: String): Int = nameIndexMap(name)
   override def dataIndexForFieldIndex(idx: Int): Int = idx
+}
+
+object SimpleResult {
+  def apply(
+      name: String,
+      fieldNames: Seq[String],
+      dataTypes: Seq[DataType],
+      rows: Iterator[Array[Any]]
+  ): SimpleResult = {
+    new SimpleResult(name, fieldNames, dataTypes, CloseableIterator.pure(rows))
+  }
 }
 
 class DataRow(

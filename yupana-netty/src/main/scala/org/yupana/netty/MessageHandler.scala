@@ -18,7 +18,7 @@ package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.protocol.{ ErrorMessage, Frame, Response }
+import org.yupana.protocol.{ ErrorMessage, Frame, Message, MessageHelper, Response }
 
 class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundHandler[Frame] with StrictLogging {
 
@@ -28,7 +28,13 @@ class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundH
     writeResponses(ctx, state.init())
   }
 
+  override def channelInactive(ctx: ChannelHandlerContext): Unit = {
+    state.close()
+    super.channelInactive(ctx)
+  }
+
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
+    println(s"MH HAVE FRAME ${frame.frameType.toChar}")
     state.handleFrame(frame) match {
       case Right((newState, responses)) =>
         writeResponses(ctx, responses)
@@ -59,5 +65,11 @@ class MessageHandler(serverContext: ServerContext) extends SimpleChannelInboundH
       ctx.write(msg.toFrame)
     }
     ctx.flush()
+  }
+}
+
+object MessageHandler {
+  def readMessage[M <: Message[M]](f: Frame, helper: MessageHelper[M]): Either[ErrorMessage, M] = {
+    helper.readFrameOpt(f).toRight(ErrorMessage(s"Expect '${helper.tag.toChar}' but got '${f.frameType}'"))
   }
 }

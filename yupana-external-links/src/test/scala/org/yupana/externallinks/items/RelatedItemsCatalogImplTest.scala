@@ -5,6 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, Query, RemoveCondition }
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core._
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
@@ -42,11 +43,13 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       .returning(
         new TsdbServerResult(
           qc1,
-          Seq(
-            Array[Any](123456, Time(120)),
-            Array[Any](123456, Time(150)),
-            Array[Any](345112, Time(120))
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              Array[Any](123456, Time(120)),
+              Array[Any](123456, Time(150)),
+              Array[Any](345112, Time(120))
+            ).iterator
+          )
         )
       )
 
@@ -65,10 +68,12 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       .returning(
         new TsdbServerResult(
           qc2,
-          Seq(
-            Array[Any](123456, Time(125)),
-            Array[Any](123456, Time(120))
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              Array[Any](123456, Time(125)),
+              Array[Any](123456, Time(120))
+            ).iterator
+          )
         )
       )
 
@@ -126,10 +131,12 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       .returning(
         new TsdbServerResult(
           qc,
-          Seq(
-            Array[Any](123456, Time(220)),
-            Array[Any](654321, Time(330))
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              Array[Any](123456, Time(220)),
+              Array[Any](654321, Time(330))
+            ).iterator
+          )
         )
       )
 
