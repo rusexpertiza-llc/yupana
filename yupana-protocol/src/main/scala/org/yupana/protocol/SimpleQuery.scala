@@ -16,9 +16,10 @@
 
 package org.yupana.protocol
 
-case class SimpleQuery(query: String) extends Command[SimpleQuery](SimpleQuery)
+case class SimpleQuery(id: Int, query: String) extends Command[SimpleQuery](SimpleQuery)
 
 object SimpleQuery extends MessageHelper[SimpleQuery] {
   override val tag: Byte = Tags.SIMPLE_QUERY
-  override val readWrite: ReadWrite[SimpleQuery] = implicitly[ReadWrite[String]].imap(SimpleQuery.apply)(_.query)
+  override val readWrite: ReadWrite[SimpleQuery] =
+    ReadWrite.product2[SimpleQuery, Int, String](SimpleQuery.apply)(q => (q.id, q.query))
 }

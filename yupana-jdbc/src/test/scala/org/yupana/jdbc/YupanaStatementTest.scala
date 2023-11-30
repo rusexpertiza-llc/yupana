@@ -21,7 +21,7 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
       "result",
       Seq("item", "kkm_id"),
       Seq(DataType[String], DataType[Int]),
-      Iterator(Array("thing", 1), Array("Another", 4))
+      Iterator(Array[Any]("thing", 1), Array[Any]("Another", 4))
     )
 
     (conn.runQuery _).expects(q, Map.empty[Int, ParameterValue]).returning(result)

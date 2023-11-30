@@ -22,14 +22,12 @@ import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
 
-import java.io.IOException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
 import scala.annotation.tailrec
-import scala.collection.mutable
 
 class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: String, password: String)
     extends AutoCloseable {
@@ -41,6 +39,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   private var channel: SocketChannel = _
   private var chanelReader: FramingChannelReader = _
   private val nextId: AtomicInteger = new AtomicInteger(0)
+  private var iterators: Map[Int, ResultIterator] = Map.empty
 
 //  private var heartbeatTimer: java.util.Timer = _
 //  private var heartbeatTimerScheduled = false
@@ -68,11 +67,13 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   def query(query: String): Result = {
-    execRequestQuery(SimpleQuery(query))
+    val id = nextId.incrementAndGet()
+    execRequestQuery(id, SimpleQuery(id, query))
   }
 
   def prepareQuery(query: String, params: Map[Int, ParameterValue]): Result = {
-    execRequestQuery(PrepareQuery(nextId.incrementAndGet(), query, params))
+    val id = nextId.incrementAndGet()
+    execRequestQuery(id, PrepareQuery(id, query, params))
   }
 
   def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
@@ -96,7 +97,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     }
 
     val request = Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty)
-    sendRequest(request)
+    write(request)
     waitFor(Tags.HELLO_RESPONSE, HelloResponse.readFrame[ByteBuffer]) match {
       case Right(response) =>
         if (response.protocolVersion != ProtocolVersion.value) {
@@ -115,7 +116,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
     waitFor(Tags.CREDENTIALS_REQUEST, CredentialsRequest.readFrame[ByteBuffer]) match {
       case Right(cr) if cr.method == CredentialsRequest.METHOD_PLAIN =>
-        sendRequest(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
+        write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
 
       case Right(cr) => throw new YupanaException(error(s"Unsupported auth method ${cr.method}"))
       case Left(msg) => throw new YupanaException(msg)
@@ -123,6 +124,52 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     waitFor(Tags.AUTHORIZED, Authorized.readFrame[ByteBuffer])
     waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])
 //    scheduleHeartbeatTimer()
+  }
+
+  def acquireNext(id: Int): Unit = {
+    assert(iterators.contains(id))
+
+    write(Next(id, batchSize))
+    var errorMessage: String = null
+    var footer: ResultFooter = null
+
+    var count = 0
+
+    do {
+      val frame = chanelReader.awaitAndReadFrame()
+      println(s"GOT FRAME ${frame.frameType.toChar}")
+
+      frame.frameType match {
+        case Tags.RESULT_ROW =>
+          val res = ResultRow.readFrame(frame)
+          iterators(res.id).addResult(res)
+          if (res.id == id) count += 1
+
+        case Tags.HEARTBEAT =>
+          heartbeat(Heartbeat.readFrame(frame).time)
+
+        case Tags.ERROR_MESSAGE =>
+          errorMessage = error(ErrorMessage.readFrame(frame).message)
+
+        case Tags.RESULT_FOOTER =>
+          val ftr = ResultFooter.readFrame(frame)
+          logger.fine(s"Got footer $ftr")
+          //              scheduleHeartbeatTimer()
+          iterators(ftr.id).setDone()
+          footer = ftr
+
+        case x =>
+          logger.severe(s"Unexpected message type '${x.toChar}'")
+          throw new IllegalStateException(s"Unexpected message type '${x.toChar}'")
+      }
+    } while (count < batchSize && footer == null && errorMessage == null)
+
+    if (footer != null || errorMessage != null) {
+      waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])
+      if (errorMessage != null) {
+        throw new YupanaException(errorMessage)
+      }
+    }
   }
 
   @tailrec
@@ -142,34 +189,23 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     }
   }
 
-  private def execRequestQuery(command: Command[_]): Result = {
+  private def execRequestQuery(id: Int, command: Command[_]): Result = {
     logger.fine(s"Exec request query $command")
     ensureNotClosed()
 //    cancelHeartbeatTimer()
-    sendRequest(command)
+    write(command)
 
     val header = waitFor(Tags.RESULT_HEADER, ResultHeader.readFrame[ByteBuffer])
 
     header match {
       case Right(h) =>
-        val r = resultIterator()
+        val r = new ResultIterator(id, this)
+        iterators += id -> r
         extractProtoResult(h, r)
 
       case Left(e) =>
 //        close()
         throw new YupanaException(e)
-    }
-  }
-
-  private def sendRequest(request: Command[_]): Unit = {
-    try {
-      write(request)
-    } catch {
-      case io: IOException =>
-        logger.warning(s"Caught $io while trying to write to channel, let's retry")
-        Thread.sleep(1000)
-        channel = null
-        write(request)
     }
   }
 
@@ -214,62 +250,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   private def heartbeat(time: Int): Unit = {
     val msg = s"Heartbeat($time)"
     logger.fine(msg)
-  }
-
-  private def resultIterator(): Iterator[ResultRow] = {
-    new Iterator[ResultRow] {
-
-      var footer: ResultFooter = _
-      val queue: mutable.Queue[ResultRow] = mutable.Queue.empty
-      var errorMessage: String = _
-
-      fill()
-
-      override def hasNext: Boolean = {
-        queue.nonEmpty || footer == null
-      }
-
-      override def next(): ResultRow = {
-        val result = queue.dequeue()
-        if (queue.isEmpty && footer == null) fill()
-        result
-      }
-
-      private def fill(): Unit = {
-        sendRequest(Next(batchSize))
-        do {
-          val frame = chanelReader.awaitAndReadFrame()
-
-          frame.frameType match {
-            case Tags.RESULT_ROW =>
-              queue.enqueue(ResultRow.readFrame(frame))
-
-            case Tags.HEARTBEAT =>
-              heartbeat(Heartbeat.readFrame(frame).time)
-
-            case Tags.ERROR_MESSAGE =>
-              errorMessage = error(ErrorMessage.readFrame(frame).message)
-
-            case Tags.RESULT_FOOTER =>
-              val ftr = ResultFooter.readFrame(frame)
-              logger.fine(s"Got footer $ftr")
-//              scheduleHeartbeatTimer()
-              footer = ftr
-
-            case x =>
-              logger.severe(s"Unexpected message type '${x.toChar}'")
-              throw new IllegalStateException(s"Unexpected message type '${x.toChar}'")
-          }
-        } while (queue.size < batchSize && footer == null && errorMessage == null)
-
-        if (footer != null || errorMessage != null) {
-          waitFor(Tags.IDLE, Idle.readFrame[ByteBuffer])
-          if (errorMessage != null) {
-            throw new YupanaException(errorMessage)
-          }
-        }
-      }
-    }
   }
 
   override def close(): Unit = {

@@ -97,7 +97,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
   it should "fail on unexpected response on hello" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, 10, "user", "password")
-    val err = ResultHeader("table", Seq(ResultField("A", "VARCHAR")))
+    val err = ResultHeader(1, "table", Seq(ResultField("A", "VARCHAR")))
     server.connect.flatMap(id => server.readAndSendResponses[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(err)))
     the[YupanaException] thrownBy client.connect(
       23456789
@@ -113,32 +113,35 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     withServerConnected { (server, id) =>
 
-      val header = ResultHeader(
-        "items_kkm",
-        Seq(
-          ResultField("time", "TIMESTAMP"),
-          ResultField("item", "VARCHAR")
+      val responses = (q: PrepareQuery) => {
+        val header = ResultHeader(
+          q.id,
+          "items_kkm",
+          Seq(
+            ResultField("time", "TIMESTAMP"),
+            ResultField("item", "VARCHAR")
+          )
         )
-      )
 
-      val hb = Heartbeat(1)
+        val hb = Heartbeat(1)
 
-      val ts = implicitly[Storable[Time]]
-      val ss = implicitly[Storable[String]]
+        val ts = implicitly[Storable[Time]]
+        val ss = implicitly[Storable[String]]
 
-      val data1 = ResultRow(Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(q.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-      val data2 = ResultRow(Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(q.id, Seq(ts.write(Time(21112L)), Array.empty))
 
-      val footer = ResultFooter(1, 2)
+        val footer = ResultFooter(q.id, 1, 2)
 
-      val responses = Seq(header, hb, data1, data2, footer, Idle())
+        Seq(header, hb, data1, data2, footer, Idle())
+      }
 
-      val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], _ => responses)
+      val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
 
       reqF.map { req =>
         inside(req) {
-          case PrepareQuery(q, f) =>
+          case PrepareQuery(_, q, f) =>
             q shouldEqual sql
 
         }
@@ -175,32 +178,35 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     withServerConnected { (server, id) =>
 
-      val header =
-        ResultHeader(
-          "items_kkm",
-          Seq(
-            ResultField("time", "TIMESTAMP"),
-            ResultField("item", "VARCHAR")
+      val responses = (q: PrepareQuery) => {
+        val header =
+          ResultHeader(
+            q.id,
+            "items_kkm",
+            Seq(
+              ResultField("time", "TIMESTAMP"),
+              ResultField("item", "VARCHAR")
+            )
           )
-        )
 
-      val hb = Heartbeat(1)
+        val hb = Heartbeat(1)
 
-      val ts = implicitly[Storable[Time]]
-      val ss = implicitly[Storable[String]]
+        val ts = implicitly[Storable[Time]]
+        val ss = implicitly[Storable[String]]
 
-      val data1 = ResultRow(Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(q.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-      val data2 = ResultRow(Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(q.id, Seq(ts.write(Time(21112L)), Array.empty))
 
-      val footer = ResultFooter(1, 2)
+        val footer = ResultFooter(q.id, 1, 2)
 
-      val responses = Seq(header, hb, data1, data2, footer)
+        Seq(header, hb, data1, data2, footer)
+      }
 
-      val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], _ => responses)
+      val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
       reqF map { req =>
         inside(req) {
-          case PrepareQuery(q, fs) =>
+          case PrepareQuery(_, q, fs) =>
             q shouldEqual sql
             fs should have size 2
         }
@@ -246,25 +252,28 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "fail when no footer in result" in withServerConnected { (server, id) =>
 
-    val header =
-      ResultHeader(
-        "items_kkm",
-        Seq(
-          ResultField("time", "TIMESTAMP"),
-          ResultField("item", "VARCHAR")
+    val responses = (q: PrepareQuery) => {
+      val header =
+        ResultHeader(
+          q.id,
+          "items_kkm",
+          Seq(
+            ResultField("time", "TIMESTAMP"),
+            ResultField("item", "VARCHAR")
+          )
         )
-      )
 
-    val hb = Heartbeat(1)
+      val hb = Heartbeat(1)
 
-    val ts = implicitly[Storable[Time]]
-    val ss = implicitly[Storable[String]]
+      val ts = implicitly[Storable[Time]]
+      val ss = implicitly[Storable[String]]
 
-    val data = ResultRow(Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+      val data = ResultRow(q.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-    val responses = Seq(header, hb, data)
+      Seq(header, hb, data)
+    }
 
-    server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], _ => responses)
+    server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
   } { client =>
 
     val sql =
