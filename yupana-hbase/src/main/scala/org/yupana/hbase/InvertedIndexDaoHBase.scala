@@ -21,7 +21,7 @@ import org.apache.hadoop.hbase.CellUtil
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, FirstKeyOnlyFilter, KeyOnlyFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.utils.{CloseableIterator, DimOrdering, SortedSetIterator}
+import org.yupana.api.utils.{ CloseableIterator, DimOrdering, SortedSetIterator }
 import org.yupana.core.dao.InvertedIndexDao
 
 import scala.jdk.CollectionConverters._
