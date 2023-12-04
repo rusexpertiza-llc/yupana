@@ -44,42 +44,42 @@ class FramingChannelReader(
 
       channel.read(
         buffer,
-        null,
-        new CompletionHandler[Integer, Any] {
-          override def completed(r: Integer, attachment: Any): Unit = {
+        p,
+        new CompletionHandler[Integer, Promise[Frame]] {
+          override def completed(r: Integer, promise: Promise[Frame]): Unit = {
             if (r == -1 && buffer.position() < PAYLOAD_OFFSET) {
-              p.failure(new IOException("Unexpected end of response"))
+              promise.failure(new IOException("Unexpected end of response"))
             } else {
-//              if (buffer.position() >= PAYLOAD_OFFSET) {
-              val tag = buffer.get(0)
-              val size = buffer.getInt(1)
-              var lastRead = 0
-              while (buffer.position() < size + PAYLOAD_OFFSET && lastRead >= 0) {
-                lastRead = channel.read(buffer).get()
-                //            if (lastRead == 0) Thread.sleep(1)
-              }
-              val result = Array.ofDim[Byte](size)
-              if (buffer.position() < size + PAYLOAD_OFFSET) {
-                p.failure(new IOException("Unexpected end of response"))
+              if (buffer.position() >= PAYLOAD_OFFSET) {
+                val tag = buffer.get(0)
+                val size = buffer.getInt(1)
+                var lastRead = 0
+                while (buffer.position() < size + PAYLOAD_OFFSET && lastRead >= 0) {
+                  lastRead = channel.read(buffer).get()
+                  //            if (lastRead == 0) Thread.sleep(1)
+                }
+                val result = Array.ofDim[Byte](size)
+                if (buffer.position() < size + PAYLOAD_OFFSET) {
+                  promise.failure(new IOException("Unexpected end of response"))
+                } else {
+                  val totalRead = buffer.position()
+
+                  buffer.position(PAYLOAD_OFFSET)
+                  buffer.get(result)
+
+                  val restSize = totalRead - PAYLOAD_OFFSET - size
+                  System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
+                  buffer.position(restSize)
+
+                  promise.success(Frame(tag, result))
+                }
               } else {
-                val totalRead = buffer.position()
-
-                buffer.position(PAYLOAD_OFFSET)
-                buffer.get(result)
-
-                val restSize = totalRead - PAYLOAD_OFFSET - size
-                System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
-                buffer.position(restSize)
-
-                p.success(Frame(tag, result))
+                channel.read(buffer, promise, this)
               }
-//              } else {
-//                None
-//              }
             }
           }
 
-          override def failed(exc: Throwable, attachment: Any): Unit = p.failure(exc)
+          override def failed(exc: Throwable, promise: Promise[Frame]): Unit = promise.failure(exc)
         }
       )
       p.future
