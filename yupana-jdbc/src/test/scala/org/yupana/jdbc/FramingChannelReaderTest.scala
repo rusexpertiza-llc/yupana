@@ -13,14 +13,25 @@ import java.util.concurrent.{ CompletableFuture, Future }
 class SimpleAsyncByteChannel(data: Array[Byte]) extends AsynchronousByteChannel {
 
   private var closed = false
+  private var done = false
   override def read[A](dst: ByteBuffer, attachment: A, handler: CompletionHandler[Integer, _ >: A]): Unit = {
-    dst.put(data)
-    handler.completed(data.length, attachment)
+    if (!done) {
+      dst.put(data)
+      done = true
+      handler.completed(data.length, attachment)
+    } else {
+      handler.completed(-1, attachment)
+    }
   }
 
   override def read(dst: ByteBuffer): Future[Integer] = {
-    dst.put(data)
-    CompletableFuture.completedFuture(data.length)
+    if (!done) {
+      dst.put(data)
+      done = true
+      CompletableFuture.completedFuture(data.length)
+    } else {
+      CompletableFuture.completedFuture(-1)
+    }
   }
 
   override def write[A](src: ByteBuffer, attachment: A, handler: CompletionHandler[Integer, _ >: A]): Unit = {
@@ -61,19 +72,18 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
         h.completed(10, a)
       }
 
-    (channel
-      .read(_: ByteBuffer))
-      .expects(*)
-      .onCall((_: ByteBuffer) => CompletableFuture.completedFuture(Integer.valueOf(-1)))
+    (channel.read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any])).expects(*, *, *).onCall {
+      (_, a, h) => h.completed(-1, a)
+    }
 
     an[IOException] should be thrownBy iterator.awaitAndReadFrame()
   }
 
-  it should "return None when it cannot read frame size" in {
+  it should "throw an exception when it cannot read frame size" in {
     val channel = new SimpleAsyncByteChannel(Array(1, 2, 3))
     val reader = new FramingChannelReader(channel, 100)
 
-    reader.awaitAndReadFrame() shouldBe None
+    an[IOException] should be thrownBy reader.awaitAndReadFrame()
   }
 
   it should "continue read several frames from channel" in {
@@ -101,9 +111,10 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
         h.completed(8, a)
     }
 
-    (channel.read(_: ByteBuffer)).expects(*).onCall { (bb: ByteBuffer) =>
-      bb.put(Array[Byte](6, 7))
-      CompletableFuture.completedFuture(Integer.valueOf(2))
+    (channel.read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any])).expects(*, *, *).onCall {
+      (bb, a, h) =>
+        bb.put(Array[Byte](6, 7))
+        h.completed(2, a)
     }
 
     iterator.awaitAndReadFrame().payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
@@ -141,11 +152,11 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
       .once()
 
     (channel
-      .read(_: ByteBuffer))
-      .expects(*)
-      .onCall { (bb: ByteBuffer) =>
+      .read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any]))
+      .expects(*, *, *)
+      .onCall { (bb, a, h) =>
         bb.put(Array[Byte](7, 8, 9))
-        CompletableFuture.completedFuture(Integer.valueOf(3))
+        h.completed(3, a)
       }
       .once()
 

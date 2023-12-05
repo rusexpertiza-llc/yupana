@@ -38,51 +38,62 @@ class FramingChannelReader(
     buf
   }
 
-  final def readFrame(): Future[Frame] = {
-    buffer.synchronized {
-      val p = Promise[Frame]()
+  private def extractFrame(tag: Byte, size: Int): Frame = {
+    val result = Array.ofDim[Byte](size)
+    val totalRead = buffer.position()
 
-      channel.read(
-        buffer,
-        p,
-        new CompletionHandler[Integer, Promise[Frame]] {
-          override def completed(r: Integer, promise: Promise[Frame]): Unit = {
-            if (r == -1 && buffer.position() < PAYLOAD_OFFSET) {
+    buffer.position(PAYLOAD_OFFSET)
+    buffer.get(result)
+
+    val restSize = totalRead - PAYLOAD_OFFSET - size
+    System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
+    buffer.position(restSize)
+    Frame(tag, result)
+  }
+
+  private val completionHandler = new CompletionHandler[Integer, Promise[Frame]] {
+    override def completed(r: Integer, promise: Promise[Frame]): Unit = {
+      if (r == -1) {
+        promise.failure(new IOException("Unexpected end of response"))
+      } else {
+        if (buffer.position() >= PAYLOAD_OFFSET) {
+          val tag = buffer.get(0)
+          val size = buffer.getInt(1)
+          if (buffer.position() < size + PAYLOAD_OFFSET) {
+            channel.read(buffer, promise, this)
+          } else {
+            if (buffer.position() < size + PAYLOAD_OFFSET) {
               promise.failure(new IOException("Unexpected end of response"))
             } else {
-              if (buffer.position() >= PAYLOAD_OFFSET) {
-                val tag = buffer.get(0)
-                val size = buffer.getInt(1)
-                var lastRead = 0
-                while (buffer.position() < size + PAYLOAD_OFFSET && lastRead >= 0) {
-                  lastRead = channel.read(buffer).get()
-                  //            if (lastRead == 0) Thread.sleep(1)
-                }
-                val result = Array.ofDim[Byte](size)
-                if (buffer.position() < size + PAYLOAD_OFFSET) {
-                  promise.failure(new IOException("Unexpected end of response"))
-                } else {
-                  val totalRead = buffer.position()
-
-                  buffer.position(PAYLOAD_OFFSET)
-                  buffer.get(result)
-
-                  val restSize = totalRead - PAYLOAD_OFFSET - size
-                  System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
-                  buffer.position(restSize)
-
-                  promise.success(Frame(tag, result))
-                }
-              } else {
-                channel.read(buffer, promise, this)
-              }
+              promise.success(extractFrame(tag, size))
             }
           }
-
-          override def failed(exc: Throwable, promise: Promise[Frame]): Unit = promise.failure(exc)
+        } else {
+          channel.read(buffer, promise, this)
         }
-      )
-      p.future
+      }
+    }
+
+    override def failed(exc: Throwable, promise: Promise[Frame]): Unit = promise.failure(exc)
+  }
+
+  final def readFrame(): Future[Frame] = {
+    buffer.synchronized {
+      if (buffer.position() >= PAYLOAD_OFFSET) {
+        val tag = buffer.get(0)
+        val size = buffer.getInt(1)
+        if (buffer.position() < size + PAYLOAD_OFFSET) {
+          val p = Promise[Frame]()
+          channel.read(buffer, p, completionHandler)
+          p.future
+        } else {
+          Future.successful(extractFrame(tag, size))
+        }
+      } else {
+        val p = Promise[Frame]()
+        channel.read(buffer, p, completionHandler)
+        p.future
+      }
     }
   }
 

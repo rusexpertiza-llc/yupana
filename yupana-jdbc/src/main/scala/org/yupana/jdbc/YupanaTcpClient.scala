@@ -134,7 +134,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
     do {
       val frame = chanelReader.awaitAndReadFrame()
-      println(s"GOT FRAME ${frame.frameType.toChar}")
 
       frame.frameType match {
         case Tags.RESULT_ROW =>
