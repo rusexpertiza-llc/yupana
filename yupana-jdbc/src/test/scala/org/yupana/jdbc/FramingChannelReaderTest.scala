@@ -1,122 +1,166 @@
 package org.yupana.jdbc
 
-import java.io.{ ByteArrayInputStream, IOException }
-import java.nio.ByteBuffer
-import java.nio.channels.{ Channels, ReadableByteChannel }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.channels.{ AsynchronousByteChannel, CompletionHandler }
+import java.util.concurrent.{ CompletableFuture, Future }
+
+class SimpleAsyncByteChannel(data: Array[Byte]) extends AsynchronousByteChannel {
+
+  private var closed = false
+  private var done = false
+  override def read[A](dst: ByteBuffer, attachment: A, handler: CompletionHandler[Integer, _ >: A]): Unit = {
+    if (!done) {
+      dst.put(data)
+      done = true
+      handler.completed(data.length, attachment)
+    } else {
+      handler.completed(-1, attachment)
+    }
+  }
+
+  override def read(dst: ByteBuffer): Future[Integer] = {
+    if (!done) {
+      dst.put(data)
+      done = true
+      CompletableFuture.completedFuture(data.length)
+    } else {
+      CompletableFuture.completedFuture(-1)
+    }
+  }
+
+  override def write[A](src: ByteBuffer, attachment: A, handler: CompletionHandler[Integer, _ >: A]): Unit = {
+    handler.completed(src.remaining(), attachment)
+  }
+
+  override def write(src: ByteBuffer): Future[Integer] = {
+    CompletableFuture.completedFuture(src.remaining())
+  }
+
+  override def close(): Unit = closed = true
+
+  override def isOpen: Boolean = !closed
+}
+
 class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactory with OptionValues {
 
   "FramingChannelReader" should "read frame from channel" in {
-    val channel = Channels.newChannel(new ByteArrayInputStream(createFrame(1, 2, 3, 4, 5)))
+    val channel = new SimpleAsyncByteChannel(createFrame(1, 2, 3, 4, 5))
     val reader = new FramingChannelReader(channel, 100)
 
-    val frame = reader.readFrame()
-    frame.value.frameType shouldEqual 42
-    frame.value.payload should contain theSameElementsAs Array(1, 2, 3, 4, 5)
+    val frame = reader.awaitAndReadFrame()
+    frame.frameType shouldEqual 42
+    frame.payload should contain theSameElementsAs Array(1, 2, 3, 4, 5)
   }
 
   it should "throw an exception when channel is closed unexpectedly" in {
-    val channel = mock[ReadableByteChannel]
+    val channel = mock[AsynchronousByteChannel]
     val iterator = new FramingChannelReader(channel, 100)
 
-    (channel.read _).expects(*).onCall { bb: ByteBuffer =>
-      bb.put(5.toByte)
-      bb.putInt(10)
-      bb.put(Array[Byte](1, 2, 3, 4, 5))
-      10
+    (channel
+      .read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any]))
+      .expects(*, *, *)
+      .onCall { (bb, a, h) =>
+        bb.put(5.toByte)
+        bb.putInt(10)
+        bb.put(Array[Byte](1, 2, 3, 4, 5))
+        h.completed(10, a)
+      }
+
+    (channel.read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any])).expects(*, *, *).onCall {
+      (_, a, h) => h.completed(-1, a)
     }
 
-    (channel.read _).expects(*).onCall((_: ByteBuffer) => -1)
-    (channel.isOpen _).expects().onCall(() => true)
-    (channel.close _).expects().once()
-
-    an[IOException] should be thrownBy iterator.readFrame()
+    an[IOException] should be thrownBy iterator.awaitAndReadFrame()
   }
 
-  it should "return None when it cannot read frame size" in {
-    val channel = Channels.newChannel(new ByteArrayInputStream(Array(1, 2, 3)))
+  it should "throw an exception when it cannot read frame size" in {
+    val channel = new SimpleAsyncByteChannel(Array(1, 2, 3))
     val reader = new FramingChannelReader(channel, 100)
 
-    reader.readFrame() shouldBe None
+    an[IOException] should be thrownBy reader.awaitAndReadFrame()
   }
 
   it should "continue read several frames from channel" in {
-    val channel = Channels.newChannel(
-      new ByteArrayInputStream(
-        createFrame(1, 2, 3) ++ createFrame(4, 5, 6, 7) ++ createFrame(8, 9)
-      )
+    val channel = new SimpleAsyncByteChannel(
+      createFrame(1, 2, 3) ++ createFrame(4, 5, 6, 7) ++ createFrame(8, 9)
     )
+
     val reader = new FramingChannelReader(channel, 100)
 
-    reader.readFrame().value.payload should contain theSameElementsAs Array(1, 2, 3)
-    reader.readFrame().value.payload should contain theSameElementsAs Array(4, 5, 6, 7)
-    reader.readFrame().value.payload should contain theSameElementsAs Array(8, 9)
+    reader.awaitAndReadFrame().payload should contain theSameElementsAs Array(1, 2, 3)
+    reader.awaitAndReadFrame().payload should contain theSameElementsAs Array(4, 5, 6, 7)
+    reader.awaitAndReadFrame().payload should contain theSameElementsAs Array(8, 9)
   }
 
   it should "handle create a single chunk from parts" in {
-    val channel = mock[ReadableByteChannel]
+    val channel = mock[AsynchronousByteChannel]
 
     val iterator = new FramingChannelReader(channel, 100)
 
-    (channel.isOpen _).expects().returning(true).anyNumberOfTimes()
-    (channel.read _).expects(*).onCall { bb: ByteBuffer =>
-      bb.put(33.toByte)
-      bb.putInt(5)
-      bb.put(Array[Byte](1, 2, 3))
-      8
+    (channel.read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any])).expects(*, *, *).onCall {
+      (bb, a, h) =>
+        bb.put(33.toByte)
+        bb.putInt(5)
+        bb.put(Array[Byte](1, 2, 3))
+        h.completed(8, a)
     }
 
-    (channel.read _).expects(*).onCall { bb: ByteBuffer =>
-      bb.put(Array[Byte](6, 7))
-      2
+    (channel.read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any])).expects(*, *, *).onCall {
+      (bb, a, h) =>
+        bb.put(Array[Byte](6, 7))
+        h.completed(2, a)
     }
 
-    iterator.readFrame().value.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
+    iterator.awaitAndReadFrame().payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
   }
 
   it should "handle buffer overflow" in {
-    val channel = mock[ReadableByteChannel]
+    val channel = mock[AsynchronousByteChannel]
 
     val reader = new FramingChannelReader(channel, 14)
 
-    (channel.isOpen _).expects().returning(true).anyNumberOfTimes()
-    (channel.read _)
-      .expects(*)
-      .onCall { bb: ByteBuffer =>
+    (channel
+      .read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any]))
+      .expects(*, *, *)
+      .onCall { (bb, a, h) =>
         bb.put(1.toByte)
         bb.putInt(4)
         bb.put(Array[Byte](1, 2, 3, 4))
-        9
+        h.completed(9, a)
       }
       .once()
 
-    val frame1 = reader.readFrame().value
+    val frame1 = reader.awaitAndReadFrame()
     frame1.frameType shouldEqual 1
     frame1.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
 
-    (channel.read _)
-      .expects(*)
-      .onCall { bb: ByteBuffer =>
+    (channel
+      .read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any]))
+      .expects(*, *, *)
+      .onCall { (bb, a, h) =>
         bb.put(2.toByte)
         bb.putInt(5)
         bb.put(Array[Byte](5, 6))
-        7
+        h.completed(7, a)
       }
       .once()
 
-    (channel.read _)
-      .expects(*)
-      .onCall { bb: ByteBuffer =>
+    (channel
+      .read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any]))
+      .expects(*, *, *)
+      .onCall { (bb, a, h) =>
         bb.put(Array[Byte](7, 8, 9))
-        3
+        h.completed(3, a)
       }
       .once()
 
-    val frame2 = reader.readFrame().value
+    val frame2 = reader.awaitAndReadFrame()
     frame2.frameType shouldEqual 2
     frame2.payload should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
   }

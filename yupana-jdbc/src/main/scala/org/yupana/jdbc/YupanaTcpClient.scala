@@ -24,7 +24,7 @@ import org.yupana.protocol._
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
-import java.nio.channels.SocketChannel
+import java.nio.channels.AsynchronousSocketChannel
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
 import scala.annotation.tailrec
@@ -36,7 +36,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   logger.info("New instance of YupanaTcpClient")
 
-  private var channel: SocketChannel = _
+  private var channel: AsynchronousSocketChannel = _
   private var chanelReader: FramingChannelReader = _
   private val nextId: AtomicInteger = new AtomicInteger(0)
   private var iterators: Map[Int, ResultIterator] = Map.empty
@@ -84,14 +84,11 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   def connect(reqTime: Long): Unit = {
     logger.fine("Hello")
 
-    if (channel == null || !channel.isOpen || !channel.isConnected) {
+    if (channel == null || !channel.isOpen /* || !channel.isConnected*/ ) {
       logger.info(s"Connect to $host:$port")
-      channel = SocketChannel.open()
-      channel.configureBlocking(false)
-      channel.connect(new InetSocketAddress(host, port))
-      while (!channel.finishConnect()) {
-        Thread.sleep(1)
-      }
+      channel = AsynchronousSocketChannel.open()
+      channel.connect(new InetSocketAddress(host, port)).get()
+
       chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
       closed = false
     }
@@ -137,7 +134,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
     do {
       val frame = chanelReader.awaitAndReadFrame()
-      println(s"GOT FRAME ${frame.frameType.toChar}")
 
       frame.frameType match {
         case Tags.RESULT_ROW =>
@@ -218,7 +214,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     bb.flip()
 
     while (bb.hasRemaining) {
-      val written = channel.write(bb)
+      val written = channel.write(bb).get()
       if (written == 0) Thread.sleep(1)
     }
 
