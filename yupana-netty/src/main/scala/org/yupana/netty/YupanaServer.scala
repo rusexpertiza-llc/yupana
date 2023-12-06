@@ -24,7 +24,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ Channel, ChannelFuture, ChannelInitializer, ChannelOption }
 
 import scala.concurrent.{ Future, Promise }
-//import io.netty.handler.timeout.IdleStateHandler
+import io.netty.handler.timeout.IdleStateHandler
 
 class YupanaServer(host: String, port: Int, nThreads: Int, serverContext: ServerContext) extends StrictLogging {
 
@@ -45,9 +45,9 @@ class YupanaServer(host: String, port: Int, nThreads: Int, serverContext: Server
       .channel(classOf[NioServerSocketChannel])
       .childHandler(new ChannelInitializer[SocketChannel] {
         override def initChannel(ch: SocketChannel): Unit = {
+          ch.pipeline().addLast(new IdleStateHandler(30, 0, 0))
           ch.pipeline().addLast("frame", new FrameCodec())
-//            ch.pipeline().addLast(new IdleStateHandler(0, 60, 0))
-          ch.pipeline().addLast(yupanaGroup, "handler", new MessageHandler(serverContext))
+          ch.pipeline().addLast(yupanaGroup, "handler", new ConnectingHandler(serverContext))
         }
       })
       .option(ChannelOption.SO_BACKLOG, Integer.valueOf(128))

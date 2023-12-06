@@ -17,9 +17,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   import NettyBuffer._
 
-  "MessageHandler" should "establish connection" in {
+  "ConnectingHandler" should "establish connection" in {
     Given("Message Handler")
-    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(null, new NonEmptyUserAuthorizer, None)))
+    val ch = new EmbeddedChannel(new ConnectingHandler(ServerContext(null, new NonEmptyUserAuthorizer)))
 
     val cmd = new Hello(ProtocolVersion.value, "3.2.1", 1234567L, Map.empty)
     val frame = cmd.toFrame[ByteBuf]
@@ -50,7 +50,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
   }
 
   it should "fail on unknown auth method" in {
-    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(null, new NonEmptyUserAuthorizer, None)))
+    val ch = new EmbeddedChannel(new ConnectingHandler(ServerContext(null, new NonEmptyUserAuthorizer)))
 
     val cmd = new Hello(ProtocolVersion.value, "3.2.1", 1234567L, Map.empty)
     val frame = cmd.toFrame[ByteBuf]
@@ -71,7 +71,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
   }
 
   it should "fail with empty user" in {
-    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(null, new NonEmptyUserAuthorizer, None)))
+    val ch = new EmbeddedChannel(new ConnectingHandler(ServerContext(null, new NonEmptyUserAuthorizer)))
 
     val cmd = new Hello(ProtocolVersion.value, "3.2.1", 1234567L, Map.empty)
     val frame = cmd.toFrame[ByteBuf]
@@ -91,9 +91,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     err.severity shouldEqual ErrorMessage.SEVERITY_FATAL
   }
 
-  it should "handle query" in {
+  it should "handle query after auth" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer, None)))
+    val ch = new EmbeddedChannel(new ConnectingHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer)))
     auth(ch)
 
     (queryEngine.query _)
@@ -153,10 +153,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     footer.rows shouldEqual 1
   }
 
-  it should "handle multiple queries simultaneously" in {
+  "QueryHandler" should "handle multiple queries simultaneously" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer, None)))
-    auth(ch)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer), "test"))
 
     (queryEngine.query _)
       .expects("SELECT 1", Map.empty[Int, parser.Value])
@@ -198,12 +197,15 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     val footer1 = readMessage(ch, ResultFooter)
     footer1.id shouldEqual 1
+
+    ch.writeInbound(Next(1, 10).toFrame)
+    val err = readMessage(ch, ErrorMessage)
+    err.message shouldEqual "Unknown stream id 1"
   }
 
   it should "should handle cancel queries" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new MessageHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer, None)))
-    auth(ch)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer), "test"))
 
     (queryEngine.query _)
       .expects("SELECT 1", Map.empty[Int, parser.Value])

@@ -18,8 +18,4 @@ package org.yupana.netty
 
 import org.yupana.core.QueryEngineRouter
 
-case class ServerContext(
-    queryEngineRouter: QueryEngineRouter,
-    authorizer: Authorizer,
-    user: Option[String]
-)
+case class ServerContext(queryEngineRouter: QueryEngineRouter, authorizer: Authorizer)

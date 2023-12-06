@@ -18,7 +18,7 @@ package org.yupana.netty
 import org.yupana.api.query.Result
 import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
 
-class Streaming(id: Int, result: Result) {
+class Stream(id: Int, result: Result) {
 
   private var rows = 0
   private val resultTypes = result.dataTypes.zipWithIndex
@@ -34,6 +34,8 @@ class Streaming(id: Int, result: Result) {
       batch :+ createFooter(result)
     }
   }
+
+  def hasNext: Boolean = result.hasNext
 
   private def createBatch(result: Result, size: Int): Seq[ResultRow] = {
     result
