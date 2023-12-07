@@ -25,6 +25,7 @@ import org.yupana.protocol._
 
 class QueryHandler(serverContext: ServerContext, userName: String) extends FrameHandlerBase with StrictLogging {
 
+  private val nanos = System.nanoTime()
   private var streams: Map[Int, Stream] = Map.empty
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
@@ -34,8 +35,11 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
 
   override def userEventTriggered(ctx: ChannelHandlerContext, evt: Any): Unit = {
     evt match {
-      case ise: IdleStateEvent if ise.state() == IdleState.WRITER_IDLE => logger.trace("Send heartbeat")
-      case _                                                           =>
+      case ise: IdleStateEvent if ise.state() == IdleState.WRITER_IDLE =>
+        val t = ((System.nanoTime() - nanos) / 1_000_000_000L).toInt
+        logger.trace(s"Send heartbeat ${t}s")
+        writeResponse(ctx, Heartbeat(t))
+      case _ =>
     }
   }
 
