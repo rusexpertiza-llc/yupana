@@ -169,7 +169,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     }
   }
 
-  ignore should "handle batch query" in {
+  it should "handle batch query" in {
     val sql =
       """
         |SELECT time, item FROM items_kkm
@@ -178,7 +178,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     withServerConnected { (server, id) =>
 
-      val responses = (q: PrepareQuery) => {
+      val responses = (q: BatchQuery) => {
         val header =
           ResultHeader(
             q.id,
@@ -203,10 +203,10 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         Seq(header, hb, data1, data2, footer)
       }
 
-      val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
+      val reqF = server.readAndSendResponses[BatchQuery](id, BatchQuery.readFrame[ByteBuffer], responses)
       reqF map { req =>
         inside(req) {
-          case PrepareQuery(_, q, fs) =>
+          case BatchQuery(_, q, fs) =>
             q shouldEqual sql
             fs should have size 2
         }

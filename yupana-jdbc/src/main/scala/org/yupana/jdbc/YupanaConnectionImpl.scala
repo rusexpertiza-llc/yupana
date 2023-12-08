@@ -23,7 +23,11 @@ import java.util.concurrent.Executor
 import org.yupana.api.query.Result
 import org.yupana.protocol.ParameterValue
 
+import scala.concurrent.ExecutionContext
+
 class YupanaConnectionImpl(override val url: String, properties: Properties) extends YupanaConnection {
+  implicit private val ec: ExecutionContext = ExecutionContext.global
+
   private var autoCommit = false
   private var closed = false
 
