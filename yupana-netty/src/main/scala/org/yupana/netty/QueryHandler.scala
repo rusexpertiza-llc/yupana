@@ -46,6 +46,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
     frame.frameType match {
       case Tags.PREPARE_QUERY => processMessage(ctx, frame, PrepareQuery)(pq => handleQuery(ctx, pq))
+      case Tags.BATCH_QUERY   => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
       case Tags.NEXT          => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
       case Tags.CANCEL        => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
       case x                  => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
@@ -56,16 +57,28 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
     logger.debug(s"""Processing SQL query: "${pq.query}"; parameters: ${pq.params}""")
     val params = pq.params.map { case (index, p) => index -> convertValue(p) }
     serverContext.queryEngineRouter.query(pq.query, params) match {
-      case Right(result) =>
-        synchronized {
-          if (!streams.contains(pq.id)) {
-            streams += pq.id -> new Stream(pq.id, result)
-            writeResponse(ctx, makeHeader(pq.id, result))
-          } else {
-            writeResponse(ctx, ErrorMessage(s"ID ${pq.id} already used"))
-          }
-        }
-      case Left(msg) => writeResponse(ctx, ErrorMessage(msg))
+      case Right(result) => addStream(ctx, pq.id, result)
+      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg))
+    }
+  }
+
+  private def handleBatchQuery(ctx: ChannelHandlerContext, bq: BatchQuery): Unit = {
+    logger.debug(s"""Processing batch SQL query: "${bq.query}"; parameters: ${bq.params}""")
+    val params = bq.params.map(_.map { case (index, p) => index -> convertValue(p) })
+    serverContext.queryEngineRouter.batchQuery(bq.query, params) match {
+      case Right(result) => addStream(ctx, bq.id, result)
+      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg))
+    }
+  }
+
+  private def addStream(ctx: ChannelHandlerContext, id: Int, result: Result): Unit = {
+    synchronized {
+      if (!streams.contains(id)) {
+        streams += id -> new Stream(id, result)
+        writeResponse(ctx, makeHeader(id, result))
+      } else {
+        writeResponse(ctx, ErrorMessage(s"ID ${id} already used"))
+      }
     }
   }
 

@@ -66,19 +66,14 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     if (closed) throw new YupanaException("Connection is closed")
   }
 
-  def query(query: String): Result = {
-    val id = nextId.incrementAndGet()
-    execRequestQuery(id, SimpleQuery(id, query))
-  }
-
   def prepareQuery(query: String, params: Map[Int, ParameterValue]): Result = {
     val id = nextId.incrementAndGet()
     execRequestQuery(id, PrepareQuery(id, query, params))
   }
 
   def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
-    throw new UnsupportedOperationException("not implemented yet")
-//    execRequestQuery(request)
+    val id = nextId.incrementAndGet()
+    execRequestQuery(id, BatchQuery(id, query, params))
   }
 
   def connect(reqTime: Long): Unit = {

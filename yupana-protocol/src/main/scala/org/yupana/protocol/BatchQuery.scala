@@ -16,10 +16,14 @@
 
 package org.yupana.protocol
 
-case class SimpleQuery(id: Int, query: String) extends Command[SimpleQuery](SimpleQuery)
+case class BatchQuery(id: Int, query: String, params: Seq[Map[Int, ParameterValue]])
+    extends Command[BatchQuery](BatchQuery)
 
-object SimpleQuery extends MessageHelper[SimpleQuery] {
-  override val tag: Byte = Tags.SIMPLE_QUERY
-  override val readWrite: ReadWrite[SimpleQuery] =
-    ReadWrite.product2[SimpleQuery, Int, String](SimpleQuery.apply)(q => (q.id, q.query))
+object BatchQuery extends MessageHelper[BatchQuery] {
+
+  override val tag: Byte = Tags.BATCH_QUERY
+  override val readWrite: ReadWrite[BatchQuery] =
+    ReadWrite.product3[BatchQuery, Int, String, Seq[Map[Int, ParameterValue]]](BatchQuery.apply)(q =>
+      (q.id, q.query, q.params)
+    )
 }
