@@ -33,7 +33,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     resp.reqTime shouldEqual 1234567L
 
     val credentials = readMessage(ch, CredentialsRequest)
-    credentials.method shouldEqual CredentialsRequest.METHOD_PLAIN
+    credentials.methods shouldEqual Seq(CredentialsRequest.METHOD_PLAIN)
 
     When("Credentials sent")
 
@@ -43,10 +43,6 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     Then("Authorized should be replied")
     val authFrame = ch.readOutbound[Frame]()
     authFrame.frameType shouldEqual Tags.AUTHORIZED
-
-    Then("Idle shall be replied")
-    val idleFrame = ch.readOutbound[Frame]()
-    idleFrame.frameType shouldEqual Tags.IDLE
   }
 
   it should "fail on unknown auth method" in {
@@ -249,7 +245,5 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     val authFrame = ch.readOutbound[Frame]()
     authFrame.frameType shouldEqual Tags.AUTHORIZED
-    val idleFrame = ch.readOutbound[Frame]()
-    idleFrame.frameType shouldEqual Tags.IDLE
   }
 }

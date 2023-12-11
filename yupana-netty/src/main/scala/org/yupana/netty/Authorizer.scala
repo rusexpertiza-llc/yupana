@@ -18,7 +18,7 @@ package org.yupana.netty
 
 trait Authorizer {
 
-  def method: String
+  def methods: Seq[String]
 
   def authorize(method: String, userName: String, password: String): Either[String, String]
 }

@@ -28,11 +28,11 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
           h =>
             Seq(
               HelloResponse(ProtocolVersion.value, h.timestamp),
-              CredentialsRequest(CredentialsRequest.METHOD_PLAIN)
+              CredentialsRequest(Seq(CredentialsRequest.METHOD_PLAIN, "SECURE"))
             )
         )
       credentials <- server
-        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized(), Idle()))
+        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
       _ = server.close()
     } yield (hello, credentials)
 
@@ -134,7 +134,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
         val footer = ResultFooter(q.id, 1, 2)
 
-        Seq(header, hb, data1, data2, footer, Idle())
+        Seq(header, hb, data1, data2, footer)
       }
 
       val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
@@ -309,10 +309,13 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
           id,
           Hello.readFrame[ByteBuffer],
           h =>
-            Seq(HelloResponse(ProtocolVersion.value, h.timestamp), CredentialsRequest(CredentialsRequest.METHOD_PLAIN))
+            Seq(
+              HelloResponse(ProtocolVersion.value, h.timestamp),
+              CredentialsRequest(Seq(CredentialsRequest.METHOD_PLAIN))
+            )
         )
       _ <- server
-        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized(), Idle()))
+        .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
       r <- serverBody(server, id)
       _ = server.close(id)
     } yield r

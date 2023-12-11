@@ -16,11 +16,12 @@
 
 package org.yupana.protocol
 
-case class CredentialsRequest(method: String) extends Response[CredentialsRequest](CredentialsRequest)
+case class CredentialsRequest(methods: Seq[String]) extends Response[CredentialsRequest](CredentialsRequest)
 
 object CredentialsRequest extends MessageHelper[CredentialsRequest] {
   val METHOD_PLAIN: String = "plain"
 
   override val tag: Byte = Tags.CREDENTIALS_REQUEST
-  override val readWrite: ReadWrite[CredentialsRequest] = ReadWrite[String].imap(CredentialsRequest.apply)(_.method)
+  override val readWrite: ReadWrite[CredentialsRequest] =
+    ReadWrite[Seq[String]].imap(CredentialsRequest.apply)(_.methods)
 }

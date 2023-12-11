@@ -46,7 +46,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
       case Hello(pv, _, time, _) if pv == ProtocolVersion.value =>
         writeResponses(
           ctx,
-          Seq(HelloResponse(ProtocolVersion.value, time), CredentialsRequest(context.authorizer.method))
+          Seq(HelloResponse(ProtocolVersion.value, time), CredentialsRequest(context.authorizer.methods))
         )
         gotHello = true
 
@@ -69,8 +69,8 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
       case Credentials(m, u, p) =>
         context.authorizer.authorize(m, u, p) match {
           case Right(user) =>
-            writeResponse(ctx, Authorized())
             connected(ctx, user)
+            writeResponse(ctx, Authorized())
           case Left(err) =>
             writeResponse(ctx, ErrorMessage(err, ErrorMessage.SEVERITY_FATAL))
             ctx.close()
@@ -85,7 +85,5 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
     ctx
       .pipeline()
       .replace(classOf[ConnectingHandler], "queryHandler", new QueryHandler(context, userName))
-
-    writeResponse(ctx, Idle())
   }
 }

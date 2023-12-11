@@ -37,6 +37,4 @@ object Tags {
   val CREDENTIALS_REQUEST: Byte = 'C'
   val CREDENTIALS: Byte = 'c'
   val AUTHORIZED: Byte = 'A'
-
-  val IDLE: Byte = 'I'
 }

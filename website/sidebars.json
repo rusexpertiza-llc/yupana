@@ -19,7 +19,8 @@
     ],
     "Описание протокола": [
       "protocol/connect",
-      "protocol/query"
+      "protocol/query",
+      "protocol/batch"
     ]
   }
 }

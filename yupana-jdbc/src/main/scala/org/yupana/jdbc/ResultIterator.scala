@@ -19,9 +19,8 @@ package org.yupana.jdbc
 import org.yupana.protocol.ResultRow
 
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext
 
-class ResultIterator(id: Int, tcpClient: YupanaTcpClient)(implicit ec: ExecutionContext) extends Iterator[ResultRow] {
+class ResultIterator(id: Int, tcpClient: YupanaTcpClient) extends Iterator[ResultRow] {
 
   private val buffer: mutable.Queue[ResultRow] = mutable.Queue.empty
   private var done = false

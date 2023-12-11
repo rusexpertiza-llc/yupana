@@ -77,7 +77,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
       cr <- waitFor(CredentialsRequest)
       _ <- sendCredentials(cr)
       _ <- waitFor(Authorized)
-      _ <- waitFor(Idle)
     } yield ()
     // scheduleHeartbeatTimer()
 
@@ -103,14 +102,14 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   private def sendCredentials(cr: CredentialsRequest): Future[Unit] = {
-    if (cr.method != CredentialsRequest.METHOD_PLAIN) {
-      Future.failed(new YupanaException(error(s"Unsupported auth method ${cr.method}")))
+    if (!cr.methods.contains(CredentialsRequest.METHOD_PLAIN)) {
+      Future.failed(new YupanaException(error(s"All the auth methods ${cr.methods.mkString(", ")} are not supported")))
     } else {
       write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
     }
   }
 
-  def acquireNext(id: Int)(implicit ec: ExecutionContext): Unit = {
+  def acquireNext(id: Int): Unit = {
     assert(iterators.contains(id))
 
     write(Next(id, batchSize))
@@ -120,6 +119,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     var count = 0
 
     do {
+      // TODO: Rewrite non blocking!!!
       val frame = chanelReader.awaitAndReadFrame()
 
       frame.frameType match {
@@ -148,7 +148,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     } while (count < batchSize && footer == null && errorMessage == null)
 
     if (footer != null || errorMessage != null) {
-      waitFor(Idle)
       if (errorMessage != null) {
         throw new YupanaException(errorMessage)
       }
@@ -158,7 +157,9 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
       implicit ec: ExecutionContext
   ): Future[T] = {
+    println(s"CALL WAIT FOR ${helper.tag.toChar}")
     chanelReader.readFrame().flatMap { frame =>
+      println(s"GOT ${frame.frameType.toChar}")
       frame.frameType match {
         case helper.tag => Future.successful(helper.readFrame[ByteBuffer](frame))
         case Tags.HEARTBEAT =>
