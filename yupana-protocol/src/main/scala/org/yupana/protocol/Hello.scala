@@ -16,6 +16,13 @@
 
 package org.yupana.protocol
 
+/**
+  * Greeting message from client to server
+  * @param protocolVersion client protocol version
+  * @param clientVersion client version
+  * @param timestamp client timestamp
+  * @param params extra params, reserved for new features.
+  */
 case class Hello(protocolVersion: Int, clientVersion: String, timestamp: Long, params: Map[String, String])
     extends Command[Hello](Hello)
 

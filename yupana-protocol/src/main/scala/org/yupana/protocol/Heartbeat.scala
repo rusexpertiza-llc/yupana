@@ -16,6 +16,7 @@
 
 package org.yupana.protocol
 
+/** Keep alive message */
 case class Heartbeat(time: Int) extends Response[Heartbeat](Heartbeat)
 
 object Heartbeat extends MessageHelper[Heartbeat] {

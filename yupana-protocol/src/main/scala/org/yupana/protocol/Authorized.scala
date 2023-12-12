@@ -16,6 +16,7 @@
 
 package org.yupana.protocol
 
+/** Server response when the authorization was succeed */
 case class Authorized() extends Response[Authorized](Authorized)
 
 object Authorized extends MessageHelper[Authorized] {

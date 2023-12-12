@@ -335,14 +335,14 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
 
 lazy val docs = project
   .in(file("yupana-docs"))
-  .dependsOn(api, core)
+  .dependsOn(api, core, protocol)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
   .disablePlugins(AssemblyPlugin)
   .settings(
     scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
     noPublishSettings,
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core),
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(api, core, protocol),
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite := docusaurusCreateSite.dependsOn(Compile / unidoc).value,

@@ -16,6 +16,7 @@
 
 package org.yupana.protocol
 
+/** Server response when the query was canceled by [[Cancel]] command */
 case class Canceled(id: Int) extends Response[Canceled](Canceled)
 
 object Canceled extends MessageHelper[Canceled] {

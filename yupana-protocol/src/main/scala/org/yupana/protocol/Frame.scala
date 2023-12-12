@@ -16,6 +16,11 @@
 
 package org.yupana.protocol
 
+/**
+  * Frame representation
+  * @param frameType message type
+  * @param payload serialized message
+  */
 case class Frame(frameType: Byte, payload: Array[Byte])
 
 object Frame {

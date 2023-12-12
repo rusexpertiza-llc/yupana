@@ -16,6 +16,11 @@
 
 package org.yupana.protocol
 
+/**
+  * Server greeting to the client
+  * @param protocolVersion server protocol version
+  * @param reqTime client request time from [[Hello]]
+  */
 case class HelloResponse(protocolVersion: Int, reqTime: Long) extends Response[HelloResponse](HelloResponse)
 
 object HelloResponse extends MessageHelper[HelloResponse] {

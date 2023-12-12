@@ -3,9 +3,9 @@ id: query
 title: Простой запрос
 ---
 
-После успешной [авторизации](connect.md) сервер готов к получению SQL запросов.
+После успешной [авторизации](connect.md) сервер готов к получению [YupanaQL](../yupanaql.md) запросов.
 
-Клиент отправляет запрос `PreparedQuery` с идетнификатором, телом запроса и параметрами.  Идентификаторы запроса должны
+Клиент отправляет запрос `SqlQuery` с идетнификатором, телом запроса и параметрами.  Идентификаторы запроса должны
 быть уникальными в рамках одного соединения. Если запрос обработан успешно сервер отправляет `ResultHeader` с информацией
 о данных. Клиент шлет команду `Next` с желаемым колличеством строк. Сервер отправляет строки в виде `ResultRow`. Если
 данных больше нет отправляется `ResultFooter`.
@@ -15,7 +15,7 @@ sequenceDiagram
     participant C as Client
     participant S as Server
 
-    C->>S: p: PreparedQuery(Id, YpQL, Map[Id -> ParameterValue])
+    C->>S: q: SqlQuery(Id, YpQL, Map[Id -> ParameterValue])
     S->>C: H: ResultHeader(Id, TableName, Columns)
     loop has more data
       C->>S: n: Next(Id, Batch size)

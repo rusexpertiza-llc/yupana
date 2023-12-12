@@ -16,6 +16,7 @@
 
 package org.yupana.protocol
 
+/** Cancels query execution without reading to the end. */
 case class Cancel(id: Int) extends Command[Cancel](Cancel)
 
 object Cancel extends MessageHelper[Cancel] {

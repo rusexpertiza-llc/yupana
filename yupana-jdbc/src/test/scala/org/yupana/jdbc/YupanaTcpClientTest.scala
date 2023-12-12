@@ -113,7 +113,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     withServerConnected { (server, id) =>
 
-      val responses = (q: PrepareQuery) => {
+      val responses = (q: SqlQuery) => {
         val header = ResultHeader(
           q.id,
           "items_kkm",
@@ -137,11 +137,11 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         Seq(header, hb, data1, data2, footer)
       }
 
-      val reqF = server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
+      val reqF = server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], responses)
 
       reqF.map { req =>
         inside(req) {
-          case PrepareQuery(_, q, f) =>
+          case SqlQuery(_, q, f) =>
             q shouldEqual sql
 
         }
@@ -244,7 +244,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "handle error response on query" in withServerConnected { (server, id) =>
     val err = ErrorMessage("Internal error")
-    server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], _ => Seq(err))
+    server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], _ => Seq(err))
   } { client =>
     val e = the[YupanaException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")
@@ -252,7 +252,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "fail when no footer in result" in withServerConnected { (server, id) =>
 
-    val responses = (q: PrepareQuery) => {
+    val responses = (q: SqlQuery) => {
       val header =
         ResultHeader(
           q.id,
@@ -273,7 +273,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Seq(header, hb, data)
     }
 
-    server.readAndSendResponses[PrepareQuery](id, PrepareQuery.readFrame[ByteBuffer], responses)
+    server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], responses)
   } { client =>
 
     val sql =

@@ -16,6 +16,12 @@
 
 package org.yupana.protocol
 
+/**
+  * Query execution statistics
+  * @param id request id
+  * @param millis execution time
+  * @param rows number of rows provided to the client
+  */
 case class ResultFooter(id: Int, millis: Long, rows: Int) extends Response[ResultFooter](ResultFooter)
 
 object ResultFooter extends MessageHelper[ResultFooter] {

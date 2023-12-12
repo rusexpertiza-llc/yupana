@@ -56,7 +56,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   def prepareQuery(query: String, params: Map[Int, ParameterValue])(implicit ec: ExecutionContext): Result = {
     val id = nextId.incrementAndGet()
-    Await.result(execRequestQuery(id, PrepareQuery(id, query, params)), Duration.Inf)
+    Await.result(execRequestQuery(id, SqlQuery(id, query, params)), Duration.Inf)
   }
 
   def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]])(implicit ec: ExecutionContext): Result = {

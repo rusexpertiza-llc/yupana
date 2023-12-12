@@ -16,6 +16,12 @@
 
 package org.yupana.protocol
 
+/**
+  * Credentials response from the client
+  * @param method authentication method
+  * @param user user name
+  * @param password password
+  */
 case class Credentials(method: String, user: String, password: String) extends Command[Credentials](Credentials)
 
 object Credentials extends MessageHelper[Credentials] {

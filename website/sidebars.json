@@ -18,6 +18,7 @@
        "delete"
     ],
     "Описание протокола": [
+      "protocol/protocol",
       "protocol/connect",
       "protocol/query",
       "protocol/batch"

@@ -16,6 +16,12 @@
 
 package org.yupana.protocol
 
+/**
+  * Batch query
+  * @param id request id
+  * @param query query text
+  * @param params list of params
+  */
 case class BatchQuery(id: Int, query: String, params: Seq[Map[Int, ParameterValue]])
     extends Command[BatchQuery](BatchQuery)
 

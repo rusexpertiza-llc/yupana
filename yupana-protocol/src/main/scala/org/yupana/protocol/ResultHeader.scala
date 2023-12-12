@@ -16,7 +16,19 @@
 
 package org.yupana.protocol
 
+/**
+  * Field definition
+  * @param name field name
+  * @param typeName field type, e.g VARCHAR, INTEGER
+  */
 case class ResultField(name: String, typeName: String)
+
+/**
+  * Query execution result header
+  * @param id request id
+  * @param tableName result table name
+  * @param fields fields definitions
+  */
 case class ResultHeader(id: Int, tableName: String, fields: Seq[ResultField])
     extends Response[ResultHeader](ResultHeader)
 

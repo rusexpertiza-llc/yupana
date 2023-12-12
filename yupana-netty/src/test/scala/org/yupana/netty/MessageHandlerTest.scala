@@ -115,7 +115,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     When("Query is sent")
     ch.writeInbound(
-      PrepareQuery(
+      SqlQuery(
         11,
         "SELECT ? + ? as five, ? as s, ? epoch",
         Map(1 -> NumericValue(3), 2 -> NumericValue(2), 3 -> StringValue("str"), 4 -> TimestampValue(0L))
@@ -161,8 +161,8 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
       .expects("SELECT 2", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array[Any](2)))))
 
-    ch.writeInbound(PrepareQuery(1, "SELECT 1", Map.empty).toFrame)
-    ch.writeInbound(PrepareQuery(2, "SELECT 2", Map.empty).toFrame)
+    ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame)
+    ch.writeInbound(SqlQuery(2, "SELECT 2", Map.empty).toFrame)
 
     val header1 = readMessage(ch, ResultHeader)
     header1.id shouldEqual 1
@@ -207,7 +207,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
       .expects("SELECT 1", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
-    ch.writeInbound(PrepareQuery(1, "SELECT 1", Map.empty).toFrame)
+    ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame)
 
     val header = readMessage(ch, ResultHeader)
     header.id shouldEqual 1

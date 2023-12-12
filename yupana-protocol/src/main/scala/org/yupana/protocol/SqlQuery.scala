@@ -16,13 +16,16 @@
 
 package org.yupana.protocol
 
-case class PrepareQuery(id: Int, query: String, params: Map[Int, ParameterValue])
-    extends Command[PrepareQuery](PrepareQuery)
+/**
+  * Query request
+  * @param id request id. Must be unique within single connection uncompleted queries
+  * @param query query string
+  * @param params parameters if there are any (for prepared queries).
+  */
+case class SqlQuery(id: Int, query: String, params: Map[Int, ParameterValue]) extends Command[SqlQuery](SqlQuery)
 
-object PrepareQuery extends MessageHelper[PrepareQuery] {
-  override val tag: Byte = Tags.PREPARE_QUERY
-  override val readWrite: ReadWrite[PrepareQuery] =
-    ReadWrite.product3[PrepareQuery, Int, String, Map[Int, ParameterValue]](PrepareQuery.apply)(q =>
-      (q.id, q.query, q.params)
-    )
+object SqlQuery extends MessageHelper[SqlQuery] {
+  override val tag: Byte = Tags.SQL_QUERY
+  override val readWrite: ReadWrite[SqlQuery] =
+    ReadWrite.product3[SqlQuery, Int, String, Map[Int, ParameterValue]](SqlQuery.apply)(q => (q.id, q.query, q.params))
 }

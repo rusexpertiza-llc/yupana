@@ -27,7 +27,7 @@ object Tags {
   val HELLO_RESPONSE: Byte = 'H'
 
   val BATCH_QUERY: Byte = 'b'
-  val PREPARE_QUERY: Byte = 'p'
+  val SQL_QUERY: Byte = 'q'
   val NEXT: Byte = 'n'
 
   val RESULT_HEADER: Byte = 'R'

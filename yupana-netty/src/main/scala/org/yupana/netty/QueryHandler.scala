@@ -45,15 +45,15 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
 
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
     frame.frameType match {
-      case Tags.PREPARE_QUERY => processMessage(ctx, frame, PrepareQuery)(pq => handleQuery(ctx, pq))
-      case Tags.BATCH_QUERY   => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
-      case Tags.NEXT          => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
-      case Tags.CANCEL        => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
-      case x                  => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
+      case Tags.SQL_QUERY   => processMessage(ctx, frame, SqlQuery)(pq => handleQuery(ctx, pq))
+      case Tags.BATCH_QUERY => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
+      case Tags.NEXT        => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
+      case Tags.CANCEL      => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
+      case x                => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
   }
 
-  private def handleQuery(ctx: ChannelHandlerContext, pq: PrepareQuery): Unit = {
+  private def handleQuery(ctx: ChannelHandlerContext, pq: SqlQuery): Unit = {
     logger.debug(s"""Processing SQL query: "${pq.query}"; parameters: ${pq.params}""")
     val params = pq.params.map { case (index, p) => index -> convertValue(p) }
     serverContext.queryEngineRouter.query(pq.query, params) match {

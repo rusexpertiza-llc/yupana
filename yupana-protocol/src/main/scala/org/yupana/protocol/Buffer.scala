@@ -19,6 +19,10 @@ package org.yupana.protocol
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 
+/**
+  * Type class to abstract from different buffer implementations, for example [[java.nio.ByteBuffer]] and Netty ByteBuf.
+  * @tparam B buffer type
+  */
 trait Buffer[B] {
   def alloc(): B
   def alloc(capacity: Int): B
@@ -46,7 +50,7 @@ trait Buffer[B] {
 
 object Buffer {
 
-  val DEFAULT_CAPACITY = 256
+  val DEFAULT_CAPACITY: Int = 256
 
   implicit val nioBuffer: Buffer[ByteBuffer] = new Buffer[ByteBuffer] {
     override def alloc(): ByteBuffer = alloc(DEFAULT_CAPACITY)

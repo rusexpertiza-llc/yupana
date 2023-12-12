@@ -16,10 +16,24 @@
 
 package org.yupana.protocol
 
+/**
+  * Type class for data serialization from / to the [[Buffer]]
+  * @tparam T type to be serialized
+  */
 trait ReadWrite[T] { self =>
+
+  /** Deserialize data from buffer */
   def read[B: Buffer](buf: B): T
+
+  /** Serialize data into buffer */
   def write[B: Buffer](buf: B, t: T): Unit
 
+  /**
+    * Creates a ReadWrite instance for type A from the instance for type T
+    * @param to wraps instance of T into A
+    * @param from extracts instance of T from A
+    * @tparam A a new type
+    */
   def imap[A](to: T => A)(from: A => T): ReadWrite[A] = new ReadWrite[A] {
     override def read[B: Buffer](buf: B): A = to(self.read(buf))
     override def write[B: Buffer](buf: B, t: A): Unit = self.write(buf, from(t))

@@ -16,6 +16,11 @@
 
 package org.yupana.protocol
 
+/**
+  * Query result row
+  * @param id request id
+  * @param values result values serialized into arrays of bytes
+  */
 case class ResultRow(id: Int, values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow)
 
 object ResultRow extends MessageHelper[ResultRow] {
