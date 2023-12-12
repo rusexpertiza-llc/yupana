@@ -78,22 +78,16 @@ class FramingChannelReader(
   }
 
   final def readFrame(): Future[Frame] = {
-    buffer.synchronized {
-      if (buffer.position() >= PAYLOAD_OFFSET) {
-        val tag = buffer.get(0)
-        val size = buffer.getInt(1)
-        if (buffer.position() < size + PAYLOAD_OFFSET) {
-          val p = Promise[Frame]()
-          channel.read(buffer, p, completionHandler)
-          p.future
-        } else {
-          Future.successful(extractFrame(tag, size))
-        }
+    if (buffer.position() >= PAYLOAD_OFFSET) {
+      val tag = buffer.get(0)
+      val size = buffer.getInt(1)
+      if (buffer.position() < size + PAYLOAD_OFFSET) {
+        JdbcUtils.wrapHandler[Frame](completionHandler, (p, h) => channel.read(buffer, p, h))
       } else {
-        val p = Promise[Frame]()
-        channel.read(buffer, p, completionHandler)
-        p.future
+        Future.successful(extractFrame(tag, size))
       }
+    } else {
+      JdbcUtils.wrapHandler[Frame](completionHandler, (p, h) => channel.read(buffer, p, h))
     }
   }
 
