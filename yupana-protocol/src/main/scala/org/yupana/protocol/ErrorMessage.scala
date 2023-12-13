@@ -16,7 +16,13 @@
 
 package org.yupana.protocol
 
-case class ErrorMessage(message: String, severity: Byte = ErrorMessage.SEVERITY_ERROR)
+/**
+  * Error message from server to client
+  * @param message text of the message
+  * @param streamId if the error related to some query
+  * @param severity message importance
+  */
+case class ErrorMessage(message: String, streamId: Option[Int] = None, severity: Byte = ErrorMessage.SEVERITY_ERROR)
     extends Response[ErrorMessage](ErrorMessage)
 
 object ErrorMessage extends MessageHelper[ErrorMessage] {
@@ -26,5 +32,7 @@ object ErrorMessage extends MessageHelper[ErrorMessage] {
   val SEVERITY_ERROR: Byte = 0
 
   implicit override val readWrite: ReadWrite[ErrorMessage] =
-    ReadWrite.product2[ErrorMessage, Byte, String]((s, m) => ErrorMessage(m, s))(e => (e.severity, e.message))
+    ReadWrite.product3[ErrorMessage, Option[Int], Byte, String]((id, s, m) => ErrorMessage(m, id, s))(e =>
+      (e.streamId, e.severity, e.message)
+    )
 }

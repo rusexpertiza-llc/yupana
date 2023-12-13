@@ -10,6 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.core.QueryEngineRouter
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.sql.parser
 import org.yupana.protocol._
 
@@ -94,6 +95,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     (queryEngine.query _)
       .expects(
+        YupanaUser("test"),
         "SELECT ? + ? as five, ? as s, ? epoch",
         Map(
           1 -> parser.NumericValue(3),
@@ -154,11 +156,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer), "test"))
 
     (queryEngine.query _)
-      .expects("SELECT 1", Map.empty[Int, parser.Value])
+      .expects(YupanaUser("test"), "SELECT 1", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     (queryEngine.query _)
-      .expects("SELECT 2", Map.empty[Int, parser.Value])
+      .expects(YupanaUser("test"), "SELECT 2", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array[Any](2)))))
 
     ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame)
@@ -197,14 +199,15 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(Next(1, 10).toFrame)
     val err = readMessage(ch, ErrorMessage)
     err.message shouldEqual "Unknown stream id 1"
+    err.streamId shouldEqual Some(1)
   }
 
   it should "should handle cancel queries" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer), "test"))
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer), "Test"))
 
     (queryEngine.query _)
-      .expects("SELECT 1", Map.empty[Int, parser.Value])
+      .expects(YupanaUser("Test"), "SELECT 1", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame)
@@ -219,6 +222,23 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(Next(1, 10).toFrame)
     val err = readMessage(ch, ErrorMessage)
     err.message shouldEqual "Unknown stream id 1"
+    err.streamId shouldEqual Some(1)
+  }
+
+  it should "handle errors in backend" in {
+    val queryEngine = mock[QueryEngineRouter]
+    val ch = new EmbeddedChannel(
+      new QueryHandler(ServerContext(queryEngine, new NonEmptyUserAuthorizer), "test")
+    )
+
+    (queryEngine.query _)
+      .expects(YupanaUser("test"), "SELECT 2", Map.empty[Int, parser.Value])
+      .onCall(_ => throw new RuntimeException("Something wrong"))
+
+    ch.writeInbound(SqlQuery(1, "SELECT 2", Map.empty).toFrame)
+
+    val err = readMessage(ch, ErrorMessage)
+    err.message should include("Something wrong")
   }
 
   private def readMessage[T <: Message[T]](ch: EmbeddedChannel, messageHelper: MessageHelper[T]): T = {

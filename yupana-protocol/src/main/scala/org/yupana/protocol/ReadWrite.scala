@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import java.nio.charset.StandardCharsets
+
 /**
   * Type class for data serialization from / to the [[Buffer]]
+  *
   * @tparam T type to be serialized
   */
 trait ReadWrite[T] { self =>
@@ -84,12 +87,28 @@ object ReadWrite {
     }
 
     override def write[B](buf: B, t: String)(implicit b: Buffer[B]): Unit = {
-      b.writeInt(buf, t.length)
-      b.writeString(buf, t)
+      val bytes = t.getBytes(StandardCharsets.UTF_8)
+      b.writeInt(buf, bytes.length)
+      b.write(buf, bytes)
     }
   }
 
   implicit val rwBigDecimal: ReadWrite[BigDecimal] = implicitly[ReadWrite[String]].imap(BigDecimal.apply)(_.toString())
+
+  implicit def rwOption[T](implicit rwt: ReadWrite[T]): ReadWrite[Option[T]] = new ReadWrite[Option[T]] {
+    override def read[B](buf: B)(implicit b: Buffer[B]): Option[T] = {
+      if (b.readByte(buf) == 1) Some(rwt.read(buf)) else None
+    }
+
+    override def write[B](buf: B, t: Option[T])(implicit b: Buffer[B]): Unit = {
+      t match {
+        case Some(t) =>
+          b.writeByte(buf, 1)
+          rwt.write(buf, t)
+        case None => b.writeByte(buf, 0)
+      }
+    }
+  }
 
   implicit def readSeq[T](implicit rwt: ReadWrite[T]): ReadWrite[Seq[T]] =
     new ReadWrite[Seq[T]] {

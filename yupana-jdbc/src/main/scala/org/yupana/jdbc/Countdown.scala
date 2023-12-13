@@ -14,16 +14,28 @@
  * limitations under the License.
  */
 
-package org.yupana.core
-import org.yupana.api.query.{ DataPoint, Query, Result }
-import org.yupana.core.auth.YupanaUser
+package org.yupana.jdbc
 
-class TimeSeriesQueryEngine(tsdb: TSDB) {
-  def query(user: YupanaUser, query: Query): Result = {
-    tsdb.query(query, user)
+import java.util.concurrent.atomic.AtomicInteger
+import scala.concurrent.{ Future, Promise }
+
+class Countdown(n: Int) {
+  private val value = new AtomicInteger(n)
+  private val p = Promise[Int]()
+
+  def release(): Int = {
+    val i = value.decrementAndGet()
+    if (i == 0) p.success(i)
+    i
   }
 
-  def put(user: YupanaUser, dps: Seq[DataPoint]): Unit = {
-    tsdb.put(dps.iterator, user)
+  def cancel(): Unit = {
+    p.success(value.get())
   }
+
+  def failure(t: Throwable): Unit = {
+    p.failure(t)
+  }
+
+  def future: Future[Int] = p.future
 }

@@ -55,6 +55,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
           ctx,
           ErrorMessage(
             s"Unsupported protocol version $pv, required ${ProtocolVersion.value}",
+            None,
             ErrorMessage.SEVERITY_FATAL
           )
         )
@@ -72,7 +73,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
             connected(ctx, user)
             writeResponse(ctx, Authorized())
           case Left(err) =>
-            writeResponse(ctx, ErrorMessage(err, ErrorMessage.SEVERITY_FATAL))
+            writeResponse(ctx, ErrorMessage(err, None, ErrorMessage.SEVERITY_FATAL))
             ctx.close()
         }
     }

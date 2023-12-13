@@ -20,7 +20,6 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
-import org.yupana.protocol
 import org.yupana.protocol._
 
 import java.net.InetSocketAddress
@@ -28,7 +27,6 @@ import java.nio.ByteBuffer
 import java.nio.channels.{ AsynchronousSocketChannel, CompletionHandler }
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.{ Level, Logger }
-import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.util.{ Failure, Success, Try }
@@ -44,11 +42,9 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   private var chanelReader: FramingChannelReader = _
   private val nextId: AtomicInteger = new AtomicInteger(0)
   private var iterators: Map[Int, ResultIterator] = Map.empty
-  private val frames: mutable.Queue[Frame] = mutable.Queue.empty
-  private val promises: mutable.Queue[Promise[Frame]] = mutable.Queue.empty
-
+  private var promises: Map[Int, Promise[ResultIterator]] = Map.empty
+  private var countdowns: Map[Int, Countdown] = Map.empty
   private var closed: Boolean = true
-  private var lastFailure: Option[Throwable] = None
 
   private def ensureNotClosed(): Unit = {
     if (closed) throw new YupanaException("Connection is closed")
@@ -75,7 +71,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
       chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
       closed = false
     }
-    chanelReader.readFrame().onComplete(frameHandler)
 
     val cf = for {
       _ <- write(Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty))
@@ -86,49 +81,98 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     } yield ()
 
     Await.result(cf, Duration.Inf)
+    chanelReader.readFrame().onComplete(frameHandler)
   }
 
   private def frameHandler(implicit ec: ExecutionContext): Try[Frame] => Unit = {
     case Success(frame) =>
-      if (frame.frameType == protocol.Tags.HEARTBEAT) {
-        heartbeat(Heartbeat.readFrame(frame))
-      } else {
-        promises.synchronized {
-          if (promises.nonEmpty) {
-            assert(frames.isEmpty)
-            promises.foreach(_.success(frame))
-            promises.clear()
-          } else {
-            if (frames.size >= iterators.size * batchSize * 2 + 10)
-              throw new IllegalStateException("Frame queue is too big")
-            frames.enqueue(frame)
+      frame.frameType match {
+        case Tags.HEARTBEAT => heartbeat(Heartbeat.readFrame(frame))
+        case Tags.ERROR_MESSAGE =>
+          val em = ErrorMessage.readFrame(frame)
+          em.streamId match {
+            case Some(id) =>
+              if (iterators.contains(id)) {
+                iterators.synchronized {
+                  iterators(id).setFailed(new YupanaException(em.message))
+                  iterators -= id
+                }
+              }
+              if (promises.contains(id)) {
+                promises.synchronized {
+                  promises(id).failure(new YupanaException(em.message))
+                  promises -= id
+                }
+              }
+              if (countdowns.contains(id)) {
+                countdowns.synchronized {
+                  countdowns(id).failure(new YupanaException(em.message))
+                  countdowns -= id
+                }
+              }
+
+            case None =>
+              promises.foreach(_._2.failure(new YupanaException(em.message)))
+              iterators.foreach(_._2.setFailed(new YupanaException(em.message)))
+              promises = Map.empty
+              iterators = Map.empty
           }
-        }
+
+        case Tags.RESULT_HEADER =>
+          val h = ResultHeader.readFrame(frame)
+          val p = promises(h.id)
+          val resultIterator = new ResultIterator(h, this)
+          promises.synchronized {
+            promises -= h.id
+          }
+          iterators.synchronized {
+            iterators += h.id -> resultIterator
+          }
+          p.success(resultIterator)
+
+        case Tags.RESULT_ROW =>
+          val res = ResultRow.readFrame(frame)
+          iterators(res.id).addResult(res)
+          if (countdowns(res.id).release() == 0) {
+            countdowns.synchronized {
+              countdowns -= res.id
+            }
+          }
+
+        case Tags.RESULT_FOOTER =>
+          val ftr = ResultFooter.readFrame(frame)
+          logger.fine(s"Got footer $ftr")
+          iterators.synchronized {
+            iterators(ftr.id).setDone()
+            iterators -= ftr.id
+          }
+          countdowns.synchronized {
+            countdowns(ftr.id).cancel()
+            countdowns -= ftr.id
+          }
+
+        case t =>
+          logger.warning(s"Got unexpected frame ${t.toChar}")
+          throw new YupanaException(s"Unexpected frame ${t.toChar}")
       }
       chanelReader.readFrame().onComplete(frameHandler)
 
     case Failure(e) =>
-      lastFailure = Some(e)
       promises.synchronized {
-        promises.foreach(_.failure(e))
-        promises.clear()
+        promises.foreach(_._2.failure(e))
+        promises = Map.empty
       }
+      iterators.synchronized {
+        iterators.foreach(_._2.setFailed(e))
+        iterators = Map.empty
+      }
+      countdowns.synchronized {
+        countdowns.foreach(_._2.failure(e))
+        countdowns = Map.empty
+      }
+
       logger.log(Level.SEVERE, "Unable to read frame", e)
       close()
-  }
-
-  private def readFrame(): Future[Frame] = {
-    if (frames.nonEmpty) {
-      Future.successful(frames.dequeue())
-    } else {
-      lastFailure match {
-        case Some(f) => Future.failed(f)
-        case None =>
-          val p = Promise[Frame]()
-          promises.enqueue(p)
-          p.future
-      }
-    }
   }
 
   private def waitHelloResponse(reqTime: Long)(implicit ec: ExecutionContext): Future[HelloResponse] = {
@@ -157,54 +201,20 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     }
   }
 
-  def acquireNext(id: Int): Unit = {
+  def acquireNext(id: Int)(implicit ec: ExecutionContext): Future[Unit] = {
     assert(iterators.contains(id))
-
-    write(Next(id, batchSize))
-    var errorMessage: String = null
-    var footer: ResultFooter = null
-
-    var count = 0
-
-    do {
-      val frame = Await.ready(readFrame(), Duration.Inf).value.get.fold(e => throw e, x => x)
-
-      frame.frameType match {
-        case Tags.RESULT_ROW =>
-          val res = ResultRow.readFrame(frame)
-          iterators(res.id).addResult(res)
-          if (res.id == id) count += 1
-
-        case Tags.HEARTBEAT =>
-          heartbeat(Heartbeat.readFrame(frame))
-
-        case Tags.ERROR_MESSAGE =>
-          errorMessage = error(ErrorMessage.readFrame(frame).message)
-
-        case Tags.RESULT_FOOTER =>
-          val ftr = ResultFooter.readFrame(frame)
-          logger.fine(s"Got footer $ftr")
-          //              scheduleHeartbeatTimer()
-          iterators(ftr.id).setDone()
-          footer = ftr
-
-        case x =>
-          logger.severe(s"Unexpected message type '${x.toChar}'")
-          throw new IllegalStateException(s"Unexpected message type '${x.toChar}'")
-      }
-    } while (count < batchSize && footer == null && errorMessage == null)
-
-    if (footer != null || errorMessage != null) {
-      if (errorMessage != null) {
-        throw new YupanaException(errorMessage)
-      }
-    }
+    val countdown = new Countdown(batchSize)
+    countdowns += id -> countdown
+    for {
+      _ <- write(Next(id, batchSize))
+      _ <- countdown.future
+    } yield ()
   }
 
   private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
       implicit ec: ExecutionContext
   ): Future[T] = {
-    readFrame().flatMap { frame =>
+    chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
         case helper.tag => Future.successful(helper.readFrame[ByteBuffer](frame))
         case Tags.HEARTBEAT =>
@@ -223,17 +233,20 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     }
   }
 
+  private def waitForHeader(id: Int): Future[ResultIterator] = {
+    val p = Promise[ResultIterator]()
+    promises += id -> p
+    p.future
+  }
+
   private def execRequestQuery(id: Int, command: Command[_])(implicit ec: ExecutionContext): Future[Result] = {
     logger.fine(s"Exec request query $command")
     ensureNotClosed()
-    //    cancelHeartbeatTimer()
     for {
       _ <- write(command)
-      header <- waitFor(ResultHeader)
+      r <- waitForHeader(id)
     } yield {
-      val r = new ResultIterator(id, this)
-      iterators += id -> r
-      extractProtoResult(header, r)
+      extractProtoResult(r)
     }
   }
 
@@ -270,7 +283,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     channel.close()
   }
 
-  private def extractProtoResult(header: ResultHeader, res: Iterator[ResultRow]): Result = {
+  private def extractProtoResult(res: ResultIterator): Result = {
+    val header = res.header
     val names = header.fields.map(_.name)
     val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
       DataType.bySqlName(resultField.typeName).toRight(s"Unknown type ${resultField.typeName}")

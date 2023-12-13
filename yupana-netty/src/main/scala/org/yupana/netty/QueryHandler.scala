@@ -20,11 +20,13 @@ import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.timeout.{ IdleState, IdleStateEvent }
 import org.yupana.api.query.Result
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.sql.parser
 import org.yupana.protocol._
 
 class QueryHandler(serverContext: ServerContext, userName: String) extends FrameHandlerBase with StrictLogging {
 
+  private val user = YupanaUser(userName)
   private val nanos = System.nanoTime()
   private var streams: Map[Int, Stream] = Map.empty
 
@@ -56,18 +58,18 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
   private def handleQuery(ctx: ChannelHandlerContext, pq: SqlQuery): Unit = {
     logger.debug(s"""Processing SQL query: "${pq.query}"; parameters: ${pq.params}""")
     val params = pq.params.map { case (index, p) => index -> convertValue(p) }
-    serverContext.queryEngineRouter.query(pq.query, params) match {
+    serverContext.queryEngineRouter.query(user, pq.query, params) match {
       case Right(result) => addStream(ctx, pq.id, result)
-      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg))
+      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(pq.id)))
     }
   }
 
   private def handleBatchQuery(ctx: ChannelHandlerContext, bq: BatchQuery): Unit = {
     logger.debug(s"""Processing batch SQL query: "${bq.query}"; parameters: ${bq.params}""")
     val params = bq.params.map(_.map { case (index, p) => index -> convertValue(p) })
-    serverContext.queryEngineRouter.batchQuery(bq.query, params) match {
+    serverContext.queryEngineRouter.batchQuery(user, bq.query, params) match {
       case Right(result) => addStream(ctx, bq.id, result)
-      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg))
+      case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(bq.id)))
     }
   }
 
@@ -77,7 +79,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
         streams += id -> new Stream(id, result)
         writeResponse(ctx, makeHeader(id, result))
       } else {
-        writeResponse(ctx, ErrorMessage(s"ID ${id} already used"))
+        writeResponse(ctx, ErrorMessage(s"ID $id already used"))
       }
     }
   }
@@ -91,7 +93,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
             streams -= next.id
           }
         }
-      case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${next.id}"))
+      case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${next.id}", Some(next.id)))
     }
   }
 
@@ -102,7 +104,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
           streams -= cancel.id
           s.close()
           writeResponse(ctx, Canceled(cancel.id))
-        case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${cancel.id}"))
+        case None => writeResponse(ctx, ErrorMessage(s"Unknown stream id ${cancel.id}", Some(cancel.id)))
       }
     }
   }
@@ -123,8 +125,10 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
-    super.exceptionCaught(ctx, cause)
-    ctx.writeAndFlush(ErrorMessage(s"Something goes wrong, ${cause.getMessage}", ErrorMessage.SEVERITY_FATAL))
-    ctx.close()
+    logger.error("Exception caught", cause)
+    writeResponse(
+      ctx,
+      ErrorMessage(s"Cannot handle the request, '${cause.getMessage}'", None, ErrorMessage.SEVERITY_FATAL)
+    )
   }
 }

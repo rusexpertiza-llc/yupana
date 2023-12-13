@@ -111,9 +111,16 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         |  WHERE time >= ? AND time < ? AND sum < ? AND item = ?
         |  """.stripMargin
 
+    val bind = Map(
+      1 -> TimestampValue(12345L),
+      2 -> TimestampValue(23456L),
+      3 -> NumericValue(1000),
+      4 -> StringValue("икра баклажанная")
+    )
+
     withServerConnected { (server, id) =>
 
-      val responses = (q: SqlQuery) => {
+      val onQuery = (q: SqlQuery) => {
         val header = ResultHeader(
           q.id,
           "items_kkm",
@@ -125,37 +132,39 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
         val hb = Heartbeat(1)
 
+        Seq(header, hb)
+      }
+
+      val onNext = (n: Next) => {
         val ts = implicitly[Storable[Time]]
         val ss = implicitly[Storable[String]]
 
-        val data1 = ResultRow(q.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-        val data2 = ResultRow(q.id, Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
 
-        val footer = ResultFooter(q.id, 1, 2)
+        val footer = ResultFooter(n.id, 1, 2)
+        val hb = Heartbeat(2)
 
-        Seq(header, hb, data1, data2, footer)
+        Seq(data1, hb, data2, footer)
       }
 
-      val reqF = server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], responses)
+      val reqF = for {
+        req <- server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], onQuery)
+        next <- server.readAndSendResponses[Next](id, Next.readFrame[ByteBuffer], onNext)
+      } yield (req, next)
 
       reqF.map { req =>
         inside(req) {
-          case SqlQuery(_, q, f) =>
+          case (SqlQuery(qId, q, f), Next(nId, bs)) =>
             q shouldEqual sql
-
+            f shouldEqual bind
+            qId shouldEqual nId
+            bs shouldEqual 10
         }
       }
     } { client =>
-      val result = client.prepareQuery(
-        sql,
-        Map(
-          1 -> TimestampValue(12345L),
-          2 -> TimestampValue(23456L),
-          3 -> NumericValue(1000),
-          4 -> StringValue("икра баклажанная")
-        )
-      )
+      val result = client.prepareQuery(sql, bind)
 
       result.name shouldEqual "items_kkm"
 
@@ -178,8 +187,8 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     withServerConnected { (server, id) =>
 
-      val responses = (q: BatchQuery) => {
-        val header =
+      val onQuery = (q: BatchQuery) => {
+        Seq(
           ResultHeader(
             q.id,
             "items_kkm",
@@ -188,22 +197,29 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
               ResultField("item", "VARCHAR")
             )
           )
+        )
+      }
 
+      val onNext = (n: Next) => {
         val hb = Heartbeat(1)
 
         val ts = implicitly[Storable[Time]]
         val ss = implicitly[Storable[String]]
 
-        val data1 = ResultRow(q.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
 
-        val data2 = ResultRow(q.id, Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
 
-        val footer = ResultFooter(q.id, 1, 2)
+        val footer = ResultFooter(n.id, 1, 2)
 
-        Seq(header, hb, data1, data2, footer)
+        Seq(hb, data1, data2, footer)
       }
 
-      val reqF = server.readAndSendResponses[BatchQuery](id, BatchQuery.readFrame[ByteBuffer], responses)
+      val reqF = for {
+        req <- server.readAndSendResponses[BatchQuery](id, BatchQuery.readFrame[ByteBuffer], onQuery)
+        _ <- server.readAndSendResponses[Next](id, Next.readFrame[ByteBuffer], onNext)
+      } yield req
+
       reqF map { req =>
         inside(req) {
           case BatchQuery(_, q, fs) =>
@@ -252,7 +268,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "fail when no footer in result" in withServerConnected { (server, id) =>
 
-    val responses = (q: SqlQuery) => {
+    val onQuery = (q: SqlQuery) => {
       val header =
         ResultHeader(
           q.id,
@@ -262,18 +278,20 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
             ResultField("item", "VARCHAR")
           )
         )
-
-      val hb = Heartbeat(1)
-
-      val ts = implicitly[Storable[Time]]
-      val ss = implicitly[Storable[String]]
-
-      val data = ResultRow(q.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
-
-      Seq(header, hb, data)
+      Seq(header)
     }
 
-    server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], responses)
+    val onNext = (n: Next) => {
+      val ts = implicitly[Storable[Time]]
+      val ss = implicitly[Storable[String]]
+      Seq(ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная"))))
+    }
+
+    for {
+      _ <- server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], onQuery)
+      _ <- server.readAndSendResponses[Next](id, Next.readFrame[ByteBuffer], onNext)
+    } yield ()
+
   } { client =>
 
     val sql =
