@@ -6,8 +6,10 @@ import org.yupana.protocol.{ Authorized, Credentials, CredentialsRequest, Hello,
 
 import java.nio.ByteBuffer
 import java.sql.DriverManager
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
-class DriverTest extends AnyFlatSpec with Matchers {
+class YupanaDriverTest extends AnyFlatSpec with Matchers {
   import scala.concurrent.ExecutionContext.Implicits.global
 
   "YupanaDriver" should "connect using properly" in {
@@ -16,7 +18,7 @@ class DriverTest extends AnyFlatSpec with Matchers {
 
     val url = s"jdbc:yupana://127.0.0.1:${server.port}"
 
-    for {
+    val cf = for {
       id <- server.connect
       _ <- server
         .readAndSendResponses[Hello](
@@ -28,11 +30,16 @@ class DriverTest extends AnyFlatSpec with Matchers {
               CredentialsRequest(Seq(CredentialsRequest.METHOD_PLAIN))
             )
         )
-      r <- server
+      c <- server
         .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
-    } yield r
+    } yield c
 
     val conn = DriverManager.getConnection(url, "test_user", "12345")
+
+    val c = Await.result(cf, Duration.Inf)
+    c.method shouldEqual CredentialsRequest.METHOD_PLAIN
+    c.user shouldEqual "test_user"
+    c.password shouldEqual "12345"
 
     conn.close()
   }
