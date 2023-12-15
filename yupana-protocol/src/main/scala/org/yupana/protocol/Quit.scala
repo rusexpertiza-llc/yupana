@@ -14,28 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.jdbc
+package org.yupana.protocol
 
-import java.util.concurrent.atomic.AtomicInteger
-import scala.concurrent.{ Future, Promise }
+case class Quit() extends Command[Quit](Quit)
 
-class Countdown(n: Int) {
-  private val value = new AtomicInteger(n)
-  private val p = Promise[Int]()
+/**
+  * Notify server about before closing connection.
+  */
+object Quit extends MessageHelper[Quit] {
 
-  def release(): Int = {
-    val i = value.decrementAndGet()
-    if (i == 0) p.success(i)
-    i
-  }
-
-  def cancel(): Unit = {
-    p.success(value.get())
-  }
-
-  def failure(t: Throwable): Unit = {
-    p.failure(t)
-  }
-
-  def future: Future[Int] = p.future
+  override val tag: Byte = Tags.QUIT
+  override val readWrite: ReadWrite[Quit] = ReadWrite.empty.imap(_ => Quit())(_ => ())
 }

@@ -16,9 +16,14 @@
 
 package org.yupana.protocol
 
+/**
+  * Protocol messages tags.  Client messages use lower case chars, server messages use upper case.
+  */
 object Tags {
   val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'B'
+  val HEARTBEAT: Byte = 'b'
+
+  val QUIT: Byte = 'q'
 
   val CANCEL: Byte = 'x'
   val CANCELED: Byte = 'X'

@@ -16,8 +16,8 @@
 
 package org.yupana.protocol
 
-/** Keep alive message */
-case class Heartbeat(time: Int) extends Response[Heartbeat](Heartbeat)
+/** Keep alive message from client to server */
+case class Heartbeat(time: Int) extends Command[Heartbeat](Heartbeat)
 
 object Heartbeat extends MessageHelper[Heartbeat] {
   override val tag: Byte = Tags.HEARTBEAT

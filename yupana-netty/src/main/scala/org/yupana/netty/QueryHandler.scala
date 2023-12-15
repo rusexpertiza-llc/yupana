@@ -18,7 +18,6 @@ package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.timeout.{ IdleState, IdleStateEvent }
 import org.yupana.api.query.Result
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.sql.parser
@@ -27,22 +26,11 @@ import org.yupana.protocol._
 class QueryHandler(serverContext: ServerContext, userName: String) extends FrameHandlerBase with StrictLogging {
 
   private val user = YupanaUser(userName)
-  private val nanos = System.nanoTime()
   private var streams: Map[Int, Stream] = Map.empty
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
     streams.foreach(_._2.close())
     super.channelInactive(ctx)
-  }
-
-  override def userEventTriggered(ctx: ChannelHandlerContext, evt: Any): Unit = {
-    evt match {
-      case ise: IdleStateEvent if ise.state() == IdleState.WRITER_IDLE =>
-        val t = ((System.nanoTime() - nanos) / 1_000_000_000L).toInt
-        logger.trace(s"Send heartbeat ${t}s")
-        writeResponse(ctx, Heartbeat(t))
-      case _ =>
-    }
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
@@ -51,12 +39,16 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
       case Tags.BATCH_QUERY => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
       case Tags.NEXT        => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
       case Tags.CANCEL      => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
-      case x                => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
+      case Tags.HEARTBEAT   => processMessage(ctx, frame, Heartbeat)(h => logger.debug(s"Got heartbeat $h"))
+      case Tags.QUIT =>
+        logger.info("Got quit message")
+        ctx.close()
+      case x => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
   }
 
   private def handleQuery(ctx: ChannelHandlerContext, pq: SqlQuery): Unit = {
-    logger.debug(s"""Processing SQL query: "${pq.query}"; parameters: ${pq.params}""")
+    logger.debug(s"""Processing SQL query (id: ${pq.id}): "${pq.query}"; parameters: ${pq.params}""")
     val params = pq.params.map { case (index, p) => index -> convertValue(p) }
     serverContext.queryEngineRouter.query(user, pq.query, params) match {
       case Right(result) => addStream(ctx, pq.id, result)
@@ -65,7 +57,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
   }
 
   private def handleBatchQuery(ctx: ChannelHandlerContext, bq: BatchQuery): Unit = {
-    logger.debug(s"""Processing batch SQL query: "${bq.query}"; parameters: ${bq.params}""")
+    logger.debug(s"""Processing batch SQL query (id: ${bq.id}): "${bq.query}"; parameters: ${bq.params}""")
     val params = bq.params.map(_.map { case (index, p) => index -> convertValue(p) })
     serverContext.queryEngineRouter.batchQuery(user, bq.query, params) match {
       case Right(result) => addStream(ctx, bq.id, result)
@@ -85,6 +77,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
   }
 
   private def handleNext(ctx: ChannelHandlerContext, next: Next): Unit = {
+    logger.debug(s"Next acquired $next")
     streams.get(next.id) match {
       case Some(stream) =>
         writeResponses(ctx, stream.next(next.batchSize))
@@ -98,6 +91,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
   }
 
   private def cancelStream(ctx: ChannelHandlerContext, cancel: Cancel): Unit = {
+    logger.debug(s"Cancel stream $cancel")
     synchronized {
       streams.get(cancel.id) match {
         case Some(s) =>

@@ -81,7 +81,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
 
   private def connected(ctx: ChannelHandlerContext, userName: String): Unit = {
     if (ctx.pipeline().get(classOf[IdleStateHandler]) != null) {
-      ctx.pipeline().replace(classOf[IdleStateHandler], "idleState", new IdleStateHandler(0, 60, 0))
+      ctx.pipeline().remove(classOf[IdleStateHandler])
     }
     ctx
       .pipeline()

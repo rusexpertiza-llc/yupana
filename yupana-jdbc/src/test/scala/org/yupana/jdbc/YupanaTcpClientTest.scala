@@ -33,10 +33,12 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         )
       credentials <- server
         .readAndSendResponses[Credentials](id, Credentials.readFrame[ByteBuffer], _ => Seq(Authorized()))
+      _ <- server.readAndSendResponses[Quit](id, Quit.readFrame[ByteBuffer], _ => Nil)
       _ = server.close()
     } yield (hello, credentials)
 
     client.connect(12345678L)
+    client.close()
 
     val (hello, credentials) = Await.result(reqF, 100.millis)
     hello shouldEqual Hello(
@@ -130,9 +132,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
           )
         )
 
-        val hb = Heartbeat(1)
-
-        Seq(header, hb)
+        Seq(header)
       }
 
       val onNext = (n: Next) => {
@@ -144,9 +144,8 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
 
         val footer = ResultFooter(n.id, 1, 2)
-        val hb = Heartbeat(2)
 
-        Seq(data1, hb, data2, footer)
+        Seq(data1, data2, footer)
       }
 
       val reqF = for {
@@ -201,8 +200,6 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       }
 
       val onNext = (n: Next) => {
-        val hb = Heartbeat(1)
-
         val ts = implicitly[Storable[Time]]
         val ss = implicitly[Storable[String]]
 
@@ -212,7 +209,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
         val footer = ResultFooter(n.id, 1, 2)
 
-        Seq(hb, data1, data2, footer)
+        Seq(data1, data2, footer)
       }
 
       val reqF = for {
