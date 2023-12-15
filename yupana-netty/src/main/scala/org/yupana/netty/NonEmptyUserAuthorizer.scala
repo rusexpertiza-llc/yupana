@@ -18,7 +18,7 @@ package org.yupana.netty
 
 import org.yupana.protocol.CredentialsRequest
 
-class NonEmptyUserAuthorizer extends Authorizer {
+object NonEmptyUserAuthorizer extends Authorizer {
   override val methods: Seq[String] = Seq(CredentialsRequest.METHOD_PLAIN)
 
   override def authorize(method: String, userName: String, password: String): Either[String, String] = {
