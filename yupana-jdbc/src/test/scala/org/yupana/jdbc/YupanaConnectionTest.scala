@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.query.Result
 import org.yupana.protocol.ParameterValue
 
-import java.sql.{ Connection, SQLClientInfoException, SQLFeatureNotSupportedException, Statement }
+import java.sql.{ Connection, ResultSet, SQLClientInfoException, SQLFeatureNotSupportedException, Statement }
 import java.util.Properties
 import java.util.concurrent.ForkJoinPool
 
@@ -43,6 +43,9 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
     a[SQLFeatureNotSupportedException] should be thrownBy c.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
     a[SQLFeatureNotSupportedException] should be thrownBy c.isValid(10)
 
+    c.getHoldability shouldEqual ResultSet.HOLD_CURSORS_OVER_COMMIT
+    a[SQLFeatureNotSupportedException] should be thrownBy c.setHoldability(ResultSet.CLOSE_CURSORS_AT_COMMIT)
+
     a[SQLClientInfoException] should be thrownBy c.setClientInfo("param", "value")
     a[SQLClientInfoException] should be thrownBy c.setClientInfo(new Properties())
     a[SQLClientInfoException] should be thrownBy c.getClientInfo("key")
@@ -61,9 +64,22 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
     val ps = c.prepareStatement("SELECT ?")
     ps.getConnection shouldEqual c
 
+    a[SQLFeatureNotSupportedException] should be thrownBy c.createStatement(
+      ResultSet.TYPE_SCROLL_INSENSITIVE,
+      ResultSet.CONCUR_READ_ONLY,
+      ResultSet.HOLD_CURSORS_OVER_COMMIT
+    )
+
     a[SQLFeatureNotSupportedException] should be thrownBy c.prepareStatement(
       "SELECT 1",
       Statement.RETURN_GENERATED_KEYS
+    )
+
+    a[SQLFeatureNotSupportedException] should be thrownBy c.prepareStatement(
+      "SELECT 2",
+      ResultSet.TYPE_SCROLL_INSENSITIVE,
+      ResultSet.CONCUR_READ_ONLY,
+      ResultSet.HOLD_CURSORS_OVER_COMMIT
     )
 
     a[SQLFeatureNotSupportedException] should be thrownBy c.prepareStatement(
@@ -81,6 +97,19 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
     a[SQLFeatureNotSupportedException] should be thrownBy c.createNClob
     a[SQLFeatureNotSupportedException] should be thrownBy c.createSQLXML
     a[SQLFeatureNotSupportedException] should be thrownBy c.createStruct("test", Array())
+
+    a[SQLFeatureNotSupportedException] should be thrownBy c.prepareCall("{call function()}")
+    a[SQLFeatureNotSupportedException] should be thrownBy c.prepareCall(
+      "{call function()}",
+      ResultSet.CONCUR_READ_ONLY,
+      ResultSet.HOLD_CURSORS_OVER_COMMIT
+    )
+
+    a[SQLFeatureNotSupportedException] should be thrownBy c.commit()
+    a[SQLFeatureNotSupportedException] should be thrownBy c.rollback()
+    a[SQLFeatureNotSupportedException] should be thrownBy c.setSavepoint()
+    a[SQLFeatureNotSupportedException] should be thrownBy c.setSavepoint("point 1")
+    a[SQLFeatureNotSupportedException] should be thrownBy c.abort(ForkJoinPool.commonPool())
   }
 
 }
