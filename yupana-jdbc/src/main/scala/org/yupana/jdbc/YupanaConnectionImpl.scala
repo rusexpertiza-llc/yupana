@@ -16,7 +16,7 @@
 
 package org.yupana.jdbc
 
-import org.yupana.api.query.Result
+import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
 import java.sql.SQLException
@@ -38,7 +38,7 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
 
   tcpClient.connect(System.currentTimeMillis())
 
-  override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = {
+  override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
     try {
       tcpClient.prepareQuery(query, params)
     } catch {
@@ -47,13 +47,17 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
     }
   }
 
-  override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
+  override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult = {
     try {
       tcpClient.batchQuery(query, params)
     } catch {
       case e: Throwable =>
         throw new SQLException(e)
     }
+  }
+
+  override def cancelStream(streamId: Int): Unit = {
+    tcpClient.cancel(streamId)
   }
 
   @throws[SQLException]

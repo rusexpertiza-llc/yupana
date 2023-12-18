@@ -7,6 +7,7 @@ import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
 class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
@@ -247,14 +248,17 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
-    val tables = SimpleResult(
-      "TABLES",
-      Seq("TABLE_NAME", "TABLE_TYPE"),
-      Seq(DataType[String], DataType[String]),
-      Seq(
-        Array[Any]("EMPLOYEES", null),
-        Array[Any]("DEPARTMENTS", "TABLE")
-      ).iterator
+    val tables = QueryResult(
+      1,
+      SimpleResult(
+        "TABLES",
+        Seq("TABLE_NAME", "TABLE_TYPE"),
+        Seq(DataType[String], DataType[String]),
+        Seq(
+          Array[Any]("EMPLOYEES", null),
+          Array[Any]("DEPARTMENTS", "TABLE")
+        ).iterator
+      )
     )
 
     (() => conn.createStatement).expects().returning(new YupanaStatement(conn))
@@ -269,14 +273,17 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
-    val tables = SimpleResult(
-      "COLUMNS",
-      Seq("TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"),
-      Seq(DataType[String], DataType[String]),
-      Seq(
-        Array[Any]("EMPLOYEES", "NAME", "VARCHAR"),
-        Array[Any]("EMPLOYEES", "AGE", "INTEGER")
-      ).iterator
+    val tables = QueryResult(
+      1,
+      SimpleResult(
+        "COLUMNS",
+        Seq("TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"),
+        Seq(DataType[String], DataType[String]),
+        Seq(
+          Array[Any]("EMPLOYEES", "NAME", "VARCHAR"),
+          Array[Any]("EMPLOYEES", "AGE", "INTEGER")
+        ).iterator
+      )
     )
 
     (() => conn.createStatement).expects().returning(new YupanaStatement(conn))

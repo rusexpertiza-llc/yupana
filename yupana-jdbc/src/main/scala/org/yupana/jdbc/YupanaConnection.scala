@@ -18,6 +18,7 @@ package org.yupana.jdbc
 
 import java.sql.{ Array => _, _ }
 import org.yupana.api.query.Result
+import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
 import java.util
@@ -25,9 +26,11 @@ import java.util.Properties
 import java.util.concurrent.Executor
 
 trait YupanaConnection extends Connection {
-  def runQuery(query: String, params: Map[Int, ParameterValue]): Result
-  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result
+  def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult
+  def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult
   def url: String
+
+  def cancelStream(streamId: Int): Unit
 
   @throws[SQLException]
   override def createStatement: Statement = {
@@ -267,4 +270,8 @@ trait YupanaConnection extends Connection {
 
   @throws[SQLException]
   override def isWrapperFor(aClass: Class[_]): Boolean = aClass.isAssignableFrom(getClass)
+}
+
+object YupanaConnection {
+  case class QueryResult(id: Int, result: Result)
 }

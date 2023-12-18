@@ -19,8 +19,6 @@ package org.yupana.jdbc
 import org.yupana.protocol.{ ResultHeader, ResultRow }
 
 import scala.collection.mutable
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
 
 class ResultIterator(val header: ResultHeader, tcpClient: YupanaTcpClient) extends Iterator[ResultRow] {
 
@@ -38,7 +36,7 @@ class ResultIterator(val header: ResultHeader, tcpClient: YupanaTcpClient) exten
   override def hasNext: Boolean = {
     error.foreach(t => throw t)
     if (!done && buffer.isEmpty) {
-      Await.result(tcpClient.acquireNext(header.id), Duration.Inf)
+      tcpClient.acquireNext(header.id)
     }
 
     buffer.nonEmpty

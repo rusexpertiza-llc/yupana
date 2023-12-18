@@ -16,9 +16,10 @@
 
 package org.yupana.jdbc
 
-import org.yupana.api.query.{ Result, SimpleResult }
+import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.CollectionUtils
+import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
@@ -26,9 +27,9 @@ import org.yupana.protocol._
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
 import java.nio.channels.{ AsynchronousSocketChannel, CompletionHandler }
-import java.util.{ Timer, TimerTask }
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.logging.Logger
+import java.util.{ Timer, TimerTask }
 import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
@@ -56,7 +57,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     if (closed) throw new YupanaException("Connection is closed")
   }
 
-  def startHeartbeats(startTime: Long): Unit = {
+  private def startHeartbeats(startTime: Long): Unit = {
     heartbeatTimer.schedule(
       new TimerTask {
         override def run(): Unit = sendHeartbeat(startTime)
@@ -66,17 +67,17 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     )
   }
 
-  def cancelHeartbeats(): Unit = {
+  private def cancelHeartbeats(): Unit = {
     heartbeatTimer.cancel()
     heartbeatTimer.purge()
   }
 
-  def prepareQuery(query: String, params: Map[Int, ParameterValue]): Result = {
+  def prepareQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
     val id = nextId.incrementAndGet()
     Await.result(execRequestQuery(id, SqlQuery(id, query, params)), Duration.Inf)
   }
 
-  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = {
+  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult = {
     val id = nextId.incrementAndGet()
     Await.result(execRequestQuery(id, BatchQuery(id, query, params)), Duration.Inf)
   }
@@ -194,12 +195,33 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     }
   }
 
-  def acquireNext(id: Int): Future[Unit] = {
+  def acquireNext(id: Int): Unit = {
     assert(iterators.contains(id))
-    runCommand(
+    val f = runCommand(
       Next(id, batchSize),
       (p: Promise[Unit]) => readBatch(id, 0).onComplete(x => p.complete(x.map(_ => ())))
     )
+    Await.result(f, Duration.Inf)
+  }
+
+  def cancel(id: Int): Unit = {
+    if (iterators.contains(id)) {
+      val f = runCommand(
+        Cancel(id),
+        (p: Promise[Unit]) =>
+          waitFor(Canceled).onComplete { cancelled =>
+            cancelled.map { c =>
+              assert(c.id == id)
+              iterators.synchronized {
+                iterators -= id
+              }
+            }
+            p.complete(cancelled.map(_ => ()))
+          }
+      )
+
+      Await.result(f, Duration.Inf)
+    }
   }
 
   private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
@@ -220,7 +242,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     }
   }
 
-  private def execRequestQuery(id: Int, command: Command[_]): Future[Result] = {
+  private def execRequestQuery(id: Int, command: Command[_]): Future[QueryResult] = {
     logger.fine(s"Exec request query $command")
     ensureNotClosed()
     runCommand(
@@ -235,7 +257,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
             }
           }))
         }
-    ).map(extractProtoResult)
+    ).map(it => extractProtoResult(id, it))
   }
 
   private def write(request: Command[_]): Future[Unit] = {
@@ -269,7 +291,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     channel.close()
   }
 
-  private def extractProtoResult(res: ResultIterator): Result = {
+  private def extractProtoResult(id: Int, res: ResultIterator): QueryResult = {
     val header = res.header
     val names = header.fields.map(_.name)
     val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
@@ -293,7 +315,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
         .toArray
     }
 
-    SimpleResult(header.tableName, names, dataTypes, values)
+    QueryResult(id, SimpleResult(header.tableName, names, dataTypes, values))
   }
 }
 

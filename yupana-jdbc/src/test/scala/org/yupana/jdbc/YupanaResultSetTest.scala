@@ -18,7 +18,7 @@ import java.{ util, math => jm }
 class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
 
   "Result set" should "provide common information" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
       Seq("int", "string", "double"),
@@ -47,7 +47,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "move forward" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
       Seq("int", "string"),
@@ -134,7 +134,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "support last and afterLast" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
       Seq("int", "string"),
@@ -164,7 +164,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "provide columns metadata" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
       Seq("age", "name", "salary", "birthday"),
@@ -259,7 +259,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "extract data rows of different types" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val time = LocalDateTime.now()
     val result = SimpleResult(
       "test",
@@ -380,7 +380,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "provide correct info about null values" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val time = LocalDateTime.now()
 
     val result = SimpleResult(
@@ -474,7 +474,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   it should "support arrays" in {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
       Seq("int", "array_string", "array_int"),
@@ -522,7 +522,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   it should "support BLOBs" in {
     import org.yupana.api.{ Blob => ApiBlob }
 
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
 
     val result = SimpleResult(
       "test",
@@ -556,7 +556,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   it should "return BLOB as bytes correctly" in {
     import org.yupana.api.{ Blob => ApiBlob }
 
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
 
     val result = SimpleResult(
       "test",
@@ -799,7 +799,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   private def createResultSet: YupanaResultSet = {
-    val statement = mock[Statement]
+    val statement = mock[YupanaStatement]
     val result = SimpleResult(
       "test",
       Seq("int", "string", "double", "time"),

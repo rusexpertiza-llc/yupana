@@ -53,9 +53,9 @@ object Result {
 
 case class SimpleResult(
     override val name: String,
-    fieldNames: Seq[String],
-    dataTypes: Seq[DataType],
-    rows: CloseableIterator[Array[Any]]
+    override val fieldNames: Seq[String],
+    override val dataTypes: Seq[DataType],
+    override val rows: CloseableIterator[Array[Any]]
 ) extends Result {
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap

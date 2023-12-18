@@ -3,6 +3,7 @@ package org.yupana.jdbc
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.query.Result
+import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
 import java.sql.{ Connection, ResultSet, SQLClientInfoException, SQLFeatureNotSupportedException, Statement }
@@ -14,15 +15,18 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
   class TestConnection extends YupanaConnection {
 
     private var closed = false
-    override def runQuery(query: String, params: Map[Int, ParameterValue]): Result = Result.empty
+    override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = QueryResult(1, Result.empty)
 
-    override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): Result = Result.empty
+    override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult =
+      QueryResult(1, Result.empty)
 
     override def url: String = ""
 
     override def close(): Unit = closed = true
 
     override def isClosed: Boolean = closed
+
+    override def cancelStream(streamId: Int): Unit = {}
   }
 
   "YupanaConnection" should "provide connection capabilities" in {

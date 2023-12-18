@@ -10,8 +10,8 @@ import org.yupana.protocol._
 
 import java.io.IOException
 import java.nio.ByteBuffer
-import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
+import scala.concurrent.{ Await, Future }
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -163,7 +163,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         }
       }
     } { client =>
-      val result = client.prepareQuery(sql, bind)
+      val result = client.prepareQuery(sql, bind).result
 
       result.name shouldEqual "items_kkm"
 
@@ -225,23 +225,25 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         }
       }
     } { client =>
-      val result = client.batchQuery(
-        sql,
-        Seq(
-          Map(
-            1 -> TimestampValue(12345L),
-            2 -> TimestampValue(23456L),
-            3 -> NumericValue(1000),
-            4 -> StringValue("икра баклажанная")
-          ),
-          Map(
-            1 -> TimestampValue(12345L),
-            2 -> TimestampValue(23456L),
-            3 -> NumericValue(100),
-            4 -> StringValue("икра кабачковая")
+      val result = client
+        .batchQuery(
+          sql,
+          Seq(
+            Map(
+              1 -> TimestampValue(12345L),
+              2 -> TimestampValue(23456L),
+              3 -> NumericValue(1000),
+              4 -> StringValue("икра баклажанная")
+            ),
+            Map(
+              1 -> TimestampValue(12345L),
+              2 -> TimestampValue(23456L),
+              3 -> NumericValue(100),
+              4 -> StringValue("икра кабачковая")
+            )
           )
         )
-      )
+        .result
 
       result.name shouldEqual "items_kkm"
 
@@ -298,15 +300,17 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         |  """.stripMargin
 
     the[IOException] thrownBy {
-      val res = client.prepareQuery(
-        sql,
-        Map(
-          1 -> TimestampValue(12345L),
-          2 -> TimestampValue(23456L),
-          3 -> NumericValue(1000),
-          4 -> StringValue("икра баклажанная")
+      val res = client
+        .prepareQuery(
+          sql,
+          Map(
+            1 -> TimestampValue(12345L),
+            2 -> TimestampValue(23456L),
+            3 -> NumericValue(1000),
+            4 -> StringValue("икра баклажанная")
+          )
         )
-      )
+        .result
       res.next()
     } should have message "Unexpected end of response"
 
