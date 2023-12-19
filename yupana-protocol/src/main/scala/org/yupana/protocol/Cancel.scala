@@ -20,6 +20,6 @@ package org.yupana.protocol
 case class Cancel(id: Int) extends Command[Cancel](Cancel)
 
 object Cancel extends MessageHelper[Cancel] {
-  override val tag: Byte = Tags.CANCEL
+  override val tag: Tag = CancelTag
   override val readWrite: ReadWrite[Cancel] = ReadWrite[Int].imap(Cancel.apply)(_.id)
 }

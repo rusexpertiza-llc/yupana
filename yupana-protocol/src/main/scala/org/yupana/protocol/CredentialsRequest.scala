@@ -25,7 +25,7 @@ case class CredentialsRequest(methods: Seq[String]) extends Response[Credentials
 object CredentialsRequest extends MessageHelper[CredentialsRequest] {
   val METHOD_PLAIN: String = "plain"
 
-  override val tag: Byte = Tags.CREDENTIALS_REQUEST
+  override val tag: Tag = CredentialsRequestTag
   override val readWrite: ReadWrite[CredentialsRequest] =
     ReadWrite[Seq[String]].imap(CredentialsRequest.apply)(_.methods)
 }

@@ -24,7 +24,7 @@ package org.yupana.protocol
 case class HelloResponse(protocolVersion: Int, reqTime: Long) extends Response[HelloResponse](HelloResponse)
 
 object HelloResponse extends MessageHelper[HelloResponse] {
-  override val tag: Byte = Tags.HELLO_RESPONSE
+  override val tag: Tag = HelloResponseTag
   override val readWrite: ReadWrite[HelloResponse] =
     ReadWrite.product2[HelloResponse, Int, Long](HelloResponse.apply)(x => (x.protocolVersion, x.reqTime))
 }

@@ -170,7 +170,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   private def readBatch(id: Int, read: Int): Future[Int] = {
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
-        case Tags.RESULT_ROW =>
+        case ResultRowTag.value =>
           val row = ResultRow.readFrame(frame)
           if (row.id == id) {
             iterators(id).addResult(row)
@@ -179,14 +179,14 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
             Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
           }
 
-        case Tags.RESULT_FOOTER =>
+        case ResultFooterTag.value =>
           iterators(id).setDone()
           iterators.synchronized {
             iterators -= id
           }
           Future.successful(read)
 
-        case Tags.ERROR_MESSAGE =>
+        case ErrorMessageTag.value =>
           val em = ErrorMessage.readFrame(frame)
           val ex = new YupanaException(em.message)
 
@@ -258,8 +258,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   ): Future[T] = {
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
-        case helper.tag => Future.successful(helper.readFrame[ByteBuffer](frame))
-        case Tags.ERROR_MESSAGE =>
+        case helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
+        case ErrorMessageTag.value =>
           val msg = ErrorMessage.readFrame(frame).message
           Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.toChar}', '$msg'")))
 

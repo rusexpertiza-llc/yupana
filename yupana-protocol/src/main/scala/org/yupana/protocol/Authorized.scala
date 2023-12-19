@@ -20,6 +20,6 @@ package org.yupana.protocol
 case class Authorized() extends Response[Authorized](Authorized)
 
 object Authorized extends MessageHelper[Authorized] {
-  override val tag: Byte = Tags.AUTHORIZED
+  override val tag: Tag = AuthorizedTag
   override val readWrite: ReadWrite[Authorized] = ReadWrite.empty.imap(_ => Authorized())(_ => ())
 }
