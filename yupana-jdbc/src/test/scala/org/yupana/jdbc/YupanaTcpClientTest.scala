@@ -257,9 +257,19 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     }
   }
 
-  it should "handle error response on query" in withServerConnected { (server, id) =>
-    val err = ErrorMessage("Internal error")
-    server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], _ => Seq(err))
+  it should "handle global error response on query" in withServerConnected { (server, id) =>
+    server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], _ => Seq(ErrorMessage("Internal error")))
+  } { client =>
+    val e = the[YupanaException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
+    e.getMessage should include("Internal error")
+  }
+
+  it should "handle stream error response on query" in withServerConnected { (server, id) =>
+    server.readAndSendResponses[SqlQuery](
+      id,
+      SqlQuery.readFrame[ByteBuffer],
+      q => Seq(ErrorMessage("Internal error", Some(q.id)))
+    )
   } { client =>
     val e = the[YupanaException] thrownBy client.prepareQuery("SHOW TABLES", Map.empty)
     e.getMessage should include("Internal error")

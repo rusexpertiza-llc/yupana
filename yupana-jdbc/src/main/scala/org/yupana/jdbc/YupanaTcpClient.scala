@@ -181,17 +181,46 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
         case Tags.RESULT_FOOTER =>
           iterators(id).setDone()
+          iterators.synchronized {
+            iterators -= id
+          }
           Future.successful(read)
 
         case Tags.ERROR_MESSAGE =>
           val em = ErrorMessage.readFrame(frame)
-          val msg = em.streamId.fold(s"A big problem here. ${em.message}") { i =>
-            if (i == id) s"Unable to read batch. ${em.message}" else s"Unexpected row id $i in error. ${em.message}"
+          val ex = new YupanaException(em.message)
+
+          em.streamId match {
+            case Some(sId) =>
+              logger.info(s"Got error message $em")
+              failIterator(sId, ex)
+              if (sId == id) {
+                Future.failed(ex)
+              } else {
+                logger.severe(s"Unexpected error message '${em.message}'")
+                readBatch(id, read)
+              }
+
+            case None =>
+              logger.warning(s"Got global error message $em")
+              iterators.synchronized {
+                iterators.foreach(_._2.setFailed(ex))
+                iterators = Map.empty
+              }
+              Future.failed(ex)
           }
-          Future.failed(new YupanaException(msg))
+
+          Future.failed(ex)
 
         case x => Future.failed(new YupanaException(s"Unexpected response ${x.toChar} in Next handler"))
       }
+    }
+  }
+
+  private def failIterator(id: Int, ex: Throwable): Unit = {
+    iterators.synchronized {
+      iterators.get(id).foreach(_.setFailed(ex))
+      iterators -= id
     }
   }
 

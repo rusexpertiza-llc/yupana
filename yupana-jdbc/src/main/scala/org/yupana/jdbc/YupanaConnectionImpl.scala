@@ -42,8 +42,8 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
     try {
       tcpClient.prepareQuery(query, params)
     } catch {
-      case e: Throwable =>
-        throw new SQLException(e)
+      case e: SQLException => throw e
+      case x: Throwable    => throw new SQLException(x)
     }
   }
 
@@ -51,8 +51,8 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
     try {
       tcpClient.batchQuery(query, params)
     } catch {
-      case e: Throwable =>
-        throw new SQLException(e)
+      case e: SQLException => throw e
+      case x: Throwable    => throw new SQLException(x)
     }
   }
 
