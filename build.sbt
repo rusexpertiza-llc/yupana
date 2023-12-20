@@ -310,7 +310,10 @@ lazy val examples = (project in file("yupana-examples"))
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
     ),
     excludeDependencies ++= Seq(
-      "asm" % "asm"
+      "javax.activation" % "javax.activation-api",
+      "javax.activation" % "activation",
+      "javax.inject"     % "javax.inject",
+      "com.sun.jersey"   % "jersey-json"
     ),
     assembly / assemblyMergeStrategy := {
       case PathList("org", "apache", "jasper", _*)  => MergeStrategy.last
@@ -322,6 +325,7 @@ lazy val examples = (project in file("yupana-examples"))
       case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
       case "module-info.class"                      => MergeStrategy.first
+  case PathList("META-INF", "versions", xs @ _, "module-info.class") => MergeStrategy.discard
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
@@ -416,8 +420,8 @@ lazy val versions = new {
   val scopt = "4.1.0"
   val prometheus = "0.16.0"
 
-  val hbase = "2.4.1"
-  val hadoop = "3.0.3"
+  val hbase = "2.5.6"
+  val hadoop = "3.3.6"
 
   val akka = "2.6.21"
   val pekko = "1.0.1"
