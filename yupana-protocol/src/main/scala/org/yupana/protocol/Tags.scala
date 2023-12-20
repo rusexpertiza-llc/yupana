@@ -19,31 +19,35 @@ package org.yupana.protocol
 /**
   * Protocol messages tags.  Client messages use lower case chars, server messages use upper case.
   */
-sealed trait Tag {
-  val value: Byte
 
-  def toChar: Char = value.toChar
+object Tags extends Enumeration {
+  type Tags = Value
+
+  final protected case class TagVal(value: Byte) extends super.Val
+
+  import scala.language.implicitConversions
+
+  implicit def valueToPlanetVal(x: Value): TagVal = x.asInstanceOf[TagVal]
+
+  val ERROR_MESSAGE: TagVal = TagVal('E')
+  val HEARTBEAT: TagVal = TagVal('k')
+  val QUIT: TagVal = TagVal('q')
+
+  val CANCEL: TagVal = TagVal('x')
+  val CANCELED: TagVal = TagVal('X')
+
+  val HELLO: TagVal = TagVal('h')
+  val HELLO_RESPONSE: TagVal = TagVal('H')
+
+  val CREDENTIALS: TagVal = TagVal('c')
+  val CREDENTIALS_REQUEST: TagVal = TagVal('C')
+  val AUTHORIZED: TagVal = TagVal('A')
+
+  val SQL_QUERY: TagVal = TagVal('s')
+  val BATCH_QUERY: TagVal = TagVal('b')
+  val NEXT: TagVal = TagVal('n')
+
+  val RESULT_HEADER: TagVal = TagVal('R')
+  val RESULT_ROW: TagVal = TagVal('D')
+  val RESULT_FOOTER: TagVal = TagVal('F')
 }
-
-case object ErrorMessageTag extends Tag { override val value: Byte = 'E' }
-case object HeartbeatTag extends Tag { override val value: Byte = 'k' }
-
-case object QuitTag extends Tag { override val value: Byte = 'q' }
-
-case object CancelTag extends Tag { override val value: Byte = 'x' }
-case object CanceledTag extends Tag { override val value: Byte = 'X' }
-
-case object HelloTag extends Tag { override val value: Byte = 'h' }
-case object HelloResponseTag extends Tag { override val value: Byte = 'H' }
-
-case object CredentialsRequestTag extends Tag { override val value: Byte = 'C' }
-case object CredentialsTag extends Tag { override val value: Byte = 'c' }
-case object AuthorizedTag extends Tag { override val value: Byte = 'A' }
-
-case object SqlQueryTag extends Tag { override val value: Byte = 's' }
-case object BatchQueryTag extends Tag { override val value: Byte = 'b' }
-case object NextTag extends Tag { override val value: Byte = 'n' }
-
-case object ResultHeaderTag extends Tag { override val value: Byte = 'R' }
-case object ResultRowTag extends Tag { override val value: Byte = 'D' }
-case object ResultFooterTag extends Tag { override val value: Byte = 'F' }

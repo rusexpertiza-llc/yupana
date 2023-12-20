@@ -49,7 +49,6 @@ lazy val protocol = (project in file("yupana-protocol"))
     name := "yupana-protocol",
     allSettings,
     libraryDependencies ++= Seq(
-      "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value % Test,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test
     )
   )

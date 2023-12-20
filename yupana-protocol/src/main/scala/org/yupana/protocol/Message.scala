@@ -35,7 +35,7 @@ trait Message[M <: Message[M]] { self: M =>
 trait MessageHelper[M <: Message[M]] {
 
   /** Message tag */
-  val tag: Tag
+  val tag: Tags.Tags
 
   /** ReadWrite instance for the message */
   val readWrite: ReadWrite[M]

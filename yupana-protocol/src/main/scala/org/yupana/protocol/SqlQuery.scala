@@ -25,7 +25,7 @@ package org.yupana.protocol
 case class SqlQuery(id: Int, query: String, params: Map[Int, ParameterValue]) extends Command[SqlQuery](SqlQuery)
 
 object SqlQuery extends MessageHelper[SqlQuery] {
-  override val tag: Tag = SqlQueryTag
+  override val tag: Tags.Tags = Tags.SQL_QUERY
   override val readWrite: ReadWrite[SqlQuery] =
     ReadWrite.product3[SqlQuery, Int, String, Map[Int, ParameterValue]](SqlQuery.apply)(q => (q.id, q.query, q.params))
 }

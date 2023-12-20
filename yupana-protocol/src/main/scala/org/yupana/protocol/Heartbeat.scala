@@ -20,6 +20,6 @@ package org.yupana.protocol
 case class Heartbeat(time: Int) extends Command[Heartbeat](Heartbeat)
 
 object Heartbeat extends MessageHelper[Heartbeat] {
-  override val tag: Tag = HeartbeatTag
+  override val tag: Tags.Tags = Tags.HEARTBEAT
   override val readWrite: ReadWrite[Heartbeat] = implicitly[ReadWrite[Int]].imap(Heartbeat.apply)(_.time)
 }

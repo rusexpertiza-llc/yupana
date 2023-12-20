@@ -170,7 +170,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   private def readBatch(id: Int, read: Int): Future[Int] = {
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
-        case ResultRowTag.value =>
+        case Tags.RESULT_ROW.value =>
           val row = ResultRow.readFrame(frame)
           if (row.id == id) {
             iterators(id).addResult(row)
@@ -179,14 +179,14 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
             Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
           }
 
-        case ResultFooterTag.value =>
+        case Tags.RESULT_FOOTER.value =>
           iterators(id).setDone()
           iterators.synchronized {
             iterators -= id
           }
           Future.successful(read)
 
-        case ErrorMessageTag.value =>
+        case Tags.ERROR_MESSAGE.value =>
           val em = ErrorMessage.readFrame(frame)
           val ex = new YupanaException(em.message)
 
@@ -258,14 +258,16 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   ): Future[T] = {
     chanelReader.readFrame().flatMap { frame =>
       frame.frameType match {
-        case helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
-        case ErrorMessageTag.value =>
+        case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
+        case Tags.ERROR_MESSAGE.value =>
           val msg = ErrorMessage.readFrame(frame).message
-          Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.toChar}', '$msg'")))
+          Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.value.toChar}', '$msg'")))
 
         case x =>
           Future.failed(
-            new YupanaException(error(s"Unexpected response '${x.toChar}' while waiting for '${helper.tag.toChar}'"))
+            new YupanaException(
+              error(s"Unexpected response '${x.toChar}' while waiting for '${helper.tag.value.toChar}'")
+            )
           )
       }
     }
@@ -290,7 +292,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   private def write(request: Command[_]): Future[Unit] = {
-    logger.fine(s"Writing command ${request.helper.tag.toChar}")
+    logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
     val f = request.toFrame
     val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
     bb.put(f.frameType)

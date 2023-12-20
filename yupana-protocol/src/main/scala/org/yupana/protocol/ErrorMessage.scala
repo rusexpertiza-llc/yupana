@@ -26,7 +26,7 @@ case class ErrorMessage(message: String, streamId: Option[Int] = None, severity:
     extends Response[ErrorMessage](ErrorMessage)
 
 object ErrorMessage extends MessageHelper[ErrorMessage] {
-  override val tag: Tag = ErrorMessageTag
+  override val tag: Tags.Tags = Tags.ERROR_MESSAGE
 
   val SEVERITY_FATAL: Byte = -1
   val SEVERITY_ERROR: Byte = 0

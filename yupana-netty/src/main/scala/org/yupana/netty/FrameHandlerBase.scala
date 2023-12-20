@@ -25,7 +25,7 @@ abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame] {
   protected def logger: Logger
 
   def readMessage[M <: Message[M]](f: Frame, helper: MessageHelper[M]): Either[ErrorMessage, M] = {
-    helper.readFrameOpt(f).toRight(ErrorMessage(s"Expect '${helper.tag.toChar}' but got '${f.frameType}'"))
+    helper.readFrameOpt(f).toRight(ErrorMessage(s"Expect '${helper.tag.value.toChar}' but got '${f.frameType}'"))
   }
   def processMessage[M <: Message[M]](ctx: ChannelHandlerContext, frame: Frame, helper: MessageHelper[M])(
       f: M => Unit

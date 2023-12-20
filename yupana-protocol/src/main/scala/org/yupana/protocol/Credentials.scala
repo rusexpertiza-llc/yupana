@@ -25,7 +25,7 @@ package org.yupana.protocol
 case class Credentials(method: String, user: String, password: String) extends Command[Credentials](Credentials)
 
 object Credentials extends MessageHelper[Credentials] {
-  override val tag: Tag = CredentialsTag
+  override val tag: Tags.Tags = Tags.CREDENTIALS
   override val readWrite: ReadWrite[Credentials] =
     ReadWrite.product3[Credentials, String, String, String](Credentials.apply)(c => (c.method, c.user, c.password))
 }

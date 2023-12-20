@@ -27,7 +27,7 @@ case class Hello(protocolVersion: Int, clientVersion: String, timestamp: Long, p
     extends Command[Hello](Hello)
 
 object Hello extends MessageHelper[Hello] {
-  override val tag: Tag = HelloTag
+  override val tag: Tags.Tags = Tags.HELLO
 
   implicit override val readWrite: ReadWrite[Hello] =
     ReadWrite.product4[Hello, Int, String, Long, Map[String, String]](Hello.apply)(h =>

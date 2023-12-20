@@ -25,7 +25,7 @@ package org.yupana.protocol
 case class ResultFooter(id: Int, millis: Long, rows: Int) extends Response[ResultFooter](ResultFooter)
 
 object ResultFooter extends MessageHelper[ResultFooter] {
-  override val tag: Tag = ResultFooterTag
+  override val tag: Tags.Tags = Tags.RESULT_FOOTER
   override val readWrite: ReadWrite[ResultFooter] =
     ReadWrite.product3[ResultFooter, Int, Long, Int](ResultFooter.apply)(f => (f.id, f.millis, f.rows))
 }

@@ -20,6 +20,6 @@ package org.yupana.protocol
 case class Canceled(id: Int) extends Response[Canceled](Canceled)
 
 object Canceled extends MessageHelper[Canceled] {
-  override val tag: Tag = CanceledTag
+  override val tag: Tags.Tags = Tags.CANCELED
   override val readWrite: ReadWrite[Canceled] = ReadWrite[Int].imap(Canceled.apply)(_.id)
 }

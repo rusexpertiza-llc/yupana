@@ -27,7 +27,7 @@ case class BatchQuery(id: Int, query: String, params: Seq[Map[Int, ParameterValu
 
 object BatchQuery extends MessageHelper[BatchQuery] {
 
-  override val tag: Tag = BatchQueryTag
+  override val tag: Tags.Tags = Tags.BATCH_QUERY
   override val readWrite: ReadWrite[BatchQuery] =
     ReadWrite.product3[BatchQuery, Int, String, Seq[Map[Int, ParameterValue]]](BatchQuery.apply)(q =>
       (q.id, q.query, q.params)

@@ -36,7 +36,7 @@ object ResultHeader extends MessageHelper[ResultHeader] {
   implicit val rwResultField: ReadWrite[ResultField] =
     ReadWrite.product2[ResultField, String, String](ResultField.apply)(x => (x.name, x.typeName))
 
-  override val tag: Tag = ResultHeaderTag
+  override val tag: Tags.Tags = Tags.RESULT_HEADER
   override val readWrite: ReadWrite[ResultHeader] =
     ReadWrite.product3[ResultHeader, Int, String, Seq[ResultField]](ResultHeader.apply)(x =>
       (x.id, x.tableName, x.fields)

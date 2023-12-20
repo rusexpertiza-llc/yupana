@@ -43,7 +43,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     Then("Authorized should be replied")
     val authFrame = ch.readOutbound[Frame]()
-    authFrame.frameType shouldEqual AuthorizedTag.value
+    authFrame.frameType shouldEqual Tags.AUTHORIZED.value
   }
 
   it should "check protocol version" in {
@@ -65,9 +65,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(frame)
     val respFrame = ch.readOutbound[Frame]()
-    respFrame.frameType shouldEqual HelloResponseTag.value
+    respFrame.frameType shouldEqual Tags.HELLO_RESPONSE.value
     val credentialsFrame = ch.readOutbound[Frame]()
-    credentialsFrame.frameType shouldEqual CredentialsRequestTag.value
+    credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
     ch.writeInbound(Credentials("SECURE", "test", "pass").toFrame[ByteBuf])
     ch.finish() shouldBe true
@@ -86,9 +86,9 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(frame)
     val respFrame = ch.readOutbound[Frame]()
-    respFrame.frameType shouldEqual HelloResponseTag.value
+    respFrame.frameType shouldEqual Tags.HELLO_RESPONSE.value
     val credentialsFrame = ch.readOutbound[Frame]()
-    credentialsFrame.frameType shouldEqual CredentialsRequestTag.value
+    credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
     ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "", "").toFrame[ByteBuf])
     ch.finish() shouldBe true
@@ -284,11 +284,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   private def readMessage[T <: Message[T]](ch: EmbeddedChannel, messageHelper: MessageHelper[T]): T = {
     val frame = ch.readOutbound[Frame]()
-    if (frame.frameType == ErrorMessageTag.value && messageHelper.tag != ErrorMessageTag) {
+    if (frame.frameType == Tags.ERROR_MESSAGE.value && messageHelper.tag != Tags.ERROR_MESSAGE) {
       val em = ErrorMessage.readFrame(frame)
       fail(em.message)
     }
-    frame.frameType.toChar shouldEqual messageHelper.tag.toChar
+    frame.frameType.toChar shouldEqual messageHelper.tag.value.toChar
     messageHelper.readFrame(frame)
   }
 
@@ -298,13 +298,13 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     ch.writeInbound(frame)
     val respFrame = ch.readOutbound[Frame]()
-    respFrame.frameType shouldEqual HelloResponseTag.value
+    respFrame.frameType shouldEqual Tags.HELLO_RESPONSE.value
     val credentialsFrame = ch.readOutbound[Frame]()
-    credentialsFrame.frameType shouldEqual CredentialsRequestTag.value
+    credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
     ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "test", "").toFrame[ByteBuf])
 
     val authFrame = ch.readOutbound[Frame]()
-    authFrame.frameType shouldEqual AuthorizedTag.value
+    authFrame.frameType shouldEqual Tags.AUTHORIZED.value
   }
 }

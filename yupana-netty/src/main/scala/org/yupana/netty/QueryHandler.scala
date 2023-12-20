@@ -35,12 +35,12 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
 
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
     frame.frameType match {
-      case SqlQueryTag.value   => processMessage(ctx, frame, SqlQuery)(pq => handleQuery(ctx, pq))
-      case BatchQueryTag.value => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
-      case NextTag.value       => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
-      case CancelTag.value     => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
-      case HeartbeatTag.value  => processMessage(ctx, frame, Heartbeat)(h => logger.debug(s"Got heartbeat $h"))
-      case QuitTag.value =>
+      case Tags.SQL_QUERY.value   => processMessage(ctx, frame, SqlQuery)(pq => handleQuery(ctx, pq))
+      case Tags.BATCH_QUERY.value => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
+      case Tags.NEXT.value        => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
+      case Tags.CANCEL.value      => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
+      case Tags.HEARTBEAT.value   => processMessage(ctx, frame, Heartbeat)(h => logger.debug(s"Got heartbeat $h"))
+      case Tags.QUIT.value =>
         logger.info("Got quit message")
         ctx.close()
       case x => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))

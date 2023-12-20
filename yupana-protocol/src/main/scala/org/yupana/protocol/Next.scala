@@ -18,12 +18,13 @@ package org.yupana.protocol
 
 /**
   * Request for next batch of data
+  *
   * @param id request id
   * @param batchSize size of requested batch
   */
 case class Next(id: Int, batchSize: Int) extends Command[Next](Next)
 
 object Next extends MessageHelper[Next] {
-  override val tag: Tag = NextTag
+  override val tag: Tags.Tags = Tags.NEXT
   override val readWrite: ReadWrite[Next] = ReadWrite.product2[Next, Int, Int](Next.apply)(x => (x.id, x.batchSize))
 }
