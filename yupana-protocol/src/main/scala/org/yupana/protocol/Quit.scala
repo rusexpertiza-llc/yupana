@@ -23,6 +23,6 @@ case class Quit() extends Command[Quit](Quit)
   */
 object Quit extends MessageHelper[Quit] {
 
-  override val tag: Byte = Tags.QUIT
+  override val tag: Tag = QuitTag
   override val readWrite: ReadWrite[Quit] = ReadWrite.empty.imap(_ => Quit())(_ => ())
 }

@@ -35,7 +35,7 @@ trait Message[M <: Message[M]] { self: M =>
 trait MessageHelper[M <: Message[M]] {
 
   /** Message tag */
-  val tag: Byte
+  val tag: Tag
 
   /** ReadWrite instance for the message */
   val readWrite: ReadWrite[M]
@@ -50,7 +50,7 @@ trait MessageHelper[M <: Message[M]] {
     val b = implicitly[Buffer[B]]
     val buf = b.alloc(Frame.MAX_FRAME_SIZE)
     readWrite.write(buf, c)
-    Frame(tag, b.toByteArray(buf))
+    Frame(tag.value, b.toByteArray(buf))
   }
 
   /**
@@ -58,7 +58,7 @@ trait MessageHelper[M <: Message[M]] {
     * @return deserialized message or None, if frame type doesn't match message type.
     */
   def readFrameOpt[B: Buffer](f: Frame): Option[M] = {
-    Option.when(f.frameType == tag)(readFrame(f))
+    Option.when(f.frameType == tag.value)(readFrame(f))
   }
 
   /**

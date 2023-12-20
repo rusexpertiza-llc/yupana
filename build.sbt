@@ -47,7 +47,11 @@ lazy val api = (project in file("yupana-api"))
 lazy val protocol = (project in file("yupana-protocol"))
   .settings(
     name := "yupana-protocol",
-    allSettings
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.scala-lang"                %  "scala-reflect"                % scalaVersion.value % Test,
+      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test
+    )
   )
   .disablePlugins(AssemblyPlugin)
 
