@@ -21,7 +21,7 @@ package org.yupana.protocol
   */
 object Tags {
   val ERROR_MESSAGE: Byte = 'E'
-  val HEARTBEAT: Byte = 'b'
+  val HEARTBEAT: Byte = 'k'
 
   val QUIT: Byte = 'q'
 
