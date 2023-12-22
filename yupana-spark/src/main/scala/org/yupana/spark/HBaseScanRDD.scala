@@ -45,8 +45,7 @@ class HBaseScanRDD(
       Using.resource(connection.getRegionLocator(tableName)) { regionLocator =>
         val keys = regionLocator.getStartEndKeys
         val firstKey = HBaseUtils.getFirstKey(connection, tableName)
-        val lastKey = HBaseUtils.getLastKey(connection, tableName)
-        Bytes.incrementBytes(lastKey, 1L)
+        val lastKey = Bytes.unsignedCopyAndIncrement(HBaseUtils.getLastKey(connection, tableName))
 
         keys.getFirst()(0) = firstKey
         keys.getSecond()(keys.getSecond.length - 1) = lastKey
