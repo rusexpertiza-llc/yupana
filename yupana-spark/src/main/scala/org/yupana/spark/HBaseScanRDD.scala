@@ -46,6 +46,7 @@ class HBaseScanRDD(
         val keys = regionLocator.getStartEndKeys
         val firstKey = HBaseUtils.getFirstKey(connection, tableName)
         val lastKey = HBaseUtils.getLastKey(connection, tableName)
+        Bytes.incrementBytes(lastKey, 1L)
 
         keys.getFirst()(0) = firstKey
         keys.getSecond()(keys.getSecond.length - 1) = lastKey
@@ -77,8 +78,7 @@ class HBaseScanRDD(
 
     listener
       .transformPartitions(partitions.toSeq)
-      .toArray
-      .asInstanceOf[Array[Partition]]
+      .toArray[Partition]
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
@@ -126,7 +126,7 @@ class HBaseScanRDD(
 
 object HBaseScanRDD {
 
-  def bisect(range: (Array[Byte], Array[Byte])): Array[(Array[Byte], Array[Byte])] = {
+  private def bisect(range: (Array[Byte], Array[Byte])): Array[(Array[Byte], Array[Byte])] = {
     Bytes
       .split(range._1, range._2, 1)
       .sliding(2, 1)
