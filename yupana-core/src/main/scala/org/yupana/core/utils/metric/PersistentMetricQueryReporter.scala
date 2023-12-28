@@ -29,9 +29,10 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
 
   private val UPDATE_INTERVAL = 60 * 1000L
   private val asyncBuffer = new ConcurrentLinkedQueue[InternalMetricData]
+  private val saveTimer = new Timer(true)
 
   if (asyncSaving) {
-    new Timer(true).scheduleAtFixedRate(
+    saveTimer.scheduleAtFixedRate(
       new TimerTask {
         def run(): Unit = {
           saveMetricsBuffer()
@@ -82,5 +83,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
     }
   }
 
-  override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {}
+  override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
+    saveTimer.cancel()
+  }
 }
