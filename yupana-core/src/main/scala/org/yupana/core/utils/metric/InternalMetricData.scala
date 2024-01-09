@@ -18,7 +18,7 @@ package org.yupana.core.utils.metric
 
 import org.yupana.api.query.Query
 import org.yupana.core.model.MetricData
-import org.yupana.metrics.QueryStates
+import org.yupana.metrics.{ MetricCollector, QueryStates }
 
 case class InternalMetricData(
     query: Query,
@@ -29,3 +29,29 @@ case class InternalMetricData(
     metricValues: Map[String, MetricData],
     sparkQuery: Boolean
 )
+
+object InternalMetricData {
+  def fromMetricCollector(
+      mc: MetricQueryCollector,
+      partitionId: Option[String],
+      state: QueryStates.QueryState
+  ): InternalMetricData = {
+    val data = mc.allMetrics.map { m =>
+      val cnt = m.count
+      val time = MetricCollector.asSeconds(m.time)
+      val speed = if (time != 0) cnt.toDouble / time else 0.0
+      val data = MetricData(cnt, m.time, speed)
+      m.name -> data
+    }.toMap
+
+    InternalMetricData(
+      mc.query,
+      partitionId,
+      mc.startTime,
+      state,
+      mc.resultDuration,
+      data,
+      mc.isSparkQuery
+    )
+  }
+}
