@@ -17,11 +17,10 @@
 package org.yupana.core.utils.metric
 
 import org.yupana.core.dao.TsdbQueryMetricsDao
-import org.yupana.core.model.MetricData
-import org.yupana.metrics.{ MetricCollector, MetricReporter, QueryStates }
+import org.yupana.metrics.{ MetricReporter, QueryStates }
 
-import java.util.{ Timer, TimerTask }
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.{ Timer, TimerTask }
 import scala.collection.mutable
 
 class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, asyncSaving: Boolean = true)
@@ -29,12 +28,13 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
 
   private val UPDATE_INTERVAL = 60 * 1000L
   private val asyncBuffer = new ConcurrentLinkedQueue[InternalMetricData]
+  private val saveTimer = new Timer(true)
 
   if (asyncSaving) {
-    new Timer(true).scheduleAtFixedRate(
+    saveTimer.scheduleAtFixedRate(
       new TimerTask {
         def run(): Unit = {
-          saveMetricsBuffer()
+          saveMetricsFromBuffer()
         }
       },
       0L,
@@ -42,7 +42,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
     )
   }
 
-  private def saveMetricsBuffer(): Unit = {
+  private def saveMetricsFromBuffer(): Unit = {
     if (asyncBuffer.size() > 0) {
       val metricsToSave = mutable.ListBuffer.empty[InternalMetricData]
       while (asyncBuffer.size() > 0) {
@@ -52,35 +52,21 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
     }
   }
 
-  override def start(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {}
-
-  private def createMetricsData(mc: MetricQueryCollector): Map[String, MetricData] = {
-    mc.allMetrics.map { m =>
-      val cnt = m.count
-      val time = MetricCollector.asSeconds(m.time)
-      val speed = if (time != 0) cnt.toDouble / time else 0.0
-      val data = MetricData(cnt, m.time, speed)
-      m.name -> data
-    }.toMap
+  override def start(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
+    metricsDao().saveQueryMetrics(List(InternalMetricData.fromMetricCollector(mc, partitionId, QueryStates.Running)))
   }
 
   def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryStates.QueryState): Unit = {
-    val metricsData = createMetricsData(mc)
-    asyncBuffer.add(
-      InternalMetricData(
-        mc.query,
-        partitionId,
-        mc.startTime,
-        state,
-        mc.resultDuration,
-        metricsData,
-        mc.isSparkQuery
-      )
-    )
-    if (!asyncSaving) {
-      saveMetricsBuffer()
+    val metricsData = InternalMetricData.fromMetricCollector(mc, partitionId, state)
+    if (asyncSaving) {
+      asyncBuffer.add(metricsData)
+    } else {
+      metricsDao().saveQueryMetrics(List(metricsData))
     }
   }
 
-  override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {}
+  override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
+    saveTimer.cancel()
+    saveMetricsFromBuffer()
+  }
 }
