@@ -66,7 +66,6 @@ class PersistentMetricQueryReporter(metricsDao: TsdbQueryMetricsDao, asyncSaving
   }
 
   override def finish(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
-    saveTimer.cancel()
     saveMetricsFromBuffer()
   }
 }
