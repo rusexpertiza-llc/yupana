@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.{ Timer, TimerTask }
 import scala.collection.mutable
 
-class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, asyncSaving: Boolean = true)
+class PersistentMetricQueryReporter(metricsDao: TsdbQueryMetricsDao, asyncSaving: Boolean = true)
     extends MetricReporter[MetricQueryCollector] {
 
   private val UPDATE_INTERVAL = 60 * 1000L
@@ -48,12 +48,12 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
       while (asyncBuffer.size() > 0) {
         metricsToSave += asyncBuffer.poll()
       }
-      metricsDao().saveQueryMetrics(metricsToSave.toList)
+      metricsDao.saveQueryMetrics(metricsToSave.toList)
     }
   }
 
   override def start(mc: MetricQueryCollector, partitionId: Option[String]): Unit = {
-    metricsDao().saveQueryMetrics(List(InternalMetricData.fromMetricCollector(mc, partitionId, QueryStates.Running)))
+    metricsDao.saveQueryMetrics(List(InternalMetricData.fromMetricCollector(mc, partitionId, QueryStates.Running)))
   }
 
   def saveQueryMetrics(mc: MetricQueryCollector, partitionId: Option[String], state: QueryStates.QueryState): Unit = {
@@ -61,7 +61,7 @@ class PersistentMetricQueryReporter(metricsDao: () => TsdbQueryMetricsDao, async
     if (asyncSaving) {
       asyncBuffer.add(metricsData)
     } else {
-      metricsDao().saveQueryMetrics(List(metricsData))
+      metricsDao.saveQueryMetrics(List(metricsData))
     }
   }
 
