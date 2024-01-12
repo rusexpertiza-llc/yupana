@@ -16,8 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
@@ -25,9 +23,10 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, ReaderWriter }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 
 import scala.collection.AbstractIterator
 
@@ -37,6 +36,8 @@ class TSDHBaseRowIterator(
     internalRowBuilder: InternalRowBuilder
 ) extends AbstractIterator[InternalRow]
     with StrictLogging {
+
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
   private val dimensions = context.table.dimensionSeq.toArray
 
@@ -108,18 +109,21 @@ class TSDHBaseRowIterator(
     val baseTime = Bytes.toLong(rowKey)
     internalRowBuilder.set(Time(baseTime + currentTime))
     var i = 0
-    val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
+    val bb = MemoryBuffer.ofBytes(rowKey).asSlice(TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
-      val bytes = new Array[Byte](dim.rStorable.size)
-      bb.mark()
+      val pos = bb.position()
 
-      val value = dim.rStorable.read(bb)
-      if (dim.isInstanceOf[RawDimension[_]]) {
-        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
+      dim match {
+        case rd: RawDimension[_] =>
+          val value = rd.rStorable.read(bb)
+          internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)(rd.dataType.internalStorable)
+        case _ =>
+          dim.rStorable.read(bb)
       }
+      if (dim.isInstanceOf[RawDimension[_]]) {}
       if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
-        bb.reset()
-        bb.get(bytes)
+        val bytes = new Array[Byte](dim.rStorable.size)
+        bb.get(pos, bytes)
         internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
       }
 
@@ -128,20 +132,20 @@ class TSDHBaseRowIterator(
   }
 
   private def loadCell(cell: Cell): Boolean = {
-    val bb = ByteBuffer.wrap(cell.getValueArray, cell.getValueOffset, cell.getValueLength)
+    val bb = MemoryBuffer.ofBytes(cell.getValueArray).asSlice(cell.getValueOffset, cell.getValueLength)
     var correct = true
-    while (bb.hasRemaining && correct) {
+    while (bb.hasRemaining() && correct) {
       val tag = bb.get()
       context.table.fieldForTag(tag) match {
         case Some(Left(metric)) =>
           val v = metric.dataType.storable.read(bb)
-          internalRowBuilder.set(tag, v)
+          internalRowBuilder.set(tag, v)(metric.dataType.internalStorable)
         case Some(Right(_: DictionaryDimension)) =>
           val v = DataType.stringDt.storable.read(bb)
           internalRowBuilder.set(tag, v)
         case Some(Right(hd: HashDimension[_, _])) =>
           val v = hd.tStorable.read(bb)
-          internalRowBuilder.set(tag, v)
+          internalRowBuilder.set(tag, v)(hd.dataType.internalStorable)
         case _ =>
           logger.warn(s"Unknown tag: $tag, in table: ${context.table.name}")
           correct = false

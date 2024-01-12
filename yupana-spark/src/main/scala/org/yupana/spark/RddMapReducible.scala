@@ -47,6 +47,15 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     val r = rdd.flatMap(f)
     saveMetricOnCompleteRdd(r)
   }
+  override def aggregate[A: ClassTag, B: ClassTag](
+      rdd: RDD[A]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): RDD[B] = {
+    val r = rdd
+      .map(v => (0, v))
+      .combineByKeyWithClassTag(createZero, seqOp, combOp)
+      .map(_._2)
+    saveMetricOnCompleteRdd(r)
+  }
 
   override def aggregateByKey[K: ClassTag, A: ClassTag, B: ClassTag](
       rdd: RDD[(K, A)]
@@ -93,4 +102,5 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
       CloseableIterator[A](it, metricCollector.checkpoint())
     }
   }
+
 }

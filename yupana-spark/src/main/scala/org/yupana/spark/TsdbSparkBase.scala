@@ -24,10 +24,11 @@ import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.jit.{ ExpressionCalculatorFactory, JIT }
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector, PersistentMetricQueryReporter }
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TsdbBase }
+import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
 
@@ -86,7 +87,7 @@ abstract class TsdbSparkBase(
   override val extractBatchSize: Int = conf.extractBatchSize
   override val putBatchSize: Int = conf.putBatchSize
 
-  override val calculatorFactory: ExpressionCalculatorFactory = ExpressionCalculatorFactory
+  override val calculatorFactory: ExpressionCalculatorFactory = JIT
 
   HBaseUtils.initStorage(
     ConnectionFactory.createConnection(TsDaoHBaseSpark.hbaseConfiguration(conf)),
@@ -110,10 +111,11 @@ abstract class TsdbSparkBase(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: RDD[Array[Any]],
+      rowBuilder: InternalRowBuilder,
+      ROWS: RDD[InternalRow],
       metricCollector: MetricQueryCollector
   ): DataRowRDD = {
-    val rdd = data.mapPartitions { it =>
+    val rdd = ROWS.mapPartitions { it =>
       CloseableIterator(it, metricCollector.finish())
     }
     new DataRowRDD(rdd, queryContext)
@@ -126,6 +128,7 @@ abstract class TsdbSparkBase(
 
   override def applyWindowFunctions(
       queryContext: QueryContext,
+      rowBuilder: InternalRowBuilder,
       keysAndValues: RDD[(KeyData, InternalRow)]
   ): RDD[(KeyData, InternalRow)] = {
     throw new UnsupportedOperationException("Window functions are not supported in TSDB Spark")

@@ -16,13 +16,18 @@
 
 package org.yupana.core.model
 
-import java.io.{ ObjectInputStream, ObjectOutputStream }
+import org.yupana.api.query.Expression
 
+import java.io.{ ObjectInputStream, ObjectOutputStream }
 import org.yupana.core.QueryContext
 
 import scala.util.hashing.MurmurHash3
 
-class KeyData(@transient val queryContext: QueryContext, @transient val row: InternalRow) extends Serializable {
+class KeyData(
+    @transient val queryContext: QueryContext,
+    @transient val rowBuilder: InternalRowBuilder @transient,
+    val row: InternalRow
+) extends Serializable {
 
   private var data: Array[Any] = _
 
@@ -31,8 +36,10 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     import scala.util.hashing.MurmurHash3._
 
     if (queryContext != null) {
-      val h = queryContext.groupByIndices.foldLeft(MurmurHash3.arraySeed) { (h, idx) =>
-        mix(h, row.get[Any](idx).##)
+      val h = queryContext.groupByIndices.foldLeft(MurmurHash3.arraySeed) {
+        case (h, (expr, idx)) =>
+          val value = row.get(rowBuilder, idx)(expr.dataType.internalStorable)
+          mix(h, value.##)
       }
       finalizeHash(h, queryContext.groupByIndices.length)
     } else {
@@ -46,13 +53,26 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
         if (this eq that) {
           true
         } else if (this.queryContext != null && that.queryContext != null) {
-          queryContext.groupByIndices.forall(i => this.row.get[Any](i) == that.row.get[Any](i))
+          queryContext.groupByIndices.forall {
+            case (expr, idx) =>
+              val v1 = this.row.get(rowBuilder, idx)(expr.dataType.internalStorable)
+              val v2 = that.row.get(rowBuilder, idx)(expr.dataType.internalStorable)
+              v1 == v2
+          }
         } else if (this.queryContext != null) {
-          queryContext.groupByIndices.indices
-            .forall(idx => this.row.get[Any](queryContext.groupByIndices(idx)) == that.data(idx))
+          queryContext.groupByIndices.indices.forall { i =>
+            val (expr: Expression[Any], idx) = queryContext.groupByIndices(i)
+            val v1 = this.row.get(rowBuilder, idx)(expr.dataType.internalStorable)
+            val v2 = that.data(i)
+            v1 == v2
+          }
         } else if (that.queryContext != null) {
-          that.queryContext.groupByIndices.indices
-            .forall(idx => that.row.get[Any](that.queryContext.groupByIndices(idx)) == this.data(idx))
+          that.queryContext.groupByIndices.indices.forall { i =>
+            val (expr: Expression[Any], idx) = that.queryContext.groupByIndices(i)
+            val v1 = this.data(i)
+            val v2 = that.row.get(that.rowBuilder, idx)(expr.dataType.internalStorable)
+            v1 == v2
+          }
         } else {
           this.data sameElements that.data
         }
@@ -65,7 +85,8 @@ class KeyData(@transient val queryContext: QueryContext, @transient val row: Int
     val keyData = Array.ofDim[Any](queryContext.groupByIndices.length)
 
     keyData.indices foreach { i =>
-      keyData(i) = row.get[Any](queryContext.groupByIndices(i))
+      val (expr: Expression[Any], idx) = queryContext.groupByIndices(i)
+      keyData(i) = row.get(rowBuilder, idx)(expr.dataType.internalStorable)
     }
 
     keyData

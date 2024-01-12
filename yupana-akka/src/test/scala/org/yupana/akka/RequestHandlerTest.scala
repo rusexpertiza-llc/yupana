@@ -6,13 +6,13 @@ import org.scalatest.{ BeforeAndAfterAll, EitherValues, Inside }
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
-import org.yupana.api.types.Storable
+import org.yupana.api.types.{ ReaderWriter, Storable }
 import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao }
-import org.yupana.core.model.{ MetricData, TsdbQueryMetrics }
+import org.yupana.core.model.{ InternalRowBuilder, MetricData, TsdbQueryMetrics }
 import org.yupana.core._
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
+import org.yupana.core.utils.metric.{ NoMetricCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB, TsdbServerResult }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
@@ -26,9 +26,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.YupanaUser
+import org.yupana.core.jit.JIT
 import org.yupana.metrics.QueryStates
+import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
 import org.yupana.settings.Settings
 
+import java.nio.ByteBuffer
 import java.time.{ OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
@@ -103,15 +106,19 @@ class RequestHandlerTest
       groupBy = Seq(dimension(Dimensions.ITEM))
     )
 
-    val qc = new QueryContext(expected, None, ExpressionCalculatorFactory)
+    val qc = new QueryContext(expected, None, JIT, NoMetricCollector)
+    val rowBuilder = new InternalRowBuilder(qc)
 
     (tsdb.query _)
       .expects(expected)
       .returning(
         new TsdbServerResult(
           qc,
+          rowBuilder,
           Seq(
-            Array[Any]("деталь от паровоза")
+            rowBuilder
+              .set(dimension(Dimensions.ITEM), "деталь от паровоза")
+              .buildAndReset()
           ).iterator
         )
       )
@@ -124,9 +131,10 @@ class RequestHandlerTest
     )
 
     val data = resp.next()
+
     data shouldEqual Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("деталь от паровоза"))))
+        ResultChunk(Seq(toBytes("деталь от паровоза")))
       )
     )
 
@@ -223,7 +231,7 @@ class RequestHandlerTest
 
     resp should contain theSameElementsInOrderAs Seq(
       Response(Response.Resp.ResultHeader(ResultHeader(Seq(ResultField("RESULT", "VARCHAR")), Some("RESULT")))),
-      Response(Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))),
+      Response(Response.Resp.Result(ResultChunk(Seq(toBytes("OK"))))),
       Response(Response.Resp.ResultStatistics(ResultStatistics(-1, -1)))
     )
   }
@@ -283,11 +291,16 @@ class RequestHandlerTest
     )
 
     val metrics = Seq(
+      "init_query_context",
       "create_dimensions_filters",
       "create_scans",
       "scan",
+      "create_context",
       "load_tags",
+      "filter",
       "filter_rows",
+      "evaluate_expressions",
+      "extract_key_data",
       "window_functions_check",
       "window_functions",
       "map_operation",
@@ -351,7 +364,7 @@ class RequestHandlerTest
     val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList
 
     resp(1) shouldEqual Response(
-      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[String]].write("OK")))))
+      Response.Resp.Result(ResultChunk(Seq(toBytes("OK"))))
     )
   }
 
@@ -370,7 +383,7 @@ class RequestHandlerTest
     val resp = Await.result(requestHandler.handleQuery(query), 20.seconds).value.toList
 
     resp(1) shouldEqual Response(
-      Response.Resp.Result(ResultChunk(Seq(ByteString.copyFrom(implicitly[Storable[Int]].write(8)))))
+      Response.Resp.Result(ResultChunk(Seq(toBytes(8))))
     )
   }
 
@@ -401,5 +414,14 @@ class RequestHandlerTest
       "to",
       "updated_by"
     )
+  }
+
+  private def toBytes[T](v: T)(implicit st: Storable[T]): ByteString = {
+    val b = ByteBuffer.allocate(1024)
+    implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
+    st.write(b, v: ID[T])
+    val s = b.position()
+    b.rewind()
+    ByteString.copyFrom(b, s)
   }
 }

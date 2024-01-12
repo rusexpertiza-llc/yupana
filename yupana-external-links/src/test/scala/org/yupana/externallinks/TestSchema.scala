@@ -22,6 +22,7 @@ object TestSchema {
   }
 
   val table: Table = new Table(
+    id = 1,
     "test",
     1000,
     Seq(xDim, yDim),

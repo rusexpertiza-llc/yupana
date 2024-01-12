@@ -4,7 +4,7 @@ import java.io.IOException
 import com.google.protobuf.ByteString
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
-import org.yupana.api.types.Storable
+import org.yupana.api.types.{ ReaderWriter, Storable }
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.proto.util.ProtocolVersion
 import org.yupana.proto._
@@ -14,6 +14,9 @@ import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
+import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
+
+import java.nio.ByteBuffer
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -99,20 +102,17 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Response.Resp.Heartbeat("1")
     )
 
-    val ts = implicitly[Storable[Time]]
-    val ss = implicitly[Storable[String]]
-
     val data1 = Response(
       Response.Resp.Result(
         ResultChunk(
-          Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная")))
+          Seq(toBytes(Time(13333L)), toBytes("икра баклажанная"))
         )
       )
     )
 
     val data2 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.EMPTY))
+        ResultChunk(Seq(toBytes(Time(21112L)), ByteString.EMPTY))
       )
     )
 
@@ -181,18 +181,15 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Response.Resp.Heartbeat("1")
     )
 
-    val ts = implicitly[Storable[Time]]
-    val ss = implicitly[Storable[String]]
-
     val data1 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
+        ResultChunk(Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
       )
     )
 
     val data2 = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(21112L))), ByteString.EMPTY))
+        ResultChunk(Seq(toBytes(Time(21112L)), ByteString.EMPTY))
       )
     )
 
@@ -276,12 +273,9 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Response.Resp.Heartbeat("1")
     )
 
-    val ts = implicitly[Storable[Time]]
-    val ss = implicitly[Storable[String]]
-
     val data = Response(
       Response.Resp.Result(
-        ResultChunk(Seq(ByteString.copyFrom(ts.write(Time(13333L))), ByteString.copyFrom(ss.write("икра баклажанная"))))
+        ResultChunk(Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
       )
     )
 
@@ -308,4 +302,12 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     } should have message "Unexpected end of response"
   }
 
+  private def toBytes[T](v: T)(implicit st: Storable[T]): ByteString = {
+    val b = ByteBuffer.allocate(1024)
+    implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
+    st.write(b, v: ID[T])
+    val s = b.position()
+    b.rewind()
+    ByteString.copyFrom(b, s)
+  }
 }

@@ -1,6 +1,8 @@
 import scalapb.compiler.Version.scalapbVersion
-import ReleaseTransformations._
+import ReleaseTransformations.*
 import sbt.Keys.excludeDependencies
+
+import scala.collection.Seq
 
 ThisBuild / useCoursier := false
 
@@ -9,6 +11,7 @@ Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
+    readerWriter,
     proto,
     jdbc,
     utils,
@@ -17,8 +20,6 @@ lazy val yupana = (project in file("."))
     cache,
     core,
     hbase,
-    rocks,
-    lmdb,
     khipu,
     akka,
     pekko,
@@ -26,6 +27,7 @@ lazy val yupana = (project in file("."))
     schema,
     externalLinks,
     examples,
+    khipuExamples,
     ehcache,
     ignite,
     caffeine,
@@ -48,6 +50,19 @@ lazy val api = (project in file("yupana-api"))
     )
   )
   .disablePlugins(AssemblyPlugin)
+
+lazy val readerWriter = (project in file("yupana-reader-writer"))
+  .settings(
+    name := "yupana-reader-writer",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
+      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
+      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
+    )
+  )
+  .disablePlugins(AssemblyPlugin)
+  .dependsOn(api)
 
 lazy val proto = (project in file("yupana-proto"))
   .settings(
@@ -86,7 +101,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
-  .dependsOn(api, proto)
+  .dependsOn(api, proto, readerWriter)
 
 lazy val utils = (project in file("yupana-utils"))
   .settings(
@@ -140,10 +155,11 @@ lazy val core = (project in file("yupana-core"))
       "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
-      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
+      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test,
+      "org.scalatestplus"             %% "scalacheck-1-17"              % versions.scalaTestCheck     % Test
     )
   )
-  .dependsOn(api, settings, metrics, cache, utils % Test)
+  .dependsOn(api, readerWriter, settings, metrics, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 
@@ -171,30 +187,6 @@ lazy val hbase = (project in file("yupana-hbase"))
     )
   )
   .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
-  .disablePlugins(AssemblyPlugin)
-
-lazy val rocks = (project in file("yupana-rocks"))
-  .settings(
-    name := "yupana-rocks",
-    allSettings,
-    libraryDependencies ++= Seq(
-      "org.rocksdb" % "rocksdbjni" % versions.rocksdb
-    ),
-    excludeDependencies ++= Seq()
-  )
-  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
-  .disablePlugins(AssemblyPlugin)
-
-lazy val lmdb = (project in file("yupana-lmdb"))
-  .settings(
-    name := "yupana-lmdb",
-    allSettings,
-    libraryDependencies ++= Seq(
-      "org.lmdbjava" % "lmdbjava" % versions.lmdb
-    ),
-    excludeDependencies ++= Seq()
-  )
-  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val khipu = (project in file("yupana-khipu"))
@@ -365,6 +357,19 @@ lazy val examples = (project in file("yupana-examples"))
   .dependsOn(spark, pekko, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
+lazy val khipuExamples = (project in file("yupana-khipu-examples"))
+  .settings(
+    name := "yupana-khipu-examples",
+    allSettings,
+    noPublishSettings,
+    libraryDependencies ++= Seq(
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
+    )
+  )
+  .dependsOn(pekko, khipu, schema, externalLinks, ehcache % Runtime)
+  .disablePlugins(AssemblyPlugin)
+
+
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings, noPublishSettings)
@@ -474,7 +479,7 @@ val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := versions.scala213,
   scalacOptions ++= Seq(
-    "-release:8",
+    "-release:21",
     "-Xsource:2.13",
     "-deprecation",
     "-unchecked",
@@ -483,11 +488,6 @@ val commonSettings = Seq(
     "-Xfatal-warnings",
     "-Xlint:-byname-implicit,_",
     "-Ywarn-dead-code"
-  ),
-  javaOptions ++= Seq(
-    "--add-modules jdk.incubator.foreign",
-    "--add-opens jdk.incubator.foreign/jdk.internal.foreign=ALL-UNNAMED",
-    "--add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
   ),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
@@ -527,10 +527,24 @@ val publishSettings = Seq(
 )
 
 val pbSettings = Seq(
-  PB.protocVersion := "-v261",
+  PB.protocVersion := "2.6.1",
   Compile / PB.targets := Seq(
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
-  )
+  ),
+
+  PB.protocDependency := {
+    if (protocbridge.SystemDetector.detectedClassifier() == "osx-aarch_64" && PB.protocVersion.value.startsWith("2.6")) {
+      val moduleId = "com.google.protobuf" % "protoc" % PB.protocVersion.value
+      moduleId artifacts (Artifact(
+        name = moduleId.name,
+        `type` = PB.ProtocBinary,
+        extension = "exe",
+        classifier = "osx-x86_64"
+      ))
+    } else {
+      PB.protocDependency.value
+    }
+  }
 )
 
 val releaseSettings = Seq(

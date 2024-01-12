@@ -1,9 +1,7 @@
 package org.yupana.khipu
 
 import com.typesafe.scalalogging.StrictLogging
-import org.yupana.core.utils.metric.{ Metric, MetricCollector, MetricImpl, QueryStatus, Unknown }
-
-import java.util.concurrent.atomic.AtomicReference
+import org.yupana.metrics.{ Metric, MetricCollector, MetricImpl }
 
 object KhipuMetricCollector extends MetricCollector with StrictLogging {
 
@@ -48,8 +46,6 @@ object KhipuMetricCollector extends MetricCollector with StrictLogging {
   override def checkpoint(): Unit = {}
 
   override def metricUpdated(metric: Metric, time: Long): Unit = {}
-
-  override val queryStatus: AtomicReference[QueryStatus] = new AtomicReference[QueryStatus](Unknown)
 
   def reset(): Unit = {
     allMetrics.foreach(_.reset())

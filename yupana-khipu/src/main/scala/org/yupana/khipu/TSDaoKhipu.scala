@@ -1,6 +1,5 @@
 package org.yupana.khipu
 
-import jdk.incubator.foreign.MemorySegment
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{
@@ -16,11 +15,12 @@ import org.yupana.api.query.{
   LowerExpr,
   NeqExpr,
   NotInExpr,
+  OrExpr,
   TimeExpr,
   TupleExpr
 }
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, Metric, RawDimension, Schema, Table }
-import org.yupana.api.types.DataType
+import org.yupana.api.types.ReaderWriter
 import org.yupana.api.utils.ConditionMatchers.{
   EqString,
   EqTime,
@@ -39,16 +39,19 @@ import org.yupana.api.utils.ConditionMatchers.{
 }
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
-import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible }
+import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext }
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, UpdateInterval }
-import org.yupana.core.utils.{ CollectionUtils, TimeBoundedCondition }
+import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
+import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
+import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.settings.Settings
 
 import java.io.File
 import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
 
-class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
+class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Long] {
 
   type IdType = Long
   type TimeFilter = Long => Boolean
@@ -58,10 +61,12 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
   val CROSS_JOIN_LIMIT = 500000
   val EXTRACT_BATCH_SIZE = 10000
 
-  val path = new File("/home/victor/tmp/yupana-khipu")
+  val path = new File(settings[String]("yupana.khipu.storage.path"))
   if (!path.exists()) path.mkdirs()
 
   val db = new DB(path.toPath, schema)
+
+  implicit private val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
   protected lazy val expressionCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
@@ -89,76 +94,86 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
   override def query(
       query: InternalQuery,
       internalRowBuilder: InternalRowBuilder,
+      queryContext: QueryContext,
       metricCollector: MetricQueryCollector
   ): Iterator[InternalRow] = {
-    val tbc = TimeBoundedCondition(expressionCalculator, query.condition)
 
-    if (tbc.size != 1) throw new IllegalArgumentException("Only one condition is supported")
+    val mr = mapReduceEngine(metricCollector)
 
-    val condition = tbc.head
+    val conditionByTime = FlatAndCondition.mergeByTime(query.condition)
+    val flatAndConditions = conditionByTime.flatMap(_._3)
+    val squashedCondition = OrExpr(flatAndConditions)
 
-    val from = condition.from.getOrElse(throw new IllegalArgumentException("FROM time is not defined"))
-    val to = condition.to.getOrElse(throw new IllegalArgumentException("TO time is not defined"))
-
-    val filters = metricCollector.createDimensionFilters.measure(1) {
-      val c = if (condition.conditions.nonEmpty) Some(AndExpr(condition.conditions)) else None
-      createFilters(c)
+    val squashedFilters = metricCollector.createDimensionFilters.measure(1) {
+      createFilters(Some(squashedCondition))
     }
 
-    val dimFilter = filters.allIncludes
+    val intervals = conditionByTime.flatMap {
+      case (from, to, _) =>
+        calculateTimeIntervals(query.table, from, to, squashedFilters.includeTime, squashedFilters.excludeTime)
+    }
+
+    val dimFilter = squashedFilters.allIncludes
     val hasEmptyFilter = dimFilter.exists(_._2.isEmpty)
 
     val prefetchedDimIterators: Map[Dimension, PrefetchedSortedSetIterator[_]] = dimFilter.map {
       case (d, it) =>
         val rit = it.asInstanceOf[SortedSetIterator[d.R]]
         d -> rit.prefetch(RANGE_FILTERS_LIMIT)(d.rCt)
-    }.toMap
+    }
 
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
-    val rangeScanDimIds = if (hasEmptyFilter) {
-      Seq.empty
+    if (hasEmptyFilter) {
+      mr.empty[InternalRow]
     } else {
+
       val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
         (d -> prefetchedDimIterators(d)).asInstanceOf[(Dimension, PrefetchedSortedSetIterator[_])]
       }
-      rangeScanDimIterators
-    }
 
-    val context = InternalQueryContext(query, metricCollector)
+//      val rowPostFilter: RowFilter = if (flatAndConditions.distinct.size == 1) {
+//        val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+//
+//        val excludeRowFilter = squashedFilters.allExcludes.filter {
+//          case (d, _) => !sizeLimitedRangeScanDims.contains(d)
+//        }
+//
+//        createRowFilter(query.table, includeRowFilter, excludeRowFilter, internalRowBuilder)
+//
+//      } else { _ => true }
 
-    val rows = executeScans(context, from, to, rangeScanDimIds, metricCollector)
+//      val timeFilter = createTimeFilter(
+//        intervals,
+//        squashedFilters.includeTime.getOrElse(Set.empty),
+//        squashedFilters.excludeTime.getOrElse(Set.empty)
+//      )
 
-    //    val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
-    //
-    //    val excludeRowFilter = filters.allExcludes.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
+//      val context = InternalQueryContext(query, metricCollector)
 
-    //    val rowFilter = createRowFilter(query.table, includeRowFilter, excludeRowFilter)
-    val timeFilter = createTimeFilter(
-      from,
-      to,
-      filters.includeTime.map(_.toSet).getOrElse(Set.empty),
-      filters.excludeTime.map(_.toSet).getOrElse(Set.empty)
-    )
+      val cursor = executeScans(query.table, intervals, rangeScanDimIterators, metricCollector)
+      val calc = queryContext.calculator
 
-    val mr = mapReduceEngine(metricCollector)
+      new AbstractIterator[InternalRow] {
 
-    val dimensions = context.table.dimensionSeq.toArray
-    mr.batchFlatMap(rows, EXTRACT_BATCH_SIZE) { rs =>
-      //      val filtered = context.metricsCollector.filterRows.measure(rs.size) {
-      //        rs.filter(r => rowFilter(HBaseUtils.parseRowKey(r.getRow, table)))
-      //      }
-      metricCollector.extractDataComputation.measure(1) {
-        rs.map {
-          case (key, value) =>
-            loadRowKey(context.table, key, dimensions, internalRowBuilder)
-            loadValue(value, context, internalRowBuilder)
-            internalRowBuilder.buildAndReset()
-        }.filter { r =>
-          timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis)
+        private var isValid = cursor.next()
+
+        override def hasNext: Boolean = isValid
+
+        override def next(): InternalRow = {
+          val memBuf = MemoryBuffer.ofMemorySegment(cursor.row())
+          val row = calc.evaluateReadRow(memBuf, internalRowBuilder)
+          isValid = cursor.next()
+          row
         }
       }
     }
+
+    //            .filter { r =>
+//            timeFilter(r.get[Time](internalRowBuilder.timeIndex, internalRowBuilder).millis) &&
+//            rowPostFilter(r)
+//          }
+
   }
 
   private def baseTimeList(fromTime: Long, toTime: Long, table: Table): Seq[Long] = {
@@ -168,66 +183,88 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
   }
 
   private def executeScans(
-      context: InternalQueryContext,
-      from: Long,
-      to: Long,
+      table: Table,
+      intervals: Seq[(Long, Long)],
       rangeScanDims: Seq[(Dimension, PrefetchedSortedSetIterator[_])],
       metricCollector: MetricQueryCollector
-  ): Iterator[(Array[Byte], Array[Byte])] = {
+  ): Cursor = {
 
+    implicit val rw = ByteBufferEvalReaderWriter
     val prefixes = if (rangeScanDims.nonEmpty) {
       val dimBytes = rangeScanDims.map {
         case (dim, ids) =>
-          ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
+          ids.toList
+            .map { id =>
+              val arr = Array.ofDim[Byte](dim.rStorable.size)
+              val bb = ByteBuffer.wrap(arr)
+              val v: ID[dim.R] = id.asInstanceOf[dim.R]
+              dim.rStorable.write(bb, v)
+              bb.array()
+            }
+
       }
 
       val crossJoinedDims = CollectionUtils.crossJoin(dimBytes.toList)
 
       for {
-        baseTime <- baseTimeList(from, to, context.table)
+        (from, to) <- intervals
+        baseTime <- baseTimeList(from, to, table)
         dimValues <- crossJoinedDims
       } yield {
-        val size = 8 + dimValues.foldLeft(0)(_ + _.length)
-        val seg = MemorySegment.ofArray(Array.ofDim[Byte](size))
-        StorageFormat.setLong(baseTime, seg, 0)
-        var offset = 8
-        dimValues.foreach { v =>
-          StorageFormat.setBytes(v, 0, seg, offset, v.length)
-          offset += v.length
-        }
-        StorageFormat.getBytes(seg, 0, size)
+        Prefix(baseTime, dimValues)
       }
     } else {
       Seq.empty
     }
 
-    val ktable = db.tables(context.table.name)
+    val ktable = db.tables(table.name)
 
-    import StorageFormat.byteArrayDimOrdering
+    ktable.scan(SortedSetIterator(prefixes.iterator))
 
-    val cursor = ktable.scan(SortedSetIterator(prefixes.iterator))
+    //      val dimensions = query.table.dimensionSeq.toArray
 
-    new AbstractIterator[(Array[Byte], Array[Byte])] {
+  }
 
-      private var isValid = cursor.next()
+  private def calculateTimeIntervals(
+      table: Table,
+      from: Long,
+      to: Long,
+      includeTime: Option[Set[Time]],
+      excludeTime: Option[Set[Time]]
+  ): Seq[(Long, Long)] = {
 
-      override def hasNext: Boolean = isValid
+    includeTime match {
+      case None =>
+        Seq((from, to))
 
-      override def next(): (Array[Byte], Array[Byte]) = {
-        val r = (cursor.keyBytes(), cursor.valueBytes())
-        isValid = cursor.next()
-        r
-      }
+      case Some(inc) =>
+        val timePoints = (inc.map(_.millis) -- excludeTime.map(_.map(_.millis)).getOrElse(Set.empty)).toSeq
+
+        val intervals = timePoints
+          .groupBy { t =>
+            val s = baseTime(t, table)
+            s -> (s + table.rowTimeSpan)
+          }
+          .map { case (k, vs) => k -> vs.sorted }
+          .toSeq
+
+        intervals
+          .sortBy(_._1._1)
+          .foldRight(List.empty[((Long, Long), Seq[Long])]) {
+            case (i @ ((iFrom, iTo), iVs), (x @ ((xFrom, xTo), xVs)) :: xs) =>
+              if (xFrom == iTo) ((iFrom, xTo), iVs ++ xVs) :: xs else i :: x :: xs
+            case (i, Nil) => i :: Nil
+          }
+          .map(x => x._2.head -> (x._2.last + 1))
     }
   }
 
-  private def createTimeFilter(
-      fromTime: Long,
-      toTime: Long,
+  def createTimeFilter(
+      intervals: Seq[(Long, Long)],
       includeSet: Set[Time],
       excludeSet: Set[Time]
   ): TimeFilter = {
-    val baseFilter: TimeFilter = t => t >= fromTime && t < toTime
+    val baseFilter: TimeFilter = t => intervals.exists { case (from, to) => t >= from && t < to }
     val incMillis = includeSet.map(_.millis)
     val excMillis = excludeSet.map(_.millis)
 
@@ -250,16 +287,16 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
     def handleEq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case EqExpr(DimensionExpr(dim), ConstantExpr(c, _)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqExpr(ConstantExpr(c, _), DimensionExpr(dim)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c, _)) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(ConstantExpr(c, _), LowerExpr(DimensionExpr(dim))) =>
-          builder.includeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.includeValue(dim.aux, c)
 
         case EqString(DimensionIdExpr(dim), ConstantExpr(c, _)) =>
           builder.includeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
@@ -288,16 +325,16 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
     def handleNeq(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NeqExpr(DimensionExpr(dim), ConstantExpr(c, _)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqExpr(ConstantExpr(c, _), DimensionExpr(dim)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(LowerExpr(DimensionExpr(dim)), ConstantExpr(c, _)) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(ConstantExpr(c, _), LowerExpr(DimensionExpr(dim))) =>
-          builder.excludeValue(dim.aux, c.asInstanceOf[dim.T])
+          builder.excludeValue(dim.aux, c)
 
         case NeqString(DimensionIdExpr(dim), ConstantExpr(c, _)) =>
           builder.excludeIds(dim.aux, dimIdValueFromString(dim.aux, c).toSeq)
@@ -321,13 +358,10 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
           builder.includeValues(dim, consts)
 
         case InString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.includeValues(
-            dim,
-            consts.asInstanceOf[Set[dim.T]]
-          )
+          builder.includeValues(dim, consts)
 
         case InTime(TimeExpr, consts) =>
-          builder.includeTime(consts.asInstanceOf[Set[Time]])
+          builder.includeTime(consts)
 
         case InString(DimensionIdExpr(dim), dimIds) =>
           builder.includeIds(
@@ -346,10 +380,10 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
     def handleNotIn(condition: Condition, builder: Filters.Builder): Filters.Builder = {
       condition match {
         case NotInExpr(DimensionExpr(dim), consts) =>
-          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+          builder.excludeValues(dim, consts)
 
         case NotInString(LowerExpr(DimensionExpr(dim)), consts) =>
-          builder.excludeValues(dim, consts.asInstanceOf[Set[dim.T]])
+          builder.excludeValues(dim, consts)
 
         case NotInString(DimensionIdExpr(dim), dimIds) =>
           builder.excludeIds(
@@ -383,6 +417,9 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
         case AndExpr(conditions) =>
           conditions.foldLeft(builder)((f, c) => createFilters(c, f))
 
+        case OrExpr(conditions) =>
+          conditions.map(c => createFilters(c, Filters.newBuilder)).foldLeft(builder)(_ union _)
+
         case _ => builder
       }
     }
@@ -393,6 +430,46 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
 
       case None =>
         Filters.empty
+    }
+  }
+
+  def createRowFilter(
+      table: Table,
+      include: Map[Dimension, SortedSetIterator[_]],
+      exclude: Map[Dimension, SortedSetIterator[_]],
+      internalRowBuilder: InternalRowBuilder
+  ): RowFilter = {
+
+    val includeMap: Map[Dimension, Set[Any]] = include.map { case (k, v) => k -> v.toSet }
+    val excludeMap: Map[Dimension, Set[Any]] = exclude.map { case (k, v) => k -> v.toSet }
+
+    if (excludeMap.nonEmpty) {
+      if (includeMap.nonEmpty) {
+        rowFilter(table, internalRowBuilder)((dim, x) =>
+          includeMap.get(dim).forall(_.contains(x)) && !excludeMap.get(dim).exists(_.contains(x))
+        )
+      } else {
+        rowFilter(table, internalRowBuilder)((dim, x) => !excludeMap.get(dim).exists(_.contains(x)))
+      }
+    } else {
+      if (includeMap.nonEmpty) {
+        rowFilter(table, internalRowBuilder)((dim, x) => includeMap.get(dim).forall(_.contains(x)))
+      } else { _ =>
+        true
+      }
+    }
+  }
+
+  private def rowFilter(table: Table, internalRowBuilder: InternalRowBuilder)(
+      f: (Dimension, Any) => Boolean
+  ): RowFilter = { row =>
+    var i = 0
+    table.dimensionSeq.forall { dim =>
+      val idx = internalRowBuilder.tagIndex((Table.DIM_TAG_OFFSET + i).toByte)
+      val v = row.get[dim.T](internalRowBuilder, idx)(dim.dataType.internalStorable)
+      val r = f(dim, v)
+      i += 1
+      r
     }
   }
 
@@ -490,11 +567,13 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
       table: Table,
       keySize: Int
   ): Array[Byte] = {
+
     val bt = baseTime(dataPoint.time, table)
 
-    val buffer = ByteBuffer
-      .allocate(keySize)
-      .putLong(bt)
+    val array = Array.ofDim[Byte](keySize)
+    val buffer = MemoryBuffer.ofBytes(array)
+
+    buffer.putLong(bt)
 
     table.dimensionSeq.foreach { dim =>
       val bytes = dim match {
@@ -502,13 +581,19 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
           Array.ofDim[Byte](java.lang.Long.BYTES)
 
         case rd: RawDimension[_] =>
-          val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
-          rd.rStorable.write(v)
+          val arr = Array.ofDim[Byte](dim.rStorable.size)
+          val bb = MemoryBuffer.ofBytes(arr)
+          val v: ID[rd.T] = dataPoint.dimensions(dim).asInstanceOf[rd.T]
+          rd.rStorable.write(bb, v)
+          arr
 
         case hd: HashDimension[_, _] =>
+          val arr = Array.ofDim[Byte](hd.rStorable.size)
+          val bb = MemoryBuffer.ofBytes(arr)
           val v = dataPoint.dimensions(dim).asInstanceOf[hd.T]
-          val hash = hd.hashFunction(v).asInstanceOf[hd.R]
-          hd.rStorable.write(hash)
+          val hash: ID[hd.R] = hd.hashFunction(v).asInstanceOf[hd.R]
+          hd.rStorable.write(bb, hash)
+          arr
       }
 
       buffer.put(bytes)
@@ -516,40 +601,41 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
 
     buffer.putLong(restTime(dataPoint.time, table))
 
-    buffer.array()
+    array
   }
 
-  private def loadRowKey(
-      table: Table,
-      rowKey: Array[Byte],
-      dimensions: Array[Dimension],
-      internalRowBuilder: InternalRowBuilder
-  ): Unit = {
-    val bb = ByteBuffer.wrap(rowKey)
-
-    val baseTime = bb.getLong()
-
-    var i = 0
-
-    dimensions.foreach { dim =>
-      bb.mark()
-
-      val value = dim.rStorable.read(bb)
-      if (dim.isInstanceOf[RawDimension[_]]) {
-        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
-      }
-      //      if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
-      //        val bytes = new Array[Byte](dim.rStorable.size)
-      //        bb.reset()
-      //        bb.get(bytes)
-      //        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
-      //      }
-
-      i += 1
-    }
-    val currentTime = bb.getLong
-    internalRowBuilder.set(Time(baseTime + currentTime))
-  }
+//  private def loadRowKey(
+//      cursor: Cursor,
+//      dimensions: Array[Dimension],
+//      internalRowBuilder: InternalRowBuilder
+//  ): Unit = {
+//
+//    implicit val rw = EvalReaderWriter
+//
+//    val bb = cursor.key().asByteBuffer()
+//    val baseTime = bb.getLong()
+//
+//    var i = 0
+//
+//    dimensions.foreach { dim =>
+//      bb.mark()
+//
+//      val value = dim.rStorable.read(bb)
+//      if (dim.isInstanceOf[RawDimension[_]]) {
+//        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
+//      }
+//      //      if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
+//      //        val bytes = new Array[Byte](dim.rStorable.size)
+//      //        bb.reset()
+//      //        bb.get(bytes)
+//      //        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
+//      //      }
+//
+//      i += 1
+//    }
+//    val currentTime = bb.getLong
+//    internalRowBuilder.set(Time(baseTime + currentTime))
+//  }
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -559,61 +645,59 @@ class TSDaoKhipu(schema: Schema) extends TSDao[Iterator, Long] {
     time % table.rowTimeSpan
   }
 
-  def valueBytes(dp: DataPoint, group: Int) = {
+  def valueBytes(dp: DataPoint, group: Int): Array[Byte] = {
+    val bb = MemoryBuffer.allocateHeap(KTable.MAX_ROW_SIZE)
 
-    val metricFieldBytes = dp.metrics.collect {
+    dp.metrics.foreach {
       case f if f.metric.group == group =>
-        val bytes = f.metric.dataType.storable.write(f.value)
-        (f.metric.tag, bytes)
+        bb.put(f.metric.tag)
+        f.metric.dataType.storable.write(bb, f.value: ID[f.metric.T])
+      case _ =>
     }
 
-    val dimensionFieldBytes = dp.dimensions.collect {
+    dp.dimensions.foreach {
       case (d: DictionaryDimension, value) if dp.table.dimensionTagExists(d) =>
         val tag = dp.table.dimensionTag(d)
-        val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
-        (tag, bytes)
+        bb.put(tag)
+        d.dataType.storable.write(bb, value.asInstanceOf[d.T]: ID[d.T])
       case (d: HashDimension[_, _], value) if dp.table.dimensionTagExists(d) =>
         val tag = dp.table.dimensionTag(d)
-        val bytes = d.tStorable.write(value.asInstanceOf[d.T])
-        (tag, bytes)
-    }
-
-    val fieldBytes = metricFieldBytes ++ dimensionFieldBytes
-
-    val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
-    val bb = ByteBuffer.allocate(size)
-    fieldBytes.foreach {
-      case (tag, bytes) =>
         bb.put(tag)
-        bb.put(bytes)
+        d.tStorable.write(bb, value.asInstanceOf[d.T]: ID[d.T])
+      case _ =>
     }
 
-    bb.array()
+    val size = bb.position()
+    val res = Array.ofDim[Byte](size)
+    bb.rewind()
+    bb.get(res)
+    res
   }
 
-  private def loadValue(
-      bytes: Array[Byte],
-      context: InternalQueryContext,
-      internalRowBuilder: InternalRowBuilder
-  ): Unit = {
-    val bb = ByteBuffer.wrap(bytes)
-    while (bb.hasRemaining) {
-      val tag = bb.get()
-      context.table.fieldForTag(tag) match {
-        case Some(Left(metric)) =>
-          val v = metric.dataType.storable.read(bb)
-          internalRowBuilder.set(tag, v)
-        case Some(Right(_: DictionaryDimension)) =>
-          val v = DataType.stringDt.storable.read(bb)
-          internalRowBuilder.set(tag, v)
-        case Some(Right(hd: HashDimension[_, _])) =>
-          val v = hd.tStorable.read(bb)
-          internalRowBuilder.set(tag, v)
-        case _ =>
-          throw new IllegalStateException(
-            s"Unknown tag: $tag [${context.table.fieldForTag(tag)}] , in table: ${context.table.name}"
-          )
-      }
-    }
-  }
+//  private def loadValue(
+//      cursor: Cursor,
+//      context: InternalQueryContext,
+//      internalRowBuilder: InternalRowBuilder
+//  ): Unit = {
+//    val bb = cursor.value().asByteBuffer()
+//
+//    while (bb.hasRemaining) {
+//      val tag = bb.get()
+//      context.table.fieldForTag(tag) match {
+//        case Some(Left(metric)) =>
+//          val v = metric.dataType.storable.read(bb)
+//          internalRowBuilder.set(tag, v)
+//        case Some(Right(_: DictionaryDimension)) =>
+//          val v = DataType.stringDt.storable.read(bb)
+//          internalRowBuilder.set(tag, v)
+//        case Some(Right(hd: HashDimension[_, _])) =>
+//          val v = hd.tStorable.read(bb)
+//          internalRowBuilder.set(tag, v)
+//        case _ =>
+//          throw new IllegalStateException(
+//            s"Unknown tag: $tag [${context.table.fieldForTag(tag)}] , in table: ${context.table.name}"
+//          )
+//      }
+//    }
+//  }
 }

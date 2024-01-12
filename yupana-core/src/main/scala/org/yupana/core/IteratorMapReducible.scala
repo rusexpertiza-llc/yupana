@@ -47,6 +47,18 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
   )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Iterator[(K, B)] =
     CollectionUtils.foldByKey(it)(createZero, seqOp)
 
+  override def aggregate[A: ClassTag, B: ClassTag](
+      it: Iterator[A]
+  )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Iterator[B] = {
+    if (it.hasNext) {
+      val first = it.next()
+      val r = it.foldLeft(createZero(first))(seqOp)
+      Iterator(r)
+    } else {
+      Iterator.empty[B]
+    }
+  }
+
   override def distinct[A: ClassTag](it: Iterator[A]): Iterator[A] = it.toSet.iterator
 
   override def limit[A: ClassTag](it: Iterator[A])(n: Int): Iterator[A] = it.take(n)
@@ -54,6 +66,7 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
   override def materialize[A: ClassTag](it: Iterator[A]): Seq[A] = it.toList
 
   override def concat[A: ClassTag](a: Iterator[A], b: Iterator[A]): Iterator[A] = a ++ b
+
 }
 
 object IteratorMapReducible {

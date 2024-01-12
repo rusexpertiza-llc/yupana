@@ -16,17 +16,28 @@
 
 package org.yupana.core
 
-import org.yupana.api.query.Result
+import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.DataType
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 
-class TsdbServerResult(override val queryContext: QueryContext, data: Iterator[Array[Any]])
-    extends Result
+class TsdbServerResult(
+    override val queryContext: QueryContext,
+    override val internalRowBuilder: InternalRowBuilder,
+    data: Iterator[InternalRow]
+) extends Result
     with TsdbResultBase[Iterator] {
 
   override def name: String = queryContext.query.table.map(_.name).getOrElse("RESULT")
 
-  override def rows: Iterator[Array[Any]] = data
+  override def rows: Iterator[InternalRow] = data
 
   override val dataTypes: Seq[DataType] = queryContext.query.fields.map(_.expr.dataType)
   override val fieldNames: Seq[String] = nameIndex.map(_._1)
+
+  override def hasNext: Boolean = data.hasNext
+
+  override def next(): DataRow = {
+    val row = rows.next()
+    dataRow(row)
+  }
 }

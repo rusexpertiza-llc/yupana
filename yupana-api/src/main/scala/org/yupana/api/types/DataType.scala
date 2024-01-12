@@ -30,6 +30,7 @@ trait DataType extends Serializable {
   type T
   val meta: DataTypeMeta[T]
   val storable: Storable[T]
+  val internalStorable: InternalStorable[T]
   val classTag: ClassTag[T]
   val boxingTag: BoxingTag[T]
   val kind: TypeKind = TypeKind.Regular
@@ -58,6 +59,8 @@ class ArrayDataType[TT](val valueType: DataType.Aux[TT]) extends DataType {
   override val kind: TypeKind = TypeKind.Array
   override val meta: DataTypeMeta[T] = DataTypeMeta.seqMeta(valueType.meta)
   override val storable: Storable[T] = Storable.seqStorable(valueType.storable, valueType.classTag)
+  override val internalStorable: InternalStorable[Seq[TT]] =
+    InternalStorable.seqStorable(valueType.internalStorable, valueType.classTag)
   override val classTag: ClassTag[T] = implicitly[ClassTag[Seq[TT]]]
   override val boxingTag: BoxingTag[Seq[TT]] = BoxingTag[Seq[TT]]
 
@@ -80,6 +83,8 @@ class TupleDataType[A, B](val aType: DataType.Aux[A], val bType: DataType.Aux[B]
   override val kind: TypeKind = TypeKind.Tuple
   override val meta: DataTypeMeta[T] = DataTypeMeta.tuple(aType.meta, bType.meta)
   override val storable: Storable[T] = Storable.noop
+  override val internalStorable: InternalStorable[(A, B)] =
+    InternalStorable.tupleStorable(aType.internalStorable, bType.internalStorable)
   override val classTag: ClassTag[T] = implicitly[ClassTag[(A, B)]]
   override val boxingTag: BoxingTag[T] = implicitly[BoxingTag[(A, B)]]
   override val ordering: Option[Ordering[(A, B)]] = None
@@ -137,10 +142,10 @@ object DataType {
 
   implicit val periodDt: DataType.Aux[PeriodDuration] = create[PeriodDuration](None, None, None)
 
-  implicit def intDt[T: Storable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
+  implicit def intDt[T: Storable: InternalStorable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
 
-  implicit def fracDt[T: Storable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
+  implicit def fracDt[T: Storable: InternalStorable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), None, Some(implicitly[Fractional[T]]))
 
   implicit def tupleDt[TT, UU](implicit dtt: DataType.Aux[TT], dtu: DataType.Aux[UU]): DataType.Aux[(TT, UU)] = {
@@ -155,6 +160,7 @@ object DataType {
     override type T = Null
     override val meta: DataTypeMeta[Null] = implicitly[DataTypeMeta[Null]]
     override val storable: Storable[Null] = Storable.noop
+    override val internalStorable: InternalStorable[Null] = InternalStorable.noop
     override val classTag: ClassTag[Null] = implicitly[ClassTag[Null]]
     override val boxingTag: BoxingTag[Null] = BoxingTag[Null]
     override val ordering: Option[Ordering[Null]] = None
@@ -164,6 +170,7 @@ object DataType {
 
   private def create[TT](o: Option[Ordering[TT]], i: Option[Integral[TT]], f: Option[Fractional[TT]])(
       implicit s: Storable[TT],
+      is: InternalStorable[TT],
       m: DataTypeMeta[TT],
       ct: ClassTag[TT],
       bt: BoxingTag[TT]
@@ -171,6 +178,7 @@ object DataType {
     override type T = TT
     override val meta: DataTypeMeta[T] = m
     override val storable: Storable[T] = s
+    override val internalStorable: InternalStorable[TT] = is
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
     override val ordering: Option[Ordering[TT]] = o
@@ -180,12 +188,14 @@ object DataType {
 
   def scaledDecimalDt(scale: Int)(
       implicit s: Storable[BigDecimal],
+      is: InternalStorable[BigDecimal],
       ct: ClassTag[BigDecimal],
       bt: BoxingTag[BigDecimal]
   ): DataType.Aux[BigDecimal] = new DataType {
     override type T = BigDecimal
     override val meta: DataTypeMeta[T] = DataTypeMeta.scaledDecimalMeta(scale)
     override val storable: Storable[T] = s
+    override val internalStorable: InternalStorable[BigDecimal] = is
     override val classTag: ClassTag[T] = ct
     override val boxingTag: BoxingTag[T] = bt
     override val ordering: Option[Ordering[T]] = Some(implicitly[Ordering[BigDecimal]])

@@ -18,6 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.core.jit.{ ExpressionCalculator, ExpressionCalculatorFactory }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.mutable
@@ -40,7 +41,10 @@ class QueryContext(
     calc
   }
 
-  lazy val groupByIndices: Array[Int] = query.groupBy.map(exprsIndex.apply).toArray
+  lazy val groupByIndices: Array[(Expression[_], Int)] = query.groupBy
+    .map(expr => (expr, exprsIndex.apply(expr)))
+    .toArray
+
   lazy val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
 
   private def init(): Unit = {

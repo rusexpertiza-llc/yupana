@@ -31,7 +31,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def keyIndex: Int
 
-  def fillKeyValues(indexMap: scala.collection.Map[Expression[_], Int], valueData: Seq[InternalRow]): Unit
+  def fillKeyValues(rowBuilder: InternalRowBuilder, valueData: Seq[InternalRow]): Seq[InternalRow]
 
   def keyExpr: Expression[String]
 
@@ -63,29 +63,35 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      valueData: Seq[InternalRow],
+      rowBuilder: InternalRowBuilder,
+      rows: Seq[InternalRow],
       exprs: Set[LinkExpr[_]]
-  ): Unit = {
+  ): Seq[InternalRow] = {
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val indexMap = Seq[Expression[_]](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
-    val valueDataBuilder = new InternalRowBuilder(indexMap, None)
+    val tmpRowBuilder = new InternalRowBuilder(indexMap, None)
 
-    val keyValueData = valueData.map { vd =>
-      valueDataBuilder
-        .set(dimExpr, vd.get(exprIndex, dimExpr))
-        .set(TimeExpr, vd.get[Time](exprIndex, TimeExpr))
-        .buildAndReset()
+    val keyValueData = rows.map { vd =>
+      tmpRowBuilder.set(dimExpr, vd.get(rowBuilder, dimExpr))
+      tmpRowBuilder.set(TimeExpr, vd.get[Time](rowBuilder, TimeExpr))
+      tmpRowBuilder.buildAndReset()
     }
 
-    fillKeyValues(indexMap, keyValueData)
+    val updated = fillKeyValues(tmpRowBuilder, keyValueData)
 
-    keyValueData.zip(valueData).foreach {
+    updated.zip(rows).map {
       case (kvd, vd) =>
-        val keyValue = kvd.get[String](indexMap(keyExpr))
+        rowBuilder.setFieldsFromRow(vd)
+        val keyValue = kvd.get[String](tmpRowBuilder, keyExpr)
         exprs.foreach { expr =>
-          vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField.name)(keyValue))
+          val v = fieldValueForKeyValue(expr.linkField.name)(keyValue)
+          if (v != null) {
+            rowBuilder.set(expr.asInstanceOf[Expression[String]], v)
+          } else {
+            rowBuilder.setNull(expr.asInstanceOf[Expression[String]])
+          }
         }
+        rowBuilder.buildAndReset()
     }
   }
 

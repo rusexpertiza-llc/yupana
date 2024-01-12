@@ -119,7 +119,7 @@ object ExpressionUtils {
 
       case ConditionExpr(c, p, n) => ConditionExpr(transform(t)(c), transform(t)(p), transform(t)(n))
 
-      case s @ SumExpr(e)            => SumExpr(transform(t)(e))(s.numeric)
+      case s @ SumExpr(e)            => SumExpr(transform(t)(e))(s.numeric, s.dt, s.guard)
       case m @ MaxExpr(e)            => MaxExpr(transform(t)(e))(m.ord)
       case m @ MinExpr(e)            => MinExpr(transform(t)(e))(m.ord)
       case s @ AvgExpr(e)            => AvgExpr(transform(t)(e))(s.numeric)

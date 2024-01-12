@@ -39,7 +39,7 @@ object TsdbQueryMetrics {
   val createContextQualifier = "create_context"
   val loadTagsQualifier = "load_tags"
   val filterRowsQualifier = "filter_rows"
-  val filterQualifier = "filer"
+  val filterQualifier = "filter"
   val evaluateExpressionsQualifier = "evaluate_expressions"
   val extractKeyDataQualifier = "extract_key_data"
   val windowFunctionsCheckQualifier = "window_functions_check"
@@ -70,6 +70,7 @@ object TsdbQueryMetrics {
     initQueryContextQualifier,
     createDimensionFiltersQualifier,
     createScansQualifier,
+    createContextQualifier,
     scanQualifier,
     loadTagsQualifier,
     filterRowsQualifier,

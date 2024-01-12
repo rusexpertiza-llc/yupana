@@ -23,13 +23,15 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema._
+import org.yupana.api.types.ReaderWriter
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
+import org.yupana.core.QueryContext
 import org.yupana.core.dao._
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
-
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 import scala.util.Try
 
 object TSDaoHBaseBase {
@@ -43,6 +45,8 @@ object TSDaoHBaseBase {
 trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictLogging {
 
   import TSDaoHBaseBase._
+
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
   type IdType = Long
   type TimeFilter = Long => Boolean
@@ -97,6 +101,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   override def query(
       query: InternalQuery,
       internalRowBuilder: InternalRowBuilder,
+      queryContext: QueryContext,
       metricCollector: MetricQueryCollector
   ): Collection[InternalRow] = {
 
@@ -164,7 +169,7 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
         }
 
         new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-          .filter(r => timeFilter(r.get[Time](internalRowBuilder.timeIndex).millis))
+          .filter(r => timeFilter(r.get[Time](internalRowBuilder, internalRowBuilder.timeIndex).millis))
       }.withSavedMetrics(context.metricsCollector)
     }
   }
@@ -281,7 +286,9 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   }
 
   private def dimIdValueFromString[R](dim: Dimension.Aux2[_, R], value: String): Option[R] = {
-    Try(Hex.decodeHex(value.toCharArray)).toOption.map(dim.rStorable.read)
+    Try(Hex.decodeHex(value.toCharArray)).toOption.map { a =>
+      dim.rStorable.read[MemoryBuffer, ID, TypedInt](MemoryBuffer.ofBytes(a))(readerWriter)
+    }
   }
 
   def createFilters(condition: Option[Condition]): Filters = {

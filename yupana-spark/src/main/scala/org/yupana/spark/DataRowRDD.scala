@@ -25,23 +25,27 @@ import org.yupana.api.{ Blob, Time }
 import org.yupana.api.query.{ DataRow, QueryField }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
-class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val queryContext: QueryContext)
+class DataRowRDD(override val rows: RDD[InternalRow], override val queryContext: QueryContext)
     extends RDD[DataRow](rows)
     with TsdbResultBase[RDD] {
+
+  private val fields = queryContext.query.fields.toArray
+
+  override lazy val internalRowBuilder: InternalRowBuilder = new InternalRowBuilder(queryContext)
 
   override def compute(split: Partition, context: TaskContext): Iterator[DataRow] = {
     rows
       .iterator(split, context)
-      .map(data => new DataRow(data, dataIndexForFieldName, dataIndexForFieldIndex))
+      .map(row => dataRow(row))
   }
 
   override protected def getPartitions: Array[Partition] = rows.partitions
 
   def toDF(spark: SparkSession): DataFrame = {
-    val fields = queryContext.query.fields
-    val rowRdd = rows.map(v => createRow(v, fields))
+    val rowRdd = rows.map(v => createRow(v))
     spark.createDataFrame(rowRdd, createSchema)
   }
 
@@ -50,14 +54,16 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
     StructType(fields)
   }
 
-  private def createRow(a: Array[Any], fields: Seq[QueryField]): Row = {
-    val values = fields.indices.map(idx =>
-      a(dataIndexForFieldIndex(idx)) match {
+  private def createRow(internalRow: InternalRow): Row = {
+    val values = fields.indices.map { i =>
+      val index = dataIndexForFieldIndex(i)
+      val field = fields(i)
+      internalRow.get(internalRowBuilder, index)(field.expr.dataType.internalStorable) match {
         case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
         case Blob(bytes) => bytes
         case x           => x
       }
-    )
+    }
     Row(values: _*)
   }
 
@@ -65,6 +71,7 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
     val sparkType = DataRowRDD.yupanaToSparkType(field.expr.dataType)
     StructField(field.name, sparkType, nullable = true)
   }
+
 }
 
 object DataRowRDD {

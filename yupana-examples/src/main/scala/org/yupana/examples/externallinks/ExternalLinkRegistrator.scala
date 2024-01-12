@@ -26,7 +26,7 @@ import org.yupana.externallinks.items.{ ItemsInvertedIndexImpl, RelatedItemsCata
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConnection }
 import org.yupana.externallinks.universal.SQLSourcedExternalLinkService
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
-import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.yupana.schema.ItemDimension
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 import org.yupana.settings.Settings
 
@@ -44,8 +44,8 @@ class ExternalLinkRegistrator(
     ItemsInvertedIndexImpl.TABLE_NAME,
     Serializers.stringSerializer,
     Serializers.stringDeserializer,
-    Dimensions.ITEM.rStorable.write,
-    Dimensions.ITEM.rStorable.read
+    ItemsInvertedIndexImpl.valueSerializer,
+    ItemsInvertedIndexImpl.valueDeserializer
   )
 
   lazy val invertedIndex =

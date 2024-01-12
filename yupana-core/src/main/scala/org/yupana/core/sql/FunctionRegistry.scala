@@ -62,10 +62,19 @@ object FunctionRegistry {
 
   private val unaryFunctions: List[FunctionDesc] = List(
     // AGGREGATES
-    uNum(
+    FunctionDesc(
       "sum",
-      new Bind2R[Expression, Numeric, Expression] {
-        override def apply[T](e: Expression[T], n: Numeric[T]): Expression[T] = SumExpr(e)(n)
+      NumberParam,
+      (_, e: Expression[_]) => {
+        e.dataType.meta.sqlTypeName match {
+          case "TINYINT"  => Right(SumExpr[Byte, Int](e.asInstanceOf[Expression[Byte]]))
+          case "SMALLINT" => Right(SumExpr[Short, Int](e.asInstanceOf[Expression[Short]]))
+          case "INTEGER"  => Right(SumExpr[Int, Int](e.asInstanceOf[Expression[Int]]))
+          case "BIGINT"   => Right(SumExpr[Long, Long](e.asInstanceOf[Expression[Long]]))
+          case "DOUBLE"   => Right(SumExpr[Double, Double](e.asInstanceOf[Expression[Double]]))
+          case "DECIMAL"  => Right(SumExpr[BigDecimal, BigDecimal](e.asInstanceOf[Expression[BigDecimal]]))
+          case x          => Left(s"$x type is not available for Sum expression")
+        }
       }
     ),
     uOrd(

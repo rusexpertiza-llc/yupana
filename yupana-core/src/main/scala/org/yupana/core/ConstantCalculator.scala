@@ -19,6 +19,7 @@ package org.yupana.core
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
+import org.yupana.core.jit.ExpressionCalculator
 
 import java.time.DayOfWeek
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }

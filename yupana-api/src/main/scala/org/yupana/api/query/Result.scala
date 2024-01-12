@@ -26,10 +26,9 @@ trait Result extends Iterator[DataRow] {
   def dataTypes: Seq[DataType]
   def dataIndexForFieldName(name: String): Int
   def dataIndexForFieldIndex(idx: Int): Int
-  def rows: Iterator[Array[Any]]
 
-  override def hasNext: Boolean = rows.hasNext
-  override def next(): DataRow = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
+  override def hasNext: Boolean // = rows.hasNext
+  override def next(): DataRow // = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
 }
 
 object Result {
@@ -44,21 +43,10 @@ object Result {
 
     override def dataIndexForFieldIndex(idx: Int): Int = 0
 
-    override def rows: Iterator[Array[Any]] = Iterator.empty
+    override def hasNext: Boolean = false
+
+    override def next(): DataRow = throw new IllegalStateException("Error: next on empty result")
   }
-}
-
-case class SimpleResult(
-    override val name: String,
-    fieldNames: Seq[String],
-    dataTypes: Seq[DataType],
-    rows: Iterator[Array[Any]]
-) extends Result {
-
-  private val nameIndexMap = fieldNames.zipWithIndex.toMap
-
-  override def dataIndexForFieldName(name: String): Int = nameIndexMap(name)
-  override def dataIndexForFieldIndex(idx: Int): Int = idx
 }
 
 class DataRow(

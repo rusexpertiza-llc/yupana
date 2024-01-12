@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import java.util.Properties
@@ -70,9 +86,10 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -122,9 +139,10 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -172,9 +190,10 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
@@ -223,21 +242,22 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
             .set(metric(TestTableFields.TEST_FIELD2), 1013d)
             .set(dimension(TestDims.DIM_A), "test11")
-            .set(dimension(TestDims.DIM_B), "test12")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime + 100))
             .set(metric(TestTableFields.TEST_FIELD), 1013d)
             .set(metric(TestTableFields.TEST_FIELD2), 1013d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -249,7 +269,7 @@ class TsdbDataFilterTest
     row.get[Time]("time_time") shouldBe Time(pointTime)
     an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
     row.get[String]("A") shouldBe "test11"
-    row.get[String]("B") shouldBe "test12"
+    row.get[Short]("B") shouldBe 1
   }
 
   it should "support IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -275,19 +295,20 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1014d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -299,14 +320,14 @@ class TsdbDataFilterTest
     r1.get[Time]("time") shouldBe Time(pointTime)
     r1.get[Double]("F1") shouldBe 1012d
     r1.get[String]("A") shouldBe "test1"
-    r1.get[String]("B") shouldBe "test2"
+    r1.get[Short]("B") shouldBe 2
 
     val r2 = iterator.next()
 
     r2.get[Time]("time") shouldBe Time(pointTime)
     r2.get[Double]("F1") shouldBe 1014d
     r2.get[String]("A") shouldBe "test1"
-    r2.get[String]("B") shouldBe "test2"
+    r2.get[Short]("B") shouldBe 2
 
     iterator.hasNext shouldBe false
   }
@@ -334,24 +355,25 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 123d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 234d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), null)
+            .setNull(metric(TestTableFields.TEST_FIELD))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -363,7 +385,7 @@ class TsdbDataFilterTest
     r.get[Time]("time") shouldBe Time(pointTime)
     r.get[Double]("F1") shouldBe 234d
     r.get[String]("A") shouldBe "test1"
-    r.get[String]("B") shouldBe "test2"
+    r.get[Short]("B") shouldBe 2
 
     iterator.hasNext shouldBe false
   }
@@ -419,26 +441,27 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "asdsadasd")
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1012d)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "Str@!")
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1013d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -450,7 +473,7 @@ class TsdbDataFilterTest
     row.get[Time]("time") shouldBe Time(pointTime)
     row.get[Double]("F1") shouldBe 1012d
     row.get[String]("A") shouldBe "test1"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "support IS NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -472,9 +495,9 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
+      .onCall((builder, datas, _) =>
         setCatalogValueByTag(
-          qc,
+          builder,
           datas,
           TestLinks.TEST_LINK,
           SparseTable("test2a" -> Map("testField" -> "some-value"))
@@ -496,19 +519,20 @@ class TsdbDataFilterTest
           condition
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 10d)
             .set(dimension(TestDims.DIM_A), "test1a")
-            .set(dimension(TestDims.DIM_B), "test2b")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 30d)
             .set(dimension(TestDims.DIM_A), "test2a")
-            .set(dimension(TestDims.DIM_B), "test3b")
+            .set(dimension(TestDims.DIM_B), 3.toShort)
             .buildAndReset()
         )
       )
@@ -520,7 +544,7 @@ class TsdbDataFilterTest
     r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     r1.get[Double]("testField") shouldBe 10d
     r1.get[String]("A") shouldBe "test1a"
-    r1.get[String]("B") shouldBe "test2b"
+    r1.get[Short]("B") shouldBe 2
   }
 
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -542,9 +566,9 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
+      .onCall((builder, datas, _) =>
         setCatalogValueByTag(
-          qc,
+          builder,
           datas,
           TestLinks.TEST_LINK,
           SparseTable("test2a" -> Map("testField" -> "some-value"))
@@ -566,19 +590,20 @@ class TsdbDataFilterTest
           condition
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 10d)
             .set(dimension(TestDims.DIM_A), "test1a")
-            .set(dimension(TestDims.DIM_B), "test2b")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 30d)
             .set(dimension(TestDims.DIM_A), "test2a")
-            .set(dimension(TestDims.DIM_B), "test3b")
+            .set(dimension(TestDims.DIM_B), 3.toShort)
             .buildAndReset()
         )
       )
@@ -590,7 +615,7 @@ class TsdbDataFilterTest
     r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.HOURS).toInstant.toEpochMilli)
     r1.get[Double]("testField") shouldBe 30d
     r1.get[String]("A") shouldBe "test2a"
-    r1.get[String]("B") shouldBe "test3b"
+    r1.get[Short]("B") shouldBe 3
     r1.get[String]("ctf") shouldBe "some-value"
   }
 
@@ -626,9 +651,9 @@ class TsdbDataFilterTest
 
       (testCatalogServiceMock.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-        .onCall((qc, datas, _) =>
+        .onCall((builder, datas, _) =>
           setCatalogValueByTag(
-            qc,
+            builder,
             datas,
             TestLinks.TEST_LINK,
             SparseTable("test2a" -> Map("testField" -> "some-value"))
@@ -637,9 +662,9 @@ class TsdbDataFilterTest
 
       (testCatalogServiceMock2.setLinkedValues _)
         .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")).asInstanceOf[Set[LinkExpr[_]]])
-        .onCall((qc, datas, _) =>
+        .onCall((builder, datas, _) =>
           setCatalogValueByTag(
-            qc,
+            builder,
             datas,
             TestLinks.TEST_LINK2,
             SparseTable("test1a" -> Map("testField2" -> "c2-value"), "test2a" -> Map("testField2" -> "some-value"))
@@ -661,9 +686,10 @@ class TsdbDataFilterTest
             condition
           ),
           *,
+          *,
           *
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _, _) =>
           Iterator(
             b.set(time, Time(pointTime1))
               .set(metric(TestTableFields.TEST_FIELD), 1001d)
@@ -710,8 +736,13 @@ class TsdbDataFilterTest
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((qc, datas, _) =>
-        setCatalogValueByTag(qc, datas, TestLinks.TEST_LINK, SparseTable("test1a" -> Map("testField" -> "c1-value")))
+      .onCall((builder, datas, _) =>
+        setCatalogValueByTag(
+          builder,
+          datas,
+          TestLinks.TEST_LINK,
+          SparseTable("test1a" -> Map("testField" -> "c1-value"))
+        )
       )
 
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("test2"))
@@ -748,9 +779,10 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 1011d)
@@ -789,9 +821,10 @@ class TsdbDataFilterTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTable2Fields.TEST_FIELD2), 0d)
@@ -813,8 +846,8 @@ class TsdbDataFilterTest
     val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
     (tsdbDaoMock.query _)
-      .expects(*, *, *)
-      .onCall((_, b, _) =>
+      .expects(*, *, *, *)
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(Time(from.plusMinutes(10))).set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
           b.set(Time(from.plusHours(3))).set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
@@ -823,10 +856,13 @@ class TsdbDataFilterTest
 
     (link5.setLinkedValues _)
       .expects(*, *, *)
-      .onCall((idx, rs, _) =>
-        rs.foreach { r =>
-          val b = r.get(idx, dimension(TestDims.DIM_B))
-          r.set(idx, doubleLinkExpr, if (b == 12) 10.0 else 30.0)
+      .onCall((builder, rows, _) =>
+        rows.map { r =>
+          val v = r.get(builder, dimension(TestDims.DIM_B))
+          builder
+            .setFieldsFromRow(r)
+            .set(doubleLinkExpr, if (v == 12) 10.0 else 30.0)
+            .buildAndReset()
         }
       )
 
@@ -845,8 +881,8 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     (tsdbDaoMock.query _)
-      .expects(*, *, *)
-      .onCall((_, b, _) =>
+      .expects(*, *, *, *)
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(Time(from.plusMinutes(2)))
             .set(dimension(TestDims.DIM_B), 1.toShort)
@@ -871,8 +907,8 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     (tsdbDaoMock.query _)
-      .expects(*, *, *)
-      .onCall((_, b, _) =>
+      .expects(*, *, *, *)
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(Time(from.plusMinutes(2)))
             .set(dimension(TestDims.DIM_B), 1.toShort)

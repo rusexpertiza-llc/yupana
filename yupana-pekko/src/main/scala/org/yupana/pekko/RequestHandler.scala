@@ -19,14 +19,20 @@ package org.yupana.pekko
 import com.google.protobuf.ByteString
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Result
+import org.yupana.api.types.ReaderWriter
 import org.yupana.core.QueryEngineRouter
 import org.yupana.core.sql.parser._
 import org.yupana.proto
 import org.yupana.proto.util.ProtocolVersion
+import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
 
+import java.nio.ByteBuffer
 import scala.concurrent.{ ExecutionContext, Future }
 
 class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging {
+
+  val MAX_ROW_SIZE = 2_000_000
+  implicit val readerWriter: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
 
   def handleQuery(sqlQuery: proto.SqlQuery)(
       implicit ec: ExecutionContext
@@ -77,13 +83,17 @@ class RequestHandler(queryEngineRouter: QueryEngineRouter) extends StrictLogging
   }
 
   private def resultToProto(result: Result): Iterator[proto.Response] = {
+    val bf = ByteBuffer.allocate(MAX_ROW_SIZE)
     val rts = result.dataTypes.zipWithIndex
     val results = result.map { row =>
       val bytes = rts.map {
         case (rt, idx) =>
+          bf.rewind()
           val v = row.get[rt.T](idx)
-          val b = if (v != null) rt.storable.write(v) else Array.empty[Byte]
-          ByteString.copyFrom(b)
+          if (v != null) rt.storable.write(bf, v: ID[rt.T])
+          val s = bf.position()
+          bf.rewind()
+          ByteString.copyFrom(bf, s)
       }
       proto.Response(proto.Response.Resp.Result(proto.ResultChunk(bytes)))
     }

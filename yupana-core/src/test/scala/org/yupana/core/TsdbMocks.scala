@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import org.scalamock.scalatest.MockFactory
@@ -6,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
-import org.yupana.core.model.InternalRow
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
@@ -93,17 +109,19 @@ trait TsdbMocks extends MockFactory {
   }
 
   def setCatalogValueByTag(
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      datas: Seq[InternalRow],
+      builder: InternalRowBuilder,
+      rows: Seq[InternalRow],
       catalog: ExternalLink,
       catalogValues: Table[String, String, String]
-  ): Unit = {
-    datas.foreach { v =>
-      val tagValue = v.get(exprIndex, DimensionExpr(catalog.dimension)).asInstanceOf[String]
+  ): Seq[InternalRow] = {
+    rows.map { row =>
+      builder.setFieldsFromRow(row)
+      val tagValue = row.get(builder, DimensionExpr(catalog.dimension)).asInstanceOf[String]
       catalogValues.row(tagValue).foreach {
         case (field, value) =>
-          v.set(exprIndex, LinkExpr(catalog, field), value)
+          builder.set(LinkExpr(catalog, field), value)
       }
+      builder.buildAndReset()
     }
   }
 

@@ -16,6 +16,9 @@
 
 package org.yupana.core
 
+import org.yupana.api.query.DataRow
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+
 trait TsdbResultBase[T[_]] {
 
   protected val nameIndex: Seq[(String, Int)] =
@@ -23,11 +26,24 @@ trait TsdbResultBase[T[_]] {
   protected lazy val nameIndexMap: Map[String, Int] = nameIndex.toMap
   protected lazy val fieldIndex: Array[Int] = nameIndex.map(_._2).toArray
 
-  def rows: T[Array[Any]]
+  def rows: T[InternalRow]
 
   def queryContext: QueryContext
+
+  def internalRowBuilder: InternalRowBuilder
 
   def dataIndexForFieldName(name: String): Int = nameIndexMap(name)
 
   def dataIndexForFieldIndex(idx: Int): Int = fieldIndex(idx)
+
+  def dataRow(row: InternalRow): DataRow = {
+    val rowArray = Array.ofDim[Any](queryContext.exprsIndex.size)
+    queryContext.query.fields.foreach { field =>
+      val index = queryContext.exprsIndex(field.expr)
+      if (!field.expr.isNullable || row.isDefined(internalRowBuilder, index)) {
+        rowArray(index) = row.get(internalRowBuilder, index)(field.expr.dataType.internalStorable)
+      }
+    }
+    new DataRow(rowArray, dataIndexForFieldName, dataIndexForFieldIndex)
+  }
 }

@@ -22,7 +22,8 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
-import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.jit.{ CachingExpressionCalculatorFactory, ExpressionCalculatorFactory }
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric._
 
@@ -65,16 +66,17 @@ class TSDB(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: Iterator[Array[Any]],
+      rowBuilder: InternalRowBuilder,
+      data: Iterator[InternalRow],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
-
     val it = CloseableIterator(data, metricCollector.finish())
-    new TsdbServerResult(queryContext, it)
+    new TsdbServerResult(queryContext, rowBuilder, it)
   }
 
   override def applyWindowFunctions(
       queryContext: QueryContext,
+      internalRowBuilder: InternalRowBuilder,
       keysAndValues: Iterator[(KeyData, InternalRow)]
   ): Iterator[(KeyData, InternalRow)] = {
     val seq = keysAndValues.zipWithIndex.toList
@@ -86,7 +88,7 @@ class TSDB(
           val (values, rowNumbers) = group
             .map { case ((_, row), rowNumber) => (row, rowNumber) }
             .toArray
-            .sortBy(_._1.get[Time](queryContext, TimeExpr))
+            .sortBy(_._1.get[Time](internalRowBuilder, TimeExpr))
             .unzip
 
           keyData -> ((values, rowNumbers.zipWithIndex.toMap))
@@ -98,7 +100,7 @@ class TSDB(
           case (key, (vs, rowNumIndex)) =>
             val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
             vs.indices.foreach { i =>
-              funcValues(i) = vs(i).get(queryContext, winFuncExpr.expr)
+              funcValues(i) = vs(i).get(internalRowBuilder, winFuncExpr.expr)
             }
             (key, (funcValues, rowNumIndex))
         }
@@ -106,16 +108,21 @@ class TSDB(
     }
 
     seq.map {
-      case ((keyData, valueData), rowNumber) =>
+      case ((keyData, row), rowNumber) =>
+        internalRowBuilder.setFieldsFromRow(row)
         winFieldsAndGroupValues.foreach {
           case (winFuncExpr, groups) =>
             val (group, rowIndex) = groups(keyData)
             rowIndex.get(rowNumber).map { index =>
               val value = queryContext.calculator.evaluateWindow(winFuncExpr, group, index)
-              valueData.set(queryContext, winFuncExpr, value)
+              if (value != null) {
+                internalRowBuilder.set(winFuncExpr, value)
+              } else {
+                internalRowBuilder.setNull(winFuncExpr)
+              }
             }
         }
-        keyData -> valueData
+        keyData -> internalRowBuilder.buildAndReset()
     }.iterator
   }
 

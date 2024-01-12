@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.TestSchema
 import TestUtils._
+import org.yupana.khipu.storage.{ KTable, LeafBlock, Row }
 
 class BlockTest extends AnyFlatSpec with Matchers {
 
@@ -14,26 +15,27 @@ class BlockTest extends AnyFlatSpec with Matchers {
     val row = Row(Array.fill[Byte](block.keySize)(1.toByte), Array.fill[Byte](100)(2.toByte))
     val blocks1 = block.put(Seq(row))
 
-    val c1 = new Cursor(TestSchema.testTable, blocks1, None)
-    c1.next() shouldBe true
-    c1.keyBytes().toSeq shouldBe row.key.toSeq
-    c1.valueBytes().toSeq shouldBe row.value.toSeq
+    blocks1 should have size 1
+    val actual1 = blocks1.head.readRows()
+    actual1 should have size 1
+    actual1.head.keyBytes shouldBe row.keyBytes.toSeq
+    actual1.head.valueBytes shouldBe row.valueBytes.toSeq
 
-    val rows = Seq(testRowFill(1, 1), testRowFill(2, 2), testRowFill(3, 3))
-    val blocks2 = block.put(rows)
+    val expected = Seq(testRowFill(1, 1), testRowFill(2, 2), testRowFill(3, 3))
+    val blocks2 = block.put(expected)
 
-    val c2 = new Cursor(TestSchema.testTable, blocks2, None)
-    c2.next() shouldBe true
-    c2.keyBytes() shouldBe rows(0).key
-    c2.valueBytes() shouldBe rows(0).value
+    val actual2 = blocks2.head.readRows()
 
-    c2.next() shouldBe true
-    c2.keyBytes() shouldBe rows(1).key
-    c2.valueBytes() shouldBe rows(1).value
+    actual2 should have size 3
 
-    c2.next() shouldBe true
-    c2.keyBytes() shouldBe rows(2).key
-    c2.valueBytes() shouldBe rows(2).value
+    actual2(0).keyBytes shouldBe expected(0).keyBytes
+    actual2(0).valueBytes shouldBe expected(0).valueBytes
+
+    actual2(1).keyBytes shouldBe expected(1).keyBytes
+    actual2(1).valueBytes shouldBe expected(1).valueBytes
+
+    actual2(2).keyBytes shouldBe expected(2).keyBytes
+    actual2(2).valueBytes shouldBe expected(2).valueBytes
 
   }
 
@@ -46,36 +48,32 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
     val rows = Seq(testRowFill(1, 6), testRowFill(21, 26), testRowFill(31, 36))
 
-    val r = block.put(rows)
+    val blocks = block.put(rows)
 
-    val c = new Cursor(TestSchema.testTable, r, None)
+    blocks should have size 1
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(1, 6).key
-    c.valueBytes() shouldBe testRowFill(1, 6).value
+    val actual = blocks.head.readRows()
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(10, 15).key
-    c.valueBytes() shouldBe testRowFill(10, 15).value
+    actual(0).keyBytes shouldBe testRowFill(1, 6).keyBytes
+    actual(0).valueBytes shouldBe testRowFill(1, 6).valueBytes
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(20, 25).key
-    c.valueBytes() shouldBe testRowFill(20, 25).value
+    actual(1).keyBytes shouldBe testRowFill(10, 15).keyBytes
+    actual(1).valueBytes shouldBe testRowFill(10, 15).valueBytes
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(21, 26).key
-    c.valueBytes() shouldBe testRowFill(21, 26).value
+    actual(2).keyBytes shouldBe testRowFill(20, 25).keyBytes
+    actual(2).valueBytes shouldBe testRowFill(20, 25).valueBytes
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(30, 35).key
-    c.valueBytes() shouldBe testRowFill(30, 35).value
+    actual(3).keyBytes shouldBe testRowFill(21, 26).keyBytes
+    actual(3).valueBytes shouldBe testRowFill(21, 26).valueBytes
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(31, 36).key
-    c.valueBytes() shouldBe testRowFill(31, 36).value
+    actual(4).keyBytes shouldBe testRowFill(30, 35).keyBytes
+    actual(4).valueBytes shouldBe testRowFill(30, 35).valueBytes
+
+    actual(5).keyBytes shouldBe testRowFill(31, 36).keyBytes
+    actual(5).valueBytes shouldBe testRowFill(31, 36).valueBytes
   }
 
-  it should "replace rows for existing not empty block" in {
+  it should "replace rows in existing not empty block" in {
 
     val initblock = emptyTestBlock
     val initRows = Seq(testRowFill(10, 15), testRowFill(20, 25), testRowFill(30, 35))
@@ -86,19 +84,17 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
     val r = block.put(rows)
 
-    val c = new Cursor(TestSchema.testTable, r, None)
+    r should have size 1
+    val actual = r.head.readRows()
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(10, 16).key
-    c.valueBytes() shouldBe testRowFill(10, 16).value
+    actual(0).keyBytes shouldBe testRowFill(10, 16).keyBytes
+    actual(0).valueBytes shouldBe testRowFill(10, 16).valueBytes
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(20, 26).key
-    c.valueBytes() shouldBe testRowFill(20, 26).value
+    actual(1).keyBytes shouldBe testRowFill(20, 26).keyBytes
+    actual(1).valueBytes shouldBe testRowFill(20, 26).valueBytes
 
-    c.next() shouldBe true
-    c.keyBytes() shouldBe testRowFill(30, 35).key
-    c.valueBytes() shouldBe testRowFill(30, 35).value
+    actual(2).keyBytes shouldBe testRowFill(30, 35).keyBytes
+    actual(2).valueBytes shouldBe testRowFill(30, 35).valueBytes
 
   }
 
@@ -111,12 +107,13 @@ class BlockTest extends AnyFlatSpec with Matchers {
       }
 
     val r = initblock.put(rows)
-    val c = new Cursor(TestSchema.testTable, r, None)
+    val actual = r.flatMap(_.readRows())
 
-    rows.foreach { row =>
-      c.next() shouldBe true
-      c.keyBytes() shouldBe row.key
-      c.valueBytes() shouldBe row.value
+    actual should have size 1000
+    rows.zipWithIndex.foreach {
+      case (row, i) =>
+        actual(i).keyBytes shouldBe row.keyBytes
+        actual(i).valueBytes shouldBe row.valueBytes
     }
   }
 
@@ -135,13 +132,13 @@ class BlockTest extends AnyFlatSpec with Matchers {
 
     val expectedVals = (initVals ++ vals).sorted
 
-    val c = new Cursor(TestSchema.testTable, r, None)
+    val actual = r.flatMap(_.readRows())
 
-    expectedVals.foreach { v =>
-      val expectedRow = testRowVal(v, v)
-      c.next() shouldBe true
-      c.keyBytes() shouldBe expectedRow.key
-      c.valueBytes() shouldBe expectedRow.value
+    expectedVals.zipWithIndex.foreach {
+      case (v, i) =>
+        val expectedRow = testRowVal(v, v)
+        actual(i).keyBytes shouldBe expectedRow.keyBytes
+        actual(i).valueBytes shouldBe expectedRow.valueBytes
     }
   }
 

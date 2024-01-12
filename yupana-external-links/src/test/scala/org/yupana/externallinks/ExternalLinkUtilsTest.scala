@@ -112,31 +112,32 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       link(TestLink, TestLink.field2) -> 3
     )
 
-    val ib = new InternalRowBuilder(exprIndex, Some(table))
+    val rowBuilder = new InternalRowBuilder(exprIndex, Some(table))
 
-    val row1 = ib
+    val row1 = rowBuilder
       .set(time, Time(10L))
       .set(dimension(xDim), "foo")
       .buildAndReset()
 
-    val row2 = ib
+    val row2 = rowBuilder
       .set(dimension(xDim), "bar")
       .set(time, Time(20L))
       .buildAndReset()
     val rows = Seq(row1, row2)
 
-    ExternalLinkUtils.setLinkedValues[String](
+    val res = ExternalLinkUtils.setLinkedValues[String](
       TestLink,
-      exprIndex,
+      rowBuilder,
       rows,
       Set(link(TestLink, TestLink.field1), link(TestLink, TestLink.field2)),
       testSetter
     )
 
-    row1.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
-    row1.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
-    row2.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
-    row2.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
+    res(0).get[String](rowBuilder, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
+    res(0).get[String](rowBuilder, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
+
+    res(1).get[String](rowBuilder, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
+    res(1).get[String](rowBuilder, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
   }
 
   it should "cross join multiple values" in {

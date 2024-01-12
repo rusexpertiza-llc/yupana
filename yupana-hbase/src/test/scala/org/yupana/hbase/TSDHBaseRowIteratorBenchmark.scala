@@ -10,6 +10,7 @@ import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.jit.JIT
 import org.yupana.utils.RussianTokenizer
 
 import java.time.{ LocalDateTime, ZoneOffset }
@@ -53,7 +54,7 @@ class TSDHBaseRowIteratorBenchmark extends AnyFlatSpec with Matchers {
       Seq.empty
     )
 
-    val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val queryContext = new QueryContext(query, None, JIT, NoMetricCollector)
 
     val internalQuery =
       InternalQuery(

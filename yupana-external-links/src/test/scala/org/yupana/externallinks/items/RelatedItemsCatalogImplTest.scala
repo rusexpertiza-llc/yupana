@@ -6,6 +6,8 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, Query, RemoveCondition }
 import org.yupana.core._
+import org.yupana.core.jit.JIT
+import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
@@ -33,7 +35,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
     )
 
-    val qc1 = new QueryContext(expQuery1, None, ExpressionCalculatorFactory)
+    val qc1 = new QueryContext(expQuery1, None, JIT, NoMetricCollector)
+    val rowBuilder1 = new InternalRowBuilder(qc1)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
@@ -42,10 +45,20 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       .returning(
         new TsdbServerResult(
           qc1,
+          rowBuilder1,
           Seq(
-            Array[Any](123456, Time(120)),
-            Array[Any](123456, Time(150)),
-            Array[Any](345112, Time(120))
+            rowBuilder1
+              .set(dimension(Dimensions.KKM_ID), 123456)
+              .set(time, Time(120))
+              .buildAndReset(),
+            rowBuilder1
+              .set(dimension(Dimensions.KKM_ID), 123456)
+              .set(time, Time(150))
+              .buildAndReset(),
+            rowBuilder1
+              .set(dimension(Dimensions.KKM_ID), 345112)
+              .set(time, Time(120))
+              .buildAndReset()
           ).iterator
         )
       )
@@ -58,16 +71,24 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
     )
 
-    val qc2 = new QueryContext(expQuery2, None, ExpressionCalculatorFactory)
+    val qc2 = new QueryContext(expQuery2, None, JIT, NoMetricCollector)
+    val rowBuilder2 = new InternalRowBuilder(qc2)
 
     (tsdb.query _)
       .expects(expQuery2)
       .returning(
         new TsdbServerResult(
           qc2,
+          rowBuilder2,
           Seq(
-            Array[Any](123456, Time(125)),
-            Array[Any](123456, Time(120))
+            rowBuilder2
+              .set(dimension(Dimensions.KKM_ID), 123456)
+              .set(time, Time(125))
+              .buildAndReset(),
+            rowBuilder2
+              .set(dimension(Dimensions.KKM_ID), 123456)
+              .set(time, Time(120))
+              .buildAndReset()
           ).iterator
         )
       )
@@ -117,7 +138,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
     )
 
-    val qc = new QueryContext(expQuery, None, ExpressionCalculatorFactory)
+    val qc = new QueryContext(expQuery, None, JIT, NoMetricCollector)
+    val rowBuilder = new InternalRowBuilder(qc)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
@@ -126,9 +148,16 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       .returning(
         new TsdbServerResult(
           qc,
+          rowBuilder,
           Seq(
-            Array[Any](123456, Time(220)),
-            Array[Any](654321, Time(330))
+            rowBuilder
+              .set(dimension(Dimensions.KKM_ID), 123456)
+              .set(time, Time(220))
+              .buildAndReset(),
+            rowBuilder
+              .set(dimension(Dimensions.KKM_ID), 654321)
+              .set(time, Time(330))
+              .buildAndReset()
           ).iterator
         )
       )

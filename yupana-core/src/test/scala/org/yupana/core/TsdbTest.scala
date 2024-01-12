@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import org.scalamock.matchers.ArgCapture.CaptureAll
@@ -29,6 +45,7 @@ import java.util.Properties
 class TsdbTest
     extends AnyFlatSpec
     with Matchers
+    with Inspectors
     with TsdbMocks
     with OptionValues
     with TableDrivenPropertyChecks
@@ -148,14 +165,15 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -167,7 +185,7 @@ class TsdbTest
     row.get[Time]("time_time") shouldBe Time(pointTime)
     row.get[Double]("testField") shouldBe 1d
     row.get[String]("A") shouldBe "test1"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with filter by tag ids" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -207,14 +225,15 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .set(dimension(TestDims.DIM_A), "test123")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .buildAndReset()
         )
       )
@@ -226,7 +245,7 @@ class TsdbTest
     row.get[Time]("time_time") shouldBe Time(pointTime)
     row.get[Double]("testField") shouldBe 1d
     row.get[String]("A") shouldBe "test123"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with filter by exact time values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -260,9 +279,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(metric(TestTableFields.TEST_FIELD), 3d)
@@ -316,9 +336,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -378,9 +399,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test42")
@@ -449,13 +471,14 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "test12")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -468,7 +491,7 @@ class TsdbTest
     row.get[Time]("time_time") shouldBe Time(pointTime)
     row.get[Double]("sum_testField") shouldBe 1d
     row.get[String]("A") shouldBe "test12"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -508,13 +531,14 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -525,7 +549,7 @@ class TsdbTest
     row.get[Time]("time_time") shouldBe Time(pointTime)
     row.get[Double]("sum_testField") shouldBe 1d
     row.get[String]("A") shouldBe "test1"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -566,18 +590,19 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -588,7 +613,7 @@ class TsdbTest
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test1"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with aggregation by tag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -623,9 +648,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -654,18 +680,18 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList
     results should have size (2)
 
-    val group1 = results(0)
-    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    group1.get[Double]("sum_testField") shouldBe 2d
-    group1.get[String]("A") shouldBe "test12"
+    forAtLeast(1, results) { group =>
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("A") shouldBe "test12"
+    }
 
-    val group2 = results(1)
-    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    group2.get[Double]("sum_testField") shouldBe 4d
-    group2.get[String]("A") shouldBe "test1"
+    forAtLeast(1, results) { group =>
+      group.get[Double]("sum_testField") shouldBe 4d
+      group.get[String]("A") shouldBe "test1"
+    }
   }
 
   it should "execute query with aggregation by expression" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -700,9 +726,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -731,19 +758,19 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList
 
     results should have size 2
 
-    val group1 = results(0)
-    group1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    group1.get[Double]("testField") shouldBe 1d
-    group1.get[Int]("A") shouldBe 4
+    forAtLeast(1, results) { group =>
+      group.get[Double]("testField") shouldBe 1d
+      group.get[Int]("A") shouldBe 4
+    }
 
-    val group2 = results(1)
-    group2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    group2.get[Double]("testField") shouldBe 2d
-    group2.get[Int]("A") shouldBe 2
+    forAtLeast(1, results) { group =>
+      group.get[Double]("testField") shouldBe 2d
+      group.get[Int]("A") shouldBe 2
+    }
   }
 
   it should "execute total aggregation" in withTsdbMock { (tsdb, tsDaoMock) =>
@@ -767,9 +794,10 @@ class TsdbTest
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 10d).buildAndReset(),
@@ -804,9 +832,10 @@ class TsdbTest
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(Time(qtime.plusHours(1))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(Time(qtime.plusHours(2))).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
@@ -855,9 +884,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
           b.set(time, Time(pointTime2)).set(metric(TestTableFields.TEST_FIELD), 1d).buildAndReset(),
@@ -951,48 +981,53 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test12")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test12")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList
 
-    val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("sum_testField") shouldBe 2d
-    r1.get[String]("A") shouldBe "test1"
-    r1.get[String]("B") shouldBe "test2"
-    r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
+    results should have size 2
 
-    val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r2.get[Double]("sum_testField") shouldBe 2d
-    r2.get[String]("A") shouldBe "test12"
-    r2.get[String]("B") shouldBe "test2"
-    r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("A") shouldBe "test1"
+      group.get[Short]("B") shouldBe 2
+      group.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
+    }
+
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("A") shouldBe "test12"
+      group.get[Short]("B") shouldBe 2
+      group.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
+    }
   }
 
   it should "execute query with filter values by external link field return empty result when linked values not found" in withTsdbMock {
@@ -1052,6 +1087,7 @@ class TsdbTest
               in(dimension(TestDims.DIM_A), Set())
             )
           ),
+          *,
           *,
           NoMetricCollector
         )
@@ -1124,6 +1160,7 @@ class TsdbTest
               DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
             )
           ),
+          *,
           *,
           NoMetricCollector
         )
@@ -1216,18 +1253,19 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test13")
-            .set(dimension(TestDims.DIM_B), "test21")
+            .set(dimension(TestDims.DIM_B), 21.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test13")
-            .set(dimension(TestDims.DIM_B), "test21")
+            .set(dimension(TestDims.DIM_B), 21.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -1240,7 +1278,7 @@ class TsdbTest
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test13"
-    row.get[String]("B") shouldBe "test21"
+    row.get[Short]("B") shouldBe 21
     row.get[String]("TestCatalog_testField") shouldBe "test value 3"
   }
 
@@ -1322,18 +1360,19 @@ class TsdbTest
             )
           ),
           *,
+          *,
           NoMetricCollector
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _, _) =>
           Iterator(
             b.set(time, Time(pointTime1))
               .set(dimension(TestDims.DIM_A), "test13")
-              .set(dimension(TestDims.DIM_B), "test21")
+              .set(dimension(TestDims.DIM_B), 21.toShort)
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset(),
             b.set(time, Time(pointTime2))
               .set(dimension(TestDims.DIM_A), "test13")
-              .set(dimension(TestDims.DIM_B), "test21")
+              .set(dimension(TestDims.DIM_B), 21.toShort)
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset()
           )
@@ -1346,7 +1385,7 @@ class TsdbTest
       row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       row.get[Double]("sum_testField") shouldBe 2d
       row.get[String]("A") shouldBe "test13"
-      row.get[String]("B") shouldBe "test21"
+      row.get[Short]("B") shouldBe 21
       row.get[String]("TestCatalog_testField") shouldBe "test value 3"
   }
 
@@ -1460,18 +1499,19 @@ class TsdbTest
             )
           ),
           *,
+          *,
           NoMetricCollector
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _, _) =>
           Iterator(
             b.set(time, Time(pointTime1))
               .set(dimension(TestDims.DIM_A), "test13")
-              .set(dimension(TestDims.DIM_B), "test21")
+              .set(dimension(TestDims.DIM_B), 21.toShort)
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset(),
             b.set(time, Time(pointTime2))
               .set(dimension(TestDims.DIM_A), "test13")
-              .set(dimension(TestDims.DIM_B), "test21")
+              .set(dimension(TestDims.DIM_B), 21.toShort)
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset()
           )
@@ -1484,7 +1524,7 @@ class TsdbTest
       row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       row.get[Double]("sum_testField") shouldBe 2d
       row.get[String]("A") shouldBe "test13"
-      row.get[String]("B") shouldBe "test21"
+      row.get[Short]("B") shouldBe 21.toShort
       row.get[String]("TestCatalog_testField") shouldBe "test value 3"
   }
 
@@ -1574,13 +1614,14 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "test15")
-            .set(dimension(TestDims.DIM_B), "test22")
+            .set(dimension(TestDims.DIM_B), 22.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 5d)
             .buildAndReset()
         )
@@ -1593,7 +1634,7 @@ class TsdbTest
     row.get[Time]("time") shouldBe Time(pointTime)
     row.get[Double]("sum_testField") shouldBe 5d
     row.get[String]("A") shouldBe "test15"
-    row.get[String]("B") shouldBe "test22"
+    row.get[Short]("B") shouldBe 22
   }
 
   it should "intersect tag ids with one tag for query with filter values by catalogs fields" in withTsdbMock {
@@ -1689,18 +1730,19 @@ class TsdbTest
             )
           ),
           *,
+          *,
           NoMetricCollector
         )
-        .onCall((_, b, _) =>
+        .onCall((_, b, _, _) =>
           Iterator(
             b.set(time, Time(pointTime1))
               .set(dimension(TestDims.DIM_A), "test12")
-              .set(dimension(TestDims.DIM_B), "test2")
+              .set(dimension(TestDims.DIM_B), 2.toShort)
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset(),
             b.set(time, Time(pointTime2))
               .set(dimension(TestDims.DIM_A), "test12")
-              .set(dimension(TestDims.DIM_B), "test2")
+              .set(dimension(TestDims.DIM_B), 2.toShort)
               .set(metric(TestTableFields.TEST_FIELD), 1d)
               .buildAndReset()
           )
@@ -1711,7 +1753,7 @@ class TsdbTest
       r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       r1.get[Double]("sum_testField") shouldBe 2d
       r1.get[String]("A") shouldBe "test12"
-      r1.get[String]("B") shouldBe "test2"
+      r1.get[Short]("B") shouldBe 2
       result should have size 1
   }
 
@@ -1806,9 +1848,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test12")
@@ -1893,18 +1936,19 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "Test a 1")
-            .set(dimension(TestDims.DIM_B), "test1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 2d)
             .buildAndReset(),
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "Test a 3")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 3d)
             .buildAndReset()
         )
@@ -1912,23 +1956,21 @@ class TsdbTest
 
     val res = tsdb.query(query).toList
 
-    val rs = res.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    res should have size 2
 
-    rs should have size 2
+    forAtLeast(1, res) { group =>
+      group.get[Time]("time") shouldBe Time(pointTime)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("A") shouldBe "Test a 1"
+      group.get[Short]("B") shouldBe 1
+    }
 
-    val r1 = rs(0)
-
-    r1.get[Time]("time") shouldBe Time(pointTime)
-    r1.get[Double]("sum_testField") shouldBe 2d
-    r1.get[String]("A") shouldBe "Test a 1"
-    r1.get[String]("B") shouldBe "test1"
-
-    val r2 = rs(1)
-
-    r2.get[Time]("time") shouldBe Time(pointTime)
-    r2.get[Double]("sum_testField") shouldBe 3d
-    r2.get[String]("A") shouldBe "Test a 3"
-    r2.get[String]("B") shouldBe "test2"
+    forAtLeast(1, res) { group =>
+      group.get[Time]("time") shouldBe Time(pointTime)
+      group.get[Double]("sum_testField") shouldBe 3d
+      group.get[String]("A") shouldBe "Test a 3"
+      group.get[Short]("B") shouldBe 2
+    }
   }
 
   it should "intersect values for IN filter for tags and catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -1999,9 +2041,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime))
             .set(dimension(TestDims.DIM_A), "A 1")
@@ -2026,37 +2069,37 @@ class TsdbTest
         )
       )
 
-    val rs = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val rs = tsdb.query(query).toList
 
     rs should have size (4)
 
-    val r1 = rs(0)
+    forAtLeast(1, rs) { group =>
+      group.get[Time]("time") shouldBe Time(pointTime)
+      group.get[Double]("sum_testField") shouldBe 1d
+      group.get[String]("A") shouldBe "A 1"
+      group.get[Short]("B") shouldBe 1.toShort
+    }
 
-    r1.get[Time]("time") shouldBe Time(pointTime)
-    r1.get[Double]("sum_testField") shouldBe 1d
-    r1.get[String]("A") shouldBe "A 1"
-    r1.get[Short]("B") shouldBe 1.toShort
+    forAtLeast(1, rs) { group =>
+      group.get[Time]("time") shouldBe Time(pointTime)
+      group.get[Double]("sum_testField") shouldBe 3d
+      group.get[String]("A") shouldBe "A 2"
+      group.get[Short]("B") shouldBe 1.toShort
+    }
 
-    val r2 = rs(1)
+    forAtLeast(1, rs) { group =>
+      group.get[Time]("time") shouldBe Time(pointTime)
+      group.get[Double]("sum_testField") shouldBe 4d
+      group.get[String]("A") shouldBe "A 2"
+      group.get[Short]("B") shouldBe 2.toShort
+    }
 
-    r2.get[Time]("time") shouldBe Time(pointTime)
-    r2.get[Double]("sum_testField") shouldBe 3d
-    r2.get[String]("A") shouldBe "A 2"
-    r2.get[Short]("B") shouldBe 1.toShort
-
-    val r3 = rs(2)
-
-    r3.get[Time]("time") shouldBe Time(pointTime)
-    r3.get[Double]("sum_testField") shouldBe 4d
-    r3.get[String]("A") shouldBe "A 2"
-    r3.get[Short]("B") shouldBe 2.toShort
-
-    val r4 = rs(3)
-
-    r4.get[Time]("time") shouldBe Time(pointTime)
-    r4.get[Double]("sum_testField") shouldBe 6d
-    r4.get[String]("A") shouldBe "A 3"
-    r4.get[Short]("B") shouldBe 2.toShort
+    forAtLeast(1, rs) { group =>
+      group.get[Time]("time") shouldBe Time(pointTime)
+      group.get[Double]("sum_testField") shouldBe 6d
+      group.get[String]("A") shouldBe "A 3"
+      group.get[Short]("B") shouldBe 2.toShort
+    }
 
   }
 
@@ -2113,9 +2156,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2144,18 +2188,20 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList
     results should have size 2
 
-    val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("sum_testField") shouldBe 2d
-    r1.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
+    }
 
-    val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r2.get[Double]("sum_testField") shouldBe 4d
-    r2.get[String]("TestCatalog_testField") shouldBe "testFieldValue1"
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 4d
+      group.get[String]("TestCatalog_testField") shouldBe "testFieldValue1"
+    }
   }
 
   it should "execute query with aggregate functions on string field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2191,9 +2237,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2316,9 +2363,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
@@ -2339,23 +2387,25 @@ class TsdbTest
         )
       )
 
-    val rs = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val rs = tsdb.query(query).toList
 
     rs should have size 2
 
-    val r1 = rs(0)
-    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("sum_testField") shouldBe 2d
-    r1.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
-    r1.get[String]("TestCatalog3_testField3-2") shouldBe "Value1"
-    r1.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
+    forAtLeast(1, rs) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
+      group.get[String]("TestCatalog3_testField3-2") shouldBe "Value1"
+      group.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
+    }
 
-    val r2 = rs(1)
-    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r2.get[Double]("sum_testField") shouldBe 3d
-    r2.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
-    r2.get[String]("TestCatalog3_testField3-2") shouldBe "Value2"
-    r2.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
+    forAtLeast(1, rs) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 3d
+      group.get[String]("TestCatalog3_testField3-1") shouldBe "Value1"
+      group.get[String]("TestCatalog3_testField3-2") shouldBe "Value2"
+      group.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
+    }
   }
 
   it should "calculate min and max time" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2396,23 +2446,24 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime3))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -2424,7 +2475,7 @@ class TsdbTest
     r.get[Time]("max_time") shouldBe Time(pointTime3)
     r.get[Double]("sum_testField") shouldBe 3d
     r.get[String]("A") shouldBe "test1"
-    r.get[String]("B") shouldBe "test2"
+    r.get[Short]("B") shouldBe 2
   }
 
   it should "preserve const fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2463,18 +2514,19 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -2486,7 +2538,7 @@ class TsdbTest
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[String]("A") shouldBe "test1"
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "be possible to make aggregations by tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2524,18 +2576,19 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -2546,7 +2599,7 @@ class TsdbTest
     row.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     row.get[Double]("sum_testField") shouldBe 2d
     row.get[Long]("count_A") shouldBe 2L
-    row.get[String]("B") shouldBe "test2"
+    row.get[Short]("B") shouldBe 2
   }
 
   it should "be possible to make aggregations on catalogs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2617,9 +2670,10 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2640,20 +2694,22 @@ class TsdbTest
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList
     results should have size 2
 
-    val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("sum_testField") shouldBe 2d
-    r1.get[String]("A") shouldBe "test1"
-    r1.get[Long]("count_TestCatalog_testField") shouldBe 2L
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("A") shouldBe "test1"
+      group.get[Long]("count_TestCatalog_testField") shouldBe 2L
+    }
 
-    val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r2.get[Double]("sum_testField") shouldBe 2d
-    r2.get[String]("A") shouldBe "test12"
-    r2.get[Long]("count_TestCatalog_testField") shouldBe 2L
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[String]("A") shouldBe "test12"
+      group.get[Long]("count_TestCatalog_testField") shouldBe 2L
+    }
   }
 
   it should "calculate distinct count" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2692,60 +2748,63 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA2")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "testA2")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
       )
 
-    val results = tsdb.query(query).toList.sortBy(_.fields.toList.map(_.toString).mkString(","))
+    val results = tsdb.query(query).toList
 
     results should have size (2)
 
-    val r1 = results(0)
-    r1.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("sum_testField") shouldBe 2d
-    r1.get[Long]("count_A") shouldBe 2L
-    r1.get[Int]("distinct_count_A") shouldBe 1
-    r1.get[String]("B") shouldBe "testB2"
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 2d
+      group.get[Long]("count_A") shouldBe 2L
+      group.get[Int]("distinct_count_A") shouldBe 1
+      group.get[Short]("B") shouldBe 2
+    }
 
-    val r2 = results(1)
-    r2.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r2.get[Double]("sum_testField") shouldBe 4d
-    r2.get[Long]("count_A") shouldBe 4L
-    r2.get[Int]("distinct_count_A") shouldBe 2
-    r2.get[String]("B") shouldBe "testB1"
+    forAtLeast(1, results) { group =>
+      group.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      group.get[Double]("sum_testField") shouldBe 4d
+      group.get[Long]("count_A") shouldBe 4L
+      group.get[Int]("distinct_count_A") shouldBe 2
+      group.get[Short]("B") shouldBe 1
+    }
   }
 
   it should "calculate lag" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -2790,38 +2849,39 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA2")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2))
             .set(dimension(TestDims.DIM_A), "testA2")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(pointTime2 + 1000))
             .set(dimension(TestDims.DIM_A), "testA1")
-            .set(dimension(TestDims.DIM_B), "testB1")
+            .set(dimension(TestDims.DIM_B), 1.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )
@@ -2829,12 +2889,12 @@ class TsdbTest
 
     val t = Table(
       ("time_time", "lag_time_time", "testField", "A", "B"),
-      (qtime.toLocalDateTime, null, 1d, "testA1", "testB2"),
-      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", "testB2"),
-      (qtime.toLocalDateTime, null, 1d, "testA2", "testB1"),
-      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA2", "testB1"),
-      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", "testB1"),
-      (qtime.toLocalDateTime.plusSeconds(1), qtime.toLocalDateTime, 1d, "testA1", "testB1")
+      (qtime.toLocalDateTime, null, 1d, "testA1", 2.toShort),
+      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", 2.toShort),
+      (qtime.toLocalDateTime, null, 1d, "testA2", 1.toShort),
+      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA2", 1.toShort),
+      (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", 1.toShort),
+      (qtime.toLocalDateTime.plusSeconds(1), qtime.toLocalDateTime, 1d, "testA1", 1.toShort)
     )
     val results = tsdb.query(query)
 
@@ -2848,7 +2908,7 @@ class TsdbTest
       }
       r.get[Double]("testField") shouldBe testField
       r.get[String]("A") shouldBe tagA
-      r.get[String]("B") shouldBe tagB
+      r.get[Short]("B") shouldBe tagB
     }
   }
 
@@ -2890,9 +2950,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -2973,9 +3034,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1)).set(dimension(TestDims.DIM_A), "test1").buildAndReset(),
           b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "test1").buildAndReset(),
@@ -3025,9 +3087,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
             .set(dimension(TestDims.DIM_A), "test1")
@@ -3103,9 +3166,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(dimension(TestDims.DIM_A), "test1")
             .set(metric(TestTableFields.TEST_FIELD), 1d)
@@ -3170,9 +3234,10 @@ class TsdbTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))))
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime2)).set(dimension(TestDims.DIM_A), "1").buildAndReset(),
           b.set(time, Time(pointTime1)).set(dimension(TestDims.DIM_A), "1").buildAndReset(),
@@ -3256,15 +3321,16 @@ class TsdbTest
           )
         ),
         *,
+        *,
         NoMetricCollector
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), null)
+            .setNull(metric(TestTableFields.TEST_FIELD))
             .buildAndReset(),
           b.set(time, Time(pointTime2))
-            .set(metric(TestTableFields.TEST_FIELD), null)
+            .setNull(metric(TestTableFields.TEST_FIELD))
             .buildAndReset()
         )
       )
@@ -3365,18 +3431,19 @@ class TsdbTest
           )
         ),
         *,
+        *,
         *
       )
-      .onCall((_, b, _) =>
+      .onCall((_, b, _, _) =>
         Iterator(
           b.set(time, Time(from.plusHours(2)))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset(),
           b.set(time, Time(from.plusHours(5)))
             .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), "test2")
+            .set(dimension(TestDims.DIM_B), 2.toShort)
             .set(metric(TestTableFields.TEST_FIELD), 1d)
             .buildAndReset()
         )

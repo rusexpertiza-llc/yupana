@@ -20,12 +20,14 @@ import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
+import org.yupana.core.QueryContext
+import org.yupana.core.jit.JIT
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
+
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 object BenchLink extends ExternalLink {
@@ -46,7 +48,7 @@ class ExternalLinkBenchmarks {
   def setLinkedValues(state: ExternalLinkBenchmarkState): Unit = {
     ExternalLinkUtils.setLinkedValues[Int](
       state.externalLink,
-      state.exprIndex,
+      state.internalRowBuilder,
       state.rows,
       state.exprs,
       fieldValuesForDimValues
@@ -58,6 +60,7 @@ class ExternalLinkBenchmarks {
     ExternalLinkUtils.setLinkedValuesTimeSensitive[Int](
       state.externalLink,
       state.exprIndex,
+      state.internalRowBuilder,
       state.rows,
       state.exprs,
       fieldValuesForDimValuesTimeSensitive
@@ -103,12 +106,13 @@ class ExternalLinkBenchmarkState {
       )
     )
   )
-  val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+  val queryContext: QueryContext = new QueryContext(query, None, JIT, NoMetricCollector)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
   var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex.toMap
+  var internalRowBuilder = new InternalRowBuilder(queryContext)
   var rows: Seq[InternalRow] = 1 to 10000 map { i =>
-    new InternalRowBuilder(exprIndex, None)
+    internalRowBuilder
       .set(dimExpr, i - (i % 2))
       .set(TimeExpr, Time(System.currentTimeMillis()))
       .buildAndReset()

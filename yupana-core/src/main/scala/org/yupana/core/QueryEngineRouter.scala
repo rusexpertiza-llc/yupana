@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.providers.{ UpdatesIntervalsProvider, JdbcMetadataProvider, QueryInfoProvider }
+import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
 

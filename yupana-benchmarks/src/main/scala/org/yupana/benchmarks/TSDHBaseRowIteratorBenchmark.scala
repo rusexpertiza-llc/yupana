@@ -21,6 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
 import org.yupana.core._
+import org.yupana.core.jit.JIT
 import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase.{ HBaseTestUtils, InternalQueryContext, TSDHBaseRowIterator }
@@ -79,7 +80,7 @@ class TSDHBaseRowBencmarkState {
     Seq.empty
   )
 
-  val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+  val queryContext = new QueryContext(query, None, JIT, NoMetricCollector)
 
   implicit val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 

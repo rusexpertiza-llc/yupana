@@ -1,7 +1,9 @@
 package org.yupana.khipu
 
 import org.yupana.core.TestSchema
+import org.yupana.khipu.storage.{ Row, StorageFormat }
 
+import java.nio.charset.StandardCharsets
 import java.nio.ByteBuffer
 
 object TestUtils {
@@ -24,6 +26,15 @@ object TestUtils {
     valBuf.putInt(v)
     val value = valBuf.array()
     Row(key, value)
+  }
+
+  def testRowStr(k: String, v: String): Row = {
+    val keySize = StorageFormat.keySize(TestSchema.testTable)
+    val keyBuf = ByteBuffer.wrap(Array.ofDim[Byte](keySize))
+    keyBuf.put(k.getBytes(StandardCharsets.UTF_8))
+    val key = keyBuf.array()
+
+    Row(key, v.getBytes(StandardCharsets.UTF_8))
   }
 
 }

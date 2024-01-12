@@ -20,9 +20,11 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
+import org.yupana.api.types.InternalStorable
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.core.model.{ InternalRow, TimeSensitiveFieldValues }
-import org.yupana.core.utils.{ CollectionUtils, Table, FlatAndCondition }
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
+import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition, Table }
+import org.yupana.readerwriter.ID
 
 import scala.collection.mutable
 
@@ -148,34 +150,45 @@ object ExternalLinkUtils {
 
   def setLinkedValues[R](
       externalLink: ExternalLink.Aux[R],
-      exprIndex: scala.collection.Map[Expression[_], Int],
+      rowBuilder: InternalRowBuilder,
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValues: (Set[String], Set[R]) => Table[R, String, Any]
-  ): Unit = {
-    val dimExprIdx = exprIndex(DimensionExpr(externalLink.dimension))
+  ): Seq[InternalRow] = {
+
+    val dimExprIdx = rowBuilder.exprIndex(DimensionExpr(externalLink.dimension))
     val fields = linkExprs.map(_.linkField.name)
-    val dimValues = rows.map(r => r.get[R](dimExprIdx)).toSet
+
+    val dimValues =
+      rows.map(r => r.get[R](rowBuilder, dimExprIdx)(externalLink.dimension.dataType.internalStorable)).toSet
+
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues)
-    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
-    rows.foreach { row =>
-      val dimValue = row.get[R](dimExprIdx)
+    val linkExprsIdx = linkExprs.toSeq.map(e => e -> rowBuilder.exprIndex(e))
+
+    rows.map { row =>
+      val dimValue = row.get[R](rowBuilder, dimExprIdx)(externalLink.dimension.dataType.internalStorable)
       val rowValues = allFieldsValues.row(dimValue)
-      updateRow(row, linkExprsIdx, rowValues)
+      rowBuilder.setFieldsFromRow(row)
+      setValuesToRow(linkExprsIdx, rowBuilder, rowValues)
+      rowBuilder.buildAndReset()
     }
   }
 
   def setLinkedValuesTimeSensitive[R](
       externalLink: ExternalLink.Aux[R],
       exprIndex: scala.collection.Map[Expression[_], Int],
+      rowBuilder: InternalRowBuilder,
       rows: Seq[InternalRow],
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValues: (Set[String], Set[R], Time, Time) => Map[R, Array[TimeSensitiveFieldValues]]
   ): Unit = {
+
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField.name)
     val dimIdIdx = exprIndex(dimExpr)
     val timeIdx = exprIndex(TimeExpr)
+
+    implicit val internalStorable: InternalStorable[R] = externalLink.dimension.dataType.internalStorable
 
     def findFieldValuesByTime(
         allFieldsValues: Map[R, Array[TimeSensitiveFieldValues]],
@@ -210,8 +223,8 @@ object ExternalLinkUtils {
       var from = Time(Long.MaxValue)
       var to = Time(Long.MinValue)
       rows.foreach { row =>
-        val dimId = row.get[R](dimIdIdx)
-        val time = row.get[Time](timeIdx)
+        val dimId = row.get[R](rowBuilder, dimIdIdx)
+        val time = row.get[Time](rowBuilder, timeIdx)
         dimValues += dimId
         if (time < from) {
           from = time
@@ -229,19 +242,26 @@ object ExternalLinkUtils {
     val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
 
     rows.foreach { row =>
-      val dimId = row.get[R](dimIdIdx)
-      val time = row.get[Time](timeIdx)
+      val dimId = row.get[R](rowBuilder, dimIdIdx)
+      val time = row.get[Time](rowBuilder, timeIdx)
       val values = findFieldValuesByTime(allFieldsValues, dimId, time)
-      updateRow(row, linkExprsIdx, values)
+      rowBuilder.setFieldsFromRow(row)
+      setValuesToRow(linkExprsIdx, rowBuilder, values)
+      rowBuilder.buildAndReset()
     }
   }
 
-  private def updateRow(row: InternalRow, exprIndex: Seq[(LinkExpr[_], Int)], values: Map[String, Any]): Unit = {
+  private def setValuesToRow(
+      exprIndex: Seq[(LinkExpr[_], Int)],
+      rowBuilder: InternalRowBuilder,
+      values: Map[String, Any]
+  ): Unit = {
     exprIndex.foreach {
       case (expr, idx) =>
         values.get(expr.linkField.name).foreach { value =>
           if (value != null) {
-            row.set(idx, value)
+            val v = value.asInstanceOf[ID[expr.dataType.T]]
+            rowBuilder.set(idx, v)(expr.dataType.internalStorable)
           }
         }
     }

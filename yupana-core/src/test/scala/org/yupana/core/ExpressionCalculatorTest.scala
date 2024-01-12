@@ -1,3 +1,19 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core
 
 import org.scalatest.GivenWhenThen
@@ -7,6 +23,7 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, NullExpr, Query }
 import org.yupana.api.types.DataType
+import org.yupana.core.jit.JIT
 import org.yupana.core.model.InternalRowBuilder
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.utils.RussianTokenizer
@@ -32,12 +49,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       cond
     )
 
-    val qc = new QueryContext(query, Some(cond), ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, Some(cond), JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
     calc.evaluateFilter(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(OffsetDateTime.now()))
@@ -47,6 +65,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     ) shouldBe false
 
     calc.evaluateFilter(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(OffsetDateTime.now()))
@@ -72,7 +91,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -83,9 +102,9 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_FIELD2), 5d)
       .buildAndReset()
 
-    calc.evaluateExpressions(RussianTokenizer, row)
-    row.get(qc, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
-    row.get(qc, truncMonth(time)) shouldEqual Time(
+    val res = calc.evaluateExpressions(builder, RussianTokenizer, row)
+    res.get(builder, divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))) shouldEqual 2d
+    res.get(builder, truncMonth(time)) shouldEqual Time(
       now
         .withOffsetSameInstant(ZoneOffset.UTC)
         .minusDays(2)
@@ -98,12 +117,11 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_FIELD), 3d)
       .buildAndReset()
 
-    calc.evaluateExpressions(RussianTokenizer, rowWithNulls)
-    rowWithNulls.get(
-      qc,
+    val resRowWithNulls = calc.evaluateExpressions(builder, RussianTokenizer, rowWithNulls)
+    resRowWithNulls.isNull(
+      builder,
       divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
-    ) shouldEqual null
-      .asInstanceOf[java.lang.Double]
+    ) shouldBe true
   }
 
   it should "calculate aggregation" in {
@@ -133,7 +151,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(truncDay(time))
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -158,110 +176,119 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_STRING_FIELD), "bar")
       .buildAndReset()
 
-    val mapped1 = calc.evaluateZero(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row1))
-    val mapped2 = calc.evaluateZero(RussianTokenizer, calc.evaluateExpressions(RussianTokenizer, row2))
+    val mapped1 =
+      calc.evaluateZero(builder, RussianTokenizer, calc.evaluateExpressions(builder, RussianTokenizer, row1))
+    val mapped2 =
+      calc.evaluateZero(builder, RussianTokenizer, calc.evaluateExpressions(builder, RussianTokenizer, row2))
     Then("fields filled with map phase values")
-    mapped1.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
-    mapped1.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
-    mapped1.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
-    mapped1.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
-    mapped1.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
-    mapped1.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
-    mapped1.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
+    mapped1.get(builder, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    mapped1.get(builder, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    mapped1.get(builder, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 10d
+    mapped1.get(builder, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
+    mapped1.get(builder, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 0L
+    mapped1.getRef(builder, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
+    mapped1.getRef(builder, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(10d)
     mapped1.get(
-      qc,
+      builder,
       min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 2d
-    mapped1.isEmpty(
-      qc,
+    mapped1.isNull(
+      builder,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
-    mapped2.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
-    mapped2.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
-    mapped2.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
-    mapped2.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
-    mapped2.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
-    mapped2.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
-    mapped2.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
+    mapped2.get(builder, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    mapped2.get(builder, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    mapped2.get(builder, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    mapped2.get(builder, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 1L
+    mapped2.get(builder, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 1L
+    mapped2.getRef(builder, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
+    mapped2.getRef(builder, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(12d)
     mapped2.get(
-      qc,
+      builder,
       min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 3d
-    mapped2.isEmpty(
-      qc,
+    mapped2.isNull(
+      builder,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     When("fold is called")
 
-    val folded2 = calc.evaluateSequence(RussianTokenizer, mapped2, calc.evaluateExpressions(RussianTokenizer, row22))
-    folded2.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 14d
-    folded2.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
-    folded2.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
-    folded2.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 2L
-    folded2.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
-    folded2.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 12d)
-    folded2.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 12d)
+    val folded2 = calc.evaluateSequence(
+      builder,
+      RussianTokenizer,
+      mapped2,
+      calc.evaluateExpressions(builder, RussianTokenizer, row22)
+    )
+    folded2.get(builder, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 14d
+    folded2.get(builder, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    folded2.get(builder, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
+    folded2.get(builder, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 2L
+    folded2.get(builder, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
+    folded2.getRef(builder, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 12d)
+    folded2.getRef(builder, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 12d)
     folded2.get(
-      qc,
+      builder,
       min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 2d / 3d
-    folded2.isEmpty(
-      qc,
+    folded2.isNull(
+      builder,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     When("reduce called")
-    val reduced = calc.evaluateCombine(RussianTokenizer, mapped1, folded2)
+    val reduced = calc.evaluateCombine(builder, RussianTokenizer, mapped1, folded2)
     Then("reduced values shall be calculated")
-    reduced.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 24d
-    reduced.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
-    reduced.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
-    reduced.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
-    reduced.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
-    reduced.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 10d, 12d)
-    reduced.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 10d, 12d)
+    reduced.get(builder, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 24d
+    reduced.get(builder, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    reduced.get(builder, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
+    reduced.get(builder, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
+    reduced.get(builder, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
+    reduced.getRef(builder, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 10d, 12d)
+    reduced.getRef(builder, distinctRandom(metric(TestTableFields.TEST_FIELD))) shouldEqual Set(2d, 10d, 12d)
     reduced.get(
-      qc,
+      builder,
       min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 2d / 3d
-    reduced.isEmpty(
-      qc,
+    reduced.isNull(
+      builder,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     When("postMap called")
-    val postMapped = calc.evaluatePostMap(RussianTokenizer, reduced)
+    val postMapped = calc.evaluatePostMap(builder, RussianTokenizer, reduced)
     Then("post map calculations shall be performed")
-    postMapped.get(qc, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 24d
-    postMapped.get(qc, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
-    postMapped.get(qc, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
-    postMapped.get(qc, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
-    postMapped.get(qc, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
-    postMapped.get(qc, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 3
-    postMapped.get(qc, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(2d) or equal(10d) or equal(
+    postMapped.get(builder, sum(metric(TestTableFields.TEST_FIELD))) shouldEqual 24d
+    postMapped.get(builder, max(metric(TestTableFields.TEST_FIELD))) shouldEqual 12d
+    postMapped.get(builder, min(metric(TestTableFields.TEST_FIELD))) shouldEqual 2d
+    postMapped.get(builder, count(metric(TestTableFields.TEST_FIELD))) shouldEqual 3L
+    postMapped.get(builder, count(metric(TestTableFields.TEST_STRING_FIELD))) shouldEqual 2L
+    postMapped.get(builder, distinctCount(metric(TestTableFields.TEST_FIELD))) shouldEqual 3
+    postMapped
+      .get(builder, distinctRandom(metric(TestTableFields.TEST_FIELD))) should (equal(2d) or equal(10d) or equal(
       12d
     ))
     postMapped.get(
-      qc,
+      builder,
       min(divFrac(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2)))
     ) shouldEqual 2d / 3d
-    postMapped.isEmpty(
-      qc,
+    postMapped.isNull(
+      builder,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldBe true
 
     When("evaluatePostAggregateExprs called")
-    val postCalculated = calc.evaluatePostAggregateExprs(RussianTokenizer, postMapped)
+    val postCalculated = calc.evaluatePostAggregateExprs(builder, RussianTokenizer, postMapped)
     Then("calculations on aggregates are performed")
     postCalculated.get(
-      qc,
+      builder,
       divFrac(plus(max(metric(TestTableFields.TEST_FIELD)), min(metric(TestTableFields.TEST_FIELD))), const(2d))
     ) shouldEqual 7d
   }
 
   it should "evaluate string functions" in {
+
     val now = OffsetDateTime.now()
     val query = Query(
       TestSchema.testTable,
@@ -277,7 +304,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -286,21 +313,21 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(dimension(TestDims.DIM_A), "Вкусная водичка №7")
       .buildAndReset()
 
-    val result = calc.evaluateExpressions(RussianTokenizer, row)
-    result.get(qc, LengthExpr(dimension(TestDims.DIM_A))) shouldEqual 18
-    result.get(qc, split(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
+    val result = calc.evaluateExpressions(builder, RussianTokenizer, row)
+    result.get(builder, LengthExpr(dimension(TestDims.DIM_A))) shouldEqual 18
+    result.get(builder, split(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
       "Вкусная",
       "водичка",
       "7"
     )
-    result.get(qc, tokens(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
+    result.get(builder, tokens(dimension(TestDims.DIM_A))) should contain theSameElementsInOrderAs List(
       "vkusn",
       "vodichk",
       "№7"
     )
-    result.get(qc, upper(dimension(TestDims.DIM_A))) shouldEqual "ВКУСНАЯ ВОДИЧКА №7"
-    result.get(qc, lower(dimension(TestDims.DIM_A))) shouldEqual "вкусная водичка №7"
-    result.get(qc, ConcatExpr(dimension(TestDims.DIM_A), const("!!!"))) shouldEqual "Вкусная водичка №7!!!"
+    result.get(builder, upper(dimension(TestDims.DIM_A))) shouldEqual "ВКУСНАЯ ВОДИЧКА №7"
+    result.get(builder, lower(dimension(TestDims.DIM_A))) shouldEqual "вкусная водичка №7"
+    result.get(builder, ConcatExpr(dimension(TestDims.DIM_A), const("!!!"))) shouldEqual "Вкусная водичка №7!!!"
   }
 
   it should "evaluate array functions" in {
@@ -319,7 +346,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -328,23 +355,23 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(dimension(TestDims.DIM_A), "Вкусная водичка №7")
       .buildAndReset()
 
-    val result = calc.evaluateExpressions(RussianTokenizer, row)
-    result.get(qc, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
-    result.get(qc, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
+    val result = calc.evaluateExpressions(builder, RussianTokenizer, row)
+    result.get(builder, arrayLength(tokens(dimension(TestDims.DIM_A)))) shouldEqual 3
+    result.get(builder, contains(tokens(dimension(TestDims.DIM_A)), const("vodichk"))) shouldEqual true
     result.get(
-      qc,
+      builder,
       containsAll(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
     ) shouldEqual true
     result.get(
-      qc,
+      builder,
       containsAny(tokens(dimension(TestDims.DIM_A)), array(const("ochen"), const("vkusn"), const("vodichk")))
     ) shouldEqual true
     result.get(
-      qc,
+      builder,
       containsSame(tokens(dimension(TestDims.DIM_A)), array(const("vkusn"), const("vodichk")))
     ) shouldEqual false
 
-    result.get(qc, arrayToString(tokenizeArray(split(dimension(TestDims.DIM_A))))) shouldEqual "vkusn, vodichk, 7"
+    result.get(builder, arrayToString(tokenizeArray(split(dimension(TestDims.DIM_A))))) shouldEqual "vkusn, vodichk, 7"
   }
 
   it should "calculate time functions" in {
@@ -374,35 +401,39 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
     val row = builder.set(Time(pointTime)).buildAndReset()
 
-    val result = calc.evaluateExpressions(RussianTokenizer, row)
+    val result = calc.evaluateExpressions(builder, RussianTokenizer, row)
 
-    result.get(qc, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncQuarter(time)) shouldEqual Time(OffsetDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncMonth(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncWeek(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncDay(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 0, 0, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncHour(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 0, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncMinute(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 52, 0, 0, ZoneOffset.UTC))
-    result.get(qc, truncSecond(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 52, 22, 0, ZoneOffset.UTC))
+    result.get(builder, truncYear(time)) shouldEqual Time(OffsetDateTime.of(2021, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(builder, truncQuarter(time)) shouldEqual Time(OffsetDateTime.of(2021, 10, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(builder, truncMonth(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 1, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(builder, truncWeek(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 20, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(builder, truncDay(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 0, 0, 0, 0, ZoneOffset.UTC))
+    result.get(builder, truncHour(time)) shouldEqual Time(OffsetDateTime.of(2021, 12, 24, 16, 0, 0, 0, ZoneOffset.UTC))
+    result.get(builder, truncMinute(time)) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 24, 16, 52, 0, 0, ZoneOffset.UTC)
+    )
+    result.get(builder, truncSecond(time)) shouldEqual Time(
+      OffsetDateTime.of(2021, 12, 24, 16, 52, 22, 0, ZoneOffset.UTC)
+    )
 
-    result.get(qc, extractYear(time)) shouldEqual 2021
-    result.get(qc, extractMonth(time)) shouldEqual 12
-    result.get(qc, extractDay(time)) shouldEqual 24
-    result.get(qc, extractHour(time)) shouldEqual 16
-    result.get(qc, extractMinute(time)) shouldEqual 52
-    result.get(qc, extractSecond(time)) shouldEqual 22
+    result.get(builder, extractYear(time)) shouldEqual 2021
+    result.get(builder, extractMonth(time)) shouldEqual 12
+    result.get(builder, extractDay(time)) shouldEqual 24
+    result.get(builder, extractHour(time)) shouldEqual 16
+    result.get(builder, extractMinute(time)) shouldEqual 52
+    result.get(builder, extractSecond(time)) shouldEqual 22
 
-    result.get(qc, minus(time, const(Time(pointTime.minusHours(1))))) shouldEqual 3600000
-    result.get(qc, minus(time, const(PeriodDuration.of(Period.ofWeeks(2))))) shouldEqual Time(
+    result.get(builder, minus(time, const(Time(pointTime.minusHours(1))))) shouldEqual 3600000
+    result.get(builder, minus(time, const(PeriodDuration.of(Period.ofWeeks(2))))) shouldEqual Time(
       OffsetDateTime.of(2021, 12, 10, 16, 52, 22, 123, ZoneOffset.UTC)
     )
-    result.get(qc, plus(time, const(PeriodDuration.of(Duration.ofHours(12))))) shouldEqual Time(
+    result.get(builder, plus(time, const(PeriodDuration.of(Duration.ofHours(12))))) shouldEqual Time(
       OffsetDateTime.of(2021, 12, 25, 4, 52, 22, 123, ZoneOffset.UTC)
     )
   }
@@ -418,7 +449,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
     val builder = new InternalRowBuilder(qc)
 
@@ -428,9 +459,9 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_FIELD), 42d)
       .buildAndReset()
 
-    val result = calc.evaluateExpressions(RussianTokenizer, row)
+    val result = calc.evaluateExpressions(builder, RussianTokenizer, row)
 
-    result.get(qc, tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD)))) shouldEqual (
+    result.get(builder, tuple(dimension(TestDims.DIM_A), minus(metric(TestTableFields.TEST_FIELD)))) shouldEqual (
       (
         "a value",
         -42d
@@ -454,7 +485,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
@@ -474,22 +505,24 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(dimension(TestDims.DIM_A), "BBB")
       .buildAndReset()
 
-    val rows = Seq(row1, row2, row3).groupBy(_.get(qc, dimension(TestDims.DIM_A)))
-    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateZero(RussianTokenizer, r)) }
-    val reduced = mapped.map { case (_, rs) => rs.reduce((a, b) => calc.evaluateCombine(RussianTokenizer, a, b)) }
-    val postMapped = reduced.map(r => calc.evaluatePostMap(RussianTokenizer, r))
+    val rows = Seq(row1, row2, row3).groupBy(_.get(builder, dimension(TestDims.DIM_A)))
+    val mapped = rows.map { case (s, rs) => s -> rs.map(r => calc.evaluateZero(builder, RussianTokenizer, r)) }
+    val reduced = mapped.map {
+      case (_, rs) => rs.reduce((a, b) => calc.evaluateCombine(builder, RussianTokenizer, a, b))
+    }
+    val postMapped = reduced.map(r => calc.evaluatePostMap(builder, RussianTokenizer, r))
 
     val postFiltered = postMapped
-      .filter(r => calc.evaluatePostFilter(RussianTokenizer, r))
+      .filter(r => calc.evaluatePostFilter(builder, RussianTokenizer, r))
       .toList
-      .sortBy(_.get(qc, dimension(TestDims.DIM_A)))
+      .sortBy(_.get(builder, dimension(TestDims.DIM_A)))
 
     postFiltered should have size 2
-    postFiltered(0).get(qc, dimension(TestDims.DIM_A)) shouldEqual "AAA"
-    postFiltered(0).get(qc, min(time)) shouldEqual Time(now.minusDays(32))
+    postFiltered(0).get(builder, dimension(TestDims.DIM_A)) shouldEqual "AAA"
+    postFiltered(0).get(builder, min(time)) shouldEqual Time(now.minusDays(32))
 
-    postFiltered(1).get(qc, dimension(TestDims.DIM_A)) shouldEqual "BBB"
-    postFiltered(1).get(qc, min(time)) shouldEqual Time(now.minusDays(35))
+    postFiltered(1).get(builder, dimension(TestDims.DIM_A)) shouldEqual "BBB"
+    postFiltered(1).get(builder, min(time)) shouldEqual Time(now.minusDays(35))
   }
 
   it should "support arrays" in {
@@ -514,12 +547,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
-    val row1 = calc.evaluateExpressions(
+    val row1 = calc.evaluatePostAggregateExprs(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(now.minusDays(2)))
@@ -527,9 +561,10 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         .buildAndReset()
     )
 
-    row1.get(qc, ce) shouldEqual "X"
+    row1.get(builder, ce) shouldEqual "X"
 
-    val row2 = calc.evaluateExpressions(
+    val row2 = calc.evaluatePostAggregateExprs(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(now.minusDays(32)))
@@ -537,7 +572,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         .buildAndReset()
     )
 
-    row2.get(qc, ce) shouldEqual "Y"
+    row2.get(builder, ce) shouldEqual "Y"
   }
 
   it should "handle nulls properly" in {
@@ -556,12 +591,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Some(cond), ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, Some(cond), JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
     calc.evaluateFilter(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(now.minusDays(1)))
@@ -583,12 +619,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Some(cond), ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, Some(cond), JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
     calc.evaluateFilter(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(now.minusDays(1)))
@@ -614,12 +651,13 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val builder = new InternalRowBuilder(qc)
 
     val row = calc.evaluateExpressions(
+      builder,
       RussianTokenizer,
       builder
         .set(Time(now.minusHours(5)))
@@ -628,7 +666,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         .buildAndReset()
     )
 
-    row.get(qc, x) shouldEqual -1L
+    row.get(builder, x) shouldEqual -1L
   }
 
   it should "handle conditions on aggregates" in {
@@ -647,7 +685,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
 
     val builder = new InternalRowBuilder(qc)
 
@@ -664,18 +702,18 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
         .buildAndReset()
     )
 
-    val evaluated = rows.map(qc.calculator.evaluateExpressions(RussianTokenizer, _))
+    val evaluated = rows.map(qc.calculator.evaluateExpressions(builder, RussianTokenizer, _))
 
-    val mapped = evaluated.map(qc.calculator.evaluateZero(RussianTokenizer, _))
-    val reduced = mapped.reduce((a, b) => qc.calculator.evaluateCombine(RussianTokenizer, a, b))
-    val postMapped = qc.calculator.evaluatePostMap(RussianTokenizer, reduced)
+    val mapped = evaluated.map(qc.calculator.evaluateZero(builder, RussianTokenizer, _))
+    val reduced = mapped.reduce((a, b) => qc.calculator.evaluateCombine(builder, RussianTokenizer, a, b))
+    val postMapped = qc.calculator.evaluatePostMap(builder, RussianTokenizer, reduced)
 
-    postMapped.get(qc, sum(metric(TestTableFields.TEST_LONG_FIELD))) shouldEqual 0L
-    postMapped.get(qc, sum(dimension(TestDims.DIM_Y))) shouldEqual 6L
+    postMapped.get(builder, sum(metric(TestTableFields.TEST_LONG_FIELD))) shouldEqual 0L
+    postMapped.get(builder, sum(dimension(TestDims.DIM_Y))) shouldEqual 6L
 
-    val result = qc.calculator.evaluatePostAggregateExprs(RussianTokenizer, postMapped)
+    val result = qc.calculator.evaluatePostAggregateExprs(builder, RussianTokenizer, postMapped)
 
-    result.get(qc, x) shouldEqual -1L
+    result.get(builder, x) shouldEqual -1L
   }
 
   it should "Support type conversions" in {
@@ -694,7 +732,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x", y as "y", z as "z")
     )
 
-    val qc = new QueryContext(query, None, ExpressionCalculatorFactory)
+    val qc = new QueryContext(query, None, JIT, NoMetricCollector)
 
     val builder = new InternalRowBuilder(qc)
 
@@ -706,11 +744,11 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_LONG_FIELD), 3L)
       .buildAndReset()
 
-    val result = qc.calculator.evaluateExpressions(RussianTokenizer, row)
+    val result = qc.calculator.evaluateExpressions(builder, RussianTokenizer, row)
 
-    result.get(qc, x) shouldEqual 11d
-    result.get(qc, y) shouldEqual 10L
-    result.isEmpty(qc, z) shouldBe true
+    result.get(builder, x) shouldEqual 11d
+    result.get(builder, y) shouldEqual 10L
+    result.isNull(builder, z) shouldBe true
   }
 
   it should "handle nulls in case when in aggregation" in {
@@ -725,7 +763,12 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
-    val qc = new QueryContext(query = query, postCondition = None, calculatorFactory = ExpressionCalculatorFactory)
+    val qc = new QueryContext(
+      query = query,
+      postCondition = None,
+      calculatorFactory = JIT,
+      NoMetricCollector
+    )
 
     val builder = new InternalRowBuilder(qc)
 
@@ -740,16 +783,16 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_FIELD), 1d)
       .buildAndReset()
 
-    val e1 = qc.calculator.evaluateExpressions(RussianTokenizer, r1)
-    val e2 = qc.calculator.evaluateExpressions(RussianTokenizer, r2)
+    val e1 = qc.calculator.evaluateExpressions(builder, RussianTokenizer, r1)
+    val e2 = qc.calculator.evaluateExpressions(builder, RussianTokenizer, r2)
 
-    val z = qc.calculator.evaluateZero(RussianTokenizer, e1)
+    val z = qc.calculator.evaluateZero(builder, RussianTokenizer, e1)
 
-    val s = qc.calculator.evaluateSequence(RussianTokenizer, z, e2)
+    val s = qc.calculator.evaluateSequence(builder, RussianTokenizer, z, e2)
 
-    val result = qc.calculator.evaluatePostMap(RussianTokenizer, s)
+    val result = qc.calculator.evaluatePostMap(builder, RussianTokenizer, s)
 
-    result.get(qc, a) shouldEqual BigDecimal(5)
+    result.get(builder, a) shouldEqual BigDecimal(5)
   }
 
   it should "handle null literals in case when in aggregation" in {
@@ -764,7 +807,12 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
-    val qc = new QueryContext(query = query, postCondition = None, calculatorFactory = ExpressionCalculatorFactory)
+    val qc = new QueryContext(
+      query = query,
+      postCondition = None,
+      calculatorFactory = JIT,
+      NoMetricCollector
+    )
 
     val builder = new InternalRowBuilder(qc)
 
@@ -780,15 +828,15 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
       .buildAndReset()
 
-    val e1 = qc.calculator.evaluateExpressions(RussianTokenizer, r1)
-    val e2 = qc.calculator.evaluateExpressions(RussianTokenizer, r2)
+    val e1 = qc.calculator.evaluateExpressions(builder, RussianTokenizer, r1)
+    val e2 = qc.calculator.evaluateExpressions(builder, RussianTokenizer, r2)
 
-    val z = qc.calculator.evaluateZero(RussianTokenizer, e1)
+    val z = qc.calculator.evaluateZero(builder, RussianTokenizer, e1)
 
-    val s = qc.calculator.evaluateSequence(RussianTokenizer, z, e2)
+    val s = qc.calculator.evaluateSequence(builder, RussianTokenizer, z, e2)
 
-    val result = qc.calculator.evaluatePostMap(RussianTokenizer, s)
+    val result = qc.calculator.evaluatePostMap(builder, RussianTokenizer, s)
 
-    result.get(qc, a) shouldEqual BigDecimal(2.5)
+    result.get(builder, a) shouldEqual BigDecimal(2.5)
   }
 }

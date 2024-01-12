@@ -22,12 +22,13 @@ import java.nio.channels.SocketChannel
 import java.nio.{ ByteBuffer, ByteOrder }
 import java.util.logging.Logger
 import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, ReaderWriter }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
 import org.yupana.proto._
 import org.yupana.proto.util.ProtocolVersion
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 
 import java.util.{ Timer, TimerTask }
 
@@ -45,6 +46,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
 
   private var heartbeatTimer: java.util.Timer = _
   private var heartbeatTimerScheduled = false
+
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
   private def scheduleHeartbeatTimer(): Unit = {
     heartbeatTimer = new Timer()
@@ -338,7 +341,8 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
             if (bytes.isEmpty) {
               null
             } else {
-              rt.storable.read(bytes.toByteArray)
+              val b = MemoryBuffer.ofBytes(bytes.toByteArray)
+              rt.storable.read(b)
             }
         }
         .toArray

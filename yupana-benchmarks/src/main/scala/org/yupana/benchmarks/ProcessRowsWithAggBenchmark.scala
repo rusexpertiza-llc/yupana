@@ -47,6 +47,7 @@ class ProcessRowsWithAggBenchmark {
     state.tsdb
       .processRows(
         state.queryContext,
+        state.rowBuilder,
         NoMetricCollector,
         IteratorMapReducible.iteratorMR,
         state.rows.iterator

@@ -1,7 +1,7 @@
 package org.yupana.jdbc
 
 import java.io.{ ByteArrayInputStream, CharArrayReader }
-import java.net.URL
+import java.net.URI
 import java.sql.{ Date, SQLException, SQLFeatureNotSupportedException, Time, Timestamp, Types }
 import java.util.Calendar
 import org.scalamock.scalatest.MixedMockFactory
@@ -161,7 +161,10 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
 
     val statement = new YupanaPreparedStatement(conn, q)
 
-    an[SQLFeatureNotSupportedException] should be thrownBy statement.setURL(1, new URL("http", "localhost", "file"))
+    an[SQLFeatureNotSupportedException] should be thrownBy statement.setURL(
+      1,
+      new URI("http", "localhost", "file").toURL
+    )
 
     an[SQLFeatureNotSupportedException] should be thrownBy statement.setTimestamp(
       1,

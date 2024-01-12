@@ -18,18 +18,20 @@ package org.yupana.benchmarks
 
 import org.yupana.api.Time
 import org.yupana.api.query._
+import org.yupana.core.jit.JIT
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, SimpleTsdbConfig, TSDB }
+import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry }
+
 import java.time.LocalDateTime
 
 abstract class TsdbBaseBenchmarkStateBase {
   def query: Query
   def daoExprs: Seq[Expression[_]]
 
-  lazy val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
-  private def rowBuilder = new InternalRowBuilder(queryContext)
+  lazy val queryContext: QueryContext = new QueryContext(query, None, JIT, NoMetricCollector)
+  lazy val rowBuilder = new InternalRowBuilder(queryContext)
 
   val qtime = LocalDateTime.of(2021, 5, 24, 22, 40, 0)
 
@@ -43,7 +45,10 @@ abstract class TsdbBaseBenchmarkStateBase {
 
   def getRows(rowBuilder: InternalRowBuilder, n: Int, exprs: Seq[Expression[_]]): Seq[InternalRow] = {
     (1 to n).map { i =>
-      exprs.foreach(expr => rowBuilder.set(expr, EXPR_CALC(expr)(i)))
+      exprs.foreach { expr =>
+        val value = EXPR_CALC(expr)(i)
+        rowBuilder.set(expr.asInstanceOf[Expression[Any]], value)
+      }
       rowBuilder.buildAndReset()
     }
   }

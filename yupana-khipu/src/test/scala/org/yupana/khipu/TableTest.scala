@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import TestUtils._
 import org.yupana.core.TestSchema
+import org.yupana.khipu.storage.{ Block, KTable }
 
 import scala.util.Random
 
@@ -19,8 +20,8 @@ class TableTest extends AnyFlatSpec with Matchers {
     val c = table.scan()
 
     c.next() shouldBe true
-    c.keyBytes() shouldBe row.key
-    c.valueBytes() shouldBe row.value
+    c.keyBytes() shouldBe row.keyBytes
+    c.valueBytes() shouldBe row.valueBytes
   }
 
   it should "put row to non empty table" in {
@@ -36,12 +37,12 @@ class TableTest extends AnyFlatSpec with Matchers {
     val c = table.scan()
 
     c.next() shouldBe true
-    c.keyBytes() shouldBe row1.key
-    c.valueBytes() shouldBe row1.value
+    c.keyBytes() shouldBe row1.keyBytes
+    c.valueBytes() shouldBe row1.valueBytes
 
     c.next() shouldBe true
-    c.keyBytes() shouldBe row2.key
-    c.valueBytes() shouldBe row2.value
+    c.keyBytes() shouldBe row2.keyBytes
+    c.valueBytes() shouldBe row2.valueBytes
 
     c.next() shouldBe false
 
@@ -54,15 +55,12 @@ class TableTest extends AnyFlatSpec with Matchers {
     val rows = (1 to 1000).map(i => testRowVal(i, i))
     table.put(rows)
 
-    val blocks = table.getLeafBlocks()
-    println(blocks.size)
-
     val c = table.scan()
 
     rows.foreach { r =>
       c.next() shouldBe true
-      c.keyBytes() shouldBe r.key
-      c.valueBytes() shouldBe r.value
+      c.keyBytes() shouldBe r.keyBytes
+      c.valueBytes() shouldBe r.valueBytes
     }
   }
 
@@ -82,13 +80,13 @@ class TableTest extends AnyFlatSpec with Matchers {
     val c = table.scan()
     rows.foreach { r =>
       c.next() shouldBe true
-      c.keyBytes() shouldBe r.key
-      c.valueBytes() shouldBe r.value
+      c.keyBytes() shouldBe r.keyBytes
+      c.valueBytes() shouldBe r.valueBytes
     }
 
-    val rowsSize = rows.foldLeft(0)((a, r) => a + r.key.size + r.value.size)
-    val leafBlocks = table.getLeafBlocks().size
-    val nodeBlocks = table.getNodeBlocks().size
+    val rowsSize = rows.foldLeft(0)((a, r) => a + r.keyBytes.length + r.valueBytes.length)
+    val leafBlocks = table.leafBlocks.size
+    val nodeBlocks = table.nodeBlocks.size
 
     val totalSize = (nodeBlocks + leafBlocks) * Block.BLOCK_SIZE
 
@@ -98,10 +96,10 @@ class TableTest extends AnyFlatSpec with Matchers {
 
     println(s"Rows: ${rows.size} == $rowsSize bytes")
 
-    println(s"Overhead: ${totalSize - rowsSize} bytes (${totalSize.toLong * 100 / rowsSize}%)")
+    println(s"Overhead: ${totalSize - rowsSize} bytes (${totalSize.toLong * 100 / rowsSize - 100}%)")
     KhipuMetricCollector.logStat()
 
     table.explain()
-  }
 
+  }
 }

@@ -1,12 +1,29 @@
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.yupana.core.model
 
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
-
 import org.yupana.api.Time
 import org.yupana.api.query.{ Query, TimeExpr }
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.core.jit.JIT
+
 import java.time.{ LocalDateTime, ZoneOffset }
 import org.yupana.core.utils.metric.NoMetricCollector
 
@@ -29,16 +46,17 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.DIM_A))
     )
-    val context = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val context = new QueryContext(query, None, JIT, NoMetricCollector)
 
     val builder = new InternalRowBuilder(context)
 
     val original = new KeyData(
       context,
+      builder,
       builder
-        .set(metric(TestTableFields.TEST_FIELD), Some(5d))
-        .set(TimeExpr, Some(Time(qtime.plusHours(1))))
-        .set(dimension(TestDims.DIM_A), Some("Foo"))
+        .set(metric(TestTableFields.TEST_FIELD), 5d)
+        .set(TimeExpr, Time(qtime.plusHours(1)))
+        .set(dimension(TestDims.DIM_A), "Foo")
         .buildAndReset()
     )
 
@@ -62,17 +80,18 @@ class KeyDataTest extends AnyFlatSpec with Matchers {
       None,
       Seq(dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
-    val context = new QueryContext(query, None, ExpressionCalculatorFactory, NoMetricCollector)
+    val context = new QueryContext(query, None, JIT, NoMetricCollector)
 
     val builder = new InternalRowBuilder(context)
 
     val original = new KeyData(
       context,
+      builder,
       builder
-        .set(metric(TestTableFields.TEST_LONG_FIELD), Some(42L))
-        .set(TimeExpr, Some(Time(qtime.plusHours(1))))
-        .set(dimension(TestDims.DIM_A), Some("foo"))
-        .set(dimension(TestDims.DIM_B), Some("bar"))
+        .set(metric(TestTableFields.TEST_LONG_FIELD), 42L)
+        .set(TimeExpr, Time(qtime.plusHours(1)))
+        .set(dimension(TestDims.DIM_A), "foo")
+        .set(dimension(TestDims.DIM_B), 2.toShort)
         .buildAndReset()
     )
 

@@ -23,6 +23,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
+import org.yupana.core.jit.ExpressionCalculatorFactory
 import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, KeyData }
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
@@ -71,6 +72,7 @@ trait TsdbBase extends StrictLogging {
 
   def applyWindowFunctions(
       queryContext: QueryContext,
+      internalRowBuilder: InternalRowBuilder,
       keysAndValues: Collection[(KeyData, InternalRow)]
   ): Collection[(KeyData, InternalRow)]
 
@@ -78,7 +80,8 @@ trait TsdbBase extends StrictLogging {
 
   def finalizeQuery(
       queryContext: QueryContext,
-      rows: Collection[Array[Any]],
+      rowBuilder: InternalRowBuilder,
+      rows: Collection[InternalRow],
       metricCollector: MetricQueryCollector
   ): Result
 
@@ -112,7 +115,7 @@ trait TsdbBase extends StrictLogging {
 
     metricCollector.start()
 
-    val (rows, queryContext) = query.table match {
+    val (rows, queryContext, internalRowBuilder) = query.table match {
       case Some(table) =>
         optimizedQuery.filter match {
           case Some(conditionAsIs) =>
@@ -140,8 +143,10 @@ trait TsdbBase extends StrictLogging {
 
             val qc =
               metricCollector.createContext.measure(1)(
-                new QueryContext(optimizedQuery, finalPostDaoCondition, calculatorFactory)
+                new QueryContext(optimizedQuery, finalPostDaoCondition, calculatorFactory, metricCollector)
               )
+
+            val rowBuilder = new InternalRowBuilder(qc)
 
             val daoExprs = qc.exprsIndex.keys.collect {
               case e: DimensionExpr[_] => e
@@ -153,7 +158,9 @@ trait TsdbBase extends StrictLogging {
             val internalQuery =
               new InternalQuery(table, daoExprs.toSet[Expression[_]], substitutedCondition, query.hints)
 
-            dao.query(internalQuery, new InternalRowBuilder(qc), metricCollector) -> qc
+            val rows = dao.query(internalQuery, rowBuilder, qc, metricCollector)
+
+            (rows, qc, rowBuilder)
 
           case None =>
             val th = new IllegalArgumentException("Empty condition")
@@ -162,16 +169,20 @@ trait TsdbBase extends StrictLogging {
         }
       case None =>
         val qc =
-          metricCollector.createContext.measure(1)(new QueryContext(optimizedQuery, query.filter, calculatorFactory))
+          metricCollector.createContext.measure(1)(
+            new QueryContext(optimizedQuery, query.filter, calculatorFactory, metricCollector)
+          )
         val rb = new InternalRowBuilder(qc)
-        mr.singleton(rb.buildAndReset()) -> qc
+        val rows = mr.singleton(rb.buildAndReset())
+        (rows, qc, rb)
     }
 
-    processRows(queryContext, metricCollector, mr, rows)
+    processRows(queryContext, internalRowBuilder, metricCollector, mr, rows)
   }
 
   def processRows(
       queryContext: QueryContext,
+      rowBuilder: InternalRowBuilder,
       metricCollector: MetricQueryCollector,
       mr: MapReducible[Collection],
       rows: Collection[InternalRow]
@@ -181,70 +192,78 @@ trait TsdbBase extends StrictLogging {
 
     val hasWindowFunctions = queryContext.query.fields.exists(_.expr.kind == Window)
     val hasAggregates = queryContext.query.fields.exists(_.expr.kind == Aggregate)
-    val keysAndValues = mr.batchFlatMap(rows, extractBatchSize) { batch =>
+    val hasGroupBy = queryContext.query.groupBy.nonEmpty
+
+    val values = mr.batchFlatMap(rows, extractBatchSize) { batch =>
       val batchSize = batch.size
       val c = processedRows.incrementAndGet()
       if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Fetched $c rows")
       val withExtLinks = metricCollector.readExternalLinks.measure(batchSize) {
-        readExternalLinks(queryContext, batch)
+        readExternalLinks(queryContext, rowBuilder, batch)
       }
 
       metricCollector.extractDataComputation.measure(batchSize) {
         val it = withExtLinks.iterator
         val filtered = queryContext.postCondition match {
           case Some(_) =>
-            it.filter(row => queryContext.calculator.evaluateFilter(schema.tokenizer, row))
+            it.filter(row => queryContext.calculator.evaluateFilter(rowBuilder, schema.tokenizer, row))
           case None => it
         }
 
-        val withExprValues = filtered.map(row => queryContext.calculator.evaluateExpressions(schema.tokenizer, row))
-
-        withExprValues.map(row => new KeyData(queryContext, row) -> row)
+        filtered.map(row => queryContext.calculator.evaluateExpressions(rowBuilder, schema.tokenizer, row))
       }
     }
 
-    val keysAndValuesWinFunc = if (hasWindowFunctions) {
-      metricCollector.windowFunctions.measure(1) {
-        applyWindowFunctions(queryContext, keysAndValues)
+    val calculated = if (hasGroupBy || !hasAggregates) {
+      val keysAndValues = mr.map(values) { row =>
+        new KeyData(queryContext, rowBuilder, row) -> row
       }
-    } else {
-      keysAndValues
-    }
 
-    val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
-      val keysAndMappedValues = mr.batchFlatMap(keysAndValuesWinFunc, extractBatchSize) { batch =>
-        metricCollector.reduceOperation.measure(batch.size) {
-          val mapped = batch.iterator.map {
-            case (key, row) =>
-              val c = processedDataPoints.incrementAndGet()
-              if (c % 100000 == 0) logger.trace(s"${queryContext.query.uuidLog} -- Extracted $c data points")
-              key -> queryContext.calculator.evaluateMap(schema.tokenizer, row)
-          }
-          CollectionUtils.reduceByKey(mapped)((a, b) => queryContext.calculator.evaluateReduce(schema.tokenizer, a, b))
+      val keysAndValuesWinFunc = if (hasWindowFunctions) {
+        metricCollector.windowFunctions.measure(1) {
+          applyWindowFunctions(queryContext, rowBuilder, keysAndValues)
         }
+      } else {
+        keysAndValues
       }
 
-      val r = mr.reduceByKey(keysAndMappedValues) { (a, b) =>
-        metricCollector.reduceOperation.measure(1) {
-          queryContext.calculator.evaluateReduce(schema.tokenizer, a, b)
-        }
-      }
+      val reduced = if ((hasAggregates || queryContext.query.groupBy.nonEmpty) && !hasWindowFunctions) {
+        val r = mr.aggregateByKey[KeyData, InternalRow, InternalRow](keysAndValuesWinFunc)(
+          r => queryContext.calculator.evaluateZero(rowBuilder, schema.tokenizer, r),
+          (a, r) => queryContext.calculator.evaluateSequence(rowBuilder, schema.tokenizer, a, r),
+          (a, b) => queryContext.calculator.evaluateCombine(rowBuilder, schema.tokenizer, a, b)
+        )
 
-      mr.batchFlatMap(r, extractBatchSize) { batch =>
-        metricCollector.reduceOperation.measure(batch.size) {
-          val it = batch.iterator
-          it.map {
-            case (_, row) =>
-              queryContext.calculator.evaluatePostMap(schema.tokenizer, row)
+        mr.batchFlatMap(r, extractBatchSize) { batch =>
+          metricCollector.reduceOperation.measure(batch.size) {
+            val it = batch.iterator
+            it.map {
+              case (_, row) =>
+                queryContext.calculator.evaluatePostMap(rowBuilder, schema.tokenizer, row)
+            }
           }
         }
+      } else {
+        mr.map(keysAndValuesWinFunc)(_._2)
+      }
+
+      mr.map(reduced) { row =>
+        queryContext.calculator.evaluatePostAggregateExprs(rowBuilder, schema.tokenizer, row)
       }
     } else {
-      mr.map(keysAndValuesWinFunc)(_._2)
-    }
 
-    val calculated = mr.map(reduced) { row =>
-      queryContext.calculator.evaluatePostAggregateExprs(schema.tokenizer, row)
+      val agg = mr.aggregate[InternalRow, InternalRow](values)(
+        r => queryContext.calculator.evaluateZero(rowBuilder, schema.tokenizer, r),
+        (a, r) => queryContext.calculator.evaluateSequence(rowBuilder, schema.tokenizer, a, r),
+        (a, b) => queryContext.calculator.evaluateCombine(rowBuilder, schema.tokenizer, a, b)
+      )
+
+      val reduced =
+        mr.map(agg)(row => queryContext.calculator.evaluatePostMap(rowBuilder, schema.tokenizer, row))
+
+      mr.map(reduced) { row =>
+        queryContext.calculator.evaluatePostAggregateExprs(rowBuilder, schema.tokenizer, row)
+      }
     }
 
     val postFiltered = queryContext.query.postFilter match {
@@ -252,7 +271,7 @@ trait TsdbBase extends StrictLogging {
         mr.batchFlatMap(calculated, extractBatchSize) { batch =>
           metricCollector.postFilter.measure(batch.size) {
             val it = batch.iterator
-            it.filter(row => queryContext.calculator.evaluatePostFilter(schema.tokenizer, row))
+            it.filter(row => queryContext.calculator.evaluatePostFilter(rowBuilder, schema.tokenizer, row))
           }
         }
       case None => calculated
@@ -270,22 +289,25 @@ trait TsdbBase extends StrictLogging {
               if (c % d == 0) {
                 logger.trace(s"${queryContext.query.uuidLog} -- Created $c result rows")
               }
-              row.data
+              row
             }
           }
         }
       }
 
-    finalizeQuery(queryContext, result, metricCollector)
+    finalizeQuery(queryContext, rowBuilder, result, metricCollector)
   }
 
-  def readExternalLinks(queryContext: QueryContext, rows: Seq[InternalRow]): Seq[InternalRow] = {
-    queryContext.linkExprs.groupBy(_.link).foreach {
-      case (c, exprs) =>
+  def readExternalLinks(
+      queryContext: QueryContext,
+      rowBuilder: InternalRowBuilder,
+      rows: Seq[InternalRow]
+  ): Seq[InternalRow] = {
+    queryContext.linkExprs.groupBy(_.link).foldLeft(rows) {
+      case (rows, (c, exprs)) =>
         val externalLink = linkService(c)
-        externalLink.setLinkedValues(queryContext.exprsIndex, rows, exprs.toSet)
+        externalLink.setLinkedValues(rowBuilder, rows, exprs.toSet)
     }
-    rows
   }
 
   def substituteLinks(
