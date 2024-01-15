@@ -23,7 +23,7 @@ import org.yupana.core.jit.codegen.stages._
 import org.yupana.core.jit.codegen.InternalRowGen
 import org.yupana.core.model.InternalRowBuilder
 
-object JIT extends ExpressionCalculatorFactory with StrictLogging {
+object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializable {
 
   import scala.reflect.runtime.currentMirror
   import scala.reflect.runtime.universe._
