@@ -16,8 +16,6 @@
 
 package org.yupana.protocol
 
-import java.nio.charset.StandardCharsets
-
 /**
   * Type class for data serialization from / to the [[Buffer]]
   *
@@ -81,16 +79,8 @@ object ReadWrite {
   }
 
   implicit val rwString: ReadWrite[String] = new ReadWrite[String] {
-    override def read[B](buf: B)(implicit b: Buffer[B]): String = {
-      val size = b.readInt(buf)
-      b.readString(buf, size)
-    }
-
-    override def write[B](buf: B, t: String)(implicit b: Buffer[B]): Unit = {
-      val bytes = t.getBytes(StandardCharsets.UTF_8)
-      b.writeInt(buf, bytes.length)
-      b.write(buf, bytes)
-    }
+    override def read[B](buf: B)(implicit b: Buffer[B]): String = b.readString(buf)
+    override def write[B](buf: B, t: String)(implicit b: Buffer[B]): Unit = b.writeString(buf, t)
   }
 
   implicit val rwBigDecimal: ReadWrite[BigDecimal] = implicitly[ReadWrite[String]].imap(BigDecimal.apply)(_.toString())

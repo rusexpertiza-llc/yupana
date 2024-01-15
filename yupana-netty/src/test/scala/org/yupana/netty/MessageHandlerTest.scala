@@ -145,7 +145,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     )
 
     When("client request for batch")
-    ch.writeInbound(Next(11, 10).toFrame[ByteBuf])
+    ch.writeInbound(NextBatch(11, 10).toFrame[ByteBuf])
 
     Then("reply with actual data")
     val row = readMessage(ch, ResultRow)
@@ -191,7 +191,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
       ResultField("2", "INTEGER")
     )
 
-    ch.writeInbound(Next(2, 10).toFrame)
+    ch.writeInbound(NextBatch(2, 10).toFrame)
     val data2 = readMessage(ch, ResultRow)
     data2.id shouldEqual 2
     data2.values should contain theSameElementsInOrderAs List(Array(2))
@@ -199,7 +199,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val footer2 = readMessage(ch, ResultFooter)
     footer2.id shouldEqual 2
 
-    ch.writeInbound(Next(1, 10).toFrame)
+    ch.writeInbound(NextBatch(1, 10).toFrame)
     val data1 = readMessage(ch, ResultRow)
     data1.id shouldEqual 1
     data1.values should contain theSameElementsInOrderAs List(Array(1))
@@ -207,7 +207,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val footer1 = readMessage(ch, ResultFooter)
     footer1.id shouldEqual 1
 
-    ch.writeInbound(Next(1, 10).toFrame)
+    ch.writeInbound(NextBatch(1, 10).toFrame)
     val err = readMessage(ch, ErrorMessage)
     err.message shouldEqual "Unknown stream id 1"
     err.streamId shouldEqual Some(1)
@@ -260,7 +260,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     ch.writeInbound(Cancel(1).toFrame)
     readMessage(ch, Canceled).id shouldEqual 1
 
-    ch.writeInbound(Next(1, 10).toFrame)
+    ch.writeInbound(NextBatch(1, 10).toFrame)
     val err = readMessage(ch, ErrorMessage)
     err.message shouldEqual "Unknown stream id 1"
     err.streamId shouldEqual Some(1)

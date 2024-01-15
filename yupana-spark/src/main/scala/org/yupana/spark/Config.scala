@@ -36,13 +36,11 @@ class Config(@transient val sparkConf: SparkConf) extends TsdbConfig with Serial
 
   override val putBatchSize: Int = sparkConf.getInt("analytics.tsdb.put-batch-size", 1000)
 
-  val rowKeyBatchSize: Int = sparkConf.getInt("analytics.tsdb.row-key-batch-size", 50000)
-
   override val collectMetrics: Boolean = sparkConf.getBoolean("analytics.tsdb.collect-metrics", defaultValue = true)
 
   override val metricsUpdateInterval: Int = sparkConf.getInt("analytics.tsdb.metrics-update-interval", 30000)
 
-  override val putEnabled: Boolean = false
+  override val putEnabled: Boolean = true
 
   override val maxRegions: Int = sparkConf.getInt("spark.hbase.regions.initial.max", 50)
 

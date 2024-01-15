@@ -7,7 +7,7 @@ title: Простой запрос
 
 Клиент отправляет запрос `SqlQuery` с идетнификатором, телом запроса и параметрами.  Идентификаторы запроса должны
 быть уникальными в рамках одного соединения. Если запрос обработан успешно сервер отправляет `ResultHeader` с информацией
-о данных. Клиент шлет команду `Next` с желаемым колличеством строк. Сервер отправляет строки в виде `ResultRow`. Если
+о данных. Клиент шлет команду `NextBatch` с желаемым колличеством строк. Сервер отправляет строки в виде `ResultRow`. Если
 данных больше нет отправляется `ResultFooter`.
 
 ```mermaid
@@ -18,7 +18,7 @@ sequenceDiagram
     C->>S: q: SqlQuery(Id, YpQL, Map[Id -> ParameterValue])
     S->>C: H: ResultHeader(Id, TableName, Columns)
     loop has more data
-      C->>S: n: Next(Id, Batch size)
+      C->>S: n: NextBatch(Id, Batch size)
       loop batch size
           S->>C: R: ResultRow(Id, Values)
       end

@@ -17,13 +17,15 @@
 package org.yupana.protocol
 
 /**
-  * Base class for all messages.
+  * Request for next batch of data
+  *
+  * @param id request id
+  * @param batchSize size of requested batch
   */
-trait Message[M <: Message[M]] { self: M =>
+case class NextBatch(id: Int, batchSize: Int) extends Command[NextBatch](NextBatch)
 
-  /** Instance of message helper related to the message type M */
-  def helper: MessageHelper[M]
-
-  /** Converts message to the frame */
-  def toFrame[B: Buffer]: Frame = helper.toFrame(this)
+object NextBatch extends MessageHelper[NextBatch] {
+  override val tag: Tags.Tags = Tags.NEXT
+  override val readWrite: ReadWrite[NextBatch] =
+    ReadWrite.product2[NextBatch, Int, Int](NextBatch.apply)(x => (x.id, x.batchSize))
 }

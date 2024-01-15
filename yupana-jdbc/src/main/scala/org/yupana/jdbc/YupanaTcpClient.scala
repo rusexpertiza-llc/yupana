@@ -227,7 +227,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   def acquireNext(id: Int): Unit = {
     assert(iterators.contains(id))
     val f = runCommand(
-      Next(id, batchSize),
+      NextBatch(id, batchSize),
       (p: Promise[Unit]) => readBatch(id, 0).onComplete(x => p.complete(x.map(_ => ())))
     )
     Await.result(f, Duration.Inf)

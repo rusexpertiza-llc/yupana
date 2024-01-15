@@ -135,7 +135,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         Seq(header)
       }
 
-      val onNext = (n: Next) => {
+      val onNext = (n: NextBatch) => {
         val ts = implicitly[Storable[Time]]
         val ss = implicitly[Storable[String]]
 
@@ -150,12 +150,12 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
       val reqF = for {
         req <- server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], onQuery)
-        next <- server.readAndSendResponses[Next](id, Next.readFrame[ByteBuffer], onNext)
+        next <- server.readAndSendResponses[NextBatch](id, NextBatch.readFrame[ByteBuffer], onNext)
       } yield (req, next)
 
       reqF.map { req =>
         inside(req) {
-          case (SqlQuery(qId, q, f), Next(nId, bs)) =>
+          case (SqlQuery(qId, q, f), NextBatch(nId, bs)) =>
             q shouldEqual sql
             f shouldEqual bind
             qId shouldEqual nId
@@ -199,7 +199,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         )
       }
 
-      val onNext = (n: Next) => {
+      val onNext = (n: NextBatch) => {
         val ts = implicitly[Storable[Time]]
         val ss = implicitly[Storable[String]]
 
@@ -214,7 +214,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
       val reqF = for {
         req <- server.readAndSendResponses[BatchQuery](id, BatchQuery.readFrame[ByteBuffer], onQuery)
-        _ <- server.readAndSendResponses[Next](id, Next.readFrame[ByteBuffer], onNext)
+        _ <- server.readAndSendResponses[NextBatch](id, NextBatch.readFrame[ByteBuffer], onNext)
       } yield req
 
       reqF map { req =>
@@ -290,7 +290,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Seq(header)
     }
 
-    val onNext = (n: Next) => {
+    val onNext = (n: NextBatch) => {
       val ts = implicitly[Storable[Time]]
       val ss = implicitly[Storable[String]]
       Seq(ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная"))))
@@ -298,7 +298,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     for {
       _ <- server.readAndSendResponses[SqlQuery](id, SqlQuery.readFrame[ByteBuffer], onQuery)
-      _ <- server.readAndSendResponses[Next](id, Next.readFrame[ByteBuffer], onNext)
+      _ <- server.readAndSendResponses[NextBatch](id, NextBatch.readFrame[ByteBuffer], onNext)
     } yield ()
 
   } { client =>

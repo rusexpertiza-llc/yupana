@@ -41,8 +41,19 @@ trait Buffer[B] {
   def readDouble(b: B): Double
   def writeDouble(b: B, d: Double): B
 
-  def readString(b: B, size: Int): String
-  def writeString(b: B, s: String): Int
+  def readString(b: B): String = {
+    val length = readInt(b)
+    val bytes = new Array[Byte](length)
+    read(b, bytes)
+    new String(bytes, StandardCharsets.UTF_8)
+  }
+
+  def writeString(b: B, s: String): Int = {
+    val bytes = s.getBytes(StandardCharsets.UTF_8)
+    writeInt(b, bytes.length)
+    write(b, bytes)
+    bytes.length
+  }
 
   def read(b: B, dst: Array[Byte]): Unit
   def write(b: B, bytes: Array[Byte]): B
@@ -74,17 +85,6 @@ object Buffer {
 
     override def readDouble(b: ByteBuffer): Double = b.getDouble
     override def writeDouble(b: ByteBuffer, d: Double): ByteBuffer = b.putDouble(d)
-
-    override def readString(b: ByteBuffer, size: Int): String = {
-      val bytes = new Array[Byte](size)
-      b.get(bytes)
-      new String(bytes, StandardCharsets.UTF_8)
-    }
-    override def writeString(b: ByteBuffer, s: String): Int = {
-      val bytes = s.getBytes(StandardCharsets.UTF_8)
-      write(b, bytes)
-      bytes.length
-    }
 
     override def read(b: ByteBuffer, dst: Array[Byte]): Unit = b.get(dst)
     override def write(t: ByteBuffer, bytes: Array[Byte]): ByteBuffer = t.put(bytes)

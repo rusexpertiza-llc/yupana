@@ -16,14 +16,5 @@
 
 package org.yupana.protocol
 
-/**
-  * Base class for all messages.
-  */
-trait Message[M <: Message[M]] { self: M =>
-
-  /** Instance of message helper related to the message type M */
-  def helper: MessageHelper[M]
-
-  /** Converts message to the frame */
-  def toFrame[B: Buffer]: Frame = helper.toFrame(this)
-}
+/** Base class for client messages */
+abstract class Command[C <: Message[C]](override val helper: MessageHelper[C]) extends Message[C] { self: C => }

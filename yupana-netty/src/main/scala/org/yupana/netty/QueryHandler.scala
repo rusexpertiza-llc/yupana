@@ -37,7 +37,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
     frame.frameType match {
       case Tags.SQL_QUERY.value   => processMessage(ctx, frame, SqlQuery)(pq => handleQuery(ctx, pq))
       case Tags.BATCH_QUERY.value => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))
-      case Tags.NEXT.value        => processMessage(ctx, frame, Next)(n => handleNext(ctx, n))
+      case Tags.NEXT.value        => processMessage(ctx, frame, NextBatch)(n => handleNext(ctx, n))
       case Tags.CANCEL.value      => processMessage(ctx, frame, Cancel)(c => cancelStream(ctx, c))
       case Tags.HEARTBEAT.value   => processMessage(ctx, frame, Heartbeat)(h => logger.debug(s"Got heartbeat $h"))
       case Tags.QUIT.value =>
@@ -76,7 +76,7 @@ class QueryHandler(serverContext: ServerContext, userName: String) extends Frame
     }
   }
 
-  private def handleNext(ctx: ChannelHandlerContext, next: Next): Unit = {
+  private def handleNext(ctx: ChannelHandlerContext, next: NextBatch): Unit = {
     logger.debug(s"Next acquired $next")
     streams.get(next.id) match {
       case Some(stream) =>

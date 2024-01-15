@@ -32,14 +32,15 @@ class BufferTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenProperty
     _.readDouble
   )
 
-//  it should "pass string from NIO to Netty" in writeOneReadAnother[String, ByteBuffer, ByteBuf](
-//    _.writeString,
-//    _.readString
-//  )
-//  it should "pass string from Netty to NIO" in writeOneReadAnother[String, ByteBuf, ByteBuffer](
-//    _.writeString,
-//    _.readString
-//  )
+  it should "pass string from NIO to Netty" in writeOneReadAnother[String, ByteBuffer, ByteBuf](
+    _.writeString,
+    _.readString
+  )
+
+  it should "pass string from Netty to NIO" in writeOneReadAnother[String, ByteBuf, ByteBuffer](
+    _.writeString,
+    _.readString
+  )
 
   private def writeOneReadAnother[T, B1, B2](
       w: Buffer[B1] => (B1, T) => Unit,

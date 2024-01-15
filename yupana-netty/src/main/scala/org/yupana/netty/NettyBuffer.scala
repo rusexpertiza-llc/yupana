@@ -19,8 +19,6 @@ package org.yupana.netty
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import org.yupana.protocol.Buffer
 
-import java.nio.charset.StandardCharsets
-
 object NettyBuffer {
   implicit val nettyBuffer: Buffer[ByteBuf] = new Buffer[ByteBuf] {
 
@@ -40,9 +38,6 @@ object NettyBuffer {
 
     override def readDouble(b: ByteBuf): Double = b.readDouble()
     override def writeDouble(b: ByteBuf, d: Double): ByteBuf = b.writeDouble(d)
-
-    override def readString(b: ByteBuf, size: Int): String = b.readCharSequence(size, StandardCharsets.UTF_8).toString
-    override def writeString(b: ByteBuf, s: String): Int = b.writeCharSequence(s, StandardCharsets.UTF_8)
 
     override def read(b: ByteBuf, dst: Array[Byte]): Unit = b.readBytes(dst)
     override def write(b: ByteBuf, bytes: Array[Byte]): ByteBuf = b.writeBytes(bytes)
