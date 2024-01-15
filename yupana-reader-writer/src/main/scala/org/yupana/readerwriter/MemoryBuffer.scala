@@ -20,11 +20,12 @@ import jdk.internal.foreign.AbstractMemorySegmentImpl
 import jdk.internal.misc.Unsafe
 import org.yupana.readerwriter.MemoryBuffer.convertEndian
 
-import java.io.{ObjectInputStream, ObjectOutputStream}
-import java.lang.foreign.{Arena, MemorySegment}
+import java.io.{ ObjectInputStream, ObjectOutputStream }
+import java.lang.foreign.{ Arena, MemorySegment }
 import scala.util.hashing.MurmurHash3
 
-final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long, private var initSize: Long) extends Serializable {
+final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long, private var initSize: Long)
+    extends Serializable {
 
   import org.yupana.readerwriter.MemoryBuffer.UNSAFE
 
@@ -242,7 +243,6 @@ final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long,
     get(bs)
     bs
   }
-
 
   // Overriding Java serialization
   private def writeObject(oos: ObjectOutputStream): Unit = {
