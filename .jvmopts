@@ -3,5 +3,3 @@
 -Xmx2G
 -XX:MaxMetaspaceSize=1024M
 -XX:MaxDirectMemorySize=16G
---add-opens java.base/jdk.internal.foreign=ALL-UNNAMED
---add-opens java.base/jdk.internal.misc=ALL-UNNAMED
