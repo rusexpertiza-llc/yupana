@@ -205,7 +205,11 @@ lazy val spark = (project in file("yupana-spark"))
       "javax.ws.rs" % "javax.ws.rs-api",
       "org.slf4j" % "slf4j-log4j12"
     ),
-    Test / fork := true
+    Test / fork := true,
+    Test / javaOptions ++= Seq(
+      "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens", "java.base/sun.security.action=ALL-UNNAMED"
+    )
   )
   .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
