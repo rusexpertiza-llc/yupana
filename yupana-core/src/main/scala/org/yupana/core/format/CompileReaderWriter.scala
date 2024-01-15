@@ -26,7 +26,7 @@ import scala.reflect.runtime.universe
 import scala.reflect.runtime.universe.Tree
 import scala.reflect.runtime.universe._
 
-object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] {
+object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with Serializable {
 
   val evalRW = q"_root_.org.yupana.readerwriter.MemoryBufferEvalReaderWriter"
   override def readInt(b: Tree): TypedTree[Int] = {

@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
-object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt] {
+object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt] with Serializable {
 
   override def readBoolean(b: ByteBuffer): Boolean = {
     b.get() != 0
