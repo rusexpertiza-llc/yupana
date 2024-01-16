@@ -18,7 +18,7 @@ package org.yupana.metrics
 
 import com.typesafe.scalalogging.StrictLogging
 
-class Slf4jMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging {
+class Slf4jMetricReporter[C <: MetricCollector] extends MetricReporter[C] with StrictLogging with Serializable {
   override def start(mc: C, partitionId: Option[String]): Unit = {
     logger.info(s"${mc.fullId}; operation: ${mc.operationName} started, meta: ${mc.meta}")
   }
