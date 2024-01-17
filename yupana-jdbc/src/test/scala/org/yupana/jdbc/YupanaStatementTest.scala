@@ -6,7 +6,8 @@ import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.jdbc.model.ParameterValue
+import org.yupana.jdbc.YupanaConnection.QueryResult
+import org.yupana.protocol.ParameterValue
 
 class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -21,10 +22,10 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
       "result",
       Seq("item", "kkm_id"),
       Seq(DataType[String], DataType[Int]),
-      Iterator(Array("thing", 1), Array("Another", 4))
+      Iterator(Array[Any]("thing", 1), Array[Any]("Another", 4))
     )
 
-    (conn.runQuery _).expects(q, Map.empty[Int, ParameterValue]).returning(result)
+    (conn.runQuery _).expects(q, Map.empty[Int, ParameterValue]).returning(QueryResult(1, result))
 
     statement.execute(q) shouldBe true
     val rs = statement.getResultSet
@@ -33,6 +34,7 @@ class YupanaStatementTest extends AnyFlatSpec with Matchers with MockFactory {
 
     rs.isClosed shouldBe false
 
+    (conn.cancelStream _).expects(1).once()
     statement.close()
 
     rs.isClosed shouldBe true

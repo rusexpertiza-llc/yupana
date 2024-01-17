@@ -5,10 +5,10 @@ import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.jdbc.build.BuildInfo
-import org.yupana.proto.Version
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.jdbc.model.ParameterValue
+import org.yupana.jdbc.YupanaConnection.QueryResult
+import org.yupana.protocol.ParameterValue
 
 class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -41,7 +41,7 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     m.doesMaxRowSizeIncludeBlobs shouldBe false
 
     m.getMaxStatements shouldEqual 0
-    m.supportsMultipleOpenResults shouldBe true
+    m.supportsMultipleOpenResults shouldBe false
     m.supportsMultipleResultSets shouldBe false
 
     m.getSchemaTerm shouldEqual "schema"
@@ -216,12 +216,26 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
 
   it should "provide connection info" in {
     val conn = mock[YupanaConnection]
+    val statement = mock[YupanaStatement]
     val m = new YupanaDatabaseMetaData(conn)
 
     (() => conn.url).expects().returning("jdbc:yupana://example.com:10101")
+    (() => conn.createStatement()).expects().returning(statement)
+    (statement.executeQuery _)
+      .expects("SHOW VERSION")
+      .returning(
+        new YupanaResultSet(
+          statement,
+          SimpleResult(
+            "VERSION",
+            List("MAJOR", "MINOR", "VERSION"),
+            List(DataType[Int], DataType[Int], DataType[String]),
+            Iterator(Array[Any](1, 2, "1.2.3"))
+          )
+        )
+      )
     m.getURL shouldEqual "jdbc:yupana://example.com:10101"
 
-    (() => conn.serverVersion).expects().returning(Some(Version(9, 1, 2, "1.2.3"))).anyNumberOfTimes()
     m.getDatabaseMajorVersion shouldEqual 1
     m.getDatabaseMinorVersion shouldEqual 2
     m.getDatabaseProductVersion shouldEqual "1.2.3"
@@ -234,14 +248,17 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
-    val tables = SimpleResult(
-      "TABLES",
-      Seq("TABLE_NAME", "TABLE_TYPE"),
-      Seq(DataType[String], DataType[String]),
-      Seq(
-        Array[Any]("EMPLOYEES", null),
-        Array[Any]("DEPARTMENTS", "TABLE")
-      ).iterator
+    val tables = QueryResult(
+      1,
+      SimpleResult(
+        "TABLES",
+        Seq("TABLE_NAME", "TABLE_TYPE"),
+        Seq(DataType[String], DataType[String]),
+        Seq(
+          Array[Any]("EMPLOYEES", null),
+          Array[Any]("DEPARTMENTS", "TABLE")
+        ).iterator
+      )
     )
 
     (() => conn.createStatement).expects().returning(new YupanaStatement(conn))
@@ -256,14 +273,17 @@ class YupanaDatabaseMetaDataTest extends AnyFlatSpec with Matchers with MockFact
     val conn = mock[YupanaConnection]
     val m = new YupanaDatabaseMetaData(conn)
 
-    val tables = SimpleResult(
-      "COLUMNS",
-      Seq("TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"),
-      Seq(DataType[String], DataType[String]),
-      Seq(
-        Array[Any]("EMPLOYEES", "NAME", "VARCHAR"),
-        Array[Any]("EMPLOYEES", "AGE", "INTEGER")
-      ).iterator
+    val tables = QueryResult(
+      1,
+      SimpleResult(
+        "COLUMNS",
+        Seq("TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"),
+        Seq(DataType[String], DataType[String]),
+        Seq(
+          Array[Any]("EMPLOYEES", "NAME", "VARCHAR"),
+          Array[Any]("EMPLOYEES", "AGE", "INTEGER")
+        ).iterator
+      )
     )
 
     (() => conn.createStatement).expects().returning(new YupanaStatement(conn))

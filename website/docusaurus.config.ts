@@ -23,6 +23,11 @@ const config: Config = {
 
   staticDirectories: ['static'],
 
+  markdown: {
+    mermaid: true,
+  },
+  themes: ['@docusaurus/theme-mermaid'],
+
   presets: [
     [
       'classic',
