@@ -70,18 +70,19 @@ object Main extends StrictLogging {
     HBaseUtils.initStorage(connection, config.hbaseNamespace, schema, tsdbConfig)
 
     logger.info("TsdbQueryMetricsDao initialization...")
-    lazy val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration)
-    lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
+    val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration)
+    val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(hbaseConnection, config.hbaseNamespace)
+    val metricReporter = new CombinedMetricReporter(
+      new Slf4jMetricReporter,
+      new PersistentMetricQueryReporter(tsdbQueryMetricsDaoHBase)
+    )
 
     val metricCreator = { query: Query =>
       new StandaloneMetricCollector(
         query,
         "query",
         tsdbConfig.metricsUpdateInterval,
-        new CombinedMetricReporter(
-          new Slf4jMetricReporter,
-          new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
-        )
+        metricReporter
       )
     }
 

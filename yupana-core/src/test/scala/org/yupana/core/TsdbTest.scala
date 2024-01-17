@@ -3288,7 +3288,7 @@ class TsdbTest
     val metricDao = mock[TsdbQueryMetricsDao]
     val reporter =
       new CombinedMetricReporter[MetricQueryCollector](
-        new PersistentMetricQueryReporter(() => metricDao, asyncSaving = false),
+        new PersistentMetricQueryReporter(metricDao, asyncSaving = false),
         new Slf4jMetricReporter[MetricQueryCollector]
       )
 

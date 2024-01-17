@@ -1,4 +1,4 @@
-addSbtPlugin("com.github.sbt" % "sbt-release" % "1.1.0")
+addSbtPlugin("com.github.sbt" % "sbt-release" % "1.3.0")
 
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.21")
 
@@ -16,7 +16,7 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.10.0")
 
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
 
-addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.6")
+addSbtPlugin("pl.project13.scala" % "sbt-jmh" % "0.4.7")
 
-addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.5.1")
+addSbtPlugin("org.scalameta" % "sbt-mdoc" % "2.5.2")
 addSbtPlugin("com.github.sbt" % "sbt-unidoc" % "0.5.0")

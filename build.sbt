@@ -3,6 +3,8 @@ import sbt.Keys.excludeDependencies
 
 ThisBuild / useCoursier := false
 
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
+
 lazy val javaVersion = Def.setting {
   val v = sys.props.get("java.version")
     .map(_.split("\\."))
@@ -11,7 +13,6 @@ lazy val javaVersion = Def.setting {
   if (v(0) == "1") v(1).toInt else v(0).toInt
 }
 
-Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 lazy val yupana = (project in file("."))
   .aggregate(
