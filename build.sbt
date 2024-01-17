@@ -6,6 +6,15 @@ ThisBuild / useCoursier := false
 
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+lazy val javaVersion = Def.setting {
+  val v = sys.props.get("java.version")
+    .map(_.split("\\."))
+    .getOrElse(sys.error("Cannot detect JDK version"))
+
+  if (v(0) == "1") v(1).toInt else v(0).toInt
+}
+
+
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
@@ -227,7 +236,15 @@ lazy val spark = (project in file("yupana-spark"))
       "javax.ws.rs" % "javax.ws.rs-api",
       "org.slf4j" % "slf4j-log4j12"
     ),
-    Test / fork := true
+    Test / fork := true,
+    Test / javaOptions ++= {
+      if (javaVersion.value > 8)
+        Seq(
+          "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED",
+          "--add-opens", "java.base/sun.security.action=ALL-UNNAMED"
+        )
+      else Seq.empty
+    }
   )
   .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
