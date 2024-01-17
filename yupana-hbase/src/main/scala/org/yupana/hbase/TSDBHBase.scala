@@ -34,13 +34,14 @@ object TSDBHBase {
       namespace: String
   ): Query => MetricQueryCollector = {
     lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(connection, namespace)
+    lazy val reporter = new PersistentMetricQueryReporter(tsdbQueryMetricsDaoHBase)
 
     { query: Query =>
       new StandaloneMetricCollector(
         query,
         "query",
         tsdbConfig.metricsUpdateInterval,
-        new PersistentMetricQueryReporter(() => tsdbQueryMetricsDaoHBase)
+        reporter
       )
     }
   }

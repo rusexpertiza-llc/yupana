@@ -6,6 +6,15 @@ ThisBuild / useCoursier := false
 
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
+lazy val javaVersion = Def.setting {
+  val v = sys.props.get("java.version")
+    .map(_.split("\\."))
+    .getOrElse(sys.error("Cannot detect JDK version"))
+
+  if (v(0) == "1") v(1).toInt else v(0).toInt
+}
+
+
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
@@ -95,6 +104,7 @@ lazy val utils = (project in file("yupana-utils"))
     )
   )
   .dependsOn(api)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val settings = (project in file("yupana-settings"))
   .settings(
@@ -105,6 +115,7 @@ lazy val settings = (project in file("yupana-settings"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest % Test
     )
   )
+  .disablePlugins(AssemblyPlugin)
 
 lazy val metrics = (project in file("yupana-metrics"))
   .settings(
@@ -114,6 +125,7 @@ lazy val metrics = (project in file("yupana-metrics"))
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging
     )
   )
+  .disablePlugins(AssemblyPlugin)
 
 lazy val cache = (project in file("yupana-cache"))
   .settings(
@@ -124,6 +136,7 @@ lazy val cache = (project in file("yupana-cache"))
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
     )
   ).dependsOn(api, settings)
+  .disablePlugins(AssemblyPlugin)
 
 lazy val core = (project in file("yupana-core"))
   .settings(
@@ -222,7 +235,15 @@ lazy val spark = (project in file("yupana-spark"))
       "javax.ws.rs" % "javax.ws.rs-api",
       "org.slf4j" % "slf4j-log4j12"
     ),
-    Test / fork := true
+    Test / fork := true,
+    Test / javaOptions ++= {
+      if (javaVersion.value > 8)
+        Seq(
+          "--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED",
+          "--add-opens", "java.base/sun.security.action=ALL-UNNAMED"
+        )
+      else Seq.empty
+    }
   )
   .dependsOn(core, cache, settings, hbase, externalLinks)
   .disablePlugins(AssemblyPlugin)
@@ -350,11 +371,13 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
       "org.slf4j" % "slf4j-log4j12"
     )
   )
+  .disablePlugins(AssemblyPlugin)
 
 lazy val docs = project
   .in(file("yupana-docs"))
   .dependsOn(api, core)
   .enablePlugins(MdocPlugin, ScalaUnidocPlugin, DocusaurusPlugin)
+  .disablePlugins(AssemblyPlugin)
   .settings(
     scalaVersion := versions.scala213,
     moduleName := "yupana-docs",
