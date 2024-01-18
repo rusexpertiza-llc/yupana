@@ -17,11 +17,11 @@
 package org.yupana.core.model
 
 import org.yupana.api.Time
-import org.yupana.api.query.{DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr}
-import org.yupana.api.schema.{Dimension, Table}
-import org.yupana.api.types.{InternalStorable, ReaderWriter}
+import org.yupana.api.query.{ DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr }
+import org.yupana.api.schema.{ Dimension, Table }
+import org.yupana.api.types.{ InternalStorable, ReaderWriter }
 import org.yupana.core.QueryContext
-import org.yupana.readerwriter.{ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt}
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 
 import java.io.ObjectInputStream
 
