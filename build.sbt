@@ -476,7 +476,7 @@ val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := versions.scala213,
   scalacOptions ++= Seq(
-    "-release:21",
+    "-release:17",
     "-Xsource:2.13",
     "-deprecation",
     "-unchecked",
