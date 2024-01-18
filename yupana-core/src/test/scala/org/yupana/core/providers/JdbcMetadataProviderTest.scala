@@ -46,9 +46,9 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
   it should "specify version" in {
     val res = metadataProvider.version
     res.fieldNames should contain theSameElementsInOrderAs List("MAJOR", "MINOR", "VERSION")
-    val row = res.rows.next()
-    res.rows shouldBe empty
-    row should contain theSameElementsInOrderAs List(1, 2, "1.2")
+    val row = res.next()
+    res shouldBe empty
+    row.fields should contain theSameElementsInOrderAs List(1, 2, "1.2")
   }
 
   it should "describe table by name" in {

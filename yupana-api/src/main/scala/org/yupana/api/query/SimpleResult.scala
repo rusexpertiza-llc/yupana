@@ -17,12 +17,13 @@
 package org.yupana.api.query
 
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CloseableIterator
 
 case class SimpleResult(
     override val name: String,
-    fieldNames: Seq[String],
-    dataTypes: Seq[DataType],
-    rows: Iterator[Array[Any]]
+    override val fieldNames: Seq[String],
+    override val dataTypes: Seq[DataType],
+    rows: CloseableIterator[Array[Any]]
 ) extends Result {
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap
@@ -33,4 +34,17 @@ case class SimpleResult(
   override def hasNext: Boolean = rows.hasNext
 
   override def next(): DataRow = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
+
+  override def close(): Unit = rows.close()
+}
+
+object SimpleResult {
+  def apply(
+      name: String,
+      fieldNames: Seq[String],
+      dataTypes: Seq[DataType],
+      rows: Iterator[Array[Any]]
+  ): SimpleResult = {
+    new SimpleResult(name, fieldNames, dataTypes, CloseableIterator.pure(rows))
+  }
 }

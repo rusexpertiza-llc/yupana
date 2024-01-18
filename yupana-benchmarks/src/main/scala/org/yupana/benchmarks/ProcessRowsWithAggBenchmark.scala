@@ -16,27 +16,13 @@
 
 package org.yupana.benchmarks
 
-import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
+import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
-import org.yupana.api.query.{ Expression, Query }
-import org.yupana.api.query.syntax.All.{
-  condition,
-  const,
-  count,
-  dimension,
-  divFrac,
-  double2bigDecimal,
-  gt,
-  long2BigDecimal,
-  metric,
-  min,
-  sum,
-  time,
-  truncDay
-}
+import org.yupana.api.query.{Expression, Query}
+import org.yupana.api.query.syntax.All.{condition, const, count, dimension, divFrac, double2bigDecimal, gt, long2BigDecimal, metric, min, sum, time}
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
+import org.yupana.schema.{Dimensions, ItemTableMetrics, Tables}
 
 import java.time.LocalDateTime
 
@@ -64,7 +50,6 @@ class TsdbBaseBenchmarkStateAgg extends TsdbBaseBenchmarkStateBase {
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
-      truncDay(time) as "day",
       dimension(Dimensions.ITEM) as "item",
       sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
       metric(ItemTableMetrics.sumField) as "total_sum",
@@ -87,7 +72,7 @@ class TsdbBaseBenchmarkStateAgg extends TsdbBaseBenchmarkStateBase {
       ) as "count_expensive"
     ),
     filter = None,
-    groupBy = Seq(time, dimension(Dimensions.ITEM))
+    groupBy = Seq(dimension(Dimensions.ITEM))
   )
 
   override val daoExprs: Seq[Expression[_]] = Seq(

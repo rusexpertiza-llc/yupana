@@ -362,10 +362,11 @@ lazy val khipuExamples = (project in file("yupana-khipu-examples"))
     allSettings,
     noPublishSettings,
     libraryDependencies ++= Seq(
+      "com.typesafe"                %  "config"                         % "1.4.3",
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
     )
   )
-  .dependsOn(pekko, khipu, schema, externalLinks, ehcache % Runtime)
+  .dependsOn(khipu, netty, schema, externalLinks, ehcache % Runtime)
   .disablePlugins(AssemblyPlugin)
 
 

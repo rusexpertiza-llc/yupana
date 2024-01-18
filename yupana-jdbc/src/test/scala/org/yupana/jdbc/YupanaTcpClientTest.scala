@@ -12,12 +12,7 @@ import java.io.IOException
 import java.nio.ByteBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
 import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
-
-import java.nio.ByteBuffer
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
@@ -142,12 +137,10 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       }
 
       val onNext = (n: NextBatch) => {
-        val ts = implicitly[Storable[Time]]
-        val ss = implicitly[Storable[String]]
 
-        val data1 = ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
 
-        val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.id, Seq(toBytes(Time(21112L)), Array.empty))
 
         val footer = ResultFooter(n.id, 1, 2)
 
@@ -206,12 +199,10 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       }
 
       val onNext = (n: NextBatch) => {
-        val ts = implicitly[Storable[Time]]
-        val ss = implicitly[Storable[String]]
 
-        val data1 = ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
 
-        val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.id, Seq(toBytes(Time(21112L)), Array.empty))
 
         val footer = ResultFooter(n.id, 1, 2)
 
@@ -297,9 +288,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     }
 
     val onNext = (n: NextBatch) => {
-      val ts = implicitly[Storable[Time]]
-      val ss = implicitly[Storable[String]]
-      Seq(ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная"))))
+      Seq(ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная"))))
     }
 
     for {
@@ -362,12 +351,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     result
   }
 
-  private def toBytes[T](v: T)(implicit st: Storable[T]): ByteString = {
+  private def toBytes[T](v: T)(implicit st: Storable[T]): Array[Byte] = {
     val b = ByteBuffer.allocate(1024)
     implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
     st.write(b, v: ID[T])
-    val s = b.position()
+    val size = b.position()
     b.rewind()
-    ByteString.copyFrom(b, s)
+    val res = Array.ofDim[Byte](size)
+    b.get(res)
+    res
   }
 }

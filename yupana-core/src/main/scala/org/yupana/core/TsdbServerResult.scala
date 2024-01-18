@@ -24,13 +24,13 @@ import org.yupana.api.utils.CloseableIterator
 class TsdbServerResult(
     override val queryContext: QueryContext,
     override val internalRowBuilder: InternalRowBuilder,
-    data: ClosableIterator[InternalRow]
+    data: CloseableIterator[InternalRow]
 ) extends Result
     with TsdbResultBase[Iterator] {
 
   override def name: String = queryContext.query.table.map(_.name).getOrElse("RESULT")
 
-  override def rows: ClosableIterator[InternalRow] = data
+  override def rows: CloseableIterator[InternalRow] = data
 
   override val dataTypes: Seq[DataType] = queryContext.query.fields.map(_.expr.dataType)
   override val fieldNames: Seq[String] = nameIndex.map(_._1)
@@ -41,4 +41,6 @@ class TsdbServerResult(
     val row = rows.next()
     dataRow(row)
   }
+
+  override def close(): Unit = rows.close()
 }

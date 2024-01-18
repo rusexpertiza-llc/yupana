@@ -17,12 +17,13 @@
 package org.yupana.jdbc
 
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, ReaderWriter }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
@@ -55,13 +56,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
-  private def scheduleHeartbeatTimer(): Unit = {
-    heartbeatTimer = new Timer()
-    val heartbeatTask = new TimerTask {
-      override def run(): Unit = tryToReadHeartbeat()
-    }
-    heartbeatTimerScheduled = true
-    heartbeatTimer.schedule(heartbeatTask, HEARTBEAT_PERIOD, HEARTBEAT_PERIOD)
   private def ensureNotClosed(): Unit = {
     if (closed) throw new YupanaException("Connection is closed")
   }
@@ -312,6 +306,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     JdbcUtils.wrapHandler[Unit](
       new CompletionHandler[Integer, Promise[Unit]] {
         override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
+
         override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
       },
       (p, h) => channel.write(bb, p, h)
@@ -349,7 +344,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
             if (bytes.isEmpty) {
               null
             } else {
-              val b = MemoryBuffer.ofBytes(bytes.toByteArray)
+              val b = MemoryBuffer.ofBytes(bytes)
               rt.storable.read(b)
             }
         }

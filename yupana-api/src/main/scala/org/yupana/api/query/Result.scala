@@ -17,7 +17,6 @@
 package org.yupana.api.query
 
 import org.yupana.api.types.DataType
-import org.yupana.api.utils.CloseableIterator
 
 trait Result extends Iterator[DataRow] with AutoCloseable {
 
@@ -47,6 +46,8 @@ object Result {
     override def hasNext: Boolean = false
 
     override def next(): DataRow = throw new IllegalStateException("Error: next on empty result")
+
+    override def close(): Unit = ()
   }
 }
 

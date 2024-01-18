@@ -16,12 +16,17 @@
 
 package org.yupana.netty
 import org.yupana.api.query.Result
+import org.yupana.api.types.ReaderWriter
 import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 
 class Stream(id: Int, result: Result) {
 
   private var rows = 0
   private val resultTypes = result.dataTypes.zipWithIndex
+  val MAX_VALUE_SIZE = 2_000_000
+  private val buffer = MemoryBuffer.allocateHeap(MAX_VALUE_SIZE)
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
   def close(): Unit = result.close()
 
@@ -44,7 +49,14 @@ class Stream(id: Int, result: Result) {
         val bytes = resultTypes.map {
           case (rt, idx) =>
             val v = row.get[rt.T](idx)
-            if (v != null) rt.storable.write(v) else Array.empty[Byte]
+            if (v != null) {
+              val size = rt.storable.write(buffer, v: ID[rt.T])
+              val a = Array.ofDim[Byte](size)
+              buffer.get(a)
+              a
+            } else {
+              Array.empty[Byte]
+            }
         }
         rows += 1
         ResultRow(id, bytes)

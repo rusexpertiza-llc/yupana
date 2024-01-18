@@ -17,11 +17,13 @@
 package org.yupana.core.model
 
 import org.yupana.api.Time
-import org.yupana.api.query.{ DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr }
-import org.yupana.api.schema.{ Dimension, Table }
-import org.yupana.api.types.{ InternalStorable, ReaderWriter }
+import org.yupana.api.query.{DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr}
+import org.yupana.api.schema.{Dimension, Table}
+import org.yupana.api.types.{InternalStorable, ReaderWriter}
 import org.yupana.core.QueryContext
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.readerwriter.{ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt}
+
+import java.io.ObjectInputStream
 
 class InternalRow(val bytes: MemoryBuffer, val refs: Map[Int, AnyRef]) extends Serializable {
 
@@ -118,7 +120,7 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
   private val fixedFieldsMappingArray: Array[Boolean] = createFixedFieldMappingArray(exprIndex)
 
   private var memoryBlock = MemoryBuffer.allocateHeap(MEMORY_BLOCK_SIZE)
-  private var buffer = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
+  private var buffer = memoryBlock.asSlice(MAX_ROW_SIZE)
   val tmpBuffer = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
 
   var refs: Map[Int, AnyRef] = Map.empty
@@ -151,6 +153,8 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
     refs = Map.empty[Int, AnyRef]
     new InternalRow(bf, rf)
   }
+
+  //   | validity max |  fixed fields area |  variable length fields area |
 
   def set[T](tag: Byte, v: T)(implicit storable: InternalStorable[T]): InternalRowBuilder = {
     val index = tagIndex(tag)
@@ -405,6 +409,11 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
 
     case None =>
       Array.empty
+  }
+
+  private def readObject(ois: ObjectInputStream): Unit = {
+    ois.defaultReadObject()
+    setRowSize(variableLengthFieldsAreaOffset)
   }
 }
 

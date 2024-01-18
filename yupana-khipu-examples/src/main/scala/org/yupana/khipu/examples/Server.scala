@@ -18,7 +18,6 @@ package org.yupana.khipu.examples
 
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.pekko.actor.ActorSystem
 import org.yupana.api.query.Query
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
@@ -26,7 +25,7 @@ import org.yupana.core.utils.metric.{ MetricQueryCollector, StandaloneMetricColl
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
 import org.yupana.khipu.TSDBKhipu
 import org.yupana.metrics.Slf4jMetricReporter
-import org.yupana.pekko.{ RequestHandler, TsdbTcp }
+import org.yupana.netty.{ NonEmptyUserAuthorizer, ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -34,8 +33,6 @@ import scala.concurrent.duration.Duration
 object Server extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
-
-    implicit val actorSystem: ActorSystem = ActorSystem("Yupana")
 
     val schema = ExampleSchema.schema
 
@@ -54,17 +51,15 @@ object Server extends StrictLogging {
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
       new FlatQueryEngine(metricsDao, changelogDao),
-      new JdbcMetadataProvider(schema),
+      new JdbcMetadataProvider(schema, 2, 0, "2.0"),
       new SqlQueryProcessor(schema)
     )
     logger.info("Registering catalogs")
 
-    val requestHandler = new RequestHandler(queryEngineRouter)
-
-    new TsdbTcp(requestHandler, config.host, config.port, 1, 0, "1.0")
+    val ctx = ServerContext(queryEngineRouter, NonEmptyUserAuthorizer)
+    val server = new YupanaServer(config.host, config.port, 4, ctx)
+    val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
-
-    Await.ready(actorSystem.whenTerminated, Duration.Inf)
-
+    Await.ready(f, Duration.Inf)
   }
 }

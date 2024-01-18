@@ -20,6 +20,7 @@ import org.yupana.settings.Settings
 
 import java.util.Properties
 import scala.jdk.CollectionConverters._
+import com.typesafe.config.{ Config => TypesafeConfig }
 
 case class Config(
     host: String = "localhost",
@@ -28,7 +29,7 @@ case class Config(
 )
 
 object Config {
-  def create(cfg: com.typesafe.config.Config): Config = {
+  def create(cfg: TypesafeConfig): Config = {
     val props = new Properties()
     cfg.entrySet().asScala.foreach(x => props.setProperty(x.getKey, x.getValue.unwrapped().toString))
 
