@@ -15,18 +15,19 @@
  */
 
 package org.yupana.netty
+import io.netty.buffer.{ ByteBuf, Unpooled }
 import org.yupana.api.query.Result
 import org.yupana.api.types.ReaderWriter
 import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.readerwriter.{ ID, TypedInt }
 
 class Stream(id: Int, result: Result) {
 
   private var rows = 0
   private val resultTypes = result.dataTypes.zipWithIndex
   val MAX_VALUE_SIZE = 2_000_000
-  private val buffer = MemoryBuffer.allocateHeap(MAX_VALUE_SIZE)
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  private val buffer = Unpooled.buffer(MAX_VALUE_SIZE)
+  implicit val readerWriter: ReaderWriter[ByteBuf, ID, TypedInt] = ByteBufEvalReaderWriter
 
   def close(): Unit = result.close()
 
@@ -52,7 +53,7 @@ class Stream(id: Int, result: Result) {
             if (v != null) {
               val size = rt.storable.write(buffer, v: ID[rt.T])
               val a = Array.ofDim[Byte](size)
-              buffer.get(a)
+              buffer.readBytes(a)
               a
             } else {
               Array.empty[Byte]
