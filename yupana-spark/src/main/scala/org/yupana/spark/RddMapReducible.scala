@@ -18,8 +18,8 @@ package org.yupana.spark
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.MapReducible
-import org.yupana.core.utils.CloseableIterator
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.immutable.ArraySeq

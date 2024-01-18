@@ -16,9 +16,10 @@
 
 package org.yupana.jdbc
 
+import org.yupana.api.query.SimpleResult
+
 import java.sql.{ ResultSet, Array => SqlArray }
 import java.util
-import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 
 class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T]) extends SqlArray {
@@ -65,6 +66,6 @@ class YupanaArray[T](name: String, values: Array[T], valueType: DataType.Aux[T])
 
   private def createResultSet(array: Array[T], startIndex: Int): ResultSet = {
     val it = array.zip(LazyList.from(startIndex)).map { case (v, i) => Array[Any](i, v) }.iterator
-    new YupanaResultSet(null, new SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
+    new YupanaResultSet(null, SimpleResult(name, Seq("INDEX", "VALUE"), Seq(DataType[Int], valueType), it))
   }
 }

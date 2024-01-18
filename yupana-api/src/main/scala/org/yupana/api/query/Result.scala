@@ -17,8 +17,9 @@
 package org.yupana.api.query
 
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CloseableIterator
 
-trait Result extends Iterator[DataRow] {
+trait Result extends Iterator[DataRow] with AutoCloseable {
 
   def name: String
 
@@ -27,8 +28,8 @@ trait Result extends Iterator[DataRow] {
   def dataIndexForFieldName(name: String): Int
   def dataIndexForFieldIndex(idx: Int): Int
 
-  override def hasNext: Boolean // = rows.hasNext
-  override def next(): DataRow // = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
+  override def hasNext: Boolean
+  override def next(): DataRow
 }
 
 object Result {

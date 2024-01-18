@@ -5,9 +5,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, Query, RemoveCondition }
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core._
 import org.yupana.core.jit.JIT
 import org.yupana.core.model.InternalRowBuilder
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
@@ -41,25 +43,27 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
-      .expects(expQuery1)
+      .expects(expQuery1, YupanaUser.ANONYMOUS)
       .returning(
         new TsdbServerResult(
           qc1,
           rowBuilder1,
-          Seq(
-            rowBuilder1
-              .set(dimension(Dimensions.KKM_ID), 123456)
-              .set(time, Time(120))
-              .buildAndReset(),
-            rowBuilder1
-              .set(dimension(Dimensions.KKM_ID), 123456)
-              .set(time, Time(150))
-              .buildAndReset(),
-            rowBuilder1
-              .set(dimension(Dimensions.KKM_ID), 345112)
-              .set(time, Time(120))
-              .buildAndReset()
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              rowBuilder1
+                .set(dimension(Dimensions.KKM_ID), 123456)
+                .set(time, Time(120))
+                .buildAndReset(),
+              rowBuilder1
+                .set(dimension(Dimensions.KKM_ID), 123456)
+                .set(time, Time(150))
+                .buildAndReset(),
+              rowBuilder1
+                .set(dimension(Dimensions.KKM_ID), 345112)
+                .set(time, Time(120))
+                .buildAndReset()
+            ).iterator
+          )
         )
       )
 
@@ -75,21 +79,23 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     val rowBuilder2 = new InternalRowBuilder(qc2)
 
     (tsdb.query _)
-      .expects(expQuery2)
+      .expects(expQuery2, YupanaUser.ANONYMOUS)
       .returning(
         new TsdbServerResult(
           qc2,
           rowBuilder2,
-          Seq(
-            rowBuilder2
-              .set(dimension(Dimensions.KKM_ID), 123456)
-              .set(time, Time(125))
-              .buildAndReset(),
-            rowBuilder2
-              .set(dimension(Dimensions.KKM_ID), 123456)
-              .set(time, Time(120))
-              .buildAndReset()
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              rowBuilder2
+                .set(dimension(Dimensions.KKM_ID), 123456)
+                .set(time, Time(125))
+                .buildAndReset(),
+              rowBuilder2
+                .set(dimension(Dimensions.KKM_ID), 123456)
+                .set(time, Time(120))
+                .buildAndReset()
+            ).iterator
+          )
         )
       )
 
@@ -144,21 +150,23 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
-      .expects(expQuery)
+      .expects(expQuery, YupanaUser.ANONYMOUS)
       .returning(
         new TsdbServerResult(
           qc,
           rowBuilder,
-          Seq(
-            rowBuilder
-              .set(dimension(Dimensions.KKM_ID), 123456)
-              .set(time, Time(220))
-              .buildAndReset(),
-            rowBuilder
-              .set(dimension(Dimensions.KKM_ID), 654321)
-              .set(time, Time(330))
-              .buildAndReset()
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              rowBuilder
+                .set(dimension(Dimensions.KKM_ID), 123456)
+                .set(time, Time(220))
+                .buildAndReset(),
+              rowBuilder
+                .set(dimension(Dimensions.KKM_ID), 654321)
+                .set(time, Time(330))
+                .buildAndReset()
+            ).iterator
+          )
         )
       )
 

@@ -1060,6 +1060,10 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     SqlParser.parse("SHOW TABLES") shouldBe Right(ShowTables)
   }
 
+  it should "parse SHOW VERSION statements" in {
+    SqlParser.parse("SHOW VERSION") shouldBe Right(ShowVersion)
+  }
+
   it should "parse SHOW COLUMNS statements" in {
     SqlParser.parse("SHOW COLUMNS FROM some_table") shouldBe Right(ShowColumns("some_table"))
   }
@@ -1313,7 +1317,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     errorMessage("SHOW cartoons") {
       case msg =>
         msg should include(
-          """Expect ("COLUMNS" | "TABLES" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
+          """Expect ("COLUMNS" | "TABLES" | "VERSION" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
         )
     }
   }

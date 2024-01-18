@@ -101,10 +101,10 @@ trait TsdbBase extends StrictLogging {
     * The pipeline is not responsible for limiting. This means that collection have to be lazy, to avoid extra
     * calculations if limit is defined.
     */
-  def query(query: Query): Result = {
+  def query(query: Query, user: YupanaUser = YupanaUser.ANONYMOUS): Result = {
 
     val preparedQuery = prepareQuery(query)
-    logger.info(s"TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
+    logger.info(s"User ${user.name} start TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
     val optimizedQuery = QueryOptimizer.optimize(constantCalculator)(preparedQuery)
 

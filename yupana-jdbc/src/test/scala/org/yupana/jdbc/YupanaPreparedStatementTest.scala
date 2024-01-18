@@ -9,7 +9,8 @@ import org.yupana.api.query.SimpleResult
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.types.DataType
-import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
+import org.yupana.jdbc.YupanaConnection.QueryResult
+import org.yupana.protocol.{ NumericValue, StringValue, TimestampValue }
 
 class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMockFactory {
 
@@ -33,9 +34,11 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
           3 -> StringValue("игрушка мягкая")
         )
       )
-      .returning(SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty))
+      .returning(QueryResult(42, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
     statement.execute()
+
+    (conn.cancelStream _).expects(42)
     statement.close()
   }
 
@@ -59,7 +62,7 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
           2 -> TimestampValue(1578584211000L)
         )
       )
-      .returning(SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty))
+      .returning(QueryResult(2, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
     statement.execute()
   }
@@ -104,7 +107,7 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
           )
         )
       )
-      .returning(SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty))
+      .returning(QueryResult(3, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
     statement.executeBatch()
   }
@@ -142,7 +145,7 @@ class YupanaPreparedStatementTest extends AnyFlatSpec with Matchers with MixedMo
           )
         )
       )
-      .returning(SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty))
+      .returning(QueryResult(4, SimpleResult("dummy", Seq.empty, Seq.empty, Iterator.empty)))
 
     statement.executeBatch()
   }

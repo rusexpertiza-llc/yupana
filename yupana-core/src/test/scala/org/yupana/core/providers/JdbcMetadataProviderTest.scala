@@ -24,7 +24,7 @@ import org.yupana.core.TestSchema
 
 class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues with EitherValues {
 
-  val metadataProvider = new JdbcMetadataProvider(TestSchema.schema)
+  val metadataProvider = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2")
 
   "JdbcMetadataProvider" should "return None when unknown table description has been requested" in {
     metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown table 'unknown_talbe'")
@@ -41,6 +41,14 @@ class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValu
       Seq(null, null, "test_table_2", "TABLE", null),
       Seq(null, null, "test_table_4", "TABLE", null)
     )
+  }
+
+  it should "specify version" in {
+    val res = metadataProvider.version
+    res.fieldNames should contain theSameElementsInOrderAs List("MAJOR", "MINOR", "VERSION")
+    val row = res.rows.next()
+    res.rows shouldBe empty
+    row should contain theSameElementsInOrderAs List(1, 2, "1.2")
   }
 
   it should "describe table by name" in {

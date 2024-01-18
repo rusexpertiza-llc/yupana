@@ -18,6 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.types.DataType
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -29,18 +30,20 @@ class QueryEngineRouter(
     sqlQueryProcessor: SqlQueryProcessor
 ) {
 
-  def query(sql: String, params: Map[Int, Value]): Either[String, Result] = {
+  def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
     SqlParser.parse(sql) flatMap {
       case select: Select =>
         val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
         tsdbQuery flatMap { query =>
-          Right(timeSeriesQueryEngine.query(query))
+          Right(timeSeriesQueryEngine.query(user, query))
         }
 
       case upsert: Upsert =>
-        doUpsert(upsert, Seq(params))
+        doUpsert(user, upsert, Seq(params))
 
       case ShowTables => Right(metadataProvider.listTables)
+
+      case ShowVersion => Right(metadataProvider.version)
 
       case ShowColumns(tableName) => metadataProvider.describeTable(tableName)
 
@@ -60,22 +63,23 @@ class QueryEngineRouter(
     }
   }
 
-  def batchQuery(sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
+  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
     SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
-        doUpsert(upsert, params)
+        doUpsert(user, upsert, params)
       case _ => Left(s"Only UPSERT can have batch parameters, but got ${sql}")
     }
   }
 
   private def doUpsert(
+      user: YupanaUser,
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
   ): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
-      timeSeriesQueryEngine.put(dps)
+      timeSeriesQueryEngine.put(user, dps)
       Right(
-        SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
+        SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array[Any]("OK")))
       )
     }
   }
