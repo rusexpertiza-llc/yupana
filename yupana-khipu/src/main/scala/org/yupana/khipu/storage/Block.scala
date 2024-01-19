@@ -18,8 +18,6 @@ package org.yupana.khipu.storage
 
 import org.yupana.khipu.storage.Block._
 
-import java.lang.foreign.MemorySegment
-
 trait Block {
 
   val kind: Byte = checkFormatAndGetBlockKind(id, table)

@@ -22,10 +22,7 @@ import org.yupana.khipu.KhipuMetricCollector.Metrics
 import org.yupana.khipu.storage.KTable._
 
 import java.io.RandomAccessFile
-import java.lang.foreign.{ Arena, MemorySegment }
-import java.nio.channels.FileChannel
-import java.nio.channels.FileChannel.MapMode
-import java.nio.file.{ Path, StandardOpenOption }
+import java.nio.file.Path
 import scala.collection.immutable.Queue
 
 trait KTable {
@@ -163,12 +160,12 @@ trait KTable {
 class HeapKTable(val table: Table) extends KTable {
 
   override def allocatePayloadSegment(idx: Int): MemorySegment = {
-    StorageFormat.allocateNative(SEGMENT_SIZE)
+    StorageFormat.allocateHeap(SEGMENT_SIZE)
 
   }
 
   override lazy val headerSegment: MemorySegment = {
-    StorageFormat.allocateNative(HEADER_SIZE)
+    StorageFormat.allocateHeap(HEADER_SIZE)
   }
 }
 
@@ -177,14 +174,12 @@ class MMapFileKTable(path: Path, val table: Table) extends KTable {
   override def allocatePayloadSegment(idx: Int): MemorySegment = {
     checkOrCreateFile
     val offset = HEADER_SEGMENT_SIZE + idx.toLong * SEGMENT_SIZE
-    val ch = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    ch.map(MapMode.READ_WRITE, offset, SEGMENT_SIZE, Arena.global())
+    MemorySegment.mapFile(path, offset, SEGMENT_SIZE)
   }
 
   override lazy val headerSegment: MemorySegment = {
     checkOrCreateFile
-    val ch = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    ch.map(MapMode.READ_WRITE, 0, HEADER_SEGMENT_SIZE, Arena.global())
+    MemorySegment.mapFile(path, 0, HEADER_SEGMENT_SIZE)
   }
 
   private def checkOrCreateFile = {

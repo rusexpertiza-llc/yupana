@@ -18,7 +18,6 @@ package org.yupana.khipu.storage
 
 import org.yupana.api.utils.SortedSetIterator
 
-import java.lang.foreign.MemorySegment
 import scala.annotation.tailrec
 import scala.collection.mutable
 

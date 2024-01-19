@@ -16,12 +16,10 @@
 
 package org.yupana.readerwriter
 
-import jdk.internal.foreign.AbstractMemorySegmentImpl
 import jdk.internal.misc.Unsafe
-import org.yupana.readerwriter.MemoryBuffer.convertEndian
+import Memory._
 
 import java.io.{ ObjectInputStream, ObjectOutputStream }
-import java.lang.foreign.{ Arena, MemorySegment }
 import scala.util.hashing.MurmurHash3
 
 final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long, private var initSize: Long)
@@ -271,37 +269,12 @@ object MemoryBuffer {
   }
 
   def allocateNative(size: Int): MemoryBuffer = {
-    val seg = Arena
-      .ofConfined()
-      .allocate(size, 8)
-      .asInstanceOf[AbstractMemorySegmentImpl]
-    val base = seg.unsafeGetBase()
-    val baseOffset = seg.unsafeGetOffset()
-    new MemoryBuffer(base, baseOffset, size)
+    val baseOffset = UNSAFE.allocateMemory(size)
+    new MemoryBuffer(null, baseOffset, size)
   }
 
   def ofBytes(bytes: Array[Byte]): MemoryBuffer = {
     val baseOffset = Unsafe.ARRAY_BYTE_BASE_OFFSET
     new MemoryBuffer(bytes, baseOffset, bytes.length)
-  }
-
-  def ofMemorySegment(segment: MemorySegment): MemoryBuffer = {
-    val seg = segment.asInstanceOf[AbstractMemorySegmentImpl]
-    val base = seg.unsafeGetBase()
-    val baseOffset = seg.unsafeGetOffset()
-    val size = seg.byteSize()
-    new MemoryBuffer(base, baseOffset, size)
-  }
-
-  private def convertEndian(v: Int): Int = {
-    java.lang.Integer.reverseBytes(v)
-  }
-
-  private def convertEndian(v: Long): Long = {
-    java.lang.Long.reverseBytes(v)
-  }
-
-  private def convertEndian(v: Short): Short = {
-    java.lang.Short.reverseBytes(v)
   }
 }
