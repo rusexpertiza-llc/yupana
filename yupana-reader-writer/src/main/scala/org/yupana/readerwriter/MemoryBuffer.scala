@@ -238,7 +238,7 @@ final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long,
 
   def bytes(): Array[Byte] = {
     val bs = Array.ofDim[Byte](size.toInt)
-    get(bs)
+    get(0, bs)
     bs
   }
 
