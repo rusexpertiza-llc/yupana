@@ -34,7 +34,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 
-class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: String, password: String)(
+class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Option[String], password: Option[String])(
     implicit ec: ExecutionContext
 ) extends AutoCloseable {
 

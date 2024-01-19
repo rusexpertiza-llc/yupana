@@ -32,8 +32,8 @@ class YupanaConnectionImpl(override val url: String, properties: Properties) ext
     properties.getProperty("yupana.host"),
     properties.getProperty("yupana.port").toInt,
     Option(properties.getProperty("yupana.batchSize")).map(_.toInt).getOrElse(100),
-    properties.getProperty("user"),
-    properties.getProperty("password")
+    Option(properties.getProperty("user")),
+    Option(properties.getProperty("password"))
   )
 
   tcpClient.connect(System.currentTimeMillis())
