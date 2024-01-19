@@ -50,9 +50,9 @@ class Stream(id: Int, result: Result) {
           case (rt, idx) =>
             val v = row.get[rt.T](idx)
             if (v != null) {
-              val size = rt.storable.write(buffer, v: ID[rt.T])
+              val size = rt.storable.write(buffer, 0, v: ID[rt.T])
               val a = Array.ofDim[Byte](size)
-              buffer.get(a)
+              buffer.get(0, a)
               a
             } else {
               Array.empty[Byte]

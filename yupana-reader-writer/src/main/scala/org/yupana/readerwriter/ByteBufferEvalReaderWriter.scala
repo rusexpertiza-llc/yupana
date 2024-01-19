@@ -148,7 +148,7 @@ object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt]
   }
 
   override def writeTime(b: ByteBuffer, offset: Int, v: Time): Int = {
-    b.putLong(v.millis)
+    b.putLong(offset, v.millis)
     8
   }
 
@@ -202,14 +202,14 @@ object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt]
   override def writeString(b: ByteBuffer, v: String): Int = {
     val a = v.getBytes(StandardCharsets.UTF_8)
     b.putInt(a.length).put(a)
-    a.length
+    a.length + 4
   }
 
   override def writeString(b: ByteBuffer, offset: Int, v: String): Int = {
     val a = v.getBytes(StandardCharsets.UTF_8)
     b.putInt(offset, a.length)
     b.put(offset + 4, a)
-    a.length
+    a.length + 4
   }
 
   override def readVLong(bb: ByteBuffer, offset: Int): Long = {
@@ -378,12 +378,10 @@ object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt]
 
   override def writeVInt(b: ByteBuffer, v: Int): Int = {
     writeVLong(b, v)
-    v
   }
 
   override def writeVInt(b: ByteBuffer, offset: Int, v: Int): Int = {
     writeVLong(b, offset, v)
-    v
   }
 
   override def readVShort(b: ByteBuffer): Short = {
