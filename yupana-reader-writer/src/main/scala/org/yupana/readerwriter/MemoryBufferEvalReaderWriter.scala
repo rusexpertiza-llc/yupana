@@ -17,7 +17,7 @@
 package org.yupana.readerwriter
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.ReaderWriter
+import org.yupana.api.types.ByteReaderWriter
 import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
-object MemoryBufferEvalReaderWriter extends ReaderWriter[MemoryBuffer, ID, TypedInt] with Serializable {
+object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with Serializable {
 
   override def readBoolean(b: MemoryBuffer): Boolean = {
     b.get() != 0

@@ -17,13 +17,13 @@
 package org.yupana.jdbc
 
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.{ DataType, ReaderWriter }
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
@@ -54,7 +54,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   private var closed: Boolean = true
 
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  implicit val readerWriter: ByteReaderWriter[MemoryBuffer] = MemoryBufferEvalReaderWriter
 
   private def ensureNotClosed(): Unit = {
     if (closed) throw new YupanaException("Connection is closed")

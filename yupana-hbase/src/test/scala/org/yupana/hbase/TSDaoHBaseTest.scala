@@ -1,30 +1,30 @@
 package org.yupana.hbase
 
-import java.util.Properties
 import org.apache.hadoop.hbase.client.{ Scan, Result => HResult }
 import org.apache.hadoop.hbase.filter.MultiRowRangeFilter
 import org.apache.hadoop.hbase.util.Bytes
 import org.scalamock.function.{ FunctionAdapter1, MockFunction1 }
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.Time
-import org.yupana.api.query.{ DataPoint, DimIdInExpr, DimIdNotInExpr, DimensionIdExpr, Expression, Query }
-import org.yupana.api.schema.{ Dimension, Schema, Table }
-import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
-import org.yupana.core.model._
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.core._
-
-import scala.jdk.CollectionConverters._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.api.types.ReaderWriter
+import org.yupana.api.Time
+import org.yupana.api.query._
+import org.yupana.api.schema.{ Dimension, Schema, Table }
+import org.yupana.api.types.ByteReaderWriter
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
+import org.yupana.core._
+import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.jit.JIT
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.core.model._
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
+
+import java.util.Properties
+import scala.jdk.CollectionConverters._
 
 class TSDaoHBaseTest
     extends AnyFlatSpec
@@ -80,7 +80,7 @@ class TSDaoHBaseTest
       ranges: Set[Seq[Any]]
   ): FunctionAdapter1[Seq[Scan], Boolean] = {
 
-    implicit val rw: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+    implicit val rw: ByteReaderWriter[MemoryBuffer] = MemoryBufferEvalReaderWriter
 
     where { (scans: Seq[Scan]) =>
       val scan = scans.head

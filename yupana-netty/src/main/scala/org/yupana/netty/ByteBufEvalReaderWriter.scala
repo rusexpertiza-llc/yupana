@@ -18,16 +18,15 @@ package org.yupana.netty
 
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.ReaderWriter
+import org.yupana.api.types.ByteReaderWriter
 import org.yupana.api.{ Blob, Time }
-import org.yupana.readerwriter.{ ID, TypedInt }
 
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
-object ByteBufEvalReaderWriter extends ReaderWriter[ByteBuf, ID, TypedInt] with Serializable {
+object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializable {
 
   override def readBoolean(b: ByteBuf): Boolean = {
     b.readBoolean()

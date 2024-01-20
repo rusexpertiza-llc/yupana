@@ -23,10 +23,10 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
-import org.yupana.api.types.{ DataType, ReaderWriter }
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.collection.AbstractIterator
 
@@ -37,7 +37,7 @@ class TSDHBaseRowIterator(
 ) extends AbstractIterator[InternalRow]
     with StrictLogging {
 
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  implicit val readerWriter: ByteReaderWriter[MemoryBuffer] = MemoryBufferEvalReaderWriter
 
   private val dimensions = context.table.dimensionSeq.toArray
 

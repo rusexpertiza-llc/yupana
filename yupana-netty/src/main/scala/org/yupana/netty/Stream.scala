@@ -17,9 +17,8 @@
 package org.yupana.netty
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import org.yupana.api.query.Result
-import org.yupana.api.types.ReaderWriter
+import org.yupana.api.types.{ ID, ReaderWriter, TypedInt }
 import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
-import org.yupana.readerwriter.{ ID, TypedInt }
 
 class Stream(id: Int, result: Result) {
 

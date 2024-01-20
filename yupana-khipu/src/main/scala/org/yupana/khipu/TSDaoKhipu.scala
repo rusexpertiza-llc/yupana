@@ -18,41 +18,10 @@ package org.yupana.khipu
 
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{
-  AndExpr,
-  ConstantExpr,
-  DataPoint,
-  DimIdInExpr,
-  DimIdNotInExpr,
-  DimensionExpr,
-  DimensionIdExpr,
-  EqExpr,
-  InExpr,
-  LowerExpr,
-  NeqExpr,
-  NotInExpr,
-  OrExpr,
-  TimeExpr,
-  TupleExpr
-}
+import org.yupana.api.query._
 import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, Metric, RawDimension, Schema, Table }
-import org.yupana.api.types.ReaderWriter
-import org.yupana.api.utils.ConditionMatchers.{
-  EqString,
-  EqTime,
-  EqUntyped,
-  GeTime,
-  GtTime,
-  InString,
-  InTime,
-  InUntyped,
-  LeTime,
-  LtTime,
-  NeqString,
-  NeqTime,
-  NotInString,
-  NotInTime
-}
+import org.yupana.api.types.{ ID, ReaderWriter, TypedInt }
+import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
 import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext }
@@ -60,7 +29,7 @@ import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, U
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, MemoryBuffer, MemoryBufferEvalReaderWriter }
 import org.yupana.settings.Settings
 
 import java.io.File

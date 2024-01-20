@@ -19,14 +19,14 @@ package org.yupana.externallinks.items
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
-import org.yupana.api.types.ReaderWriter
+import org.yupana.api.types.{ ID, ReaderWriter, TypedInt }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 

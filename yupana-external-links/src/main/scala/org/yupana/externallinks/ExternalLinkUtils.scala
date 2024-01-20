@@ -20,11 +20,10 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
-import org.yupana.api.types.InternalStorable
+import org.yupana.api.types.{ ID, InternalStorable }
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition, Table }
-import org.yupana.readerwriter.ID
 
 import scala.collection.mutable
 
