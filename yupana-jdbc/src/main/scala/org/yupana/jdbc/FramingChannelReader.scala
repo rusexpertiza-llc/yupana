@@ -38,21 +38,21 @@ class FramingChannelReader(
     buf
   }
 
-  private def extractFrame(tag: Byte, size: Int): Frame = {
-    val result = Array.ofDim[Byte](size)
+  private def extractFrame(tag: Byte, size: Int): Frame[ByteBuffer] = {
+    val payload = ByteBuffer.allocate(size)
     val totalRead = buffer.position()
 
     buffer.position(PAYLOAD_OFFSET)
-    buffer.get(result)
+    buffer.put(payload)
 
     val restSize = totalRead - PAYLOAD_OFFSET - size
     System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
     buffer.position(restSize)
-    Frame(tag, result)
+    Frame(tag, payload)
   }
 
-  private val completionHandler = new CompletionHandler[Integer, Promise[Frame]] {
-    override def completed(r: Integer, promise: Promise[Frame]): Unit = {
+  private val completionHandler = new CompletionHandler[Integer, Promise[Frame[ByteBuffer]]] {
+    override def completed(r: Integer, promise: Promise[Frame[ByteBuffer]]): Unit = {
       if (r == -1) {
         promise.failure(new IOException("Unexpected end of response"))
       } else {
@@ -74,24 +74,24 @@ class FramingChannelReader(
       }
     }
 
-    override def failed(exc: Throwable, promise: Promise[Frame]): Unit = promise.failure(exc)
+    override def failed(exc: Throwable, promise: Promise[Frame[ByteBuffer]]): Unit = promise.failure(exc)
   }
 
-  final def readFrame(): Future[Frame] = {
+  final def readFrame(): Future[Frame[ByteBuffer]] = {
     if (buffer.position() >= PAYLOAD_OFFSET) {
       val tag = buffer.get(0)
       val size = buffer.getInt(1)
       if (buffer.position() < size + PAYLOAD_OFFSET) {
-        JdbcUtils.wrapHandler[Frame](completionHandler, (p, h) => channel.read(buffer, p, h))
+        JdbcUtils.wrapHandler[Frame[ByteBuffer]](completionHandler, (p, h) => channel.read(buffer, p, h))
       } else {
         Future.successful(extractFrame(tag, size))
       }
     } else {
-      JdbcUtils.wrapHandler[Frame](completionHandler, (p, h) => channel.read(buffer, p, h))
+      JdbcUtils.wrapHandler[Frame[ByteBuffer]](completionHandler, (p, h) => channel.read(buffer, p, h))
     }
   }
 
-  final def awaitAndReadFrame(): Frame = {
+  final def awaitAndReadFrame(): Frame[ByteBuffer] = {
     Await.result(readFrame(), Duration.Inf)
   }
 }

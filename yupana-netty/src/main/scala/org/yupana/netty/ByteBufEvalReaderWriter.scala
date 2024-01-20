@@ -18,7 +18,7 @@ package org.yupana.netty
 
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.ByteReaderWriter
+import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
 import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
@@ -43,6 +43,24 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
   override def writeBoolean(b: ByteBuf, offset: Int, v: Boolean): Int = {
     b.setBoolean(offset, v)
     1
+  }
+
+  override def readBytes(b: ByteBuf, d: ID[Array[Byte]]): ID[Unit] = {
+    b.readBytes(d)
+  }
+
+  override def readBytes(b: ByteBuf, offset: Int, d: ID[Array[Byte]]): ID[Unit] = {
+    b.getBytes(offset, d)
+  }
+
+  override def writeBytes(b: ByteBuf, v: ID[Array[Byte]]): TypedInt[Int] = {
+    b.writeBytes(v)
+    v.length
+  }
+
+  override def writeBytes(b: ByteBuf, offset: Int, v: ID[Array[Byte]]): TypedInt[Int] = {
+    b.setBytes(offset, v)
+    v.length
   }
 
   override def readInt(b: ByteBuf): Int = {

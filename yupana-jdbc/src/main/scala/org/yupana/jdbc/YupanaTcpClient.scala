@@ -23,7 +23,7 @@ import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
@@ -54,7 +54,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   private var closed: Boolean = true
 
-  implicit val readerWriter: ByteReaderWriter[MemoryBuffer] = MemoryBufferEvalReaderWriter
+  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   private def ensureNotClosed(): Unit = {
     if (closed) throw new YupanaException("Connection is closed")
@@ -296,10 +296,11 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   private def write(request: Command[_]): Future[Unit] = {
     logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
-    val f = request.toFrame
-    val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
+    val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
     bb.put(f.frameType)
-    bb.putInt(f.payload.length)
+    bb.putInt(f.payload.position())
+    f.payload.flip()
     bb.put(f.payload)
     bb.flip()
 
@@ -344,7 +345,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
             if (bytes.isEmpty) {
               null
             } else {
-              val b = MemoryBuffer.ofBytes(bytes)
+              val b = ByteBuffer.wrap(bytes)
               rt.storable.read(b)
             }
         }

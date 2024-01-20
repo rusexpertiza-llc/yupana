@@ -17,7 +17,7 @@
 package org.yupana.readerwriter
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.ByteReaderWriter
+import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
 import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
@@ -45,6 +45,24 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     val x = if (v) 1 else 0
     b.put(offset, x.toByte)
     1
+  }
+
+  def readBytes(b: ByteBuffer, d: Array[Byte]): Unit = {
+    b.get(d)
+  }
+
+  override def readBytes(b: ByteBuffer, offset: Int, d: ID[Array[Byte]]): ID[Unit] = {
+    b.get(offset, d)
+  }
+
+  override def writeBytes(b: ByteBuffer, v: ID[Array[Byte]]): TypedInt[Int] = {
+    b.put(v)
+    v.length
+  }
+
+  override def writeBytes(b: ByteBuffer, offset: Int, v: ID[Array[Byte]]): TypedInt[Int] = {
+    b.put(offset, v)
+    v.length
   }
 
   override def readInt(b: ByteBuffer): Int = {

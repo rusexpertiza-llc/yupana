@@ -29,6 +29,12 @@ trait ReaderWriter[B, V[_], WR[_]] {
   def writeBoolean(b: B, v: V[Boolean]): WR[Boolean]
   def writeBoolean(b: B, offset: Int, v: V[Boolean]): WR[Boolean]
 
+  def readBytes(b: B, d: V[Array[Byte]]): V[Unit]
+  def readBytes(b: B, offset: Int, d: V[Array[Byte]]): V[Unit]
+
+  def writeBytes(b: B, v: V[Array[Byte]]): WR[Int]
+  def writeBytes(b: B, offset: Int, v: V[Array[Byte]]): WR[Int]
+
   def readInt(b: B): V[Int]
   def readInt(b: B, offset: Int): V[Int]
   def writeInt(b: B, v: V[Int]): WR[Int]
