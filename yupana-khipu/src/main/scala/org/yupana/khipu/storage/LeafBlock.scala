@@ -19,7 +19,6 @@ package org.yupana.khipu.storage
 import org.yupana.api.schema.Table
 import org.yupana.khipu.KhipuMetricCollector.Metrics
 
-import java.lang.foreign.MemorySegment
 import scala.collection.AbstractIterator
 import scala.collection.compat.immutable.ArraySeq
 

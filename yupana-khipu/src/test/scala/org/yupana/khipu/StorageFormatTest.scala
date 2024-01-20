@@ -8,14 +8,12 @@ import org.yupana.api.query.Query
 import org.yupana.api.schema.{ Metric, RawDimension, Table }
 import org.yupana.core.QueryContext
 import org.yupana.core.model.InternalRowBuilder
-import org.yupana.khipu.storage.StorageFormat
+import org.yupana.khipu.storage.{ MemorySegment, StorageFormat }
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.jit.JIT
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, MemoryBuffer }
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
-import java.lang.foreign.{ Arena, MemorySegment, ValueLayout }
-import java.nio.{ ByteBuffer, ByteOrder }
 import java.nio.charset.StandardCharsets
 import java.time.{ LocalDateTime, ZoneOffset }
 
@@ -47,7 +45,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
     val M = 10000000
     val N = 10
 
-    val seg = Arena.ofConfined().allocate(M * 24, 8)
+    val seg = MemorySegment.allocateNative(M * 24)
     var s = 0L
     var i = 0
     while (i < K) {
@@ -57,7 +55,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
           var m = 0
           while (m < M) {
             val ms = seg.asSlice(m * 24, 24)
-            val memBuf = MemoryBuffer.ofMemorySegment(ms)
+            val memBuf = ms.asMemoryBuffer()
 
 //            val buf = ms.asByteBuffer()
 //            val c = CAT.rStorable.read(buf)
@@ -86,7 +84,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
   }
 
   it should "test read row values to InternalRow" in {
-    implicit val rw = ByteBufferEvalReaderWriter
+    implicit val rw = MemoryBufferEvalReaderWriter
 
     val CAT = RawDimension[Long]("cat")
     val BRAND = RawDimension[Int]("brand")
@@ -133,22 +131,21 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
     val M = 10000000
     val N = 10
 
-    val seg = Arena.ofConfined().allocate(M * 64, 8)
+    val seg = MemorySegment.allocateNative(M * 64)
     (0 until M).foldLeft(0) {
       case (offset, i) =>
         StorageFormat.setLongUnaligned(i.toLong, seg, offset + 4)
         StorageFormat.setIntUnaligned(i, seg, offset + 4 + 8)
 
         StorageFormat.setByte(1.toByte, seg, offset + 4 + 8 + 4 + 4 + 1 + 1)
-        seg.set(
-          ValueLayout.JAVA_DOUBLE_UNALIGNED.withOrder(ByteOrder.BIG_ENDIAN),
+        seg.setDouble(
           offset + 4 + 8 + 4 + 4 + 1 + 1 + 1,
           i.toDouble
         )
 
         StorageFormat.setByte(2.toByte, seg, offset + 4 + 8 + 4 + 4 + 1 + 1 + 1 + 8)
         val b2 = Array.ofDim[Byte](9)
-        val bb = ByteBuffer.wrap(b2)
+        val bb = MemoryBuffer.ofBytes(b2)
         rw.writeVLong(bb, i + 10)
         StorageFormat.setBytes(b2, 0, seg, offset + 4 + 8 + 4 + 4 + 1 + 1 + 1 + 8 + 1, bb.position())
         val size = 4 + 8 + 4 + 4 + 1 + 1 + 1 + 8 + 1 + bb.position()
@@ -167,9 +164,9 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
           var offset = 0
           while (m < M) {
             val ms = seg.asSlice(offset, 22)
-            val buf = ms.asByteBuffer()
+            val buf = ms.asMemoryBuffer()
 
-            val size = buf.getInt
+            val size = buf.getInt()
 
             val c = CAT.rStorable.read(buf)
             val b = BRAND.rStorable.read(buf)
@@ -192,7 +189,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
             rowBuilder.set((Table.DIM_TAG_OFFSET + 4).toByte, p)
 
             val msv = seg.asSlice(offset + 22, size - 22)
-            val bb = msv.asByteBuffer()
+            val bb = msv.asMemoryBuffer()
 
 //            while (bb.hasRemaining) {
 //              val tag = bb.get()
@@ -205,7 +202,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
 //              }
 //            }
 
-            while (bb.hasRemaining) {
+            while (bb.hasRemaining()) {
               val tag = bb.get()
 
               testTable.fieldForTag(tag) match {
@@ -287,10 +284,10 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
     val M = 10000000
     val N = 10
 
-    val seg = Arena.ofConfined().allocate(M * 64, 8)
+    val seg = MemorySegment.allocateNative(M * 64)
 
     {
-      implicit val rw = ByteBufferEvalReaderWriter
+      implicit val rw = MemoryBufferEvalReaderWriter
 
       (0 until M).foldLeft(0) {
         case (offset, i) =>
@@ -304,15 +301,11 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
 
           val keySize = 4 + 8 + 8 + 4 + 4 + 1 + 1 + 8
           StorageFormat.setByte(1.toByte, seg, offset + keySize)
-          seg.set(
-            ValueLayout.JAVA_DOUBLE_UNALIGNED.withOrder(ByteOrder.BIG_ENDIAN),
-            offset + keySize + 1,
-            i.toDouble
-          )
+          seg.setDouble(offset + keySize + 1, i.toDouble)
 
           StorageFormat.setByte(2.toByte, seg, offset + keySize + 1 + 8)
           val b2 = Array.ofDim[Byte](9)
-          val bb = ByteBuffer.wrap(b2)
+          val bb = MemoryBuffer.ofBytes(b2)
           rw.writeVLong(bb, 1) // i + 10)
           StorageFormat.setBytes(b2, 0, seg, offset + keySize + 1 + 8 + 1, bb.position())
           val size = keySize + 1 + 8 + 1 + bb.position()
@@ -332,7 +325,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
           var offset = 0
           while (m < M) {
             val size = StorageFormat.getInt(seg, offset)
-            val buf = MemoryBuffer.ofMemorySegment(seg.asSlice(offset + 4, size - 4))
+            val buf = seg.asSlice(offset + 4, size - 4).asMemoryBuffer()
 
 //            val row = calc.evaluateReadRow2(buf, rowBuilder)
 //            val t = row.get[Int](1, rowBuilder)
@@ -377,7 +370,7 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
     }
     println(s)
 
-    val seg = Arena.ofConfined().allocate((M + N) * 8, 8)
+    val seg = MemorySegment.allocateNative((M + N) * 8)
 
     (0 until M + N).foreach { i => StorageFormat.setLong(i.toLong, seg, i * 8) }
 
@@ -428,10 +421,10 @@ class StorageFormatTest extends AnyFlatSpec with Matchers {
         var m = 0
         while (m < M) {
           val ms = seg.asSlice(m * 8, N * 8)
-          val buf = ms.asByteBuffer()
+          val buf = ms.asMemoryBuffer()
           var j = 0
           while (j < N) {
-            s += buf.getLong
+            s += buf.getLong()
             j += 1
           }
           m += 1
@@ -467,20 +460,9 @@ final class MyBuffer(private val segment: MemorySegment) {
 }
 
 object SFTest {
-  final val layout = ValueLayout.JAVA_LONG.withOrder(ByteOrder.BIG_ENDIAN)
-
-  def testBuf(s: Long, buf: ByteBuffer): Long = {
-    val c = buf.getLong(0)
-//    val b = buf.getInt()
-//    val d = buf.getInt()
-//    val o = buf.get()
-//    val p = buf.get()
-//    c + b + d + o + p
-    c
-  }
 
   def testBuf(s: Long, ms: MemorySegment): Long = {
-    val c = ms.get(ValueLayout.JAVA_LONG, 0)
+    val c = ms.getLong(0)
     //    val b = buf.getInt()
     //    val d = buf.getInt()
     //    val o = buf.get()

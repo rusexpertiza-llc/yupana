@@ -58,11 +58,13 @@ class DataRowRDD(override val rows: RDD[InternalRow], override val queryContext:
     val values = fields.indices.map { i =>
       val index = dataIndexForFieldIndex(i)
       val field = fields(i)
-      internalRow.get(internalRowBuilder, index)(field.expr.dataType.internalStorable) match {
-        case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
-        case Blob(bytes) => bytes
-        case x           => x
-      }
+      if (internalRow.isDefined(internalRowBuilder, index)) {
+        internalRow.get(internalRowBuilder, index)(field.expr.dataType.internalStorable) match {
+          case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
+          case Blob(bytes) => bytes
+          case x           => x
+        }
+      } else null
     }
     Row(values: _*)
   }

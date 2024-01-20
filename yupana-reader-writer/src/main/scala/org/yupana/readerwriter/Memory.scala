@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.khipu.storage
+package org.yupana.readerwriter
 
-case class Row(key: MemorySegment, value: MemorySegment) {
-  def keyBytes: Array[Byte] = {
-    StorageFormat.getBytes(key, 0, key.byteSize().toInt)
+object Memory {
+  def convertEndian(v: Int): Int = {
+    java.lang.Integer.reverseBytes(v)
   }
 
-  def valueBytes: Array[Byte] = {
-    StorageFormat.getBytes(value, 0, value.byteSize().toInt)
+  def convertEndian(v: Long): Long = {
+    java.lang.Long.reverseBytes(v)
   }
-}
 
-object Row {
-  def apply(key: Array[Byte], value: Array[Byte]): Row = {
-
-    val keySegment = StorageFormat.fromBytes(key)
-    val valueSegment = StorageFormat.fromBytes(value)
-
-    Row(keySegment, valueSegment)
+  def convertEndian(v: Short): Short = {
+    java.lang.Short.reverseBytes(v)
   }
 }

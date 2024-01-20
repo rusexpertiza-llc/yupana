@@ -203,14 +203,14 @@ object MemoryBufferEvalReaderWriter extends ReaderWriter[MemoryBuffer, ID, Typed
     val a = v.getBytes(StandardCharsets.UTF_8)
     b.putInt(a.length)
     b.put(a)
-    a.length
+    a.length + 4
   }
 
   override def writeString(b: MemoryBuffer, offset: Int, v: String): Int = {
     val a = v.getBytes(StandardCharsets.UTF_8)
     b.putInt(offset, a.length)
     b.put(offset + 4, a)
-    a.length
+    a.length + 4
   }
 
   override def readVLong(bb: MemoryBuffer, offset: Int): Long = {
@@ -379,12 +379,10 @@ object MemoryBufferEvalReaderWriter extends ReaderWriter[MemoryBuffer, ID, Typed
 
   override def writeVInt(b: MemoryBuffer, v: Int): Int = {
     writeVLong(b, v)
-    v
   }
 
   override def writeVInt(b: MemoryBuffer, offset: Int, v: Int): Int = {
     writeVLong(b, offset, v)
-    v
   }
 
   override def readVShort(b: MemoryBuffer): Short = {

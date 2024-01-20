@@ -20,87 +20,76 @@ import jdk.internal.vm.annotation.ForceInline
 import org.yupana.api.schema.Table
 import org.yupana.api.utils.DimOrdering
 
-import java.lang.foreign.{ Arena, MemorySegment, ValueLayout }
-import java.nio.ByteOrder
 import java.util.Comparator
 
 object StorageFormat {
 
-  final val INT_LAYOUT = ValueLayout.JAVA_INT.withOrder(ByteOrder.BIG_ENDIAN)
-  final val INT_LAYOUT_UNALIGNED = ValueLayout.JAVA_INT_UNALIGNED.withOrder(ByteOrder.BIG_ENDIAN)
-  final val LONG_LAYOUT = ValueLayout.JAVA_LONG.withOrder(ByteOrder.BIG_ENDIAN)
-  final val LONG_LAYOUT_UNALIGNED = ValueLayout.JAVA_LONG_UNALIGNED.withOrder(ByteOrder.BIG_ENDIAN)
-  final val SHORT_LAYOUT = ValueLayout.JAVA_SHORT.withOrder(ByteOrder.BIG_ENDIAN)
-  final val BYTE_LAYOUT = ValueLayout.JAVA_BYTE.withOrder(ByteOrder.BIG_ENDIAN)
-
   implicit val byteArrayDimOrdering: DimOrdering[Array[Byte]] =
     DimOrdering.fromCmp(StorageFormat.BYTES_COMPARATOR.compare)
 
-//  import java.nio.ByteOrder
-
   @ForceInline
   final def getInt(segment: MemorySegment, offset: Long): Int = {
-    segment.get(INT_LAYOUT, offset)
+    segment.getInt(offset)
   }
 
   @ForceInline
   final def getIntUnaligned(segment: MemorySegment, offset: Long): Int = {
-    segment.get(INT_LAYOUT_UNALIGNED, offset)
+    segment.getIntUnaligned(offset)
   }
 
   @ForceInline
   final def setInt(v: Int, segment: MemorySegment, offset: Long): Unit = {
-    segment.set(INT_LAYOUT, offset, v)
+    segment.setInt(offset, v)
   }
 
   @ForceInline
   final def setIntUnaligned(v: Int, segment: MemorySegment, offset: Long): Unit = {
-    segment.set(INT_LAYOUT_UNALIGNED, offset, v)
+    segment.setIntUnaligned(offset, v)
   }
 
   @ForceInline
   final def getLong(segment: MemorySegment, offset: Long): Long = {
-    segment.get(LONG_LAYOUT, offset)
+    segment.getLong(offset)
   }
 
   @ForceInline
   final def getLongUnaligned(segment: MemorySegment, offset: Long): Long = {
-    segment.get(LONG_LAYOUT_UNALIGNED, offset)
+    segment.getLongUnaligned(offset)
   }
 
   @ForceInline
   final def setLong(v: Long, segment: MemorySegment, offset: Long): Unit = {
-    segment.set(LONG_LAYOUT, offset, v)
+    segment.setLong(offset, v)
   }
 
   @ForceInline
   final def setLongUnaligned(v: Long, segment: MemorySegment, offset: Long): Unit = {
-    segment.set(LONG_LAYOUT_UNALIGNED, offset, v)
+    segment.setLongUnaligned(offset, v)
   }
 
   @ForceInline
   final def getByte(segment: MemorySegment, offset: Long): Byte = {
-    segment.get(BYTE_LAYOUT, offset)
+    segment.getByte(offset)
   }
 
   @ForceInline
   final def setByte(v: Byte, segment: MemorySegment, offset: Long): Unit = {
-    segment.set(BYTE_LAYOUT, offset, v)
+    segment.setByte(offset, v)
   }
 
   @ForceInline
   final def getShort(segment: MemorySegment, offset: Long): Short = {
-    segment.get(SHORT_LAYOUT, offset)
+    segment.getShort(offset)
   }
 
   @ForceInline
   final def setShort(v: Short, segment: MemorySegment, offset: Long): Unit = {
-    segment.set(SHORT_LAYOUT, offset, v)
+    segment.setShort(offset, v)
   }
 
   @ForceInline
   final def getBytes(src: MemorySegment, srcOffset: Long, dst: Array[Byte], size: Int): Unit = {
-    MemorySegment.copy(src, BYTE_LAYOUT, srcOffset, dst, 0, size)
+    MemorySegment.copy(src, srcOffset, dst, 0, size)
   }
 
   @ForceInline
@@ -112,7 +101,7 @@ object StorageFormat {
 
   @ForceInline
   final def setBytes(src: Array[Byte], srcOffset: Int, dst: MemorySegment, dstOffset: Long, size: Int): Unit = {
-    MemorySegment.copy(src, srcOffset, dst, BYTE_LAYOUT, dstOffset, size)
+    MemorySegment.copy(src, srcOffset, dst, dstOffset, size)
   }
 
   @ForceInline
@@ -123,7 +112,7 @@ object StorageFormat {
   @ForceInline
   final def fromBytes(a: Array[Byte]): MemorySegment = {
     val keySegment = allocateHeap(a.length)
-    MemorySegment.copy(a, 0, keySegment, BYTE_LAYOUT, 0, a.length)
+    MemorySegment.copy(a, 0, keySegment, 0, a.length)
     keySegment
   }
   @ForceInline
@@ -260,10 +249,10 @@ object StorageFormat {
   }
 
   def incMemorySegment(segment: MemorySegment, size: Int): MemorySegment = {
-    val bytes = segment.toArray(BYTE_LAYOUT)
+    val bytes = segment.toArray
     val t = (BigInt(1, bytes) + 1).toByteArray
     val s = allocateHeap(size)
-    MemorySegment.copy(t, 0, s, BYTE_LAYOUT, size - t.length, t.length)
+    MemorySegment.copy(t, 0, s, size - t.length, t.length)
     s
   }
 
@@ -283,11 +272,15 @@ object StorageFormat {
   }
 
   def allocateNative(size: Int): MemorySegment = {
-    Arena.ofConfined().allocate(size, 8)
+    MemorySegment.allocateNative(size)
   }
 
   def allocateHeap(size: Int): MemorySegment = {
-    val array = Array.ofDim[Long]((size + 7) / 8)
-    MemorySegment.ofArray(array).asSlice(0, size)
+//    val array = Array.ofDim[Long]((size + 7) / 8)
+//    MemorySegment.ofArray(array).asSlice(0, size)
+
+    val array = Array.ofDim[Byte](size)
+    MemorySegment.ofArray(array)
+
   }
 }

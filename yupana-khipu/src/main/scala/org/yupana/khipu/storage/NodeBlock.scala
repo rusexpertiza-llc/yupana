@@ -19,7 +19,6 @@ package org.yupana.khipu.storage
 import org.yupana.khipu.KhipuMetricCollector.Metrics
 import org.yupana.khipu.storage.NodeBlock.childSize
 
-import java.lang.foreign.MemorySegment
 import scala.annotation.tailrec
 
 class NodeBlock(override val id: Int, override val table: KTable) extends Block {

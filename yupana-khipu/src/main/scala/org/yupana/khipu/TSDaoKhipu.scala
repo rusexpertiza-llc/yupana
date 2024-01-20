@@ -177,7 +177,7 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
         override def hasNext: Boolean = isValid
 
         override def next(): InternalRow = {
-          val memBuf = MemoryBuffer.ofMemorySegment(cursor.row())
+          val memBuf = cursor.row().asMemoryBuffer()
           val row = calc.evaluateReadRow(memBuf, internalRowBuilder)
           isValid = cursor.next()
           row

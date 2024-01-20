@@ -100,7 +100,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
         dimension(Dimensions.KKM_ID).toField
       ),
       None,
-      Seq(truncDay(time), dimension(Dimensions.ITEM))
+      Seq(truncDay(time), dimension(Dimensions.KKM_ID))
     )
 
     val result = tsdbSpark.query(query).collect()
