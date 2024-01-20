@@ -201,14 +201,14 @@ object ByteBufEvalReaderWriter extends ReaderWriter[ByteBuf, ID, TypedInt] with 
   override def writeString(b: ByteBuf, v: String): Int = {
     val a = v.getBytes(StandardCharsets.UTF_8)
     b.writeInt(a.length).writeBytes(a)
-    a.length
+    a.length + 4
   }
 
   override def writeString(b: ByteBuf, offset: Int, v: String): Int = {
     val a = v.getBytes(StandardCharsets.UTF_8)
     b.setInt(offset, a.length)
     b.setBytes(offset + 4, a)
-    a.length
+    a.length + 4
   }
 
   override def readVLong(bb: ByteBuf, offset: Int): Long = {
@@ -377,12 +377,10 @@ object ByteBufEvalReaderWriter extends ReaderWriter[ByteBuf, ID, TypedInt] with 
 
   override def writeVInt(b: ByteBuf, v: Int): Int = {
     writeVLong(b, v)
-    v
   }
 
   override def writeVInt(b: ByteBuf, offset: Int, v: Int): Int = {
     writeVLong(b, offset, v)
-    v
   }
 
   override def readVShort(b: ByteBuf): Short = {
@@ -474,11 +472,11 @@ object ByteBufEvalReaderWriter extends ReaderWriter[ByteBuf, ID, TypedInt] with 
   override def writeSeq[T](b: ByteBuf, offset: Int, seq: Seq[T], writer: (ByteBuf, T) => Int)(
       implicit ct: ClassTag[T]
   ): Int = {
-    val p = b.readerIndex()
-    b.readerIndex(offset)
+    val p = b.writerIndex()
+    b.writerIndex(offset)
     val s1 = writeVInt(b, offset, seq.size)
     val s = seq.foldLeft(s1)((s, v) => s + writer(b, v))
-    b.readerIndex(p)
+    b.writerIndex(p)
     s
   }
 
