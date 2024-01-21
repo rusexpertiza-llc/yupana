@@ -17,6 +17,8 @@ import scala.concurrent.{ Await, Future }
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
 
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+
   "TCP client" should "connect to the server" in {
     val server = new ServerMock
     val client = new YupanaTcpClient("127.0.0.1", server.port, 100, "user", "password")

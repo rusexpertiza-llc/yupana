@@ -41,12 +41,10 @@ class FramingChannelReader(
   private def extractFrame(tag: Byte, size: Int): Frame[ByteBuffer] = {
     val payload = ByteBuffer.allocate(size)
     val totalRead = buffer.position()
-
-    buffer.position(PAYLOAD_OFFSET)
-    buffer.put(payload)
+    System.arraycopy(buffer.array(), PAYLOAD_OFFSET, payload.array(), 0, size)
 
     val restSize = totalRead - PAYLOAD_OFFSET - size
-    System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
+    System.arraycopy(buffer.array(), PAYLOAD_OFFSET + size, buffer.array(), 0, restSize)
     buffer.position(restSize)
     Frame(tag, payload)
   }

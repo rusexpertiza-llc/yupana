@@ -17,7 +17,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
 
     val frame = reader.awaitAndReadFrame()
     frame.frameType shouldEqual 42
-    frame.payload should contain theSameElementsAs Array(1, 2, 3, 4, 5)
+    frame.payload.array() should contain theSameElementsAs Array(1, 2, 3, 4, 5)
   }
 
   it should "throw an exception when channel is closed unexpectedly" in {
@@ -55,9 +55,9 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
 
     val reader = new FramingChannelReader(channel, 100)
 
-    reader.awaitAndReadFrame().payload should contain theSameElementsAs Array(1, 2, 3)
-    reader.awaitAndReadFrame().payload should contain theSameElementsAs Array(4, 5, 6, 7)
-    reader.awaitAndReadFrame().payload should contain theSameElementsAs Array(8, 9)
+    reader.awaitAndReadFrame().payload.array() should contain theSameElementsAs Array(1, 2, 3)
+    reader.awaitAndReadFrame().payload.array() should contain theSameElementsAs Array(4, 5, 6, 7)
+    reader.awaitAndReadFrame().payload.array() should contain theSameElementsAs Array(8, 9)
   }
 
   it should "handle create a single chunk from parts" in {
@@ -79,7 +79,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
         h.completed(2, a)
     }
 
-    iterator.awaitAndReadFrame().payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
+    iterator.awaitAndReadFrame().payload.array() should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 6, 7)
   }
 
   it should "handle buffer overflow" in {
@@ -100,7 +100,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
 
     val frame1 = reader.awaitAndReadFrame()
     frame1.frameType shouldEqual 1
-    frame1.payload should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
+    frame1.payload.array() should contain theSameElementsInOrderAs Array[Byte](1, 2, 3, 4)
 
     (channel
       .read[Any](_: ByteBuffer, _: Any, _: CompletionHandler[Integer, _ >: Any]))
@@ -124,7 +124,7 @@ class FramingChannelReaderTest extends AnyFlatSpec with Matchers with MockFactor
 
     val frame2 = reader.awaitAndReadFrame()
     frame2.frameType shouldEqual 2
-    frame2.payload should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
+    frame2.payload.array() should contain theSameElementsInOrderAs Array[Byte](5, 6, 7, 8, 9)
   }
 
   private def createFrame(data: Byte*): Array[Byte] = {
