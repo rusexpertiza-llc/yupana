@@ -351,6 +351,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     client.connect(12345678L)
     clientBody(client)
     val result = Await.result(f, 100.millis)
+    client.close()
 
     server.close()
     result

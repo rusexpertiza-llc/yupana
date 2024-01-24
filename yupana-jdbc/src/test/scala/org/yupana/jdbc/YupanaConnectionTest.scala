@@ -2,7 +2,8 @@ package org.yupana.jdbc
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.api.query.Result
+import org.yupana.api.query.{ Result, SimpleResult }
+import org.yupana.api.types.DataType
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.protocol.ParameterValue
 
@@ -15,7 +16,13 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
   class TestConnection extends YupanaConnection {
 
     private var closed = false
-    override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = QueryResult(1, Result.empty)
+    override def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
+      if (query == "SELECT 1") {
+        QueryResult(1, SimpleResult("test", Seq("1"), Seq(DataType[BigDecimal]), Iterator(Array[Any](BigDecimal(1)))))
+      } else {
+        QueryResult(1, Result.empty)
+      }
+    }
 
     override def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult =
       QueryResult(1, Result.empty)
@@ -39,13 +46,14 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
     c.getWarnings shouldBe null
     c.clearWarnings()
     c.getWarnings shouldBe null
-    c.setAutoCommit(true)
     c.getAutoCommit shouldBe true
-    a[SQLFeatureNotSupportedException] should be thrownBy c.setAutoCommit(false)
+    c.setAutoCommit(false)
+    c.getAutoCommit shouldBe false
+    c.setAutoCommit(true)
     c.getAutoCommit shouldBe true
     c.getTransactionIsolation shouldEqual Connection.TRANSACTION_NONE
     a[SQLFeatureNotSupportedException] should be thrownBy c.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE)
-    a[SQLFeatureNotSupportedException] should be thrownBy c.isValid(10)
+    c.isValid(10) shouldBe true
 
     c.getHoldability shouldEqual ResultSet.HOLD_CURSORS_OVER_COMMIT
     a[SQLFeatureNotSupportedException] should be thrownBy c.setHoldability(ResultSet.CLOSE_CURSORS_AT_COMMIT)
@@ -109,8 +117,6 @@ class YupanaConnectionTest extends AnyFlatSpec with Matchers {
       ResultSet.HOLD_CURSORS_OVER_COMMIT
     )
 
-    a[SQLFeatureNotSupportedException] should be thrownBy c.commit()
-    a[SQLFeatureNotSupportedException] should be thrownBy c.rollback()
     a[SQLFeatureNotSupportedException] should be thrownBy c.setSavepoint()
     a[SQLFeatureNotSupportedException] should be thrownBy c.setSavepoint("point 1")
     a[SQLFeatureNotSupportedException] should be thrownBy c.abort(ForkJoinPool.commonPool())
