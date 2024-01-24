@@ -137,6 +137,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
     val time = (System.currentTimeMillis() - startTime) / 1000
     if (channel.isOpen) {
       Await.ready(write(Heartbeat(time.toInt)), Duration.Inf)
+    } else {
+      cancelHeartbeats()
     }
   }
 
