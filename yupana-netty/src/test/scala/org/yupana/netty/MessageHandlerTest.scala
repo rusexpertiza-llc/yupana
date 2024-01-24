@@ -38,7 +38,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     When("Credentials sent")
 
-    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "test", "pass").toFrame[ByteBuf])
+    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, Some("test"), Some("pass")).toFrame[ByteBuf])
     ch.finish() shouldBe true
 
     Then("Authorized should be replied")
@@ -69,7 +69,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val credentialsFrame = ch.readOutbound[Frame]()
     credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
-    ch.writeInbound(Credentials("SECURE", "test", "pass").toFrame[ByteBuf])
+    ch.writeInbound(Credentials("SECURE", Some("test"), Some("pass")).toFrame[ByteBuf])
     ch.finish() shouldBe true
 
     val err = readMessage(ch, ErrorMessage)
@@ -90,7 +90,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val credentialsFrame = ch.readOutbound[Frame]()
     credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
-    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "", "").toFrame[ByteBuf])
+    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, None, None).toFrame[ByteBuf])
     ch.finish() shouldBe true
 
     val err = readMessage(ch, ErrorMessage)
@@ -302,7 +302,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val credentialsFrame = ch.readOutbound[Frame]()
     credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
-    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "test", "").toFrame[ByteBuf])
+    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, Some("test"), None).toFrame[ByteBuf])
 
     val authFrame = ch.readOutbound[Frame]()
     authFrame.frameType shouldEqual Tags.AUTHORIZED.value

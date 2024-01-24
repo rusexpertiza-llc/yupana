@@ -21,9 +21,9 @@ import org.yupana.protocol.CredentialsRequest
 object NonEmptyUserAuthorizer extends Authorizer {
   override val methods: Seq[String] = Seq(CredentialsRequest.METHOD_PLAIN)
 
-  override def authorize(method: String, userName: String, password: String): Either[String, String] = {
+  override def authorize(method: String, userName: Option[String], password: Option[String]): Either[String, String] = {
     if (method == CredentialsRequest.METHOD_PLAIN) {
-      val fixedName = userName.trim
+      val fixedName = userName.map(_.trim).getOrElse("")
       Either.cond(fixedName.nonEmpty, fixedName, "Username should not be empty")
     } else {
       Left(s"Unsupported auth method '$method'")
