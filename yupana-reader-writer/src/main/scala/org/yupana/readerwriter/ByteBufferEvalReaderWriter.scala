@@ -293,7 +293,7 @@ object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt]
         bb.put(((ll & mask) >> shift).toByte)
         idx -= 1
       }
-      len
+      len + 1
     }
   }
 
@@ -320,7 +320,7 @@ object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt]
       } else {
         -(len + 112)
       }
-      len
+      len + 1
     }
   }
 
@@ -360,7 +360,7 @@ object ByteBufferEvalReaderWriter extends ReaderWriter[ByteBuffer, ID, TypedInt]
         idx -= 1
         i += i
       }
-      len
+      len + 1
     }
   }
 

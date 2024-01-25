@@ -39,7 +39,11 @@ class FixedStorableTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     val fs = implicitly[FixedStorable[T]]
     forAll { v: T =>
       val bb = ByteBuffer.allocate(1000)
-      fs.write(bb, v: ID[T])
+      val posBeforeWrite = bb.position()
+      val actualSize = fs.write(bb, v: ID[T])
+      val posAfterWrite = bb.position()
+      val expectedSize = posAfterWrite - posBeforeWrite
+      expectedSize shouldEqual actualSize
       bb.rewind()
       fs.read(bb) shouldEqual v
     }

@@ -294,7 +294,7 @@ object MemoryBufferEvalReaderWriter extends ReaderWriter[MemoryBuffer, ID, Typed
         bb.put(((ll & mask) >> shift).toByte)
         idx -= 1
       }
-      len
+      len + 1
     }
   }
 
@@ -321,7 +321,7 @@ object MemoryBufferEvalReaderWriter extends ReaderWriter[MemoryBuffer, ID, Typed
       } else {
         -(len + 112)
       }
-      len
+      len + 1
     }
   }
 
@@ -361,7 +361,7 @@ object MemoryBufferEvalReaderWriter extends ReaderWriter[MemoryBuffer, ID, Typed
         idx -= 1
         i += i
       }
-      len
+      len + 1
     }
   }
 

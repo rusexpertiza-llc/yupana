@@ -21,19 +21,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.types.{ ReaderWriter, Storable }
+import org.yupana.api.types.{ InternalStorable, ReaderWriter }
 import org.yupana.api.{ Blob, Time }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
+import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
 
-import java.nio.ByteBuffer
-
-class StorableTest
+class InternalStorableTest
     extends AnyFlatSpec
     with Matchers
     with ScalaCheckDrivenPropertyChecks
     with TableDrivenPropertyChecks {
 
-  implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
+  implicit val rw: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
@@ -59,50 +57,11 @@ class StorableTest
 
   it should "preserve BLOBs on read write cycle" in readWriteTest[Blob]
 
-  it should "compact numbers" in {
-    val storable = implicitly[Storable[Long]]
-
-    val table = Table(
-      ("Value", "Bytes count"),
-      (0L, 1),
-      (100L, 1),
-      (-105L, 1),
-      (181L, 2),
-      (-222L, 2),
-      (1000L, 3),
-      (-1000L, 3),
-      (70000L, 4),
-      (-70000L, 4),
-      (3000000000L, 5),
-      (-1099511627776L, 6),
-      (1099511627776L, 7),
-      (290000000000000L, 8),
-      (-5000000000000000000L, 9),
-      (1000000000000000000L, 9)
-    )
-
-    forAll(table) { (x, len) =>
-      val bb = ByteBuffer.wrap(Array.ofDim[Byte](9))
-      storable.write(bb, x: ID[Long])
-      bb.position() shouldEqual len
-    }
-  }
-
-  it should "not read Long as Int if it overflows" in {
-    val longStorable = implicitly[Storable[Long]]
-    val intStorable = implicitly[Storable[Int]]
-    val bb = ByteBuffer.wrap(Array.ofDim[Byte](9))
-
-    longStorable.write(bb, 3000000000L: ID[Long])
-    bb.rewind()
-    an[IllegalArgumentException] should be thrownBy intStorable.read(bb)
-  }
-
-  private def readWriteTest[T: Storable: Arbitrary] = {
-    val storable = implicitly[Storable[T]]
+  private def readWriteTest[T: InternalStorable: Arbitrary] = {
+    val storable = implicitly[InternalStorable[T]]
 
     forAll { t: T =>
-      val bb = ByteBuffer.allocate(65535)
+      val bb = MemoryBuffer.allocateHeap(65535)
       val posBeforeWrite = bb.position()
       val actualSize = storable.write(bb, t: ID[T])
       val posAfterWrite = bb.position()

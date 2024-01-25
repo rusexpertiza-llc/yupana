@@ -39,7 +39,7 @@ object Generator extends StrictLogging {
 
     val N_CATS = 4
     val N_BRANDS = 100
-    val N_DEVICES = 100000
+    val N_DEVICES = 100
     val N_OPS = 1
     val N_POS = 4
 

@@ -489,8 +489,9 @@ val commonSettings = Seq(
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
   Test / javaOptions ++= Seq(
-    "--add-opens=java.base/jdk.internal.foreign=ALL-UNNAMED",
     "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
+    "--add-modules=jdk.incubator.foreign",
+    "--add-exports=jdk.incubator.foreign/jdk.internal.foreign=ALL-UNNAMED",
     // taken from https://github.com/apache/spark/blob/v3.5.0/launcher/src/main/java/org/apache/spark/launcher/JavaModuleOptions.java
     "-XX:+IgnoreUnrecognizedVMOptions",
     "--add-opens=java.base/java.lang=ALL-UNNAMED",

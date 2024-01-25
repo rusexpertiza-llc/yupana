@@ -20,12 +20,12 @@ import jdk.internal.misc.Unsafe
 import org.yupana.readerwriter.Memory._
 import MemorySegment._
 import jdk.incubator.foreign
+import jdk.incubator.foreign.ResourceScope
 import jdk.internal.foreign.AbstractMemorySegmentImpl
 import org.yupana.readerwriter.MemoryBuffer
 
 import java.nio.channels.FileChannel
-import java.nio.channels.FileChannel.MapMode
-import java.nio.file.{ Path, StandardOpenOption }
+import java.nio.file.Path
 final class MemorySegment(private val base: AnyRef, private val baseOffset: Long, private val initSize: Long) {
 
   def asMemoryBuffer(): MemoryBuffer = {
@@ -123,10 +123,12 @@ object MemorySegment {
   }
 
   def mapFile(path: Path, offset: Long, size: Int): MemorySegment = {
-    val ch = FileChannel.open(path, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE)
-    val bf = ch.map(MapMode.READ_WRITE, offset, size)
-    val fseg = foreign.MemorySegment.ofByteBuffer(bf).asInstanceOf[AbstractMemorySegmentImpl]
-    new MemorySegment(fseg.unsafeGetBase(), fseg.unsafeGetOffset(), size)
+
+    val seg =
+      foreign.MemorySegment.mapFile(path, offset, size, FileChannel.MapMode.READ_WRITE, ResourceScope.globalScope())
+    val aseg = seg.asInstanceOf[AbstractMemorySegmentImpl]
+
+    new MemorySegment(aseg.unsafeGetBase(), aseg.unsafeGetOffset(), size)
   }
   def copy(src: MemorySegment, srcOffset: Long, dst: Array[Byte], index: Int, size: Int): Unit = {
     UNSAFE.copyMemory(
