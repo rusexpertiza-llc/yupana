@@ -213,6 +213,37 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     err.streamId shouldEqual Some(1)
   }
 
+  it should "send as many rows as acquired" in {
+    val queryEngine = mock[QueryEngineRouter]
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
+
+    (queryEngine.query _)
+      .expects(YupanaUser("test"), "SELECT x FROM table", Map.empty[Int, parser.Value])
+      .returning(Right(SimpleResult("table", Seq("x"), Seq(DataType[Int]), (1 to 15).map(x => Array[Any](x)).iterator)))
+
+    ch.writeInbound(SqlQuery(1, "SELECT x FROM table", Map.empty).toFrame)
+    val header = readMessage(ch, ResultHeader)
+    header.tableName shouldEqual "table"
+    header.id shouldEqual 1
+
+    ch.writeInbound(NextBatch(1, 10).toFrame)
+    (1 to 10).foreach { e =>
+      val row = readMessage(ch, ResultRow)
+      row.id shouldEqual 1
+      row.values(0) shouldEqual Array(e)
+    }
+    ch.readOutbound[Frame]() shouldBe null
+
+    ch.writeInbound(NextBatch(1, 10).toFrame)
+    (11 to 15).foreach { e =>
+      val row = readMessage(ch, ResultRow)
+      row.id shouldEqual 1
+      row.values(0) shouldEqual Array(e)
+    }
+    val ftr = readMessage(ch, ResultFooter)
+    ftr.rows shouldEqual 15
+  }
+
   it should "support batch queries" in {
     val queryEngine = mock[QueryEngineRouter]
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
