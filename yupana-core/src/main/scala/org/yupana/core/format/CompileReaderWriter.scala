@@ -328,7 +328,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
       writer: (Tree, TypedTree[T]) => TypedTree[T]
   )(implicit ct: ClassTag[T]): TypedTree[Seq[T]] = {
     val tpe = Ident(TypeName(CommonGen.className(ct)))
-    q"$evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.readerwriter.ID[$tpe]) => {${writer(q"rb", q"v")}})"
+    q"$evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})"
   }
 
   override def writeSeq[T](
@@ -341,7 +341,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"""
        val p = $b.position()
         $b.position($offset)
-        val s = $evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.readerwriter.ID[$tpe]) => {${writer(q"rb", q"v")}})
+        val s = $evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})
         $b.position(p)
         s
        """
