@@ -177,6 +177,34 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     }
   }
 
+  it should "read batch correctly" in {
+    val sql = "SELECT x FROM table"
+
+    withServerConnected { (server, id) =>
+      val is = implicitly[Storable[Int]]
+      val onQuery = (q: SqlQuery) => Seq(ResultHeader(q.id, "table", Seq(ResultField("x", "INTEGER"))))
+      val onNext1 = (n: NextBatch) => 1 to 10 map (x => ResultRow(n.id, Seq(is.write(x))))
+      val onNext2 = (n: NextBatch) => {
+        val rows = 11 to 15 map (x => ResultRow(n.id, Seq(is.write(x))))
+        val footer = ResultFooter(n.id, -1, 15)
+        rows :+ footer
+      }
+
+      for {
+        r <- server.readAndSendResponses(id, SqlQuery.readFrame[ByteBuffer], onQuery)
+        n1 <- server.readAndSendResponses(id, NextBatch.readFrame[ByteBuffer], onNext1)
+        n2 <- server.readAndSendResponses(id, NextBatch.readFrame[ByteBuffer], onNext2)
+      } yield (r, n1, n2)
+    } { client =>
+      val result = client.prepareQuery(sql, Map.empty).result
+      result.name shouldEqual "table"
+
+      val rows = result.rows.toList
+      rows should have length 15
+      rows.map(_(0).asInstanceOf[Int]) should contain theSameElementsInOrderAs (1 to 15)
+    }
+  }
+
   it should "handle batch query" in {
     val sql =
       """
