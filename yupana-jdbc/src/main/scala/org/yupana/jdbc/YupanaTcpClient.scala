@@ -35,7 +35,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 
-class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: String, password: String)(
+class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Option[String], password: Option[String])(
     implicit ec: ExecutionContext
 ) extends AutoCloseable {
 
@@ -140,6 +140,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     val time = (System.currentTimeMillis() - startTime) / 1000
     if (channel.isOpen) {
       Await.ready(write(Heartbeat(time.toInt)), Duration.Inf)
+    } else {
+      cancelHeartbeats()
     }
   }
 
@@ -176,8 +178,9 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
         case Tags.RESULT_ROW.value =>
           val row = ResultRow.readFrame(frame)
           if (row.id == id) {
+            val newRead = read + 1
             iterators(id).addResult(row)
-            if (read < batchSize) readBatch(id, read + 1) else Future.successful(read + 1)
+            if (newRead < batchSize) readBatch(id, newRead) else Future.successful(newRead)
           } else {
             Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
           }
@@ -228,6 +231,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   def acquireNext(id: Int): Unit = {
+    logger.fine(s"Acquire next $id")
     assert(iterators.contains(id))
     val f = runCommand(
       NextBatch(id, batchSize),
@@ -320,7 +324,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   override def close(): Unit = {
-    logger.fine("Close connection")
+    logger.info("Close connection")
     closed = true
     cancelHeartbeats()
     Await.ready(write(Quit()), Duration.Inf)

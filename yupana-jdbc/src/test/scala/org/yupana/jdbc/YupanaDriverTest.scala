@@ -42,8 +42,8 @@ class YupanaDriverTest extends AnyFlatSpec with Matchers {
 
     val c = Await.result(cf, Duration.Inf)
     c.method shouldEqual CredentialsRequest.METHOD_PLAIN
-    c.user shouldEqual "test_user"
-    c.password shouldEqual "12345"
+    c.user shouldEqual Some("test_user")
+    c.password shouldEqual Some("12345")
 
     conn.close()
   }

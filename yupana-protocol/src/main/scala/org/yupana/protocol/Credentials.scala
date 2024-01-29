@@ -22,10 +22,13 @@ package org.yupana.protocol
   * @param user user name
   * @param password password
   */
-case class Credentials(method: String, user: String, password: String) extends Command[Credentials](Credentials)
+case class Credentials(method: String, user: Option[String], password: Option[String])
+    extends Command[Credentials](Credentials)
 
 object Credentials extends MessageHelper[Credentials] {
   override val tag: Tags.Tags = Tags.CREDENTIALS
   override val readWrite: ReadWrite[Credentials] =
-    ReadWrite.product3[Credentials, String, String, String](Credentials.apply)(c => (c.method, c.user, c.password))
+    ReadWrite.product3[Credentials, String, Option[String], Option[String]](Credentials.apply)(c =>
+      (c.method, c.user, c.password)
+    )
 }

@@ -38,7 +38,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     When("Credentials sent")
 
-    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "test", "pass").toFrame(Unpooled.buffer()))
+    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, Some("test"), Some("pass")).toFrame(Unpooled.buffer()))
     ch.finish() shouldBe true
 
     Then("Authorized should be replied")
@@ -69,7 +69,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val credentialsFrame = ch.readOutbound[Frame[ByteBuf]]()
     credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
-    ch.writeInbound(Credentials("SECURE", "test", "pass").toFrame(Unpooled.buffer()))
+    ch.writeInbound(Credentials("SECURE", Some("test"), Some("pass")).toFrame(Unpooled.buffer()))
     ch.finish() shouldBe true
 
     val err = readMessage(ch, ErrorMessage)
@@ -90,7 +90,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val credentialsFrame = ch.readOutbound[Frame[ByteBuf]]()
     credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
-    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "", "").toFrame(Unpooled.buffer()))
+    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, None, None).toFrame(Unpooled.buffer()))
     ch.finish() shouldBe true
 
     val err = readMessage(ch, ErrorMessage)
@@ -213,6 +213,37 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     err.streamId shouldEqual Some(1)
   }
 
+  it should "send as many rows as acquired" in {
+    val queryEngine = mock[QueryEngineRouter]
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
+
+    (queryEngine.query _)
+      .expects(YupanaUser("test"), "SELECT x FROM table", Map.empty[Int, parser.Value])
+      .returning(Right(SimpleResult("table", Seq("x"), Seq(DataType[Int]), (1 to 15).map(x => Array[Any](x)).iterator)))
+
+    ch.writeInbound(SqlQuery(1, "SELECT x FROM table", Map.empty).toFrame(Unpooled.buffer()))
+    val header = readMessage(ch, ResultHeader)
+    header.tableName shouldEqual "table"
+    header.id shouldEqual 1
+
+    ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
+    (1 to 10).foreach { e =>
+      val row = readMessage(ch, ResultRow)
+      row.id shouldEqual 1
+      row.values(0) shouldEqual Array(e)
+    }
+    ch.readOutbound[Frame[ByteBuf]]() shouldBe null
+
+    ch.writeInbound(NextBatch(1, 10).toFrame(Unpooled.buffer()))
+    (11 to 15).foreach { e =>
+      val row = readMessage(ch, ResultRow)
+      row.id shouldEqual 1
+      row.values(0) shouldEqual Array(e)
+    }
+    val ftr = readMessage(ch, ResultFooter)
+    ftr.rows shouldEqual 15
+  }
+
   it should "support batch queries" in {
     val queryEngine = mock[QueryEngineRouter]
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
@@ -302,7 +333,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val credentialsFrame = ch.readOutbound[Frame[ByteBuf]]()
     credentialsFrame.frameType shouldEqual Tags.CREDENTIALS_REQUEST.value
 
-    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, "test", "").toFrame(Unpooled.buffer()))
+    ch.writeInbound(Credentials(CredentialsRequest.METHOD_PLAIN, Some("test"), None).toFrame(Unpooled.buffer()))
 
     val authFrame = ch.readOutbound[Frame[ByteBuf]]()
     authFrame.frameType shouldEqual Tags.AUTHORIZED.value
