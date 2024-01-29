@@ -112,7 +112,7 @@ object Storable {
     override def write[B, V[_], RW[_]](b: B, v: V[Int])(implicit rw: ReaderWriter[B, V, RW]): RW[Int] =
       rw.writeVInt(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Int])(implicit rw: ReaderWriter[B, V, RW]): RW[Int] =
-      rw.writeVInt(b, v)
+      rw.writeVInt(b, offset, v)
   }
   implicit val longStorable: Storable[Long] = new Storable[Long] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[Long] = rw.readVLong(b)
