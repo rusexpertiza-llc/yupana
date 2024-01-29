@@ -21,7 +21,9 @@ package org.yupana.protocol
   * @param id request id
   * @param values result values serialized into arrays of bytes
   */
-case class ResultRow(id: Int, values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow)
+case class ResultRow(id: Int, values: Seq[Array[Byte]]) extends Response[ResultRow](ResultRow) {
+  override def toString: String = s"ResultRow(id: $id, values.size: ${values.size})"
+}
 
 object ResultRow extends MessageHelper[ResultRow] {
   override val tag: Tags.Tags = Tags.RESULT_ROW
