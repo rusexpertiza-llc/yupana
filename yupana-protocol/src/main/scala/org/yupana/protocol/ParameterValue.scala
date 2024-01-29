@@ -16,6 +16,8 @@
 
 package org.yupana.protocol
 
+import org.yupana.api.types.ByteReaderWriter
+
 sealed trait ParameterValue
 
 case class NumericValue(value: BigDecimal) extends ParameterValue
@@ -30,7 +32,7 @@ object ParameterValue {
   val TYPE_T: Byte = 't'
 
   implicit val pvRw: ReadWrite[ParameterValue] = new ReadWrite[ParameterValue] {
-    override def read[B](buf: B)(implicit B: Buffer[B]): ParameterValue = {
+    override def read[B](buf: B)(implicit B: ByteReaderWriter[B]): ParameterValue = {
       B.readByte(buf) match {
         case TYPE_N => NumericValue(implicitly[ReadWrite[BigDecimal]].read(buf))
         case TYPE_S => StringValue(implicitly[ReadWrite[String]].read(buf))
@@ -39,7 +41,7 @@ object ParameterValue {
       }
     }
 
-    override def write[B: Buffer](buf: B, t: ParameterValue): Unit = {
+    override def write[B: ByteReaderWriter](buf: B, t: ParameterValue): Unit = {
       t match {
         case NumericValue(value)   => write(buf, TYPE_N, value)
         case StringValue(value)    => write(buf, TYPE_S, value)
@@ -47,7 +49,7 @@ object ParameterValue {
       }
     }
 
-    private def write[T, B](buf: B, tag: Byte, t: T)(implicit b: Buffer[B], tw: ReadWrite[T]): Unit = {
+    private def write[T, B](buf: B, tag: Byte, t: T)(implicit b: ByteReaderWriter[B], tw: ReadWrite[T]): Unit = {
       b.writeByte(buf, tag)
       tw.write(buf, t)
     }

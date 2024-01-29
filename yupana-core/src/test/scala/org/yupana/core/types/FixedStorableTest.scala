@@ -20,8 +20,8 @@ import org.scalacheck.Arbitrary
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.types.{ FixedStorable, ReaderWriter }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
+import org.yupana.api.types.{ FixedStorable, ID, ReaderWriter, TypedInt }
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 

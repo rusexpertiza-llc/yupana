@@ -4,18 +4,20 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
-import org.yupana.api.types.{ ReaderWriter, Storable }
+import org.yupana.api.types.{ ByteReaderWriter, ID, Storable }
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.io.IOException
 import java.nio.ByteBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
+
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   "TCP client" should "connect to the server" in {
     val server = new ServerMock
@@ -353,7 +355,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   private def toBytes[T](v: T)(implicit st: Storable[T]): Array[Byte] = {
     val b = ByteBuffer.allocate(1024)
-    implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
+    implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
     st.write(b, v: ID[T])
     val size = b.position()
     b.rewind()

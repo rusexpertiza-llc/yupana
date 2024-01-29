@@ -16,6 +16,8 @@
 
 package org.yupana.protocol
 
+import org.yupana.api.types.ByteReaderWriter
+
 /**
   * Base class for all messages.
   */
@@ -25,5 +27,5 @@ trait Message[M <: Message[M]] { self: M =>
   def helper: MessageHelper[M]
 
   /** Converts message to the frame */
-  def toFrame[B: Buffer]: Frame = helper.toFrame(this)
+  def toFrame[B: ByteReaderWriter](b: B): Frame[B] = helper.toFrame(this, b)
 }

@@ -5,8 +5,8 @@ import java.util.UUID
 import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.types.{ DataType, ReaderWriter }
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.api.types.{ DataType, ID, ReaderWriter, TypedInt }
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.jdk.CollectionConverters._
 import scala.reflect.api
