@@ -100,7 +100,7 @@ class InvertedIndexDaoHBase[K, V: DimOrdering: ClassTag](
 
     val filters = new FilterList(FilterList.Operator.MUST_PASS_ALL, new FirstKeyOnlyFilter(), new KeyOnlyFilter())
 
-    val scan = new Scan().setRowPrefixFilter(skey).setFilter(filters)
+    val scan = new Scan().setStartStopRowForPrefixScan(skey).setFilter(filters)
     Using.resource(connection.getTable(tableName)) { table =>
       Using.resource(table.getScanner(scan)) { scanner =>
 
