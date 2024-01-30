@@ -205,6 +205,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
+      "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"               % Test
 
     ),
@@ -427,7 +428,7 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "4.0.3"
-  val logback = "1.3.11"
+  val logback = "1.4.14"
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
