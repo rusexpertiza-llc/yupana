@@ -48,13 +48,17 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   private var iterators: Map[Int, ResultIterator] = Map.empty
   private val commandQueue: mutable.Queue[Handler[_]] = mutable.Queue.empty
 
-  private val heartbeatTimer = new Timer()
+  private val heartbeatTimer = new Timer(true)
   private val HEARTBEAT_INTERVAL = 30_000
 
   private var closed: Boolean = true
 
   private def ensureNotClosed(): Unit = {
-    if (closed) throw new YupanaException("Connection is closed")
+    closed &= !channel.isOpen
+    if (closed) {
+      cancelHeartbeats()
+      throw new YupanaException("Connection is closed")
+    }
   }
 
   private def startHeartbeats(startTime: Long): Unit = {
@@ -143,17 +147,16 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   }
 
   private def runNext(): Future[Unit] = {
-    commandQueue.headOption match {
+    val handler: Option[Handler[_]] = commandQueue.synchronized {
+      if (commandQueue.nonEmpty) Some(commandQueue.dequeue()) else None
+    }
+
+    handler match {
       case Some(handler) =>
         for {
           _ <- write(handler.cmd)
           _ <- handler.execute()
-          _ <- {
-            commandQueue.synchronized {
-              commandQueue.dequeue()
-            }
-            runNext()
-          }
+          _ <- runNext()
         } yield ()
       case None => Future.successful(())
     }
