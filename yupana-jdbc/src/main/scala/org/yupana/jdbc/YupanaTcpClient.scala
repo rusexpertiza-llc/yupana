@@ -268,7 +268,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
         case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
         case Tags.ERROR_MESSAGE.value =>
           val msg = ErrorMessage.readFrame(frame).message
-          Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.value.toChar}', '$msg'")))
+          logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
+          Future.failed(new YupanaException(msg))
 
         case x =>
           Future.failed(
