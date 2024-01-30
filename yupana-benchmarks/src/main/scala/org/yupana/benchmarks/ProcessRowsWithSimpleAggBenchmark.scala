@@ -19,10 +19,10 @@ package org.yupana.benchmarks
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, Query }
-import org.yupana.api.query.syntax.All.{ const, dimension, max, metric, sum, time, truncDay }
+import org.yupana.api.query.syntax.All.{ const, metric, sum, time, truncDay }
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
+import org.yupana.schema.{ ItemTableMetrics, Tables }
 
 import java.time.LocalDateTime
 
@@ -51,18 +51,15 @@ class TsdbBaseBenchmarkStateSimpleAgg extends TsdbBaseBenchmarkStateBase {
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
       truncDay(time) as "day",
-      dimension(Dimensions.ITEM) as "item",
       sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
-      metric(ItemTableMetrics.sumField) as "total_sum",
-      max(ItemTableMetrics.sumField) as "max_sum"
+      sum(ItemTableMetrics.sumField) as "sum_sum"
     ),
     filter = None,
-    groupBy = Seq(time, dimension(Dimensions.ITEM))
+    groupBy = Seq(truncDay(time))
   )
 
   override val daoExprs: Seq[Expression[_]] = Seq(
     time,
-    dimension(Dimensions.ITEM),
     metric(ItemTableMetrics.quantityField),
     metric(ItemTableMetrics.sumField)
   )

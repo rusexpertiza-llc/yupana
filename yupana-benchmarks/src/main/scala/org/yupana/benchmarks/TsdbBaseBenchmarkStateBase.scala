@@ -18,13 +18,16 @@ package org.yupana.benchmarks
 
 import org.yupana.api.Time
 import org.yupana.api.query._
+import org.yupana.cache.CacheFactory
 import org.yupana.core.jit.JIT
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.{InternalRow, InternalRowBuilder}
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB }
-import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry }
+import org.yupana.core.{QueryContext, SimpleTsdbConfig, TSDB}
+import org.yupana.schema.{Dimensions, ItemTableMetrics, SchemaRegistry}
+import org.yupana.settings.Settings
 
 import java.time.LocalDateTime
+import java.util.Properties
 
 abstract class TsdbBaseBenchmarkStateBase {
   def query: Query
@@ -44,14 +47,19 @@ abstract class TsdbBaseBenchmarkStateBase {
   )
 
   def getRows(rowBuilder: InternalRowBuilder, n: Int, exprs: Seq[Expression[_]]): Seq[InternalRow] = {
-    (1 to n).map { i =>
+    val r = (1 to n).map { i =>
       exprs.foreach { expr =>
         val value = EXPR_CALC(expr)(i)
         rowBuilder.set(expr.asInstanceOf[Expression[Any]], value)
       }
       rowBuilder.buildAndReset()
-    }
+    }.toArray.toSeq
+    r
   }
+
+  val properties = new Properties()
+  properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
+  CacheFactory.init(Settings(properties))
 
   val tsdb: TSDB = new BenchTsdb()
   lazy val rows: Seq[InternalRow] = getRows(
