@@ -191,9 +191,9 @@ object InternalRowGen {
           if (len <= 12) {
              ${expr.dataType.internalStorable.read[Tree, TypedTree, TypedTree](q"$row.bytes", offset + 4)}
           } else {
-             val vOffset = $row.bytes.getInt($offset + 8)
-             $builderName.tmpBuffer.put(0, $row.bytes, $offset + 4, 4)
-             $builderName.tmpBuffer.put(4, $row.bytes, vOffset, len - 4)
+             val vOffset = $row.bytes.getInt($offset + 4)
+             $builderName.tmpBuffer.put(0, $row.bytes, $offset + 8, 8)
+             $builderName.tmpBuffer.put(8, $row.bytes, vOffset, len - 8)
              ${expr.dataType.internalStorable.read[Tree, TypedTree, TypedTree](q"$builderName.tmpBuffer", 0)}
           }
        """

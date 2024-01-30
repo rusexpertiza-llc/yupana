@@ -27,7 +27,7 @@ import java.io.ObjectInputStream
 
 class InternalRow(val bytes: MemoryBuffer, val refs: Map[Int, AnyRef]) extends Serializable {
 
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  import InternalRowBuilder.readerWriter
 
   def isDefined(builder: InternalRowBuilder, index: Int): Boolean = {
     InternalRowBuilder.isValid(bytes, index)
@@ -82,9 +82,9 @@ class InternalRow(val bytes: MemoryBuffer, val refs: Map[Int, AnyRef]) extends S
     if (len <= 12) {
       storable.read(bytes, offset + 4): ID[T]
     } else {
-      val vOffset = bytes.getInt(offset + 8)
-      builder.tmpBuffer.put(0, bytes, offset + 4, 4)
-      builder.tmpBuffer.put(4, bytes, vOffset, len - 4)
+      val vOffset = bytes.getInt(offset + 4)
+      builder.tmpBuffer.put(0, bytes, offset + 8, 8)
+      builder.tmpBuffer.put(8, bytes, vOffset, len - 8)
       storable.read(builder.tmpBuffer, 0): ID[T]
     }
   }
@@ -107,8 +107,6 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
 
   val timeIndex: Int = exprIndex.getOrElse(TimeExpr, -1)
 
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
-
   val numOfFields: Int = exprIndex.values.max + 1
   val validityMapAreaSize: Int = (numOfFields / 64 + 1) * 8
   val fixedAreaOffset: Int = 4 + validityMapAreaSize
@@ -120,7 +118,7 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
   private val fixedFieldsMappingArray: Array[Boolean] = createFixedFieldMappingArray(exprIndex)
 
   private var memoryBlock = MemoryBuffer.allocateHeap(MEMORY_BLOCK_SIZE)
-  private var buffer = memoryBlock.asSlice(MAX_ROW_SIZE)
+  private var buffer = memoryBlock
   val tmpBuffer = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
 
   var refs: Map[Int, AnyRef] = Map.empty
@@ -143,10 +141,9 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
       memoryBlock.position(memoryBlock.position() + s)
     } else {
       memoryBlock = MemoryBuffer.allocateHeap(MEMORY_BLOCK_SIZE)
-      memoryBlock.position(0)
     }
     val bf = buffer.asSlice(0, s)
-    buffer = memoryBlock.asSlice(memoryBlock.position(), memoryBlock.size - memoryBlock.position())
+    buffer = memoryBlock.asSlice(memoryBlock.position())
     setRowSize(variableLengthFieldsAreaOffset)
     clearValidityMapArea()
     val rf = refs
@@ -243,60 +240,13 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
 
   def setBigVariableLengthValue(buf: MemoryBuffer, index: Int, value: MemoryBuffer, length: Int): Unit = {
     val offset = fieldsOffsets(index)
-    val valid = isValid(index)
-    val oldLength = if (valid) buf.getInt(offset) else 0
-    val rowSize = getRowSize()
 
-    val voffset = if (valid) {
-      val oldVOffset = buf.getInt(offset + 8)
-      if (oldLength >= length) {
-        oldVOffset
-      } else {
-        val isLast = oldVOffset + oldLength == rowSize
-        val newVOffset = if (isLast) {
-          oldVOffset
-        } else {
-          rowSize
-        }
+    val vOffset = getRowSize()
 
-        if (newVOffset + length > MAX_ROW_SIZE) {
-          InternalRowBuilder.setValid(buf, index)
-          compactRow(buf)
-        }
-        if (newVOffset + length > MAX_ROW_SIZE) {
-          throw new IllegalStateException("Maximum row size reached")
-        }
-        rowSize
-      }
-    } else {
-      rowSize
-    }
-
-    buf.put(offset + 4, value, 0, 4)
-    buf.put(voffset, value, 4, length - 4)
-    buf.putInt(offset + 8, voffset)
-    setRowSize(rowSize + (length - oldLength))
-  }
-
-  def compactRow(buf: MemoryBuffer): Int = {
-    tmpBuffer.put(0, buf, variableLengthFieldsAreaOffset, getRowSize() - variableLengthFieldsAreaOffset)
-    var i = 0
-    var vOffset = validityMapAreaOffset
-    while (i < numOfFields) {
-      if (!isFixed(i)) {
-        val fOffset = fieldsOffsets(i)
-        val len = buf.getInt(fOffset)
-        val oldVOffset = buf.get(fOffset + 4)
-        if (len > 12) {
-          buf.put(vOffset, tmpBuffer, oldVOffset - variableLengthFieldsAreaOffset, len)
-          vOffset += len
-        }
-      }
-      i += 1
-    }
-    val newRowSize = variableLengthFieldsAreaOffset + vOffset
-    setRowSize(variableLengthFieldsAreaOffset + vOffset)
-    newRowSize
+    buf.putInt(offset + 4, vOffset)
+    buf.put(offset + 8, value, 0, 8)
+    buf.put(vOffset, value, 8, length - 8)
+    setRowSize(vOffset + length - 8)
   }
 
   def isFixed(index: Int): Boolean = {
@@ -419,8 +369,10 @@ final class InternalRowBuilder(val exprIndex: Map[Expression[_], Int], table: Op
 
 object InternalRowBuilder {
 
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+
   val MAX_ROW_SIZE = 2_000_000
-  val MEMORY_BLOCK_SIZE = MAX_ROW_SIZE * 100
+  val MEMORY_BLOCK_SIZE = MAX_ROW_SIZE * 2
 
   val validityMapAreaOffset = 4
 
@@ -454,16 +406,16 @@ object InternalRowBuilder {
         buffer.putLong(validityMapAreaOffset, 0)
       case 16 =>
         buffer.putLong(validityMapAreaOffset, 0)
-        buffer.putLong(validityMapAreaOffset, 8)
+        buffer.putLong(validityMapAreaOffset + 8, 0)
       case 24 =>
         buffer.putLong(validityMapAreaOffset, 0)
-        buffer.putLong(validityMapAreaOffset, 8)
-        buffer.putLong(validityMapAreaOffset, 8)
+        buffer.putLong(validityMapAreaOffset + 8, 0)
+        buffer.putLong(validityMapAreaOffset + 16, 0)
       case 32 =>
         buffer.putLong(validityMapAreaOffset, 0)
-        buffer.putLong(validityMapAreaOffset, 8)
-        buffer.putLong(validityMapAreaOffset, 8)
-        buffer.putLong(validityMapAreaOffset, 8)
+        buffer.putLong(validityMapAreaOffset + 8, 0)
+        buffer.putLong(validityMapAreaOffset + 16, 0)
+        buffer.putLong(validityMapAreaOffset + 24, 0)
       case _ =>
         buffer.put(validityMapAreaOffset, zeoroValidityMapArea, 0, validityMapAreaSize)
     }

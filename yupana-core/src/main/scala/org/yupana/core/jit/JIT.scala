@@ -186,7 +186,6 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       logger.trace(s"Params size: ${paramsArray.length}")
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
-    logger.trace(s"Tree: ${prettyTree(tree)}")
 
     (tree, index, paramsArray)
   }
