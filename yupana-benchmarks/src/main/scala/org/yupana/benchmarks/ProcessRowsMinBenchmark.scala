@@ -19,7 +19,7 @@ package org.yupana.benchmarks
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, Query }
-import org.yupana.api.query.syntax.All.{ const, metric, time, min}
+import org.yupana.api.query.syntax.All.{ const, metric, time, min }
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.schema.{ ItemTableMetrics, Tables }

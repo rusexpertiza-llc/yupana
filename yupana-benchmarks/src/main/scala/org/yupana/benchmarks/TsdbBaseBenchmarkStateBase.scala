@@ -20,10 +20,10 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.cache.CacheFactory
 import org.yupana.core.jit.JIT
-import org.yupana.core.model.{InternalRow, InternalRowBuilder}
+import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.core.{QueryContext, SimpleTsdbConfig, TSDB}
-import org.yupana.schema.{Dimensions, ItemTableMetrics, SchemaRegistry}
+import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB }
+import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry }
 import org.yupana.settings.Settings
 
 import java.time.LocalDateTime
@@ -47,13 +47,16 @@ abstract class TsdbBaseBenchmarkStateBase {
   )
 
   def getRows(rowBuilder: InternalRowBuilder, n: Int, exprs: Seq[Expression[_]]): Seq[InternalRow] = {
-    val r = (1 to n).map { i =>
-      exprs.foreach { expr =>
-        val value = EXPR_CALC(expr)(i)
-        rowBuilder.set(expr.asInstanceOf[Expression[Any]], value)
+    val r = (1 to n)
+      .map { i =>
+        exprs.foreach { expr =>
+          val value = EXPR_CALC(expr)(i)
+          rowBuilder.set(expr.asInstanceOf[Expression[Any]], value)
+        }
+        rowBuilder.buildAndReset()
       }
-      rowBuilder.buildAndReset()
-    }.toArray.toSeq
+      .toArray
+      .toSeq
     r
   }
 
