@@ -21,11 +21,11 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.MessageToByteEncoder
 import org.yupana.protocol.Frame
 
-class FrameEncoder extends MessageToByteEncoder[Frame] {
-  override def encode(ctx: ChannelHandlerContext, frame: Frame, out: ByteBuf): Unit = {
+class FrameEncoder extends MessageToByteEncoder[Frame[ByteBuf]] {
+  override def encode(ctx: ChannelHandlerContext, frame: Frame[ByteBuf], out: ByteBuf): Unit = {
     out
       .writeByte(frame.frameType)
-      .writeInt(frame.payload.length)
+      .writeInt(frame.payload.readableBytes())
       .writeBytes(frame.payload)
   }
 }

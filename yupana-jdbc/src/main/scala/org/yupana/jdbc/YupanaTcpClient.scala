@@ -17,13 +17,13 @@
 package org.yupana.jdbc
 
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.{ DataType, ReaderWriter }
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
-import org.yupana.readerwriter.{ ID, MemoryBuffer, MemoryBufferEvalReaderWriter, TypedInt }
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
@@ -35,7 +35,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 
-class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: String, password: String)(
+class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Option[String], password: Option[String])(
     implicit ec: ExecutionContext
 ) extends AutoCloseable {
 
@@ -54,7 +54,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   private var closed: Boolean = true
 
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   private def ensureNotClosed(): Unit = {
     if (closed) throw new YupanaException("Connection is closed")
@@ -140,6 +140,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
     val time = (System.currentTimeMillis() - startTime) / 1000
     if (channel.isOpen) {
       Await.ready(write(Heartbeat(time.toInt)), Duration.Inf)
+    } else {
+      cancelHeartbeats()
     }
   }
 
@@ -176,8 +178,9 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
         case Tags.RESULT_ROW.value =>
           val row = ResultRow.readFrame(frame)
           if (row.id == id) {
+            val newRead = read + 1
             iterators(id).addResult(row)
-            if (read < batchSize) readBatch(id, read + 1) else Future.successful(read + 1)
+            if (newRead < batchSize) readBatch(id, newRead) else Future.successful(newRead)
           } else {
             Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
           }
@@ -228,6 +231,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   def acquireNext(id: Int): Unit = {
+    logger.fine(s"Acquire next $id")
     assert(iterators.contains(id))
     val f = runCommand(
       NextBatch(id, batchSize),
@@ -296,10 +300,11 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
 
   private def write(request: Command[_]): Future[Unit] = {
     logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
-    val f = request.toFrame
-    val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
+    val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
     bb.put(f.frameType)
-    bb.putInt(f.payload.length)
+    bb.putInt(f.payload.position())
+    f.payload.flip()
     bb.put(f.payload)
     bb.flip()
 
@@ -319,7 +324,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
   }
 
   override def close(): Unit = {
-    logger.fine("Close connection")
+    logger.info("Close connection")
     closed = true
     cancelHeartbeats()
     Await.ready(write(Quit()), Duration.Inf)
@@ -344,7 +349,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Str
             if (bytes.isEmpty) {
               null
             } else {
-              val b = MemoryBuffer.ofBytes(bytes)
+              val b = ByteBuffer.wrap(bytes)
               rt.storable.read(b)
             }
         }

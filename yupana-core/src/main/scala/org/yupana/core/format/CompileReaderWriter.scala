@@ -28,7 +28,24 @@ import scala.reflect.runtime.universe._
 
 object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with Serializable {
 
-  val evalRW = q"_root_.org.yupana.readerwriter.MemoryBufferEvalReaderWriter"
+  private val evalRW = q"_root_.org.yupana.readerwriter.MemoryBufferEvalReaderWriter"
+
+  override def readBytes(b: Tree, d: TypedTree[Array[Byte]]): TypedTree[Unit] = {
+    q"$evalRW.readBytes($b, $d)"
+  }
+
+  override def readBytes(b: Tree, offset: Int, d: TypedTree[Array[Byte]]): TypedTree[Unit] = {
+    q"$evalRW.readBytes($b, $offset, $d)"
+  }
+
+  override def writeBytes(b: Tree, v: TypedTree[Array[Byte]]): TypedTree[Int] = {
+    q"$evalRW.writeBytes($b, $v)"
+  }
+
+  override def writeBytes(b: Tree, offset: Int, v: TypedTree[Array[Byte]]): TypedTree[Int] = {
+    q"$evalRW.writeBytes($b, $offset, $v)"
+  }
+
   override def readInt(b: Tree): TypedTree[Int] = {
     q"$evalRW.readInt($b)"
   }
@@ -311,7 +328,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
       writer: (Tree, TypedTree[T]) => TypedTree[T]
   )(implicit ct: ClassTag[T]): TypedTree[Seq[T]] = {
     val tpe = Ident(TypeName(CommonGen.className(ct)))
-    q"$evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.readerwriter.ID[$tpe]) => {${writer(q"rb", q"v")}})"
+    q"$evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})"
   }
 
   override def writeSeq[T](
@@ -324,7 +341,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"""
        val p = $b.position()
         $b.position($offset)
-        val s = $evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.readerwriter.ID[$tpe]) => {${writer(q"rb", q"v")}})
+        val s = $evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})
         $b.position(p)
         s
        """

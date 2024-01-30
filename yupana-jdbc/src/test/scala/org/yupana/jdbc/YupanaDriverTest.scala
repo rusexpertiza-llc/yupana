@@ -2,7 +2,9 @@ package org.yupana.jdbc
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.types.ByteReaderWriter
 import org.yupana.protocol.{ Authorized, Credentials, CredentialsRequest, Hello, HelloResponse, ProtocolVersion }
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 import java.sql.DriverManager
@@ -11,6 +13,8 @@ import scala.concurrent.duration.Duration
 
 class YupanaDriverTest extends AnyFlatSpec with Matchers {
   import scala.concurrent.ExecutionContext.Implicits.global
+
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   "YupanaDriver" should "connect using properly" in {
     Class.forName(classOf[YupanaDriver].getName)
@@ -38,8 +42,8 @@ class YupanaDriverTest extends AnyFlatSpec with Matchers {
 
     val c = Await.result(cf, Duration.Inf)
     c.method shouldEqual CredentialsRequest.METHOD_PLAIN
-    c.user shouldEqual "test_user"
-    c.password shouldEqual "12345"
+    c.user shouldEqual Some("test_user")
+    c.password shouldEqual Some("12345")
 
     conn.close()
   }

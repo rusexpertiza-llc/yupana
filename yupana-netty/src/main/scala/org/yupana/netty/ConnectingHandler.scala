@@ -17,6 +17,7 @@
 package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
+import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.timeout.{ IdleState, IdleStateEvent, IdleStateHandler }
 import org.yupana.protocol._
@@ -24,7 +25,7 @@ import org.yupana.protocol._
 class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with StrictLogging {
 
   private var gotHello = false
-  override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
+  override def channelRead0(ctx: ChannelHandlerContext, frame: Frame[ByteBuf]): Unit = {
     if (!gotHello) {
       handleHello(ctx, frame)
     } else {
@@ -41,7 +42,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
     }
   }
 
-  private def handleHello(ctx: ChannelHandlerContext, frame: Frame): Unit = {
+  private def handleHello(ctx: ChannelHandlerContext, frame: Frame[ByteBuf]): Unit = {
     processMessage(ctx, frame, Hello) {
       case Hello(pv, _, time, _) if pv == ProtocolVersion.value =>
         writeResponses(
@@ -64,7 +65,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
 
   private def handleCredentials(
       ctx: ChannelHandlerContext,
-      frame: Frame
+      frame: Frame[ByteBuf]
   ): Unit = {
     processMessage(ctx, frame, Credentials) {
       case Credentials(m, u, p) =>

@@ -4,22 +4,24 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
-import org.yupana.api.types.{ ReaderWriter, Storable }
+import org.yupana.api.types.{ ByteReaderWriter, ID, Storable }
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.io.IOException
 import java.nio.ByteBuffer
 import scala.concurrent.duration._
 import scala.concurrent.{ Await, Future }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, ID, TypedInt }
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
 
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+
   "TCP client" should "connect to the server" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 100, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 100, Some("user"), Some("password"))
     val reqF = for {
       id <- server.connect
       hello <- server
@@ -49,14 +51,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       Map.empty
     )
 
-    credentials shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, "user", "password")
+    credentials shouldEqual Credentials(CredentialsRequest.METHOD_PLAIN, Some("user"), Some("password"))
 
     server.close()
   }
 
   it should "fail if protocol version does not match" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     server.connect.flatMap(id =>
       server.readAndSendResponses[Hello](
         id,
@@ -71,7 +73,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "handle if response is too small" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 100, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 100, Some("user"), Some("password"))
     for {
       id <- server.connect
       _ <- server.readAnySendRaw[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(Array(1.toByte)))
@@ -82,14 +84,14 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "handle if there are no response" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 5, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 5, Some("user"), Some("password"))
     server.connect.foreach(server.close)
     an[IOException] should be thrownBy client.connect(12345)
   }
 
   it should "handle error response on hello" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     server.connect.flatMap(id =>
       server.readAndSendResponses[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(ErrorMessage("Internal error")))
     )
@@ -99,7 +101,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   it should "fail on unexpected response on hello" in {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     val err = ResultHeader(1, "table", Seq(ResultField("A", "VARCHAR")))
     server.connect.flatMap(id => server.readAndSendResponses[Hello](id, Hello.readFrame[ByteBuffer], _ => Seq(err)))
     the[YupanaException] thrownBy client.connect(
@@ -173,6 +175,33 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
       rows(1).get[Time]("time") shouldEqual Time(21112L)
       rows(1).get[String]("item") shouldEqual null
+    }
+  }
+
+  it should "read batch correctly" in {
+    val sql = "SELECT x FROM table"
+
+    withServerConnected { (server, id) =>
+      val onQuery = (q: SqlQuery) => Seq(ResultHeader(q.id, "table", Seq(ResultField("x", "INTEGER"))))
+      val onNext1 = (n: NextBatch) => 1 to 10 map (x => ResultRow(n.id, Seq(toBytes(x))))
+      val onNext2 = (n: NextBatch) => {
+        val rows = 11 to 15 map (x => ResultRow(n.id, Seq(toBytes(x))))
+        val footer = ResultFooter(n.id, -1, 15)
+        rows :+ footer
+      }
+
+      for {
+        r <- server.readAndSendResponses(id, SqlQuery.readFrame[ByteBuffer], onQuery)
+        n1 <- server.readAndSendResponses(id, NextBatch.readFrame[ByteBuffer], onNext1)
+        n2 <- server.readAndSendResponses(id, NextBatch.readFrame[ByteBuffer], onNext2)
+      } yield (r, n1, n2)
+    } { client =>
+      val result = client.prepareQuery(sql, Map.empty).result
+      result.name shouldEqual "table"
+
+      val rows = result.toList
+      rows should have length 15
+      rows.map(_.get[Int](0)) should contain theSameElementsInOrderAs (1 to 15)
     }
   }
 
@@ -325,7 +354,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       serverBody: (ServerMock, Int) => Future[T]
   )(clientBody: YupanaTcpClient => Unit): T = {
     val server = new ServerMock
-    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, "user", "password")
+    val client = new YupanaTcpClient("127.0.0.1", server.port, 10, Some("user"), Some("password"))
     val f = for {
       id <- server.connect
       _ <- server
@@ -346,6 +375,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     client.connect(12345678L)
     clientBody(client)
     val result = Await.result(f, 100.millis)
+    client.close()
 
     server.close()
     result
@@ -353,7 +383,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
   private def toBytes[T](v: T)(implicit st: Storable[T]): Array[Byte] = {
     val b = ByteBuffer.allocate(1024)
-    implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
+    implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
     st.write(b, v: ID[T])
     val size = b.position()
     b.rewind()

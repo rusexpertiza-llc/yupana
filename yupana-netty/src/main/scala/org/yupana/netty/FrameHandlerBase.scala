@@ -17,17 +17,21 @@
 package org.yupana.netty
 
 import com.typesafe.scalalogging.Logger
+import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
+import org.yupana.api.types.ByteReaderWriter
 import org.yupana.protocol.{ ErrorMessage, Frame, Message, MessageHelper, Response }
 
-abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame] {
+abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame[ByteBuf]] {
 
   protected def logger: Logger
 
-  def readMessage[M <: Message[M]](f: Frame, helper: MessageHelper[M]): Either[ErrorMessage, M] = {
+  implicit private val rw: ByteReaderWriter[ByteBuf] = ByteBufEvalReaderWriter
+
+  def readMessage[M <: Message[M]](f: Frame[ByteBuf], helper: MessageHelper[M]): Either[ErrorMessage, M] = {
     helper.readFrameOpt(f).toRight(ErrorMessage(s"Expect '${helper.tag.value.toChar}' but got '${f.frameType}'"))
   }
-  def processMessage[M <: Message[M]](ctx: ChannelHandlerContext, frame: Frame, helper: MessageHelper[M])(
+  def processMessage[M <: Message[M]](ctx: ChannelHandlerContext, frame: Frame[ByteBuf], helper: MessageHelper[M])(
       f: M => Unit
   ): Unit = {
     readMessage(frame, helper).fold(writeResponse(ctx, _), f)
@@ -35,13 +39,13 @@ abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame] {
 
   def writeResponse(ctx: ChannelHandlerContext, response: Response[_]): Unit = {
     logger.debug(s"Write response $response")
-    ctx.writeAndFlush(response.toFrame)
+    ctx.writeAndFlush(response.toFrame(Unpooled.buffer()))
   }
 
   def writeResponses(ctx: ChannelHandlerContext, responses: Seq[Response[_]]): Unit = {
     responses.foreach { response =>
       logger.debug(s"Write response $response")
-      ctx.write(response.toFrame)
+      ctx.write(response.toFrame(Unpooled.buffer()))
     }
     ctx.flush()
   }

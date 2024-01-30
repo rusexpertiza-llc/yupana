@@ -24,8 +24,13 @@ import org.yupana.protocol.ParameterValue
 import java.util
 import java.util.Properties
 import java.util.concurrent.Executor
+import scala.util.Using
 
 trait YupanaConnection extends Connection {
+
+  // By default JDBC connection is in auto-commit mode
+  private var autoCommit = true
+
   def runQuery(query: String, params: Map[Int, ParameterValue]): QueryResult
   def runBatchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult
   def url: String
@@ -54,17 +59,17 @@ trait YupanaConnection extends Connection {
 
   @throws[SQLException]
   override def setAutoCommit(autoCommit: Boolean): Unit = {
-    if (!autoCommit) throw new SQLFeatureNotSupportedException("Disabling autocommit is not supported")
+    this.autoCommit = autoCommit
   }
 
   @throws[SQLException]
-  override def getAutoCommit: Boolean = true
+  override def getAutoCommit: Boolean = autoCommit
 
   @throws[SQLException]
-  override def commit(): Unit = throw new SQLFeatureNotSupportedException("Transactions are not supported")
+  override def commit(): Unit = {}
 
   @throws[SQLException]
-  override def rollback(): Unit = throw new SQLFeatureNotSupportedException("Transactions are not supported")
+  override def rollback(): Unit = {}
 
   @throws[SQLException]
   override lazy val getMetaData: DatabaseMetaData = new YupanaDatabaseMetaData(this)
@@ -214,7 +219,16 @@ trait YupanaConnection extends Connection {
   override def createSQLXML: SQLXML = throw new SQLFeatureNotSupportedException("SQLXMLs are not supported")
 
   @throws[SQLException]
-  override def isValid(i: Int): Boolean = throw new SQLFeatureNotSupportedException("Method is not supported")
+  // NOTE: we do not support timeouts (yet?)
+  override def isValid(i: Int): Boolean = {
+    if (!isClosed) {
+      Using.resource(createStatement()) { statement =>
+        Using.resource(statement.executeQuery("SELECT 1")) { rs =>
+          rs.next() && rs.getBigDecimal(1) == java.math.BigDecimal.ONE
+        }
+      }
+    } else false
+  }
 
   @throws[SQLClientInfoException]
   override def setClientInfo(s: String, s1: String): Unit = {
