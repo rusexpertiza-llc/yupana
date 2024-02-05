@@ -35,6 +35,8 @@ case class Upsert(
 
 case object ShowTables extends Statement
 
+case object ShowVersion extends Statement
+
 case class ShowColumns(table: String) extends Statement
 
 case class MetricsFilter(queryId: Option[String] = None, state: Option[String] = None)

@@ -85,11 +85,11 @@ object QueryInfoProvider {
 
   def handleKillQuery(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
     flatQueryEngine.setQueryState(getFilter(sqlFilter), QueryStates.Cancelled)
-    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array("OK")))
+    SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array[Any]("OK")))
   }
 
   def handleDeleteQueryMetrics(flatQueryEngine: FlatQueryEngine, sqlFilter: MetricsFilter): Result = {
     val deleted = flatQueryEngine.deleteMetrics(getFilter(sqlFilter))
-    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array(deleted)))
+    SimpleResult("RESULT", List("DELETED"), List(DataType[Int]), Iterator(Array[Any](deleted)))
   }
 }

@@ -16,13 +16,17 @@
 
 package org.yupana.jdbc
 
+import org.yupana.jdbc.FramingChannelReader.PAYLOAD_OFFSET
+import org.yupana.protocol.Frame
+
 import java.io.IOException
-import java.nio.channels.ReadableByteChannel
+import java.nio.channels.{ AsynchronousByteChannel, CompletionHandler }
 import java.nio.{ ByteBuffer, ByteOrder }
-import scala.annotation.tailrec
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, Future, Promise }
 
 class FramingChannelReader(
-    channel: ReadableByteChannel,
+    channel: AsynchronousByteChannel,
     maxFrameSize: Int
 ) {
 
@@ -34,48 +38,64 @@ class FramingChannelReader(
     buf
   }
 
-  final def readFrame(): Option[Array[Byte]] = {
-    buffer.synchronized {
-      try {
-        val r = channel.read(buffer)
-        if (r == -1 && buffer.position() < 4) throw new IOException("Unexpected end of response")
-        if (buffer.position() >= 4) {
-          val size = buffer.getInt(0)
-          var lastRead = 0
-          while (buffer.position() < size + 4 && lastRead >= 0) {
-            lastRead = channel.read(buffer)
-            if (lastRead == 0) Thread.sleep(1)
+  private def extractFrame(tag: Byte, size: Int): Frame = {
+    val result = Array.ofDim[Byte](size)
+    val totalRead = buffer.position()
+
+    buffer.position(PAYLOAD_OFFSET)
+    buffer.get(result)
+
+    val restSize = totalRead - PAYLOAD_OFFSET - size
+    System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
+    buffer.position(restSize)
+    Frame(tag, result)
+  }
+
+  private val completionHandler = new CompletionHandler[Integer, Promise[Frame]] {
+    override def completed(r: Integer, promise: Promise[Frame]): Unit = {
+      if (r == -1) {
+        promise.failure(new IOException("Unexpected end of response"))
+      } else {
+        if (buffer.position() >= PAYLOAD_OFFSET) {
+          val tag = buffer.get(0)
+          val size = buffer.getInt(1)
+          if (buffer.position() < size + PAYLOAD_OFFSET) {
+            channel.read(buffer, promise, this)
+          } else {
+            if (buffer.position() < size + PAYLOAD_OFFSET) {
+              promise.failure(new IOException("Unexpected end of response"))
+            } else {
+              promise.success(extractFrame(tag, size))
+            }
           }
-          val result = Array.ofDim[Byte](size)
-          if (buffer.position() < size + 4) throw new IOException("Unexpected end of response")
-          val totalRead = buffer.position()
-
-          buffer.position(4)
-          buffer.get(result)
-
-          val restSize = totalRead - 4 - size
-          System.arraycopy(buffer.array(), buffer.position(), buffer.array(), 0, restSize)
-          buffer.position(restSize)
-
-          Some(result)
         } else {
-          None
+          channel.read(buffer, promise, this)
         }
-      } catch {
-        case t: Throwable =>
-          if (channel.isOpen) channel.close()
-          throw t
       }
     }
+
+    override def failed(exc: Throwable, promise: Promise[Frame]): Unit = promise.failure(exc)
   }
 
-  @tailrec
-  final def awaitAndReadFrame(): Array[Byte] = {
-    readFrame() match {
-      case Some(r) => r
-      case None =>
-        Thread.sleep(1)
-        awaitAndReadFrame()
+  final def readFrame(): Future[Frame] = {
+    if (buffer.position() >= PAYLOAD_OFFSET) {
+      val tag = buffer.get(0)
+      val size = buffer.getInt(1)
+      if (buffer.position() < size + PAYLOAD_OFFSET) {
+        JdbcUtils.wrapHandler[Frame](completionHandler, (p, h) => channel.read(buffer, p, h))
+      } else {
+        Future.successful(extractFrame(tag, size))
+      }
+    } else {
+      JdbcUtils.wrapHandler[Frame](completionHandler, (p, h) => channel.read(buffer, p, h))
     }
   }
+
+  final def awaitAndReadFrame(): Frame = {
+    Await.result(readFrame(), Duration.Inf)
+  }
+}
+
+object FramingChannelReader {
+  val PAYLOAD_OFFSET: Int = 1 + 4 // TAG: Byte || SIZE: Int || PAYLOAD
 }

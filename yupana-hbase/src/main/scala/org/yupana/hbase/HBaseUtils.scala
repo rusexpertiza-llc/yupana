@@ -27,11 +27,12 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
+import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
 import java.time.temporal.TemporalAdjusters
@@ -367,11 +368,11 @@ object HBaseUtils extends StrictLogging {
 
     Using.resource(connection.getAdmin) { admin =>
       if (admin.tableExists(metaTableName)) {
-        ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+        PersistentSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
       } else {
 
-        val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
-        ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
+        val tsdbSchemaBytes = PersistentSchemaChecker.toBytes(schema)
+        PersistentSchemaChecker.check(schema, tsdbSchemaBytes)
 
         writeTsdbSchema(connection, namespace, tsdbSchemaBytes)
         Success
