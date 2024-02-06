@@ -19,6 +19,7 @@ package org.yupana.core
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.auth.YupanaUser
+import org.yupana.core.dao.TsdbUserDao
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -27,7 +28,8 @@ class QueryEngineRouter(
     timeSeriesQueryEngine: TimeSeriesQueryEngine,
     flatQueryEngine: FlatQueryEngine,
     metadataProvider: JdbcMetadataProvider,
-    sqlQueryProcessor: SqlQueryProcessor
+    sqlQueryProcessor: SqlQueryProcessor,
+    userDao: TsdbUserDao
 ) {
 
   def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
@@ -60,6 +62,11 @@ class QueryEngineRouter(
 
       case ShowUpdatesIntervals(condition) =>
         UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
+
+      case CreateUser(u, p, r) => ??? // userDao.createUser(user, u, p, r)
+      case DropUser(u)         => ??? // userDao.createUser(user, u, p, r)
+      case AlterUser(u, p, r)  => ??? // userDao.createUser(user, u, p, r)
+      case ShowUsers           => ??? // userDao.createUser(user, u, p, r)
     }
   }
 

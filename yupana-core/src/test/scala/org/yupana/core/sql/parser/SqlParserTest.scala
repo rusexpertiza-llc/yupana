@@ -1283,6 +1283,56 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     }
   }
 
+  it should "support create user" in {
+    parsed("""CREATE USER 'John'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual None
+        r shouldEqual None
+    }
+  }
+
+  it should "support create user with password" in {
+    parsed("""CREATE USER 'John' WITH PASSWORD '12345'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual None
+    }
+  }
+
+  it should "support create user with password and role" in {
+    parsed("""CREATE USER 'John' WITH PASSWORD '12345' WITH ROLE 'admin'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+
+    parsed("""CREATE USER 'John' WITH ROLE 'admin' WITH PASSWORD '12345'""") {
+      case CreateUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("12345")
+        r shouldEqual Some("admin")
+    }
+  }
+
+  it should "support change user password" in {
+    parsed("ALTER USER 'John' SET PASSWORD='54321'") {
+      case AlterUser(u, p, r) =>
+        u shouldEqual "John"
+        p shouldEqual Some("54321")
+        r shouldEqual None
+    }
+  }
+
+  it should "support drop user" in {
+    parsed("DROP USER 'test'") {
+      case DropUser(u) =>
+        u shouldEqual "test"
+    }
+  }
+
   it should "check that the number of values is the same as fields" in {
     errorMessage("""UPSERT INTO foo (bar, baz) VALUES ('abc', 1), ('fail', 4, 'me'), ('def', 2);""") {
       case msg =>
@@ -1293,7 +1343,9 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   it should "produce error on unknown statements" in {
     errorMessage("INSERT 'foo' INTO table;") {
       case msg =>
-        msg should include("""Expect ("SELECT" | "UPSERT" | "SHOW" | "KILL" | "DELETE"), but got "INSERT""")
+        msg should include(
+          """Expect ("SELECT" | "UPSERT" | "SHOW" | "CREATE" | "ALTER" | "KILL" | "DELETE" | "DROP"), but got "INSERT"""
+        )
     }
   }
 
@@ -1301,7 +1353,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
     errorMessage("SHOW cartoons") {
       case msg =>
         msg should include(
-          """Expect ("COLUMNS" | "TABLES" | "VERSION" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
+          """Expect ("COLUMNS" | "TABLES" | "VERSION" | "USERS" | "QUERIES" | "FUNCTIONS" | "UPDATES_INTERVALS"), but got "cartoons"""
         )
     }
   }
