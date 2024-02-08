@@ -16,6 +16,7 @@
 
 package org.yupana.netty
 
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.UserDao
 import org.yupana.protocol.CredentialsRequest
 
@@ -23,6 +24,10 @@ class DaoAuthorizer(userDao: UserDao) extends Authorizer {
 
   override def methods: Seq[String] = Seq(CredentialsRequest.METHOD_PLAIN)
 
-  override def authorize(method: String, userName: Option[String], password: Option[String]): Either[String, String] =
+  override def authorize(
+      method: String,
+      userName: Option[String],
+      password: Option[String]
+  ): Either[String, YupanaUser] =
     ???
 }

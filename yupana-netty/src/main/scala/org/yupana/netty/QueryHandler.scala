@@ -23,9 +23,8 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.sql.parser
 import org.yupana.protocol._
 
-class QueryHandler(serverContext: ServerContext, userName: String) extends FrameHandlerBase with StrictLogging {
+class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends FrameHandlerBase with StrictLogging {
 
-  private val user = YupanaUser(userName)
   private var streams: Map[Int, Stream] = Map.empty
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {

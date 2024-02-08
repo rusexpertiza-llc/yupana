@@ -10,7 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.core.QueryEngineRouter
-import org.yupana.core.auth.YupanaUser
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.core.sql.parser
 import org.yupana.protocol._
 
@@ -106,7 +106,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
     (queryEngine.query _)
       .expects(
-        YupanaUser("test"),
+        YupanaUser("test", None, TsdbRole.Admin),
         "SELECT ? + ? as five, ? as s, ? epoch",
         Map(
           1 -> parser.NumericValue(3),
@@ -164,14 +164,15 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   "QueryHandler" should "handle multiple queries simultaneously" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
+    val user = YupanaUser("test", None, TsdbRole.Admin)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine.query _)
-      .expects(YupanaUser("test"), "SELECT 1", Map.empty[Int, parser.Value])
+      .expects(user, "SELECT 1", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     (queryEngine.query _)
-      .expects(YupanaUser("test"), "SELECT 2", Map.empty[Int, parser.Value])
+      .expects(user, "SELECT 2", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array[Any](2)))))
 
     ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame)
@@ -215,10 +216,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   it should "send as many rows as acquired" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
+    val user = YupanaUser("test", None, TsdbRole.Admin)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine.query _)
-      .expects(YupanaUser("test"), "SELECT x FROM table", Map.empty[Int, parser.Value])
+      .expects(user, "SELECT x FROM table", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("table", Seq("x"), Seq(DataType[Int]), (1 to 15).map(x => Array[Any](x)).iterator)))
 
     ch.writeInbound(SqlQuery(1, "SELECT x FROM table", Map.empty).toFrame)
@@ -246,11 +248,12 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   it should "support batch queries" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test"))
+    val user = YupanaUser("test", None, TsdbRole.Admin)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine.batchQuery _)
       .expects(
-        YupanaUser("test"),
+        user,
         "UPSERT INTO test(a,b) VALUES (?, ?)",
         Seq(
           Map(1 -> parser.StringValue("a"), 2 -> parser.NumericValue(5)),
@@ -276,10 +279,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   it should "should handle cancel queries" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "Test"))
+    val user = YupanaUser("Test", None, TsdbRole.ReadWrite)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine.query _)
-      .expects(YupanaUser("Test"), "SELECT 1", Map.empty[Int, parser.Value])
+      .expects(user, "SELECT 1", Map.empty[Int, parser.Value])
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame)
@@ -299,12 +303,11 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   it should "handle errors in backend" in {
     val queryEngine = mock[QueryEngineRouter]
-    val ch = new EmbeddedChannel(
-      new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), "test")
-    )
+    val user = YupanaUser("test", None, TsdbRole.Admin)
+    val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine.query _)
-      .expects(YupanaUser("test"), "SELECT 2", Map.empty[Int, parser.Value])
+      .expects(user, "SELECT 2", Map.empty[Int, parser.Value])
       .onCall(_ => throw new RuntimeException("Something wrong"))
 
     ch.writeInbound(SqlQuery(1, "SELECT 2", Map.empty).toFrame)

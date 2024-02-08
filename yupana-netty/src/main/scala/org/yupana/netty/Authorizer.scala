@@ -16,9 +16,11 @@
 
 package org.yupana.netty
 
+import org.yupana.core.auth.YupanaUser
+
 trait Authorizer {
 
   def methods: Seq[String]
 
-  def authorize(method: String, userName: Option[String], password: Option[String]): Either[String, String]
+  def authorize(method: String, userName: Option[String], password: Option[String]): Either[String, YupanaUser]
 }

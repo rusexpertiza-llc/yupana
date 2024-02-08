@@ -63,10 +63,61 @@ class QueryEngineRouter(
       case ShowUpdatesIntervals(condition) =>
         UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
 
-      case CreateUser(u, p, r) => ifAdmin(user)(userDao.createUser(u, p, r))
-      case DropUser(u)         => ifAdmin(user)(userDao.deleteUser(u))
-      case AlterUser(u, p, r)  => ifAdmin(user)(userDao.updateUser(u, p, r))
-      case ShowUsers           => ifAdmin(user)(userDao.listUsers)
+      case CreateUser(u, p, r) => createUser(user, u, p, r)
+      case DropUser(u)         => deleteUser(user, u)
+      case AlterUser(u, p, r)  => updateUser(user, u, p, r)
+      case ShowUsers           => listUsers(user)
+    }
+  }
+
+  def singleResult[T](name: String, value: T)(implicit dt: DataType.Aux[T]): Result = {
+    SimpleResult("RESULT", List(name), List(dt), Iterator(Array[Any](value)))
+  }
+  def createUser(
+      user: YupanaUser,
+      name: String,
+      password: Option[String],
+      role: Option[String]
+  ): Either[String, Result] = {
+    for {
+      _ <- isAdmin(user)
+      r <- role.map(r => getRole(r)).getOrElse(Right(TsdbRole.Disabled))
+    } yield {
+      userDao.createUser(name, password, r)
+      singleResult("STATUS", "OK")
+    }
+  }
+
+  def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
+    isAdmin(user).flatMap(_ =>
+      if (userDao.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
+    )
+  }
+
+  def updateUser(
+      user: YupanaUser,
+      name: String,
+      password: Option[String],
+      role: Option[String]
+  ): Either[String, Result] = {
+    for {
+      _ <- isAdmin(user)
+      r <- role.fold(Right(None): Either[String, Option[TsdbRole]])(x => getRole(x).map(Some(_)))
+    } yield {
+      userDao.updateUser(name, password, r)
+      singleResult("STATUS", "OK")
+    }
+  }
+
+  def listUsers(user: YupanaUser): Either[String, Result] = {
+    isAdmin(user).map { _ =>
+      val users = userDao.listUsers()
+      SimpleResult(
+        "USERS",
+        List("NAME", "ROLE"),
+        List(DataType[String], DataType[String]),
+        users.map(u => Array[Any](u.name, u.role.name)).iterator
+      )
     }
   }
 
@@ -74,8 +125,8 @@ class QueryEngineRouter(
     TsdbRole.roleByName(name).toRight(s"Invalid role name '$name'")
   }
 
-  def ifAdmin[T](user: YupanaUser)(f: () => T): Either[String, T] = {
-    if (user.role == TsdbRole.Admin) Right(f()) else Left(s"User ${user.name} doesn't have enough permissions")
+  def isAdmin(user: YupanaUser): Either[String, YupanaUser] = {
+    if (user.role == TsdbRole.Admin) Right(user) else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
   def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
@@ -93,9 +144,7 @@ class QueryEngineRouter(
   ): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       timeSeriesQueryEngine.put(user, dps)
-      Right(
-        SimpleResult("RESULT", List("RESULT"), List(DataType[String]), Iterator(Array[Any]("OK")))
-      )
+      Right(singleResult("RESULT", "OK"))
     }
   }
 

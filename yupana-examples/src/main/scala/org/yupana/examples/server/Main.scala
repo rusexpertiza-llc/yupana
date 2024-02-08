@@ -21,16 +21,16 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.api.query.Query
-import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
-import org.yupana.netty.{ NonEmptyUserAuthorizer, ServerContext, YupanaServer }
+import org.yupana.netty.{ DaoAuthorizer, ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -91,11 +91,14 @@ object Main extends StrictLogging {
         metricCreator
       )
 
+    val userDao = new UserDaoHBase(connection, config.hbaseNamespace)
+
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
       new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
-      new SqlQueryProcessor(schemaWithJson)
+      new SqlQueryProcessor(schemaWithJson),
+      userDao
     )
     logger.info("Registering catalogs")
     val elRegistrator =
@@ -103,7 +106,7 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val ctx = ServerContext(queryEngineRouter, NonEmptyUserAuthorizer)
+    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userDao))
     val server = new YupanaServer(config.host, config.port, 4, ctx)
     val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")

@@ -19,6 +19,7 @@ package org.yupana.netty
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.timeout.{ IdleState, IdleStateEvent, IdleStateHandler }
+import org.yupana.core.auth.YupanaUser
 import org.yupana.protocol._
 
 class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with StrictLogging {
@@ -79,12 +80,12 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
     }
   }
 
-  private def connected(ctx: ChannelHandlerContext, userName: String): Unit = {
+  private def connected(ctx: ChannelHandlerContext, user: YupanaUser): Unit = {
     if (ctx.pipeline().get(classOf[IdleStateHandler]) != null) {
       ctx.pipeline().remove(classOf[IdleStateHandler])
     }
     ctx
       .pipeline()
-      .replace(classOf[ConnectingHandler], "queryHandler", new QueryHandler(context, userName))
+      .replace(classOf[ConnectingHandler], "queryHandler", new QueryHandler(context, user))
   }
 }

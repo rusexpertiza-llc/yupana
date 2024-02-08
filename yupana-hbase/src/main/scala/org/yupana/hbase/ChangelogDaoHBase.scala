@@ -19,7 +19,7 @@ package org.yupana.hbase
 import java.nio.charset.StandardCharsets
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase._
-import org.apache.hadoop.hbase.client.{ Table => HTable, _ }
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.FilterList.Operator
 import org.apache.hadoop.hbase.filter.{ Filter, FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
@@ -218,7 +218,7 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
     block
   }
 
-  private def getTable: HTable = connection.getTable(getTableName(namespace))
+  private def getTable: Table = connection.getTable(getTableName(namespace))
 
   private def checkTablesExistsElseCreate(): Unit = {
     try {

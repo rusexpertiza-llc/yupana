@@ -16,14 +16,14 @@
 
 package org.yupana.core.dao
 
-import org.yupana.core.auth.TsdbRole
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 
 trait UserDao {
   def createUser(userName: String, password: Option[String], role: TsdbRole): Unit
-  def updateUser(userName: String, password: Option[String], role: Option[TsdbRole]): Unit
+  def updateUser(userName: String, password: Option[String], role: Option[TsdbRole]): Boolean
   def deleteUser(userName: String): Boolean
 
-  def findUser(userName: String): Option[String]
+  def findUser(userName: String): Option[YupanaUser]
 
-  def listUsers(): List[String]
+  def listUsers(): List[YupanaUser]
 }
