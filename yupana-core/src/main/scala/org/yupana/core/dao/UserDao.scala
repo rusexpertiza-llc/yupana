@@ -16,17 +16,12 @@
 
 package org.yupana.core.dao
 
-sealed trait TsdbRole
+import org.yupana.core.auth.TsdbRole
 
-case object Disabled extends TsdbRole
-case object ReadOnly extends TsdbRole
-case object ReadWrite extends TsdbRole
-case object ReadAdmin extends TsdbRole
-
-trait TsdbUserDao {
+trait UserDao {
   def createUser(userName: String, password: Option[String], role: TsdbRole): Unit
   def updateUser(userName: String, password: Option[String], role: Option[TsdbRole]): Unit
-  def deleteUser(userName: String): Unit
+  def deleteUser(userName: String): Boolean
 
   def findUser(userName: String): Option[String]
 

@@ -16,10 +16,10 @@
 
 package org.yupana.netty
 
-import org.yupana.core.dao.TsdbUserDao
+import org.yupana.core.dao.UserDao
 import org.yupana.protocol.CredentialsRequest
 
-class DaoAuthorizer(userDao: TsdbUserDao) extends Authorizer {
+class DaoAuthorizer(userDao: UserDao) extends Authorizer {
 
   override def methods: Seq[String] = Seq(CredentialsRequest.METHOD_PLAIN)
 

@@ -18,8 +18,8 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Query, Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.TsdbUserDao
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
+import org.yupana.core.dao.UserDao
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -29,7 +29,7 @@ class QueryEngineRouter(
     flatQueryEngine: FlatQueryEngine,
     metadataProvider: JdbcMetadataProvider,
     sqlQueryProcessor: SqlQueryProcessor,
-    userDao: TsdbUserDao
+    userDao: UserDao
 ) {
 
   def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
@@ -63,11 +63,19 @@ class QueryEngineRouter(
       case ShowUpdatesIntervals(condition) =>
         UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
 
-      case CreateUser(u, p, r) => ??? // userDao.createUser(user, u, p, r)
-      case DropUser(u)         => ??? // userDao.createUser(user, u, p, r)
-      case AlterUser(u, p, r)  => ??? // userDao.createUser(user, u, p, r)
-      case ShowUsers           => ??? // userDao.createUser(user, u, p, r)
+      case CreateUser(u, p, r) => ifAdmin(user)(userDao.createUser(u, p, r))
+      case DropUser(u)         => ifAdmin(user)(userDao.deleteUser(u))
+      case AlterUser(u, p, r)  => ifAdmin(user)(userDao.updateUser(u, p, r))
+      case ShowUsers           => ifAdmin(user)(userDao.listUsers)
     }
+  }
+
+  def getRole(name: String): Either[String, TsdbRole] = {
+    TsdbRole.roleByName(name).toRight(s"Invalid role name '$name'")
+  }
+
+  def ifAdmin[T](user: YupanaUser)(f: () => T): Either[String, T] = {
+    if (user.role == TsdbRole.Admin) Right(f()) else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
   def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {

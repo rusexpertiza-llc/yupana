@@ -16,9 +16,25 @@
 
 package org.yupana.core.auth
 
-case class YupanaUser(name: String, role: TsdbRole)
+sealed trait TsdbRole {
+  val name: String
+}
 
-object YupanaUser {
+object TsdbRole {
+  case object Disabled extends TsdbRole {
+    override val name: String = "DISABLED"
+  }
+  case object ReadOnly extends TsdbRole {
+    override val name: String = "READ_ONLY"
+  }
+  case object ReadWrite extends TsdbRole {
+    override val name: String = "READ_WRITE"
+  }
+  case object Admin extends TsdbRole {
+    override val name: String = "ADMIN"
+  }
 
-  val ANONYMOUS: YupanaUser = YupanaUser("ANONYMOUS", TsdbRole.ReadOnly)
+  private val roles: Map[String, TsdbRole] = Seq(Disabled, ReadOnly, ReadWrite, Admin).map(r => r.name -> r).toMap
+
+  def roleByName(name: String): Option[TsdbRole] = roles.get(name)
 }
