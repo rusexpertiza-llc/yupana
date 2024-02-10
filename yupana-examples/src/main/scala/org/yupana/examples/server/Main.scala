@@ -21,6 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.api.query.Query
+import org.yupana.core.auth.DaoAuthorizer
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
@@ -30,7 +31,7 @@ import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
 import org.yupana.hbase._
 import org.yupana.metrics.{ CombinedMetricReporter, Slf4jMetricReporter }
-import org.yupana.netty.{ DaoAuthorizer, ServerContext, YupanaServer }
+import org.yupana.netty.{ ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration

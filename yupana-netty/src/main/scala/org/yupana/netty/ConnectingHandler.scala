@@ -25,6 +25,7 @@ import org.yupana.protocol._
 class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with StrictLogging {
 
   private var gotHello = false
+
   override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
     if (!gotHello) {
       handleHello(ctx, frame)
@@ -47,19 +48,13 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
       case Hello(pv, _, time, _) if pv == ProtocolVersion.value =>
         writeResponses(
           ctx,
-          Seq(HelloResponse(ProtocolVersion.value, time), CredentialsRequest(context.authorizer.methods))
+          Seq(HelloResponse(ProtocolVersion.value, time), CredentialsRequest(ConnectingHandler.SUPPORTED_METHODS))
         )
         gotHello = true
 
       case Hello(pv, _, _, _) =>
-        writeResponse(
-          ctx,
-          ErrorMessage(
-            s"Unsupported protocol version $pv, required ${ProtocolVersion.value}",
-            None,
-            ErrorMessage.SEVERITY_FATAL
-          )
-        )
+        respondFatal(ctx, s"Unsupported protocol version $pv, required ${ProtocolVersion.value}")
+        ctx.close()
     }
   }
 
@@ -69,13 +64,16 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
   ): Unit = {
     processMessage(ctx, frame, Credentials) {
       case Credentials(m, u, p) =>
-        context.authorizer.authorize(m, u, p) match {
-          case Right(user) =>
-            connected(ctx, user)
-            writeResponse(ctx, Authorized())
-          case Left(err) =>
-            writeResponse(ctx, ErrorMessage(err, None, ErrorMessage.SEVERITY_FATAL))
-            ctx.close()
+        if (ConnectingHandler.SUPPORTED_METHODS.contains(m)) {
+          context.authorizer.authorize(u, p) match {
+            case Right(user) =>
+              connected(ctx, user)
+              writeResponse(ctx, Authorized())
+            case Left(err) =>
+              respondFatal(ctx, err)
+          }
+        } else {
+          respondFatal(ctx, s"Unsupported auth method '$m'")
         }
     }
   }
@@ -88,4 +86,14 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
       .pipeline()
       .replace(classOf[ConnectingHandler], "queryHandler", new QueryHandler(context, user))
   }
+
+  private def respondFatal(ctx: ChannelHandlerContext, message: String): Unit = {
+    writeResponse(ctx, ErrorMessage(message, None, ErrorMessage.SEVERITY_FATAL))
+    ctx.close()
+  }
+
+}
+
+object ConnectingHandler {
+  val SUPPORTED_METHODS: List[String] = List(CredentialsRequest.METHOD_PLAIN)
 }

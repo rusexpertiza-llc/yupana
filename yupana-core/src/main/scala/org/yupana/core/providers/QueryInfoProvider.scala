@@ -16,6 +16,7 @@
 
 package org.yupana.core.providers
 
+import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
@@ -24,7 +25,7 @@ import org.yupana.core.dao.QueryMetricsFilter
 import org.yupana.core.sql.parser.MetricsFilter
 import org.yupana.metrics.{ MetricCollector, QueryStates }
 
-object QueryInfoProvider {
+object QueryInfoProvider extends StrictLogging {
 
   private def getFilter(sqlFilter: MetricsFilter): QueryMetricsFilter = {
     QueryMetricsFilter(
@@ -41,6 +42,7 @@ object QueryInfoProvider {
     import org.yupana.core.model.TsdbQueryMetrics._
 
     val filter = sqlFilter.map(getFilter)
+    logger.info(s"Handle SHOW QUERIES $filter")
     val metrics = flatQueryEngine.queriesByFilter(filter, limit)
     val data: Iterator[Array[Any]] = metrics.map { queryMetrics =>
       Array[Any](
