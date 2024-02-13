@@ -474,6 +474,22 @@ object HBaseUtils extends StrictLogging {
     )
   }
 
+  def checkTableExistsElseCreate(connection: Connection, tableName: TableName, familyNames: Seq[Array[Byte]]): Unit = {
+    try {
+      Using.resource(connection.getAdmin) { admin =>
+        if (!admin.tableExists(tableName)) {
+          val desc = TableDescriptorBuilder
+            .newBuilder(tableName)
+            .setColumnFamilies(familyNames.map(ColumnFamilyDescriptorBuilder.of).asJavaCollection)
+            .build()
+          admin.createTable(desc)
+        }
+      }
+    } catch {
+      case _: TableExistsException =>
+    }
+  }
+
   def checkTableExistsElseCreate(
       connection: Connection,
       namespace: String,

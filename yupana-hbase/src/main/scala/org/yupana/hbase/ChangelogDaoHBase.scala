@@ -214,26 +214,9 @@ class ChangelogDaoHBase(connection: Connection, namespace: String) extends Chang
   }
 
   def withTables[T](block: => T): T = {
-    checkTablesExistsElseCreate()
+    HBaseUtils.checkTableExistsElseCreate(connection, getTableName(namespace), Seq(FAMILY))
     block
   }
 
   private def getTable: Table = connection.getTable(getTableName(namespace))
-
-  private def checkTablesExistsElseCreate(): Unit = {
-    try {
-      val tableName = getTableName(namespace)
-      Using.resource(connection.getAdmin) { admin =>
-        if (!admin.tableExists(tableName)) {
-          val desc = TableDescriptorBuilder
-            .newBuilder(tableName)
-            .setColumnFamily(ColumnFamilyDescriptorBuilder.of(FAMILY))
-            .build()
-          admin.createTable(desc)
-        }
-      }
-    } catch {
-      case _: TableExistsException =>
-    }
-  }
 }

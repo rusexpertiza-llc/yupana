@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableName }
+import org.apache.hadoop.hbase.{ CompareOperator, TableName }
 import org.yupana.api.utils.GroupByIterator
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.TsdbQueryMetrics._
@@ -219,7 +219,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   }
 
   private def withTables[T](block: => T): T = {
-    checkTablesExistsElseCreate()
+    HBaseUtils.checkTableExistsElseCreate(connection, getTableName(namespace), Seq(FAMILY, ID_FAMILY))
     block
   }
 
@@ -235,27 +235,5 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val splitIndex = strKey.indexOf('_')
     if (splitIndex != -1) (strKey.substring(0, splitIndex), Some(strKey.substring(splitIndex + 1)))
     else (strKey, None)
-  }
-
-  private def checkTablesExistsElseCreate(): Unit = {
-    try {
-      val tableName = getTableName(namespace)
-      Using.resource(connection.getAdmin) { admin =>
-        if (!admin.tableExists(tableName)) {
-          val desc = TableDescriptorBuilder
-            .newBuilder(tableName)
-            .setColumnFamilies(
-              Seq(
-                ColumnFamilyDescriptorBuilder.of(FAMILY),
-                ColumnFamilyDescriptorBuilder.of(ID_FAMILY)
-              ).asJavaCollection
-            )
-            .build()
-          admin.createTable(desc)
-        }
-      }
-    } catch {
-      case _: TableExistsException =>
-    }
   }
 }

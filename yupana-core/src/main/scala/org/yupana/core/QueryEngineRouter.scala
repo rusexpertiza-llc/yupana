@@ -16,7 +16,8 @@
 
 package org.yupana.core
 
-import org.yupana.api.query.{ Query, Result, SimpleResult }
+import at.favre.lib.crypto.bcrypt.BCrypt
+import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.core.dao.UserDao
@@ -35,33 +36,36 @@ class QueryEngineRouter(
   def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
     SqlParser.parse(sql) flatMap {
       case select: Select =>
-        val tsdbQuery: Either[String, Query] = sqlQueryProcessor.createQuery(select, params)
-        tsdbQuery flatMap { query =>
-          Right(timeSeriesQueryEngine.query(user, query))
-        }
+        for {
+          _ <- hasRole(user, TsdbRole.ReadOnly)
+          query <- sqlQueryProcessor.createQuery(select, params)
+        } yield timeSeriesQueryEngine.query(user, query)
 
-      case upsert: Upsert =>
-        doUpsert(user, upsert, Seq(params))
+      case upsert: Upsert => hasRole(user, TsdbRole.ReadWrite).flatMap(_ => doUpsert(user, upsert, Seq(params)))
 
-      case ShowTables => Right(metadataProvider.listTables)
+      case ShowTables => hasRole(user, TsdbRole.ReadOnly).map(_ => metadataProvider.listTables)
 
-      case ShowVersion => Right(metadataProvider.version)
+      case ShowVersion => hasRole(user, TsdbRole.ReadOnly).map(_ => metadataProvider.version)
 
-      case ShowColumns(tableName) => metadataProvider.describeTable(tableName)
+      case ShowColumns(tableName) =>
+        hasRole(user, TsdbRole.ReadOnly).flatMap(_ => metadataProvider.describeTable(tableName))
 
-      case ShowFunctions(typeName) => metadataProvider.listFunctions(typeName)
+      case ShowFunctions(typeName) =>
+        hasRole(user, TsdbRole.ReadOnly).flatMap(_ => metadataProvider.listFunctions(typeName))
 
       case ShowQueryMetrics(filter, limit) =>
-        Right(QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit))
+        hasRole(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit))
 
       case KillQuery(filter) =>
-        Right(QueryInfoProvider.handleKillQuery(flatQueryEngine, filter))
+        hasRole(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleKillQuery(flatQueryEngine, filter))
 
       case DeleteQueryMetrics(filter) =>
-        Right(QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
+        hasRole(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
 
       case ShowUpdatesIntervals(condition) =>
-        UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
+        hasRole(user, TsdbRole.Admin).flatMap(_ =>
+          UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
+        )
 
       case CreateUser(u, p, r) => createUser(user, u, p, r)
       case DropUser(u)         => deleteUser(user, u)
@@ -73,6 +77,11 @@ class QueryEngineRouter(
   def singleResult[T](name: String, value: T)(implicit dt: DataType.Aux[T]): Result = {
     SimpleResult("RESULT", List(name), List(dt), Iterator(Array[Any](value)))
   }
+
+  private def hashPassword(password: String): String = {
+    BCrypt.withDefaults().hashToString(12, password.toCharArray)
+  }
+
   def createUser(
       user: YupanaUser,
       name: String,
@@ -80,16 +89,17 @@ class QueryEngineRouter(
       role: Option[String]
   ): Either[String, Result] = {
     for {
-      _ <- isAdmin(user)
+      _ <- hasRole(user, TsdbRole.Admin)
       r <- role.map(r => getRole(r)).getOrElse(Right(TsdbRole.Disabled))
-    } yield {
-      userDao.createUser(name, password, r)
-      singleResult("STATUS", "OK")
-    }
+      status <-
+        if (userDao.createUser(name, Some(hashPassword(password.getOrElse(""))), r)) {
+          Right(singleResult("STATUS", "OK"))
+        } else Left("User already exists")
+    } yield status
   }
 
   def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
-    isAdmin(user).flatMap(_ =>
+    hasRole(user, TsdbRole.Admin).flatMap(_ =>
       if (userDao.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
     )
   }
@@ -101,16 +111,16 @@ class QueryEngineRouter(
       role: Option[String]
   ): Either[String, Result] = {
     for {
-      _ <- isAdmin(user)
+      _ <- hasRole(user, TsdbRole.Admin)
       r <- role.fold(Right(None): Either[String, Option[TsdbRole]])(x => getRole(x).map(Some(_)))
     } yield {
-      userDao.updateUser(name, password, r)
+      userDao.updateUser(name, password.map(hashPassword), r)
       singleResult("STATUS", "OK")
     }
   }
 
   def listUsers(user: YupanaUser): Either[String, Result] = {
-    isAdmin(user).map { _ =>
+    hasRole(user, TsdbRole.Admin).map { _ =>
       val users = userDao.listUsers()
       SimpleResult(
         "USERS",
@@ -125,8 +135,8 @@ class QueryEngineRouter(
     TsdbRole.roleByName(name).toRight(s"Invalid role name '$name'")
   }
 
-  def isAdmin(user: YupanaUser): Either[String, YupanaUser] = {
-    if (user.role == TsdbRole.Admin) Right(user) else Left(s"User ${user.name} doesn't have enough permissions")
+  def hasRole(user: YupanaUser, role: TsdbRole): Either[String, YupanaUser] = {
+    if (user.role.priority >= role.priority) Right(user) else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
   def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {

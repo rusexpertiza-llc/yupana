@@ -107,7 +107,7 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userDao))
+    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userDao, Some("admin"), Some("admin")))
     val server = new YupanaServer(config.host, config.port, 4, ctx)
     val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")
