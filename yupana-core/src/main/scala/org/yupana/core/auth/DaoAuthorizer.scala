@@ -16,29 +16,15 @@
 
 package org.yupana.core.auth
 
-import at.favre.lib.crypto.bcrypt.BCrypt
-import org.yupana.core.dao.UserDao
-
-class DaoAuthorizer(userDao: UserDao, superUserName: Option[String], superUserPassword: Option[String])
-    extends Authorizer {
+class DaoAuthorizer(userManager: UserManager) extends Authorizer {
 
   override def authorize(
       userName: Option[String],
       password: Option[String]
   ): Either[String, YupanaUser] = {
     userName.map(_.trim) match {
-      case Some(name) =>
-        if (superUserName.contains(name) && superUserPassword == password) {
-          Right(YupanaUser(name, password, TsdbRole.Admin))
-        } else {
-          userDao
-            .findUser(name)
-            .filter(yu =>
-              BCrypt.verifyer().verify(password.getOrElse("").toCharArray, yu.password.getOrElse("")).verified
-            )
-            .toRight("Invalid user or password")
-        }
-      case None => Left("User name must not be empty")
+      case Some(name) => userManager.validateUser(name, password).toRight("Invalid user or password")
+      case None       => Left("User name must not be empty")
     }
   }
 }

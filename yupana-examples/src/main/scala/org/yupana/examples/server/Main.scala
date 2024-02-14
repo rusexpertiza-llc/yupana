@@ -21,7 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.api.query.Query
-import org.yupana.core.auth.DaoAuthorizer
+import org.yupana.core.auth.{ DaoAuthorizer, UserManager }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
@@ -93,13 +93,14 @@ object Main extends StrictLogging {
       )
 
     val userDao = new UserDaoHBase(connection, config.hbaseNamespace)
+    val userManager = new UserManager(userDao, Some("admin"), Some("admin"))
 
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),
       new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
       new SqlQueryProcessor(schemaWithJson),
-      userDao
+      userManager
     )
     logger.info("Registering catalogs")
     val elRegistrator =
@@ -107,7 +108,7 @@ object Main extends StrictLogging {
     elRegistrator.registerAll(schemaWithJson)
     logger.info("Registering catalogs done")
 
-    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userDao, Some("admin"), Some("admin")))
+    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userManager))
     val server = new YupanaServer(config.host, config.port, 4, ctx)
     val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")

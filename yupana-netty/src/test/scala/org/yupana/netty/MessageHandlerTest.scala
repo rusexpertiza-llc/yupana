@@ -10,7 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.core.QueryEngineRouter
-import org.yupana.core.auth.{NonEmptyUserAuthorizer, TsdbRole, YupanaUser}
+import org.yupana.core.auth.{ NonEmptyUserAuthorizer, TsdbRole, YupanaUser }
 import org.yupana.core.sql.parser
 import org.yupana.protocol._
 

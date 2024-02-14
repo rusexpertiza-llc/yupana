@@ -16,11 +16,9 @@
 
 package org.yupana.core
 
-import at.favre.lib.crypto.bcrypt.BCrypt
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.auth.{ TsdbRole, YupanaUser }
-import org.yupana.core.dao.UserDao
+import org.yupana.core.auth.{ TsdbRole, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -30,7 +28,7 @@ class QueryEngineRouter(
     flatQueryEngine: FlatQueryEngine,
     metadataProvider: JdbcMetadataProvider,
     sqlQueryProcessor: SqlQueryProcessor,
-    userDao: UserDao
+    userManager: UserManager
 ) {
 
   def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
@@ -78,10 +76,6 @@ class QueryEngineRouter(
     SimpleResult("RESULT", List(name), List(dt), Iterator(Array[Any](value)))
   }
 
-  private def hashPassword(password: String): String = {
-    BCrypt.withDefaults().hashToString(12, password.toCharArray)
-  }
-
   def createUser(
       user: YupanaUser,
       name: String,
@@ -90,17 +84,13 @@ class QueryEngineRouter(
   ): Either[String, Result] = {
     for {
       _ <- hasRole(user, TsdbRole.Admin)
-      r <- role.map(r => getRole(r)).getOrElse(Right(TsdbRole.Disabled))
-      status <-
-        if (userDao.createUser(name, Some(hashPassword(password.getOrElse(""))), r)) {
-          Right(singleResult("STATUS", "OK"))
-        } else Left("User already exists")
-    } yield status
+      _ <- userManager.createUser(name, password, role)
+    } yield singleResult("STATUS", "OK")
   }
 
   def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
     hasRole(user, TsdbRole.Admin).flatMap(_ =>
-      if (userDao.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
+      if (userManager.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
     )
   }
 
@@ -112,16 +102,13 @@ class QueryEngineRouter(
   ): Either[String, Result] = {
     for {
       _ <- hasRole(user, TsdbRole.Admin)
-      r <- role.fold(Right(None): Either[String, Option[TsdbRole]])(x => getRole(x).map(Some(_)))
-    } yield {
-      userDao.updateUser(name, password.map(hashPassword), r)
-      singleResult("STATUS", "OK")
-    }
+      _ <- userManager.updateUser(name, password, role)
+    } yield singleResult("STATUS", "OK")
   }
 
   def listUsers(user: YupanaUser): Either[String, Result] = {
     hasRole(user, TsdbRole.Admin).map { _ =>
-      val users = userDao.listUsers()
+      val users = userManager.listUsers()
       SimpleResult(
         "USERS",
         List("NAME", "ROLE"),
@@ -129,10 +116,6 @@ class QueryEngineRouter(
         users.map(u => Array[Any](u.name, u.role.name)).iterator
       )
     }
-  }
-
-  def getRole(name: String): Either[String, TsdbRole] = {
-    TsdbRole.roleByName(name).toRight(s"Invalid role name '$name'")
   }
 
   def hasRole(user: YupanaUser, role: TsdbRole): Either[String, YupanaUser] = {
