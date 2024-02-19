@@ -16,171 +16,305 @@
 
 package org.yupana.jdbc
 
-import java.io.IOException
-import java.net.InetSocketAddress
-import java.nio.channels.SocketChannel
-import java.nio.{ ByteBuffer, ByteOrder }
-import java.util.logging.Logger
-import org.yupana.api.query.{ Result, SimpleResult }
+import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.DataType
 import org.yupana.api.utils.CollectionUtils
+import org.yupana.jdbc.YupanaConnection.QueryResult
+import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
-import org.yupana.jdbc.model.{ NumericValue, StringValue, TimestampValue }
-import org.yupana.proto._
-import org.yupana.proto.util.ProtocolVersion
+import org.yupana.protocol._
 
-class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
+import java.net.{ InetSocketAddress, StandardSocketOptions }
+import java.nio.ByteBuffer
+import java.nio.channels.{ AsynchronousSocketChannel, CompletionHandler }
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.logging.Logger
+import java.util.{ Timer, TimerTask }
+import scala.collection.mutable
+import scala.concurrent.duration.Duration
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+
+class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Option[String], password: Option[String])(
+    implicit ec: ExecutionContext
+) extends AutoCloseable {
 
   private val logger = Logger.getLogger(classOf[YupanaTcpClient].getName)
 
-  private val CHUNK_SIZE = 1024 * 100
+  logger.info("New instance of YupanaTcpClient")
 
-  private var channel: SocketChannel = _
+  private var channel: AsynchronousSocketChannel = _
+  private var chanelReader: FramingChannelReader = _
+  private val nextId: AtomicInteger = new AtomicInteger(0)
+  private var iterators: Map[Int, ResultIterator] = Map.empty
+  private val commandQueue: mutable.Queue[Handler[_]] = mutable.Queue.empty
 
-  private def ensureConnected(): Unit = {
-    if (channel == null || !channel.isConnected) {
-      channel = SocketChannel.open()
-      channel.configureBlocking(true)
-      channel.connect(new InetSocketAddress(host, port))
+  private val heartbeatTimer = new Timer(true)
+  private val HEARTBEAT_INTERVAL = 30_000
+
+  private var closed: Boolean = true
+
+  private def ensureNotClosed(): Unit = {
+    closed &= !channel.isOpen
+    if (closed) {
+      cancelHeartbeats()
+      throw new YupanaException("Connection is closed")
     }
   }
 
-  def query(query: String, params: Map[Int, model.ParameterValue]): Result = {
-    val request = createProtoQuery(query, params)
-    execRequestQuery(request)
+  private def startHeartbeats(startTime: Long): Unit = {
+    heartbeatTimer.schedule(
+      new TimerTask {
+        override def run(): Unit = sendHeartbeat(startTime)
+      },
+      HEARTBEAT_INTERVAL,
+      HEARTBEAT_INTERVAL
+    )
   }
 
-  def batchQuery(query: String, params: Seq[Map[Int, model.ParameterValue]]): Result = {
-    val request = creteProtoBatchQuery(query, params)
-    execRequestQuery(request)
+  private def cancelHeartbeats(): Unit = {
+    heartbeatTimer.cancel()
+    heartbeatTimer.purge()
   }
 
-  def ping(reqTime: Long): Option[Version] = {
-    val request = createProtoPing(reqTime)
-    execPing(request) match {
-      case Right(response) =>
-        if (response.reqTime != reqTime) {
-          throw new Exception("got wrong ping response")
-        }
-        channel.close()
-        response.version
+  def prepareQuery(query: String, params: Map[Int, ParameterValue]): QueryResult = {
+    val id = nextId.incrementAndGet()
+    Await.result(execRequestQuery(id, SqlQuery(id, query, params)), Duration.Inf)
+  }
 
-      case Left(msg) => throw new IOException(msg)
+  def batchQuery(query: String, params: Seq[Map[Int, ParameterValue]]): QueryResult = {
+    val id = nextId.incrementAndGet()
+    Await.result(execRequestQuery(id, BatchQuery(id, query, params)), Duration.Inf)
+  }
+
+  def connect(reqTime: Long): Unit = {
+    logger.fine("Hello")
+
+    if (channel == null || !channel.isOpen /* || !channel.isConnected*/ ) {
+      logger.info(s"Connect to $host:$port")
+      channel = AsynchronousSocketChannel.open()
+      channel.setOption(StandardSocketOptions.SO_KEEPALIVE, java.lang.Boolean.TRUE)
+      channel.connect(new InetSocketAddress(host, port)).get()
+
+      chanelReader = new FramingChannelReader(channel, Frame.MAX_FRAME_SIZE + FramingChannelReader.PAYLOAD_OFFSET)
+      closed = false
     }
+
+    val cf = for {
+      _ <- write(Hello(ProtocolVersion.value, BuildInfo.version, reqTime, Map.empty))
+      _ <- waitHelloResponse(reqTime)
+      cr <- waitFor(CredentialsRequest)
+      _ <- sendCredentials(cr)
+      _ <- waitFor(Authorized)
+    } yield ()
+
+    Await.result(cf, Duration.Inf)
+    startHeartbeats(reqTime)
   }
 
-  private def execPing(request: Request): Either[String, Pong] = {
-    ensureConnected()
-    sendRequest(request)
-    val pong = fetchResponse()
-
-    pong.resp match {
-      case Response.Resp.Pong(r) =>
-        if (r.getVersion.protocol != ProtocolVersion.value) {
-          Left(
+  private def waitHelloResponse(reqTime: Long): Future[HelloResponse] = {
+    waitFor(HelloResponse).flatMap { response =>
+      if (response.protocolVersion != ProtocolVersion.value) {
+        Future.failed(
+          new YupanaException(
             error(
-              s"Incompatible protocol versions: ${r.getVersion.protocol} on server and ${ProtocolVersion.value} in this driver"
+              s"Incompatible protocol versions: ${response.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
             )
           )
-        } else {
-          Right(r)
-        }
-
-      case Response.Resp.Error(msg) =>
-        Left(error(s"Got error response on ping, '$msg'"))
-
-      case _ =>
-        Left(error("Unexpected response on ping"))
-
-    }
-  }
-
-  private def execRequestQuery(request: Request): Result = {
-    ensureConnected()
-    sendRequest(request)
-    val it = new FramingChannelIterator(channel, CHUNK_SIZE + 4)
-      .map(bytes => Response.parseFrom(bytes).resp)
-
-    val header = it.map(resp => handleResultHeader(resp)).find(_.isDefined).flatten
-
-    header match {
-      case Some(Right(h)) =>
-        val r = resultIterator(it)
-        extractProtoResult(h, r)
-
-      case Some(Left(e)) =>
-        channel.close()
-        throw new IllegalArgumentException(e)
-
-      case None =>
-        channel.close()
-        throw new IllegalArgumentException(error("Result not received"))
-    }
-  }
-
-  private def sendRequest(request: Request): Unit = {
-    try {
-      channel.write(createChunks(request.toByteArray))
-    } catch {
-      case io: IOException =>
-        logger.warning(s"Caught $io while trying to write to channel, let's retry")
-        Thread.sleep(1000)
-        ensureConnected()
-        channel.write(createChunks(request.toByteArray))
-    }
-  }
-
-  private def createChunks(data: Array[Byte]): Array[ByteBuffer] = {
-    data
-      .sliding(CHUNK_SIZE, CHUNK_SIZE)
-      .map { ch =>
-        val bb = ByteBuffer.allocate(ch.length + 4).order(ByteOrder.BIG_ENDIAN)
-        bb.putInt(ch.length)
-        bb.put(ch)
-        bb.flip()
-        bb
+        )
+      } else if (response.reqTime != reqTime) {
+        Future.failed(new YupanaException(error("got wrong hello response")))
+      } else {
+        Future.successful(response)
       }
-      .toArray
-  }
-
-  private def fetchResponse(): Response = {
-    val bb = ByteBuffer.allocate(CHUNK_SIZE + 4).order(ByteOrder.BIG_ENDIAN)
-    val bytesRead = channel.read(bb)
-    if (bytesRead < 0) throw new IOException("Broken pipe")
-    else if (bytesRead < 4) throw new IOException("Invalid server response")
-    bb.flip()
-    val chunkSize = bb.getInt()
-    val bytes = Array.ofDim[Byte](chunkSize)
-    bb.get(bytes)
-    Response.parseFrom(bytes)
-  }
-
-  private def handleResultHeader(resp: Response.Resp): Option[Either[String, ResultHeader]] = {
-    resp match {
-      case Response.Resp.ResultHeader(h) =>
-        logger.info("Received result header " + h)
-        Some(Right(h))
-
-      case Response.Resp.Result(_) =>
-        Some(Left(error("Data chunk received before header")))
-
-      case Response.Resp.Pong(_) =>
-        Some(Left(error("Unexpected TspPong response")))
-
-      case Response.Resp.Heartbeat(time) =>
-        heartbeat(time)
-        None
-
-      case Response.Resp.Error(e) =>
-        channel.close()
-        Some(Left(error(e)))
-
-      case Response.Resp.ResultStatistics(_) =>
-        Some(Left(error("Unexpected ResultStatistics response")))
-
-      case Response.Resp.Empty =>
-        None
     }
+  }
+
+  private def sendCredentials(cr: CredentialsRequest): Future[Unit] = {
+    if (!cr.methods.contains(CredentialsRequest.METHOD_PLAIN)) {
+      Future.failed(new YupanaException(error(s"All the auth methods ${cr.methods.mkString(", ")} are not supported")))
+    } else {
+      write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
+    }
+  }
+
+  private def sendHeartbeat(startTime: Long): Unit = {
+    val time = (System.currentTimeMillis() - startTime) / 1000
+    if (channel.isOpen) {
+      Await.ready(write(Heartbeat(time.toInt)), Duration.Inf)
+    } else {
+      cancelHeartbeats()
+    }
+  }
+
+  private def runNext(): Future[Unit] = {
+    val handler: Option[Handler[_]] = commandQueue.synchronized {
+      if (commandQueue.nonEmpty) Some(commandQueue.dequeue()) else None
+    }
+
+    handler match {
+      case Some(handler) =>
+        for {
+          _ <- write(handler.cmd)
+          _ <- handler.execute()
+          _ <- runNext()
+        } yield ()
+      case None => Future.successful(())
+    }
+  }
+
+  private def runCommand[T](cmd: Command[_], f: Promise[T] => Unit): Future[T] = {
+    val p = Promise[T]()
+    commandQueue.synchronized {
+      commandQueue.enqueue(Handler(cmd, p, f))
+    }
+    runNext()
+
+    p.future
+  }
+
+  private def readBatch(id: Int, read: Int): Future[Int] = {
+    chanelReader.readFrame().flatMap { frame =>
+      frame.frameType match {
+        case Tags.RESULT_ROW.value =>
+          val row = ResultRow.readFrame(frame)
+          if (row.id == id) {
+            val newRead = read + 1
+            iterators(id).addResult(row)
+            if (newRead < batchSize) readBatch(id, newRead) else Future.successful(newRead)
+          } else {
+            Future.failed(new YupanaException(s"Unexpected row id ${row.id}"))
+          }
+
+        case Tags.RESULT_FOOTER.value =>
+          iterators(id).setDone()
+          iterators.synchronized {
+            iterators -= id
+          }
+          Future.successful(read)
+
+        case Tags.ERROR_MESSAGE.value =>
+          val em = ErrorMessage.readFrame(frame)
+          val ex = new YupanaException(em.message)
+
+          em.streamId match {
+            case Some(sId) =>
+              logger.info(s"Got error message $em")
+              failIterator(sId, ex)
+              if (sId == id) {
+                Future.failed(ex)
+              } else {
+                logger.severe(s"Unexpected error message '${em.message}'")
+                readBatch(id, read)
+              }
+
+            case None =>
+              logger.warning(s"Got global error message $em")
+              iterators.synchronized {
+                iterators.foreach(_._2.setFailed(ex))
+                iterators = Map.empty
+              }
+              Future.failed(ex)
+          }
+
+          Future.failed(ex)
+
+        case x => Future.failed(new YupanaException(s"Unexpected response ${x.toChar} in Next handler"))
+      }
+    }
+  }
+
+  private def failIterator(id: Int, ex: Throwable): Unit = {
+    iterators.synchronized {
+      iterators.get(id).foreach(_.setFailed(ex))
+      iterators -= id
+    }
+  }
+
+  def acquireNext(id: Int): Unit = {
+    logger.fine(s"Acquire next $id")
+    assert(iterators.contains(id))
+    val f = runCommand(
+      NextBatch(id, batchSize),
+      (p: Promise[Unit]) => readBatch(id, 0).onComplete(x => p.complete(x.map(_ => ())))
+    )
+    Await.result(f, Duration.Inf)
+  }
+
+  def cancel(id: Int): Unit = {
+    if (iterators.contains(id)) {
+      val f = runCommand(
+        Cancel(id),
+        (p: Promise[Unit]) =>
+          waitFor(Canceled).onComplete { cancelled =>
+            cancelled.map { c =>
+              assert(c.id == id)
+              iterators.synchronized {
+                iterators -= id
+              }
+            }
+            p.complete(cancelled.map(_ => ()))
+          }
+      )
+
+      Await.result(f, Duration.Inf)
+    }
+  }
+
+  private def waitFor[T <: Message[T]](helper: MessageHelper[T])(
+      implicit ec: ExecutionContext
+  ): Future[T] = {
+    chanelReader.readFrame().flatMap { frame =>
+      frame.frameType match {
+        case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
+        case Tags.ERROR_MESSAGE.value =>
+          val msg = ErrorMessage.readFrame(frame).message
+          logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
+          Future.failed(new YupanaException(msg))
+
+        case x =>
+          Future.failed(
+            new YupanaException(
+              error(s"Unexpected response '${x.toChar}' while waiting for '${helper.tag.value.toChar}'")
+            )
+          )
+      }
+    }
+  }
+
+  private def execRequestQuery(id: Int, command: Command[_]): Future[QueryResult] = {
+    logger.fine(s"Exec request query $command")
+    ensureNotClosed()
+    runCommand(
+      command,
+      (p: Promise[ResultIterator]) =>
+        waitFor(ResultHeader).onComplete { header =>
+          p.complete(header.map(h => {
+            iterators.synchronized {
+              val r = new ResultIterator(h, this)
+              iterators += id -> r
+              r
+            }
+          }))
+        }
+    ).map(it => extractProtoResult(id, it))
+  }
+
+  private def write(request: Command[_]): Future[Unit] = {
+    logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
+    val f = request.toFrame
+    val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
+    bb.put(f.frameType)
+    bb.putInt(f.payload.length)
+    bb.put(f.payload)
+    bb.flip()
+
+    JdbcUtils.wrapHandler[Unit](
+      new CompletionHandler[Integer, Promise[Unit]] {
+        override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
+        override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
+      },
+      (p, h) => channel.write(bb, p, h)
+    )
   }
 
   private def error(e: String): String = {
@@ -188,91 +322,19 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
     e
   }
 
-  private def heartbeat(time: String): Unit = {
-    val msg = s"Heartbeat($time)"
-    logger.info(msg)
-  }
-
-  private def resultIterator(responses: Iterator[Response.Resp]): Iterator[ResultChunk] = {
-    new Iterator[ResultChunk] {
-
-      var statistics: ResultStatistics = null
-      var current: ResultChunk = null
-      var errorMessage: String = null
-
-      readNext()
-
-      override def hasNext: Boolean = responses.hasNext && statistics == null && errorMessage == null
-
-      override def next(): ResultChunk = {
-        val result = current
-        readNext()
-        result
-      }
-
-      private def readNext(): Unit = {
-        current = null
-        while ({
-          responses.next() match {
-            case Response.Resp.Result(result) =>
-              current = result
-
-            case Response.Resp.ResultHeader(_) =>
-              errorMessage = error("Duplicate header received")
-
-            case Response.Resp.Pong(_) =>
-              errorMessage = error("Unexpected TspPong response")
-
-            case Response.Resp.Heartbeat(time) =>
-              heartbeat(time)
-
-            case Response.Resp.Error(e) =>
-              errorMessage = error(e)
-
-            case Response.Resp.ResultStatistics(stat) =>
-              logger.fine(s"Got statistics $stat")
-              statistics = stat
-
-            case Response.Resp.Empty =>
-          }
-          current == null && statistics == null && errorMessage == null && responses.hasNext
-        }) ()
-
-        if (statistics != null || errorMessage != null) {
-          channel.close()
-          if (errorMessage != null) {
-            throw new IllegalArgumentException(errorMessage)
-          }
-        }
-
-        if (!responses.hasNext && statistics == null) {
-          channel.close()
-          throw new IllegalArgumentException("Unexpected end of response")
-        }
-      }
-
-    }
-  }
-
   override def close(): Unit = {
+    logger.info("Close connection")
+    closed = true
+    cancelHeartbeats()
+    Await.ready(write(Quit()), Duration.Inf)
     channel.close()
   }
 
-  private def createProtoPing(reqTime: Long): Request = {
-    Request(
-      Request.Req.Ping(
-        Ping(
-          reqTime,
-          Some(Version(ProtocolVersion.value, BuildInfo.majorVersion, BuildInfo.minorVersion, BuildInfo.version))
-        )
-      )
-    )
-  }
-
-  private def extractProtoResult(header: ResultHeader, res: Iterator[ResultChunk]): Result = {
+  private def extractProtoResult(id: Int, res: ResultIterator): QueryResult = {
+    val header = res.header
     val names = header.fields.map(_.name)
     val dataTypes = CollectionUtils.collectErrors(header.fields.map { resultField =>
-      DataType.bySqlName(resultField.`type`).toRight(s"Unknown type ${resultField.`type`}")
+      DataType.bySqlName(resultField.typeName).toRight(s"Unknown type ${resultField.typeName}")
     }) match {
       case Right(types) => types
       case Left(err)    => throw new IllegalArgumentException(s"Cannot read data: $err")
@@ -286,48 +348,21 @@ class YupanaTcpClient(val host: String, val port: Int) extends AutoCloseable {
             if (bytes.isEmpty) {
               null
             } else {
-              rt.storable.read(bytes.toByteArray)
+              rt.storable.read(bytes)
             }
         }
         .toArray
     }
 
-    SimpleResult(header.tableName.getOrElse("TABLE"), names, dataTypes, values)
+    QueryResult(id, SimpleResult(header.tableName, names, dataTypes, values))
   }
+}
 
-  private def createProtoQuery(query: String, params: Map[Int, model.ParameterValue]): Request = {
-    Request(
-      Request.Req.SqlQuery(
-        SqlQuery(
-          query,
-          params.map {
-            case (i, v) => ParameterValue(i, createProtoValue(v))
-          }.toSeq
-        )
-      )
-    )
-  }
-
-  private def creteProtoBatchQuery(query: String, params: Seq[Map[Int, model.ParameterValue]]): Request = {
-    Request(
-      Request.Req.BatchSqlQuery(
-        BatchSqlQuery(
-          query,
-          params.map(vs =>
-            ParameterValues(vs.map {
-              case (i, v) => ParameterValue(i, createProtoValue(v))
-            }.toSeq)
-          )
-        )
-      )
-    )
-  }
-
-  private def createProtoValue(value: model.ParameterValue): Value = {
-    value match {
-      case NumericValue(n)   => Value(Value.Value.DecimalValue(n.toString()))
-      case StringValue(s)    => Value(Value.Value.TextValue(s))
-      case TimestampValue(m) => Value(Value.Value.TimeValue(m))
+object YupanaTcpClient {
+  private case class Handler[R](cmd: Command[_], promise: Promise[R], f: Promise[R] => Unit) {
+    def execute(): Future[R] = {
+      f(promise)
+      promise.future
     }
   }
 }

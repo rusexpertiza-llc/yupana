@@ -16,12 +16,23 @@
 
 package org.yupana.jdbc
 
+import java.nio.channels.CompletionHandler
 import java.sql.SQLFeatureNotSupportedException
 import java.util
+import scala.concurrent.{ Future, Promise }
 
 object JdbcUtils {
   def checkTypeMapping(map: util.Map[String, Class[_]]): Unit = {
     if (map != null && !map.isEmpty)
       throw new SQLFeatureNotSupportedException("Custom type mappings are not supported")
+  }
+
+  def wrapHandler[U](
+      handler: CompletionHandler[Integer, Promise[U]],
+      f: (Promise[U], CompletionHandler[Integer, Promise[U]]) => Any
+  ): Future[U] = {
+    val p = Promise[U]()
+    f(p, handler)
+    p.future
   }
 }

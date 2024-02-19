@@ -147,3 +147,17 @@ SELECT trunc_day(time) as day, item, sum(sum) as sum
         ) AND time >= TIMESTAMP '2022-08-01' AND time < TIMESTAMP '2022-08-08'
   GROUP BY day, item
 ```
+
+Использование null:
+
+```sql
+SELECT
+  trunc_day(time) as day,
+  item,
+  avg(CASE
+    WHEN quantity > 0 then sum / quantity
+    ELSE null
+  ) AS avg_price
+FROM kkm_items
+WHERE time >= TIMESTAMP '2023-06-01' AND time < TIMESTAMP '2023-07-01'
+```

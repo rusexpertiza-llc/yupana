@@ -16,22 +16,23 @@
 
 package org.yupana.jdbc
 
-import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, CharArrayReader, InputStream, ObjectOutputStream, Reader }
-import java.math.BigDecimal
-import java.nio.charset.{ Charset, StandardCharsets }
-import java.sql.{ Array => SqlArray, _ }
-import java.util
-import java.util.Calendar
 import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
 
+import java.io._
+import java.math.BigDecimal
+import java.nio.charset.{ Charset, StandardCharsets }
+import java.sql.{ Array => SqlArray, _ }
 import java.time.ZonedDateTime
+import java.util
+import java.util.Calendar
 
 class YupanaResultSet protected[jdbc] (
-    statement: Statement,
-    result: Result
+    statement: YupanaStatement,
+    result: Result,
+    streamId: Option[Int] = None
 ) extends ResultSet
     with ResultSetMetaData {
 
@@ -185,6 +186,9 @@ class YupanaResultSet protected[jdbc] (
 
   @throws[SQLException]
   override def close(): Unit = {
+    if (statement != null) {
+      streamId.foreach(statement.connection.cancelStream)
+    }
     closed = true
     currentRow = null
     it = Iterator.empty

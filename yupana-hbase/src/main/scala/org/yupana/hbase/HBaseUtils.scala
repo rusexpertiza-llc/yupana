@@ -27,11 +27,12 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.core.utils.{ CloseableIterator, CollectionUtils, QueryUtils }
+import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 
 import java.nio.ByteBuffer
 import java.time.temporal.TemporalAdjusters
@@ -92,10 +93,11 @@ object HBaseUtils extends StrictLogging {
         case (table, points) =>
           loadDimIds(dictionaryProvider, table, points)
           val keySize = tableKeySize(table)
-          val grouped = points.groupBy(rowKey(_, table, keySize, dictionaryProvider))
+          val grouped = points.groupBy(rowKeyBuffer(_, table, keySize, dictionaryProvider))
           val (puts, intervals) = grouped
             .map {
-              case (key, dps) =>
+              case (keyBuffer, dps) =>
+                val key = keyBuffer.array()
                 val baseTime = Bytes.toLong(key)
                 (
                   createPutOperation(table, key, dps),
@@ -279,36 +281,32 @@ object HBaseUtils extends StrictLogging {
 
   def multiRowRangeFilter(
       table: Table,
-      from: Long,
-      to: Long,
+      intervals: Seq[(Long, Long)],
       dimIds: Map[Dimension, Seq[_]]
   ): Option[MultiRowRangeFilter] = {
-
-    val baseTimeLs = baseTimeList(from, to, table)
-
-    val dimIdsList = dimIds.toList.map {
-      case (dim, ids) =>
-        dim -> ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
-    }
-
-    val crossJoinedDimIds = {
-      CollectionUtils.crossJoin(dimIdsList.map(_._2))
-    }
-
-    val keySize = tableKeySize(table)
-
-    val ranges = for {
-      time <- baseTimeLs
-      cids <- crossJoinedDimIds if cids.nonEmpty
-    } yield {
-      rowRange(time, keySize, cids.toArray)
-    }
-
+    val ranges = intervals.flatMap { case (from, to) => rowRanges(table, from, to, dimIds) }
     if (ranges.nonEmpty) {
       val filter = new MultiRowRangeFilter(new java.util.ArrayList(ranges.asJava))
       Some(filter)
     } else {
       None
+    }
+
+  }
+
+  private def rowRanges(table: Table, from: Long, to: Long, dimIds: Map[Dimension, Seq[_]]): Seq[RowRange] = {
+    val baseTimeLs = baseTimeList(from, to, table)
+    val dimIdsList = dimIds.toList.map {
+      case (dim, ids) =>
+        ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
+    }
+    val crossJoinedDimIds = CollectionUtils.crossJoin(dimIdsList)
+    val keySize = tableKeySize(table)
+    for {
+      time <- baseTimeLs
+      cids <- crossJoinedDimIds
+    } yield {
+      rowRange(time, keySize, cids.toArray)
     }
   }
 
@@ -370,11 +368,11 @@ object HBaseUtils extends StrictLogging {
 
     Using.resource(connection.getAdmin) { admin =>
       if (admin.tableExists(metaTableName)) {
-        ProtobufSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
+        PersistentSchemaChecker.check(schema, readTsdbSchema(connection, namespace))
       } else {
 
-        val tsdbSchemaBytes = ProtobufSchemaChecker.toBytes(schema)
-        ProtobufSchemaChecker.check(schema, tsdbSchemaBytes)
+        val tsdbSchemaBytes = PersistentSchemaChecker.toBytes(schema)
+        PersistentSchemaChecker.check(schema, tsdbSchemaBytes)
 
         writeTsdbSchema(connection, namespace, tsdbSchemaBytes)
         Success
@@ -514,12 +512,12 @@ object HBaseUtils extends StrictLogging {
     Bytes.SIZEOF_LONG + table.dimensionSeq.map(_.rStorable.size).sum
   }
 
-  private[hbase] def rowKey(
+  private[hbase] def rowKeyBuffer(
       dataPoint: DataPoint,
       table: Table,
       keySize: Int,
       dictionaryProvider: DictionaryProvider
-  ): Array[Byte] = {
+  ): ByteBuffer = {
     val bt = HBaseUtils.baseTime(dataPoint.time, table)
     val baseTimeBytes = Bytes.toBytes(bt)
 
@@ -551,7 +549,8 @@ object HBaseUtils extends StrictLogging {
       buffer.put(bytes)
     }
 
-    buffer.array()
+    buffer.rewind()
+    buffer
   }
 
   private def scanMetricsToString(metrics: ScanMetrics): String = {

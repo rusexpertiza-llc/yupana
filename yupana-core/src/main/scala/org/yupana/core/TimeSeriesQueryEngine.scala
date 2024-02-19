@@ -16,13 +16,14 @@
 
 package org.yupana.core
 import org.yupana.api.query.{ DataPoint, Query, Result }
+import org.yupana.core.auth.YupanaUser
 
 class TimeSeriesQueryEngine(tsdb: TSDB) {
-  def query(query: Query): Result = {
-    tsdb.query(query)
+  def query(user: YupanaUser, query: Query): Result = {
+    tsdb.query(query, user)
   }
 
-  def put(dps: Seq[DataPoint]): Unit = {
-    tsdb.put(dps.iterator)
+  def put(user: YupanaUser, dps: Seq[DataPoint]): Unit = {
+    tsdb.put(dps.iterator, user)
   }
 }

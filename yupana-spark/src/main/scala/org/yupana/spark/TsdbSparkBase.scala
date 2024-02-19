@@ -23,10 +23,10 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.model.{ InternalRow, KeyData }
-import org.yupana.core.utils.CloseableIterator
-import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector, PersistentMetricQueryReporter }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
 import org.yupana.spark.TsdbSparkBase.createDefaultMetricCollector
@@ -63,7 +63,7 @@ object TsdbSparkBase extends StrictLogging {
       query,
       opName,
       config.metricsUpdateInterval,
-      new PersistentMetricQueryReporter(() => getMetricsDao(config))
+      new SparkMetricsReporter(() => getMetricsDao(config))
     )
   }
 }

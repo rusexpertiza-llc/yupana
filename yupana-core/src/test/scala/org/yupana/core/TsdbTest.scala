@@ -3288,7 +3288,7 @@ class TsdbTest
     val metricDao = mock[TsdbQueryMetricsDao]
     val reporter =
       new CombinedMetricReporter[MetricQueryCollector](
-        new PersistentMetricQueryReporter(() => metricDao, asyncSaving = false),
+        new PersistentMetricQueryReporter(metricDao, asyncSaving = false),
         new Slf4jMetricReporter[MetricQueryCollector]
       )
 
@@ -3401,11 +3401,10 @@ class TsdbTest
     val res = tsdb.query(query).toList
 
     res should have size 1
-    val metrics = capturedMetrics.values.flatten
-    metrics.head.queryState shouldBe QueryStates.Running
-    metrics.last.queryState shouldBe QueryStates.Finished
+    val metrics = capturedMetrics.values.flatten.last
+    metrics.queryState shouldBe QueryStates.Finished
 
-    val finalMetricValues = metrics.last.metricValues
+    val finalMetricValues = metrics.metricValues
     finalMetricValues("create_queries.link.TestLink").count shouldEqual 1
     finalMetricValues(TsdbQueryMetrics.extractDataComputationQualifier).count shouldEqual 2
     finalMetricValues(TsdbQueryMetrics.readExternalLinksQualifier).count shouldEqual 2

@@ -33,6 +33,8 @@ object ValueParser {
 
   private def toWord[$: P] = P(IgnoreCase("TO"))
 
+  private def nullWord[$: P] = P(IgnoreCase("NULL"))
+
   private def trueConst[$: P]: P[Boolean] = P(IgnoreCase("TRUE")).map(_ => true)
   private def falseConst[$: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
 
@@ -109,6 +111,7 @@ object ValueParser {
   def numericValue[$: P]: P[NumericValue] = P(number).map(NumericValue.apply)
   def stringValue[$: P]: P[StringValue] = P(string).map(StringValue.apply)
   def booleanValue[$: P]: P[BooleanValue] = P(boolean).map(BooleanValue.apply)
+  def nullValue[$: P]: P[NullValue.type] = P(nullWord).map(_ => NullValue)
   def timestampValue[$: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
 
   def INTERVAL_PARTS[$: P]: List[IntervalPart] = List(
@@ -157,7 +160,7 @@ object ValueParser {
     P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map((TupleValue.apply _).tupled)
 
   def value[$: P]: P[Value] = P(
-    numericValue | timestampValue | periodValue | stringValue | booleanValue | placeholder | tupleValue
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue | placeholder | tupleValue
   )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])

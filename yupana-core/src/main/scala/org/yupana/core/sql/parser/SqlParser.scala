@@ -24,6 +24,7 @@ object SqlParser {
 
   private def selectWord[$: P] = P(IgnoreCase("SELECT"))
   private def showWord[$: P] = P(IgnoreCase("SHOW"))
+  private def versionWord[$: P] = P(IgnoreCase("VERSION"))
   private def tablesWord[$: P] = P(IgnoreCase("TABLES"))
   private def columnsWord[$: P] = P(IgnoreCase("COLUMNS"))
   private def queriesWord[$: P] = P(IgnoreCase("QUERIES"))
@@ -258,6 +259,8 @@ object SqlParser {
 
   def tables[$: P]: P[ShowTables.type] = P(tablesWord).map(_ => ShowTables)
 
+  def version[$: P]: P[ShowVersion.type] = P(versionWord).map(_ => ShowVersion)
+
   def columns[$: P]: P[ShowColumns] = P(columnsWord ~/ fromWord ~ schemaName).map(ShowColumns.apply)
 
   def metricQueryIdFilter[$: P]: P[MetricsFilter] =
@@ -279,7 +282,7 @@ object SqlParser {
   def functions[$: P]: P[ShowFunctions] = P(functionsWord ~/ forWord ~ name).map(ShowFunctions.apply)
 
   def show[$: P]: P[Statement] =
-    P(showWord ~/ (columns | tables | queries | functions | updatesIntervals))
+    P(showWord ~/ (columns | tables | version | queries | functions | updatesIntervals))
 
   def kill[$: P]: P[Statement] = P(killWord ~/ query)
 
@@ -301,11 +304,11 @@ object SqlParser {
   def parse(sql: String): Either[String, Statement] = {
     fastparse.parse(sql.trim, statement(_)) match {
       case Parsed.Success(s, _) => Right(s)
-      case f @ Parsed.Failure(_, index, extra) =>
+      case f: Parsed.Failure =>
         val trace = f.trace()
         val expected = trace.terminals.render
-        val actual = Util.literalize(extra.input.slice(index, index + 10))
-        val position = extra.input.prettyIndex(index)
+        val actual = Util.literalize(f.extra.input.slice(f.index, f.index + 10))
+        val position = f.extra.input.prettyIndex(f.index)
 
         Left(
           s"""Invalid SQL statement: '$sql'

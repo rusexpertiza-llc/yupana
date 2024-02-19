@@ -5,7 +5,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, Query, RemoveCondition }
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.core._
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
@@ -38,15 +40,17 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
-      .expects(expQuery1)
+      .expects(expQuery1, YupanaUser.ANONYMOUS)
       .returning(
         new TsdbServerResult(
           qc1,
-          Seq(
-            Array[Any](123456, Time(120)),
-            Array[Any](123456, Time(150)),
-            Array[Any](345112, Time(120))
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              Array[Any](123456, Time(120)),
+              Array[Any](123456, Time(150)),
+              Array[Any](345112, Time(120))
+            ).iterator
+          )
         )
       )
 
@@ -61,14 +65,16 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     val qc2 = new QueryContext(expQuery2, None, ExpressionCalculatorFactory)
 
     (tsdb.query _)
-      .expects(expQuery2)
+      .expects(expQuery2, YupanaUser.ANONYMOUS)
       .returning(
         new TsdbServerResult(
           qc2,
-          Seq(
-            Array[Any](123456, Time(125)),
-            Array[Any](123456, Time(120))
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              Array[Any](123456, Time(125)),
+              Array[Any](123456, Time(120))
+            ).iterator
+          )
         )
       )
 
@@ -122,14 +128,16 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
-      .expects(expQuery)
+      .expects(expQuery, YupanaUser.ANONYMOUS)
       .returning(
         new TsdbServerResult(
           qc,
-          Seq(
-            Array[Any](123456, Time(220)),
-            Array[Any](654321, Time(330))
-          ).iterator
+          CloseableIterator.pure(
+            Seq(
+              Array[Any](123456, Time(220)),
+              Array[Any](654321, Time(330))
+            ).iterator
+          )
         )
       )
 

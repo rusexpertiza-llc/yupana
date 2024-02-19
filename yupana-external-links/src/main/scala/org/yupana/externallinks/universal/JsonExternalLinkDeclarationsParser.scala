@@ -16,7 +16,12 @@
 
 package org.yupana.externallinks.universal
 
-import org.json4s.jackson.JsonMethods
+import cats.data.Validated
+import cats.data.Validated.{ Invalid, Valid }
+import cats.implicits._
+import io.circe.CursorOp.DownField
+import io.circe._
+import io.circe.generic.auto._
 import org.yupana.api.schema.Schema
 
 import scala.collection.mutable.ListBuffer
@@ -24,37 +29,51 @@ import scala.collection.mutable.ListBuffer
 object JsonExternalLinkDeclarationsParser {
 
   import JsonCatalogs._
-  import org.json4s._
 
-  implicit private val formats: Formats = DefaultFormats
+  val configDecoder: Decoder[SQLExternalLinkConfig] = Decoder[SQLExternalLinkConfig]
+    .validate(_.downField("description").downField("source").as[String].contains("sql"), "bad source field")
 
   def parse(schema: Schema, declaration: String): Either[String, Seq[SQLExternalLinkConfig]] = {
-    JsonMethods.parse(declaration) \\ "externalLinks" match {
-      case jCatalogs: JArray =>
-        val (errors, catalogs) = jCatalogs.arr map extractCatalog(schema) partition (_.isLeft)
-        if (errors.isEmpty) {
-          Right(catalogs.map(_.toOption.get))
-        } else {
-          Left(errors.map(_.swap.toOption.get).mkString(", "))
+    val json = parser.parse(declaration).getOrElse(Json.Null)
+
+    json.hcursor
+      .downField("externalLinks")
+      .as[Seq[Json]]
+      .left
+      .map(_ => s"No 'externalLinks' array was found in ${json.noSpaces}")
+      .flatMap {
+        _.map(linkJson => parseConfig(schema, linkJson).toValidatedNel).toList.sequence.toEither.left
+          .map(_.mkString_(". "))
+      }
+  }
+
+  private def parseConfig(schema: Schema, json: Json): Validated[String, SQLExternalLinkConfig] = {
+    configDecoder.tryDecodeAccumulating(json.hcursor) match {
+      case Valid(c) => validate(schema, c).toValidated
+
+      case Invalid(nel) =>
+        val linkId = json.hcursor
+          .downField("description")
+          .downField("linkName")
+          .as[String]
+          .map(n => s"'$n'")
+          .getOrElse(json.noSpaces)
+
+        val prefix = s"Can not parse external link $linkId: "
+        val msgs = nel.map { f =>
+          val c = json.hcursor.replay(f.history)
+          if (c.failed) {
+            val fields = c.history.collect { case DownField(name) => name }
+            if (fields.nonEmpty) s"no usable value for ${fields.reverse.mkString(".")}"
+            else f.message
+          } else f.message
         }
-      case _ => Left(s"No 'externalLinks' array was found in $declaration")
+
+        (prefix + msgs.mkString_(", ")).invalid
     }
   }
 
-  def extractCatalog(schema: Schema)(jLink: JValue): Either[String, SQLExternalLinkConfig] = {
-    jLink \\ "source" match {
-      case JString("sql") =>
-        try {
-          validate(schema, jLink.extract[SQLExternalLinkConfig])
-        } catch {
-          case e: Exception => Left(s"Can not parse external link ${JsonMethods.compact(jLink)}: ${e.getMessage}")
-        }
-      case _ => Left(s"Bad source field in ${JsonMethods.compact(jLink)}")
-    }
-  }
-
-  def validate(schema: Schema, link: SQLExternalLinkConfig): Either[String, SQLExternalLinkConfig] = {
-
+  private def validate(schema: Schema, link: SQLExternalLinkConfig): Either[String, SQLExternalLinkConfig] = {
     val errors = ListBuffer.empty[String]
 
     if (link.description.tables.isEmpty) {

@@ -41,7 +41,7 @@ class CaffeineCacheFactory extends CacheFactory with StrictLogging {
 
       settings
         .opt[Long]("maxElements")
-        .orElse(settings.opt[Long]("maxElements"))
+        .orElse(defaultSettings.opt[Long]("maxElements"))
         .foreach(maxSize => builder.maximumSize(maxSize))
 
       val eternal = settings[Boolean]("eternal", false)

@@ -22,7 +22,7 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{ Partition, SparkContext, TaskContext }
 import org.yupana.api.schema.Dimension
-import org.yupana.core.utils.CloseableIterator
+import org.yupana.api.utils.CloseableIterator
 import org.yupana.hbase.{ HBaseUtils, InternalQueryContext }
 
 import scala.annotation.tailrec
@@ -45,7 +45,7 @@ class HBaseScanRDD(
       Using.resource(connection.getRegionLocator(tableName)) { regionLocator =>
         val keys = regionLocator.getStartEndKeys
         val firstKey = HBaseUtils.getFirstKey(connection, tableName)
-        val lastKey = HBaseUtils.getLastKey(connection, tableName)
+        val lastKey = Bytes.unsignedCopyAndIncrement(HBaseUtils.getLastKey(connection, tableName))
 
         keys.getFirst()(0) = firstKey
         keys.getSecond()(keys.getSecond.length - 1) = lastKey
@@ -77,8 +77,7 @@ class HBaseScanRDD(
 
     listener
       .transformPartitions(partitions.toSeq)
-      .toArray
-      .asInstanceOf[Array[Partition]]
+      .toArray[Partition]
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[HBaseResult] = {
@@ -87,8 +86,7 @@ class HBaseScanRDD(
       val filter =
         HBaseUtils.multiRowRangeFilter(
           partition.queryContext.table,
-          partition.fromTime,
-          partition.toTime,
+          Seq(partition.fromTime -> partition.toTime),
           partition.rangeScanDimsIds
         )
 
@@ -127,7 +125,7 @@ class HBaseScanRDD(
 
 object HBaseScanRDD {
 
-  def bisect(range: (Array[Byte], Array[Byte])): Array[(Array[Byte], Array[Byte])] = {
+  private def bisect(range: (Array[Byte], Array[Byte])): Array[(Array[Byte], Array[Byte])] = {
     Bytes
       .split(range._1, range._2, 1)
       .sliding(2, 1)

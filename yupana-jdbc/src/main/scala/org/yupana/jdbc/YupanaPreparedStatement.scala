@@ -16,7 +16,7 @@
 
 package org.yupana.jdbc
 
-import org.yupana.jdbc.model.{ NumericValue, ParameterValue, StringValue, TimestampValue }
+import org.yupana.protocol.{ NumericValue, ParameterValue, StringValue, TimestampValue }
 
 import java.io.{ InputStream, Reader }
 import java.net.URL
@@ -37,39 +37,47 @@ class YupanaPreparedStatement protected[jdbc] (connection: YupanaConnection, tem
   private val batch = ArrayBuffer.empty[Map[Int, ParameterValue]]
 
   private def setParameter(idx: Int, v: ParameterValue): Unit = {
+    checkClosed()
+
     parameters += idx -> v
   }
 
   @throws[SQLException]
   override def addBatch(): Unit = {
+    checkClosed()
+
     batch += parameters
     parameters = Map.empty
   }
 
   @throws[SQLException]
   override def clearParameters(): Unit = {
+    checkClosed()
     parameters = Map.empty
   }
 
   @throws[SQLException]
   override def clearBatch(): Unit = {
+    checkClosed()
     batch.clear()
   }
 
   @throws[SQLException]
   override def execute: Boolean = {
+    checkClosed()
     YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
     val result = connection.runQuery(templateQuery, parameters)
-    lastResultSet = new YupanaResultSet(this, result)
+    lastResultSet = new YupanaResultSet(this, result.result, Some(result.id))
     true
   }
 
   @throws[SQLException]
   override def executeBatch: Array[Int] = {
+    checkClosed()
     YupanaPreparedStatement.LOGGER.log(Level.FINE, "Execute prepared statement {0}", templateQuery)
     if (batch.isEmpty) throw new SQLException("Batch is not defined")
     val result = connection.runBatchQuery(templateQuery, batch.toSeq)
-    lastResultSet = new YupanaResultSet(this, result)
+    lastResultSet = new YupanaResultSet(this, result.result, Some(result.id))
     Array.fill(batch.size)(1)
   }
 

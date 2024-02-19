@@ -1,10 +1,12 @@
 package org.yupana.jdbc
 
+import org.yupana.protocol.{ Frame, Message }
+
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.{ AsynchronousServerSocketChannel, AsynchronousSocketChannel, CompletionHandler }
 import java.util.concurrent.TimeUnit
-
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.{ Future, Promise }
 
 class ServerMock {
@@ -13,64 +15,76 @@ class ServerMock {
 
   def port: Int = serverSock.getLocalAddress.asInstanceOf[InetSocketAddress].getPort
 
-  def readBytesSendResponseChunked(response: Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponses(_ => Seq(response), ServerMock.chunked)
-  }
+  private var sockets: Map[Int, AsynchronousSocketChannel] = Map.empty
+  private val nextId: AtomicInteger = new AtomicInteger(0)
 
-  def readBytesSendResponsesChunked(responses: Seq[Array[Byte]]): Future[Array[Byte]] = {
-    readBytesSendResponses(_ => responses, ServerMock.chunked)
-  }
-
-  def readBytesSendResponse(response: Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponses(_ => Seq(response), ServerMock.raw)
-  }
-
-  def handleRequestChunked(f: Array[Byte] => Array[Byte]): Future[Array[Byte]] = {
-    readBytesSendResponses((req: Array[Byte]) => Seq(f(req)), ServerMock.chunked)
-  }
-
-  def readBytesSendResponses(
-      makeResponses: Array[Byte] => Seq[Array[Byte]],
-      pack: Array[Byte] => ByteBuffer
-  ): Future[Array[Byte]] = {
-    val p = Promise[Array[Byte]]()
-
+  def connect: Future[Int] = {
+    val res = Promise[Int]()
     serverSock.accept(
-      null,
-      new CompletionHandler[AsynchronousSocketChannel, AnyRef] {
-        override def completed(v: AsynchronousSocketChannel, a: AnyRef): Unit = {
-          val bb = ByteBuffer.allocate(16 * 1024)
-          v.read(bb).get(1, TimeUnit.SECONDS)
-          bb.flip()
-          val reqSize = bb.getInt()
-          val bytes = new Array[Byte](reqSize)
-          bb.get(bytes)
-          makeResponses(bytes) foreach { response =>
-            val resp = pack(response)
-            v.write(resp).get(1, TimeUnit.SECONDS)
-          }
-          p.success(bytes)
-          v.close()
+      nextId.incrementAndGet(),
+      new CompletionHandler[AsynchronousSocketChannel, Int] {
+        override def completed(result: AsynchronousSocketChannel, attachment: Int): Unit = {
+          sockets += attachment -> result
+          res.success(attachment)
         }
 
-        override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)
+        override def failed(exc: Throwable, attachment: Int): Unit = res.failure(exc)
       }
     )
 
-    p.future
+    res.future
   }
 
-  def closeOnReceive(): Future[Unit] = {
-    val p = Promise[Unit]()
-    serverSock.accept(
+  def close(id: Int): Unit = {
+    val s = sockets(id)
+    sockets -= id
+    s.close()
+  }
+
+  def readAndSendResponses[T](id: Int, parse: Frame => T, respond: T => Seq[Message[_]]): Future[T] = {
+    readBytesSendResponsesAndPack(id, parse, respond, ServerMock.pack)
+  }
+
+  def readAnySendRaw[T](id: Int, parse: Frame => T, respond: T => Seq[Array[Byte]]): Future[T] = {
+    readBytesSendResponsesAndPack(id, parse, respond, ByteBuffer.wrap)
+  }
+
+  private def readBytesSendResponsesAndPack[R, X](
+      id: Int,
+      parse: Frame => X,
+      respond: X => Seq[R],
+      pack: R => ByteBuffer
+  ): Future[X] = {
+    val p = Promise[X]()
+
+    val s = sockets(id)
+    val bb = ByteBuffer.allocate(16 * 1024)
+
+    s.read(
+      bb,
       null,
-      new CompletionHandler[AsynchronousSocketChannel, AnyRef] {
-        override def completed(v: AsynchronousSocketChannel, a: AnyRef): Unit = {
-          v.close()
-          p.success(())
+      new CompletionHandler[Integer, AnyRef] {
+        override def completed(result: Integer, attachment: AnyRef): Unit = {
+          try {
+            bb.flip()
+            val frameType = bb.get()
+            val reqSize = bb.getInt()
+            val bytes = new Array[Byte](reqSize)
+            bb.get(bytes)
+            val frame = Frame(frameType, bytes)
+            val cmd = parse(frame)
+            val responses = respond(cmd)
+            responses foreach { response =>
+              val resp = pack(response)
+              s.write(resp).get(1, TimeUnit.SECONDS)
+            }
+            p.success(cmd)
+          } catch {
+            case e: Throwable => p.failure(e)
+          }
         }
 
-        override def failed(throwable: Throwable, a: AnyRef): Unit = p.failure(throwable)
+        override def failed(exc: Throwable, attachment: AnyRef): Unit = p.failure(exc)
       }
     )
 
@@ -83,14 +97,13 @@ class ServerMock {
 }
 
 object ServerMock {
-  def chunked(data: Array[Byte]): ByteBuffer = {
-    val resp = ByteBuffer.allocate(data.length + 4)
-    resp.putInt(data.length)
-    resp.put(data)
+  def pack(data: Message[_]): ByteBuffer = {
+    val frame = data.toFrame[ByteBuffer]
+    val resp = ByteBuffer.allocate(frame.payload.length + 4 + 1)
+    resp.put(frame.frameType)
+    resp.putInt(frame.payload.length)
+    resp.put(frame.payload)
     resp.flip()
     resp
   }
-
-  def raw(data: Array[Byte]): ByteBuffer = ByteBuffer.wrap(data)
-
 }
