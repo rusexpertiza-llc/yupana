@@ -244,7 +244,7 @@ trait YupanaConnection extends Connection {
   override def getClientInfo(s: String): String = throw new SQLClientInfoException("Client info is not supported", null)
 
   @throws[SQLException]
-  override def getClientInfo: Properties = throw new SQLClientInfoException("Client info is not supported", null)
+  override def getClientInfo(): Properties = throw new SQLClientInfoException("Client info is not supported", null)
 
   @throws[SQLException]
   override def createArrayOf(s: String, objects: Array[AnyRef]): java.sql.Array =
