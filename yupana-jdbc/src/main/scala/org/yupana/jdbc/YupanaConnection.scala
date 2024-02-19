@@ -38,7 +38,7 @@ trait YupanaConnection extends Connection {
   def cancelStream(streamId: Int): Unit
 
   @throws[SQLException]
-  override def createStatement: Statement = {
+  override def createStatement(): Statement = {
     new YupanaStatement(this)
   }
 
