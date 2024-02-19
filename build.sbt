@@ -66,7 +66,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
     scala3Settings,
     libraryDependencies ++= Seq(
       "org.scalatest"          %% "scalatest"               % versions.scalaTest         % Test,
-//      "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
+      "org.scalamock"          %% "scalamock"               % versions.scalaMock         % Test
     ),
     buildInfoKeys := {
       val vn = VersionNumber(version.value)
@@ -148,7 +148,7 @@ lazy val core = (project in file("yupana-core"))
  //     "com.twitter"                   %% "algebird-core"                % "0.13.9",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
-//      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
+      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
     ),
     libraryDependencies ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
@@ -178,7 +178,7 @@ lazy val hbase = (project in file("yupana-hbase"))
       "com.thesamet.scalapb"        %% "scalapb-runtime"                % scalapbVersion                    % "protobuf"  exclude("com.google.protobuf", "protobuf-java"),
       "com.google.protobuf"         %  "protobuf-java"                  % versions.protobufJava force(),
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest                % Test,
-//      "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
+      "org.scalamock"               %% "scalamock"                      % versions.scalaMock                % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"                         % Test
     ),
     excludeDependencies ++= Seq(
@@ -202,7 +202,7 @@ lazy val akka = (project in file("yupana-akka"))
       "com.typesafe.scala-logging"    %% "scala-logging"              % versions.scalaLogging,
       "com.google.protobuf"           %  "protobuf-java"              % versions.protobufJava force(),
       "org.scalatest"                 %% "scalatest"                  % versions.scalaTest                % Test,
-//      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test,
+      "org.scalamock"                 %% "scalamock"                  % versions.scalaMock                % Test,
       "com.typesafe.akka"             %% "akka-stream-testkit"        % versions.akka                     % Test
     )
   )
@@ -407,8 +407,8 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.11"
-  val scala3 = "3.3.0"
+  val scala213 = "2.13.12"
+  val scala3 = "3.3.1"
 
   val spark = "3.4.1"
 
@@ -441,7 +441,7 @@ lazy val versions = new {
 
   val scalaTest = "3.2.16"
   val scalaTestCheck = "3.2.16.0"
-  val scalaMock = "5.2.0"
+  val scalaMock = "6.0.0-M1"
 }
 
 val commonSettings = Seq(
