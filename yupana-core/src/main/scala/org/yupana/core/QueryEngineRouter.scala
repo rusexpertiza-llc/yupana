@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.auth.{ TsdbRole, UserManager, YupanaUser }
+import org.yupana.core.auth.{ Action, PermissionService, TsdbRole, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -28,6 +28,7 @@ class QueryEngineRouter(
     flatQueryEngine: FlatQueryEngine,
     metadataProvider: JdbcMetadataProvider,
     sqlQueryProcessor: SqlQueryProcessor,
+    permissionService: PermissionService,
     userManager: UserManager
 ) {
 
@@ -35,33 +36,39 @@ class QueryEngineRouter(
     SqlParser.parse(sql) flatMap {
       case select: Select =>
         for {
-          _ <- hasRole(user, TsdbRole.ReadOnly)
+          _ <- hasPermission(user, select.tableName, Action.Read)
           query <- sqlQueryProcessor.createQuery(select, params)
         } yield timeSeriesQueryEngine.query(user, query)
 
-      case upsert: Upsert => hasRole(user, TsdbRole.ReadWrite).flatMap(_ => doUpsert(user, upsert, Seq(params)))
+      case upsert: Upsert =>
+        hasPermission(user, upsert.tableName, Action.Write)
+          .flatMap(_ => doUpsert(user, upsert, Seq(params)))
 
-      case ShowTables => hasRole(user, TsdbRole.ReadOnly).map(_ => metadataProvider.listTables)
+      case ShowTables => hasPermission(user, TsdbRole.ReadOnly).map(_ => metadataProvider.listTables)
 
-      case ShowVersion => hasRole(user, TsdbRole.ReadOnly).map(_ => metadataProvider.version)
+      case ShowVersion => hasPermission(user, TsdbRole.ReadOnly).map(_ => metadataProvider.version)
 
       case ShowColumns(tableName) =>
-        hasRole(user, TsdbRole.ReadOnly).flatMap(_ => metadataProvider.describeTable(tableName))
+        hasPermission(user, TsdbRole.ReadOnly).flatMap(_ => metadataProvider.describeTable(tableName))
 
       case ShowFunctions(typeName) =>
-        hasRole(user, TsdbRole.ReadOnly).flatMap(_ => metadataProvider.listFunctions(typeName))
+        hasPermission(user, TsdbRole.ReadOnly).flatMap(_ => metadataProvider.listFunctions(typeName))
 
       case ShowQueryMetrics(filter, limit) =>
-        hasRole(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit))
+        hasPermission(user, TsdbRole.Admin).map(_ =>
+          QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit)
+        )
 
       case KillQuery(filter) =>
-        hasRole(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleKillQuery(flatQueryEngine, filter))
+        hasPermission(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleKillQuery(flatQueryEngine, filter))
 
       case DeleteQueryMetrics(filter) =>
-        hasRole(user, TsdbRole.Admin).map(_ => QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter))
+        hasPermission(user, TsdbRole.Admin).map(_ =>
+          QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter)
+        )
 
       case ShowUpdatesIntervals(condition) =>
-        hasRole(user, TsdbRole.Admin).flatMap(_ =>
+        hasPermission(user, TsdbRole.Admin).flatMap(_ =>
           UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
         )
 
@@ -83,13 +90,13 @@ class QueryEngineRouter(
       role: Option[String]
   ): Either[String, Result] = {
     for {
-      _ <- hasRole(user, TsdbRole.Admin)
+      _ <- hasPermission(user, TsdbRole.Admin)
       _ <- userManager.createUser(name, password, role)
     } yield singleResult("STATUS", "OK")
   }
 
   def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
-    hasRole(user, TsdbRole.Admin).flatMap(_ =>
+    hasPermission(user, TsdbRole.Admin).flatMap(_ =>
       if (userManager.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
     )
   }
@@ -101,13 +108,13 @@ class QueryEngineRouter(
       role: Option[String]
   ): Either[String, Result] = {
     for {
-      _ <- hasRole(user, TsdbRole.Admin)
+      _ <- hasPermission(user, TsdbRole.Admin)
       _ <- userManager.updateUser(name, password, role)
     } yield singleResult("STATUS", "OK")
   }
 
   def listUsers(user: YupanaUser): Either[String, Result] = {
-    hasRole(user, TsdbRole.Admin).map { _ =>
+    hasPermission(user, TsdbRole.Admin).map { _ =>
       val users = userManager.listUsers()
       SimpleResult(
         "USERS",
@@ -118,8 +125,9 @@ class QueryEngineRouter(
     }
   }
 
-  def hasRole(user: YupanaUser, role: TsdbRole): Either[String, YupanaUser] = {
-    if (user.role.priority >= role.priority) Right(user) else Left(s"User ${user.name} doesn't have enough permissions")
+  def hasPermission(user: YupanaUser, subject: String, action: Action): Either[String, YupanaUser] = {
+    if (permissionService.hasPermission(user, subject, action)) Right(user)
+    else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
   def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
