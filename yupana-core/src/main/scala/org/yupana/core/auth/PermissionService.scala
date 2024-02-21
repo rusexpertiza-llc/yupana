@@ -26,12 +26,18 @@ object Action {
 sealed trait Subject
 
 object Subject {
-  case class Table(name: String) extends Subject
+  case class Table(name: Option[String]) extends Subject
   case object User extends Subject
+  case object Metadata extends Subject
+  case object Queries extends Subject
 }
 
-class PermissionService {
+class PermissionService(putEnabled: Boolean) {
   def hasPermission(user: YupanaUser, subject: Subject, action: Action): Boolean = {
-    user.role.permissions.exists(_.implies(subject, action))
+    val correction = subject match {
+      case Subject.Table(_) => action == Action.Read || putEnabled
+      case _                => true
+    }
+    correction && user.role.permissions.implies(subject, action)
   }
 }

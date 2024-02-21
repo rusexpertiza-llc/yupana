@@ -18,25 +18,32 @@ package org.yupana.core.auth
 
 sealed trait TsdbRole {
   val name: String
-  val permissions: Seq[Permission]
+  val permissions: Permissions
 }
 
 object TsdbRole {
   case object Disabled extends TsdbRole {
     override val name: String = "DISABLED"
-    override val permission: Seq[Permission] = Seq.empty
+    override val permissions: Permissions = Permissions(Nil, Nil, Nil, Nil)
   }
   case object ReadOnly extends TsdbRole {
     override val name: String = "READ_ONLY"
-    override val permission: Int = 10
+    override val permissions: Permissions =
+      Permissions(Seq(Permission(All, One(Action.Read))), Nil, Seq(All), Seq(One(Action.Read)))
   }
   case object ReadWrite extends TsdbRole {
     override val name: String = "READ_WRITE"
-    override val permission: Int = 20
+    override val permissions: Permissions =
+      Permissions(
+        Seq(Permission(All, One(Action.Read)), Permission(All, One(Action.Write))),
+        Nil,
+        Seq(All),
+        Seq(One(Action.Read))
+      )
   }
   case object Admin extends TsdbRole {
     override val name: String = "ADMIN"
-    override val permission: Int = 100
+    override val permissions: Permissions = Permissions(Seq(Permission(All, All)), Seq(All), Seq(All), Seq(All))
   }
 
   private val roles: Map[String, TsdbRole] = Seq(Disabled, ReadOnly, ReadWrite, Admin).map(r => r.name -> r).toMap

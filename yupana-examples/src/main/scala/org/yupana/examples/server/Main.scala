@@ -21,7 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.api.query.Query
-import org.yupana.core.auth.{ DaoAuthorizer, UserManager }
+import org.yupana.core.auth.{ DaoAuthorizer, PermissionService, UserManager }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
@@ -100,6 +100,7 @@ object Main extends StrictLogging {
       new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
       new SqlQueryProcessor(schemaWithJson),
+      new PermissionService(true),
       userManager
     )
     logger.info("Registering catalogs")

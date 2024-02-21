@@ -16,21 +16,34 @@
 
 package org.yupana.core.auth
 
-trait Permission[+S, +A] {
-  def implies[SS >: S, AA >: A](subject: SS, action: AA): Boolean
+sealed trait Perm[+T] {
+  def implies[TT >: T](t: TT): Boolean
 }
 
-object Permission {
-  case object All extends Permission[Nothing, Nothing] {
-    override def implies[SS, AA](subject: SS, action: AA): Boolean = true
-  }
+case object All extends Perm[Nothing] {
+  override def implies[TT >: Nothing](t: TT): Boolean = true
+}
 
-  case object Nothing extends Permission[Nothing, Nothing] {
-    override def implies[SS, AA](subject: SS, action: AA): Boolean = false
-  }
+case class One[+T](value: T) extends Perm[T] {
+  override def implies[TT >: T](t: TT): Boolean = t == value
+}
 
-  case class One[S, A](subject: S, action: A) extends Permission[S, A] {
-    override def implies[SS >: S, AA >: A](subject: SS, action: AA): Boolean =
-      this.subject == subject && this.action == action
+case class Permission[S, A](subject: Perm[S], action: Perm[A]) {
+  def implies(s: S, a: A): Boolean = subject.implies(s) && action.implies(a)
+}
+
+case class Permissions(
+    tablePermissions: Seq[Permission[Option[String], Action]],
+    userPermission: Seq[Perm[Action]],
+    metaPermission: Seq[Perm[Action]],
+    queryPermission: Seq[Perm[Action]]
+) {
+  def implies(subject: Subject, action: Action): Boolean = {
+    subject match {
+      case Subject.Table(name) => tablePermissions.exists(_.implies(name, action))
+      case Subject.User        => userPermission.exists(_.implies(action))
+      case Subject.Metadata    => metaPermission.exists(_.implies(action))
+      case Subject.Queries     => queryPermission.exists(_.implies(action))
+    }
   }
 }
