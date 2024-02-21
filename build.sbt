@@ -429,8 +429,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.17"
-  val scalaTestCheck = "3.2.17.0"
+  val scalaTest = "3.2.18"
+  val scalaTestCheck = "3.2.18.0"
   val scalaMock = "5.2.0"
 }
 
