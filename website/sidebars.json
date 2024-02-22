@@ -15,7 +15,8 @@
        "upsert",
        "show",
        "kill",
-       "delete"
+       "delete",
+       "user-management"
     ],
     "Описание протокола": [
       "protocol/protocol",
