@@ -17,6 +17,9 @@ class PermissionServiceTest extends AnyFlatSpec with Matchers {
     service.hasPermission(user1, Subject.Queries, Action.Read) shouldBe true
     service.hasPermission(user1, Subject.Queries, Action.Write) shouldBe false
 
+    service.hasPermission(user1, Subject.Metadata, Action.Read) shouldBe true
+    service.hasPermission(user1, Subject.Metadata, Action.Write) shouldBe true
+
     val user2 = YupanaUser("Test1", None, TsdbRole.ReadWrite)
     service.hasPermission(user2, Subject.Table(Some("items_kkm")), Action.Read) shouldBe true
     service.hasPermission(user2, Subject.Table(Some("items_kkm")), Action.Write) shouldBe true

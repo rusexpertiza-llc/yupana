@@ -25,7 +25,7 @@ import org.yupana.core.auth.{ DaoAuthorizer, PermissionService, UserManager }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
-import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
+import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
@@ -78,9 +78,10 @@ object Main extends StrictLogging {
       new PersistentMetricQueryReporter(tsdbQueryMetricsDaoHBase)
     )
 
-    val metricCreator = { query: Query =>
+    val metricCreator = { (query: Query, user: String) =>
       new StandaloneMetricCollector(
         query,
+        user,
         "query",
         tsdbConfig.metricsUpdateInterval,
         metricReporter
@@ -96,7 +97,7 @@ object Main extends StrictLogging {
     val userManager = new UserManager(userDao, Some("admin"), Some("admin"))
 
     val queryEngineRouter = new QueryEngineRouter(
-      new TimeSeriesQueryEngine(tsdb),
+      tsdb,
       new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
       new SqlQueryProcessor(schemaWithJson),

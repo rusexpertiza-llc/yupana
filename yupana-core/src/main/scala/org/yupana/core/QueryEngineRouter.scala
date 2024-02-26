@@ -24,7 +24,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
 
 class QueryEngineRouter(
-    timeSeriesQueryEngine: TimeSeriesQueryEngine,
+    timeSeriesQueryEngine: TSDB,
     flatQueryEngine: FlatQueryEngine,
     metadataProvider: JdbcMetadataProvider,
     sqlQueryProcessor: SqlQueryProcessor,
@@ -38,7 +38,7 @@ class QueryEngineRouter(
         for {
           _ <- hasPermission(user, Subject.Table(select.tableName), Action.Read)
           query <- sqlQueryProcessor.createQuery(select, params)
-        } yield timeSeriesQueryEngine.query(user, query)
+        } yield timeSeriesQueryEngine.query(query, user)
 
       case upsert: Upsert =>
         hasPermission(user, Subject.Table(Some(upsert.tableName)), Action.Write)
@@ -146,7 +146,7 @@ class QueryEngineRouter(
       params: Seq[Map[Int, Value]]
   ): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
-      timeSeriesQueryEngine.put(user, dps)
+      timeSeriesQueryEngine.put(dps.iterator, user)
       Right(singleResult("RESULT", "OK"))
     }
   }

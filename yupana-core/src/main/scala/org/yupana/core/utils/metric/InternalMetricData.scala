@@ -27,7 +27,8 @@ case class InternalMetricData(
     queryState: QueryStates.QueryState,
     totalDuration: Long,
     metricValues: Map[String, MetricData],
-    sparkQuery: Boolean
+    sparkQuery: Boolean,
+    user: String
 )
 
 object InternalMetricData {
@@ -51,7 +52,8 @@ object InternalMetricData {
       state,
       mc.resultDuration,
       data,
-      mc.isSparkQuery
+      mc.isSparkQuery,
+      mc.user
     )
   }
 }

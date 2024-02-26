@@ -74,7 +74,7 @@ trait TsdbBase extends StrictLogging {
       keysAndValues: Collection[(KeyData, InternalRow)]
   ): Collection[(KeyData, InternalRow)]
 
-  def createMetricCollector(query: Query): MetricQueryCollector
+  def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector
 
   def finalizeQuery(
       queryContext: QueryContext,
@@ -107,7 +107,7 @@ trait TsdbBase extends StrictLogging {
 
     logger.debug(s"Optimized query: $optimizedQuery")
 
-    val metricCollector = createMetricCollector(optimizedQuery)
+    val metricCollector = createMetricCollector(optimizedQuery, user)
     val mr = mapReduceEngine(metricCollector)
 
     metricCollector.start()

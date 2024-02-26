@@ -48,6 +48,7 @@ object QueryInfoProvider extends StrictLogging {
       Array[Any](
         queryMetrics.queryId,
         queryMetrics.engine,
+        queryMetrics.user,
         queryMetrics.state.name,
         queryMetrics.query,
         Time(queryMetrics.startDate),
@@ -65,6 +66,7 @@ object QueryInfoProvider extends StrictLogging {
     val queryFieldNames = List(
       queryIdColumn,
       engineColumn,
+      userColumn,
       stateColumn,
       queryColumn,
       startDateColumn,
@@ -73,6 +75,7 @@ object QueryInfoProvider extends StrictLogging {
       qualifiers.flatMap(q => List(q + "_" + metricCount, q + "_" + metricTime, q + "_" + metricSpeed))
 
     val queryFieldTypes = List(
+      DataType[String],
       DataType[String],
       DataType[String],
       DataType[String],

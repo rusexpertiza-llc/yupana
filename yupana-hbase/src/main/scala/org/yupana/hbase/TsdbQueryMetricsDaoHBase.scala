@@ -43,6 +43,7 @@ object TsdbQueryMetricsDaoHBase {
   private val TOTAL_DURATION_QUALIFIER: Array[Byte] = Bytes.toBytes(totalDurationColumn)
   private val STATE_QUALIFIER: Array[Byte] = Bytes.toBytes(stateColumn)
   private val ENGINE_QUALIFIER: Array[Byte] = Bytes.toBytes(engineColumn)
+  private val USER_QUALIFIER: Array[Byte] = Bytes.toBytes(userColumn)
   private val DEFAULT_LIMIT = 1000
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
@@ -62,6 +63,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(metric.queryState.name))
     put.addColumn(FAMILY, START_DATE_QUALIFIER, Bytes.toBytes(metric.startDate))
     put.addColumn(FAMILY, ENGINE_QUALIFIER, Bytes.toBytes(engine))
+    put.addColumn(FAMILY, USER_QUALIFIER, Bytes.toBytes(metric.user))
     TsdbQueryMetrics.qualifiers.foreach { metricName =>
       val (count, time, speed) = metric.metricValues.get(metricName) match {
         case Some(data) => (data.count, data.time, data.speed)
@@ -162,6 +164,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       partitionId = pId,
       state = QueryStates.getByName(Bytes.toString(result.getValue(FAMILY, STATE_QUALIFIER))),
       engine = Bytes.toString(result.getValue(FAMILY, ENGINE_QUALIFIER)),
+      user = Option(Bytes.toString(result.getValue(FAMILY, USER_QUALIFIER))),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
       startDate = OffsetDateTime.ofInstant(
         Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),

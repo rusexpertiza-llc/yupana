@@ -18,6 +18,7 @@ import scala.util.Random
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.cache.CacheFactory
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.UpdateInterval
 import org.yupana.metrics.Slf4jMetricReporter
 import org.yupana.settings.Settings
@@ -209,7 +210,7 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
       Seq(truncDay(time))
     )
 
-    val mc = new StandaloneMetricCollector(query, "test", 10, new Slf4jMetricReporter)
+    val mc = new StandaloneMetricCollector(query, "bench", "test", 10, new Slf4jMetricReporter)
 //    val mc = NoMetricCollector
     class BenchTSDB
         extends TSDB(
@@ -218,11 +219,9 @@ class TsdbBenchmark extends AnyFlatSpec with Matchers {
           changelogDao,
           identity,
           SimpleTsdbConfig(putEnabled = true),
-          { _ =>
-            mc
-          }
+          { (_, _) => mc }
         ) {
-      override def createMetricCollector(query: Query): MetricQueryCollector = {
+      override def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector = {
         mc
       }
     }
