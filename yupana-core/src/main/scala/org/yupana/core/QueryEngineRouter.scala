@@ -24,7 +24,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
 
 class QueryEngineRouter(
-    timeSeriesQueryEngine: TSDB,
+    tsdb: TSDB,
     flatQueryEngine: FlatQueryEngine,
     metadataProvider: JdbcMetadataProvider,
     sqlQueryProcessor: SqlQueryProcessor,
@@ -38,7 +38,7 @@ class QueryEngineRouter(
         for {
           _ <- hasPermission(user, Subject.Table(select.tableName), Action.Read)
           query <- sqlQueryProcessor.createQuery(select, params)
-        } yield timeSeriesQueryEngine.query(query, user)
+        } yield tsdb.query(query, user)
 
       case upsert: Upsert =>
         hasPermission(user, Subject.Table(Some(upsert.tableName)), Action.Write)
@@ -81,11 +81,11 @@ class QueryEngineRouter(
     }
   }
 
-  def singleResult[T](name: String, value: T)(implicit dt: DataType.Aux[T]): Result = {
+  private def singleResult[T](name: String, value: T)(implicit dt: DataType.Aux[T]): Result = {
     SimpleResult("RESULT", List(name), List(dt), Iterator(Array[Any](value)))
   }
 
-  def createUser(
+  private def createUser(
       user: YupanaUser,
       name: String,
       password: Option[String],
@@ -97,13 +97,13 @@ class QueryEngineRouter(
     } yield singleResult("STATUS", "OK")
   }
 
-  def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
+  private def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
     hasPermission(user, Subject.User, Action.Write).flatMap(_ =>
       if (userManager.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
     )
   }
 
-  def updateUser(
+  private def updateUser(
       user: YupanaUser,
       name: String,
       password: Option[String],
@@ -115,7 +115,7 @@ class QueryEngineRouter(
     } yield singleResult("STATUS", "OK")
   }
 
-  def listUsers(user: YupanaUser): Either[String, Result] = {
+  private def listUsers(user: YupanaUser): Either[String, Result] = {
     hasPermission(user, Subject.User, Action.Read).map { _ =>
       val users = userManager.listUsers()
       SimpleResult(
@@ -127,7 +127,7 @@ class QueryEngineRouter(
     }
   }
 
-  def hasPermission(user: YupanaUser, subject: Subject, action: Action): Either[String, YupanaUser] = {
+  private def hasPermission(user: YupanaUser, subject: Subject, action: Action): Either[String, YupanaUser] = {
     if (permissionService.hasPermission(user, subject, action)) Right(user)
     else Left(s"User ${user.name} doesn't have enough permissions")
   }
@@ -135,8 +135,9 @@ class QueryEngineRouter(
   def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
     SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
-        doUpsert(user, upsert, params)
-      case _ => Left(s"Only UPSERT can have batch parameters, but got ${sql}")
+        hasPermission(user, Subject.Table(Some(upsert.tableName)), Action.Write)
+          .flatMap(_ => doUpsert(user, upsert, params))
+      case _ => Left(s"Only UPSERT can have batch parameters, but got $sql")
     }
   }
 
@@ -146,7 +147,7 @@ class QueryEngineRouter(
       params: Seq[Map[Int, Value]]
   ): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
-      timeSeriesQueryEngine.put(dps.iterator, user)
+      tsdb.put(dps.iterator, user)
       Right(singleResult("RESULT", "OK"))
     }
   }
