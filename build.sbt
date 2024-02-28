@@ -26,6 +26,7 @@ lazy val yupana = (project in file("."))
     core,
     hbase,
     netty,
+    postgres,
     spark,
     schema,
     externalLinks,
@@ -185,7 +186,6 @@ lazy val netty = (project in file("yupana-netty"))
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
       "io.netty"                    %  "netty-all"                     % versions.netty,
-      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
 
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
@@ -193,6 +193,22 @@ lazy val netty = (project in file("yupana-netty"))
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
   ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
+
+lazy val postgres = (project in file("yupana-postgres"))
+  .settings(
+    name := "yupana-postgres",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+      "io.netty"                    %  "netty-all"                     % versions.netty,
+
+      "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
+      "org.postgresql"              %  "postgresql"                    % versions.postgresqlJdbc      % Test,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
+      "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test,
+      "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
+    )
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core)
 
 lazy val spark = (project in file("yupana-spark"))
   .settings(
@@ -426,7 +442,7 @@ lazy val versions = new {
   val hikariCP = "4.0.3"
   val logback = "1.3.11"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.3.3"
+  val postgresqlJdbc = "42.7.2"
 
   val scalaTest = "3.2.17"
   val scalaTestCheck = "3.2.17.0"
