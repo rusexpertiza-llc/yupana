@@ -79,6 +79,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
   }
 
   private def connected(ctx: ChannelHandlerContext, user: YupanaUser): Unit = {
+    logger.info(s"User ${user.name} connected")
     if (ctx.pipeline().get(classOf[IdleStateHandler]) != null) {
       ctx.pipeline().remove(classOf[IdleStateHandler])
     }
@@ -88,6 +89,7 @@ class ConnectingHandler(context: ServerContext) extends FrameHandlerBase with St
   }
 
   private def respondFatal(ctx: ChannelHandlerContext, message: String): Unit = {
+    logger.info(s"Failed to connect: '$message'")
     writeResponse(ctx, ErrorMessage(message, None, ErrorMessage.SEVERITY_FATAL))
     ctx.close()
   }
