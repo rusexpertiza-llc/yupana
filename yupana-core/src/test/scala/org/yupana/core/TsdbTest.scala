@@ -10,7 +10,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
-import org.yupana.core.auth.YupanaUser
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.core.dao.{ ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model._
 import org.yupana.core.sql.SqlQueryProcessor
@@ -59,7 +59,7 @@ class TsdbTest
       changelogDaoMock,
       identity,
       SimpleTsdbConfig(putEnabled = true),
-      { _: Query => NoMetricCollector }
+      { (_: Query, _: String) => NoMetricCollector }
     )
     val externalLinkServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, externalLinkServiceMock)
@@ -98,7 +98,7 @@ class TsdbTest
         changelogDaoMock,
         identity,
         SimpleTsdbConfig(),
-        { _: Query => NoMetricCollector }
+        { (_: Query, _: String) => NoMetricCollector }
       )
 
     val dp = DataPoint(
@@ -3299,7 +3299,9 @@ class TsdbTest
         changelogDaoMock,
         identity,
         SimpleTsdbConfig(collectMetrics = true),
-        { q: Query => new StandaloneMetricCollector(q, "query", metricsUpdateInterval = 1000, reporter) }
+        { (q: Query, u: String) =>
+          new StandaloneMetricCollector(q, u, "query", metricsUpdateInterval = 1000, reporter)
+        }
       )
 
     val testCatalogServiceMock = mockCatalogService(tsdb, TestLinks.TEST_LINK)
@@ -3398,11 +3400,12 @@ class TsdbTest
       .expects(capture(capturedMetrics))
       .atLeastOnce()
 
-    val res = tsdb.query(query).toList
+    val res = tsdb.query(query, YupanaUser("test", None, TsdbRole.ReadOnly)).toList
 
     res should have size 1
     val metrics = capturedMetrics.values.flatten.last
     metrics.queryState shouldBe QueryStates.Finished
+    metrics.user shouldEqual "test"
 
     val finalMetricValues = metrics.metricValues
     finalMetricValues("create_queries.link.TestLink").count shouldEqual 1

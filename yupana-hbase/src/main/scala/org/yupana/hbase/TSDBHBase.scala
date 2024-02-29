@@ -32,13 +32,14 @@ object TSDBHBase {
       tsdbConfig: TsdbConfig,
       connection: Connection,
       namespace: String
-  ): Query => MetricQueryCollector = {
+  ): (Query, String) => MetricQueryCollector = {
     lazy val tsdbQueryMetricsDaoHBase = new TsdbQueryMetricsDaoHBase(connection, namespace)
     lazy val reporter = new PersistentMetricQueryReporter(tsdbQueryMetricsDaoHBase)
 
-    { query: Query =>
+    { (query: Query, user: String) =>
       new StandaloneMetricCollector(
         query,
+        user,
         "query",
         tsdbConfig.metricsUpdateInterval,
         reporter
@@ -54,7 +55,7 @@ object TSDBHBase {
       settings: Settings,
       tsdbConfig: TsdbConfig
   )(
-      metricCollectorCreator: Query => MetricQueryCollector =
+      metricCollectorCreator: (Query, String) => MetricQueryCollector =
         createDefaultMetricCollector(tsdbConfig, connection, namespace)
   ): TSDB = {
 
@@ -76,7 +77,7 @@ object TSDBHBase {
       prepareQuery: Query => Query,
       settings: Settings,
       tsdbConfig: TsdbConfig,
-      metricCollectorCreator: Option[Query => MetricQueryCollector]
+      metricCollectorCreator: Option[(Query, String) => MetricQueryCollector]
   ): TSDB = {
     val connection = ConnectionFactory.createConnection(config)
     HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
