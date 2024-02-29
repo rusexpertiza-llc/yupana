@@ -7,7 +7,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ ExternalLink, MetricValue }
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.auth.YupanaUser
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.hbase.ChangelogDaoHBase
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
@@ -19,7 +19,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
 
   import org.yupana.api.query.syntax.All._
 
-  val testUser = YupanaUser("test")
+  val testUser = YupanaUser("test", None, TsdbRole.ReadWrite)
 
   "TsdbSpark" should "run queries" in {
 

@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.netty
+package org.yupana.core.auth
 
-trait Authorizer {
+class DaoAuthorizer(userManager: UserManager) extends Authorizer {
 
-  def methods: Seq[String]
-
-  def authorize(method: String, userName: Option[String], password: Option[String]): Either[String, String]
+  override def authorize(
+      userName: Option[String],
+      password: Option[String]
+  ): Either[String, YupanaUser] = {
+    userName.map(_.trim) match {
+      case Some(name) => userManager.validateUser(name, password).toRight("Invalid user or password")
+      case None       => Left("User name must not be empty")
+    }
+  }
 }

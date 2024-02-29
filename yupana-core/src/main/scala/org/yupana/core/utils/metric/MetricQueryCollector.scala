@@ -24,6 +24,7 @@ trait MetricQueryCollector extends MetricCollector {
   override def id: String = query.id
   override def meta: String = query.toString
   def isSparkQuery: Boolean
+  def user: String
 
   def createDimensionFilters: Metric
   def createScans: Metric

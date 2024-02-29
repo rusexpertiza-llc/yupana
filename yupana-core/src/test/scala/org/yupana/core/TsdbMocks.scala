@@ -87,7 +87,7 @@ trait TsdbMocks extends MockFactory {
         changelogDaoMock,
         identity,
         SimpleTsdbConfig(),
-        { _: Query => NoMetricCollector }
+        { (_: Query, _: String) => NoMetricCollector }
       )
     body(tsdb, tsdbDaoMock)
   }

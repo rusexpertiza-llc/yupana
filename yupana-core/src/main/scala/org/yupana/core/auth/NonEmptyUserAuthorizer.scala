@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.netty
-
-import org.yupana.protocol.CredentialsRequest
+package org.yupana.core.auth
 
 object NonEmptyUserAuthorizer extends Authorizer {
-  override val methods: Seq[String] = Seq(CredentialsRequest.METHOD_PLAIN)
 
-  override def authorize(method: String, userName: Option[String], password: Option[String]): Either[String, String] = {
-    if (method == CredentialsRequest.METHOD_PLAIN) {
-      val fixedName = userName.map(_.trim).getOrElse("")
-      Either.cond(fixedName.nonEmpty, fixedName, "Username should not be empty")
-    } else {
-      Left(s"Unsupported auth method '$method'")
-    }
+  override def authorize(
+      userName: Option[String],
+      password: Option[String]
+  ): Either[String, YupanaUser] = {
+    val fixedName = userName.map(_.trim).getOrElse("")
+    Either.cond(fixedName.nonEmpty, YupanaUser(fixedName, None, TsdbRole.Admin), "Username should not be empty")
   }
 }

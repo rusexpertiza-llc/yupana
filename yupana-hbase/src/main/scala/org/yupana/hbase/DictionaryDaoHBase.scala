@@ -147,23 +147,11 @@ class DictionaryDaoHBase(connection: Connection, namespace: String) extends Dict
 
   def checkTablesExistsElseCreate(dimension: Dimension): Unit = {
     if (!existsTables.contains(dimension.name)) {
-      try {
-        val tableName = getTableName(namespace, dimension.name)
-        if (!connection.getAdmin.tableExists(tableName)) {
-          val desc = TableDescriptorBuilder
-            .newBuilder(tableName)
-            .setColumnFamilies(
-              Seq(
-                ColumnFamilyDescriptorBuilder.of(seqFamily),
-                ColumnFamilyDescriptorBuilder.of(dataFamily)
-              ).asJavaCollection
-            )
-            .build()
-          connection.getAdmin.createTable(desc)
-        }
-      } catch {
-        case _: TableExistsException =>
-      }
+      HBaseUtils.checkTableExistsElseCreate(
+        connection,
+        getTableName(namespace, dimension.name),
+        Seq(seqFamily, dataFamily)
+      )
       existsTables += dimension.name
     }
   }
