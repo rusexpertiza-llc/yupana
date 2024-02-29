@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.auth.{ Action, PermissionService, Subject, UserManager, YupanaUser }
+import org.yupana.core.auth.{ Action, PermissionService, Object, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -36,41 +36,41 @@ class QueryEngineRouter(
     SqlParser.parse(sql) flatMap {
       case select: Select =>
         for {
-          _ <- hasPermission(user, Subject.Table(select.tableName), Action.Read)
+          _ <- hasPermission(user, Object.Table(select.tableName), Action.Read)
           query <- sqlQueryProcessor.createQuery(select, params)
         } yield tsdb.query(query, user)
 
       case upsert: Upsert =>
-        hasPermission(user, Subject.Table(Some(upsert.tableName)), Action.Write)
+        hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
           .flatMap(_ => doUpsert(user, upsert, Seq(params)))
 
-      case ShowTables => hasPermission(user, Subject.Metadata, Action.Read).map(_ => metadataProvider.listTables)
+      case ShowTables => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.listTables)
 
-      case ShowVersion => hasPermission(user, Subject.Metadata, Action.Read).map(_ => metadataProvider.version)
+      case ShowVersion => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.version)
 
       case ShowColumns(tableName) =>
-        hasPermission(user, Subject.Metadata, Action.Read).flatMap(_ => metadataProvider.describeTable(tableName))
+        hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.describeTable(tableName))
 
       case ShowFunctions(typeName) =>
-        hasPermission(user, Subject.Metadata, Action.Read).flatMap(_ => metadataProvider.listFunctions(typeName))
+        hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.listFunctions(typeName))
 
       case ShowQueryMetrics(filter, limit) =>
-        hasPermission(user, Subject.Queries, Action.Read).map(_ =>
+        hasPermission(user, Object.Queries, Action.Read).map(_ =>
           QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit)
         )
 
       case KillQuery(filter) =>
-        hasPermission(user, Subject.Queries, Action.Write).map(_ =>
+        hasPermission(user, Object.Queries, Action.Write).map(_ =>
           QueryInfoProvider.handleKillQuery(flatQueryEngine, filter)
         )
 
       case DeleteQueryMetrics(filter) =>
-        hasPermission(user, Subject.Queries, Action.Write).map(_ =>
+        hasPermission(user, Object.Queries, Action.Write).map(_ =>
           QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter)
         )
 
       case ShowUpdatesIntervals(condition) =>
-        hasPermission(user, Subject.Queries, Action.Read).flatMap(_ =>
+        hasPermission(user, Object.Queries, Action.Read).flatMap(_ =>
           UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
         )
 
@@ -92,13 +92,13 @@ class QueryEngineRouter(
       role: Option[String]
   ): Either[String, Result] = {
     for {
-      _ <- hasPermission(user, Subject.User, Action.Write)
+      _ <- hasPermission(user, Object.User, Action.Write)
       _ <- userManager.createUser(name, password, role)
     } yield singleResult("STATUS", "OK")
   }
 
   private def deleteUser(user: YupanaUser, name: String): Either[String, Result] = {
-    hasPermission(user, Subject.User, Action.Write).flatMap(_ =>
+    hasPermission(user, Object.User, Action.Write).flatMap(_ =>
       if (userManager.deleteUser(name)) Right(singleResult("STATUS", "OK")) else Left("User not found")
     )
   }
@@ -110,13 +110,13 @@ class QueryEngineRouter(
       role: Option[String]
   ): Either[String, Result] = {
     for {
-      _ <- hasPermission(user, Subject.User, Action.Write)
+      _ <- hasPermission(user, Object.User, Action.Write)
       _ <- userManager.updateUser(name, password, role)
     } yield singleResult("STATUS", "OK")
   }
 
   private def listUsers(user: YupanaUser): Either[String, Result] = {
-    hasPermission(user, Subject.User, Action.Read).map { _ =>
+    hasPermission(user, Object.User, Action.Read).map { _ =>
       val users = userManager.listUsers()
       SimpleResult(
         "USERS",
@@ -127,7 +127,7 @@ class QueryEngineRouter(
     }
   }
 
-  private def hasPermission(user: YupanaUser, subject: Subject, action: Action): Either[String, YupanaUser] = {
+  private def hasPermission(user: YupanaUser, subject: Object, action: Action): Either[String, YupanaUser] = {
     if (permissionService.hasPermission(user, subject, action)) Right(user)
     else Left(s"User ${user.name} doesn't have enough permissions")
   }
@@ -135,7 +135,7 @@ class QueryEngineRouter(
   def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
     SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
-        hasPermission(user, Subject.Table(Some(upsert.tableName)), Action.Write)
+        hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
           .flatMap(_ => doUpsert(user, upsert, params))
       case _ => Left(s"Only UPSERT can have batch parameters, but got $sql")
     }

@@ -38,12 +38,12 @@ case class Permissions(
     metaPermission: Seq[Perm[Action]],
     queryPermission: Seq[Perm[Action]]
 ) {
-  def implies(subject: Subject, action: Action): Boolean = {
+  def implies(subject: Object, action: Action): Boolean = {
     subject match {
-      case Subject.Table(name) => tablePermissions.exists(_.implies(name, action))
-      case Subject.User        => userPermission.exists(_.implies(action))
-      case Subject.Metadata    => metaPermission.exists(_.implies(action))
-      case Subject.Queries     => queryPermission.exists(_.implies(action))
+      case Object.Table(name) => tablePermissions.exists(_.implies(name, action))
+      case Object.User        => userPermission.exists(_.implies(action))
+      case Object.Metadata    => metaPermission.exists(_.implies(action))
+      case Object.Queries     => queryPermission.exists(_.implies(action))
     }
   }
 }

@@ -8,40 +8,40 @@ class PermissionServiceTest extends AnyFlatSpec with Matchers {
     val service = new PermissionService(true)
 
     val user1 = YupanaUser("Test1", None, TsdbRole.ReadOnly)
-    service.hasPermission(user1, Subject.Table(Some("items_kkm")), Action.Read) shouldBe true
-    service.hasPermission(user1, Subject.Table(Some("items_kkm")), Action.Write) shouldBe false
+    service.hasPermission(user1, Object.Table(Some("items_kkm")), Action.Read) shouldBe true
+    service.hasPermission(user1, Object.Table(Some("items_kkm")), Action.Write) shouldBe false
 
-    service.hasPermission(user1, Subject.User, Action.Read) shouldBe false
-    service.hasPermission(user1, Subject.User, Action.Write) shouldBe false
+    service.hasPermission(user1, Object.User, Action.Read) shouldBe false
+    service.hasPermission(user1, Object.User, Action.Write) shouldBe false
 
-    service.hasPermission(user1, Subject.Queries, Action.Read) shouldBe true
-    service.hasPermission(user1, Subject.Queries, Action.Write) shouldBe false
+    service.hasPermission(user1, Object.Queries, Action.Read) shouldBe true
+    service.hasPermission(user1, Object.Queries, Action.Write) shouldBe false
 
-    service.hasPermission(user1, Subject.Metadata, Action.Read) shouldBe true
-    service.hasPermission(user1, Subject.Metadata, Action.Write) shouldBe true
+    service.hasPermission(user1, Object.Metadata, Action.Read) shouldBe true
+    service.hasPermission(user1, Object.Metadata, Action.Write) shouldBe true
 
     val user2 = YupanaUser("Test1", None, TsdbRole.ReadWrite)
-    service.hasPermission(user2, Subject.Table(Some("items_kkm")), Action.Read) shouldBe true
-    service.hasPermission(user2, Subject.Table(Some("items_kkm")), Action.Write) shouldBe true
+    service.hasPermission(user2, Object.Table(Some("items_kkm")), Action.Read) shouldBe true
+    service.hasPermission(user2, Object.Table(Some("items_kkm")), Action.Write) shouldBe true
 
-    service.hasPermission(user2, Subject.User, Action.Read) shouldBe false
-    service.hasPermission(user2, Subject.User, Action.Write) shouldBe false
+    service.hasPermission(user2, Object.User, Action.Read) shouldBe false
+    service.hasPermission(user2, Object.User, Action.Write) shouldBe false
 
-    service.hasPermission(user2, Subject.Queries, Action.Read) shouldBe true
-    service.hasPermission(user2, Subject.Queries, Action.Write) shouldBe false
+    service.hasPermission(user2, Object.Queries, Action.Read) shouldBe true
+    service.hasPermission(user2, Object.Queries, Action.Write) shouldBe false
   }
 
   it should "not allow write when put disabled" in {
     val service = new PermissionService(false)
 
     val user = YupanaUser("Test1", None, TsdbRole.ReadWrite)
-    service.hasPermission(user, Subject.Table(Some("items_kkm")), Action.Read) shouldBe true
-    service.hasPermission(user, Subject.Table(Some("items_kkm")), Action.Write) shouldBe false
+    service.hasPermission(user, Object.Table(Some("items_kkm")), Action.Read) shouldBe true
+    service.hasPermission(user, Object.Table(Some("items_kkm")), Action.Write) shouldBe false
 
-    service.hasPermission(user, Subject.User, Action.Read) shouldBe false
-    service.hasPermission(user, Subject.User, Action.Write) shouldBe false
+    service.hasPermission(user, Object.User, Action.Read) shouldBe false
+    service.hasPermission(user, Object.User, Action.Write) shouldBe false
 
-    service.hasPermission(user, Subject.Queries, Action.Read) shouldBe true
-    service.hasPermission(user, Subject.Queries, Action.Write) shouldBe false
+    service.hasPermission(user, Object.Queries, Action.Read) shouldBe true
+    service.hasPermission(user, Object.Queries, Action.Write) shouldBe false
   }
 }
