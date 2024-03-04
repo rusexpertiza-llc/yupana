@@ -28,7 +28,8 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: Serv
       .childHandler(new ChannelInitializer[SocketChannel] {
         override def initChannel(ch: SocketChannel): Unit = {
           ch.pipeline().addLast(new IdleStateHandler(30, 0, 0))
-          ch.pipeline().addLast("decoder", new MessageDecoder())
+          ch.pipeline().addLast("decoder", new InitialMessageDecoder())
+          ch.pipeline().addLast("encoder", new MessageEncoder())
           ch.pipeline().addLast(yupanaGroup, "handler", new ConnectingHandler(serverContext))
         }
       })

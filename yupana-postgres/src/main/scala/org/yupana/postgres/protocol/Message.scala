@@ -1,5 +1,17 @@
 package org.yupana.postgres.protocol
 
-trait Message {}
+import io.netty.buffer.ByteBuf
 
-case object SSLRequest extends Message
+trait Message
+
+trait ClientMessage extends Message
+
+case object SSLRequest extends ClientMessage
+
+trait ServerMessage extends Message {
+  def write(byteBuf: ByteBuf): Unit
+}
+
+case object No extends ServerMessage {
+  override def write(byteBuf: ByteBuf): Unit = byteBuf.writeByte('N'.toByte)
+}
