@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 class PermissionServiceTest extends AnyFlatSpec with Matchers {
   "PermissionService" should "check permissions" in {
-    val service = new PermissionService(true)
+    val service = new PermissionService(putEnabled = true)
 
     val user1 = YupanaUser("Test1", None, TsdbRole.ReadOnly)
     service.hasPermission(user1, Object.Table(Some("items_kkm")), Action.Read) shouldBe true
@@ -32,7 +32,7 @@ class PermissionServiceTest extends AnyFlatSpec with Matchers {
   }
 
   it should "not allow write when put disabled" in {
-    val service = new PermissionService(false)
+    val service = new PermissionService(putEnabled = false)
 
     val user = YupanaUser("Test1", None, TsdbRole.ReadWrite)
     service.hasPermission(user, Object.Table(Some("items_kkm")), Action.Read) shouldBe true

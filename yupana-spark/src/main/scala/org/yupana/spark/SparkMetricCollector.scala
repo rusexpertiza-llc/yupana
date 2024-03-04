@@ -27,6 +27,13 @@ class SparkMetricCollector(
     opName: String,
     metricsUpdateInterval: Int,
     reporter: MetricReporter[MetricQueryCollector]
-) extends StandardMetricCollector(query, user, opName, metricsUpdateInterval, true, reporter) {
+) extends StandardMetricCollector(
+      query,
+      user,
+      opName,
+      metricsUpdateInterval,
+      isSparkQuery = true,
+      reporter = reporter
+    ) {
   override def partitionId: Option[String] = Some(SparkEnv.get.executorId)
 }

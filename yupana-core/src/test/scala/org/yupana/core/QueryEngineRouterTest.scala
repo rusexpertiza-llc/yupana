@@ -238,7 +238,7 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
       val fqe = new FlatQueryEngine(metricsDao, changelogDao)
       val jmp = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2.3")
       val sqp = new SqlQueryProcessor(TestSchema.schema)
-      val ps = new PermissionService(false)
+      val ps = new PermissionService(putEnabled = false)
       val um = new UserManager(userDao, Some("admin"), Some("admin"))
 
       val qer = new QueryEngineRouter(tsdb, fqe, jmp, sqp, ps, um)
