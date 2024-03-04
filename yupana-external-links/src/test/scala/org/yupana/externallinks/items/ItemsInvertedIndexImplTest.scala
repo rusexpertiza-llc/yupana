@@ -173,8 +173,8 @@ class ItemsInvertedIndexImplTest
     val index = new ItemsInvertedIndexImpl(
       TestSchema.schema,
       dao,
-      false,
-      ItemsInvertedIndex
+      putEnabled = false,
+      externalLink = ItemsInvertedIndex
     )
 
     body(index, dao, tsdb)

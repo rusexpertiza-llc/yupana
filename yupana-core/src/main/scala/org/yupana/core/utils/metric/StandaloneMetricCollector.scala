@@ -25,6 +25,13 @@ class StandaloneMetricCollector(
     operationName: String,
     metricsUpdateInterval: Int,
     reporter: MetricReporter[MetricQueryCollector]
-) extends StandardMetricCollector(query, user, operationName, metricsUpdateInterval, false, reporter) {
+) extends StandardMetricCollector(
+      query,
+      user,
+      operationName,
+      metricsUpdateInterval,
+      isSparkQuery = false,
+      reporter = reporter
+    ) {
   override val partitionId: Option[String] = None
 }

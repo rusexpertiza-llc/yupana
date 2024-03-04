@@ -101,7 +101,7 @@ object Main extends StrictLogging {
       new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
       new SqlQueryProcessor(schemaWithJson),
-      new PermissionService(true),
+      new PermissionService(putEnabled = true),
       userManager
     )
     logger.info("Registering catalogs")

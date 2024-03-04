@@ -71,8 +71,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
   }
 
   it should "parse booleans" in {
-    parse("true", ValueParser.value(_)).value shouldEqual BooleanValue(true)
-    parse("FALSE", ValueParser.value(_)).value shouldEqual BooleanValue(false)
+    parse("true", ValueParser.value(_)).value shouldEqual BooleanValue(value = true)
+    parse("FALSE", ValueParser.value(_)).value shouldEqual BooleanValue(value = false)
   }
 
   it should "support single field SQL intervals" in {

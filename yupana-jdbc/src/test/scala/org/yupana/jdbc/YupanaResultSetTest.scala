@@ -623,8 +623,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTime(4, new java.sql.Time(123456L))
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTime("time", new java.sql.Time(654321L))
 
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean(4, true)
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean("time", false)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean(4, x = true)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean("time", x = false)
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull("string")

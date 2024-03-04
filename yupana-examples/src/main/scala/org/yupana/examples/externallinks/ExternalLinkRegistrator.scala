@@ -52,8 +52,8 @@ class ExternalLinkRegistrator(
     new ItemsInvertedIndexImpl(
       tsdb.schema,
       invertedDao,
-      false,
-      ItemsInvertedIndex
+      putEnabled = false,
+      externalLink = ItemsInvertedIndex
     )
 
   def registerExternalLink(link: ExternalLink): Unit = {
