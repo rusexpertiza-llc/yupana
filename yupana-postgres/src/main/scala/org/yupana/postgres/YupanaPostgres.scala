@@ -24,9 +24,10 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ Channel, ChannelFuture, ChannelInitializer, ChannelOption }
 import io.netty.handler.timeout.IdleStateHandler
 
+import java.nio.charset.StandardCharsets
 import scala.concurrent.{ Future, Promise }
 
-class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: ServerContext) extends StrictLogging {
+class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: PgContext) extends StrictLogging {
 
   private var channel: Channel = _
   def start(): Future[Unit] = {
@@ -45,7 +46,7 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: Serv
         override def initChannel(ch: SocketChannel): Unit = {
           ch.pipeline().addLast(new IdleStateHandler(30, 0, 0))
           ch.pipeline().addLast("decoder", new InitialMessageDecoder())
-          ch.pipeline().addLast("encoder", new MessageEncoder())
+          ch.pipeline().addLast("encoder", new MessageEncoder(StandardCharsets.US_ASCII))
           ch.pipeline().addLast(yupanaGroup, "handler", new ConnectingHandler(serverContext))
         }
       })
@@ -53,7 +54,7 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: Serv
       .childOption(ChannelOption.SO_KEEPALIVE, Boolean.box(true))
 
     val f = bootstrap.bind(host, port).sync()
-    logger.info(s"Starting YupanaServer on $host:$port")
+    logger.info(s"Starting Yupana postgres emulation server on $host:$port")
     channel = f.channel()
     f.channel()
       .closeFuture()

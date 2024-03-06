@@ -17,14 +17,19 @@
 package org.yupana.postgres
 
 import io.netty.buffer.ByteBuf
-import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.codec.MessageToByteEncoder
-import org.yupana.postgres.protocol.ServerMessage
 
 import java.nio.charset.Charset
 
-class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] {
-  override def encode(ctx: ChannelHandlerContext, msg: ServerMessage, out: ByteBuf): Unit = {
-    msg.write(out, charset)
+object NettyUtils {
+  def readNullTerminatedString(in: ByteBuf, charset: Charset): String = {
+    val toEnd = in.bytesBefore(0.toByte)
+    val res = in.readCharSequence(toEnd, charset).toString
+    in.readByte()
+    res
+  }
+
+  def writeNullTerminatedString(buf: ByteBuf, charset: Charset, s: String): Unit = {
+    buf.writeCharSequence(s, charset)
+    buf.writeByte(0)
   }
 }

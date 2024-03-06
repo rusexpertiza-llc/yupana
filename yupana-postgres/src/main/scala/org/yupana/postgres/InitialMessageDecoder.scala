@@ -20,19 +20,12 @@ import com.typesafe.scalalogging.StrictLogging
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ReplayingDecoder
-import org.yupana.postgres.protocol.{ Message, SSLRequest, StartupMessage }
+import org.yupana.postgres.protocol.{ ClientMessage, SSLRequest, StartupMessage }
 
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.util
 
-class InitialMessageDecoder extends ReplayingDecoder[Message] with StrictLogging {
-
-  def readNullTerminatedString(in: ByteBuf, charset: Charset): String = {
-    val toEnd = in.bytesBefore(0.toByte)
-    val res = in.readCharSequence(toEnd, charset).toString
-    in.readByte()
-    res
-  }
+class InitialMessageDecoder extends ReplayingDecoder[ClientMessage] with StrictLogging {
 
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
     val len = in.readInt()
@@ -51,14 +44,14 @@ class InitialMessageDecoder extends ReplayingDecoder[Message] with StrictLogging
       var params = Map.empty[String, String]
 
       while (in.isReadable && in.readerIndex() < len) {
-        val k = readNullTerminatedString(in, StandardCharsets.US_ASCII)
+        val k = NettyUtils.readNullTerminatedString(in, StandardCharsets.US_ASCII)
         if (k.nonEmpty) {
-          val v = readNullTerminatedString(in, StandardCharsets.US_ASCII)
+          val v = NettyUtils.readNullTerminatedString(in, StandardCharsets.US_ASCII)
           params += k -> v
         }
       }
-      println(s"PARAMS: $params")
-      out.add(StartupMessage(params("user")))
+      val clientCharset = Charset.forName(params("client_encoding"))
+      out.add(StartupMessage(params("user"), clientCharset))
     }
   }
 }

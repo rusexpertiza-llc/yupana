@@ -16,44 +16,31 @@
 
 package org.yupana.postgres.protocol
 
-import io.netty.buffer.ByteBuf
+import io.netty.buffer.{ ByteBuf, Unpooled }
+
+import java.nio.charset.Charset
 
 trait Message
 
 trait ClientMessage extends Message
 
+trait ServerMessage extends Message {
+  def write(byteBuf: ByteBuf, charset: Charset): Unit
+}
+
+trait TaggedServerMessage extends ServerMessage {
+
+  val tag: Byte
+  override def write(byteBuf: ByteBuf, charset: Charset): Unit = {
+    byteBuf.writeByte(tag)
+    val payload = Unpooled.buffer()
+    writePayload(payload, charset)
+    byteBuf.writeInt(payload.readableBytes() + 4)
+    byteBuf.writeBytes(payload)
+  }
+
+  def writePayload(buf: ByteBuf, charset: Charset): Unit
+}
 case object SSLRequest extends ClientMessage
 
-case class StartupMessage(user: String) extends ClientMessage
-
-trait ServerMessage extends Message {
-  def write(byteBuf: ByteBuf): Unit
-}
-
-case object No extends ServerMessage {
-  override def write(byteBuf: ByteBuf): Unit = byteBuf.writeByte('N'.toByte)
-}
-
-case object AuthClearTextPassword extends ServerMessage {
-  override def write(byteBuf: ByteBuf): Unit = {
-    byteBuf.writeByte('R')
-    byteBuf.writeInt(4 + 4)
-    byteBuf.writeInt(3)
-  }
-}
-
-case object AuthOk extends ServerMessage {
-  override def write(byteBuf: ByteBuf): Unit = {
-    byteBuf.writeByte('R')
-    byteBuf.writeInt(4 + 4)
-    byteBuf.writeInt(0)
-  }
-}
-
-case object ReadyForQuery extends ServerMessage {
-  override def write(byteBuf: ByteBuf): Unit = {
-    byteBuf.writeByte('Z')
-    byteBuf.writeInt(4 + 1)
-    byteBuf.writeByte('I'.toByte)
-  }
-}
+case class StartupMessage(user: String, charset: Charset) extends ClientMessage

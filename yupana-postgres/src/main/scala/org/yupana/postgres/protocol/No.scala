@@ -14,17 +14,12 @@
  * limitations under the License.
  */
 
-package org.yupana.postgres
+package org.yupana.postgres.protocol
 
 import io.netty.buffer.ByteBuf
-import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.codec.MessageToByteEncoder
-import org.yupana.postgres.protocol.ServerMessage
 
 import java.nio.charset.Charset
 
-class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] {
-  override def encode(ctx: ChannelHandlerContext, msg: ServerMessage, out: ByteBuf): Unit = {
-    msg.write(out, charset)
-  }
+case object No extends ServerMessage {
+  override def write(byteBuf: ByteBuf, charset: Charset): Unit = byteBuf.writeByte('N'.toByte)
 }

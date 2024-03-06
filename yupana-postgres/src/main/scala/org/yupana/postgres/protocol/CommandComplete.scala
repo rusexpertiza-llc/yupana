@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-package org.yupana.postgres
-
+package org.yupana.postgres.protocol
 import io.netty.buffer.ByteBuf
-import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.codec.MessageToByteEncoder
-import org.yupana.postgres.protocol.ServerMessage
+import org.yupana.postgres.NettyUtils
 
 import java.nio.charset.Charset
+case class CommandComplete(result: String) extends TaggedServerMessage {
+  override val tag: Byte = 'C'
 
-class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] {
-  override def encode(ctx: ChannelHandlerContext, msg: ServerMessage, out: ByteBuf): Unit = {
-    msg.write(out, charset)
+  override def writePayload(buf: ByteBuf, charset: Charset): Unit = {
+    NettyUtils.writeNullTerminatedString(buf, charset, result)
   }
 }

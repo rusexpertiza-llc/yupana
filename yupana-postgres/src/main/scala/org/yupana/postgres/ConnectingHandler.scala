@@ -18,17 +18,35 @@ package org.yupana.postgres
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.postgres.protocol._
 
-class ConnectingHandler(context: ServerContext) extends SimpleChannelInboundHandler[Message] with StrictLogging {
-  override def channelRead0(ctx: ChannelHandlerContext, msg: Message): Unit = {
+import java.nio.charset.Charset
+
+class ConnectingHandler(context: PgContext) extends SimpleChannelInboundHandler[ClientMessage] with StrictLogging {
+  override def channelRead0(ctx: ChannelHandlerContext, msg: ClientMessage): Unit = {
     logger.info(s"GOT A MESSAGE $msg")
     msg match {
       case SSLRequest => ctx.writeAndFlush(No)
-      case StartupMessage(user) =>
+      case StartupMessage(user, charset) =>
+        connected(ctx, user, charset)
         ctx.write(AuthOk)
         ctx.writeAndFlush(ReadyForQuery)
       case _ => ???
     }
+  }
+
+  def connected(ctx: ChannelHandlerContext, user: String, charset: Charset): Unit = {
+    logger.info(s"User $user connected")
+
+    ctx.pipeline().replace(classOf[InitialMessageDecoder], "decoder", new MessageDecoder(charset))
+    ctx.pipeline().replace("encoder", "encoder", new MessageEncoder(charset))
+    ctx
+      .pipeline()
+      .replace(
+        classOf[ConnectingHandler],
+        "messageHandler",
+        new MessageHandler(context, YupanaUser(user, None, TsdbRole.ReadWrite), charset: Charset)
+      )
   }
 }

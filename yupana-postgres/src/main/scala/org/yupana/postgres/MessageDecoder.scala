@@ -18,13 +18,24 @@ package org.yupana.postgres
 
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.codec.MessageToByteEncoder
-import org.yupana.postgres.protocol.ServerMessage
+import io.netty.handler.codec.ReplayingDecoder
+import org.yupana.postgres.protocol.{ ClientMessage, SimpleQuery }
 
 import java.nio.charset.Charset
+import java.util
 
-class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] {
-  override def encode(ctx: ChannelHandlerContext, msg: ServerMessage, out: ByteBuf): Unit = {
-    msg.write(out, charset)
+class MessageDecoder(charset: Charset) extends ReplayingDecoder[ClientMessage] {
+
+  override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
+    val tag = in.readByte()
+    val size = in.readInt()
+
+    println(s"GOT ${tag.toChar} $size b")
+    tag match {
+      case 'Q' =>
+        val q = NettyUtils.readNullTerminatedString(in, charset)
+        println(s"GOT Q ${q}")
+        out.add(SimpleQuery(q))
+    }
   }
 }

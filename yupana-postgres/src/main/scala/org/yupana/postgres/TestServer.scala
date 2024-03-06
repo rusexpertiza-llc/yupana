@@ -16,15 +16,13 @@
 
 package org.yupana.postgres
 
-import io.netty.buffer.ByteBuf
-import io.netty.channel.ChannelHandlerContext
-import io.netty.handler.codec.MessageToByteEncoder
-import org.yupana.postgres.protocol.ServerMessage
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
-import java.nio.charset.Charset
-
-class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] {
-  override def encode(ctx: ChannelHandlerContext, msg: ServerMessage, out: ByteBuf): Unit = {
-    msg.write(out, charset)
+object TestServer {
+  def main(args: Array[String]): Unit = {
+    val server = new YupanaPostgres("localhost", 5432, 4, PgContext(null))
+    val f = server.start()
+    Await.ready(f, Duration.Inf)
   }
 }

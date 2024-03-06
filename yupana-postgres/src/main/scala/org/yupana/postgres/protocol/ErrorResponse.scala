@@ -14,8 +14,20 @@
  * limitations under the License.
  */
 
-package org.yupana.postgres
+package org.yupana.postgres.protocol
+import io.netty.buffer.ByteBuf
+import org.yupana.postgres.NettyUtils
 
-import org.yupana.core.QueryEngineRouter
+import java.nio.charset.Charset
 
-case class ServerContext(queryEngineRouter: QueryEngineRouter /*, authorizer: Authorizer*/ )
+case class ErrorResponse(message: String) extends TaggedServerMessage {
+  override val tag: Byte = 'E'
+
+  override def writePayload(buf: ByteBuf, charset: Charset): Unit = {
+    buf.writeByte('S')
+    NettyUtils.writeNullTerminatedString(buf, charset, "ERROR")
+    buf.writeByte('M')
+    NettyUtils.writeNullTerminatedString(buf, charset, message)
+    buf.writeByte(0)
+  }
+}
