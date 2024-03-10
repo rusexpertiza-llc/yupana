@@ -16,8 +16,6 @@
 
 package org.yupana.hbase
 
-import java.nio.ByteBuffer
-
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
 import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
@@ -25,10 +23,12 @@ import org.apache.hadoop.hbase.util.Bytes
 import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
+import java.nio.ByteBuffer
 import scala.collection.AbstractIterator
 
 class TSDHBaseRowIterator(
@@ -37,6 +37,8 @@ class TSDHBaseRowIterator(
     internalRowBuilder: InternalRowBuilder
 ) extends AbstractIterator[InternalRow]
     with StrictLogging {
+
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   private val dimensions = context.table.dimensionSeq.toArray
 
@@ -110,16 +112,16 @@ class TSDHBaseRowIterator(
     var i = 0
     val bb = ByteBuffer.wrap(rowKey, TAGS_POSITION_IN_ROW_KEY, rowKey.length - TAGS_POSITION_IN_ROW_KEY)
     dimensions.foreach { dim =>
-      val bytes = new Array[Byte](dim.rStorable.size)
-      bb.mark()
+      val pos = bb.position()
 
       val value = dim.rStorable.read(bb)
       if (dim.isInstanceOf[RawDimension[_]]) {
         internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
       }
+      if (dim.isInstanceOf[RawDimension[_]]) {}
       if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
-        bb.reset()
-        bb.get(bytes)
+        val bytes = new Array[Byte](dim.rStorable.size)
+        bb.get(pos, bytes)
         internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
       }
 

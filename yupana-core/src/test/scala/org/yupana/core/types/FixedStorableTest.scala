@@ -1,9 +1,10 @@
-package org.yupana.api.types
+package org.yupana.core.types
 
 import org.scalacheck.Arbitrary
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.types.FixedStorable
 
 class FixedStorableTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 

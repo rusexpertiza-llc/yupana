@@ -17,12 +17,13 @@
 package org.yupana.jdbc
 
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
@@ -48,17 +49,15 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   private var iterators: Map[Int, ResultIterator] = Map.empty
   private val commandQueue: mutable.Queue[Handler[_]] = mutable.Queue.empty
 
-  private val heartbeatTimer = new Timer(true)
+  private val heartbeatTimer = new Timer()
   private val HEARTBEAT_INTERVAL = 30_000
 
   private var closed: Boolean = true
 
+  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+
   private def ensureNotClosed(): Unit = {
-    closed &= !channel.isOpen
-    if (closed) {
-      cancelHeartbeats()
-      throw new YupanaException("Connection is closed")
-    }
+    if (closed) throw new YupanaException("Connection is closed")
   }
 
   private def startHeartbeats(startTime: Long): Unit = {
@@ -147,16 +146,17 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   }
 
   private def runNext(): Future[Unit] = {
-    val handler: Option[Handler[_]] = commandQueue.synchronized {
-      if (commandQueue.nonEmpty) Some(commandQueue.dequeue()) else None
-    }
-
-    handler match {
+    commandQueue.headOption match {
       case Some(handler) =>
         for {
           _ <- write(handler.cmd)
           _ <- handler.execute()
-          _ <- runNext()
+          _ <- {
+            commandQueue.synchronized {
+              commandQueue.dequeue()
+            }
+            runNext()
+          }
         } yield ()
       case None => Future.successful(())
     }
@@ -268,8 +268,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
         case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
         case Tags.ERROR_MESSAGE.value =>
           val msg = ErrorMessage.readFrame(frame).message
-          logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
-          Future.failed(new YupanaException(msg))
+          Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.value.toChar}', '$msg'")))
 
         case x =>
           Future.failed(
@@ -301,16 +300,18 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
 
   private def write(request: Command[_]): Future[Unit] = {
     logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
-    val f = request.toFrame
-    val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
+    val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
     bb.put(f.frameType)
-    bb.putInt(f.payload.length)
+    bb.putInt(f.payload.position())
+    f.payload.flip()
     bb.put(f.payload)
     bb.flip()
 
     JdbcUtils.wrapHandler[Unit](
       new CompletionHandler[Integer, Promise[Unit]] {
         override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
+
         override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
       },
       (p, h) => channel.write(bb, p, h)
@@ -348,7 +349,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
             if (bytes.isEmpty) {
               null
             } else {
-              rt.storable.read(bytes)
+              val b = ByteBuffer.wrap(bytes)
+              rt.storable.read(b)
             }
         }
         .toArray

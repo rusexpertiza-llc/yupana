@@ -18,6 +18,7 @@ lazy val yupana = (project in file("."))
   .aggregate(
     api,
     protocol,
+    serialization,
     jdbc,
     utils,
     settings,
@@ -54,6 +55,14 @@ lazy val api = (project in file("yupana-api"))
   )
   .disablePlugins(AssemblyPlugin)
 
+lazy val serialization = (project in file("yupana-serialization"))
+  .settings(
+    name := "yupana-serialization",
+    allSettings
+  )
+  .dependsOn(api)
+  .disablePlugins(AssemblyPlugin)
+
 lazy val protocol = (project in file("yupana-protocol"))
   .settings(
     name := "yupana-protocol",
@@ -62,6 +71,7 @@ lazy val protocol = (project in file("yupana-protocol"))
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test
     )
   )
+  .dependsOn(api)
   .disablePlugins(AssemblyPlugin)
 
 lazy val jdbc = (project in file("yupana-jdbc"))
@@ -89,7 +99,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
-  .dependsOn(api, protocol)
+  .dependsOn(api, protocol, serialization)
 
 lazy val utils = (project in file("yupana-utils"))
   .settings(
@@ -149,10 +159,11 @@ lazy val core = (project in file("yupana-core"))
       "at.favre.lib"                  %  "bcrypt"                       % "0.10.2",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
-      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test
+      "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test,
+      "org.scalatestplus"             %% "scalacheck-1-17"              % versions.scalaTestCheck     % Test
     )
   )
-  .dependsOn(api, settings, metrics, cache, utils % Test)
+  .dependsOn(api, serialization, settings, metrics, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val hbase = (project in file("yupana-hbase"))
@@ -435,7 +446,7 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.8.1"
   val ehcache = "3.9.7"
-  val caffeine = "2.9.3"
+  val caffeine = "3.1.8"
 
   val circe = "0.14.5" // To have same cats version wuth Spark
 
@@ -454,7 +465,7 @@ val commonSettings = Seq(
   organization := "org.yupana",
   scalaVersion := versions.scala213,
   scalacOptions ++= Seq(
-    "-release:8",
+    "-release:17",
     "-Xsource:2.13",
     "-deprecation",
     "-unchecked",

@@ -14,18 +14,11 @@
  * limitations under the License.
  */
 
-package org.yupana.protocol
+package org.yupana.api
 
-import org.yupana.api.types.ByteReaderWriter
+package object types {
+  type ID[T] = T
+  type TypedInt[_] = Int
 
-/**
-  * Base class for all messages.
-  */
-trait Message[M <: Message[M]] { self: M =>
-
-  /** Instance of message helper related to the message type M */
-  def helper: MessageHelper[M]
-
-  /** Converts message to the frame */
-  def toFrame[B: ByteReaderWriter](b: B): Frame[B] = helper.toFrame(this, b)
+  type ByteReaderWriter[B] = ReaderWriter[B, ID, TypedInt]
 }

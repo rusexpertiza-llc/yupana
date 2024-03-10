@@ -21,7 +21,7 @@ package org.yupana.protocol
   * @param frameType message type
   * @param payload serialized message
   */
-case class Frame(frameType: Byte, payload: Array[Byte])
+case class Frame[B](frameType: Byte, payload: B)
 
 object Frame {
   val MAX_FRAME_SIZE: Int = 1024 * 100

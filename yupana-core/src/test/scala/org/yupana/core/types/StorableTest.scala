@@ -1,17 +1,39 @@
-package org.yupana.api.types
+/*
+ * Copyright 2019 Rusexpertiza LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.yupana.core.types
 
 import org.scalacheck.Arbitrary
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.{ Blob, Time }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.yupana.api.types.{ ID, ReaderWriter, Storable, TypedInt }
+import org.yupana.api.{ Blob, Time }
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+
+import java.nio.ByteBuffer
 
 class StorableTest
     extends AnyFlatSpec
     with Matchers
     with ScalaCheckDrivenPropertyChecks
     with TableDrivenPropertyChecks {
+
+  implicit val rw: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
@@ -60,22 +82,34 @@ class StorableTest
     )
 
     forAll(table) { (x, len) =>
-      storable.write(x).length shouldEqual len
+      val bb = ByteBuffer.wrap(Array.ofDim[Byte](9))
+      storable.write(bb, x: ID[Long])
+      bb.position() shouldEqual len
     }
   }
 
   it should "not read Long as Int if it overflows" in {
     val longStorable = implicitly[Storable[Long]]
     val intStorable = implicitly[Storable[Int]]
+    val bb = ByteBuffer.wrap(Array.ofDim[Byte](9))
 
-    an[IllegalArgumentException] should be thrownBy intStorable.read(longStorable.write(3000000000L))
+    longStorable.write(bb, 3000000000L: ID[Long])
+    bb.rewind()
+    an[IllegalArgumentException] should be thrownBy intStorable.read(bb)
   }
 
   private def readWriteTest[T: Storable: Arbitrary] = {
     val storable = implicitly[Storable[T]]
 
     forAll { t: T =>
-      storable.read(storable.write(t)) shouldEqual t
+      val bb = ByteBuffer.allocate(65535)
+      val posBeforeWrite = bb.position()
+      val actualSize = storable.write(bb, t: ID[T])
+      val posAfterWrite = bb.position()
+      val expectedSize = posAfterWrite - posBeforeWrite
+      expectedSize shouldEqual actualSize
+      bb.rewind()
+      storable.read(bb) shouldEqual t
     }
   }
 }

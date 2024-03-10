@@ -4,9 +4,10 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
-import org.yupana.api.types.Storable
+import org.yupana.api.types.{ ByteReaderWriter, ID, Storable }
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -15,6 +16,8 @@ import scala.concurrent.{ Await, Future }
 
 class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues with Inside {
   import scala.concurrent.ExecutionContext.Implicits.global
+
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   "TCP client" should "connect to the server" in {
     val server = new ServerMock
@@ -136,12 +139,10 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       }
 
       val onNext = (n: NextBatch) => {
-        val ts = implicitly[Storable[Time]]
-        val ss = implicitly[Storable[String]]
 
-        val data1 = ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
 
-        val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.id, Seq(toBytes(Time(21112L)), Array.empty))
 
         val footer = ResultFooter(n.id, 1, 2)
 
@@ -181,11 +182,10 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     val sql = "SELECT x FROM table"
 
     withServerConnected { (server, id) =>
-      val is = implicitly[Storable[Int]]
       val onQuery = (q: SqlQuery) => Seq(ResultHeader(q.id, "table", Seq(ResultField("x", "INTEGER"))))
-      val onNext1 = (n: NextBatch) => 1 to 10 map (x => ResultRow(n.id, Seq(is.write(x))))
+      val onNext1 = (n: NextBatch) => 1 to 10 map (x => ResultRow(n.id, Seq(toBytes(x))))
       val onNext2 = (n: NextBatch) => {
-        val rows = 11 to 15 map (x => ResultRow(n.id, Seq(is.write(x))))
+        val rows = 11 to 15 map (x => ResultRow(n.id, Seq(toBytes(x))))
         val footer = ResultFooter(n.id, -1, 15)
         rows :+ footer
       }
@@ -199,9 +199,9 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       val result = client.prepareQuery(sql, Map.empty).result
       result.name shouldEqual "table"
 
-      val rows = result.rows.toList
+      val rows = result.toList
       rows should have length 15
-      rows.map(_(0).asInstanceOf[Int]) should contain theSameElementsInOrderAs (1 to 15)
+      rows.map(_.get[Int](0)) should contain theSameElementsInOrderAs (1 to 15)
     }
   }
 
@@ -228,12 +228,10 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       }
 
       val onNext = (n: NextBatch) => {
-        val ts = implicitly[Storable[Time]]
-        val ss = implicitly[Storable[String]]
 
-        val data1 = ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная")))
+        val data1 = ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная")))
 
-        val data2 = ResultRow(n.id, Seq(ts.write(Time(21112L)), Array.empty))
+        val data2 = ResultRow(n.id, Seq(toBytes(Time(21112L)), Array.empty))
 
         val footer = ResultFooter(n.id, 1, 2)
 
@@ -319,9 +317,7 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
     }
 
     val onNext = (n: NextBatch) => {
-      val ts = implicitly[Storable[Time]]
-      val ss = implicitly[Storable[String]]
-      Seq(ResultRow(n.id, Seq(ts.write(Time(13333L)), ss.write("икра баклажанная"))))
+      Seq(ResultRow(n.id, Seq(toBytes(Time(13333L)), toBytes("икра баклажанная"))))
     }
 
     for {
@@ -383,5 +379,16 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
     server.close()
     result
+  }
+
+  private def toBytes[T](v: T)(implicit st: Storable[T]): Array[Byte] = {
+    val b = ByteBuffer.allocate(1024)
+    implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+    st.write(b, v: ID[T])
+    val size = b.position()
+    b.rewind()
+    val res = Array.ofDim[Byte](size)
+    b.get(res)
+    res
   }
 }

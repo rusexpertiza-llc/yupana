@@ -27,12 +27,15 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
+import org.yupana.api.types.{ ByteReaderWriter, ID }
 import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
+import org.yupana.hbase.HBaseUtils.MAX_ROW_SIZE
+import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 import java.time.temporal.TemporalAdjusters
@@ -54,7 +57,10 @@ object HBaseUtils extends StrictLogging {
   val tsdbSchemaKey: Array[Byte] = "\u0000".getBytes
   private val NULL_VALUE: Long = 0L
   val TAGS_POSITION_IN_ROW_KEY: Int = Bytes.SIZEOF_LONG
+  val MAX_ROW_SIZE = 2_000_000
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
+
+  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -596,22 +602,23 @@ object HBaseUtils extends StrictLogging {
       dimensions: Map[Dimension, Any],
       metricValues: Seq[MetricValue]
   ): Array[Byte] = {
+    val bb = ByteBuffer.allocate(MAX_ROW_SIZE)
     val metricFieldBytes = metricValues.map { f =>
       require(
         table.metricTagsSet.contains(f.metric.tag),
         s"Bad metric value $f: such metric is not defined for table ${table.name}"
       )
-      val bytes = f.metric.dataType.storable.write(f.value)
+      val bytes = f.metric.dataType.storable.write(bb, f.value: ID[f.metric.T])
       (f.metric.tag, bytes)
     }
     val dimensionFieldBytes = dimensions.collect {
       case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        val bytes = d.dataType.storable.write(value.asInstanceOf[d.T])
+        val bytes = d.dataType.storable.write(bb, value.asInstanceOf[d.T])
         (tag, bytes)
       case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        val bytes = d.tStorable.write(value.asInstanceOf[d.T])
+        val bytes = d.tStorable.write(bb, value.asInstanceOf[d.T])
         (tag, bytes)
     }
 
