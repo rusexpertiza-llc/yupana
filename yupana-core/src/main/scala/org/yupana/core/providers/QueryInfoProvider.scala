@@ -48,7 +48,7 @@ object QueryInfoProvider extends StrictLogging {
       Array[Any](
         queryMetrics.queryId,
         queryMetrics.engine,
-        queryMetrics.user,
+        queryMetrics.user.orNull,
         queryMetrics.state.name,
         queryMetrics.query,
         Time(queryMetrics.startDate),
