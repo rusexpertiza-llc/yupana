@@ -34,7 +34,6 @@ import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
-import org.yupana.hbase.HBaseUtils.MAX_ROW_SIZE
 import org.yupana.readerwriter.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
@@ -602,36 +601,33 @@ object HBaseUtils extends StrictLogging {
       dimensions: Map[Dimension, Any],
       metricValues: Seq[MetricValue]
   ): Array[Byte] = {
-    val bb = ByteBuffer.allocate(MAX_ROW_SIZE)
-    val metricFieldBytes = metricValues.map { f =>
+    val bf = ByteBuffer.allocate(MAX_ROW_SIZE)
+    metricValues.foreach { f =>
       require(
         table.metricTagsSet.contains(f.metric.tag),
         s"Bad metric value $f: such metric is not defined for table ${table.name}"
       )
-      val bytes = f.metric.dataType.storable.write(bb, f.value: ID[f.metric.T])
-      (f.metric.tag, bytes)
+      readerWriter.writeByte(bf, f.metric.tag)
+      f.metric.dataType.storable.write(bf, f.value: ID[f.metric.T])
     }
-    val dimensionFieldBytes = dimensions.collect {
+    dimensions.foreach {
       case (d: DictionaryDimension, value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        val bytes = d.dataType.storable.write(bb, value.asInstanceOf[d.T])
-        (tag, bytes)
+        readerWriter.writeByte(bf, tag)
+        d.dataType.storable.write(bf, value.asInstanceOf[d.T]: ID[d.T])
+
       case (d: HashDimension[_, _], value) if table.dimensionTagExists(d) =>
         val tag = table.dimensionTag(d)
-        val bytes = d.tStorable.write(bb, value.asInstanceOf[d.T])
-        (tag, bytes)
+        readerWriter.writeByte(bf, tag)
+        d.tStorable.write(bf, value.asInstanceOf[d.T]: ID[d.T])
+
+      case _ =>
     }
 
-    val fieldBytes = metricFieldBytes ++ dimensionFieldBytes
-
-    val size = fieldBytes.map(_._2.length).sum + fieldBytes.size
-    val bb = ByteBuffer.allocate(size)
-    fieldBytes.foreach {
-      case (tag, bytes) =>
-        bb.put(tag)
-        bb.put(bytes)
-    }
-
-    bb.array()
+    val size = bf.position()
+    bf.rewind()
+    val res = Array.ofDim[Byte](size)
+    bf.get(res)
+    res
   }
 }
