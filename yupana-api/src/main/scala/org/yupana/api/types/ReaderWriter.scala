@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{Blob, Time}
+import org.yupana.api.{ Blob, Time }
 
 import scala.reflect.ClassTag
 

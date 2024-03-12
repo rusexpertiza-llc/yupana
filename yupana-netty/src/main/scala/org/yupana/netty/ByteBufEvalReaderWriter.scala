@@ -18,8 +18,8 @@ package org.yupana.netty
 
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.{ByteReaderWriter, ID, TypedInt}
-import org.yupana.api.{Blob, Time}
+import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
+import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets

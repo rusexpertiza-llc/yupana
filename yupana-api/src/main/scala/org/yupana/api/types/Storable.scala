@@ -57,7 +57,7 @@ object Storable {
     override def write[B, V[_], RW[_]](b: B, v: V[Boolean])(implicit rw: ReaderWriter[B, V, RW]): RW[Boolean] =
       rw.writeBoolean(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Boolean])(
-      implicit rw: ReaderWriter[B, V, RW]
+        implicit rw: ReaderWriter[B, V, RW]
     ): RW[Boolean] =
       rw.writeBoolean(b, offset, v)
   }
@@ -69,7 +69,7 @@ object Storable {
     override def write[B, V[_], RW[_]](b: B, v: V[Double])(implicit rw: ReaderWriter[B, V, RW]): RW[Double] =
       rw.writeDouble(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Double])(
-      implicit rw: ReaderWriter[B, V, RW]
+        implicit rw: ReaderWriter[B, V, RW]
     ): RW[Double] =
       rw.writeDouble(b, offset, v)
   }
@@ -81,7 +81,7 @@ object Storable {
     override def write[B, V[_], RW[_]](b: B, v: V[BigDecimal])(implicit rw: ReaderWriter[B, V, RW]): RW[BigDecimal] =
       rw.writeBigDecimal(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[BigDecimal])(
-      implicit rw: ReaderWriter[B, V, RW]
+        implicit rw: ReaderWriter[B, V, RW]
     ): RW[BigDecimal] =
       rw.writeBigDecimal(b, offset, v)
 
@@ -130,7 +130,7 @@ object Storable {
     override def write[B, V[_], RW[_]](b: B, v: V[String])(implicit rw: ReaderWriter[B, V, RW]): RW[String] =
       rw.writeString(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[String])(
-      implicit rw: ReaderWriter[B, V, RW]
+        implicit rw: ReaderWriter[B, V, RW]
     ): RW[String] = rw.writeString(b, offset, v)
   }
   implicit val timestampStorable: Storable[Time] = new Storable[Time] {
@@ -150,11 +150,11 @@ object Storable {
       rw.readPeriodDuration(b, offset)
 
     override def write[B, V[_], RW[_]](b: B, v: V[PeriodDuration])(
-      implicit rw: ReaderWriter[B, V, RW]
+        implicit rw: ReaderWriter[B, V, RW]
     ): RW[PeriodDuration] =
       rw.writePeriodDuration(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[PeriodDuration])(
-      implicit rw: ReaderWriter[B, V, RW]
+        implicit rw: ReaderWriter[B, V, RW]
     ): RW[PeriodDuration] =
       rw.writePeriodDuration(b, offset, v)
   }
@@ -184,7 +184,7 @@ object Storable {
       }
 
       override def write[B, V[_], RW[_]](bb: B, offset: Int, v: V[Seq[T]])(
-        implicit rw: ReaderWriter[B, V, RW]
+          implicit rw: ReaderWriter[B, V, RW]
       ): RW[Seq[T]] = {
         rw.writeSeq(bb, offset, v, (b, v) => tStorable.write(b, v)(rw))
       }
