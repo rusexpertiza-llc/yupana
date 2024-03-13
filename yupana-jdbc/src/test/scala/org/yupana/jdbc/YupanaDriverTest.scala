@@ -4,7 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.types.ByteReaderWriter
 import org.yupana.protocol.{ Authorized, Credentials, CredentialsRequest, Hello, HelloResponse, ProtocolVersion }
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 import java.sql.DriverManager

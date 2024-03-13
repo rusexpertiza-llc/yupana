@@ -4,7 +4,7 @@ import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.types.{ ByteReaderWriter, DataType, ID }
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets

@@ -34,7 +34,7 @@ import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 import java.time.temporal.TemporalAdjusters

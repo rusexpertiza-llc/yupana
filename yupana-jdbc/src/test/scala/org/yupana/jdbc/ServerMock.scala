@@ -2,7 +2,7 @@ package org.yupana.jdbc
 
 import org.yupana.api.types.ByteReaderWriter
 import org.yupana.protocol.{ Frame, Message }
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer

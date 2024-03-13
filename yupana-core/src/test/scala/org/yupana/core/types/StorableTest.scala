@@ -23,7 +23,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.types.{ ID, ReaderWriter, Storable, TypedInt }
 import org.yupana.api.{ Blob, Time }
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 

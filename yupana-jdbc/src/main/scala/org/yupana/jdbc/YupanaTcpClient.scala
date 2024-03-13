@@ -23,7 +23,7 @@ import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
