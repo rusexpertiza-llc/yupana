@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /**
   * Server greeting to the client
+ *
   * @param protocolVersion server protocol version
   * @param reqTime client request time from [[Hello]]
   */

@@ -16,6 +16,8 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /**
   * Request for next batch of data
   *

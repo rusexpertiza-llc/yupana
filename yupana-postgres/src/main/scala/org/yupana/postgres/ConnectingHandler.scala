@@ -31,6 +31,11 @@ class ConnectingHandler(context: PgContext) extends SimpleChannelInboundHandler[
       case StartupMessage(user, charset) =>
         connected(ctx, user, charset)
         ctx.write(AuthOk)
+        ctx.write(ParameterStatus("client_encoding", charset.toString))
+        ctx.write(ParameterStatus("is_superuser", "off"))
+        ctx.write(ParameterStatus("server_version", "1.2.3"))
+        ctx.write(ParameterStatus("session_authorization", user))
+
         ctx.writeAndFlush(ReadyForQuery)
       case _ => ???
     }

@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /**
   * Credentials response from the client
+ *
   * @param method authentication method
   * @param user user name
   * @param password password

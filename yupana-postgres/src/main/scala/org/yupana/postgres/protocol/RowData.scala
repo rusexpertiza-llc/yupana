@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-package org.yupana.protocol
+package org.yupana.postgres.protocol
+import io.netty.buffer.ByteBuf
 
-import org.yupana.serialization.ReadWrite
+import java.nio.charset.Charset
 
-/** Server response when the authorization was succeed */
-case class Authorized() extends Response[Authorized](Authorized)
+case class RowData(columns: Seq[ByteBuf]) extends TaggedServerMessage {
+  override val tag: Byte = 'D'
 
-object Authorized extends MessageHelper[Authorized] {
-  override val tag: Tags.Tags = Tags.AUTHORIZED
-  override val readWrite: ReadWrite[Authorized] = ReadWrite.empty.imap(_ => Authorized())(_ => ())
+  override def writePayload(buf: ByteBuf, charset: Charset): Unit = {
+    buf.writeShort(columns.size)
+    columns.foreach(c => buf.writeBytes(c))
+  }
 }
+
+//object DataRow {
+//  case class Column(length: Int, data: Array[Byte])
+//}

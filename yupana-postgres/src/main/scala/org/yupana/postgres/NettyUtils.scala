@@ -28,8 +28,9 @@ object NettyUtils {
     res
   }
 
-  def writeNullTerminatedString(buf: ByteBuf, charset: Charset, s: String): Unit = {
-    buf.writeCharSequence(s, charset)
+  def writeNullTerminatedString(buf: ByteBuf, charset: Charset, s: String): Int = {
+    val size = buf.writeCharSequence(s, charset)
     buf.writeByte(0)
+    size + 1
   }
 }

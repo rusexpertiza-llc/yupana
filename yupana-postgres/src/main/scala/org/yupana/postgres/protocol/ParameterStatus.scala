@@ -16,15 +16,16 @@
 
 package org.yupana.postgres.protocol
 import io.netty.buffer.ByteBuf
+import org.yupana.postgres.NettyUtils
 
 import java.nio.charset.Charset
 
-case class DataRow(columns: List[Array[Byte]]) extends TaggedServerMessage {
-  override val tag: Byte = 'D'
+case class ParameterStatus(key: String, value: String) extends TaggedServerMessage {
 
-  override def writePayload(buf: ByteBuf, charset: Charset): Unit = ???
+  override val tag: Byte = 'S'
+
+  override def writePayload(buf: ByteBuf, charset: Charset): Unit = {
+    NettyUtils.writeNullTerminatedString(buf, charset, key)
+    NettyUtils.writeNullTerminatedString(buf, charset, value)
+  }
 }
-
-//object DataRow {
-//  case class Column(length: Int, data: Array[Byte])
-//}

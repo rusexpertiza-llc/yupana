@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /**
   * Field definition
+ *
   * @param name field name
   * @param typeName field type, e.g VARCHAR, INTEGER
   */

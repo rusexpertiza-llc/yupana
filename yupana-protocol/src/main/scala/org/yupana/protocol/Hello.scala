@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /**
   * Greeting message from client to server
+ *
   * @param protocolVersion client protocol version
   * @param clientVersion client version
   * @param timestamp client timestamp

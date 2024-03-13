@@ -19,7 +19,7 @@ package org.yupana.postgres
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ReplayingDecoder
-import org.yupana.postgres.protocol.{ ClientMessage, SimpleQuery }
+import org.yupana.postgres.protocol.{ ClientMessage, Quit, SimpleQuery }
 
 import java.nio.charset.Charset
 import java.util
@@ -36,6 +36,9 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[ClientMessage] {
         val q = NettyUtils.readNullTerminatedString(in, charset)
         println(s"GOT Q ${q}")
         out.add(SimpleQuery(q))
+
+      case 'X' =>
+        out.add(Quit)
     }
   }
 }

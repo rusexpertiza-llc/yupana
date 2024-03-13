@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /**
   * Query execution statistics
+ *
   * @param id request id
   * @param millis execution time
   * @param rows number of rows provided to the client

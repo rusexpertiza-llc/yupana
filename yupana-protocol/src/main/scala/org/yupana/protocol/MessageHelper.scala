@@ -17,6 +17,7 @@
 package org.yupana.protocol
 
 import org.yupana.api.types.ByteReaderWriter
+import org.yupana.serialization.ReadWrite
 
 /**
   * Helper class for a message type. Provides methods to serialize and deserialize messages.

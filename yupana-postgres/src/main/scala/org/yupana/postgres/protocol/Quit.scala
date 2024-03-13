@@ -14,14 +14,6 @@
  * limitations under the License.
  */
 
-package org.yupana.protocol
+package org.yupana.postgres.protocol
 
-import org.yupana.serialization.ReadWrite
-
-/** Server response when the authorization was succeed */
-case class Authorized() extends Response[Authorized](Authorized)
-
-object Authorized extends MessageHelper[Authorized] {
-  override val tag: Tags.Tags = Tags.AUTHORIZED
-  override val readWrite: ReadWrite[Authorized] = ReadWrite.empty.imap(_ => Authorized())(_ => ())
-}
+case object Quit extends ClientMessage

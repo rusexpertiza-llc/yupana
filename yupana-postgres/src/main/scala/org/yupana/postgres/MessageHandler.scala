@@ -16,23 +16,20 @@
 
 package org.yupana.postgres
 
+import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.api.query.Result
+import org.yupana.api.query.{ DataRow, Result }
+import org.yupana.api.types.{ ByteReaderWriter, DataType, ID }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.postgres.protocol.{
-  ClientMessage,
-  CommandComplete,
-  ErrorResponse,
-  PgTypes,
-  ReadyForQuery,
-  RowDescription,
-  SimpleQuery
-}
+import org.yupana.postgres.protocol._
 
 import java.nio.charset.Charset
 
 class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     extends SimpleChannelInboundHandler[ClientMessage] {
+
+  implicit private val rw: ByteReaderWriter[ByteBuf] = new PostgresReaderWriter(charset)
+
   override def channelRead0(ctx: ChannelHandlerContext, msg: ClientMessage): Unit = {
     msg match {
       case SimpleQuery(sql) =>
@@ -41,6 +38,9 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
           case Left(error)   => writeError(ctx, error)
         }
 
+      case Quit =>
+        ctx.close()
+
       case _ => ???
     }
   }
@@ -48,7 +48,14 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   private def writeResult(ctx: ChannelHandlerContext, r: Result): Unit = {
     ctx.write(makeDescription(r))
 
-    val count = 0
+    var count = 0
+
+    val resultTypes = r.dataTypes.zipWithIndex
+
+    r.foreach { r =>
+      ctx.write(makeRow(resultTypes, r))
+      count += 1
+    }
 
     ctx.write(CommandComplete(s"SELECT $count"))
     ctx.write(ReadyForQuery)
@@ -70,6 +77,22 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         }
         .toList
     )
+  }
+
+  private def makeRow(types: Seq[(DataType, Int)], row: DataRow): RowData = {
+
+    val bufs = types.map {
+      case (dt, idx) =>
+        val buf = Unpooled.buffer()
+
+        if (row.isEmpty(idx)) {
+          buf.writeInt(-1)
+        } else {
+          dt.storable.write(buf, row.get[dt.T](idx): ID[dt.T])
+        }
+        buf
+    }
+    RowData(bufs)
   }
 
 }

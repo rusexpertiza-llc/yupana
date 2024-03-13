@@ -16,6 +16,8 @@
 
 package org.yupana.protocol
 
+import org.yupana.serialization.ReadWrite
+
 /** Server response when the query was canceled by [[Cancel]] command */
 case class Canceled(id: Int) extends Response[Canceled](Canceled)
 

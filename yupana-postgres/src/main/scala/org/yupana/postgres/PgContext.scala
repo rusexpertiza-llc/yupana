@@ -18,4 +18,4 @@ package org.yupana.postgres
 
 import org.yupana.core.QueryEngineRouter
 
-case class PgContext(queryEngineRouter: QueryEngineRouter /*, authorizer: Authorizer*/ )
+case class PgContext(queryEngineRouter: QueryEngineRouter /*, authorizer: Authorizer,  version: String */ )
