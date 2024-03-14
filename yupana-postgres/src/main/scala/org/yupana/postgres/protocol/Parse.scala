@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-package org.yupana.protocol
+package org.yupana.postgres.protocol
 
-import org.yupana.serialization.ReadWrite
+import io.netty.buffer.ByteBuf
+import org.yupana.postgres.NettyUtils
 
-/**
-  * Query execution statistics
-  *
-  * @param id request id
-  * @param millis execution time
-  * @param rows number of rows provided to the client
-  */
-case class ResultFooter(id: Int, millis: Long, rows: Int) extends Response[ResultFooter](ResultFooter)
+import java.nio.charset.Charset
 
-object ResultFooter extends MessageHelper[ResultFooter] {
-  override val tag: Tags.Tags = Tags.RESULT_FOOTER
-  override val readWrite: ReadWrite[ResultFooter] =
-    ReadWrite.product3[ResultFooter, Int, Long, Int](ResultFooter.apply)(f => (f.id, f.millis, f.rows))
+case class Parse(name: String, sql: String, types: Seq[Int]) extends ClientMessage
+
+object Parse {
+  def decode(in: ByteBuf, charset: Charset): Parse = {
+    val n = NettyUtils.readNullTerminatedString(in, charset)
+    val q = NettyUtils.readNullTerminatedString(in, charset)
+    val typeCount = in.readShort()
+    val types = (0 until typeCount).map(_ => in.readInt())
+    Parse(n, q, types)
+  }
 }

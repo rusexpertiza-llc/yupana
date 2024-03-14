@@ -18,14 +18,25 @@ package org.yupana.postgres.protocol
 
 import io.netty.buffer.ByteBuf
 import org.yupana.postgres.NettyUtils
+import org.yupana.postgres.protocol.Describe.DescribeType
 
 import java.nio.charset.Charset
 
-case class SimpleQuery(sql: String) extends ClientMessage
+case class Describe(variant: DescribeType, name: String) extends ClientMessage
 
-object SimpleQuery {
-  def decode(in: ByteBuf, charset: Charset): SimpleQuery = {
-    val q = NettyUtils.readNullTerminatedString(in, charset)
-    SimpleQuery(q)
+object Describe {
+
+  sealed trait DescribeType
+  case object DescribeStatement extends DescribeType
+  case object DescribePortal extends DescribeType
+
+  def decode(in: ByteBuf, charset: Charset): Either[String, Describe] = {
+    val variant = in.readByte()
+    val name = NettyUtils.readNullTerminatedString(in, charset)
+    variant match {
+      case 'S' => Right(Describe(DescribeStatement, name))
+      case 'P' => Right(Describe(DescribePortal, name))
+      case x   => Left(s"Unsupported describe type '${x.toChar}'")
+    }
   }
 }

@@ -20,7 +20,7 @@ import org.yupana.serialization.ReadWrite
 
 /**
   * Authentication request
- *
+  *
   * @param methods supported authentication methods
   */
 case class CredentialsRequest(methods: Seq[String]) extends Response[CredentialsRequest](CredentialsRequest)

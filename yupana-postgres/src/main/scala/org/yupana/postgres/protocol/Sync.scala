@@ -14,21 +14,6 @@
  * limitations under the License.
  */
 
-package org.yupana.protocol
+package org.yupana.postgres.protocol
 
-import org.yupana.serialization.ReadWrite
-
-/**
-  * Query execution statistics
-  *
-  * @param id request id
-  * @param millis execution time
-  * @param rows number of rows provided to the client
-  */
-case class ResultFooter(id: Int, millis: Long, rows: Int) extends Response[ResultFooter](ResultFooter)
-
-object ResultFooter extends MessageHelper[ResultFooter] {
-  override val tag: Tags.Tags = Tags.RESULT_FOOTER
-  override val readWrite: ReadWrite[ResultFooter] =
-    ReadWrite.product3[ResultFooter, Int, Long, Int](ResultFooter.apply)(f => (f.id, f.millis, f.rows))
-}
+case object Sync extends ClientMessage

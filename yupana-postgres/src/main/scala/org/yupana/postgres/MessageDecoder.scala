@@ -19,7 +19,7 @@ package org.yupana.postgres
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ReplayingDecoder
-import org.yupana.postgres.protocol.{ ClientMessage, Quit, SimpleQuery }
+import org.yupana.postgres.protocol._
 
 import java.nio.charset.Charset
 import java.util
@@ -27,18 +27,22 @@ import java.util
 class MessageDecoder(charset: Charset) extends ReplayingDecoder[ClientMessage] {
 
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
-    val tag = in.readByte()
-    val size = in.readInt()
+    while (in.isReadable) {
+      val tag = in.readByte()
+      val size = in.readInt()
 
-    println(s"GOT ${tag.toChar} $size b")
-    tag match {
-      case 'Q' =>
-        val q = NettyUtils.readNullTerminatedString(in, charset)
-        println(s"GOT Q ${q}")
-        out.add(SimpleQuery(q))
+      val slice = in.readSlice(size - 4)
 
-      case 'X' =>
-        out.add(Quit)
+      println(s"GOT ${tag.toChar} $size b")
+      tag match {
+        case 'Q' => out.add(SimpleQuery.decode(slice, charset))
+        case 'X' => out.add(Quit)
+        case 'P' => out.add(Parse.decode(slice, charset))
+        case 'B' => out.add(Bind.decode(slice, charset))
+        case 'D' => Describe.decode(slice, charset).fold(err => ctx.write(ErrorResponse(err)), out.add)
+        case 'E' => out.add(Execute.decode(slice, charset))
+        case 'S' => out.add(Sync)
+      }
     }
   }
 }

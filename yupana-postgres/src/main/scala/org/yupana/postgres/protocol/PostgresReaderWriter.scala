@@ -18,12 +18,12 @@ package org.yupana.postgres.protocol
 
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
 import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
+import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
 import java.nio.charset.Charset
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
 
 class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
@@ -71,11 +71,13 @@ class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   }
 
   override def writeInt(b: ByteBuf, v: Int): Int = {
+    b.writeInt(4)
     b.writeInt(v)
     4
   }
 
   override def writeInt(b: ByteBuf, offset: Int, v: Int): Int = {
+    b.writeInt(4)
     b.setInt(offset, v)
     4
   }
@@ -437,12 +439,7 @@ class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   }
 
   override def writeBigDecimal(b: ByteBuf, v: BigDecimal): Int = {
-    val u = v.underlying()
-    val a = u.unscaledValue().toByteArray
-    val s1 = writeVLong(b, u.scale())
-    val s2 = writeVLong(b, a.length)
-    b.writeBytes(a)
-    s1 + s2 + a.length
+    PostgresReaderWriter.writeNumericBinary(b, v.underlying())
   }
 
   override def writeBigDecimal(b: ByteBuf, offset: Int, v: BigDecimal): Int = {
@@ -556,5 +553,71 @@ class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
 
   override def writePeriodDuration(b: ByteBuf, offset: Int, v: PeriodDuration): Int = {
     writeString(b, offset, v.toString)
+  }
+}
+
+object PostgresReaderWriter {
+  private val POWERS10 = Array(1, 10, 100, 1000, 10000)
+  private val MAX_GROUP_SCALE = 4
+  private val MAX_GROUP_SIZE = POWERS10(4)
+  private val NUMERIC_POSITIVE = 0x0000
+  private val NUMERIC_NEGATIVE = 0x4000
+//  private val NUMERIC_NAN = 0xC000.toShort
+//  private val NUMERIC_CHUNK_MULTIPLIER = BigInteger.valueOf(10_000L)
+
+  private def divide(unscaled: Array[BigInteger], divisor: Int) = {
+    val bi = unscaled(0).divideAndRemainder(BigInteger.valueOf(divisor))
+    unscaled(0) = bi(0)
+    bi(1).intValue
+  }
+
+  // https://www.npgsql.org/dev/types.html
+  // https://github.com/npgsql/npgsql/blob/8a479081f707784b5040747b23102c3d6371b9d3/
+  //         src/Npgsql/TypeHandlers/NumericHandlers/NumericHandler.cs#L166
+  private def writeNumericBinary(b: ByteBuf, value: java.math.BigDecimal): Int = {
+    var weight = 0
+    val groups = ArrayBuffer.empty[Int]
+    var scale = value.scale
+    val signum = value.signum
+    if (signum != 0) {
+      val unscaled: Array[BigInteger] = Array(null)
+      if (scale < 0) {
+        unscaled(0) = value.setScale(0).unscaledValue
+        scale = 0
+      } else unscaled(0) = value.unscaledValue
+      if (signum < 0) unscaled(0) = unscaled(0).negate
+      weight = -scale / MAX_GROUP_SCALE - 1
+      var remainder = 0
+      val scaleChunk = scale % MAX_GROUP_SCALE
+      if (scaleChunk > 0) {
+        remainder = divide(unscaled, POWERS10(scaleChunk)) * POWERS10(MAX_GROUP_SCALE - scaleChunk)
+        if (remainder != 0) weight -= 1
+      }
+      if (remainder == 0) {
+        remainder = divide(unscaled, MAX_GROUP_SIZE)
+        while (remainder == 0) {
+          remainder = divide(unscaled, MAX_GROUP_SIZE)
+          weight += 1
+        }
+      }
+      groups.append(remainder)
+      while (unscaled(0).signum != 0) groups.append(divide(unscaled, MAX_GROUP_SIZE))
+    }
+    val groupCount = groups.size
+    if (groupCount + weight > Short.MaxValue || scale > Short.MaxValue)
+      throw new IllegalArgumentException(s"Invalid number value ${value.toString}")
+    b.writeInt(8 + groupCount * 2)
+    b.writeShort(groupCount)
+    b.writeShort(groupCount + weight)
+    b.writeShort(
+      if (signum < 0) NUMERIC_NEGATIVE
+      else NUMERIC_POSITIVE
+    )
+    b.writeShort(scale)
+    for (i <- groupCount - 1 to 0 by -1) {
+      b.writeShort(groups(i))
+    }
+
+    4 + 2 + 2 + 2 + 2 + groupCount * 2
   }
 }

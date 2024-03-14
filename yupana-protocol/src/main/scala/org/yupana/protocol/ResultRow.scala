@@ -20,7 +20,7 @@ import org.yupana.serialization.ReadWrite
 
 /**
   * Query result row
- *
+  *
   * @param id request id
   * @param values result values serialized into arrays of bytes
   */

@@ -33,7 +33,15 @@ class QueryEngineRouter(
 ) {
 
   def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
-    SqlParser.parse(sql) flatMap {
+    parse(sql).flatMap(s => execute(user, s, params))
+  }
+
+  def parse(sql: String): Either[String, Statement] = {
+    SqlParser.parse(sql)
+  }
+
+  def execute(user: YupanaUser, statement: Statement, params: Map[Int, Value]): Either[String, Result] = {
+    statement match {
       case select: Select =>
         for {
           _ <- hasPermission(user, Object.Table(select.tableName), Action.Read)

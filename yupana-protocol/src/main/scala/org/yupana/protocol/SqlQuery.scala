@@ -20,7 +20,7 @@ import org.yupana.serialization.ReadWrite
 
 /**
   * Query request
- *
+  *
   * @param id request id. Must be unique within single connection uncompleted queries
   * @param query query string
   * @param params parameters if there are any (for prepared queries).

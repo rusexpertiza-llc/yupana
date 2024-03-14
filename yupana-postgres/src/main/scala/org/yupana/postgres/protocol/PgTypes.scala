@@ -16,7 +16,9 @@
 
 package org.yupana.postgres.protocol
 
+import org.yupana.api.Time
 import org.yupana.api.types.DataType
+import org.yupana.api.utils.CollectionUtils
 
 import java.sql.Types
 
@@ -43,6 +45,19 @@ object PgTypes {
   val PG_TYPE_TIMESTAMPTZ = 1184
   val PG_TYPE_NUMERIC = 1700
 
+  def isBinary(t: DataType): Boolean = {
+    t.meta.sqlType match {
+      case Types.BOOLEAN  => true
+      case Types.TINYINT  => true
+      case Types.SMALLINT => true
+      case Types.INTEGER  => true
+      case Types.BIGINT   => true
+      case Types.DECIMAL  => true
+      case Types.DOUBLE   => true
+      case _              => false
+    }
+  }
+
   def pgForType(t: DataType): Int = {
     t.meta.sqlType match {
       case Types.VARCHAR   => PG_TYPE_VARCHAR
@@ -51,9 +66,26 @@ object PgTypes {
       case Types.SMALLINT  => PG_TYPE_INT2
       case Types.INTEGER   => PG_TYPE_INT4
       case Types.BIGINT    => PG_TYPE_INT8
+      case Types.DECIMAL   => PG_TYPE_NUMERIC
       case Types.DOUBLE    => PG_TYPE_FLOAT8
       case Types.TIMESTAMP => PG_TYPE_TIMESTAMP
       case _               => PG_TYPE_UNKNOWN
     }
+  }
+
+  def typeForPg(t: Int): Either[String, DataType] = t match {
+    case PG_TYPE_VARCHAR   => Right(DataType[String])
+    case PG_TYPE_BOOL      => Right(DataType[Boolean])
+    case PG_TYPE_NUMERIC   => Right(DataType[Byte])
+    case PG_TYPE_INT2      => Right(DataType[Short])
+    case PG_TYPE_INT4      => Right(DataType[Int])
+    case PG_TYPE_INT8      => Right(DataType[Long])
+    case PG_TYPE_FLOAT8    => Right(DataType[Double])
+    case PG_TYPE_TIMESTAMP => Right(DataType[Time])
+    case x                 => Left(s"Unsupported type $t")
+  }
+
+  def findTypes(ts: Seq[Int]): Either[String, Seq[DataType]] = {
+    CollectionUtils.collectErrors(ts.map(typeForPg))
   }
 }
