@@ -38,7 +38,9 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   implicit private val rw: ByteReaderWriter[ByteBuf] = new PostgresReaderWriter(charset)
 
   private var prepareds: Map[String, Prepared] = Map.empty
+  private var failedStatements: Set[String] = Set.empty
   private var portals: Map[String, Portal] = Map.empty
+  private var failedPortals: Set[String] = Set.empty
 
   override def channelRead0(ctx: ChannelHandlerContext, msg: ClientMessage): Unit = {
     logger.debug(s"Handle message $msg")
@@ -64,10 +66,11 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     context.queryEngineRouter.query(user, sql, Map.empty) match {
       case Right(result) =>
         writeResult(ctx, result)
-        ctx.write(ReadyForQuery)
-        ctx.flush()
-      case Left(error) => writeError(ctx, error)
+      case Left(error) =>
+        writeError(ctx, error)
     }
+    ctx.write(ReadyForQuery)
+    ctx.flush()
   }
 
   private def parse(ctx: ChannelHandlerContext, name: String, sql: String, types: Seq[Int]): Unit = {
@@ -82,6 +85,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         ctx.write(ParseComplete)
 
       case Left(error) =>
+        failedStatements += name
         writeError(ctx, error)
     }
   }
@@ -95,7 +99,10 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         } else {
           ctx.write(BindComplete)
         }
-      case None => writeError(ctx, s"Unknown prepare $prepare")
+      case None =>
+        failedPortals += portal
+        if (!failedStatements.contains(prepare))
+          writeError(ctx, s"Unknown prepare $prepare")
     }
   }
 
@@ -112,7 +119,8 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
             ctx.flush()
           case Left(error) => writeError(ctx, error)
         }
-      case None => writeError(ctx, s"Unknown portal $portal")
+      case None if !failedPortals.contains(portal) => writeError(ctx, s"Unknown portal $portal")
+      case _                                       => // do nothing, portal is failed
     }
   }
 
@@ -133,8 +141,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
   private def writeError(ctx: ChannelHandlerContext, message: String): Unit = {
     ctx.write(ErrorResponse(message))
-    ctx.write(ReadyForQuery)
-    ctx.flush()
   }
 
   private def makeDescription(result: Result): RowDescription = {

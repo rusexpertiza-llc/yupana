@@ -30,10 +30,8 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[ClientMessage] {
     while (in.isReadable) {
       val tag = in.readByte()
       val size = in.readInt()
-
       val slice = in.readSlice(size - 4)
 
-      println(s"GOT ${tag.toChar} $size b")
       tag match {
         case 'Q' => out.add(SimpleQuery.decode(slice, charset))
         case 'X' => out.add(Quit)

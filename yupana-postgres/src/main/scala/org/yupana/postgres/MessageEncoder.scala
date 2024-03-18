@@ -16,6 +16,7 @@
 
 package org.yupana.postgres
 
+import com.typesafe.scalalogging.StrictLogging
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.MessageToByteEncoder
@@ -23,8 +24,9 @@ import org.yupana.postgres.protocol.ServerMessage
 
 import java.nio.charset.Charset
 
-class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] {
+class MessageEncoder(charset: Charset) extends MessageToByteEncoder[ServerMessage] with StrictLogging {
   override def encode(ctx: ChannelHandlerContext, msg: ServerMessage, out: ByteBuf): Unit = {
+    logger.debug(s"Write $msg")
     msg.write(out, charset)
   }
 }
