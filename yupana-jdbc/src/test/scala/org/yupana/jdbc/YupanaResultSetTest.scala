@@ -798,6 +798,71 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     )
   }
 
+  it should "support primitive types safe casts" in {
+    val rs = {
+      val statement = mock[YupanaStatement]
+      val result = SimpleResult(
+        "test",
+        Seq("bool", "byte", "short", "int", "long", "double"),
+        Seq(DataType[Boolean], DataType[Byte], DataType[Short], DataType[Int], DataType[Long], DataType[Double]),
+        Iterator(
+          Array[Any](true, 42.toByte, 43.toShort, 44, 45L, 46.0)
+        )
+      )
+
+      new YupanaResultSet(statement, result)
+    }
+
+    rs.next
+
+    rs.getBoolean(1) shouldBe true
+    a[YupanaException] should be thrownBy rs.getByte(1)
+    a[YupanaException] should be thrownBy rs.getShort(1)
+    a[YupanaException] should be thrownBy rs.getInt(1)
+    a[YupanaException] should be thrownBy rs.getLong(1)
+    a[YupanaException] should be thrownBy rs.getDouble(1)
+
+    a[YupanaException] should be thrownBy rs.getBoolean(2)
+    rs.getByte(2) shouldBe 42.toByte
+    rs.getShort(2) shouldBe 42.toShort
+    rs.getInt(2) shouldBe 42
+    rs.getLong(2) shouldBe 42L
+    rs.getDouble(2) shouldBe 42.0
+    rs.getBigDecimal(2) shouldBe BigDecimal(42).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(3)
+    a[YupanaException] should be thrownBy rs.getByte(3)
+    rs.getShort(3) shouldBe 43.toShort
+    rs.getInt(3) shouldBe 43
+    rs.getLong(3) shouldBe 43L
+    rs.getDouble(3) shouldBe 43.0
+    rs.getBigDecimal(3) shouldBe BigDecimal(43).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(4)
+    a[YupanaException] should be thrownBy rs.getByte(4)
+    a[YupanaException] should be thrownBy rs.getShort(4)
+    rs.getInt(4) shouldBe 44
+    rs.getLong(4) shouldBe 44L
+    rs.getDouble(4) shouldBe 44.0
+    rs.getBigDecimal(4) shouldBe BigDecimal(44).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(5)
+    a[YupanaException] should be thrownBy rs.getByte(5)
+    a[YupanaException] should be thrownBy rs.getShort(5)
+    a[YupanaException] should be thrownBy rs.getInt(5)
+    rs.getLong(5) shouldBe 45L
+    a[YupanaException] should be thrownBy rs.getDouble(5)
+    rs.getBigDecimal(5) shouldBe BigDecimal(45).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(6)
+    a[YupanaException] should be thrownBy rs.getByte(6)
+    a[YupanaException] should be thrownBy rs.getShort(6)
+    a[YupanaException] should be thrownBy rs.getInt(6)
+    a[YupanaException] should be thrownBy rs.getLong(6)
+    rs.getDouble(6) shouldBe 46.0
+    rs.getBigDecimal(6) shouldBe BigDecimal(46.0).underlying()
+  }
+
   private def createResultSet: YupanaResultSet = {
     val statement = mock[YupanaStatement]
     val result = SimpleResult(

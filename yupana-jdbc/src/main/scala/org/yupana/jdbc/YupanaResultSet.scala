@@ -17,7 +17,7 @@
 package org.yupana.jdbc
 
 import org.yupana.api.query.{ DataRow, Result }
-import org.yupana.api.types.ArrayDataType
+import org.yupana.api.types.{ ArrayDataType, DataType }
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
 
@@ -221,6 +221,65 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def findColumn(s: String): Int = columnNameIndex.getOrElse(s, throw new SQLException(s"Unknown column $s"))
 
+  private def booleanCasts(dt: DataType, value: Any): Boolean = {
+    dt.meta.sqlType match {
+      case Types.BOOLEAN => value.asInstanceOf[Boolean]
+      case _ => throw new YupanaException(s"Can not getBoolean from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def byteCasts(dt: DataType, value: Any): Byte = {
+    dt.meta.sqlType match {
+      case Types.TINYINT => value.asInstanceOf[Byte]
+      case _             => throw new YupanaException(s"Can not getByte from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def shortCasts(dt: DataType, value: Any): Short = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case _              => throw new YupanaException(s"Can not getShort from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def intCasts(dt: DataType, value: Any): Int = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int]
+      case _              => throw new YupanaException(s"Can not getInt from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def longCasts(dt: DataType, value: Any): Long = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int]
+      case Types.BIGINT   => value.asInstanceOf[Long]
+      case _              => throw new YupanaException(s"Can not getLong from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def floatCasts(dt: DataType, value: Any): Float = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case _              => throw new YupanaException(s"Can not getFloat from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
+  private def doubleCasts(dt: DataType, value: Any): Double = {
+    dt.meta.sqlType match {
+      case Types.TINYINT  => value.asInstanceOf[Byte]
+      case Types.SMALLINT => value.asInstanceOf[Short]
+      case Types.INTEGER  => value.asInstanceOf[Int]
+      case Types.DOUBLE   => value.asInstanceOf[Double]
+      case _ => throw new YupanaException(s"Can not getDouble from column with type=${dt.meta.sqlTypeName}")
+    }
+  }
+
   private def checkClosed(): Unit = {
     if (closed) throw new SQLException("ResultSet is already closed")
   }
@@ -237,19 +296,20 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
-  private def getPrimitive[T <: AnyVal](i: Int, default: T): T = {
+  private def getPrimitive[T <: AnyVal](i: Int, default: T, cast: (DataType, Any) => T): T = {
     checkRow()
-    val cell = currentRow.get[T](i - 1)
+    val dt = dataTypes(i - 1)
+    val cell = currentRow.get[dt.T](i - 1)
     wasNullValue = cell == null
     if (cell == null) {
       default
     } else {
-      cell
+      cast(dt, cell)
     }
   }
 
-  private def getPrimitiveByName[T <: AnyVal](name: String, default: T): T = {
-    getPrimitive(columnNameIndex(name), default)
+  private def getPrimitiveByName[T <: AnyVal](name: String, default: T, cast: (DataType, Any) => T): T = {
+    getPrimitive(columnNameIndex(name), default, cast)
   }
 
   private def getReference[T <: AnyRef](i: Int, f: AnyRef => T): T = {
@@ -268,7 +328,14 @@ class YupanaResultSet protected[jdbc] (
     getReference(columnNameIndex(name), f)
   }
 
-  private def toBigDecimal(a: AnyRef): BigDecimal = a.asInstanceOf[scala.math.BigDecimal].underlying()
+  private def toBigDecimal(dt: DataType)(a: AnyRef): BigDecimal = dt.meta.sqlType match {
+    case Types.TINYINT  => BigDecimal.valueOf(a.asInstanceOf[Byte])
+    case Types.SMALLINT => BigDecimal.valueOf(a.asInstanceOf[Short])
+    case Types.INTEGER  => BigDecimal.valueOf(a.asInstanceOf[Int])
+    case Types.BIGINT   => BigDecimal.valueOf(a.asInstanceOf[Long])
+    case Types.DOUBLE   => BigDecimal.valueOf(a.asInstanceOf[Double])
+    case Types.DECIMAL  => a.asInstanceOf[scala.math.BigDecimal].underlying()
+  }
 
   private def toSQLDate(a: AnyRef): Date = {
     a match {
@@ -321,28 +388,31 @@ class YupanaResultSet protected[jdbc] (
   override def getString(i: Int): String = getReference(i, _.toString)
 
   @throws[SQLException]
-  override def getBoolean(i: Int): Boolean = getPrimitive(i, false)
+  override def getBoolean(i: Int): Boolean = getPrimitive(i, false, booleanCasts)
 
   @throws[SQLException]
-  override def getByte(i: Int): Byte = getPrimitive(i, 0)
+  override def getByte(i: Int): Byte = getPrimitive(i, 0, byteCasts)
 
   @throws[SQLException]
-  override def getShort(i: Int): Short = getPrimitive(i, 0)
+  override def getShort(i: Int): Short = getPrimitive(i, 0, shortCasts)
 
   @throws[SQLException]
-  override def getInt(i: Int): Int = getPrimitive(i, 0)
+  override def getInt(i: Int): Int = getPrimitive(i, 0, intCasts)
 
   @throws[SQLException]
-  override def getLong(i: Int): Long = getPrimitive(i, 0L)
+  override def getLong(i: Int): Long = getPrimitive(i, 0, longCasts)
 
   @throws[SQLException]
-  override def getFloat(i: Int): Float = getPrimitive(i, 0f)
+  override def getFloat(i: Int): Float = getPrimitive(i, 0, floatCasts)
 
   @throws[SQLException]
-  override def getDouble(i: Int): Double = getPrimitive(i, 0d)
+  override def getDouble(i: Int): Double = getPrimitive(i, 0, doubleCasts)
 
   @throws[SQLException]
-  override def getBigDecimal(i: Int, scale: Int): BigDecimal = getReference(i, x => toBigDecimal(x).setScale(scale))
+  override def getBigDecimal(i: Int, scale: Int): BigDecimal = {
+    val dt = dataTypes(i - 1)
+    getReference(i, x => toBigDecimal(dt)(x).setScale(scale))
+  }
 
   @throws[SQLException]
   override def getBytes(i: Int): Array[Byte] = getReference(i, toBytes)
@@ -399,29 +469,31 @@ class YupanaResultSet protected[jdbc] (
   override def getString(s: String): String = getReferenceByName(s, _.toString)
 
   @throws[SQLException]
-  override def getBoolean(s: String): Boolean = getPrimitiveByName(s, false)
+  override def getBoolean(s: String): Boolean = getPrimitiveByName(s, false, booleanCasts)
 
   @throws[SQLException]
-  override def getByte(s: String): Byte = getPrimitiveByName(s, 0)
+  override def getByte(s: String): Byte = getPrimitiveByName(s, 0, byteCasts)
 
   @throws[SQLException]
-  override def getShort(s: String): Short = getPrimitiveByName(s, 0)
+  override def getShort(s: String): Short = getPrimitiveByName(s, 0, shortCasts)
 
   @throws[SQLException]
-  override def getInt(s: String): Int = getPrimitiveByName(s, 0)
+  override def getInt(s: String): Int = getPrimitiveByName(s, 0, intCasts)
 
   @throws[SQLException]
-  override def getLong(s: String): Long = getPrimitiveByName(s, 0L)
+  override def getLong(s: String): Long = getPrimitiveByName(s, 0L, longCasts)
 
   @throws[SQLException]
-  override def getFloat(s: String): Float = getPrimitiveByName(s, 0f)
+  override def getFloat(s: String): Float = getPrimitiveByName(s, 0f, floatCasts)
 
   @throws[SQLException]
-  override def getDouble(s: String): Double = getPrimitiveByName(s, 0d)
+  override def getDouble(s: String): Double = getPrimitiveByName(s, 0d, doubleCasts)
 
   @throws[SQLException]
-  override def getBigDecimal(s: String, scale: Int): BigDecimal =
-    getReferenceByName(s, x => toBigDecimal(x).setScale(scale))
+  override def getBigDecimal(s: String, scale: Int): BigDecimal = {
+    val dt = dataTypes(columnNameIndex(s) - 1)
+    getReferenceByName(s, x => toBigDecimal(dt)(x).setScale(scale))
+  }
 
   @throws[SQLException]
   override def getDate(s: String): Date = getReferenceByName(s, a => toSQLDate(a))
@@ -439,10 +511,16 @@ class YupanaResultSet protected[jdbc] (
   override def getObject(s: String): AnyRef = getReferenceByName(s, fixTimestamp)
 
   @throws[SQLException]
-  override def getBigDecimal(i: Int): BigDecimal = getReference(i, toBigDecimal)
+  override def getBigDecimal(i: Int): BigDecimal = {
+    val dt = dataTypes(i - 1)
+    getReference(i, x => toBigDecimal(dt)(x))
+  }
 
   @throws[SQLException]
-  override def getBigDecimal(s: String): BigDecimal = getReferenceByName(s, toBigDecimal)
+  override def getBigDecimal(s: String): BigDecimal = {
+    val dt = dataTypes(columnNameIndex(s) - 1)
+    getReferenceByName(s, x => toBigDecimal(dt)(x))
+  }
 
   @throws[SQLException]
   override def getWarnings: SQLWarning = null
