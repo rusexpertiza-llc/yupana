@@ -142,7 +142,7 @@ object SqlParser {
     }
   }
 
-  def mathExpr[$: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def mathExpr[$: P]: P[SqlExpr] = chained1(mathTerm | minusMathTerm, mathTerm, plus | minus)
 
   def expr[$: P]: P[SqlExpr] = P(condition)
 

@@ -20,7 +20,6 @@ import fastparse._
 import NoWhitespace._
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
-import org.yupana.api.types.DataType
 
 import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
@@ -109,12 +108,12 @@ object ValueParser {
     P("{" ~ wsp ~ tsWord ~/ wsp ~ "'" ~ dateAndTime ~ "'" ~ wsp ~ "}")
   }
 
-  def numericValue[$: P]: P[TypedValue[BigDecimal]] = P(number).map(TypedValue(_, DataType[BigDecimal]))
-  def stringValue[$: P]: P[TypedValue[String]] = P(string).map(TypedValue(_, DataType[String]))
-  def booleanValue[$: P]: P[TypedValue[Boolean]] = P(boolean).map(TypedValue(_, DataType[Boolean]))
+  def numericValue[$: P]: P[TypedValue[BigDecimal]] = P(number).map(TypedValue[BigDecimal](_))
+  def stringValue[$: P]: P[TypedValue[String]] = P(string).map(TypedValue[String](_))
+  def booleanValue[$: P]: P[TypedValue[Boolean]] = P(boolean).map(TypedValue[Boolean](_))
   def nullValue[$: P]: P[NullValue.type] = P(nullWord).map(_ => NullValue)
   def timestampValue[$: P]: P[TypedValue[Time]] =
-    P(pgTimestamp | msTimestamp).map(t => TypedValue(Time(t), DataType[Time]))
+    P(pgTimestamp | msTimestamp).map(t => TypedValue(Time(t)))
 
   def INTERVAL_PARTS[$: P]: List[IntervalPart] = List(
     IntervalPart(

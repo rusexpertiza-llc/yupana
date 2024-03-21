@@ -119,11 +119,11 @@ object UpdatesIntervalsProvider extends StrictLogging {
 
     def getTyped[T](value: Value)(implicit t: DataType.Aux[T]): Either[String, T] = {
       value match {
-        case TypedValue(v, dt) if dt == t => Right(v.asInstanceOf[T])
+        case tv @ TypedValue(v) if tv.dataType == t => Right(v.asInstanceOf[T])
         case Placeholder(id) =>
           params.get(id).toRight(s"Parameter #$id is not defined").flatMap {
-            case TypedValue(v, dt) if dt == t => Right(v.asInstanceOf[T])
-            case x                            => Left(s"Got $x for parameter #$id, but $t is required")
+            case tv @ TypedValue(v) if tv.dataType == t => Right(v.asInstanceOf[T])
+            case x                                      => Left(s"Got $x for parameter #$id, but $t is required")
           }
         case x => Left(s"Got $x but $t is required")
       }

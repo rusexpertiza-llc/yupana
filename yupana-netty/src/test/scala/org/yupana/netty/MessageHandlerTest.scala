@@ -109,10 +109,10 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
         YupanaUser("test", None, TsdbRole.Admin),
         "SELECT ? + ? as five, ? as s, ? epoch",
         Map(
-          1 -> parser.NumericValue(3),
-          2 -> parser.NumericValue(2),
-          3 -> parser.StringValue("str"),
-          4 -> parser.TimestampValue(0L)
+          1 -> parser.TypedValue(BigDecimal(3)),
+          2 -> parser.TypedValue(BigDecimal(2)),
+          3 -> parser.TypedValue("str"),
+          4 -> parser.TypedValue(Time(0L))
         )
       )
       .returning(
@@ -256,8 +256,8 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
         user,
         "UPSERT INTO test(a,b) VALUES (?, ?)",
         Seq(
-          Map(1 -> parser.StringValue("a"), 2 -> parser.NumericValue(5)),
-          Map(1 -> parser.StringValue("b"), 2 -> parser.NumericValue(7))
+          Map(1 -> parser.TypedValue("a"), 2 -> parser.TypedValue(BigDecimal(5))),
+          Map(1 -> parser.TypedValue("b"), 2 -> parser.TypedValue(BigDecimal(7)))
         )
       )
       .returning(Right(SimpleResult("result", Seq("Status"), Seq(DataType[String]), Iterator(Array[Any]("OK")))))

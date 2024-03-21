@@ -27,31 +27,10 @@ case class Placeholder(id: Int) extends Value {
   override def asString: String = throw new IllegalStateException("asString called on Placeholder")
 }
 
-case class TypedValue[T](value: T, dataType: DataType.Aux[T]) extends Value {
+case class TypedValue[T](value: T)(implicit val dataType: DataType.Aux[T]) extends Value {
   override def asString: String = value.toString
 }
 
-//case class NumericValue(value: BigDecimal) extends Value {
-//  override def asString: String = value.toString
-//}
-//
-//case class BooleanValue(value: Boolean) extends Value {
-//  override def asString: String = value.toString
-//}
-//
-//case class StringValue(value: String) extends Value {
-//  override def asString: String = value
-//}
-//
-//case class TimestampValue(value: OffsetDateTime) extends Value {
-//  override def asString: String = value.toString
-//}
-//
-//object TimestampValue {
-//  def apply(millis: Long): TimestampValue =
-//    new TimestampValue(OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC))
-//}
-//
 case class PeriodValue(value: PeriodDuration) extends Value {
   override def asString: String = value.toString
 }
