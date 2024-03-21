@@ -228,10 +228,47 @@ class YupanaResultSet protected[jdbc] (
     }
   }
 
+  private def checkBounds[S](s: S, min: S, max: S, targetType: String)(implicit n: Numeric[S]): Unit = {
+    if (n.lt(s, min) || n.gt(s, max)) {
+      throw new YupanaException(s"Numeric value out of range: $s does not suit $targetType")
+    }
+  }
+
+  private def checkBoundsForDecimal(
+      s: scala.math.BigDecimal,
+      min: scala.math.BigDecimal,
+      max: scala.math.BigDecimal,
+      targetType: String
+  ): Unit = {
+    if (s < min || s > max) {
+      throw new YupanaException(s"Numeric value out of range: $s does not suit $targetType")
+    }
+  }
+
   private def byteCasts(dt: DataType, value: Any): Byte = {
     dt.meta.sqlType match {
       case Types.TINYINT => value.asInstanceOf[Byte]
-      case _             => throw new YupanaException(s"Can not getByte from column with type=${dt.meta.sqlTypeName}")
+      case Types.SMALLINT =>
+        val short = value.asInstanceOf[Short]
+        checkBounds(short, Byte.MinValue.toShort, Byte.MaxValue.toShort, DataType[Byte].meta.javaTypeName)
+        short.toByte
+      case Types.INTEGER =>
+        val int = value.asInstanceOf[Int]
+        checkBounds(int, Byte.MinValue.toInt, Byte.MaxValue.toInt, DataType[Byte].meta.javaTypeName)
+        int.toByte
+      case Types.BIGINT =>
+        val long = value.asInstanceOf[Long]
+        checkBounds(long, Byte.MinValue.toLong, Byte.MaxValue.toLong, DataType[Byte].meta.javaTypeName)
+        long.toByte
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Byte.MinValue.toDouble, Byte.MaxValue.toDouble, DataType[Byte].meta.javaTypeName)
+        double.toByte
+      case Types.DECIMAL =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Byte.MinValue, Byte.MaxValue, DataType[Byte].meta.javaTypeName)
+        dec.toByte
+      case _ => throw new YupanaException(s"Can not getByte from column with type=${dt.meta.sqlTypeName}")
     }
   }
 
@@ -239,7 +276,23 @@ class YupanaResultSet protected[jdbc] (
     dt.meta.sqlType match {
       case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT => value.asInstanceOf[Short]
-      case _              => throw new YupanaException(s"Can not getShort from column with type=${dt.meta.sqlTypeName}")
+      case Types.INTEGER =>
+        val int = value.asInstanceOf[Int]
+        checkBounds(int, Short.MinValue.toInt, Short.MaxValue.toInt, DataType[Short].meta.javaTypeName)
+        int.toShort
+      case Types.BIGINT =>
+        val long = value.asInstanceOf[Long]
+        checkBounds(long, Short.MinValue.toLong, Short.MaxValue.toLong, DataType[Short].meta.javaTypeName)
+        long.toShort
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Short.MinValue.toDouble, Short.MaxValue.toDouble, DataType[Short].meta.javaTypeName)
+        double.toShort
+      case Types.DECIMAL =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Short.MinValue, Short.MaxValue, DataType[Short].meta.javaTypeName)
+        dec.toShort
+      case _ => throw new YupanaException(s"Can not getShort from column with type=${dt.meta.sqlTypeName}")
     }
   }
 
@@ -248,7 +301,19 @@ class YupanaResultSet protected[jdbc] (
       case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT => value.asInstanceOf[Short]
       case Types.INTEGER  => value.asInstanceOf[Int]
-      case _              => throw new YupanaException(s"Can not getInt from column with type=${dt.meta.sqlTypeName}")
+      case Types.BIGINT =>
+        val long = value.asInstanceOf[Long]
+        checkBounds(long, Int.MinValue.toLong, Int.MaxValue.toLong, DataType[Int].meta.javaTypeName)
+        long.toInt
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Int.MinValue.toDouble, Int.MaxValue.toDouble, DataType[Int].meta.javaTypeName)
+        double.toInt
+      case Types.DECIMAL =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
+        dec.toInt
+      case _ => throw new YupanaException(s"Can not getInt from column with type=${dt.meta.sqlTypeName}")
     }
   }
 
@@ -258,7 +323,15 @@ class YupanaResultSet protected[jdbc] (
       case Types.SMALLINT => value.asInstanceOf[Short]
       case Types.INTEGER  => value.asInstanceOf[Int]
       case Types.BIGINT   => value.asInstanceOf[Long]
-      case _              => throw new YupanaException(s"Can not getLong from column with type=${dt.meta.sqlTypeName}")
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Long.MinValue.toDouble, Long.MaxValue.toDouble, DataType[Long].meta.javaTypeName)
+        double.toLong
+      case Types.DECIMAL =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Long.MinValue, Long.MaxValue, DataType[Long].meta.javaTypeName)
+        dec.toLong
+      case _ => throw new YupanaException(s"Can not getLong from column with type=${dt.meta.sqlTypeName}")
     }
   }
 
@@ -266,7 +339,17 @@ class YupanaResultSet protected[jdbc] (
     dt.meta.sqlType match {
       case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT => value.asInstanceOf[Short]
-      case _              => throw new YupanaException(s"Can not getFloat from column with type=${dt.meta.sqlTypeName}")
+      case Types.INTEGER  => value.asInstanceOf[Int].toFloat
+      case Types.BIGINT   => value.asInstanceOf[Long].toFloat
+      case Types.DOUBLE =>
+        val double = value.asInstanceOf[Double]
+        checkBounds(double, Float.MinValue.toDouble, Float.MaxValue.toDouble, "java.lang.Float")
+        double.toFloat
+      case Types.DECIMAL =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Float.MinValue, Float.MaxValue, "java.lang.Float")
+        dec.toFloat
+      case _ => throw new YupanaException(s"Can not getFloat from column with type=${dt.meta.sqlTypeName}")
     }
   }
 
@@ -275,7 +358,12 @@ class YupanaResultSet protected[jdbc] (
       case Types.TINYINT  => value.asInstanceOf[Byte]
       case Types.SMALLINT => value.asInstanceOf[Short]
       case Types.INTEGER  => value.asInstanceOf[Int]
+      case Types.BIGINT   => value.asInstanceOf[Long].toDouble
       case Types.DOUBLE   => value.asInstanceOf[Double]
+      case Types.DECIMAL =>
+        val dec = value.asInstanceOf[scala.math.BigDecimal]
+        checkBoundsForDecimal(dec, Double.MinValue, Double.MaxValue, DataType[Double].meta.javaTypeName)
+        dec.toDouble
       case _ => throw new YupanaException(s"Can not getDouble from column with type=${dt.meta.sqlTypeName}")
     }
   }
@@ -335,6 +423,7 @@ class YupanaResultSet protected[jdbc] (
     case Types.BIGINT   => BigDecimal.valueOf(a.asInstanceOf[Long])
     case Types.DOUBLE   => BigDecimal.valueOf(a.asInstanceOf[Double])
     case Types.DECIMAL  => a.asInstanceOf[scala.math.BigDecimal].underlying()
+    case _              => throw new YupanaException(s"${dt.meta.sqlTypeName} can not be cast to BigDecimal")
   }
 
   private def toSQLDate(a: AnyRef): Date = {
