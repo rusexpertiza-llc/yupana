@@ -181,7 +181,7 @@ final case class LinkExpr[T](link: ExternalLink, linkField: LinkField.Aux[T]) ex
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 
   override def encode: String = s"link(${link.linkName}, ${linkField.name})"
-  def queryFieldName: String = link.linkName + "_" + linkField.name
+  private def queryFieldName: String = link.linkName + "_" + linkField.name
   def toField: QueryField = QueryField(queryFieldName, this)
 }
 

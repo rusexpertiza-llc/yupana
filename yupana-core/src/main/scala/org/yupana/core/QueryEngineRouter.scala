@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
-import org.yupana.core.auth.{ Action, PermissionService, Object, UserManager, YupanaUser }
+import org.yupana.core.auth.{ Action, Object, PermissionService, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -33,60 +33,73 @@ class QueryEngineRouter(
 ) {
 
   def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
-    parse(sql).flatMap(s => execute(user, s, params))
+    for {
+      parsed <- parse(sql)
+      prepared <- bind(parsed, params)
+      result <- execute(user, prepared)
+    } yield result
   }
 
   def parse(sql: String): Either[String, Statement] = {
     SqlParser.parse(sql)
   }
 
-  def execute(user: YupanaUser, statement: Statement, params: Map[Int, Value]): Either[String, Result] = {
+  def bind(statement: Statement, params: Map[Int, Value]): Either[String, PreparedStatement] = {
     statement match {
-      case select: Select =>
+      case select: Select => sqlQueryProcessor.createQuery(select, params).map(PreparedSelect)
+      case x              => Right(PreparedCommand(x, params))
+    }
+  }
+
+  def execute(user: YupanaUser, statement: PreparedStatement): Either[String, Result] = {
+    statement match {
+      case select: PreparedSelect =>
         for {
-          _ <- hasPermission(user, Object.Table(select.tableName), Action.Read)
-          query <- sqlQueryProcessor.createQuery(select, params)
-        } yield tsdb.query(query, user)
+          _ <- hasPermission(user, Object.Table(select.query.table.map(_.name)), Action.Read)
+        } yield tsdb.query(select.query, user)
 
-      case upsert: Upsert =>
-        hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
-          .flatMap(_ => doUpsert(user, upsert, Seq(params)))
+      case PreparedCommand(statement, params) =>
+        statement match {
+          case upsert: Upsert =>
+            hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
+              .flatMap(_ => doUpsert(user, upsert, Seq(params)))
 
-      case ShowTables => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.listTables)
+          case ShowTables => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.listTables)
 
-      case ShowVersion => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.version)
+          case ShowVersion => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.version)
 
-      case ShowColumns(tableName) =>
-        hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.describeTable(tableName))
+          case ShowColumns(tableName) =>
+            hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.describeTable(tableName))
 
-      case ShowFunctions(typeName) =>
-        hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.listFunctions(typeName))
+          case ShowFunctions(typeName) =>
+            hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.listFunctions(typeName))
 
-      case ShowQueryMetrics(filter, limit) =>
-        hasPermission(user, Object.Queries, Action.Read).map(_ =>
-          QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit)
-        )
+          case ShowQueryMetrics(filter, limit) =>
+            hasPermission(user, Object.Queries, Action.Read).map(_ =>
+              QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit)
+            )
 
-      case KillQuery(filter) =>
-        hasPermission(user, Object.Queries, Action.Write).map(_ =>
-          QueryInfoProvider.handleKillQuery(flatQueryEngine, filter)
-        )
+          case KillQuery(filter) =>
+            hasPermission(user, Object.Queries, Action.Write).map(_ =>
+              QueryInfoProvider.handleKillQuery(flatQueryEngine, filter)
+            )
 
-      case DeleteQueryMetrics(filter) =>
-        hasPermission(user, Object.Queries, Action.Write).map(_ =>
-          QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter)
-        )
+          case DeleteQueryMetrics(filter) =>
+            hasPermission(user, Object.Queries, Action.Write).map(_ =>
+              QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter)
+            )
 
-      case ShowUpdatesIntervals(condition) =>
-        hasPermission(user, Object.Queries, Action.Read).flatMap(_ =>
-          UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
-        )
+          case ShowUpdatesIntervals(condition) =>
+            hasPermission(user, Object.Queries, Action.Read).flatMap(_ =>
+              UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
+            )
 
-      case CreateUser(u, p, r) => createUser(user, u, p, r)
-      case DropUser(u)         => deleteUser(user, u)
-      case AlterUser(u, p, r)  => updateUser(user, u, p, r)
-      case ShowUsers           => listUsers(user)
-      case x                   => Left(s"Unsupported query type $x")
+          case CreateUser(u, p, r) => createUser(user, u, p, r)
+          case DropUser(u)         => deleteUser(user, u)
+          case AlterUser(u, p, r)  => updateUser(user, u, p, r)
+          case ShowUsers           => listUsers(user)
+          case x                   => Left(s"Unsupported query type $x")
+        }
     }
   }
 

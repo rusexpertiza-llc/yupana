@@ -22,9 +22,10 @@ import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
 import io.netty.util.ReferenceCountUtil
 import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.{ ByteReaderWriter, DataType, ID }
+import org.yupana.core.PreparedStatement
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.sql.parser.{ SetValue, Statement, Value }
-import org.yupana.postgres.MessageHandler.{ Portal, Prepared }
+import org.yupana.core.sql.parser.{ SetValue, Statement, TypedValue }
+import org.yupana.postgres.MessageHandler.{ Parsed, Portal }
 import org.yupana.postgres.protocol._
 
 import java.nio.charset.Charset
@@ -35,7 +36,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
   implicit private val rw: ByteReaderWriter[ByteBuf] = new PostgresBinaryReaderWriter(charset)
 
-  private var prepareds: Map[String, Prepared] = Map.empty
+  private var prepareds: Map[String, Parsed] = Map.empty
   private var failedStatements: Set[String] = Set.empty
   private var portals: Map[String, Portal] = Map.empty
   private var failedPortals: Set[String] = Set.empty
@@ -75,7 +76,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     val prepared = for {
       statement <- context.queryEngineRouter.parse(sql)
       dts <- PgTypes.findTypes(types)
-    } yield Prepared(statement, dts)
+    } yield Parsed(statement, dts)
 
     prepared match {
       case Right(p) =>
@@ -98,20 +99,20 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   ): Unit = {
     prepareds.get(prepare) match {
       case Some(p) =>
-        portals += portal -> Portal(p, Map.empty)
         val values = p.types.zipWithIndex.map {
           case (dt, idx) =>
             val b = if (isBinary.length == 1) isBinary.head else if (idx < isBinary.length) isBinary(idx) else true
-            readValue(data, b, dt)
+            idx + 1 -> readValue(data, b, dt.aux)
+        }.toMap
+
+        context.queryEngineRouter.bind(p.statement, values) match {
+          case Right(prep) =>
+            portals += portal -> Portal(p, prep)
+          case Left(err) =>
+            writeError(ctx, err)
+            failedPortals += portal
         }
 
-        println(s"VALUES: $values")
-        if (p.types.nonEmpty) {
-
-          writeError(ctx, "Bind not ready yet")
-        } else {
-          ctx.write(BindComplete)
-        }
       case None =>
         failedPortals += portal
         if (!failedStatements.contains(prepare))
@@ -120,8 +121,8 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     ReferenceCountUtil.release(data)
   }
 
-  private def readValue(in: ByteBuf, isBinary: Boolean, dt: DataType): Any = {
-    dt.storable.read(in)
+  private def readValue[T](in: ByteBuf, isBinary: Boolean, dt: DataType.Aux[T]): TypedValue[T] = {
+    TypedValue(dt.storable.read(in))(dt)
   }
 
   private def describeStatement(ctx: ChannelHandlerContext, name: String): Unit = {}
@@ -131,11 +132,10 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   private def execute(ctx: ChannelHandlerContext, portal: String, limit: Int): Unit = {
     portals.get(portal) match {
       case Some(p) =>
-        p.prepared.statement match {
-          case SetValue(_, _) =>
-            ctx.write(CommandComplete("SET"))
+        p.parsed.statement match {
+          case SetValue(_, _) => ctx.write(CommandComplete("SET"))
           case s =>
-            context.queryEngineRouter.execute(user, s, p.values) match {
+            context.queryEngineRouter.execute(user, p.prepared) match {
               case Right(result) =>
                 writeResult(ctx, result)
                 ctx.flush()
@@ -197,6 +197,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 }
 
 object MessageHandler {
-  private case class Prepared(statement: Statement, types: Seq[DataType])
-  private case class Portal(prepared: Prepared, values: Map[Int, Value])
+  private case class Parsed(statement: Statement, types: Seq[DataType])
+  private case class Portal(parsed: Parsed, prepared: PreparedStatement)
 }

@@ -76,9 +76,9 @@ object PgTypes {
   def typeForPg(t: Int): Either[String, DataType] = t match {
     case PG_TYPE_VARCHAR   => Right(DataType[String])
     case PG_TYPE_BOOL      => Right(DataType[Boolean])
-    case PG_TYPE_NUMERIC   => Right(DataType[Byte])
     case PG_TYPE_INT2      => Right(DataType[Short])
     case PG_TYPE_INT4      => Right(DataType[Int])
+    case PG_TYPE_NUMERIC   => Right(DataType[BigDecimal])
     case PG_TYPE_INT8      => Right(DataType[Long])
     case PG_TYPE_FLOAT8    => Right(DataType[Double])
     case PG_TYPE_TIMESTAMP => Right(DataType[Time])

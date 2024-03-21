@@ -34,7 +34,7 @@ case class TypedValue[T](value: T)(implicit val dataType: DataType.Aux[T]) exten
 case class PeriodValue(value: PeriodDuration) extends Value {
   override def asString: String = value.toString
 }
-//
+
 case class TupleValue(a: Value, b: Value) extends Value {
   override def asString: String = s"${a.asString}_${b.asString}"
 }

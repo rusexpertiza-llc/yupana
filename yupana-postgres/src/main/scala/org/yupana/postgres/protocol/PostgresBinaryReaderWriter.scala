@@ -21,7 +21,7 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
 import org.yupana.api.{ Blob, Time }
 
-import java.math.BigInteger
+import java.math.{ BigInteger, BigDecimal => JBigDecimal }
 import java.nio.charset.Charset
 import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
@@ -279,7 +279,7 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readBigDecimal(b: ByteBuf): BigDecimal = {
-    ???
+    PostgresBinaryReaderWriter.readNumeric(b)
   }
 
   override def readBigDecimal(b: ByteBuf, offset: Int): BigDecimal = {
@@ -287,16 +287,11 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def writeBigDecimal(b: ByteBuf, v: BigDecimal): Int = {
-    PostgresBinaryReaderWriter.writeNumericBinary(b, v.underlying())
+    PostgresBinaryReaderWriter.writeNumeric(b, v.underlying())
   }
 
   override def writeBigDecimal(b: ByteBuf, offset: Int, v: BigDecimal): Int = {
-    val u = v.underlying()
-    val a = u.unscaledValue().toByteArray
-    val s1 = writeVLong(b, offset, u.scale())
-    val s2 = writeVLong(b, offset + s1, a.length)
-    b.setBytes(offset + s1 + s2, a)
-    s1 + s2 + a.length
+    ???
   }
 
   override def readSeq[T: ClassTag](b: ByteBuf, reader: ByteBuf => T): Seq[T] = {
@@ -410,8 +405,8 @@ object PostgresBinaryReaderWriter {
   private val MAX_GROUP_SIZE = POWERS10(4)
   private val NUMERIC_POSITIVE = 0x0000
   private val NUMERIC_NEGATIVE = 0x4000
-//  private val NUMERIC_NAN = 0xC000.toShort
-//  private val NUMERIC_CHUNK_MULTIPLIER = BigInteger.valueOf(10_000L)
+  private val NUMERIC_NAN = 0xC000.toShort
+  private val NUMERIC_CHUNK_MULTIPLIER = BigInteger.valueOf(10_000L)
 
   private def divide(unscaled: Array[BigInteger], divisor: Int) = {
     val bi = unscaled(0).divideAndRemainder(BigInteger.valueOf(divisor))
@@ -419,10 +414,9 @@ object PostgresBinaryReaderWriter {
     bi(1).intValue
   }
 
-  // https://www.npgsql.org/dev/types.html
-  // https://github.com/npgsql/npgsql/blob/8a479081f707784b5040747b23102c3d6371b9d3/
-  //         src/Npgsql/TypeHandlers/NumericHandlers/NumericHandler.cs#L166
-  private def writeNumericBinary(b: ByteBuf, value: java.math.BigDecimal): Int = {
+  // This implementation is based on the H2 server:
+  // https://github.com/h2database/h2database/blob/master/h2/src/main/org/h2/server/pg/PgServerThread.java#L761
+  private def writeNumeric(b: ByteBuf, value: JBigDecimal): Int = {
     var weight = 0
     val groups = ArrayBuffer.empty[Int]
     var scale = value.scale
@@ -467,5 +461,33 @@ object PostgresBinaryReaderWriter {
     }
 
     4 + 2 + 2 + 2 + 2 + groupCount * 2
+  }
+
+  private def readNumeric(b: ByteBuf): JBigDecimal = {
+    val size = b.readInt()
+    if (size < 8) throw new IllegalArgumentException(s"DECIMAL size is to small, $size")
+
+    val len = b.readShort()
+    val weight = b.readShort()
+    val sign = b.readShort()
+    val scale = b.readShort()
+    if (len * 2 + 8 != size) throw new IllegalArgumentException(s"DECIMAL size is incorrect, ${len * 2 + 8} != $size")
+    if (sign == NUMERIC_NAN) throw new IllegalArgumentException("DECIMAL cannot be NaN")
+    if (sign != NUMERIC_POSITIVE && sign != NUMERIC_NEGATIVE)
+      throw new IllegalArgumentException(s"Invalid sign, $sign")
+    if ((scale & 0x3FFF) != scale) throw throw new IllegalArgumentException(s"Invalid scale, $scale")
+    if (len == 0) {
+      if (scale == 0) JBigDecimal.ZERO
+      else new JBigDecimal(BigInteger.ZERO, scale)
+    } else {
+      var n = BigInteger.ZERO
+      for (i <- 0 until len) {
+        val c = b.readShort()
+        if (c < 0 || c > 9_999) throw new IllegalArgumentException(s"Incorrect chunk $c")
+        n = n.multiply(NUMERIC_CHUNK_MULTIPLIER).add(BigInteger.valueOf(c))
+      }
+      if (sign != NUMERIC_POSITIVE) n = n.negate
+      new JBigDecimal(n, (len - weight - 1) * 4).setScale(scale)
+    }
   }
 }
