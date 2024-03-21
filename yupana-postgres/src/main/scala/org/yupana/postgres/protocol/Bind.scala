@@ -21,17 +21,16 @@ import org.yupana.postgres.NettyUtils
 
 import java.nio.charset.Charset
 
-case class Bind(portalName: String, prepareName: String) extends ClientMessage
+case class Bind(portalName: String, prepareName: String, isBinary: Seq[Boolean], paramCount: Short, rawData: ByteBuf)
+    extends ClientMessage
 
 object Bind {
   def decode(in: ByteBuf, charset: Charset): Bind = {
     val portal = NettyUtils.readNullTerminatedString(in, charset)
     val prepare = NettyUtils.readNullTerminatedString(in, charset)
     val fcc = in.readShort()
-    (0 until (fcc)).map(_ => in.readShort())
-    val pc = in.readShort()
-    (0 until (pc)).map(_ => ???)
+    val formatCodes = (0 until fcc).map { _ => in.readShort() == 1 }
 
-    Bind(portal, prepare)
+    Bind(portal, prepare, formatCodes, in.readShort(), in.retainedSlice())
   }
 }

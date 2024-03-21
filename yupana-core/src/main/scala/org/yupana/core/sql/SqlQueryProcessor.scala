@@ -297,15 +297,15 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       expr: parser.SqlExpr,
       exprType: ExprType
   ): Either[String, Expression[_]] = {
-    expr match {
-      // TODO: this may be removed when we will calculate constant values before query execution
-      case parser.Constant(parser.NumericValue(n)) => Right(ConstantExpr(-n))
-      case _ =>
-        for {
-          e <- createExpr(state, resolver, expr, exprType)
-          u <- FunctionRegistry.unary("-", calculator, e)
-        } yield u
-    }
+//    expr match {
+    // TODO: this may be removed when we will calculate constant values before query execution
+//      case parser.Constant(parser.TypedValue(n, dt)) if dt.numeric.isDefined => Right(ConstantExpr(-n))
+//      case _ =>
+    for {
+      e <- createExpr(state, resolver, expr, exprType)
+      u <- FunctionRegistry.unary("-", calculator, e)
+    } yield u
+//    }
   }
 
   private def createArrayExpr(expressions: Seq[ConstExpr[_]]): Either[String, Expression[_]] = {
@@ -403,18 +403,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       prepared: Boolean = false
   ): Either[String, ConstExpr[_]] = {
     v match {
-      case parser.StringValue(s) =>
-        val const = if (exprType == ExprType.Cmp) s.toLowerCase else s
+      case parser.TypedValue(s, dt) if dt == DataType[String] =>
+        val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]
         Right(ConstantExpr(const, prepared))
 
-      case parser.NumericValue(n) =>
-        Right(ConstantExpr(n, prepared))
-
-      case parser.BooleanValue(b) =>
-        Right(ConstantExpr(b, prepared))
-
-      case parser.TimestampValue(t) =>
-        Right(ConstantExpr(Time(t), prepared))
+      case parser.TypedValue(t, dt) =>
+        Right(ConstantExpr(t, prepared)(dt))
 
       case parser.NullValue =>
         Right(NullExpr(DataType[Null]))

@@ -86,6 +86,7 @@ class QueryEngineRouter(
       case DropUser(u)         => deleteUser(user, u)
       case AlterUser(u, p, r)  => updateUser(user, u, p, r)
       case ShowUsers           => listUsers(user)
+      case x                   => Left(s"Unsupported query type $x")
     }
   }
 

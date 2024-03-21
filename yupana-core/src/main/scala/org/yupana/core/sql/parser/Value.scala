@@ -17,8 +17,7 @@
 package org.yupana.core.sql.parser
 
 import org.threeten.extra.PeriodDuration
-
-import java.time.{ Instant, OffsetDateTime, ZoneOffset }
+import org.yupana.api.types.DataType
 
 sealed trait Value {
   def asString: String
@@ -28,31 +27,35 @@ case class Placeholder(id: Int) extends Value {
   override def asString: String = throw new IllegalStateException("asString called on Placeholder")
 }
 
-case class NumericValue(value: BigDecimal) extends Value {
+case class TypedValue[T](value: T, dataType: DataType.Aux[T]) extends Value {
   override def asString: String = value.toString
 }
 
-case class BooleanValue(value: Boolean) extends Value {
-  override def asString: String = value.toString
-}
-
-case class StringValue(value: String) extends Value {
-  override def asString: String = value
-}
-
-case class TimestampValue(value: OffsetDateTime) extends Value {
-  override def asString: String = value.toString
-}
-
-object TimestampValue {
-  def apply(millis: Long): TimestampValue =
-    new TimestampValue(OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC))
-}
-
+//case class NumericValue(value: BigDecimal) extends Value {
+//  override def asString: String = value.toString
+//}
+//
+//case class BooleanValue(value: Boolean) extends Value {
+//  override def asString: String = value.toString
+//}
+//
+//case class StringValue(value: String) extends Value {
+//  override def asString: String = value
+//}
+//
+//case class TimestampValue(value: OffsetDateTime) extends Value {
+//  override def asString: String = value.toString
+//}
+//
+//object TimestampValue {
+//  def apply(millis: Long): TimestampValue =
+//    new TimestampValue(OffsetDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneOffset.UTC))
+//}
+//
 case class PeriodValue(value: PeriodDuration) extends Value {
   override def asString: String = value.toString
 }
-
+//
 case class TupleValue(a: Value, b: Value) extends Value {
   override def asString: String = s"${a.asString}_${b.asString}"
 }

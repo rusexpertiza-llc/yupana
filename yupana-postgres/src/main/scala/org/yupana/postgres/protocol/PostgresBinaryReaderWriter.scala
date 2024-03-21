@@ -26,7 +26,7 @@ import java.nio.charset.Charset
 import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
 
-class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
+class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   override def readBoolean(b: ByteBuf): Boolean = {
     b.readBoolean()
   }
@@ -63,11 +63,13 @@ class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   }
 
   override def readInt(b: ByteBuf): Int = {
+    assert(b.readInt() == 4)
     b.readInt()
   }
 
   override def readInt(b: ByteBuf, offset: Int): Int = {
-    b.getInt(offset)
+    assert(b.getInt(offset) == 4)
+    b.getInt(offset + 4)
   }
 
   override def writeInt(b: ByteBuf, v: Int): Int = {
@@ -230,216 +232,62 @@ class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   }
 
   override def readVLong(bb: ByteBuf, offset: Int): Long = {
-    val first = bb.getByte(offset)
-
-    if (first >= -112) return first
-
-    val len = if (first >= -120) {
-      -111 - first
-    } else {
-      -119 - first
-    }
-
-    var result = 0L
-    var i = 1
-    while (i < len) {
-      val b = bb.getByte(i)
-      result <<= 8
-      result |= (b & 0xFF)
-      i += 1
-    }
-
-    if (first >= -120) result else result ^ -1L
-
+    readLong(bb, offset)
   }
 
   override def readVLong(bb: ByteBuf): Long = {
-    val first = bb.readByte()
-
-    if (first >= -112) return first
-
-    val len = if (first >= -120) {
-      -111 - first
-    } else {
-      -119 - first
-    }
-
-    var result = 0L
-    var i = 1
-    while (i < len) {
-      val b = bb.readByte()
-      result <<= 8
-      result |= (b & 0xFF)
-      i += 1
-    }
-
-    if (first >= -120) result else result ^ -1L
+    readLong(bb)
   }
 
   override def writeVLong(bb: ByteBuf, v: Long): Int = {
-    if (v <= 127 && v > -112) {
-      bb.writeByte(v.toByte)
-      1
-    } else {
-      var ll = v
-      var len = -112
-
-      if (ll < 0) {
-        len = -120
-        ll ^= -1L
-      }
-
-      var tmp = ll
-      while (tmp != 0) {
-        tmp >>= 8
-        len -= 1
-      }
-
-      bb.writeByte(len.toByte)
-
-      len = if (len < -120) {
-        -(len + 120)
-      } else {
-        -(len + 112)
-      }
-
-      var idx = len - 1
-      while (idx >= 0) {
-        val shift = idx * 8
-        val mask = 0xFFL << shift
-        bb.writeByte(((ll & mask) >> shift).toByte)
-        idx -= 1
-      }
-      len
-    }
-  }
-
-  def vLongSize(v: Long): Int = {
-    if (v <= 127 && v > -112) {
-      1
-    } else {
-      var ll = v
-      var len = -112
-
-      if (ll < 0) {
-        len = -120
-        ll ^= -1L
-      }
-
-      var tmp = ll
-      while (tmp != 0) {
-        tmp >>= 8
-        len -= 1
-      }
-
-      len = if (len < -120) {
-        -(len + 120)
-      } else {
-        -(len + 112)
-      }
-      len
-    }
+    writeLong(bb, v)
   }
 
   override def writeVLong(bb: ByteBuf, offset: Int, v: Long): Int = {
-    if (v <= 127 && v > -112) {
-      bb.setByte(offset, v.toByte)
-      1
-    } else {
-      var ll = v
-      var len = -112
-
-      if (ll < 0) {
-        len = -120
-        ll ^= -1L
-      }
-
-      var tmp = ll
-      while (tmp != 0) {
-        tmp >>= 8
-        len -= 1
-      }
-
-      bb.setByte(offset + 1, len.toByte)
-
-      len = if (len < -120) {
-        -(len + 120)
-      } else {
-        -(len + 112)
-      }
-
-      var idx = len - 1
-      var i = 0
-      while (idx >= 0) {
-        val shift = idx * 8
-        val mask = 0xFFL << shift
-        bb.setByte(offset + i + 2, ((ll & mask) >> shift).toByte)
-        idx -= 1
-        i += i
-      }
-      len
-    }
+    writeLong(bb, offset, v)
   }
 
   override def readVInt(b: ByteBuf): Int = {
-    val l = readVLong(b)
-    if (l <= Int.MaxValue && l >= Int.MinValue) l.toInt
-    else throw new IllegalArgumentException("Got Long but Int expected")
+    readInt(b)
   }
 
   override def readVInt(b: ByteBuf, offset: Int): Int = {
-    val l = readVLong(b, offset)
-    if (l <= Int.MaxValue && l >= Int.MinValue) l.toInt
-    else throw new IllegalArgumentException("Got Long but Int expected")
+    readInt(b, offset)
   }
 
   override def writeVInt(b: ByteBuf, v: Int): Int = {
-    writeVLong(b, v)
+    writeInt(b, v)
   }
 
   override def writeVInt(b: ByteBuf, offset: Int, v: Int): Int = {
-    writeVLong(b, offset, v)
+    writeInt(b, offset, v)
   }
 
   override def readVShort(b: ByteBuf): Short = {
-    val l = readVLong(b)
-    if (l <= Short.MaxValue && l >= Short.MinValue) l.toShort
-    else throw new IllegalArgumentException("Got Long but Short expected")
+    readShort(b)
   }
 
   override def readVShort(b: ByteBuf, offset: Int): Short = {
-    val l = readVLong(b, offset)
-    if (l <= Short.MaxValue && l >= Short.MinValue) l.toShort
-    else throw new IllegalArgumentException("Got Long but Short expected")
+    readShort(b, offset)
   }
 
   override def writeVShort(b: ByteBuf, v: Short): Int = {
-    writeVLong(b, v)
+    writeShort(b, v)
   }
   override def writeVShort(b: ByteBuf, offset: Int, v: Short): Int = {
-    writeVLong(b, offset, v)
+    writeShort(b, offset, v)
   }
 
   override def readBigDecimal(b: ByteBuf): BigDecimal = {
-    val scale = readVInt(b)
-    val size = readVInt(b)
-    val bytes = Array.ofDim[Byte](size)
-    b.readBytes(bytes)
-    new java.math.BigDecimal(new BigInteger(bytes), scale)
+    ???
   }
 
   override def readBigDecimal(b: ByteBuf, offset: Int): BigDecimal = {
-    val scale = readVInt(b, offset)
-    val sScale = vLongSize(scale)
-    val size = readVInt(b, offset + sScale)
-    val sSize = vLongSize(size)
-    val bytes = Array.ofDim[Byte](size)
-    b.getBytes(offset + sScale + sSize, bytes)
-    new java.math.BigDecimal(new BigInteger(bytes), scale)
+    ???
   }
 
   override def writeBigDecimal(b: ByteBuf, v: BigDecimal): Int = {
-    PostgresReaderWriter.writeNumericBinary(b, v.underlying())
+    PostgresBinaryReaderWriter.writeNumericBinary(b, v.underlying())
   }
 
   override def writeBigDecimal(b: ByteBuf, offset: Int, v: BigDecimal): Int = {
@@ -556,7 +404,7 @@ class PostgresReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   }
 }
 
-object PostgresReaderWriter {
+object PostgresBinaryReaderWriter {
   private val POWERS10 = Array(1, 10, 100, 1000, 10000)
   private val MAX_GROUP_SCALE = 4
   private val MAX_GROUP_SIZE = POWERS10(4)
