@@ -165,7 +165,7 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
     b.writeInt(8)
     val sec = v.millis / 1000
     val nanos = (v.millis - sec * 1000).toDouble / 1000
-    val long = java.lang.Double.doubleToLongBits(sec)
+    val long = java.lang.Double.doubleToLongBits(sec.toDouble + nanos)
     b.writeLong(long)
     8
   }
