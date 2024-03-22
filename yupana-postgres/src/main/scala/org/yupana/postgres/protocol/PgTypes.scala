@@ -82,10 +82,6 @@ object PgTypes {
     case PG_TYPE_INT8      => Right(DataType[Long])
     case PG_TYPE_FLOAT8    => Right(DataType[Double])
     case PG_TYPE_TIMESTAMP => Right(DataType[Time])
-    case x                 => Left(s"Unsupported type $t")
-  }
-
-  def findTypes(ts: Seq[Int]): Either[String, Seq[DataType]] = {
-    CollectionUtils.collectErrors(ts.map(typeForPg))
+    case x                 => Left(s"Unsupported type $x")
   }
 }

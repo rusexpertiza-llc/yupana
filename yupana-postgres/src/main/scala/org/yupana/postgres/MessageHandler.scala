@@ -22,7 +22,8 @@ import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
 import io.netty.util.ReferenceCountUtil
 import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.{ ByteReaderWriter, DataType, ID }
-import org.yupana.core.PreparedStatement
+import org.yupana.api.utils.CollectionUtils
+import org.yupana.core.{ PreparedSelect, PreparedStatement }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.sql.parser.{ SetValue, Statement, TypedValue }
 import org.yupana.postgres.MessageHandler.{ Parsed, Portal }
@@ -64,6 +65,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   private def simpleQuery(ctx: ChannelHandlerContext, sql: String): Unit = {
     context.queryEngineRouter.query(user, sql, Map.empty) match {
       case Right(result) =>
+        ctx.write(makeDescription(result))
         writeResult(ctx, result)
       case Left(error) =>
         writeError(ctx, error)
@@ -72,10 +74,13 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     ctx.flush()
   }
 
+  def findTypes(ts: Seq[Int]): Either[String, Seq[Option[DataType]]] = {
+    CollectionUtils.collectErrors(ts.map(t => if (t != 0) PgTypes.typeForPg(t).map(Some(_)) else Right(None)))
+  }
   private def parse(ctx: ChannelHandlerContext, name: String, sql: String, types: Seq[Int]): Unit = {
     val prepared = for {
       statement <- context.queryEngineRouter.parse(sql)
-      dts <- PgTypes.findTypes(types)
+      dts <- findTypes(types)
     } yield Parsed(statement, dts)
 
     prepared match {
@@ -99,15 +104,25 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   ): Unit = {
     prepareds.get(prepare) match {
       case Some(p) =>
-        val values = p.types.zipWithIndex.map {
-          case (dt, idx) =>
-            val b = if (isBinary.length == 1) isBinary.head else if (idx < isBinary.length) isBinary(idx) else true
-            idx + 1 -> readValue(data, b, dt.aux)
-        }.toMap
+        if (paramCount < p.types.size) {
+          logger.warn(s"Bind has only $paramCount parameters, but ${p.types.size} is required")
+        }
+        val values = p.types
+          .take(paramCount)
+          .zipWithIndex
+          .map {
+            case (dt, idx) =>
+              val b = if (isBinary.length == 1) isBinary.head else if (idx < isBinary.length) isBinary(idx) else true
+              idx + 1 -> readValue(data, b, dt.aux)
+          }
+          .toMap
+
+        logger.debug(s"Binding $values")
 
         context.queryEngineRouter.bind(p.statement, values) match {
           case Right(prep) =>
             portals += portal -> Portal(p, prep)
+            ctx.write(BindComplete)
           case Left(err) =>
             writeError(ctx, err)
             failedPortals += portal
@@ -127,14 +142,38 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
   private def describeStatement(ctx: ChannelHandlerContext, name: String): Unit = {}
 
-  private def describePortal(ctx: ChannelHandlerContext, name: String): Unit = {}
+  private def describePortal(ctx: ChannelHandlerContext, name: String): Unit = {
+    portals.get(name) match {
+      case Some(p) =>
+        p.prepared match {
+          case PreparedSelect(query) =>
+            val desc = RowDescription(query.fields.map { f =>
+              val t: DataType = f.expr.dataType
+              RowDescription
+                .Field(
+                  f.name,
+                  0,
+                  0,
+                  PgTypes.pgForType(t),
+                  t.meta.displaySize.toShort,
+                  -1,
+                  if (PgTypes.isBinary(t)) 1 else 0
+                )
+            }.toList)
+            ctx.write(desc)
+          case _ => ctx.write(NoData)
+        }
+      case None if !failedPortals.contains(name) => writeError(ctx, s"Unknown portal $name")
+      case _                                     =>
+    }
+  }
 
   private def execute(ctx: ChannelHandlerContext, portal: String, limit: Int): Unit = {
     portals.get(portal) match {
       case Some(p) =>
         p.parsed.statement match {
           case SetValue(_, _) => ctx.write(CommandComplete("SET"))
-          case s =>
+          case _ =>
             context.queryEngineRouter.execute(user, p.prepared) match {
               case Right(result) =>
                 writeResult(ctx, result)
@@ -148,8 +187,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   }
 
   private def writeResult(ctx: ChannelHandlerContext, r: Result): Unit = {
-    ctx.write(makeDescription(r))
-
     var count = 0
 
     val resultTypes = r.dataTypes.zipWithIndex
@@ -197,6 +234,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 }
 
 object MessageHandler {
-  private case class Parsed(statement: Statement, types: Seq[DataType])
+  private case class Parsed(statement: Statement, types: Seq[Option[DataType]])
   private case class Portal(parsed: Parsed, prepared: PreparedStatement)
 }

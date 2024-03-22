@@ -20,12 +20,12 @@ import com.typesafe.scalalogging.StrictLogging
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ReplayingDecoder
-import org.yupana.postgres.protocol.{ ClientMessage, SSLRequest, StartupMessage }
+import org.yupana.postgres.protocol.{ SSLRequest, StartupMessage }
 
 import java.nio.charset.{ Charset, StandardCharsets }
 import java.util
 
-class InitialMessageDecoder extends ReplayingDecoder[ClientMessage] with StrictLogging {
+class InitialMessageDecoder extends ReplayingDecoder[Unit] with StrictLogging {
 
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
     val len = in.readInt()

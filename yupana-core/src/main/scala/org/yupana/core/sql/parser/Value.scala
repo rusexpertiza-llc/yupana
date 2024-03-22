@@ -24,7 +24,7 @@ sealed trait Value {
 }
 
 case class Placeholder(id: Int) extends Value {
-  override def asString: String = throw new IllegalStateException("asString called on Placeholder")
+  override def asString: String = s"param#$id"
 }
 
 case class TypedValue[T](value: T)(implicit val dataType: DataType.Aux[T]) extends Value {

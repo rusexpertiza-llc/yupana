@@ -162,7 +162,11 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def writeTime(b: ByteBuf, v: Time): Int = {
-    b.writeLong(v.millis)
+    b.writeInt(8)
+    val sec = v.millis / 1000
+    val nanos = (v.millis - sec * 1000).toDouble / 1000
+    val long = java.lang.Double.doubleToLongBits(sec)
+    b.writeLong(long)
     8
   }
 
