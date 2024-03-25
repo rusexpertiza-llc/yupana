@@ -21,11 +21,11 @@ import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
 import io.netty.util.ReferenceCountUtil
 import org.yupana.api.query.{ DataRow, Result }
-import org.yupana.api.types.{ ByteReaderWriter, DataType, ID }
+import org.yupana.api.types.{ ByteReaderWriter, DataType, ID, Storable, StringReaderWriter }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.{ PreparedSelect, PreparedStatement }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.sql.parser.{ SetValue, Statement, TypedValue }
+import org.yupana.core.sql.parser.{ SetValue, Statement, TypedValue, UntypedValue, Value }
 import org.yupana.postgres.MessageHandler.{ Parsed, Portal }
 import org.yupana.postgres.protocol._
 
@@ -36,6 +36,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     with StrictLogging {
 
   implicit private val rw: ByteReaderWriter[ByteBuf] = new PostgresBinaryReaderWriter(charset)
+  implicit private val srw: StringReaderWriter = PostgresStringReaderWriter
 
   private var prepareds: Map[String, Parsed] = Map.empty
   private var failedStatements: Set[String] = Set.empty
@@ -113,7 +114,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
           .map {
             case (dt, idx) =>
               val b = if (isBinary.length == 1) isBinary.head else if (idx < isBinary.length) isBinary(idx) else true
-              idx + 1 -> readValue(data, b, dt.aux)
+              idx + 1 -> readValue(data, b, dt.map(_.aux))
           }
           .toMap
 
@@ -136,8 +137,13 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     ReferenceCountUtil.release(data)
   }
 
-  private def readValue[T](in: ByteBuf, isBinary: Boolean, dt: DataType.Aux[T]): TypedValue[T] = {
-    TypedValue(dt.storable.read(in))(dt)
+  private def readValue(in: ByteBuf, isBinary: Boolean, dataType: Option[DataType]): Value = {
+    dataType match {
+      case Some(dt) => TypedValue(dt.storable.read(in))(dt)
+      case None =>
+        val s = implicitly[Storable[String]].read(in)
+        UntypedValue(s)
+    }
   }
 
   private def describeStatement(ctx: ChannelHandlerContext, name: String): Unit = {}
@@ -225,7 +231,12 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         if (row.isEmpty(idx)) {
           buf.writeInt(-1)
         } else {
-          dt.storable.write(buf, row.get[dt.T](idx): ID[dt.T])
+          if (PgTypes.isBinary(dt)) {
+            dt.storable.write(buf, row.get[dt.T](idx): ID[dt.T])
+          } else {
+            val s = dt.storable.writeString(row.get[dt.T](idx): ID[dt.T])
+            implicitly[Storable[String]].write(buf, s: ID[String])
+          }
         }
         buf
     }

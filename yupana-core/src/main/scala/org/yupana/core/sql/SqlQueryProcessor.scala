@@ -424,6 +424,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           te <- createTupleValue(ae, be, prepared)
         } yield te
 
+      case parser.UntypedValue(s) => ???
+
       case parser.Placeholder(id) =>
         state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))
     }

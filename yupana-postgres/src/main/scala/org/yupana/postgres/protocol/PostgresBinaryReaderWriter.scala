@@ -23,24 +23,29 @@ import org.yupana.api.{ Blob, Time }
 
 import java.math.{ BigInteger, BigDecimal => JBigDecimal }
 import java.nio.charset.Charset
+import java.time.{ Duration, Instant, LocalDate, ZoneOffset }
 import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
 
 class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   override def readBoolean(b: ByteBuf): Boolean = {
+    assert(b.readInt() == 1)
     b.readBoolean()
   }
 
   override def readBoolean(b: ByteBuf, offset: Int): Boolean = {
-    b.getBoolean(offset)
+    assert(b.getInt(offset) == 1)
+    b.getBoolean(offset + 4)
   }
   override def writeBoolean(b: ByteBuf, v: Boolean): Int = {
+    b.writeInt(1)
     b.writeBoolean(v)
     1
   }
 
   override def writeBoolean(b: ByteBuf, offset: Int, v: Boolean): Int = {
-    b.setBoolean(offset, v)
+    b.setInt(offset, 1)
+    b.setBoolean(offset + 4, v)
     1
   }
 
@@ -79,95 +84,114 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def writeInt(b: ByteBuf, offset: Int, v: Int): Int = {
-    b.writeInt(4)
-    b.setInt(offset, v)
+    b.setInt(offset, 4)
+    b.setInt(offset + 4, v)
     4
   }
   override def readLong(b: ByteBuf): Long = {
+    assert(b.readInt() == 8)
     b.readLong()
   }
 
   override def readLong(b: ByteBuf, offset: Int): Long = {
-    b.getLong(offset)
+    assert(b.getInt(offset) == 8)
+    b.getLong(offset + 4)
   }
 
   override def writeLong(b: ByteBuf, v: Long): Int = {
+    b.writeInt(8)
     b.writeLong(v)
     8
   }
 
   override def writeLong(b: ByteBuf, offset: Int, v: Long): Int = {
-    b.setLong(offset, v)
+    b.setInt(offset, 8)
+    b.setLong(offset + 4, v)
     8
   }
 
   override def readDouble(b: ByteBuf): Double = {
+    assert(b.readInt() == 8)
     b.readDouble()
   }
 
   override def readDouble(b: ByteBuf, offset: Int): Double = {
-    b.getDouble(offset)
+    assert(b.getInt(offset) == 8)
+    b.getDouble(offset + 4)
   }
 
   override def writeDouble(b: ByteBuf, v: Double): Int = {
+    b.writeInt(8)
     b.writeDouble(v)
     8
   }
 
   override def writeDouble(b: ByteBuf, offset: Int, v: Double): Int = {
-    b.setDouble(offset, v)
+    b.setDouble(offset, 8)
+    b.setDouble(offset + 4, v)
     8
   }
   override def readShort(b: ByteBuf): Short = {
+    assert(b.readInt() == 2)
     b.readShort()
   }
 
   override def readShort(b: ByteBuf, offset: Int): Short = {
-    b.getShort(offset)
+    assert(b.getShort(offset) == 2)
+    b.getShort(offset + 4)
   }
 
   override def writeShort(b: ByteBuf, v: Short): Int = {
+    b.writeInt(2)
     b.writeShort(v)
     2
   }
 
   override def writeShort(b: ByteBuf, offset: Int, v: Short): Int = {
-    b.setShort(offset, v)
+    b.setInt(offset, 2)
+    b.setShort(offset + 4, v)
     2
   }
 
   override def readByte(b: ByteBuf): Byte = {
+    assert(b.readInt() == 1)
     b.readByte()
   }
 
   override def readByte(b: ByteBuf, offset: Int): Byte = {
-    b.getByte(offset)
+    assert(b.getInt(offset) == 1)
+    b.getByte(offset + 4)
   }
+
   override def writeByte(b: ByteBuf, v: Byte): Int = {
+    b.writeInt(1)
     b.writeByte(v)
     1
   }
 
   override def writeByte(b: ByteBuf, offset: Int, v: Byte): Int = {
-    b.setByte(offset, v)
+    b.setInt(offset, 1)
+    b.setByte(offset + 4, v)
     1
   }
 
   override def readTime(b: ByteBuf): Time = {
-    Time(b.readLong())
+    val dbl = java.lang.Double.longBitsToDouble(readLong(b))
+    val secs = dbl.toLong
+    val millis = ((dbl - secs) * 1000).toLong
+    Time(secs + PostgresBinaryReaderWriter.PG_EPOCH_DIFF + millis)
   }
 
   override def readTime(b: ByteBuf, offset: Int): Time = {
-    Time(b.getLong(offset))
+    ???
   }
 
   override def writeTime(b: ByteBuf, v: Time): Int = {
-    b.writeInt(8)
+
     val sec = v.millis / 1000
     val nanos = (v.millis - sec * 1000).toDouble / 1000
-    val long = java.lang.Double.doubleToLongBits(sec.toDouble + nanos)
-    b.writeLong(long)
-    8
+    val value = (sec - PostgresBinaryReaderWriter.PG_EPOCH_DIFF).toDouble + nanos
+    writeLong(b, java.lang.Double.doubleToLongBits(value))
   }
 
   override def writeTime(b: ByteBuf, offset: Int, v: Time): Int = {
@@ -370,18 +394,18 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readVTime(b: ByteBuf): Time = {
-    Time(readVLong(b))
+    readTime(b)
   }
 
   override def readVTime(b: ByteBuf, offset: Int): Time = {
-    Time(readVLong(b, offset))
+    readTime(b, offset)
   }
   override def writeVTime(b: ByteBuf, v: Time): Int = {
-    writeVLong(b, v.millis)
+    writeTime(b, v)
   }
 
   override def writeVTime(b: ByteBuf, offset: Int, v: Time): Int = {
-    writeVLong(b, offset, v.millis)
+    writeTime(b, offset, v)
   }
 
   override def readPeriodDuration(b: ByteBuf): PeriodDuration = {
@@ -411,6 +435,11 @@ object PostgresBinaryReaderWriter {
   private val NUMERIC_NEGATIVE = 0x4000
   private val NUMERIC_NAN = 0xC000.toShort
   private val NUMERIC_CHUNK_MULTIPLIER = BigInteger.valueOf(10_000L)
+
+  private val PG_EPOCH_DIFF =
+    Duration.between(Instant.EPOCH, LocalDate.of(2000, 1, 1).atStartOfDay.toInstant(ZoneOffset.UTC)).toSeconds
+
+//  private val PG_START_TIME = 1234L
 
   private def divide(unscaled: Array[BigInteger], divisor: Int) = {
     val bi = unscaled(0).divideAndRemainder(BigInteger.valueOf(divisor))

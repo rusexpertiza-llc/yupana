@@ -18,7 +18,6 @@ package org.yupana.postgres.protocol
 
 import org.yupana.api.Time
 import org.yupana.api.types.DataType
-import org.yupana.api.utils.CollectionUtils
 
 import java.sql.Types
 
@@ -47,14 +46,15 @@ object PgTypes {
 
   def isBinary(t: DataType): Boolean = {
     t.meta.sqlType match {
-      case Types.BOOLEAN  => true
-      case Types.TINYINT  => true
-      case Types.SMALLINT => true
-      case Types.INTEGER  => true
-      case Types.BIGINT   => true
-      case Types.DECIMAL  => true
-      case Types.DOUBLE   => true
-      case _              => false
+      case Types.BOOLEAN   => true
+      case Types.TINYINT   => true
+      case Types.SMALLINT  => true
+      case Types.INTEGER   => true
+      case Types.BIGINT    => true
+      case Types.DECIMAL   => true
+      case Types.DOUBLE    => true
+      case Types.TIMESTAMP => true
+      case _               => false
     }
   }
 

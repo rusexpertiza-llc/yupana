@@ -46,6 +46,9 @@ trait Storable[T] extends Serializable {
   def write[B, V[_], WR[_]](b: B, v: V[T])(implicit rw: ReaderWriter[B, V, WR]): WR[T]
 
   def write[B, V[_], WR[_]](b: B, offset: Int, v: V[T])(implicit rw: ReaderWriter[B, V, WR]): WR[T]
+
+  def readString(s: String)(implicit srw: StringReaderWriter): T
+  def writeString(v: T)(implicit srw: StringReaderWriter): String
 }
 
 object Storable {
@@ -60,6 +63,9 @@ object Storable {
         implicit rw: ReaderWriter[B, V, RW]
     ): RW[Boolean] =
       rw.writeBoolean(b, offset, v)
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): Boolean = srw.readBoolean(s)
+    override def writeString(v: Boolean)(implicit srw: StringReaderWriter): String = srw.writeBoolean(v)
   }
 
   implicit val doubleStorable: Storable[Double] = new Storable[Double] {
@@ -72,6 +78,10 @@ object Storable {
         implicit rw: ReaderWriter[B, V, RW]
     ): RW[Double] =
       rw.writeDouble(b, offset, v)
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): Double = srw.readDouble(s)
+
+    override def writeString(v: Double)(implicit srw: StringReaderWriter): String = srw.writeDouble(v)
   }
 
   implicit val bigDecimalStorable: Storable[BigDecimal] = new Storable[BigDecimal] {
@@ -85,6 +95,9 @@ object Storable {
     ): RW[BigDecimal] =
       rw.writeBigDecimal(b, offset, v)
 
+    override def readString(s: String)(implicit srw: StringReaderWriter): BigDecimal = srw.readDecimal(s)
+
+    override def writeString(v: BigDecimal)(implicit srw: StringReaderWriter): String = srw.writeDecimal(v)
   }
 
   implicit val byteStorable: Storable[Byte] = new Storable[Byte] {
@@ -95,7 +108,11 @@ object Storable {
       rw.writeByte(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Byte])(implicit rw: ReaderWriter[B, V, RW]): RW[Byte] =
       rw.writeByte(b, offset, v)
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): Byte = srw.readByte(s)
+    override def writeString(v: Byte)(implicit srw: StringReaderWriter): String = srw.writeByte(v)
   }
+
   implicit val shortStorable: Storable[Short] = new Storable[Short] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[Short] = rw.readVShort(b)
     override def read[B, V[_], RW[_]](b: B, offset: Int)(implicit rw: ReaderWriter[B, V, RW]): V[Short] =
@@ -104,7 +121,10 @@ object Storable {
       rw.writeVShort(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Short])(implicit rw: ReaderWriter[B, V, RW]): RW[Short] =
       rw.writeVShort(b, offset, v)
+    override def readString(s: String)(implicit srw: StringReaderWriter): Short = srw.readShort(s)
+    override def writeString(v: Short)(implicit srw: StringReaderWriter): String = srw.writeShort(v)
   }
+
   implicit val intStorable: Storable[Int] = new Storable[Int] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[Int] = rw.readVInt(b)
     override def read[B, V[_], RW[_]](b: B, offset: Int)(implicit rw: ReaderWriter[B, V, RW]): V[Int] =
@@ -113,7 +133,10 @@ object Storable {
       rw.writeVInt(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Int])(implicit rw: ReaderWriter[B, V, RW]): RW[Int] =
       rw.writeVInt(b, offset, v)
+    override def readString(s: String)(implicit srw: StringReaderWriter): Int = srw.readInt(s)
+    override def writeString(v: Int)(implicit srw: StringReaderWriter): String = srw.writeInt(v)
   }
+
   implicit val longStorable: Storable[Long] = new Storable[Long] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[Long] = rw.readVLong(b)
     override def read[B, V[_], RW[_]](b: B, offset: Int)(implicit rw: ReaderWriter[B, V, RW]): V[Long] =
@@ -122,7 +145,11 @@ object Storable {
       rw.writeVLong(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Long])(implicit rw: ReaderWriter[B, V, RW]): RW[Long] =
       rw.writeVLong(b, offset, v)
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): Long = srw.readLong(s)
+    override def writeString(v: Long)(implicit srw: StringReaderWriter): String = srw.writeLong(v)
   }
+
   implicit val stringStorable: Storable[String] = new Storable[String] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[String] = rw.readString(b)
     override def read[B, V[_], RW[_]](b: B, offset: Int)(implicit rw: ReaderWriter[B, V, RW]): V[String] =
@@ -132,7 +159,11 @@ object Storable {
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[String])(
         implicit rw: ReaderWriter[B, V, RW]
     ): RW[String] = rw.writeString(b, offset, v)
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): String = srw.readString(s)
+    override def writeString(v: String)(implicit srw: StringReaderWriter): String = srw.writeString(v)
   }
+
   implicit val timestampStorable: Storable[Time] = new Storable[Time] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[Time] = rw.readVTime(b)
     override def read[B, V[_], RW[_]](b: B, offset: Int)(implicit rw: ReaderWriter[B, V, RW]): V[Time] =
@@ -141,9 +172,11 @@ object Storable {
       rw.writeVTime(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Time])(implicit rw: ReaderWriter[B, V, RW]): RW[Time] =
       rw.writeVTime(b, offset, v)
+    override def readString(s: String)(implicit srw: StringReaderWriter): Time = srw.readTime(s)
+    override def writeString(v: Time)(implicit srw: StringReaderWriter): String = srw.writeTime(v)
   }
-  implicit val periodStorable: Storable[PeriodDuration] = new Storable[PeriodDuration] {
 
+  implicit val periodStorable: Storable[PeriodDuration] = new Storable[PeriodDuration] {
     override def read[B, V[_], RW[_]](b: B)(implicit rw: ReaderWriter[B, V, RW]): V[PeriodDuration] =
       rw.readPeriodDuration(b)
     override def read[B, V[_], RW[_]](b: B, offset: Int)(implicit rw: ReaderWriter[B, V, RW]): V[PeriodDuration] =
@@ -157,6 +190,8 @@ object Storable {
         implicit rw: ReaderWriter[B, V, RW]
     ): RW[PeriodDuration] =
       rw.writePeriodDuration(b, offset, v)
+    override def readString(s: String)(implicit srw: StringReaderWriter): PeriodDuration = srw.readPeriodDuration(s)
+    override def writeString(v: PeriodDuration)(implicit srw: StringReaderWriter): String = srw.writePeriodDuration(v)
   }
 
   implicit val blobStorable: Storable[Blob] = new Storable[Blob] {
@@ -167,6 +202,10 @@ object Storable {
       rw.writeBlob(b, v)
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[Blob])(implicit rw: ReaderWriter[B, V, RW]): RW[Blob] =
       rw.writeBlob(b, offset, v)
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): Blob = srw.readBlob(s)
+
+    override def writeString(v: Blob)(implicit srw: StringReaderWriter): String = srw.writeBlob(v)
   }
 
   implicit def seqStorable[T](implicit tStorable: Storable[T], ct: ClassTag[T]): Storable[Seq[T]] = {
@@ -188,6 +227,10 @@ object Storable {
       ): RW[Seq[T]] = {
         rw.writeSeq(bb, offset, v, (b, v) => tStorable.write(b, v)(rw))
       }
+
+      override def readString(s: String)(implicit srw: StringReaderWriter): Seq[T] = srw.readSeq(s)
+
+      override def writeString(v: Seq[T])(implicit srw: StringReaderWriter): String = srw.writeSeq(v)
     }
   }
 
@@ -205,6 +248,14 @@ object Storable {
     }
 
     override def write[B, V[_], RW[_]](b: B, offset: Int, v: V[T])(implicit rw: ReaderWriter[B, V, RW]): RW[T] = {
+      throw new IllegalStateException("This should not be written")
+    }
+
+    override def readString(s: String)(implicit srw: StringReaderWriter): T = {
+      throw new IllegalStateException("This should not be read")
+    }
+
+    override def writeString(v: T)(implicit srw: StringReaderWriter): String = {
       throw new IllegalStateException("This should not be written")
     }
   }
