@@ -27,6 +27,6 @@ class FrameDecoder extends ReplayingDecoder[Frame[ByteBuf]] {
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
     val msgType = in.readByte()
     val len = in.readInt()
-    out.add(Frame(msgType, in.readSlice(len)))
+    out.add(Frame(msgType, in.readRetainedSlice(len)))
   }
 }
