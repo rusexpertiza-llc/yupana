@@ -14,15 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.postgres
+package org.yupana.core.sql
 
-import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import org.yupana.api.query.Expression
 
-object TestServer {
-  def main(args: Array[String]): Unit = {
-    val server = new YupanaPostgres("localhost", 5432, 4, PgContext(null))
-    val f = server.start()
-    Await.ready(f, Duration.Inf)
-  }
-}
+sealed trait ProtoExpr
+case class ResolvedExpr[T](e: Expression[T]) extends ProtoExpr
+case class UnresolvedExpr(v: String) extends ProtoExpr

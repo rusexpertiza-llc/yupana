@@ -536,6 +536,7 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         case ConstantExpr(c, _) =>
           val (v, s) = mapValue(state, e.dataType)(c)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s
+        case UntypedConstantExpr(s) => throw new IllegalArgumentException("thios shouldnt happan")
         case TrueExpr =>
           val (v, s) = mapValue(state, e.dataType)(true)
           if (s.required.contains(e)) s.withDefine(row, e, v) else s

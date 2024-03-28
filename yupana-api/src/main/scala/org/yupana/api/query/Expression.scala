@@ -134,6 +134,11 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
   }
 }
 
+final case class UntypedConstantExpr(v: String) extends ConstExpr[String] {
+  override val dataType: DataType.Aux[String] = DataType[String]
+  override def encode: String = s"const($v)"
+}
+
 case object TimeExpr extends Expression[Time] {
   override val dataType: DataType.Aux[Time] = DataType[Time]
   override val kind: ExprKind = Simple

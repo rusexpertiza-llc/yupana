@@ -29,17 +29,15 @@ class InitialMessageDecoder extends ReplayingDecoder[Unit] with StrictLogging {
 
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: util.List[AnyRef]): Unit = {
     val len = in.readInt()
-    println(s"GOT MESSAGE $len")
     val v = in.readInt()
 
     if (v == 80877103) {
       logger.info(s"Got SSL Request from ${ctx.channel().remoteAddress()}")
-      println(s"GOT SSL Request")
       out.add(SSLRequest)
     } else {
       val vMaj = v >> 16
       val vMin = v & 0xFF
-      println(s"StartupMessage, $vMaj.$vMin")
+      logger.debug(s"StartupMessage, $vMaj.$vMin")
 
       var params = Map.empty[String, String]
 

@@ -23,7 +23,13 @@ import org.yupana.core.sql.FunctionRegistry
 
 import java.sql.DatabaseMetaData
 
-class JdbcMetadataProvider(schema: Schema, versionMajor: Int, versionMinor: Int, versionFull: String) {
+class JdbcMetadataProvider(
+    schema: Schema,
+    functionRegistry: FunctionRegistry,
+    versionMajor: Int,
+    versionMinor: Int,
+    versionFull: String
+) {
 
   private[providers] val columnFieldNames = List(
     "TABLE_CAT",
@@ -117,7 +123,7 @@ class JdbcMetadataProvider(schema: Schema, versionMajor: Int, versionMinor: Int,
 
   def listFunctions(typeName: String): Either[String, Result] = {
     DataType.bySqlName(typeName).map { t =>
-      val fs = FunctionRegistry.functionsForType(t)
+      val fs = functionRegistry.functionsForType(t)
       SimpleResult("FUNCTIONS", Seq("NAME"), Seq(DataType[String]), fs.map(f => Array[Any](f)).iterator)
     } toRight s"Unknown type $typeName"
   }

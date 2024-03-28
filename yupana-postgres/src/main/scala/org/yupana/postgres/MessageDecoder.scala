@@ -31,8 +31,6 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[Unit] {
     val size = in.readInt()
     val slice = in.readSlice(size - 4)
 
-    println(s"DECODE '${tag.toChar}'")
-
     tag match {
       case 'Q' => out.add(SimpleQuery.decode(slice, charset))
       case 'X' => out.add(Quit)
@@ -41,6 +39,7 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[Unit] {
       case 'D' => Describe.decode(slice, charset).fold(err => ctx.write(ErrorResponse(err)), out.add)
       case 'E' => out.add(Execute.decode(slice, charset))
       case 'S' => out.add(Sync)
+      case 'p' => out.add(PasswordMessage.decode(slice, charset))
     }
   }
 }

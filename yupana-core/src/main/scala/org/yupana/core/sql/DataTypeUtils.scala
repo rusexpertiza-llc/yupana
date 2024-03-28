@@ -17,7 +17,7 @@
 package org.yupana.core.sql
 
 import org.yupana.api.query._
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, StringReaderWriter }
 import org.yupana.core.ConstantCalculator
 
 object DataTypeUtils {
@@ -40,7 +40,7 @@ object DataTypeUtils {
       const: ConstExpr[U],
       dataType: DataType.Aux[T],
       calc: ConstantCalculator
-  ): Either[String, T] = {
+  )(implicit stringReaderWriter: StringReaderWriter): Either[String, T] = {
     const match {
       case ConstantExpr(v, _) =>
         if (const.dataType == dataType) {
@@ -56,6 +56,12 @@ object DataTypeUtils {
               s"Cannot convert value '$v' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
             )
         }
+      case UntypedConstantExpr(s) =>
+        try {
+          Right(dataType.storable.readString(s))
+        } catch {
+          case e: Throwable => Left(s"Cannot cast untyped value $s to $dataType, ${e.getMessage}")
+        }
       case NullExpr(_) => Right(null.asInstanceOf[T])
       case TrueExpr =>
         if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
@@ -70,7 +76,7 @@ object DataTypeUtils {
       e: Expression[U],
       dataType: DataType.Aux[T],
       calculator: ConstantCalculator
-  ): Either[String, Expression[T]] = {
+  )(implicit stringReaderWriter: StringReaderWriter): Either[String, Expression[T]] = {
     if (e.dataType == dataType) Right(e.asInstanceOf[Expression[T]])
     else {
       e match {
@@ -91,7 +97,9 @@ object DataTypeUtils {
     }
   }
 
-  def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator): Either[String, ExprPair] = {
+  def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator)(
+      implicit stringReaderWriter: StringReaderWriter
+  ): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
       Right(DataTypeUtils.pair[T](ca, cb.asInstanceOf[Expression[T]]))
     } else {

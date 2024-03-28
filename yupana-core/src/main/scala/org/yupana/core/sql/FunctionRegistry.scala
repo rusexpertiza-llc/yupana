@@ -19,10 +19,10 @@ package org.yupana.core.sql
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ ArrayDataType, DataType }
+import org.yupana.api.types.{ ArrayDataType, DataType, StringReaderWriter }
 import org.yupana.core.ConstantCalculator
 
-object FunctionRegistry {
+class FunctionRegistry(implicit srw: StringReaderWriter) {
 
   type ArrayExpr[T] = Expression[Seq[T]]
 

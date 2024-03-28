@@ -28,7 +28,9 @@ import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable {
+class SqlQueryProcessor(schema: Schema, functionRegistry: FunctionRegistry)(implicit srw: StringReaderWriter)
+    extends QueryValidator
+    with Serializable {
 
   import SqlQueryProcessor._
 
@@ -258,14 +260,14 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.FunctionCall(f, e :: Nil) =>
         for {
           ex <- createExpr(state, nameResolver, e, exprType)
-          fexpr <- FunctionRegistry.unary(f, calculator, ex)
+          fexpr <- functionRegistry.unary(f, calculator, ex)
         } yield fexpr
 
       case parser.FunctionCall(f, e1 :: e2 :: Nil) =>
         for {
           a <- createExpr(state, nameResolver, e1, exprType)
           b <- createExpr(state, nameResolver, e2, exprType)
-          fexpr <- FunctionRegistry.bi(f, calculator, a, b)
+          fexpr <- functionRegistry.bi(f, calculator, a, b)
         } yield fexpr
 
       case parser.FunctionCall(f, _) =>
@@ -299,7 +301,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   ): Either[String, Expression[_]] = {
     for {
       e <- createExpr(state, resolver, expr, exprType)
-      u <- FunctionRegistry.unary("-", calculator, e)
+      u <- functionRegistry.unary("-", calculator, e)
     } yield u
   }
 
@@ -348,7 +350,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     for {
       le <- createExpr(state, nameResolver, l, exprType)
       re <- createExpr(state, nameResolver, r, exprType)
-      biFunction <- FunctionRegistry.bi(fun, calculator, le, re)
+      biFunction <- functionRegistry.bi(fun, calculator, le, re)
     } yield biFunction
 
   private def createBooleanExpr(
@@ -356,7 +358,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       r: Expression[_],
       fun: String
   ): Either[String, Expression[Boolean]] = {
-    FunctionRegistry.bi(fun, calculator, l, r).flatMap { e =>
+    functionRegistry.bi(fun, calculator, l, r).flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
       else Left(s"$fun result has type ${e.dataType.meta.sqlType} but BOOLEAN required")
     }
@@ -424,7 +426,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           te <- createTupleValue(ae, be, prepared)
         } yield te
 
-      case parser.UntypedValue(s) => ???
+      case parser.UntypedValue(s) => Right(UntypedConstantExpr(s))
 
       case parser.Placeholder(id) =>
         state.placeholderValue(id).flatMap(v => convertValue(state, v, exprType, prepared = true))

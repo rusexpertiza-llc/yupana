@@ -14,9 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.postgres
+package org.yupana.postgres.protocol
 
-import org.yupana.core.QueryEngineRouter
-import org.yupana.core.auth.Authorizer
+import io.netty.buffer.ByteBuf
+import org.yupana.postgres.NettyUtils
 
-case class PgContext(queryEngineRouter: QueryEngineRouter, authorizer: Authorizer /*, version: String */ )
+import java.nio.charset.Charset
+
+case class PasswordMessage(password: String) extends ClientMessage
+
+object PasswordMessage {
+  def decode(in: ByteBuf, charset: Charset): PasswordMessage = {
+    val password = NettyUtils.readNullTerminatedString(in, charset)
+    PasswordMessage(password)
+  }
+}

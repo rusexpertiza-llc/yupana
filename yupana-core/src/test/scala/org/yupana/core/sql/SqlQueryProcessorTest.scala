@@ -10,7 +10,7 @@ import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWriter }
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
@@ -18,7 +18,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
 
   import org.yupana.api.query.syntax.All._
 
-  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
+  implicit val srw: StringReaderWriter = SimpleStringReaderWriter
+  val functionRegistry = new FunctionRegistry()
+  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, functionRegistry)
 
   import TestDims._
 
@@ -464,6 +466,36 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           dimension(DIM_B) as "b"
         )
       case Left(msg) => fail(msg)
+    }
+  }
+
+  it should "handle untyped placeholder values" in {
+    val statement =
+      """SELECT SUM(TestField), month(time) as m, b FROM test_table
+        | WHERE time >= ? and time < ? AND a = ?
+        | GROUP BY m, b
+      """.stripMargin
+
+    val from = "2024-03-27T15:49:44"
+    val to = "2024-03-27T23:57:32"
+
+    inside(
+      createQuery(
+        statement,
+        Map(
+          1 -> parser.UntypedValue(from),
+          2 -> parser.UntypedValue(to),
+          3 -> parser.TypedValue("123456789")
+        )
+      )
+    ) {
+      case Right(q) =>
+        q.table.value.name shouldEqual "test_table"
+        q.filter.value shouldBe and(
+          ge(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)), prepared = true)),
+          lt(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)), prepared = true)),
+          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
+        )
     }
   }
 

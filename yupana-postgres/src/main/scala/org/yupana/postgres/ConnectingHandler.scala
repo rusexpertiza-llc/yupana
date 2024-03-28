@@ -18,40 +18,65 @@ package org.yupana.postgres
 
 import com.typesafe.scalalogging.StrictLogging
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
-import org.yupana.core.auth.{ TsdbRole, YupanaUser }
+import org.yupana.core.auth.YupanaUser
 import org.yupana.postgres.protocol._
 
 import java.nio.charset.Charset
 
 class ConnectingHandler(context: PgContext) extends SimpleChannelInboundHandler[ClientMessage] with StrictLogging {
+
+  private var userName: Option[String] = None
+  private var charset: Option[Charset] = None
+
   override def channelRead0(ctx: ChannelHandlerContext, msg: ClientMessage): Unit = {
     logger.info(s"GOT A MESSAGE $msg")
     msg match {
       case SSLRequest => ctx.writeAndFlush(No)
       case StartupMessage(user, charset) =>
-        connected(ctx, user, charset)
-        ctx.write(AuthOk)
-        ctx.write(ParameterStatus("client_encoding", charset.toString))
-        ctx.write(ParameterStatus("is_superuser", "off"))
-        ctx.write(ParameterStatus("server_version", "9.0.0"))
-        ctx.write(ParameterStatus("session_authorization", user))
+        setup(ctx, user, charset)
+        ctx.writeAndFlush(AuthClearTextPassword)
 
-        ctx.writeAndFlush(ReadyForQuery)
-      case _ => ???
+      case PasswordMessage(password) =>
+        if (userName.isDefined) {
+          context.authorizer.authorize(userName, Some(password)) match {
+            case Right(user) => connected(ctx, user)
+            case Left(error) => fatalError(ctx, error)
+          }
+        } else {
+          fatalError(ctx, "Got password but user is undefined yet")
+        }
+
+      case _ => fatalError(ctx, s"Unexpected message $msg")
     }
   }
 
-  def connected(ctx: ChannelHandlerContext, user: String, charset: Charset): Unit = {
-    logger.info(s"User $user connected")
+  private def fatalError(ctx: ChannelHandlerContext, msg: String): Unit = {
+    ctx.writeAndFlush(ErrorResponse(msg))
+    ctx.close()
+  }
 
+  private def setup(ctx: ChannelHandlerContext, user: String, charset: Charset): Unit = {
+    this.userName = Some(user)
+    this.charset = Some(charset)
     ctx.pipeline().replace(classOf[InitialMessageDecoder], "decoder", new MessageDecoder(charset))
-    ctx.pipeline().replace("encoder", "encoder", new MessageEncoder(charset))
+  }
+
+  private def connected(ctx: ChannelHandlerContext, user: YupanaUser): Unit = {
+    logger.info(s"User ${user.name} connected")
+
+    ctx.write(ParameterStatus("client_encoding", charset.toString))
+    ctx.write(ParameterStatus("is_superuser", "off"))
+    ctx.write(ParameterStatus("server_version", "9.0.0"))
+    ctx.write(ParameterStatus("session_authorization", user.name))
+    ctx.writeAndFlush(ReadyForQuery)
+
+    ctx.pipeline().replace("encoder", "encoder", new MessageEncoder(charset.get))
     ctx
       .pipeline()
       .replace(
         classOf[ConnectingHandler],
         "messageHandler",
-        new MessageHandler(context, YupanaUser(user, None, TsdbRole.ReadWrite), charset: Charset)
+        new MessageHandler(context, user, charset.get)
       )
   }
 }

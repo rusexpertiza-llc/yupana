@@ -14,22 +14,17 @@
  * limitations under the License.
  */
 
-package org.yupana.postgres.protocol
+package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.{ Blob, Time }
-import org.yupana.api.types.StringReaderWriter
 
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
-object PostgresStringReaderWriter extends StringReaderWriter {
+object SimpleStringReaderWriter extends StringReaderWriter {
 
-  private val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssx")
-
-  override def readBoolean(s: String): Boolean =
-    if (s == "t") true else if (s == "f") false else throw new IllegalArgumentException(s"Invalid boolean value $s")
-  override def writeBoolean(v: Boolean): String = if (v) "t" else "f"
+  override def readBoolean(s: String): Boolean = s.toBoolean
+  override def writeBoolean(v: Boolean): String = v.toString
 
   override def readDouble(s: String): Double = s.toDouble
   override def writeDouble(v: Double): String = v.toString
@@ -50,19 +45,18 @@ object PostgresStringReaderWriter extends StringReaderWriter {
   override def writeLong(v: Long): String = v.toString
 
   override def readString(s: String): String = s
+
   override def writeString(v: String): String = v
 
-  override def readTime(s: String): Time = Time(LocalDateTime.parse(s, dtf))
-  override def writeTime(v: Time): String = v.toLocalDateTime.format(dtf)
+  override def readTime(s: String): Time = Time(LocalDateTime.parse(s))
+  override def writeTime(v: Time): String = v.toLocalDateTime.toString
 
   override def readPeriodDuration(s: String): PeriodDuration = PeriodDuration.parse(s)
   override def writePeriodDuration(v: PeriodDuration): String = v.toString
 
   override def readBlob(s: String): Blob = ???
-
   override def writeBlob(v: Blob): String = ???
 
   override def readSeq[T](s: String): Seq[T] = ???
-
   override def writeSeq[T](seq: Seq[T]): String = ???
 }
