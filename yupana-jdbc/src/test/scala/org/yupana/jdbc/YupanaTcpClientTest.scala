@@ -347,7 +347,29 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
         .result
       res.next()
     } should have message "Unexpected end of response"
+  }
 
+  it should "operate normally after streaming error" in withServerConnected { (server, id) =>
+    val onQuery1 = (q: SqlQuery) => {
+      println(s"Q1 = $q")
+      Seq(ErrorMessage("Invalid statement SELEKT", Some(q.id)))
+    }
+    val onQuery2 = (q: SqlQuery) => {
+      println(s"Q2 = $q")
+      Seq(ResultHeader(q.id, "result", Seq(ResultField("1", "INTEGER"))))
+    }
+
+    for {
+      e <- server.readAndSendResponses(id, SqlQuery.readFrame[ByteBuffer], onQuery1)
+      r <- server.readAndSendResponses(id, SqlQuery.readFrame[ByteBuffer], onQuery2)
+    } yield Seq(e, r)
+
+  } { client =>
+    val e = the[YupanaException] thrownBy client.prepareQuery("SELEKT 1", Map.empty)
+    e.getMessage should include("Invalid statement SELEKT")
+
+    val r = client.prepareQuery("SELECT 1", Map.empty).result
+    r.name shouldBe "result"
   }
 
   private def withServerConnected[T](
