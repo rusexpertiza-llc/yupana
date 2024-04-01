@@ -1,6 +1,5 @@
 package org.yupana.postgres
 
-import org.postgresql.Driver
 import org.postgresql.util.PSQLException
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -23,7 +22,7 @@ import java.sql.{ DriverManager, Types }
 import java.util.Properties
 
 class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll {
-  println(classOf[Driver].getName)
+  println(Class.forName("org.postgresql.Driver").getName)
 
   override protected def beforeAll(): Unit = {
     val properties = new Properties()
@@ -33,7 +32,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
   "Postgres" should "connect" in withServerStarted { (server, _) =>
     val port = server.getPort
-    val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/yupana", "test", "12345")
+    val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", "test", "12345")
     conn.isValid(0) shouldBe true
     conn.close()
   }
@@ -41,7 +40,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
   it should "fail to connect if credentials are invalid" in withServerStarted { (server, _) =>
     val port = server.getPort
     the[PSQLException] thrownBy DriverManager.getConnection(
-      s"jdbc:postgresql://localhost:$port/yupana",
+      s"jdbc:postgresql://localhost:$port/",
       "admin",
       "admin"
     ) should have message "ERROR: Invalid user or password"
@@ -49,7 +48,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
   it should "execute queries" in withServerStarted { (server, _) =>
     val port = server.getPort
-    val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/yupana", "test", "12345")
+    val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", "test", "12345")
     val stmt = conn.createStatement()
     val rs = stmt.executeQuery("SELECT 5 + 4")
     rs.next() shouldBe true
