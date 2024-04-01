@@ -17,12 +17,18 @@
 package org.yupana.core
 
 import org.yupana.api.query.Query
+import org.yupana.api.types.DataType
 import org.yupana.core.sql.parser.{ Statement, Value }
 
 sealed trait PreparedStatement
 
 case class PreparedSelect(query: Query) extends PreparedStatement
 
-case class PreparedCommand(statement: Statement, value: Map[Int, Value]) extends PreparedStatement
+case class PreparedCommand(
+    statement: Statement,
+    value: Map[Int, Value],
+    fieldNames: Seq[String],
+    fieldTypes: Seq[DataType]
+) extends PreparedStatement
 
 case object EmptyQuery extends PreparedStatement

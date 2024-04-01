@@ -68,6 +68,10 @@ class JdbcMetadataProvider(
     SimpleResult("TABLES", tableFieldNames, tableFieldNames.map(_ => DataType[String]), data)
   }
 
+  def listTablesMeta: (Seq[String], Seq[DataType]) = {
+    (tableFieldNames, tableFieldNames.map(_ => DataType[String]))
+  }
+
   def version: Result = {
     SimpleResult(
       "VERSION",

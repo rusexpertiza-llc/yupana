@@ -139,6 +139,14 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
     )
   }
 
+  it should "provide table list" in withServerStarted { (server, _) =>
+    val port = server.getPort
+    val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", "test", "12345")
+    val rs = conn.getMetaData.getTables(null, null, null, null)
+    val tableNames = Iterator.continually(rs.next()).takeWhile(identity).map(_ => rs.getString("TABLE_NAME")).toList
+    tableNames should contain theSameElementsAs List("test_table", "test_table_2", "test_table_4")
+  }
+
   def withServerStarted(body: (YupanaPostgres, TSTestDao) => Any): Unit = {
     implicit val srw: StringReaderWriter = PostgresStringReaderWriter
     val fr = new FunctionRegistry()
@@ -157,7 +165,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
     val queryEngine = new QueryEngineRouter(tsdb, null, jmp, sqp, new PermissionService(putEnabled = true), null)
 
-    val server = new YupanaPostgres("localhost", 0, 4, PgContext(queryEngine, new TestAuthorizer))
+    val server = new YupanaPostgres("localhost", 5432, 4, PgContext(queryEngine, new TestAuthorizer))
     server.start()
     body(server, tsdbDaoMock)
     server.stop()

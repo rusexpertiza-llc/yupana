@@ -47,7 +47,10 @@ class QueryEngineRouter(
   def bind(statement: Statement, params: Map[Int, Value]): Either[String, PreparedStatement] = {
     statement match {
       case select: Select => sqlQueryProcessor.createQuery(select, params).map(PreparedSelect)
-      case x              => Right(PreparedCommand(x, params))
+      case ShowTables =>
+        val meta = metadataProvider.listTablesMeta
+        Right(PreparedCommand(ShowTables, params, meta._1, meta._2))
+      case x => Right(PreparedCommand(x, params, Nil, Nil))
     }
   }
 
@@ -60,7 +63,7 @@ class QueryEngineRouter(
 
       case EmptyQuery => Right(SimpleResult("", Nil, Nil, Iterator.empty))
 
-      case PreparedCommand(statement, params) =>
+      case PreparedCommand(statement, params, _, _) =>
         statement match {
           case upsert: Upsert =>
             hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)

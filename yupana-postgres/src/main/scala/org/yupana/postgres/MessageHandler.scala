@@ -21,11 +21,11 @@ import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
 import io.netty.util.ReferenceCountUtil
 import org.yupana.api.query.{ DataRow, Result }
-import org.yupana.api.types.{ ByteReaderWriter, DataType, ID, Storable, StringReaderWriter }
+import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
-import org.yupana.core.{ EmptyQuery, PreparedSelect, PreparedStatement }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.sql.parser.{ Select, SetValue, SqlFieldsAll, Statement, TypedValue, UntypedValue, Value }
+import org.yupana.core.sql.parser._
+import org.yupana.core.{ EmptyQuery, PreparedCommand, PreparedSelect, PreparedStatement }
 import org.yupana.postgres.MessageHandler.{ Parsed, Portal }
 import org.yupana.postgres.protocol._
 
@@ -38,7 +38,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   implicit private val rw: ByteReaderWriter[ByteBuf] = new PostgresBinaryReaderWriter(charset)
   implicit private val srw: StringReaderWriter = PostgresStringReaderWriter
 
-  private var prepareds: Map[String, Parsed] = Map.empty
+  private var parseds: Map[String, Parsed] = Map.empty
   private var failedStatements: Set[String] = Set.empty
   private var portals: Map[String, Portal] = Map.empty
   private var failedPortals: Set[String] = Set.empty
@@ -83,18 +83,25 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     if (sql.nonEmpty) context.queryEngineRouter.parse(sql) else Right(Select(None, SqlFieldsAll, None, Nil, None, None))
   }
 
-  private def parse(ctx: ChannelHandlerContext, name: String, sql: String, types: Seq[Int]): Unit = {
-    val prepared = for {
-      statement <- parse(sql)
-      dts <- findTypes(types)
-    } yield Parsed(statement, dts)
+  private def preprocess(sql: String): String = {
+    if (sql.startsWith("SELECT NULL AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME")) "SHOW TABLES"
+    else sql
+  }
 
-    prepared match {
+  private def parse(ctx: ChannelHandlerContext, name: String, sql: String, types: Seq[Int]): Unit = {
+    val parsed = for {
+      statement <- parse(preprocess(sql))
+      dts <- findTypes(types)
+    } yield Parsed(name, statement, dts)
+
+    parsed match {
       case Right(p) =>
-        prepareds += name -> p
+        parseds += name -> p
         ctx.write(ParseComplete)
 
       case Left(error) =>
+        parseds -= name
+        portals = portals.filterNot(_._2.parsed.name == name)
         failedStatements += name
         writeError(ctx, error)
     }
@@ -116,7 +123,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
       paramCount: Short,
       data: ByteBuf
   ): Unit = {
-    prepareds.get(prepare) match {
+    parseds.get(prepare) match {
       case Some(p) =>
         if (paramCount < p.types.size) {
           logger.warn(s"Bind has only $paramCount parameters, but ${p.types.size} is required")
@@ -166,25 +173,29 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
       case Some(p) =>
         p.prepared match {
           case PreparedSelect(query) =>
-            val desc = RowDescription(query.fields.map { f =>
-              val t: DataType = f.expr.dataType
-              RowDescription
-                .Field(
-                  f.name,
-                  0,
-                  0,
-                  PgTypes.pgForType(t),
-                  t.meta.displaySize.toShort,
-                  -1,
-                  if (PgTypes.isBinary(t)) 1 else 0
-                )
-            }.toList)
+            val desc = RowDescription(query.fields.map(f => fieldDesc(f.name, f.expr.dataType)).toList)
+            ctx.write(desc)
+          case PreparedCommand(_, _, names, types) =>
+            val desc = RowDescription(names.zip(types).map { case (n, t) => fieldDesc(n, t) }.toList)
             ctx.write(desc)
           case _ => ctx.write(NoData)
         }
       case None if !failedPortals.contains(name) => writeError(ctx, s"Unknown portal $name")
       case _                                     =>
     }
+  }
+
+  private def fieldDesc(name: String, tpe: DataType): RowDescription.Field = {
+    RowDescription
+      .Field(
+        name,
+        0,
+        0,
+        PgTypes.pgForType(tpe),
+        tpe.meta.displaySize.toShort,
+        -1,
+        if (PgTypes.isBinary(tpe)) 1 else 0
+      )
   }
 
   private def execute(ctx: ChannelHandlerContext, portal: String, limit: Int): Unit = {
@@ -230,11 +241,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     RowDescription(
       result.fieldNames
         .zip(result.dataTypes)
-        .map {
-          case (n, t) =>
-            RowDescription
-              .Field(n, 0, 0, PgTypes.pgForType(t), t.meta.displaySize.toShort, -1, if (PgTypes.isBinary(t)) 1 else 0)
-        }
+        .map { case (n, t) => fieldDesc(n, t) }
         .toList
     )
   }
@@ -262,6 +269,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 }
 
 object MessageHandler {
-  private case class Parsed(statement: Statement, types: Seq[Option[DataType]])
+  private case class Parsed(name: String, statement: Statement, types: Seq[Option[DataType]])
   private case class Portal(parsed: Parsed, prepared: PreparedStatement)
 }
