@@ -138,7 +138,6 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
       "Invalid SQL statement: 'SELECT 5 x 4'"
     )
   }
-  }
 
   def withServerStarted(body: (YupanaPostgres, TSTestDao) => Any): Unit = {
     implicit val srw: StringReaderWriter = PostgresStringReaderWriter
