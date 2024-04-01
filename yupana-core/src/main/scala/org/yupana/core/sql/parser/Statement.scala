@@ -37,6 +37,8 @@ case object ShowTables extends Statement
 
 case object ShowVersion extends Statement
 
+case object ShowUsers extends Statement
+
 case class ShowColumns(table: String) extends Statement
 
 case class MetricsFilter(queryId: Option[String] = None, state: Option[String] = None)
@@ -50,3 +52,7 @@ case class DeleteQueryMetrics(filter: MetricsFilter) extends Statement
 case class ShowFunctions(dataType: String) extends Statement
 
 case class ShowUpdatesIntervals(condition: Option[SqlExpr]) extends Statement
+
+case class CreateUser(name: String, password: Option[String], role: Option[String]) extends Statement
+case class AlterUser(name: String, password: Option[String], role: Option[String]) extends Statement
+case class DropUser(name: String) extends Statement

@@ -79,5 +79,5 @@ class BenchTsdb
       null,
       identity,
       SimpleTsdbConfig(),
-      _ => NoMetricCollector
+      (_, _) => NoMetricCollector
     )

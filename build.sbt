@@ -162,6 +162,7 @@ lazy val core = (project in file("yupana-core"))
       "com.typesafe.scala-logging"    %% "scala-logging"                % versions.scalaLogging,
       "com.lihaoyi"                   %% "fastparse"                    % versions.fastparse,
       "com.twitter"                   %% "algebird-core"                % "0.13.9",
+      "at.favre.lib"                  %  "bcrypt"                       % "0.10.2",
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test,
@@ -439,9 +440,9 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.12"
+  val scala213 = "2.13.13"
 
-  val spark = "3.5.0"
+  val spark = "3.5.1"
 
   val threeTenExtra = "1.7.2"
 
@@ -468,8 +469,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.17"
-  val scalaTestCheck = "3.2.17.0"
+  val scalaTest = "3.2.18"
+  val scalaTestCheck = "3.2.18.0"
   val scalaMock = "5.2.0"
 }
 

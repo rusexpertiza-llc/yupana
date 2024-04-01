@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package org.yupana.core.auth
+package org.yupana.core.dao
 
-case class YupanaUser(name: String, password: Option[String], role: TsdbRole)
+import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 
-object YupanaUser {
+trait UserDao {
+  def createUser(userName: String, password: Option[String], role: TsdbRole): Boolean
+  def updateUser(userName: String, password: Option[String], role: Option[TsdbRole]): Boolean
+  def deleteUser(userName: String): Boolean
 
-  val ANONYMOUS: YupanaUser = YupanaUser("ANONYMOUS", None, TsdbRole.ReadOnly)
+  def findUser(userName: String): Option[YupanaUser]
+
+  def listUsers(): List[YupanaUser]
 }

@@ -49,7 +49,7 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   private var iterators: Map[Int, ResultIterator] = Map.empty
   private val commandQueue: mutable.Queue[Handler[_]] = mutable.Queue.empty
 
-  private val heartbeatTimer = new Timer()
+  private val heartbeatTimer = new Timer(true)
   private val HEARTBEAT_INTERVAL = 30_000
 
   private var closed: Boolean = true
@@ -57,7 +57,11 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   private def ensureNotClosed(): Unit = {
-    if (closed) throw new YupanaException("Connection is closed")
+    closed &= !channel.isOpen
+    if (closed) {
+      cancelHeartbeats()
+      throw new YupanaException("Connection is closed")
+    }
   }
 
   private def startHeartbeats(startTime: Long): Unit = {
@@ -146,17 +150,16 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   }
 
   private def runNext(): Future[Unit] = {
-    commandQueue.headOption match {
+    val handler: Option[Handler[_]] = commandQueue.synchronized {
+      if (commandQueue.nonEmpty) Some(commandQueue.dequeue()) else None
+    }
+
+    handler match {
       case Some(handler) =>
         for {
           _ <- write(handler.cmd)
           _ <- handler.execute()
-          _ <- {
-            commandQueue.synchronized {
-              commandQueue.dequeue()
-            }
-            runNext()
-          }
+          _ <- runNext()
         } yield ()
       case None => Future.successful(())
     }
@@ -268,7 +271,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
         case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
         case Tags.ERROR_MESSAGE.value =>
           val msg = ErrorMessage.readFrame(frame).message
-          Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.value.toChar}', '$msg'")))
+          logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
+          Future.failed(new YupanaException(msg))
 
         case x =>
           Future.failed(

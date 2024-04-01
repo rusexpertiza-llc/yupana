@@ -33,7 +33,7 @@ class TSDB(
     val changelogDao: ChangelogDao,
     override val prepareQuery: Query => Query,
     config: TsdbConfig,
-    metricCollectorCreator: Query => MetricQueryCollector
+    metricCollectorCreator: (Query, String) => MetricQueryCollector
 ) extends TsdbBase
     with StrictLogging {
 
@@ -60,8 +60,8 @@ class TSDB(
     } else throw new IllegalAccessException("Put is disabled")
   }
 
-  override def createMetricCollector(query: Query): MetricQueryCollector =
-    if (config.collectMetrics) metricCollectorCreator(query)
+  override def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector =
+    if (config.collectMetrics) metricCollectorCreator(query, user.name)
     else NoMetricCollector
 
   override def finalizeQuery(

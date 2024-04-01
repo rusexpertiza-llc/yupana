@@ -48,6 +48,8 @@ object NoMetricCollector extends MetricQueryCollector {
 
   override val query: Query = null
 
+  override val user: String = "NO USER"
+
   override val isEnabled: Boolean = false
   override def isSparkQuery: Boolean = false
 

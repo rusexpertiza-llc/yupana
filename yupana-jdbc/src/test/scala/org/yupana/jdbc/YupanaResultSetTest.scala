@@ -623,8 +623,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTime(4, new java.sql.Time(123456L))
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateTime("time", new java.sql.Time(654321L))
 
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean(4, true)
-    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean("time", false)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean(4, x = true)
+    an[SQLFeatureNotSupportedException] should be thrownBy rs.updateBoolean("time", x = false)
 
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull(1)
     an[SQLFeatureNotSupportedException] should be thrownBy rs.updateNull("string")
@@ -796,6 +796,175 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
       new CharArrayReader("Test me".toCharArray),
       4L
     )
+  }
+
+  it should "support primitive types safe casts" in {
+    val rs = {
+      val statement = mock[YupanaStatement]
+      val result = SimpleResult(
+        "test",
+        Seq("bool", "byte", "short", "int", "long", "double", "decimal"),
+        Seq(
+          DataType[Boolean],
+          DataType[Byte],
+          DataType[Short],
+          DataType[Int],
+          DataType[Long],
+          DataType[Double],
+          DataType[BigDecimal]
+        ),
+        Iterator(
+          Array[Any](true, 42.toByte, 43.toShort, 44, 45L, 46.1, BigDecimal(47))
+        )
+      )
+
+      new YupanaResultSet(statement, result)
+    }
+
+    rs.next
+
+    rs.getBoolean(1) shouldBe true
+    a[YupanaException] should be thrownBy rs.getByte(1)
+    a[YupanaException] should be thrownBy rs.getShort(1)
+    a[YupanaException] should be thrownBy rs.getInt(1)
+    a[YupanaException] should be thrownBy rs.getLong(1)
+    a[YupanaException] should be thrownBy rs.getFloat(1)
+    a[YupanaException] should be thrownBy rs.getDouble(1)
+    a[YupanaException] should be thrownBy rs.getBigDecimal(1)
+
+    a[YupanaException] should be thrownBy rs.getBoolean(2)
+    rs.getByte(2) shouldBe 42.toByte
+    rs.getShort(2) shouldBe 42.toShort
+    rs.getInt(2) shouldBe 42
+    rs.getLong(2) shouldBe 42L
+    rs.getFloat(2) shouldBe 42.0f
+    rs.getDouble(2) shouldBe 42.0
+    rs.getBigDecimal(2) shouldBe BigDecimal(42).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(3)
+    rs.getByte(3) shouldBe 43.toByte
+    rs.getShort(3) shouldBe 43.toShort
+    rs.getInt(3) shouldBe 43
+    rs.getLong(3) shouldBe 43L
+    rs.getFloat(3) shouldBe 43.0f
+    rs.getDouble(3) shouldBe 43.0
+    rs.getBigDecimal(3) shouldBe BigDecimal(43).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(4)
+    rs.getByte(4) shouldBe 44.toByte
+    rs.getShort(4) shouldBe 44.toShort
+    rs.getInt(4) shouldBe 44
+    rs.getLong(4) shouldBe 44L
+    rs.getFloat(4) shouldBe 44.0f
+    rs.getDouble(4) shouldBe 44.0
+    rs.getBigDecimal(4) shouldBe BigDecimal(44).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(5)
+    rs.getByte(5) shouldBe 45.toByte
+    rs.getShort(5) shouldBe 45.toShort
+    rs.getInt(5) shouldBe 45
+    rs.getLong(5) shouldBe 45L
+    rs.getFloat(5) shouldBe 45.0f
+    rs.getDouble(5) shouldBe 45.0
+    rs.getBigDecimal(5) shouldBe BigDecimal(45).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(6)
+    rs.getByte(6) shouldBe 46.toByte
+    rs.getShort(6) shouldBe 46.toShort
+    rs.getInt(6) shouldBe 46
+    rs.getLong(6) shouldBe 46L
+    rs.getFloat(6) shouldBe 46.1f
+    rs.getDouble(6) shouldBe 46.1
+    rs.getBigDecimal(6) shouldBe BigDecimal(46.1).underlying()
+
+    a[YupanaException] should be thrownBy rs.getBoolean(7)
+    rs.getByte(7) shouldBe 47.toByte
+    rs.getShort(7) shouldBe 47.toShort
+    rs.getInt(7) shouldBe 47
+    rs.getLong(7) shouldBe 47L
+    rs.getFloat(7) shouldBe 47.0
+    rs.getDouble(7) shouldBe 47.0
+    rs.getBigDecimal(7) shouldBe BigDecimal(47).underlying()
+  }
+
+  it should "report overflows" in {
+    val rs = {
+      val statement = mock[YupanaStatement]
+      val result = SimpleResult(
+        "test",
+        Seq("short", "int", "long", "double", "double", "decimal"),
+        Seq(
+          DataType[Short],
+          DataType[Int],
+          DataType[Long],
+          DataType[Double],
+          DataType[Double],
+          DataType[BigDecimal]
+        ),
+        Iterator(
+          Array[Any](
+            (Byte.MaxValue + 1).toShort,
+            Short.MaxValue + 1,
+            Int.MaxValue.toLong + 1,
+            Float.MaxValue.toDouble,
+            Double.MaxValue,
+            BigDecimal(Double.MaxValue) * 2
+          )
+        )
+      )
+
+      new YupanaResultSet(statement, result)
+    }
+
+    rs.next
+
+    a[YupanaException] should be thrownBy rs.getByte(1)
+    rs.getShort(1) shouldBe Byte.MaxValue + 1
+    rs.getInt(1) shouldBe Byte.MaxValue + 1
+    rs.getLong(1) shouldBe Byte.MaxValue + 1
+    rs.getFloat(1) shouldBe Byte.MaxValue + 1
+    rs.getDouble(1) shouldBe Byte.MaxValue + 1
+    rs.getBigDecimal(1) shouldBe BigDecimal(Byte.MaxValue + 1).underlying()
+
+    a[YupanaException] should be thrownBy rs.getByte(2)
+    a[YupanaException] should be thrownBy rs.getShort(2)
+    rs.getInt(2) shouldBe Short.MaxValue + 1
+    rs.getLong(2) shouldBe Short.MaxValue + 1
+    rs.getFloat(2) shouldBe Short.MaxValue + 1
+    rs.getDouble(2) shouldBe Short.MaxValue + 1
+    rs.getBigDecimal(2) shouldBe BigDecimal(Short.MaxValue + 1).underlying()
+
+    a[YupanaException] should be thrownBy rs.getByte(3)
+    a[YupanaException] should be thrownBy rs.getShort(3)
+    a[YupanaException] should be thrownBy rs.getInt(3)
+    rs.getLong(3) shouldBe Int.MaxValue.toLong + 1
+    rs.getFloat(3) shouldBe Int.MaxValue.toLong + 1
+    rs.getDouble(3) shouldBe Int.MaxValue.toLong + 1
+    rs.getBigDecimal(3) shouldBe BigDecimal(Int.MaxValue.toLong + 1).underlying()
+
+    a[YupanaException] should be thrownBy rs.getByte(4)
+    a[YupanaException] should be thrownBy rs.getShort(4)
+    a[YupanaException] should be thrownBy rs.getInt(4)
+    a[YupanaException] should be thrownBy rs.getLong(4)
+    rs.getFloat(4) shouldBe Float.MaxValue
+    rs.getDouble(4) shouldBe Float.MaxValue
+    rs.getBigDecimal(4) shouldBe BigDecimal(Float.MaxValue).underlying()
+
+    a[YupanaException] should be thrownBy rs.getByte(5)
+    a[YupanaException] should be thrownBy rs.getShort(5)
+    a[YupanaException] should be thrownBy rs.getInt(5)
+    a[YupanaException] should be thrownBy rs.getLong(5)
+    a[YupanaException] should be thrownBy rs.getFloat(5)
+    rs.getDouble(5) shouldBe Double.MaxValue
+    rs.getBigDecimal(5) shouldBe BigDecimal(Double.MaxValue).underlying()
+
+    a[YupanaException] should be thrownBy rs.getByte(6)
+    a[YupanaException] should be thrownBy rs.getShort(6)
+    a[YupanaException] should be thrownBy rs.getInt(6)
+    a[YupanaException] should be thrownBy rs.getLong(6)
+    a[YupanaException] should be thrownBy rs.getFloat(6)
+    a[YupanaException] should be thrownBy rs.getDouble(6)
+    rs.getBigDecimal(6) shouldBe (BigDecimal(Double.MaxValue) * 2).underlying()
   }
 
   private def createResultSet: YupanaResultSet = {

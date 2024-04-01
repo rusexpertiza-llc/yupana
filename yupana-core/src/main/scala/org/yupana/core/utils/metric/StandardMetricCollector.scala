@@ -23,6 +23,7 @@ import scala.collection.mutable
 
 abstract class StandardMetricCollector(
     override val query: Query,
+    override val user: String,
     override val operationName: String,
     metricsUpdateInterval: Int,
     val isSparkQuery: Boolean,

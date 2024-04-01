@@ -38,13 +38,13 @@ abstract class FrameHandlerBase extends SimpleChannelInboundHandler[Frame[ByteBu
   }
 
   def writeResponse(ctx: ChannelHandlerContext, response: Response[_]): Unit = {
-    logger.debug(s"Write response $response")
+    logger.trace(s"Write response $response")
     ctx.writeAndFlush(response.toFrame(Unpooled.buffer()))
   }
 
   def writeResponses(ctx: ChannelHandlerContext, responses: Seq[Response[_]]): Unit = {
     responses.foreach { response =>
-      logger.debug(s"Write response $response")
+      logger.trace(s"Write response $response")
       ctx.write(response.toFrame(Unpooled.buffer()))
     }
     ctx.flush()

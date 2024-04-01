@@ -24,6 +24,7 @@ import org.apache.spark.rdd.RDD
 import org.yupana.api.query.{ Query, QueryHint }
 import org.yupana.api.schema.Schema
 import org.yupana.api.utils.CloseableIterator
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.jit.{ ExpressionCalculatorFactory, JIT }
 import org.yupana.core.model.{ InternalRow, InternalRowBuilder, KeyData }
@@ -59,9 +60,10 @@ object TsdbSparkBase extends StrictLogging {
   private def createDefaultMetricCollector(
       config: Config,
       opName: String = "query"
-  ): Query => MetricQueryCollector = { query: Query =>
+  ): (Query, String) => MetricQueryCollector = { (query: Query, user: String) =>
     new SparkMetricCollector(
       query,
+      user,
       opName,
       config.metricsUpdateInterval,
       new SparkMetricsReporter(() => getMetricsDao(config))
@@ -77,7 +79,7 @@ abstract class TsdbSparkBase(
     conf: Config,
     override val schema: Schema
 )(
-    metricCollectorCreator: Query => MetricQueryCollector = createDefaultMetricCollector(conf)
+    metricCollectorCreator: (Query, String) => MetricQueryCollector = createDefaultMetricCollector(conf)
 ) extends TsdbBase
     with Serializable {
 
@@ -101,9 +103,9 @@ abstract class TsdbSparkBase(
   override val dao: TSDao[RDD, Long] =
     new TsDaoHBaseSpark(sparkContext, schema, conf, dictionaryProvider)
 
-  override def createMetricCollector(query: Query): MetricQueryCollector = {
+  override def createMetricCollector(query: Query, user: YupanaUser): MetricQueryCollector = {
     if (conf.collectMetrics) {
-      metricCollectorCreator(query)
+      metricCollectorCreator(query, user.name)
     } else {
       NoMetricCollector
     }

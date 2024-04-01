@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-package org.yupana.core
-import org.yupana.api.query.{ DataPoint, Query, Result }
-import org.yupana.core.auth.YupanaUser
+package org.yupana.core.auth
 
-class TimeSeriesQueryEngine(tsdb: TSDB) {
-  def query(user: YupanaUser, query: Query): Result = {
-    tsdb.query(query, user)
-  }
-
-  def put(user: YupanaUser, dps: Seq[DataPoint]): Unit = {
-    tsdb.put(dps.iterator, user)
-  }
+trait Authorizer {
+  def authorize(userName: Option[String], password: Option[String]): Either[String, YupanaUser]
 }

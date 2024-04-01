@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.filter.{ FilterList, SingleColumnValueFilter }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{ CompareOperator, TableExistsException, TableName }
+import org.apache.hadoop.hbase.{ CompareOperator, TableName }
 import org.yupana.api.utils.GroupByIterator
 import org.yupana.core.dao.{ QueryMetricsFilter, TsdbQueryMetricsDao }
 import org.yupana.core.model.TsdbQueryMetrics._
@@ -43,6 +43,7 @@ object TsdbQueryMetricsDaoHBase {
   private val TOTAL_DURATION_QUALIFIER: Array[Byte] = Bytes.toBytes(totalDurationColumn)
   private val STATE_QUALIFIER: Array[Byte] = Bytes.toBytes(stateColumn)
   private val ENGINE_QUALIFIER: Array[Byte] = Bytes.toBytes(engineColumn)
+  private val USER_QUALIFIER: Array[Byte] = Bytes.toBytes(userColumn)
   private val DEFAULT_LIMIT = 1000
 
   def getTableName(namespace: String): TableName = TableName.valueOf(namespace, TABLE_NAME)
@@ -62,6 +63,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     put.addColumn(FAMILY, STATE_QUALIFIER, Bytes.toBytes(metric.queryState.name))
     put.addColumn(FAMILY, START_DATE_QUALIFIER, Bytes.toBytes(metric.startDate))
     put.addColumn(FAMILY, ENGINE_QUALIFIER, Bytes.toBytes(engine))
+    put.addColumn(FAMILY, USER_QUALIFIER, Bytes.toBytes(metric.user))
     TsdbQueryMetrics.qualifiers.foreach { metricName =>
       val (count, time, speed) = metric.metricValues.get(metricName) match {
         case Some(data) => (data.count, data.time, data.speed)
@@ -162,6 +164,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
       partitionId = pId,
       state = QueryStates.getByName(Bytes.toString(result.getValue(FAMILY, STATE_QUALIFIER))),
       engine = Bytes.toString(result.getValue(FAMILY, ENGINE_QUALIFIER)),
+      user = Option(Bytes.toString(result.getValue(FAMILY, USER_QUALIFIER))),
       query = Bytes.toString(result.getValue(FAMILY, QUERY_QUALIFIER)),
       startDate = OffsetDateTime.ofInstant(
         Instant.ofEpochMilli(Bytes.toLong(result.getValue(FAMILY, START_DATE_QUALIFIER))),
@@ -219,7 +222,7 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
   }
 
   private def withTables[T](block: => T): T = {
-    checkTablesExistsElseCreate()
+    HBaseUtils.checkTableExistsElseCreate(connection, getTableName(namespace), Seq(FAMILY, ID_FAMILY))
     block
   }
 
@@ -235,27 +238,5 @@ class TsdbQueryMetricsDaoHBase(connection: Connection, namespace: String)
     val splitIndex = strKey.indexOf('_')
     if (splitIndex != -1) (strKey.substring(0, splitIndex), Some(strKey.substring(splitIndex + 1)))
     else (strKey, None)
-  }
-
-  private def checkTablesExistsElseCreate(): Unit = {
-    try {
-      val tableName = getTableName(namespace)
-      Using.resource(connection.getAdmin) { admin =>
-        if (!admin.tableExists(tableName)) {
-          val desc = TableDescriptorBuilder
-            .newBuilder(tableName)
-            .setColumnFamilies(
-              Seq(
-                ColumnFamilyDescriptorBuilder.of(FAMILY),
-                ColumnFamilyDescriptorBuilder.of(ID_FAMILY)
-              ).asJavaCollection
-            )
-            .build()
-          admin.createTable(desc)
-        }
-      }
-    } catch {
-      case _: TableExistsException =>
-    }
   }
 }

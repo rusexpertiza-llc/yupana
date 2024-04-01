@@ -28,6 +28,7 @@ case class TsdbQueryMetrics(
     query: String,
     state: QueryStates.QueryState,
     engine: String,
+    user: Option[String],
     metrics: Map[String, MetricData]
 )
 
@@ -58,6 +59,7 @@ object TsdbQueryMetrics {
   val queryIdColumn = "query_id"
   val stateColumn = "state"
   val engineColumn = "engine"
+  val userColumn = "user"
   val queryColumn = "query"
   val startDateColumn = "start_date"
   val totalDurationColumn = "total_duration"
