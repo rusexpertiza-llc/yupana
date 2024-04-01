@@ -452,7 +452,7 @@ lazy val versions = new {
   val hikariCP = "4.0.3"
   val logback = "1.3.11"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.7.2"
+  val postgresqlJdbc = "42.7.3"
 
   val scalaTest = "3.2.18"
   val scalaTestCheck = "3.2.18.0"
