@@ -24,3 +24,5 @@ sealed trait PreparedStatement
 case class PreparedSelect(query: Query) extends PreparedStatement
 
 case class PreparedCommand(statement: Statement, value: Map[Int, Value]) extends PreparedStatement
+
+case object EmptyQuery extends PreparedStatement

@@ -201,7 +201,6 @@ lazy val netty = (project in file("yupana-netty"))
 
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
-      "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
   ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
@@ -217,10 +216,9 @@ lazy val postgres = (project in file("yupana-postgres"))
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.postgresql"              %  "postgresql"                    % versions.postgresqlJdbc      % Test,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
-      "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, core, serialization)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", serialization)
 
 lazy val spark = (project in file("yupana-spark"))
   .settings(

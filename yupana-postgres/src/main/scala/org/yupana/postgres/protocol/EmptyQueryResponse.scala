@@ -15,29 +15,12 @@
  */
 
 package org.yupana.postgres.protocol
-
-import io.netty.buffer.{ ByteBuf, Unpooled }
+import io.netty.buffer.ByteBuf
 
 import java.nio.charset.Charset
 
-trait Message
+case object EmptyQueryResponse extends TaggedServerMessage {
 
-trait ClientMessage extends Message
-
-trait ServerMessage extends Message {
-  def write(byteBuf: ByteBuf, charset: Charset): Unit
-}
-
-trait TaggedServerMessage extends ServerMessage {
-
-  val tag: Byte
-  override def write(byteBuf: ByteBuf, charset: Charset): Unit = {
-    byteBuf.writeByte(tag)
-    val payload = Unpooled.buffer()
-    writePayload(payload, charset)
-    byteBuf.writeInt(payload.readableBytes() + 4)
-    byteBuf.writeBytes(payload)
-  }
-
-  def writePayload(buf: ByteBuf, charset: Charset): Unit
+  override val tag: Byte = 'I'
+  override def writePayload(buf: ByteBuf, charset: Charset): Unit = {}
 }

@@ -22,19 +22,20 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.postgres.protocol._
 
 import java.nio.charset.Charset
+import scala.util.Try
 
 class ConnectingHandler(context: PgContext) extends SimpleChannelInboundHandler[ClientMessage] with StrictLogging {
 
   private var userName: Option[String] = None
+  private var charsetName: Option[String] = None
   private var charset: Option[Charset] = None
 
   override def channelRead0(ctx: ChannelHandlerContext, msg: ClientMessage): Unit = {
     logger.info(s"GOT A MESSAGE $msg")
     msg match {
       case SSLRequest => ctx.writeAndFlush(No)
-      case StartupMessage(user, charset) =>
-        setup(ctx, user, charset)
-        ctx.writeAndFlush(AuthClearTextPassword)
+      case StartupMessage(user, charsetName) =>
+        setup(ctx, user, charsetName)
 
       case PasswordMessage(password) =>
         if (userName.isDefined) {
@@ -55,16 +56,23 @@ class ConnectingHandler(context: PgContext) extends SimpleChannelInboundHandler[
     ctx.close()
   }
 
-  private def setup(ctx: ChannelHandlerContext, user: String, charset: Charset): Unit = {
+  private def setup(ctx: ChannelHandlerContext, user: String, charsetName: String): Unit = {
     this.userName = Some(user)
-    this.charset = Some(charset)
-    ctx.pipeline().replace(classOf[InitialMessageDecoder], "decoder", new MessageDecoder(charset))
+    this.charsetName = Some(charsetName)
+    this.charset = Try(Charset.forName(charsetName)).toOption
+    if (charset.isDefined) {
+      ctx.pipeline().replace(classOf[InitialMessageDecoder], "decoder", new MessageDecoder(charset.get))
+      ctx.writeAndFlush(AuthClearTextPassword)
+    } else {
+      fatalError(ctx, s"Unsupported charset $charsetName")
+    }
   }
 
   private def connected(ctx: ChannelHandlerContext, user: YupanaUser): Unit = {
     logger.info(s"User ${user.name} connected")
 
-    ctx.write(ParameterStatus("client_encoding", charset.toString))
+    ctx.write(AuthOk)
+    ctx.write(ParameterStatus("client_encoding", charsetName.get))
     ctx.write(ParameterStatus("is_superuser", "off"))
     ctx.write(ParameterStatus("server_version", "9.0.0"))
     ctx.write(ParameterStatus("session_authorization", user.name))

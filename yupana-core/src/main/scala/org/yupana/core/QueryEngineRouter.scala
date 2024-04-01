@@ -58,6 +58,8 @@ class QueryEngineRouter(
           _ <- hasPermission(user, Object.Table(select.query.table.map(_.name)), Action.Read)
         } yield tsdb.query(select.query, user)
 
+      case EmptyQuery => Right(SimpleResult("", Nil, Nil, Iterator.empty))
+
       case PreparedCommand(statement, params) =>
         statement match {
           case upsert: Upsert =>

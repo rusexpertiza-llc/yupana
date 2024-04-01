@@ -124,3 +124,5 @@ trait TsdbMocks extends MockFactory {
       .fold(fail(_), identity)
   }
 }
+
+object TsdbMocks extends TsdbMocks

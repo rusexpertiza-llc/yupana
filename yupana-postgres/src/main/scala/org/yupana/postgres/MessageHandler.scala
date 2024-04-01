@@ -23,9 +23,9 @@ import io.netty.util.ReferenceCountUtil
 import org.yupana.api.query.{ DataRow, Result }
 import org.yupana.api.types.{ ByteReaderWriter, DataType, ID, Storable, StringReaderWriter }
 import org.yupana.api.utils.CollectionUtils
-import org.yupana.core.{ PreparedSelect, PreparedStatement }
+import org.yupana.core.{ EmptyQuery, PreparedSelect, PreparedStatement }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.sql.parser.{ SetValue, Statement, TypedValue, UntypedValue, Value }
+import org.yupana.core.sql.parser.{ Select, SetValue, SqlFieldsAll, Statement, TypedValue, UntypedValue, Value }
 import org.yupana.postgres.MessageHandler.{ Parsed, Portal }
 import org.yupana.postgres.protocol._
 
@@ -78,9 +78,14 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   def findTypes(ts: Seq[Int]): Either[String, Seq[Option[DataType]]] = {
     CollectionUtils.collectErrors(ts.map(t => if (t != 0) PgTypes.typeForPg(t).map(Some(_)) else Right(None)))
   }
+
+  private def parse(sql: String): Either[String, Statement] = {
+    if (sql.nonEmpty) context.queryEngineRouter.parse(sql) else Right(Select(None, SqlFieldsAll, None, Nil, None, None))
+  }
+
   private def parse(ctx: ChannelHandlerContext, name: String, sql: String, types: Seq[Int]): Unit = {
     val prepared = for {
-      statement <- context.queryEngineRouter.parse(sql)
+      statement <- parse(sql)
       dts <- findTypes(types)
     } yield Parsed(statement, dts)
 
@@ -93,6 +98,14 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         failedStatements += name
         writeError(ctx, error)
     }
+  }
+
+  private def bind(statement: Statement, values: Map[Int, Value]) = {
+    statement match {
+      case Select(None, SqlFieldsAll, None, Nil, None, None) => Right(EmptyQuery)
+      case x                                                 => context.queryEngineRouter.bind(x, values)
+    }
+
   }
 
   private def bind(
@@ -120,7 +133,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
         logger.debug(s"Binding $values")
 
-        context.queryEngineRouter.bind(p.statement, values) match {
+        bind(p.statement, values) match {
           case Right(prep) =>
             portals += portal -> Portal(p, prep)
             ctx.write(BindComplete)
@@ -180,11 +193,15 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         p.parsed.statement match {
           case SetValue(_, _) => ctx.write(CommandComplete("SET"))
           case _ =>
-            context.queryEngineRouter.execute(user, p.prepared) match {
-              case Right(result) =>
-                writeResult(ctx, result)
-                ctx.flush()
-              case Left(error) => writeError(ctx, error)
+            if (p.prepared != EmptyQuery) {
+              context.queryEngineRouter.execute(user, p.prepared) match {
+                case Right(result) =>
+                  writeResult(ctx, result)
+                  ctx.flush()
+                case Left(error) => writeError(ctx, error)
+              }
+            } else {
+              ctx.write(EmptyQueryResponse)
             }
         }
       case None if !failedPortals.contains(portal) => writeError(ctx, s"Unknown portal $portal")

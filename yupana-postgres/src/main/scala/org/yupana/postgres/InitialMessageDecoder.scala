@@ -22,7 +22,7 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ReplayingDecoder
 import org.yupana.postgres.protocol.{ SSLRequest, StartupMessage }
 
-import java.nio.charset.{ Charset, StandardCharsets }
+import java.nio.charset.StandardCharsets
 import java.util
 
 class InitialMessageDecoder extends ReplayingDecoder[Unit] with StrictLogging {
@@ -48,8 +48,7 @@ class InitialMessageDecoder extends ReplayingDecoder[Unit] with StrictLogging {
           params += k -> v
         }
       }
-      val clientCharset = Charset.forName(params("client_encoding"))
-      out.add(StartupMessage(params("user"), clientCharset))
+      out.add(StartupMessage(params("user"), params("client_encoding")))
     }
   }
 }

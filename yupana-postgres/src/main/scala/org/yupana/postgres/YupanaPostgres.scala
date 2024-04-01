@@ -24,6 +24,7 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ Channel, ChannelFuture, ChannelInitializer, ChannelOption }
 import io.netty.handler.timeout.IdleStateHandler
 
+import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import scala.concurrent.{ Future, Promise }
 
@@ -66,6 +67,14 @@ class YupanaPostgres(host: String, port: Int, nThreads: Int, serverContext: PgCo
       })
 
     closePromise.future
+  }
+
+  def getPort: Int = {
+    if (channel != null) {
+      channel.localAddress().asInstanceOf[InetSocketAddress].getPort
+    } else {
+      throw new IllegalStateException("Not initialized yet")
+    }
   }
 
   def stop(): Unit = {

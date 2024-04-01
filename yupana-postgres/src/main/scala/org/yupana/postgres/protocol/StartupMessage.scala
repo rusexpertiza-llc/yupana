@@ -16,28 +16,4 @@
 
 package org.yupana.postgres.protocol
 
-import io.netty.buffer.{ ByteBuf, Unpooled }
-
-import java.nio.charset.Charset
-
-trait Message
-
-trait ClientMessage extends Message
-
-trait ServerMessage extends Message {
-  def write(byteBuf: ByteBuf, charset: Charset): Unit
-}
-
-trait TaggedServerMessage extends ServerMessage {
-
-  val tag: Byte
-  override def write(byteBuf: ByteBuf, charset: Charset): Unit = {
-    byteBuf.writeByte(tag)
-    val payload = Unpooled.buffer()
-    writePayload(payload, charset)
-    byteBuf.writeInt(payload.readableBytes() + 4)
-    byteBuf.writeBytes(payload)
-  }
-
-  def writePayload(buf: ByteBuf, charset: Charset): Unit
-}
+case class StartupMessage(user: String, charset: String) extends ClientMessage
