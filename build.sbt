@@ -28,6 +28,7 @@ lazy val yupana = (project in file("."))
     hbase,
     akka,
     pekko,
+    etl,
     spark,
     schema,
     externalLinks,
@@ -215,6 +216,14 @@ lazy val pekko = (project in file("yupana-pekko"))
   .dependsOn(proto, core, schema % Test)
   .disablePlugins(AssemblyPlugin)
 
+lazy val etl = (project in file("yupana-etl"))
+  .settings(
+    name := "yupana-etl",
+    allSettings
+  )
+  .dependsOn(hbase, externalLinks)
+  .disablePlugins(AssemblyPlugin)
+
 lazy val spark = (project in file("yupana-spark"))
   .settings(
     name := "yupana-spark",
@@ -245,7 +254,7 @@ lazy val spark = (project in file("yupana-spark"))
       else Seq.empty
     }
   )
-  .dependsOn(core, cache, settings, hbase, externalLinks)
+  .dependsOn(core, cache, settings, hbase, externalLinks, etl)
   .disablePlugins(AssemblyPlugin)
 
 lazy val schema = (project in file("yupana-schema"))

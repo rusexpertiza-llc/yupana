@@ -30,7 +30,7 @@ import scala.util.Using
 
 class HBaseScanRDD(
     sc: SparkContext,
-    config: Config,
+    config: SparkHBaseTsdbConfig,
     queryContext: InternalQueryContext,
     fromTime: Long,
     toTime: Long,

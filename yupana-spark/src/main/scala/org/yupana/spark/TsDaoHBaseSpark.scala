@@ -32,7 +32,7 @@ import org.yupana.hbase._
 class TsDaoHBaseSpark(
     @transient val sparkContext: SparkContext,
     override val schema: Schema,
-    config: Config,
+    config: SparkHBaseTsdbConfig,
     override val dictionaryProvider: DictionaryProvider,
     putsBatchSize: Int = 10000
 ) extends TSDaoHBaseBase[RDD]
@@ -92,7 +92,7 @@ class TsDaoHBaseSpark(
 }
 
 object TsDaoHBaseSpark {
-  def hbaseConfiguration(config: Config): Configuration = {
+  def hbaseConfiguration(config: SparkHBaseTsdbConfig): Configuration = {
     val configuration = new Configuration()
     configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
     configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)

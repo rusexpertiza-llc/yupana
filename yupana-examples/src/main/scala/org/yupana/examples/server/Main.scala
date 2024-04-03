@@ -27,6 +27,8 @@ import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneM
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
+import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
+import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }
@@ -66,7 +68,13 @@ object Main extends StrictLogging {
       .getOrElse(Right(schema))
       .fold(msg => throw new RuntimeException(s"Cannot register JSON catalogs: $msg"), identity)
 
-    val tsdbConfig = SimpleTsdbConfig(collectMetrics = true, putEnabled = true)
+    val tsdbConfig = SimpleTSDBHBaseConfig(
+      collectMetrics = true,
+      putEnabled = true,
+      hbaseNamespace = config.hbaseNamespace,
+      hbaseZookeeper = config.hbaseZookeeperUrl,
+      settings = config.settings
+    )
     val connection = ConnectionFactory.createConnection(hbaseConfiguration)
 
     val changelogDao = new ChangelogDaoHBase(connection, config.hbaseNamespace)
@@ -90,10 +98,7 @@ object Main extends StrictLogging {
       )
     }
 
-    val tsdb =
-      TSDBHBase(connection, config.hbaseNamespace, schemaWithJson, identity, config.settings, tsdbConfig)(
-        metricCreator
-      )
+    val tsdb = TSDBHBase(connection, tsdbConfig, schemaWithJson, identity[Query] _)(metricCreator)
 
     val queryEngineRouter = new QueryEngineRouter(
       new TimeSeriesQueryEngine(tsdb),

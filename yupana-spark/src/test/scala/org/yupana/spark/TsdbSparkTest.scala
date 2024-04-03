@@ -24,7 +24,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
   "TsdbSpark" should "run queries" in {
 
     val config =
-      new Config(
+      new SparkHBaseTsdbConfig(
         sc.getConf
           .set("hbase.zookeeper", s"localhost:$getZkPort")
           .set("tsdb.hbase.compression", "none")

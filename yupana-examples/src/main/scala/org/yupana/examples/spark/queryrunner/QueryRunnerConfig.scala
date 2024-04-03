@@ -17,9 +17,9 @@
 package org.yupana.examples.spark.queryrunner
 
 import org.apache.spark.SparkConf
-import org.yupana.spark.Config
+import org.yupana.spark.SparkHBaseTsdbConfig
 
-class QueryRunnerConfig(sparkConf: SparkConf) extends Config(sparkConf) {
+class QueryRunnerConfig(sparkConf: SparkConf) extends SparkHBaseTsdbConfig(sparkConf) {
   val query: String = sparkConf.get("query-runner.query")
   val outPath: String = sparkConf.get("query-runner.output", "/tmp/query-runner-result")
 }

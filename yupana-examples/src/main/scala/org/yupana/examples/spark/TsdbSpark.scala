@@ -24,7 +24,7 @@ import org.yupana.cache.CacheFactory
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
-import org.yupana.spark.{ Config, TsDaoHBaseSpark, TsdbSparkBase }
+import org.yupana.spark.{ SparkHBaseTsdbConfig, TsDaoHBaseSpark, TsdbSparkBase }
 
 object TsdbSpark {
   var externalLinks = Map.empty[String, ExternalLinkService[_ <: ExternalLink]]
@@ -35,7 +35,7 @@ class TsdbSpark(
     @transient val changelogDao: ChangelogDao,
     sparkContext: SparkContext,
     prepareQuery: Query => Query,
-    conf: Config,
+    conf: SparkHBaseTsdbConfig,
     schema: Schema
 ) extends TsdbSparkBase(sparkContext, prepareQuery, conf, schema)() {
 

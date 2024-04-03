@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
-import org.yupana.core.{ SimpleTsdbConfig, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.{ TestDims, TestSchema, TestTableFields }
 import org.yupana.settings.Settings
 
 import java.time.{ LocalDateTime, ZoneOffset }
@@ -20,12 +20,15 @@ trait TsdbHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
     val props = new Properties
     val tsdb =
       TSDBHBase(
-        getConfiguration,
-        "test",
+        SimpleTSDBHBaseConfig(
+          compression = "none",
+          putEnabled = true,
+          hbaseNamespace = "test",
+          hbaseZookeeper = "localhost:2181",
+          settings = Settings(props)
+        ),
         TestSchema.schema,
-        identity,
-        Settings(props),
-        SimpleTsdbConfig(compression = "none", putEnabled = true),
+        identity[Query] _,
         None
       )
 

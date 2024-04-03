@@ -16,7 +16,6 @@
 
 package org.yupana.hbase
 
-import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.client.{ Connection, ConnectionFactory }
 import org.yupana.api.query.Query
 import org.yupana.api.schema.Schema
@@ -24,7 +23,6 @@ import org.yupana.cache.CacheFactory
 import org.yupana.core.dao.DictionaryProviderImpl
 import org.yupana.core.utils.metric.{ MetricQueryCollector, PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ TSDB, TsdbConfig }
-import org.yupana.settings.Settings
 
 object TSDBHBase {
 
@@ -48,40 +46,35 @@ object TSDBHBase {
 
   def apply(
       connection: Connection,
-      namespace: String,
+      cfg: TSDBHBaseConfig,
       schema: Schema,
-      prepareQuery: Query => Query,
-      settings: Settings,
-      tsdbConfig: TsdbConfig
+      prepareQuery: Query => Query
   )(
       metricCollectorCreator: Query => MetricQueryCollector =
-        createDefaultMetricCollector(tsdbConfig, connection, namespace)
+        createDefaultMetricCollector(cfg, connection, cfg.hbaseNamespace)
   ): TSDB = {
 
-    CacheFactory.init(settings)
+    CacheFactory.init(cfg.settings)
 
-    val dictDao = new DictionaryDaoHBase(connection, namespace)
+    val dictDao = new DictionaryDaoHBase(connection, cfg.hbaseNamespace)
     val dictProvider = new DictionaryProviderImpl(dictDao)
     val dao =
-      new TSDaoHBase(schema, connection, namespace, dictProvider, tsdbConfig.putBatchSize, tsdbConfig.reduceLimit)
-    val changelogDao = new ChangelogDaoHBase(connection, namespace)
+      new TSDaoHBase(schema, connection, cfg.hbaseNamespace, dictProvider, cfg.putBatchSize, cfg.reduceLimit)
+    val changelogDao = new ChangelogDaoHBase(connection, cfg.hbaseNamespace)
 
-    new TSDB(schema, dao, changelogDao, prepareQuery, tsdbConfig, metricCollectorCreator)
+    new TSDB(schema, dao, changelogDao, prepareQuery, cfg, metricCollectorCreator)
   }
 
   def apply(
-      config: Configuration,
-      namespace: String,
+      cfg: TSDBHBaseConfig,
       schema: Schema,
       prepareQuery: Query => Query,
-      settings: Settings,
-      tsdbConfig: TsdbConfig,
       metricCollectorCreator: Option[Query => MetricQueryCollector]
   ): TSDB = {
-    val connection = ConnectionFactory.createConnection(config)
-    HBaseUtils.initStorage(connection, namespace, schema, tsdbConfig)
+    val connection = ConnectionFactory.createConnection(cfg.hBaseConfiguration)
+    HBaseUtils.initStorage(connection, cfg.hbaseNamespace, schema, cfg)
     val metricsCollectorOrDefault =
-      metricCollectorCreator.getOrElse(createDefaultMetricCollector(tsdbConfig, connection, namespace))
-    TSDBHBase(connection, namespace, schema, prepareQuery, settings, tsdbConfig)(metricsCollectorOrDefault)
+      metricCollectorCreator.getOrElse(createDefaultMetricCollector(cfg, connection, cfg.hbaseNamespace))
+    TSDBHBase(connection, cfg, schema, prepareQuery)(metricsCollectorOrDefault)
   }
 }

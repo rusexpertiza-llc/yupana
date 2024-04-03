@@ -25,7 +25,7 @@ import scala.language.implicitConversions
 
 object ETLFunctions extends StrictLogging {
 
-  def processTransactions(context: EtlContext, dataPoints: RDD[DataPoint]): Unit = {
+  def processTransactions(context: EtlSparkHBaseContext, dataPoints: RDD[DataPoint]): Unit = {
     dataPoints.foreachPartition({ ls => context.tsdb.put(ls) })
   }
 
@@ -35,7 +35,7 @@ object ETLFunctions extends StrictLogging {
 }
 
 class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext): DStream[DataPoint] = {
+  def saveDataPoints(context: EtlSparkHBaseContext): DStream[DataPoint] = {
     stream.foreachRDD { rdd =>
       ETLFunctions.processTransactions(context, rdd)
     }
@@ -45,7 +45,7 @@ class DataPointStreamFunctions(stream: DStream[DataPoint]) extends Serializable 
 }
 
 class DataPointRddFunctions(rdd: RDD[DataPoint]) extends Serializable {
-  def saveDataPoints(context: EtlContext): Unit = {
+  def saveDataPoints(context: EtlSparkHBaseContext): Unit = {
     ETLFunctions.processTransactions(context, rdd)
   }
 }

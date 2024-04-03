@@ -23,7 +23,7 @@ import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.examples.ExampleSchema
 import org.yupana.schema._
-import org.yupana.spark.{ EtlConfig, EtlContext, SparkConfUtils }
+import org.yupana.spark.{ EtlSparkHBaseConfig, EtlSparkHBaseContext, SparkConfUtils }
 
 import java.time.ZoneOffset
 
@@ -35,9 +35,9 @@ object ETL extends StrictLogging {
     SparkConfUtils.removeSparkPrefix(conf)
     val sc = SparkContext.getOrCreate(conf)
 
-    val cfg = new EtlConfig(conf)
+    val cfg = new EtlSparkHBaseConfig(conf)
 
-    val ctx = new EtlContext(cfg, ExampleSchema.schema)
+    val ctx = new EtlSparkHBaseContext(cfg, ExampleSchema.schema)
 
     import org.yupana.spark.ETLFunctions._
 
