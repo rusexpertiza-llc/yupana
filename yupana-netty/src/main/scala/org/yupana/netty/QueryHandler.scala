@@ -46,6 +46,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
         ctx.close()
       case x => writeResponse(ctx, ErrorMessage(s"Unexpected command '${x.toChar}'"))
     }
+    frame.payload.release()
   }
 
   private def handleQuery(ctx: ChannelHandlerContext, pq: SqlQuery): Unit = {

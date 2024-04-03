@@ -20,6 +20,7 @@ import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
 import org.yupana.api.{ Blob, Time }
+import org.yupana.postgres.protocol.PostgresBinaryReaderWriter.{ readNumeric, writeNumeric }
 
 import java.math.{ BigInteger, BigDecimal => JBigDecimal }
 import java.nio.charset.Charset
@@ -159,14 +160,11 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readByte(b: ByteBuf, offset: Int): Byte = {
-    assert(b.getInt(offset) == 1)
-    b.getByte(offset + 4)
+    readNumeric(b).byteValue()
   }
 
   override def writeByte(b: ByteBuf, v: Byte): Int = {
-    b.writeInt(1)
-    b.writeByte(v)
-    1
+    writeNumeric(b, JBigDecimal.valueOf(v))
   }
 
   override def writeByte(b: ByteBuf, offset: Int, v: Byte): Int = {
