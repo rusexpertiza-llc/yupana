@@ -35,9 +35,9 @@ class TSDBHBaseConfig(
     val hbaseZookeeper: String,
     val hbaseWriteBufferSize: Option[Long],
     val settings: Settings
-) extends TsdbConfig {
+) extends TsdbConfig with Serializable {
 
-  val hBaseConfiguration: Configuration = {
+  def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", hbaseZookeeper)
     hbaseconf.set("zookeeper.session.timeout", 180000.toString)
