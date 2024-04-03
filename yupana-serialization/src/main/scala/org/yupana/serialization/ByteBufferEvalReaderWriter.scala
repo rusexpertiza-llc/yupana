@@ -361,7 +361,7 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
         len -= 1
       }
 
-      bb.put(offset + 1, len.toByte)
+      bb.put(offset, len.toByte)
 
       len = if (len < -120) {
         -(len + 120)
@@ -374,9 +374,9 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
       while (idx >= 0) {
         val shift = idx * 8
         val mask = 0xFFL << shift
-        bb.put(offset + i + 2, ((ll & mask) >> shift).toByte)
+        bb.put(offset + i + 1, ((ll & mask) >> shift).toByte)
         idx -= 1
-        i += i
+        i += 1
       }
       len + 1
     }
