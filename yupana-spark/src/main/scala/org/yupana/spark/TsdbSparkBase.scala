@@ -36,7 +36,7 @@ object TsdbSparkBase extends StrictLogging {
 
   @transient var metricsDao: Option[TsdbQueryMetricsDao] = None
 
-  def hbaseConfiguration(config: Config): Configuration = {
+  def hbaseConfiguration(config: SparkHBaseTsdbConfig): Configuration = {
     val configuration = new Configuration()
     configuration.set("hbase.zookeeper.quorum", config.hbaseZookeeper)
     configuration.set("hbase.client.scanner.timeout.period", config.hbaseTimeout.toString)
@@ -46,7 +46,7 @@ object TsdbSparkBase extends StrictLogging {
     configuration
   }
 
-  def getMetricsDao(config: Config): TsdbQueryMetricsDao = metricsDao match {
+  def getMetricsDao(config: SparkHBaseTsdbConfig): TsdbQueryMetricsDao = metricsDao match {
     case None =>
       logger.info("TsdbQueryMetricsDao initialization...")
       val hbaseConnection = ConnectionFactory.createConnection(hbaseConfiguration(config))
@@ -57,7 +57,7 @@ object TsdbSparkBase extends StrictLogging {
   }
 
   private def createDefaultMetricCollector(
-      config: Config,
+      config: SparkHBaseTsdbConfig,
       opName: String = "query"
   ): (Query, String) => MetricQueryCollector = { (query: Query, user: String) =>
     new SparkMetricCollector(
@@ -75,7 +75,7 @@ case class ProgressHint(fileName: String) extends QueryHint
 abstract class TsdbSparkBase(
     @transient val sparkContext: SparkContext,
     override val prepareQuery: Query => Query,
-    conf: Config,
+    conf: SparkHBaseTsdbConfig,
     override val schema: Schema
 )(
     metricCollectorCreator: (Query, String) => MetricQueryCollector = createDefaultMetricCollector(conf)

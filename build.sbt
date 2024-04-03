@@ -26,6 +26,7 @@ lazy val yupana = (project in file("."))
     core,
     hbase,
     netty,
+    etl,
     spark,
     schema,
     externalLinks,
@@ -195,6 +196,14 @@ lazy val netty = (project in file("yupana-netty"))
     )
   ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
 
+lazy val etl = (project in file("yupana-etl"))
+  .settings(
+    name := "yupana-etl",
+    allSettings
+  )
+  .dependsOn(hbase, externalLinks)
+  .disablePlugins(AssemblyPlugin)
+
 lazy val spark = (project in file("yupana-spark"))
   .settings(
     name := "yupana-spark",
@@ -225,7 +234,7 @@ lazy val spark = (project in file("yupana-spark"))
       else Seq.empty
     }
   )
-  .dependsOn(core, cache, settings, hbase, externalLinks)
+  .dependsOn(core, cache, settings, hbase, externalLinks, etl)
   .disablePlugins(AssemblyPlugin)
 
 lazy val schema = (project in file("yupana-schema"))

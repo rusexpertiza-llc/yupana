@@ -23,7 +23,7 @@ import org.yupana.core.Dictionary
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider }
 import org.yupana.hbase.DictionaryDaoHBase
 
-class SparkDictionaryProvider(config: Config) extends DictionaryProvider with Serializable {
+class SparkDictionaryProvider(config: SparkHBaseTsdbConfig) extends DictionaryProvider with Serializable {
   override def dictionary(dimension: DictionaryDimension): Dictionary = {
     SparkDictionaryProvider.dictionaries.get(dimension) match {
       case Some(d) => d
