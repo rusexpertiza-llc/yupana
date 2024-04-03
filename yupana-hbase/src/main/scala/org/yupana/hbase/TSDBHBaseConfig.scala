@@ -35,7 +35,8 @@ class TSDBHBaseConfig(
     val hbaseZookeeper: String,
     val hbaseWriteBufferSize: Option[Long],
     val settings: Settings
-) extends TsdbConfig with Serializable {
+) extends TsdbConfig
+    with Serializable {
 
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
