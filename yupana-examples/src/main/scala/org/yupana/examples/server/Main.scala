@@ -26,9 +26,7 @@ import org.yupana.api.query.Query
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
-import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
-import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter }
+import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, TimeSeriesQueryEngine }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.externallinks.ExternalLinkRegistrator
 import org.yupana.externallinks.universal.{ JsonCatalogs, JsonExternalLinkDeclarationsParser }

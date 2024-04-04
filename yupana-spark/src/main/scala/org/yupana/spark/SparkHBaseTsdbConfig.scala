@@ -27,7 +27,7 @@ class SparkHBaseTsdbConfig(@transient val sparkConf: SparkConf)
       metricsUpdateInterval = sparkConf.getInt("analytics.tsdb.metrics-update-interval", 30000),
       extractBatchSize = sparkConf.getInt("analytics.tsdb.extract-batch-size", 10000),
       putBatchSize = sparkConf.getInt("analytics.tsdb.put-batch-size", 1000),
-      putEnabled = true,
+      putEnabled = false,
       maxRegions = sparkConf.getInt("spark.hbase.regions.initial.max", 50),
       reduceLimit = Int.MaxValue,
       needCheckSchema = true,
@@ -42,4 +42,5 @@ class SparkHBaseTsdbConfig(@transient val sparkConf: SparkConf)
   val addHdfsToConfiguration: Boolean =
     sparkConf.getBoolean("analytics.jobs.add-hdfs-to-configuration", defaultValue = false)
   val minHBaseScanPartitions: Int = sparkConf.getInt("analytics.tsdb.spark.min-hbase-scan-partitions", 50)
+  val rowKeyBatchSize: Int = sparkConf.getInt("analytics.tsdb.row-key-batch-size", 50000)
 }
