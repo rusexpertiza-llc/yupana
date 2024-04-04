@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import org.yupana.api.Time
 import org.yupana.api.query.Result
+import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.sql.parser
 import org.yupana.protocol._
@@ -28,6 +29,7 @@ import org.yupana.protocol._
 class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends FrameHandlerBase with StrictLogging {
 
   private var streams: Map[Int, Stream] = Map.empty
+  implicit private val srw: StringReaderWriter = SimpleStringReaderWriter
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
     streams.foreach(_._2.close())

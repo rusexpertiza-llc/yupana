@@ -17,7 +17,7 @@
 package org.yupana.core
 
 import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, StringReaderWriter }
 import org.yupana.core.auth.{ Action, Object, PermissionService, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
@@ -32,7 +32,9 @@ class QueryEngineRouter(
     userManager: UserManager
 ) {
 
-  def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
+  def query(user: YupanaUser, sql: String, params: Map[Int, Value])(
+      implicit srw: StringReaderWriter
+  ): Either[String, Result] = {
     for {
       parsed <- parse(sql)
       prepared <- bind(parsed, params)
@@ -44,7 +46,9 @@ class QueryEngineRouter(
     SqlParser.parse(sql)
   }
 
-  def bind(statement: Statement, params: Map[Int, Value]): Either[String, PreparedStatement] = {
+  def bind(statement: Statement, params: Map[Int, Value])(
+      implicit srw: StringReaderWriter
+  ): Either[String, PreparedStatement] = {
     statement match {
       case select: Select => sqlQueryProcessor.createQuery(select, params).map(PreparedSelect)
       case ShowTables =>
@@ -54,7 +58,9 @@ class QueryEngineRouter(
     }
   }
 
-  def execute(user: YupanaUser, statement: PreparedStatement): Either[String, Result] = {
+  def execute(user: YupanaUser, statement: PreparedStatement)(
+      implicit srw: StringReaderWriter
+  ): Either[String, Result] = {
     statement match {
       case select: PreparedSelect =>
         for {
@@ -159,7 +165,9 @@ class QueryEngineRouter(
     else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
-  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
+  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]])(
+      implicit srw: StringReaderWriter
+  ): Either[String, Result] = {
     SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
         hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
@@ -172,7 +180,7 @@ class QueryEngineRouter(
       user: YupanaUser,
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
-  ): Either[String, Result] = {
+  )(implicit srw: StringReaderWriter): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       tsdb.put(dps.iterator, user)
       Right(singleResult("RESULT", "OK"))

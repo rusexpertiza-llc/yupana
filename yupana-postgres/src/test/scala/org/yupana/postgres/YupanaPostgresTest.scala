@@ -7,7 +7,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.Query
-import org.yupana.api.types.StringReaderWriter
 import org.yupana.cache.CacheFactory
 import org.yupana.core._
 import org.yupana.core.auth.{ Authorizer, PermissionService, TsdbRole, YupanaUser }
@@ -17,7 +16,6 @@ import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.postgres.YupanaPostgresTest.TestAuthorizer
-import org.yupana.postgres.protocol.PostgresStringReaderWriter
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
@@ -148,7 +146,6 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
   }
 
   def withServerStarted(body: (YupanaPostgres, TSTestDao) => Any): Unit = {
-    implicit val srw: StringReaderWriter = PostgresStringReaderWriter
     val jmp = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2.3")
     val sqp = new SqlQueryProcessor(TestSchema.schema)
     val tsdbDaoMock = TsdbMocks.daoMock

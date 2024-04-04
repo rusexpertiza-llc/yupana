@@ -28,13 +28,15 @@ import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extends QueryValidator with Serializable {
+class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable {
 
   import SqlQueryProcessor._
 
   private val calculator = new ConstantCalculator(schema.tokenizer)
 
-  def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty): Either[String, Query] = {
+  def createQuery(select: parser.Select, parameters: Map[Int, parser.Value] = Map.empty)(
+      implicit srw: StringReaderWriter
+  ): Either[String, Query] = {
     val state = new BuilderState(parameters)
     val query = for {
       table <- getTable(select.tableName)
@@ -52,7 +54,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
   def createDataPoints(
       upsert: parser.Upsert,
       parameters: Seq[Map[Int, parser.Value]]
-  ): Either[String, Seq[DataPoint]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Seq[DataPoint]] = {
     val params = if (parameters.isEmpty) Seq(Map.empty[Int, parser.Value]) else parameters
 
     if (upsert.values.forall(_.size == upsert.fieldNames.size)) {
@@ -100,7 +102,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       table: Option[Table],
       select: parser.Select,
       state: BuilderState
-  ): Either[String, Seq[QueryField]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Seq[QueryField]] = {
 
     select.fields match {
       case SqlFieldList(fs) =>
@@ -116,7 +118,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       table: Option[Table],
       field: parser.SqlField,
       state: BuilderState
-  ): Either[String, QueryField] = {
+  )(implicit srw: StringReaderWriter): Either[String, QueryField] = {
     val fieldName = state.fieldName(field)
 
     val resolver = table.map(fieldByName).getOrElse(constOnly)
@@ -143,7 +145,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       nameResolver: NameResolver,
       expr: parser.SqlExpr,
       exprType: ExprType
-  ): Either[String, Expression[_]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Expression[_]] = {
     val e = expr match {
       case parser.Case(cs, default) =>
         val converted = CollectionUtils.collectErrors(cs.map {
@@ -296,7 +298,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       resolver: NameResolver,
       expr: parser.SqlExpr,
       exprType: ExprType
-  ): Either[String, Expression[_]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Expression[_]] = {
     for {
       e <- createExpr(state, resolver, expr, exprType)
       u <- FunctionRegistry.unary("-", calculator, srw, e)
@@ -330,7 +332,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       a: ConstExpr[T],
       b: ConstExpr[U],
       prepared: Boolean
-  ): Either[String, ConstExpr[_]] = {
+  )(implicit srw: StringReaderWriter): Either[String, ConstExpr[_]] = {
     for {
       av <- DataTypeUtils.constCast(a, a.dataType, calculator)
       bv <- DataTypeUtils.constCast(b, b.dataType, calculator)
@@ -344,7 +346,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       r: parser.SqlExpr,
       fun: String,
       exprType: ExprType
-  ): Either[String, Expression[_]] =
+  )(implicit srw: StringReaderWriter): Either[String, Expression[_]] =
     for {
       le <- createExpr(state, nameResolver, l, exprType)
       re <- createExpr(state, nameResolver, r, exprType)
@@ -355,7 +357,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       l: Expression[_],
       r: Expression[_],
       fun: String
-  ): Either[String, Expression[Boolean]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Expression[Boolean]] = {
     FunctionRegistry.bi(fun, calculator, srw, l, r).flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
       else Left(s"$fun result has type ${e.dataType.meta.sqlType} but BOOLEAN required")
@@ -368,7 +370,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       a: parser.SqlExpr,
       b: parser.SqlExpr,
       cmpName: String
-  ): Either[String, Condition] = {
+  )(implicit srw: StringReaderWriter): Either[String, Condition] = {
     for {
       l <- createExpr(state, resolver, a, ExprType.Cmp)
       r <- createExpr(state, resolver, b, ExprType.Cmp)
@@ -380,14 +382,16 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       state: BuilderState,
       resolver: NameResolver,
       e: parser.SqlExpr
-  ): Either[String, Condition] = {
+  )(implicit srw: StringReaderWriter): Either[String, Condition] = {
     createExpr(state, resolver, e, ExprType.Cmp).flatMap(e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Condition])
       else Left(s"$e has type ${e.dataType}, but BOOLEAN is required")
     )
   }
 
-  private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
+  private def convertValue[T](state: BuilderState, v: parser.Value, dataType: DataType.Aux[T])(
+      implicit srw: StringReaderWriter
+  ): Either[String, T] = {
     convertValue(state, v, ExprType.Cmp).flatMap(const => DataTypeUtils.constCast(const, dataType, calculator))
   }
 
@@ -396,7 +400,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       v: parser.Value,
       exprType: ExprType,
       prepared: Boolean = false
-  ): Either[String, ConstExpr[_]] = {
+  )(implicit srw: StringReaderWriter): Either[String, ConstExpr[_]] = {
     v match {
       case tv @ parser.TypedValue(s) if tv.dataType == DataType[String] =>
         val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]
@@ -436,7 +440,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       fields: Seq[QueryField],
       condition: Option[parser.SqlExpr],
       state: BuilderState
-  ): Either[String, Option[Condition]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Option[Condition]] = {
     val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
     condition match {
       case Some(c) =>
@@ -450,7 +454,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       fields: Seq[QueryField],
       condition: Option[parser.SqlExpr],
       state: BuilderState
-  ): Either[String, Option[Condition]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Option[Condition]] = {
     val resolver = table.map(t => fieldByRef(t, fields)(_)).getOrElse(constOrRef(fields)(_))
     condition match {
       case Some(c) =>
@@ -474,7 +478,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       select: parser.Select,
       table: Option[Table],
       state: BuilderState
-  ): Either[String, Seq[Expression[_]]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Seq[Expression[_]]] = {
     val filled = substituteGroupings(select)
     val resolver = table.map(fieldByName).getOrElse(constOnly)
 
@@ -540,7 +544,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       state: BuilderState,
       table: Table,
       values: Seq[parser.SqlExpr]
-  ): Either[String, Array[ConstantExpr[_]]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Array[ConstantExpr[_]]] = {
     val vs = values.map { v =>
       createExpr(state, fieldByName(table), v, ExprType.Math) match {
         case Right(e: Expression[t]) if e.kind == Const =>
@@ -559,7 +563,9 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
     CollectionUtils.collectErrors[ConstantExpr[_]](vs).map(_.toArray)
   }
 
-  private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {
+  private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]])(
+      implicit srw: StringReaderWriter
+  ): Either[String, Long] = {
     val idx = fieldMap.get(TimeExpr).toRight("time field is not defined")
     idx.map(values).flatMap(c => DataTypeUtils.constCast(c, DataType[Time], calculator)).map(_.millis)
   }
@@ -568,7 +574,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
       table: Table,
       fieldMap: Map[Expression[_], Int],
       values: Array[ConstantExpr[_]]
-  ): Either[String, Map[Dimension, _]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Map[Dimension, _]] = {
     val dimValues = table.dimensionSeq.map { dim =>
       val idx = fieldMap.get(DimensionExpr(dim.aux)).toRight(s"${dim.name} is not defined")
       idx.map(values).flatMap(c => DataTypeUtils.constCast(c, dim.dataType, calculator)).map(dim -> _)
@@ -580,7 +586,7 @@ class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extend
   private def getMetricValues(
       fieldMap: Map[Expression[_], Int],
       values: Array[ConstantExpr[_]]
-  ): Either[String, Seq[MetricValue]] = {
+  )(implicit srw: StringReaderWriter): Either[String, Seq[MetricValue]] = {
     val vs = fieldMap.collect {
       case (MetricExpr(m), idx) =>
         val x: Either[String, Any] = DataTypeUtils.constCast(values(idx), m.dataType, calculator)

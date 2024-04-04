@@ -21,7 +21,6 @@ import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.client.{ ConnectionFactory, HBaseAdmin }
 import org.yupana.api.query.Query
-import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.auth.{ DaoAuthorizer, PermissionService, UserManager }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
@@ -96,8 +95,6 @@ object Main extends StrictLogging {
 
     val userDao = new UserDaoHBase(connection, config.hbaseNamespace)
     val userManager = new UserManager(userDao, Some("admin"), Some("admin"))
-
-    implicit val srw: StringReaderWriter = SimpleStringReaderWriter
 
     val queryEngineRouter = new QueryEngineRouter(
       tsdb,
