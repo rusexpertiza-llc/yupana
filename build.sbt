@@ -206,6 +206,7 @@ lazy val spark = (project in file("yupana-spark"))
       "org.apache.hbase"            %  "hbase-mapreduce"                % versions.hbase,
       "org.scalatest"               %% "scalatest"                      % versions.scalaTest      % Test,
       "ch.qos.logback"              %  "logback-classic"                % versions.logback        % Test,
+      "ch.qos.logback"              %  "logback-core"                   % versions.logback        % Test,
       "com.dimafeng"                %% "testcontainers-scala-scalatest" % "0.40.11"               % Test
 
     ),
@@ -307,18 +308,21 @@ lazy val examples = (project in file("yupana-examples"))
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
     ),
     excludeDependencies ++= Seq(
-      "asm" % "asm"
+      "javax.activation"  % "javax.activation-api",
+      "javax.activation"  % "activation",
+      "com.sun.jersey"    % "jersey-json",
+      "javax.inject"      % "javax.inject",
+      "javax.servlet"     % "javax.servlet-api",
+      "javax.servlet.jsp" % "javax.servlet.jsp-api",
+      "javax.servlet.jsp" % "jsp-api"
     ),
     assembly / assemblyMergeStrategy := {
-      case PathList("org", "apache", "jasper", _*)  => MergeStrategy.last
-      case PathList("org", "apache", "commons", _*) => MergeStrategy.last
-      case PathList("javax", "servlet", _*)         => MergeStrategy.last
-      case PathList("javax", "el", _*)              => MergeStrategy.last
       case PathList(ps @ _*) if ps.last.endsWith(".proto") => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.discard
       case PathList("META-INF", "native-image", "io.netty", "common", "native-image.properties") => MergeStrategy.first
       case PathList("org", "slf4j", "impl", _*)     => MergeStrategy.first
       case "module-info.class"                      => MergeStrategy.first
+      case PathList("META-INF", "versions", xs @ _, "module-info.class") => MergeStrategy.discard
       case x                                        => (assembly / assemblyMergeStrategy).value(x)
     },
     writeAssemblyName := {
@@ -411,8 +415,8 @@ lazy val versions = new {
   val scopt = "4.1.0"
   val prometheus = "0.16.0"
 
-  val hbase = "2.4.1"
-  val hadoop = "3.0.3"
+  val hbase = "2.5.7"
+  val hadoop = "3.3.6"
 
   val netty = "4.1.97.Final"
 
@@ -425,7 +429,7 @@ lazy val versions = new {
 
   val flyway = "7.4.0"
   val hikariCP = "4.0.3"
-  val logback = "1.3.11"
+  val logback = "1.3.14"
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
