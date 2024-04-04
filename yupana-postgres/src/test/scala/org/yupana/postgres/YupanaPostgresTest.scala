@@ -14,7 +14,7 @@ import org.yupana.core.auth.{ Authorizer, PermissionService, TsdbRole, YupanaUse
 import org.yupana.core.dao.ChangelogDao
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.providers.JdbcMetadataProvider
-import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
+import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.postgres.YupanaPostgresTest.TestAuthorizer
 import org.yupana.postgres.protocol.PostgresStringReaderWriter
@@ -149,9 +149,8 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
   def withServerStarted(body: (YupanaPostgres, TSTestDao) => Any): Unit = {
     implicit val srw: StringReaderWriter = PostgresStringReaderWriter
-    val fr = new FunctionRegistry()
-    val jmp = new JdbcMetadataProvider(TestSchema.schema, fr, 1, 2, "1.2.3")
-    val sqp = new SqlQueryProcessor(TestSchema.schema, fr)
+    val jmp = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2.3")
+    val sqp = new SqlQueryProcessor(TestSchema.schema)
     val tsdbDaoMock = TsdbMocks.daoMock
     val changelogDaoMock = mock[ChangelogDao]
     val tsdb = new TSDB(

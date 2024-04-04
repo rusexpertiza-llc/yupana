@@ -8,7 +8,7 @@ import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.InternalRow
-import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
+import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
@@ -110,8 +110,7 @@ trait TsdbMocks extends MockFactory {
 
   private val calculator = new ConstantCalculator(RussianTokenizer)
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
-  val functionRegistry = new FunctionRegistry()
-  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, functionRegistry)
+  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   def createQuery(sql: String): Query = {
     SqlParser

@@ -25,7 +25,6 @@ import java.sql.DatabaseMetaData
 
 class JdbcMetadataProvider(
     schema: Schema,
-    functionRegistry: FunctionRegistry,
     versionMajor: Int,
     versionMinor: Int,
     versionFull: String
@@ -127,7 +126,7 @@ class JdbcMetadataProvider(
 
   def listFunctions(typeName: String): Either[String, Result] = {
     DataType.bySqlName(typeName).map { t =>
-      val fs = functionRegistry.functionsForType(t)
+      val fs = FunctionRegistry.functionsForType(t)
       SimpleResult("FUNCTIONS", Seq("NAME"), Seq(DataType[String]), fs.map(f => Array[Any](f)).iterator)
     } toRight s"Unknown type $typeName"
   }

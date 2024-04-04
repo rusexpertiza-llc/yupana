@@ -4,13 +4,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ EitherValues, OptionValues }
 import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWriter }
-import org.yupana.core.sql.FunctionRegistry
 import org.yupana.core.TestSchema
 
 class JdbcMetadataProviderTest extends AnyFlatSpec with Matchers with OptionValues with EitherValues {
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
-  val functionRegistry = new FunctionRegistry()
-  val metadataProvider = new JdbcMetadataProvider(TestSchema.schema, functionRegistry, 1, 2, "1.2")
+  val metadataProvider = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2")
 
   "JdbcMetadataProvider" should "return None when unknown table description has been requested" in {
     metadataProvider.describeTable("unknown_talbe") shouldBe Left("Unknown table 'unknown_talbe'")

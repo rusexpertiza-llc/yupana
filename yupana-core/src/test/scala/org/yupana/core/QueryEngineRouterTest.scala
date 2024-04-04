@@ -10,7 +10,7 @@ import org.yupana.core.auth.{ PermissionService, TsdbRole, UserManager, YupanaUs
 import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao, UserDao }
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.providers.JdbcMetadataProvider
-import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
 import org.yupana.core.sql.parser.TypedValue
 import org.yupana.settings.Settings
 
@@ -95,7 +95,7 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
   it should "handle show functions" in withEngineRouter { (qer, _, _, _, _) =>
     val res =
       qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW FUNCTIONS FOR VARCHAR", Map.empty).value.toList
-    res.map(_.get[String]("NAME")) shouldEqual functionRegistry.functionsForType(DataType[String])
+    res.map(_.get[String]("NAME")) shouldEqual FunctionRegistry.functionsForType(DataType[String])
   }
 
   it should "handle list queries" in withEngineRouter { (qer, _, metricsDao, _, _) =>
@@ -237,8 +237,8 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
       val changelogDao = mock[ChangelogDao]
       val userDao = mock[UserDao]
       val fqe = new FlatQueryEngine(metricsDao, changelogDao)
-      val jmp = new JdbcMetadataProvider(TestSchema.schema, functionRegistry, 1, 2, "1.2.3")
-      val sqp = new SqlQueryProcessor(TestSchema.schema, functionRegistry)
+      val jmp = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2.3")
+      val sqp = new SqlQueryProcessor(TestSchema.schema)
       val ps = new PermissionService(putEnabled = false)
       val um = new UserManager(userDao, Some("admin"), Some("admin"))
 

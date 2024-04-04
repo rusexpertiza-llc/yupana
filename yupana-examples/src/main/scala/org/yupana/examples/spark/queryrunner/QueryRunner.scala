@@ -22,7 +22,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
-import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
+import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
@@ -60,7 +60,7 @@ object QueryRunner {
     implicit val srw: StringReaderWriter = SimpleStringReaderWriter
     SqlParser.parse(sql) flatMap {
       case s: Select =>
-        new SqlQueryProcessor(ExampleSchema.schema, new FunctionRegistry()).createQuery(s).map { q =>
+        new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).map { q =>
           tsdbSpark.query(q)
         }
       case _ => Left(s"Unsupported query: $sql")

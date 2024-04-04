@@ -28,9 +28,7 @@ import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
-class SqlQueryProcessor(schema: Schema, functionRegistry: FunctionRegistry)(implicit srw: StringReaderWriter)
-    extends QueryValidator
-    with Serializable {
+class SqlQueryProcessor(schema: Schema)(implicit srw: StringReaderWriter) extends QueryValidator with Serializable {
 
   import SqlQueryProcessor._
 
@@ -260,14 +258,14 @@ class SqlQueryProcessor(schema: Schema, functionRegistry: FunctionRegistry)(impl
       case parser.FunctionCall(f, e :: Nil) =>
         for {
           ex <- createExpr(state, nameResolver, e, exprType)
-          fexpr <- functionRegistry.unary(f, calculator, ex)
+          fexpr <- FunctionRegistry.unary(f, calculator, srw, ex)
         } yield fexpr
 
       case parser.FunctionCall(f, e1 :: e2 :: Nil) =>
         for {
           a <- createExpr(state, nameResolver, e1, exprType)
           b <- createExpr(state, nameResolver, e2, exprType)
-          fexpr <- functionRegistry.bi(f, calculator, a, b)
+          fexpr <- FunctionRegistry.bi(f, calculator, srw, a, b)
         } yield fexpr
 
       case parser.FunctionCall(f, _) =>
@@ -301,7 +299,7 @@ class SqlQueryProcessor(schema: Schema, functionRegistry: FunctionRegistry)(impl
   ): Either[String, Expression[_]] = {
     for {
       e <- createExpr(state, resolver, expr, exprType)
-      u <- functionRegistry.unary("-", calculator, e)
+      u <- FunctionRegistry.unary("-", calculator, srw, e)
     } yield u
   }
 
@@ -350,7 +348,7 @@ class SqlQueryProcessor(schema: Schema, functionRegistry: FunctionRegistry)(impl
     for {
       le <- createExpr(state, nameResolver, l, exprType)
       re <- createExpr(state, nameResolver, r, exprType)
-      biFunction <- functionRegistry.bi(fun, calculator, le, re)
+      biFunction <- FunctionRegistry.bi(fun, calculator, srw, le, re)
     } yield biFunction
 
   private def createBooleanExpr(
@@ -358,7 +356,7 @@ class SqlQueryProcessor(schema: Schema, functionRegistry: FunctionRegistry)(impl
       r: Expression[_],
       fun: String
   ): Either[String, Expression[Boolean]] = {
-    functionRegistry.bi(fun, calculator, l, r).flatMap { e =>
+    FunctionRegistry.bi(fun, calculator, srw, l, r).flatMap { e =>
       if (e.dataType == DataType[Boolean]) Right(e.asInstanceOf[Expression[Boolean]])
       else Left(s"$fun result has type ${e.dataType.meta.sqlType} but BOOLEAN required")
     }

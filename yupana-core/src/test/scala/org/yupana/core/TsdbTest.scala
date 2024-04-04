@@ -14,7 +14,7 @@ import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.{ TsdbRole, YupanaUser }
 import org.yupana.core.dao.{ ChangelogDao, TsdbQueryMetricsDao }
 import org.yupana.core.model._
-import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
+import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.metric._
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
@@ -3142,8 +3142,7 @@ class TsdbTest
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     implicit val srw: StringReaderWriter = SimpleStringReaderWriter
-    val functionRegistry = new FunctionRegistry()
-    val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, functionRegistry)
+    val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
     val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     val from = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val to = from.plusDays(1)

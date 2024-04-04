@@ -19,8 +19,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   import org.yupana.api.query.syntax.All._
 
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
-  val functionRegistry = new FunctionRegistry()
-  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema, functionRegistry)
+  private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   import TestDims._
 

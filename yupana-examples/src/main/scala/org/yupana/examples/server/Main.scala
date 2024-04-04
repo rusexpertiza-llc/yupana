@@ -24,7 +24,7 @@ import org.yupana.api.query.Query
 import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.auth.{ DaoAuthorizer, PermissionService, UserManager }
 import org.yupana.core.providers.JdbcMetadataProvider
-import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
+import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.{ PersistentMetricQueryReporter, StandaloneMetricCollector }
 import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig }
 import org.yupana.examples.ExampleSchema
@@ -98,13 +98,12 @@ object Main extends StrictLogging {
     val userManager = new UserManager(userDao, Some("admin"), Some("admin"))
 
     implicit val srw: StringReaderWriter = SimpleStringReaderWriter
-    val functionRegistry = new FunctionRegistry()
 
     val queryEngineRouter = new QueryEngineRouter(
       tsdb,
       new FlatQueryEngine(metricsDao, changelogDao),
-      new JdbcMetadataProvider(schemaWithJson, functionRegistry, 2, 0, "2.0"),
-      new SqlQueryProcessor(schemaWithJson, functionRegistry),
+      new JdbcMetadataProvider(schemaWithJson, 2, 0, "2.0"),
+      new SqlQueryProcessor(schemaWithJson),
       new PermissionService(putEnabled = true),
       userManager
     )
