@@ -67,7 +67,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     context.queryEngineRouter.query(user, sql, Map.empty) match {
       case Right(result) =>
         ctx.write(makeDescription(result))
-        writeResult(ctx, result)
+        writeResult(ctx, result, IndexedSeq.empty)
       case Left(error) =>
         writeError(ctx, error)
     }
@@ -84,8 +84,19 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
   }
 
   private def preprocess(sql: String): String = {
-    if (sql.startsWith("SELECT NULL AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME")) "SHOW TABLES"
-    else sql
+    if (sql.startsWith("SELECT NULL AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME")) {
+      "SHOW TABLES"
+//    } else if (sql.startsWith("SELECT * FROM (SELECT n.nspname,c.relname,a.attname,a.atttypid,a.attnotnull")) {
+//      val condIndex = sql.indexOf("WHERE")
+//      if (condIndex != -1) {
+//        val tablePattern = "relname LIKE E'([^']+)'".r
+//        val cond = sql.substring(condIndex)
+//        tablePattern.findFirstMatchIn(cond).map(_.group(1)) match {
+//          case Some(table) => s"SHOW COLUMNS from $table"
+//          case _           => sql
+//        }
+//      } else sql
+    } else sql
   }
 
   private def parse(ctx: ChannelHandlerContext, name: String, sql: String, types: Seq[Int]): Unit = {
@@ -107,7 +118,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     }
   }
 
-  private def bind(statement: Statement, values: Map[Int, Value]) = {
+  private def bind(statement: Statement, values: Map[Int, Value]): Either[String, PreparedStatement] = {
     statement match {
       case Select(None, SqlFieldsAll, None, Nil, None, None) => Right(EmptyQuery)
       case x                                                 => context.queryEngineRouter.bind(x, values)
@@ -115,12 +126,18 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
   }
 
+  private def isBinary(idx: Int, binary: IndexedSeq[Boolean]): Boolean = {
+    if (binary.length == 1) binary.head
+    else if (idx < binary.length) binary(idx)
+    else true
+  }
+
   private def bind(
       ctx: ChannelHandlerContext,
       portal: String,
       prepare: String,
-      isBinary: Seq[Boolean],
-      paramCount: Short,
+      paramIsBinary: IndexedSeq[Boolean],
+      paramCount: Int,
       data: ByteBuf
   ): Unit = {
     parseds.get(prepare) match {
@@ -133,16 +150,18 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
           .zipWithIndex
           .map {
             case (dt, idx) =>
-              val b = if (isBinary.length == 1) isBinary.head else if (idx < isBinary.length) isBinary(idx) else true
+              val b = isBinary(idx, paramIsBinary)
               idx + 1 -> readValue(data, b, dt.map(_.aux))
           }
           .toMap
 
         logger.debug(s"Binding $values")
+        val resultFormatCount = data.readShort()
+        val resultIsBinary = (0 until resultFormatCount).map(_ => data.readShort() == 1)
 
         bind(p.statement, values) match {
           case Right(prep) =>
-            portals += portal -> Portal(p, prep)
+            portals += portal -> Portal(p, prep, resultIsBinary)
             ctx.write(BindComplete)
           case Left(err) =>
             writeError(ctx, err)
@@ -159,7 +178,14 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
   private def readValue(in: ByteBuf, isBinary: Boolean, dataType: Option[DataType]): Value = {
     dataType match {
-      case Some(dt) => TypedValue(dt.storable.read(in))(dt)
+      case Some(dt) =>
+        val v = if (isBinary) {
+          dt.storable.read(in)
+        } else {
+          val s = implicitly[Storable[String]].read(in)
+          dt.storable.readString(s)
+        }
+        TypedValue(v)(dt)
       case None =>
         val s = implicitly[Storable[String]].read(in)
         UntypedValue(s)
@@ -207,7 +233,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
             if (p.prepared != EmptyQuery) {
               context.queryEngineRouter.execute(user, p.prepared) match {
                 case Right(result) =>
-                  writeResult(ctx, result)
+                  writeResult(ctx, result, p.resultIsBinary)
                   ctx.flush()
                 case Left(error) => writeError(ctx, error)
               }
@@ -220,13 +246,13 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     }
   }
 
-  private def writeResult(ctx: ChannelHandlerContext, r: Result): Unit = {
+  private def writeResult(ctx: ChannelHandlerContext, r: Result, resultIsBinary: IndexedSeq[Boolean]): Unit = {
     var count = 0
 
     val resultTypes = r.dataTypes.zipWithIndex
 
     r.foreach { r =>
-      ctx.write(makeRow(resultTypes, r))
+      ctx.write(makeRow(resultTypes, r, resultIsBinary))
       count += 1
     }
 
@@ -246,7 +272,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     )
   }
 
-  private def makeRow(types: Seq[(DataType, Int)], row: DataRow): RowData = {
+  private def makeRow(types: Seq[(DataType, Int)], row: DataRow, resultIsBinary: IndexedSeq[Boolean]): RowData = {
 
     val bufs = types.map {
       case (dt, idx) =>
@@ -255,7 +281,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         if (row.isEmpty(idx)) {
           buf.writeInt(-1)
         } else {
-          if (PgTypes.isBinary(dt)) {
+          if (isBinary(idx, resultIsBinary) && PgTypes.isBinary(dt)) {
             dt.storable.write(buf, row.get[dt.T](idx): ID[dt.T])
           } else {
             val s = dt.storable.writeString(row.get[dt.T](idx): ID[dt.T])
@@ -270,5 +296,5 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
 object MessageHandler {
   private case class Parsed(name: String, statement: Statement, types: Seq[Option[DataType]])
-  private case class Portal(parsed: Parsed, prepared: PreparedStatement)
+  private case class Portal(parsed: Parsed, prepared: PreparedStatement, resultIsBinary: IndexedSeq[Boolean])
 }

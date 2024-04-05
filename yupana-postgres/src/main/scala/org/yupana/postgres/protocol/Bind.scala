@@ -21,8 +21,13 @@ import org.yupana.postgres.NettyUtils
 
 import java.nio.charset.Charset
 
-case class Bind(portalName: String, prepareName: String, isBinary: Seq[Boolean], paramCount: Short, rawData: ByteBuf)
-    extends ClientMessage
+case class Bind(
+    portalName: String,
+    prepareName: String,
+    isBinary: IndexedSeq[Boolean],
+    paramCount: Short,
+    rawData: ByteBuf
+) extends ClientMessage
 
 object Bind {
   def decode(in: ByteBuf, charset: Charset): Bind = {
