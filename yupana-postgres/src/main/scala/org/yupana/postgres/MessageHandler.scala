@@ -52,6 +52,8 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
       case Describe(Describe.DescribeStatement, n)           => describeStatement(ctx, n)
       case Describe(Describe.DescribePortal, n)              => describePortal(ctx, n)
       case Execute(name, limit)                              => execute(ctx, name, limit)
+      case Close(Close.CloseStatement, n)                    => closeStatement(ctx, n)
+      case Close(Close.ClosePortal, n)                       => closePortal(ctx, n)
 
       case Sync =>
         ctx.writeAndFlush(ReadyForQuery)
@@ -192,7 +194,9 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     }
   }
 
-  private def describeStatement(ctx: ChannelHandlerContext, name: String): Unit = {}
+  private def describeStatement(ctx: ChannelHandlerContext, name: String): Unit = {
+    // TODO: Implement me one day
+  }
 
   private def describePortal(ctx: ChannelHandlerContext, name: String): Unit = {
     portals.get(name) match {
@@ -222,6 +226,16 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         -1,
         if (PgTypes.isBinary(tpe)) 1 else 0
       )
+  }
+
+  private def closeStatement(ctx: ChannelHandlerContext, name: String): Unit = {
+    parseds -= name
+    ctx.write(CloseComplete)
+  }
+
+  private def closePortal(ctx: ChannelHandlerContext, name: String): Unit = {
+    portals -= name
+    ctx.write(CloseComplete)
   }
 
   private def execute(ctx: ChannelHandlerContext, portal: String, limit: Int): Unit = {
