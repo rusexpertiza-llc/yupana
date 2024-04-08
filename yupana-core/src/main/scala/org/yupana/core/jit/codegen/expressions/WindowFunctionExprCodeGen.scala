@@ -19,15 +19,15 @@ package org.yupana.core.jit.codegen.expressions
 import org.yupana.api.query.{ TimeExpr, WindowFunctionExpr }
 import org.yupana.core.jit.{ CodeGenResult, State }
 
-import scala.reflect.runtime.universe
+import scala.reflect.runtime.universe._
 
 class WindowFunctionExprCodeGen(override val expression: WindowFunctionExpr[_, _])
     extends ExpressionCodeGen[WindowFunctionExpr[_, _]] {
-  override def generateEvalCode(state: State, row: universe.TermName): CodeGenResult = {
+  override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     state
-      .withRequired(expression)
-      .withRequired(expression.expr)
-      .withRequired(TimeExpr)
+      .withExpression(expression)
+      .withExpression(expression.expr)
+      .withExpression(TimeExpr)
       .withReadFromRow(row, expression)
   }
 }

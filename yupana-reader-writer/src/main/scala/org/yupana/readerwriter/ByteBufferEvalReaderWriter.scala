@@ -17,7 +17,7 @@
 package org.yupana.readerwriter
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
+import org.yupana.api.types.{ ByteReaderWriter, ID }
 import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
@@ -27,6 +27,8 @@ import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Serializable {
+
+  override def sizeOfBoolean: Int = 1
 
   override def readBoolean(b: ByteBuffer): Boolean = {
     b.get() != 0
@@ -55,15 +57,17 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     b.get(offset, d)
   }
 
-  override def writeBytes(b: ByteBuffer, v: ID[Array[Byte]]): TypedInt[Int] = {
+  override def writeBytes(b: ByteBuffer, v: ID[Array[Byte]]): Int = {
     b.put(v)
     v.length
   }
 
-  override def writeBytes(b: ByteBuffer, offset: Int, v: ID[Array[Byte]]): TypedInt[Int] = {
+  override def writeBytes(b: ByteBuffer, offset: Int, v: ID[Array[Byte]]): Int = {
     b.put(offset, v)
     v.length
   }
+
+  override def sizeOfInt: Int = 4
 
   override def readInt(b: ByteBuffer): Int = {
     b.getInt()
@@ -82,6 +86,9 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     b.putInt(offset, v)
     4
   }
+
+  override def sizeOfLong: Int = 8
+
   override def readLong(b: ByteBuffer): Long = {
     b.getLong()
   }
@@ -100,6 +107,8 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     8
   }
 
+  override def sizeOfDouble: Int = 8
+
   override def readDouble(b: ByteBuffer): Double = {
     b.getDouble()
   }
@@ -117,6 +126,9 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     b.putDouble(offset, v)
     8
   }
+
+  override def sizeOfShort: Int = 2
+
   override def readShort(b: ByteBuffer): Short = {
     b.getShort()
   }
@@ -135,6 +147,8 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     2
   }
 
+  override def sizeOfByte: Int = 1
+
   override def readByte(b: ByteBuffer): Byte = {
     b.get()
   }
@@ -152,6 +166,8 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     1
   }
 
+  override def sizeOfTime: Int = 8
+
   override def readTime(b: ByteBuffer): Time = {
     Time(b.getLong())
   }
@@ -168,6 +184,10 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
   override def writeTime(b: ByteBuffer, offset: Int, v: Time): Int = {
     b.putLong(offset, v.millis)
     8
+  }
+
+  override def sizeOfTuple[T, U](v: (T, U), tSize: ID[T] => Int, uSize: ID[U] => Int): Int = {
+    tSize(v._1) + uSize(v._2)
   }
 
   override def readTuple[T, U](b: ByteBuffer, tReader: ByteBuffer => T, uReader: ByteBuffer => U): (T, U) = {
@@ -211,9 +231,9 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
   }
 
   override def readString(b: ByteBuffer, offset: Int): String = {
-    val length = b.getInt()
+    val length = b.getInt(offset)
     val bytes = Array.ofDim[Byte](length)
-    b.get(offset, bytes)
+    b.get(offset + 4, bytes)
     new String(bytes, StandardCharsets.UTF_8)
   }
 
@@ -315,7 +335,7 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     }
   }
 
-  def vLongSize(v: Long) = {
+  def sizeOfVlong(v: Long) = {
     if (v <= 127 && v > -112) {
       1
     } else {
@@ -421,6 +441,12 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     writeVLong(b, offset, v)
   }
 
+  override def sizeOfBigDecimal(v: BigDecimal): Int = {
+    val u = v.underlying()
+    val a = u.unscaledValue().toByteArray
+    sizeOfVlong(u.scale()) + sizeOfVlong(a.length) + a.length
+  }
+
   override def readBigDecimal(b: ByteBuffer): BigDecimal = {
     val scale = readVInt(b)
     val size = readVInt(b)
@@ -431,9 +457,9 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
 
   override def readBigDecimal(b: ByteBuffer, offset: Int): BigDecimal = {
     val scale = readVInt(b, offset)
-    val sScale = vLongSize(scale)
+    val sScale = sizeOfVlong(scale)
     val size = readVInt(b, offset + sScale)
-    val sSize = vLongSize(size)
+    val sSize = sizeOfVlong(size)
     val bytes = Array.ofDim[Byte](size)
     b.get(offset + sScale + sSize, bytes)
     new java.math.BigDecimal(new BigInteger(bytes), scale)
@@ -455,6 +481,12 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
     val s2 = writeVLong(b, offset + s1, a.length)
     b.put(offset + s1 + s2, a)
     s1 + s2 + a.length
+  }
+
+  override def sizeOfSeq[T](v: ID[Seq[T]], size: ID[T] => Int): Int = {
+    v.foldLeft(sizeOfVlong(v.size)) { (s, vv) =>
+      s + size(vv)
+    }
   }
 
   override def readSeq[T: ClassTag](b: ByteBuffer, reader: ByteBuffer => T): Seq[T] = {
@@ -493,10 +525,14 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
   ): Int = {
     val p = b.position()
     b.position(offset)
-    val s1 = writeVInt(b, offset, seq.size)
+    val s1 = writeVInt(b, seq.size)
     val s = seq.foldLeft(s1)((s, v) => s + writer(b, v))
     b.position(p)
     s
+  }
+
+  override def sizeOfBlob(v: ID[Blob]): Int = {
+    sizeOfVlong(v.bytes.length) + v.bytes.length
   }
 
   override def readBlob(b: ByteBuffer): Blob = {
@@ -542,6 +578,12 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
   override def writeVTime(b: ByteBuffer, offset: Int, v: Time): Int = {
     writeVLong(b, offset, v.millis)
   }
+
+  override def sizeOfPeriodDuration(v: ID[PeriodDuration]): Int = {
+    sizeOfString(v.toString)
+  }
+
+  override def sizeOfString(v: String): Int = 4 + v.length
 
   override def readPeriodDuration(b: ByteBuffer): PeriodDuration = {
     val s = readString(b)

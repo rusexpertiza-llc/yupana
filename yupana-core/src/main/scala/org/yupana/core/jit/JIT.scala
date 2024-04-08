@@ -19,9 +19,10 @@ package org.yupana.core.jit
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
+import org.yupana.api.utils.Tokenizer
 import org.yupana.core.jit.codegen.stages._
-import org.yupana.core.jit.codegen.InternalRowGen
-import org.yupana.core.model.InternalRowBuilder
+import org.yupana.core.jit.codegen.{BatchDatasetGen, CommonGen}
+import org.yupana.core.model.InternalRowSchema
 
 object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializable {
 
@@ -29,64 +30,69 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   import scala.reflect.runtime.universe._
   import scala.tools.reflect.ToolBox
 
-  private val internalRowBuilder = TermName("internalRowBuilder")
   private val params = TermName("params")
+  private val tokenizer = TermName("tokenizer")
 
   private val toolBox = currentMirror.mkToolBox()
 
-  def makeCalculator(query: Query, condition: Option[Condition]): (ExpressionCalculator, Map[Expression[_], Int]) = {
-    val (tree, known, params) = generateCalculator(query, condition)
+  def makeCalculator(
+                      query: Query,
+                      condition: Option[Condition],
+                      tokenizer: Tokenizer): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema) = {
+    val (tree, known, params, schema) = generateCalculator(query, condition)
 
-    val res = compile(tree)(params)
+    val res = compile(tree)(params, tokenizer)
 
-    (res, known)
+    (res, known, schema)
   }
 
-  def compile(tree: Tree): Array[Any] => ExpressionCalculator = {
-    toolBox.eval(tree).asInstanceOf[Array[Any] => ExpressionCalculator]
+  def compile(tree: Tree): (Array[Any], Tokenizer) => ExpressionCalculator = {
+    toolBox.eval(tree).asInstanceOf[(Array[Any], Tokenizer) => ExpressionCalculator]
   }
-  def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int], Array[Any]) = {
-    val internalRow = TermName("internalRow")
+  def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int], Array[Any], InternalRowSchema) = {
+    val batch = TermName("batch")
     val initialState =
       State(
         Map.empty,
-        query.fields.map(_.expr).toSet ++ query.groupBy ++ query.postFilter + TimeExpr,
+        Map.empty,
         Seq.empty,
         Seq.empty,
         Seq.empty,
         Map.empty
-      )
+      ).withExpression(TimeExpr)
 
-    val (filter, filteredState) = FilterStageGen.mkFilter(initialState, internalRow, condition)
+    val (filter, filteredState) = FilterStageGen.mkFilter(initialState, batch, condition)
 
-    val (projection, projectionState) = ProjectionStageGen.mkProjection(query, internalRow, filteredState.fresh())
+    val (projection, projectionState) = ProjectionStageGen.mkProjection(query, batch, filteredState.fresh())
 
     val acc = TermName("acc")
+    val accBatch = TermName("accBatch")
 
-    val (zero, mappedState) = FoldStageGen.mkZero(projectionState.fresh(), query, internalRow)
+    val (zero, zeroState) = FoldStageGen.mkZero(projectionState.fresh(), query, accBatch, batch)
 
-    val (fold, foldedState) = FoldStageGen.mkFold(mappedState.fresh(), query, acc, internalRow)
+    val (fold, foldedState) = FoldStageGen.mkFold(zeroState.fresh(), query, accBatch, batch)
 
-    val rowA = TermName("rowA")
-    val rowB = TermName("rowB")
-    val (reduce, reducedState) = CombineStageGen.mkCombine(foldedState.fresh(), query, rowA, rowB)
+    val (reduce, reducedState) = CombineStageGen.mkCombine(foldedState.fresh(), query, accBatch, batch)
 
-    val (postMap, postMappedState) =
-      PostCombineStageGen.mkPostCombine(reducedState.fresh(), query, internalRow)
+    val (postCombine, postCombineState) =
+      PostCombineStageGen.mkPostCombine(reducedState.fresh(), query, batch)
 
     val (postAggregate, postAggregateState) =
-      PostAgrregateStageGen.mkPostAggregate(query, internalRow, postMappedState.fresh())
+      PostAgrregateStageGen.mkPostAggregate(query, batch, postCombineState.fresh())
 
-    val (postFilter, finalState) = PostFilterStageGen.mkPostFilter(postAggregateState.fresh(), internalRow, query)
+    val (postFilter, postFilterState) = PostFilterStageGen.mkPostFilter(postAggregateState.fresh(), batch, query)
 
-    val defs = finalState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
-      finalState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
+    val defs = postFilterState.globalDecls.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}" } ++
+      postFilterState.refs.map { case (_, d) => q"private val ${d.name}: ${d.tpe} = ${d.value}.asInstanceOf[${d.tpe}]" }
 
     val buf = TermName("buf")
 
-    val builder = new InternalRowBuilder(finalState.index, query.table)
-    val readRow = ReadFromStorageRowStage.mkReadRow(query, buf, internalRowBuilder, builder)
+    val paramsArray = postFilterState.refs.map(_._1).toArray[Any]
 
+    val schema = new InternalRowSchema(postFilterState.valueExprIndex, postFilterState.refExprIndex, query.table)
+
+    val rowNum = TermName("rowNum")
+    val readRow = ReadFromStorageRowStage.mkReadRow(query, buf, schema, batch, rowNum)
     val tree =
       q"""
     import _root_.java.nio.ByteBuffer
@@ -95,99 +101,209 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     import _root_.org.yupana.api.types.DataType
     import _root_.org.yupana.api.utils.Tokenizer
     import _root_.org.yupana.api.schema.Table
-    import _root_.org.yupana.core.model.{InternalRow, InternalRowBuilder}
+    import _root_.org.yupana.core.model.{ BatchDataset, HashTableDataset }
     import _root_.org.threeten.extra.PeriodDuration
     import _root_.org.threeten.extra.PeriodDuration
     import _root_.org.yupana.core.utils.Hash128Utils.timeHash
 
-    ($params: Array[Any]) =>
+    ($params: Array[Any], $tokenizer: Tokenizer) =>
       new _root_.org.yupana.core.jit.ExpressionCalculator {
+
         ..$defs
 
-        override def evaluateFilter($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $internalRow: InternalRow): Boolean = {
-          ..${InternalRowGen.mkGetValuesFromRow(filteredState, builder, internalRowBuilder)}
-          val res = {..$filter}
-          res
+        final class Key(val ds: BatchDataset, val rowNum: Int) {
+
+
+           override def hashCode(): Int = {
+              var h = 0
+               ..${
+                   query.groupBy.zipWithIndex.map { case (expr, i) =>
+                     val valDecl = ValueDeclaration(s"keyField_$i")
+                     val read = BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl)
+                     val mixfunc = if (i == 0) {
+                        q"valueHash"
+                     } else if (i < query.groupBy.size - 1) {
+                        q"scala.util.hashing.MurmurHash3.mix(h, valueHash)"
+                     } else {
+                       q"scala.util.hashing.MurmurHash3.finalizeHash(scala.util.hashing.MurmurHash3.mix(h, valueHash), ${query.groupBy.size})"
+                     }
+                       q"""
+                         {
+                            ..$read
+                            val valueHash = if (${valDecl.validityFlagName}) ${valDecl.valueName}.hashCode() else 0
+                            h = $mixfunc
+                         }
+                     """
+                   }
+                }
+                h
+           }
+
+           override def equals(that: scala.Any): Boolean = {
+              var r = true
+              ..${
+                 query.groupBy.zipWithIndex.map { case (expr, i) =>
+                   val valDecl1 = ValueDeclaration(s"keyField1_$i")
+                   val valDecl2 = ValueDeclaration(s"keyField2_$i")
+
+                   val read1 = BatchDatasetGen.mkGet(schema, expr, TermName("thatDs"), q"that.asInstanceOf[Key].rowNum", valDecl1)
+                   val read2 =  BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl2)
+                   q"""
+                       val thatDs = that.asInstanceOf[Key].ds
+                      ..$read1
+                      ..$read2
+                      r = r & (${valDecl1.validityFlagName} == ${valDecl2.validityFlagName}) & (${valDecl1.valueName} == ${valDecl2.valueName})
+                   """
+                 }
+              }
+              r
+           }
         }
 
-        override def evaluateExpressions($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $internalRow: InternalRow): InternalRow = {
+        override def evaluateFilter($batch: BatchDataset): Unit = {
+          var rowNum = 0
+          while (rowNum < $batch.size) {
+            ..${BatchDatasetGen.mkGetValues(filteredState, schema, q"rowNum")}
+            val fl = {..$filter}
+            if (!fl) {
+               $batch.setDeleted(rowNum)
+            }
+            rowNum += 1
+          }
+        }
+
+        override def evaluateExpressions($batch: BatchDataset): Unit = {
           ${if (projectionState.hasWriteOps) {
           q"""
-                ..${InternalRowGen.mkGetValuesFromRow(projectionState, builder, internalRowBuilder)}
-                ..$projection
-                ..${InternalRowGen.mkSetValuesToRow(projectionState, builder, internalRowBuilder)}
-                """
-        } else {
-          q"$internalRow"
-        }}
+               var rowNum = 0
+               while (rowNum < $batch.size) {
+                  if (!$batch.isDeleted(rowNum)) {
+                    ..${BatchDatasetGen.mkGetValues(projectionState, schema, q"rowNum")}
+                    ..$projection
+                    ..${BatchDatasetGen.mkSetValues(projectionState, schema, q"rowNum")}
+                  }
+                  rowNum += 1
+               }
+            """
+          } else { q"()" }}
         }
 
-        override def evaluateZero($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $internalRow: InternalRow): InternalRow = {
-          ..${InternalRowGen.mkGetValuesFromRow(mappedState, builder, internalRowBuilder)}
-          ..$zero
-          ..${InternalRowGen.mkSetValuesToRow(mappedState, builder, internalRowBuilder)}
+       override def createKey($batch: BatchDataset, rowNum: Int): AnyRef = {
+          new Key($batch, rowNum)
+       }
+
+       override def evaluateFold($acc: HashTableDataset, $batch: BatchDataset): Unit = {
+
+           var rowNum = 0
+           while (rowNum < $batch.size) {
+              if (!$batch.isDeleted(rowNum)) {
+
+                val key = new Key($batch, rowNum)
+                val rowPtr = $acc.rowPointer(key)
+                if (rowPtr == HashTableDataset.KEY_NOT_FOUND) {
+                  ..${CommonGen.mkReadGroupByFields(query, schema, batch, q"rowNum")}
+                  ..${BatchDatasetGen.mkGetValues(zeroState, schema, batch, q"rowNum")}
+                  ..$zero
+                  val ptr = acc.newRow()
+                  val $accBatch = acc.batch(ptr)
+                  val accRowNum = acc.rowNumber(ptr)
+                  ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
+                  ..${BatchDatasetGen.mkSetValues(zeroState, schema, accBatch, q"accRowNum")}
+                  acc.updateKey(new Key($accBatch, accRowNum), ptr)
+                } else {
+                  ..${BatchDatasetGen.mkGetValues(foldedState, schema, batch, q"rowNum")}
+                  val $accBatch = acc.batch(rowPtr)
+                  val accRowNum = acc.rowNumber(rowPtr)
+                  ..${BatchDatasetGen.mkGetValues(foldedState, schema, accBatch, q"accRowNum")}
+                  ..$fold
+                  ..${BatchDatasetGen.mkSetValues(foldedState, schema, accBatch, q"accRowNum")}
+
+                }
+              }
+              rowNum += 1
+           }
         }
 
-        override def evaluateSequence($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $acc: InternalRow, $internalRow: InternalRow): InternalRow = {
-          ..${InternalRowGen.mkGetValuesFromRow(foldedState, builder, internalRowBuilder)}
-          ..$fold
-          ..${InternalRowGen.mkSetValuesToRow(foldedState, builder, internalRowBuilder)}
+        override def evaluateCombine($acc: HashTableDataset, $batch: BatchDataset): Unit = {
+           var rowNum = 0
+           while (rowNum < $batch.size) {
+              if (!$batch.isDeleted(rowNum)) {
+                val key = new Key($batch, rowNum)
+                val rowPtr = $acc.rowPointer(key)
+                if (rowPtr == HashTableDataset.KEY_NOT_FOUND) {
+                  ..${CommonGen.mkReadGroupByFields(query, schema, batch, q"rowNum")}
+                  val ptr = acc.newRow()
+                  val $accBatch = acc.batch(ptr)
+                  val accRowNum = acc.rowNumber(ptr)
+                   ..${CommonGen.copyAggregateFields(query, schema, batch, q"rowNum", accBatch, q"accRowNum")}
+                   ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
+                  acc.updateKey(new Key($accBatch, accRowNum), ptr)
+                } else {
+                  ..${BatchDatasetGen.mkGetValues(reducedState, schema, batch, q"rowNum")}
+                  val $accBatch = acc.batch(rowPtr)
+                  val accRowNum = acc.rowNumber(rowPtr)
+                  ..${BatchDatasetGen.mkGetValues(reducedState, schema, accBatch, q"accRowNum")}
+                  ..$reduce
+                  ..${BatchDatasetGen.mkSetValues(reducedState, schema, accBatch,  q"accRowNum")}
+                }
+              }
+              rowNum += 1
+           }
         }
 
-        override def evaluateCombine($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $rowA: InternalRow, $rowB: InternalRow): InternalRow = {
-          ..${InternalRowGen.mkGetValuesFromRow(reducedState, builder, internalRowBuilder)}
-          ..$reduce
-          ..${InternalRowGen.mkSetValuesToRow(reducedState, builder, internalRowBuilder)}
+        override def evaluatePostCombine($batch: BatchDataset): Unit = {
+           var rowNum = 0
+           while (rowNum < $batch.size) {
+              if (!$batch.isDeleted(rowNum)) {
+               ..${BatchDatasetGen.mkGetValues(postCombineState, schema, q"rowNum")}
+               ..$postCombine
+               ..${BatchDatasetGen.mkSetValues(postCombineState, schema, q"rowNum")}
+             }
+             rowNum += 1
+           }
         }
 
-        override def evaluatePostMap($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $internalRow: InternalRow): InternalRow = {
-          ${if (postMappedState.hasWriteOps) {
-          q"""
-              ..${InternalRowGen.mkGetValuesFromRow(postMappedState, builder, internalRowBuilder)}
-              ..$postMap
-              ..${InternalRowGen.mkSetValuesToRow(postMappedState, builder, internalRowBuilder)}
-              """
-        } else {
-          q"$internalRow"
-        }}
+        def evaluatePostAggregateExprs($batch: BatchDataset): Unit = {
+           var rowNum = 0
+           while (rowNum < $batch.size) {
+              if (!$batch.isDeleted(rowNum)) {
+               ..${BatchDatasetGen.mkGetValues(postAggregateState, schema, q"rowNum")}
+               ..$postAggregate
+               ..${BatchDatasetGen.mkSetValues(postAggregateState, schema, q"rowNum")}
+              }
+              rowNum += 1
+           }
         }
 
-        override def evaluatePostAggregateExprs($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $internalRow: InternalRow): InternalRow = {
-          ${if (postAggregateState.hasWriteOps) {
-          q"""
-          ..${InternalRowGen.mkGetValuesFromRow(postAggregateState, builder, internalRowBuilder)}
-          ..$postAggregate
-          ..${InternalRowGen.mkSetValuesToRow(postAggregateState, builder, internalRowBuilder)}
-          """
-        } else {
-          q"$internalRow"
-        }}
+        override def evaluatePostFilter(batch: BatchDataset): Unit = {
+           var rowNum = 0
+           while (rowNum < $batch.size) {
+              if (!$batch.isDeleted(rowNum)) {
+               ..${BatchDatasetGen.mkGetValues(postFilterState, schema, q"rowNum")}
+               val fl = {..$postFilter}
+               if (!fl) {
+                 $batch.setDeleted(rowNum)
+               }
+             }
+             rowNum += 1
+           }
         }
 
-        override def evaluatePostFilter($internalRowBuilder: InternalRowBuilder, ${ExpressionCodeGenFactory.tokenizer}: Tokenizer, $internalRow: InternalRow): Boolean = {
-           ..${InternalRowGen.mkGetValuesFromRow(finalState, builder, internalRowBuilder)}
-           ..$postFilter
-        }
-
-        override def evaluateReadRow($buf: MemoryBuffer, $internalRowBuilder: InternalRowBuilder): InternalRow = {
+        override def evaluateReadRow($buf: MemoryBuffer, $batch: BatchDataset, $rowNum: Int): Unit = {
           $readRow
          }
       }
   """
 
-    val finalRequirements = finalState.required -- finalState.index.keySet
-    val index = finalRequirements.foldLeft(finalState.index)((i, e) => i + (e -> i.size))
-    val paramsArray = finalState.refs.map(_._1).toArray[Any]
-
     logger.whenTraceEnabled {
-      val sortedIndex = index.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
+      val sortedIndex = schema.exprIndex.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
       logger.trace("Expr index: ")
       sortedIndex.foreach(s => logger.trace(s"  $s"))
       logger.trace(s"Params size: ${paramsArray.length}")
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
-    (tree, index, paramsArray)
+    (tree, schema.exprIndex, paramsArray, schema)
   }
 
   private def prettyTree(tree: Tree): String = {

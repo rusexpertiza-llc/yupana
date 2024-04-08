@@ -21,8 +21,8 @@ import org.yupana.api.schema.{ RawDimension, Table }
 import org.yupana.api.types.ReaderWriter
 import org.yupana.core.format.{ CompileReaderWriter, TypedTree }
 import org.yupana.core.jit.ValueDeclaration
-import org.yupana.core.jit.codegen.InternalRowGen
-import org.yupana.core.model.InternalRowBuilder
+import org.yupana.core.jit.codegen.BatchDatasetGen
+import org.yupana.core.model.InternalRowSchema
 
 import scala.reflect.runtime.universe._
 object ReadFromStorageRowStage {
@@ -30,29 +30,23 @@ object ReadFromStorageRowStage {
   def mkReadRow(
       query: Query,
       buf: TermName,
-      internalRowBuilderName: TermName,
-      builder: InternalRowBuilder
+      schema: InternalRowSchema,
+      batch: TermName,
+      rowNum: TermName
   ): Tree = {
-    implicit val rw: ReaderWriter[Tree, TypedTree, TypedTree] = CompileReaderWriter
+    implicit val rw: ReaderWriter[Tree, TypedTree, Tree, Tree] = CompileReaderWriter
 
-    val rowBuffer = TermName("rowBuffer")
     val b = q"$buf"
     val (rOffset, dims) = query.table.toSeq.flatMap(_.dimensionSeq).zipWithIndex.foldLeft((8, Seq.empty[Tree])) {
       case ((offset, cs), (dim, i)) =>
-        val read = dim.rStorable.read[Tree, TypedTree, TypedTree](b, offset)(rw)
+        val read = dim.rStorable.read[Tree, TypedTree, Tree, Tree](b, q"$offset")(rw)
         val tag = (Table.DIM_TAG_OFFSET + i).toByte
         val c = dim match {
-          case d: RawDimension[_] if builder.tagIndex(tag) >= 0 =>
+          case d: RawDimension[_] if schema.fieldIndex(tag) >= 0 =>
             q"""
               val v = { $read }
-              ${InternalRowGen
-                .mkSetValueToRow(builder, tag)(
-                  q"v",
-                  q"$rowBuffer",
-                  internalRowBuilderName
-                )}
+              ${BatchDatasetGen.mkSetValueToRow(schema, q"$rowNum", tag)(q"v", q"$batch")}
               """
-
           case _ =>
             q"""
              ()
@@ -65,13 +59,13 @@ object ReadFromStorageRowStage {
       .flatMap(_.metrics)
       .map { metric =>
 
-        val read = metric.dataType.storable.read[Tree, TypedTree, TypedTree](b)(rw)
+        val read = metric.dataType.storable.read[Tree, TypedTree, Tree, Tree](b)(rw)
         cq"""
        ${metric.tag} =>
-          ${if (builder.tagIndex(metric.tag) >= 0) {
+          ${if (schema.fieldIndex(metric.tag) >= 0) {
             q"""
                 val v =  $read
-                ${InternalRowGen.mkSetValueToRow(builder, metric.tag)(q"v", q"$rowBuffer", internalRowBuilderName)}
+                ${BatchDatasetGen.mkSetValueToRow(schema, q"$rowNum", metric.tag)(q"v", q"$batch")}
              """
           } else { q"$read" }}
        """
@@ -91,28 +85,16 @@ object ReadFromStorageRowStage {
       }
   """
 
-    val vmask = (0 until builder.validityMapAreaSize / 8).map { i =>
-      val name = TermName("vmask_" + i)
-      q"val $name = 0L"
-    }
-
     val r =
       q"""
-      ..$vmask
-      val $rowBuffer = $internalRowBuilderName.fieldsBuffer
       val baseTime = $b.getLong()
       ..$dims
       val restTime = $b.getLong()
       $metrics
       val time = Time(baseTime + restTime)
-      ${if (builder.timeIndex >= 0) {
-          InternalRowGen.mkSetValueToRow(builder, TimeExpr)(
-            ValueDeclaration("time"),
-            q"$rowBuffer",
-            internalRowBuilderName
-          )
+      ${if (schema.timeFieldIndex >= 0) {
+          BatchDatasetGen.mkSetValueToRow(schema, q"$rowNum", TimeExpr)(ValueDeclaration("time"), q"$batch")
         } else { q"()" }}
-      $internalRowBuilderName.buildAndReset
     """
     r
   }

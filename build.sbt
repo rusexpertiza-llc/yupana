@@ -219,7 +219,7 @@ lazy val netty = (project in file("yupana-netty"))
       "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, protocol, core % "compile->compile;test->test")
 
 lazy val spark = (project in file("yupana-spark"))
   .settings(
@@ -368,14 +368,14 @@ lazy val khipuExamples = (project in file("yupana-khipu-examples"))
       "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
     )
   )
-  .dependsOn(khipu, netty, schema, externalLinks, ehcache % Runtime)
+  .dependsOn(khipu, netty, schema, externalLinks, jdbc, caffeine % Runtime)
   .disablePlugins(AssemblyPlugin)
 
 
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings, noPublishSettings)
-  .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
+  .dependsOn(core % "compile->test", api, schema) //, hbase, hbase % "compile->test")
   .settings(
     name := "yupana-benchmarks",
     libraryDependencies ++= Seq(

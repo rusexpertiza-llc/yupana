@@ -86,12 +86,11 @@ trait TsdbHBaseTest extends HBaseTestBase with AnyFlatSpecLike with Matchers {
       )
     )
 
-    result.hasNext shouldBe true
+    result.next() shouldBe true
 
-    val row = result.next()
-    row.get[String]("A") shouldEqual "сигареты"
+    result.get[String]("A") shouldEqual "сигареты"
 
-    result.hasNext shouldBe false
+    result.next() shouldBe false
   }
 
 }

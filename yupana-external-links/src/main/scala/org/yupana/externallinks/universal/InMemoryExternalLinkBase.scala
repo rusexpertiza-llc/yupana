@@ -16,11 +16,10 @@
 
 package org.yupana.externallinks.universal
 
-import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
 
@@ -31,7 +30,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def keyIndex: Int
 
-  def fillKeyValues(rowBuilder: InternalRowBuilder, valueData: Seq[InternalRow]): Seq[InternalRow]
+  def fillKeyValues(batch: BatchDataset): Unit
 
   def keyExpr: Expression[String]
 
@@ -63,35 +62,22 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   }
 
   override def setLinkedValues(
-      rowBuilder: InternalRowBuilder,
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
-  ): Seq[InternalRow] = {
-    val dimExpr = DimensionExpr(externalLink.dimension.aux)
-    val indexMap = Seq[Expression[_]](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
-    val tmpRowBuilder = new InternalRowBuilder(indexMap, None)
+  ): Unit = {
 
-    val keyValueData = rows.map { vd =>
-      tmpRowBuilder.set(dimExpr, vd.get(rowBuilder, dimExpr))
-      tmpRowBuilder.set(TimeExpr, vd.get[Time](rowBuilder, TimeExpr))
-      tmpRowBuilder.buildAndReset()
-    }
+    fillKeyValues(batch)
 
-    val updated = fillKeyValues(tmpRowBuilder, keyValueData)
-
-    updated.zip(rows).map {
-      case (kvd, vd) =>
-        rowBuilder.setFieldsFromRow(vd)
-        val keyValue = kvd.get[String](tmpRowBuilder, keyExpr)
-        exprs.foreach { expr =>
-          val v = fieldValueForKeyValue(expr.linkField.name)(keyValue)
-          if (v != null) {
-            rowBuilder.set(expr.asInstanceOf[Expression[String]], v)
-          } else {
-            rowBuilder.setNull(expr.asInstanceOf[Expression[String]])
-          }
+    batch.foreach { rowNum =>
+      val keyValue = batch.get[String](rowNum, keyExpr)
+      exprs.foreach { expr =>
+        val v = fieldValueForKeyValue(expr.linkField.name)(keyValue)
+        if (v != null) {
+          batch.set(rowNum, expr.asInstanceOf[Expression[String]], v)
+        } else {
+          batch.setNull(rowNum, expr.asInstanceOf[Expression[String]])
         }
-        rowBuilder.buildAndReset()
+      }
     }
   }
 

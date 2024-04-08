@@ -18,13 +18,18 @@ package org.yupana.core.jit.codegen
 
 import org.yupana.api.query.{ AggregateExpr, Expression, Query, QueryField, WindowFunctionExpr }
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
+import org.yupana.api.types.{ ArrayDataType, DataType, InternalReaderWriter, TupleDataType }
+import org.yupana.core.format.{ CompileReaderWriter, TypedTree }
 import org.yupana.core.jit.{ State, ValueDeclaration }
+import org.yupana.core.model.InternalRowSchema
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
 
 object CommonGen {
+
+  implicit val rw: InternalReaderWriter[Tree, TypedTree, Tree, Tree] = CompileReaderWriter
+
   def initVal(expression: Expression[_]): Tree = {
     val dt: DataType = expression.dataType
     dt.classTag.runtimeClass match {
@@ -109,6 +114,99 @@ object CommonGen {
         accState
           .withReadFromRow(row, expr, valName)
           .withWriteToRow(row, expr, valName)
+    }
+  }
+
+  def copyAggregateFields(
+      query: Query,
+      schema: InternalRowSchema,
+      srcDataset: TermName,
+      srcRowId: Tree,
+      dstDataset: TermName,
+      dstRowId: Tree
+  ): Seq[Tree] = {
+    findAggregates(query.fields).zipWithIndex.flatMap {
+      case (expr, i) =>
+        val valDecl = ValueDeclaration(s"copy_field_$i")
+        val getTrees = BatchDatasetGen.mkGetValue(schema, expr, srcDataset, srcRowId, valDecl)
+        val setTree = BatchDatasetGen.mkSetValueToRow(schema, dstRowId, expr)(valDecl, q"$dstDataset")
+        getTrees :+ setTree
+    }
+  }
+
+  def mkCreateKey(
+      keyBufName: TermName,
+      query: Query,
+      schema: InternalRowSchema,
+      batch: TermName,
+      rowNum: Tree
+  ): Seq[Tree] = {
+
+    val exprsAndValDecls = query.groupBy.zipWithIndex.map {
+      case (expr, idx) =>
+        expr -> ValueDeclaration(s"key_$idx")
+    }
+
+    if (exprsAndValDecls.size > 0) {
+
+      val sizeTree = exprsAndValDecls
+        .map {
+          case (expr, valueDeclaration) =>
+            val sizeTree =
+              expr.dataType.internalStorable.size(q"${valueDeclaration.valueName}": TypedTree[expr.dataType.T])
+            q"""if (${valueDeclaration.validityFlagName}) $sizeTree else 0""": Tree
+        }
+        .reduce((a, b) => q"$a + $b")
+
+      val bufTree =
+        q"""
+          val $keyBufName = MemoryBuffer.allocateHeap($sizeTree)
+        """
+
+      val readKeyTrees = exprsAndValDecls.flatMap {
+        case (expr, valDecl) => BatchDatasetGen.mkGetValue(schema, expr, batch, rowNum, valDecl)
+      }
+
+      val writeBufTrees = exprsAndValDecls.map {
+        case (expr, valDecl) =>
+          val writeTree = expr.dataType.internalStorable.write[Tree, TypedTree, Tree, Tree](
+            q"$keyBufName",
+            q"${valDecl.valueName}": TypedTree[expr.dataType.T]
+          )
+          q"""if (${valDecl.validityFlagName}) $writeTree"""
+      }
+
+      (readKeyTrees :+ bufTree) ++ writeBufTrees
+
+    } else {
+      val tree = q"""
+          val $keyBufName = MemoryBuffer.allocateHeap(0)
+        """
+      Seq(tree)
+    }
+  }
+
+  def mkWriteGroupByFields(query: Query, schema: InternalRowSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
+    val exprsAndValDecls = query.groupBy.zipWithIndex.map {
+      case (expr, idx) =>
+        expr -> ValueDeclaration(s"key_$idx")
+    }
+    val ts = exprsAndValDecls.map {
+      case (expr, valDecl) =>
+        BatchDatasetGen.mkSet(schema, rowNum, expr)(valDecl, q"$batch")
+    }
+
+    ts :+ q"$batch.updateSize($rowNum)"
+  }
+
+  def mkReadGroupByFields(query: Query, schema: InternalRowSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
+    val exprsAndValDecls = query.groupBy.zipWithIndex.map {
+      case (expr, idx) =>
+        expr -> ValueDeclaration(s"key_$idx")
+    }
+    exprsAndValDecls.flatMap {
+      case (expr, valDecl) =>
+        BatchDatasetGen.mkGet(schema, expr, batch, rowNum, valDecl)
     }
   }
 

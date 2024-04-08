@@ -18,24 +18,34 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.core.jit.{ ExpressionCalculator, ExpressionCalculatorFactory }
+import org.yupana.api.utils.Tokenizer
+import org.yupana.core.jit.{ExpressionCalculator, ExpressionCalculatorFactory}
+import org.yupana.core.model.InternalRowSchema
 import org.yupana.core.utils.metric.MetricQueryCollector
 
-import scala.collection.mutable
 
 class QueryContext(
     val query: Query,
     val postCondition: Option[Condition],
+    tokenizer: Tokenizer,
     calculatorFactory: ExpressionCalculatorFactory,
     val metricCollector: MetricQueryCollector
 ) extends Serializable {
-  @transient private var calc: ExpressionCalculator = _
-  @transient private var idx: mutable.Map[Expression[_], Int] = _
 
-  def exprsIndex: mutable.Map[Expression[_], Int] = {
+  @transient private var calc: ExpressionCalculator = _
+  @transient private var idx: Map[Expression[_], Int] = _
+  @transient private var schema: InternalRowSchema = _
+
+  def internalRowSchema: InternalRowSchema = {
+    if (schema == null) init()
+    schema
+  }
+
+  def exprsIndex: Map[Expression[_], Int] = {
     if (idx == null) init()
     idx
   }
+
   def calculator: ExpressionCalculator = {
     if (calc == null) init()
     calc
@@ -49,9 +59,10 @@ class QueryContext(
 
   private def init(): Unit = {
     metricCollector.initQueryContext.measure(1) {
-      val (calculator, index) = calculatorFactory.makeCalculator(query, postCondition)
+      val (calculator, index, dsSchema) = calculatorFactory.makeCalculator(query, postCondition, tokenizer)
       calc = calculator
-      idx = mutable.HashMap(index.toSeq: _*)
+      idx = dsSchema.exprIndex
+      schema = dsSchema
     }
   }
 }

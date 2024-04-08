@@ -18,16 +18,18 @@ package org.yupana.core.jit.codegen.expressions.aggregate
 
 import org.yupana.api.query.HLLCountExpr
 import org.yupana.core.jit.codegen.CommonGen
-import org.yupana.core.jit.{ CodeGenResult, State, ValueDeclaration }
+import org.yupana.core.jit.{CodeGenResult, ExpressionCodeGenFactory, State, ValueDeclaration}
 
 import scala.reflect.runtime.universe._
 
 class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
     extends AggregateExpressionCodeGen[HLLCountExpr[_]] {
 
-  override def generateZeroCode(state: State, row: TermName): CodeGenResult = {
-    val r = state.withReadFromRow(row, expression.expr)
-    val w = r.state.withWriteRefToRow(row, expression)
+  val hllType: Tree =  tq"_root_.com.twitter.algebird.HLL"
+
+  override def generateZeroCode(state: State, acc: TermName, row: TermName): CodeGenResult = {
+    val r = ExpressionCodeGenFactory.codeGenerator(expression.expr).generateEvalCode(state, row)
+    val w = r.state.withWriteRefToRow(acc, expression)
     val valDecl = w.valueDeclaration
 
     val tpe = CommonGen.mkType(expression.expr)
@@ -55,8 +57,8 @@ class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
   }
 
   override def generateFoldCode(state: State, accRow: TermName, row: TermName): CodeGenResult = {
-    val accRes = state.withReadRefFromRow(accRow, expression)
-    val rowRes = accRes.state.withReadFromRow(row, expression.expr)
+    val accRes = state.withReadRefFromRow(accRow, expression, hllType)
+    val rowRes = ExpressionCodeGenFactory.codeGenerator(expression.expr).generateEvalCode(accRes.state, row)
 
     val valDecl = ValueDeclaration(s"res_${accRes.valueDeclaration.valueName}")
     val tpe = CommonGen.mkType(expression.expr.dataType)
@@ -65,7 +67,7 @@ class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
       q"""
          val ${valDecl.valueName} = if (${rowRes.valueDeclaration.validityFlagName}) {
             val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$tpe](${expression.accuracy})
-            val a = ${accRes.valueDeclaration.valueName}.asInstanceOf[_root_.com.twitter.algebird.HLL]
+            val a = ${accRes.valueDeclaration.valueName}
             agg.append(a, ${rowRes.valueDeclaration.valueName})
          } else {
             ${accRes.valueDeclaration.valueName}
@@ -78,8 +80,9 @@ class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
   }
 
   override def generateCombineCode(state: State, accRowA: TermName, accRowB: TermName): CodeGenResult = {
-    val aRes = state.withReadRefFromRow(accRowA, expression)
-    val bRes = aRes.state.withReadRefFromRow(accRowB, expression)
+
+    val aRes = state.withReadRefFromRow(accRowA, expression, hllType)
+    val bRes = aRes.state.withReadRefFromRow(accRowB, expression, hllType)
 
     val valDecl = ValueDeclaration(s"combine_${aRes.valueDeclaration.valueName}_${bRes.valueDeclaration.valueName}")
     val validityTree = q"val ${valDecl.validityFlagName} = true"
@@ -88,8 +91,8 @@ class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
       q"""val ${valDecl.valueName} = {
                 val agg = _root_.com.twitter.algebird.HyperLogLogAggregator.withErrorGeneric[$valueTpe](${expression.accuracy})
                 val hll = agg.monoid
-                val a = ${aRes.valueDeclaration.valueName}.asInstanceOf[_root_.com.twitter.algebird.HLL]
-                val b = ${bRes.valueDeclaration.valueName}.asInstanceOf[_root_.com.twitter.algebird.HLL]
+                val a = ${aRes.valueDeclaration.valueName}
+                val b = ${bRes.valueDeclaration.valueName}
                 hll.combine(a, b)
            }"""
 
@@ -99,13 +102,14 @@ class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
   }
 
   override def generatePostCombineCode(state: State, acc: TermName): CodeGenResult = {
-    val r = state.withReadRefFromRow(acc, expression)
+
+    val r = state.withReadRefFromRow(acc, expression, hllType)
 
     val valDecl = ValueDeclaration(s"post_comb_${r.valueDeclaration.valueName}")
 
     val validityTree = q"val ${valDecl.validityFlagName} = true"
     val valueTree =
-      q"val ${valDecl.valueName} = ${r.valueDeclaration.valueName}.asInstanceOf[_root_.com.twitter.algebird.HLL].approximateSize.estimate"
+      q"val ${valDecl.valueName} = ${r.valueDeclaration.valueName}.approximateSize.estimate"
 
     val trees = r.trees ++ Seq(validityTree, valueTree)
     val newState = r.state.withWriteToRow(acc, expression, valDecl)

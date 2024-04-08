@@ -21,9 +21,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.types.{ ID, InternalStorable, ReaderWriter, TypedInt }
-import org.yupana.api.{ Blob, Time }
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.api.types.{ID, InternalReaderWriter, InternalStorable }
+import org.yupana.api.{Blob, Time}
+import org.yupana.readerwriter.{MemoryBuffer, MemoryBufferEvalReaderWriter}
 
 class InternalStorableTest
     extends AnyFlatSpec
@@ -31,7 +31,7 @@ class InternalStorableTest
     with ScalaCheckDrivenPropertyChecks
     with TableDrivenPropertyChecks {
 
-  implicit val rw: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  implicit val rw: InternalReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
   implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
 
@@ -68,7 +68,12 @@ class InternalStorableTest
       val expectedSize = posAfterWrite - posBeforeWrite
       expectedSize shouldEqual actualSize
       bb.rewind()
-      storable.read(bb) shouldEqual t
+      storable.read(bb, expectedSize) shouldEqual t
+
+      storable.write(bb, 1000, t: ID[T])
+      storable.read(bb, 1000, expectedSize) shouldEqual t
+
+      storable.size(t: ID[T]) shouldEqual expectedSize
     }
   }
 }

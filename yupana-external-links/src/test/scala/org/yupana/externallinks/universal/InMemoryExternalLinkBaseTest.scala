@@ -6,7 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.{ BatchDataset, InternalRowSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.utils.RussianTokenizer
@@ -31,16 +31,14 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
 
     override def keyIndex: Int = 0
 
-    override def fillKeyValues(rowBuilder: InternalRowBuilder, rows: Seq[InternalRow]): Seq[InternalRow] = {
-      rows.map { row =>
-        val tagValue = row.get(rowBuilder, DimensionExpr(externalLink.dimension))
+    override def fillKeyValues(batch: BatchDataset): Unit = {
+      batch.foreach { rowNum =>
+        val tagValue = batch.get(rowNum, DimensionExpr(externalLink.dimension))
         val keyValue = valueToKeys.get(tagValue).flatMap(_.headOption)
-        rowBuilder.setFieldsFromRow(row)
         keyValue match {
-          case Some(k) => rowBuilder.set(keyExpr, k)
-          case None    => rowBuilder.setNull(keyExpr)
+          case Some(k) => batch.set(rowNum, keyExpr, k)
+          case None    => batch.setNull(rowNum, keyExpr)
         }
-        rowBuilder.buildAndReset()
       }
     }
 
@@ -76,25 +74,31 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
   val testCatalog = new TestExternalLink(testData, testExternalLink)
 
   "InMemoryCatalogBase" should "fill value data" in {
-    val exprIndex = Seq[Expression[_]](
-      time,
-      dimension(RawDimension[Int]("TAG_Y")),
-      link(testExternalLink, TestExternalLink.testField1),
-      link(testExternalLink, TestExternalLink.testField2),
-      link(testExternalLink, TestExternalLink.testField3)
-    ).zipWithIndex.toMap
-
-    val builder = new InternalRowBuilder(exprIndex, None)
-
-    val valueData = Seq(
-      builder.set(time, Time(100)).set(dimension(RawDimension[Int]("TAG_Y")), 1).buildAndReset(),
-      builder.set(time, Time(200)).set(dimension(RawDimension[Int]("TAG_Y")), 4).buildAndReset(),
-      builder.set(time, Time(300)).set(dimension(RawDimension[Int]("TAG_Y")), 42).buildAndReset()
+    val valExprIndex = Map[Expression[_], Int](
+      time -> 0,
+      dimension(RawDimension[Int]("TAG_Y")) -> 1
+    )
+    val refExprIndex = Map[Expression[_], Int](
+      dimension(DictionaryDimension("TAG_X")) -> 2,
+      link(testExternalLink, TestExternalLink.testField1) -> 3,
+      link(testExternalLink, TestExternalLink.testField2) -> 4,
+      link(testExternalLink, TestExternalLink.testField3) -> 5
     )
 
-    val res = testCatalog.setLinkedValues(
-      builder,
-      valueData,
+    val schema = new InternalRowSchema(valExprIndex, refExprIndex, None)
+    val batch = new BatchDataset(schema)
+
+    batch.set(0, time, Time(100))
+    batch.set(0, dimension(RawDimension[Int]("TAG_Y")), 1)
+
+    batch.set(1, time, Time(200))
+    batch.set(1, dimension(RawDimension[Int]("TAG_Y")), 4)
+
+    batch.set(2, time, Time(300))
+    batch.set(2, dimension(RawDimension[Int]("TAG_Y")), 42)
+
+    testCatalog.setLinkedValues(
+      batch,
       Set(
         link(testExternalLink, TestExternalLink.testField1),
         link(testExternalLink, TestExternalLink.testField2),
@@ -102,20 +106,17 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       )
     )
 
-    val r1 = res(0)
-    r1.get[String](builder, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "foo"
-    r1.get[String](builder, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bar"
-    r1.get[String](builder, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "baz"
+    batch.get[String](0, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "foo"
+    batch.get[String](0, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bar"
+    batch.get[String](0, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "baz"
 
-    val r2 = res(1)
-    r2.get[String](builder, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "aaa"
-    r2.get[String](builder, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bbb"
-    r2.get[String](builder, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
+    batch.get[String](1, link(testExternalLink, TestExternalLink.testField1)) shouldEqual "aaa"
+    batch.get[String](1, link(testExternalLink, TestExternalLink.testField2)) shouldEqual "bbb"
+    batch.get[String](1, link(testExternalLink, TestExternalLink.testField3)) shouldEqual "at"
 
-    val r3 = res(2)
-    r3.isNull(builder, link(testExternalLink, TestExternalLink.testField1)) shouldBe true
-    r3.isNull(builder, link(testExternalLink, TestExternalLink.testField2)) shouldBe true
-    r3.isNull(builder, link(testExternalLink, TestExternalLink.testField3)) shouldBe true
+    batch.isNull(2, link(testExternalLink, TestExternalLink.testField1)) shouldBe true
+    batch.isNull(2, link(testExternalLink, TestExternalLink.testField2)) shouldBe true
+    batch.isNull(2, link(testExternalLink, TestExternalLink.testField3)) shouldBe true
 
   }
 

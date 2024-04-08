@@ -19,17 +19,17 @@ package org.yupana.khipu
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ DictionaryDimension, Dimension, HashDimension, Metric, RawDimension, Schema, Table }
-import org.yupana.api.types.{ ID, ReaderWriter, TypedInt }
+import org.yupana.api.schema.{DictionaryDimension, Dimension, HashDimension, Metric, RawDimension, Schema, Table}
+import org.yupana.api.types.{ID, ReaderWriter}
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
+import org.yupana.api.utils.{PrefetchedSortedSetIterator, SortedSetIterator}
 import org.yupana.core.dao.TSDao
-import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext }
-import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, UpdateInterval }
-import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
+import org.yupana.core.{ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext}
+import org.yupana.core.model.{BatchDataset, InternalQuery, InternalRowSchema, UpdateInterval}
+import org.yupana.core.utils.{CollectionUtils, FlatAndCondition}
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.khipu.storage.{Cursor, DB, KTable, Prefix, Row, StorageFormat}
+import org.yupana.readerwriter.{ByteBufferEvalReaderWriter, MemoryBuffer, MemoryBufferEvalReaderWriter}
 import org.yupana.settings.Settings
 
 import java.io.File
@@ -40,7 +40,6 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
 
   type IdType = Long
   type TimeFilter = Long => Boolean
-  type RowFilter = InternalRow => Boolean
 
   val RANGE_FILTERS_LIMIT = 100000
   val CROSS_JOIN_LIMIT = 500000
@@ -51,7 +50,7 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
 
   val db = new DB(path.toPath, schema)
 
-  implicit private val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  implicit private val readerWriter: ReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
   protected lazy val expressionCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
@@ -78,10 +77,10 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
 
   override def query(
       query: InternalQuery,
-      internalRowBuilder: InternalRowBuilder,
       queryContext: QueryContext,
+      datasetSchema: InternalRowSchema,
       metricCollector: MetricQueryCollector
-  ): Iterator[InternalRow] = {
+  ): Iterator[BatchDataset] = {
 
     val mr = mapReduceEngine(metricCollector)
 
@@ -110,7 +109,7 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
     if (hasEmptyFilter) {
-      mr.empty[InternalRow]
+      mr.empty
     } else {
 
       val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
@@ -139,17 +138,24 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
       val cursor = executeScans(query.table, intervals, rangeScanDimIterators, metricCollector)
       val calc = queryContext.calculator
 
-      new AbstractIterator[InternalRow] {
+      new AbstractIterator[BatchDataset] {
 
         private var isValid = cursor.next()
 
         override def hasNext: Boolean = isValid
 
-        override def next(): InternalRow = {
-          val memBuf = cursor.row().asMemoryBuffer()
-          val row = calc.evaluateReadRow(memBuf, internalRowBuilder)
-          isValid = cursor.next()
-          row
+        override def next(): BatchDataset = {
+          val batch = BatchDataset(queryContext)
+          var rowNum = 0
+          while (rowNum < BatchDataset.MAX_MUM_OF_ROWS && isValid) {
+
+            val memBuf = cursor.row().asMemoryBuffer()
+
+            calc.evaluateReadRow(memBuf, batch, rowNum)
+            isValid = cursor.next()
+            rowNum += 1
+          }
+          batch
         }
       }
     }
@@ -418,46 +424,6 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     }
   }
 
-  def createRowFilter(
-      table: Table,
-      include: Map[Dimension, SortedSetIterator[_]],
-      exclude: Map[Dimension, SortedSetIterator[_]],
-      internalRowBuilder: InternalRowBuilder
-  ): RowFilter = {
-
-    val includeMap: Map[Dimension, Set[Any]] = include.map { case (k, v) => k -> v.toSet }
-    val excludeMap: Map[Dimension, Set[Any]] = exclude.map { case (k, v) => k -> v.toSet }
-
-    if (excludeMap.nonEmpty) {
-      if (includeMap.nonEmpty) {
-        rowFilter(table, internalRowBuilder)((dim, x) =>
-          includeMap.get(dim).forall(_.contains(x)) && !excludeMap.get(dim).exists(_.contains(x))
-        )
-      } else {
-        rowFilter(table, internalRowBuilder)((dim, x) => !excludeMap.get(dim).exists(_.contains(x)))
-      }
-    } else {
-      if (includeMap.nonEmpty) {
-        rowFilter(table, internalRowBuilder)((dim, x) => includeMap.get(dim).forall(_.contains(x)))
-      } else { _ =>
-        true
-      }
-    }
-  }
-
-  private def rowFilter(table: Table, internalRowBuilder: InternalRowBuilder)(
-      f: (Dimension, Any) => Boolean
-  ): RowFilter = { row =>
-    var i = 0
-    table.dimensionSeq.forall { dim =>
-      val idx = internalRowBuilder.tagIndex((Table.DIM_TAG_OFFSET + i).toByte)
-      val v = row.get[dim.T](internalRowBuilder, idx)(dim.dataType.internalStorable)
-      val r = f(dim, v)
-      i += 1
-      r
-    }
-  }
-
   override def isSupportedCondition(condition: Condition): Boolean = {
     def handleEq(condition: EqExpr[_]): Boolean = {
       condition match {
@@ -589,39 +555,6 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     array
   }
 
-//  private def loadRowKey(
-//      cursor: Cursor,
-//      dimensions: Array[Dimension],
-//      internalRowBuilder: InternalRowBuilder
-//  ): Unit = {
-//
-//    implicit val rw = EvalReaderWriter
-//
-//    val bb = cursor.key().asByteBuffer()
-//    val baseTime = bb.getLong()
-//
-//    var i = 0
-//
-//    dimensions.foreach { dim =>
-//      bb.mark()
-//
-//      val value = dim.rStorable.read(bb)
-//      if (dim.isInstanceOf[RawDimension[_]]) {
-//        internalRowBuilder.set((Table.DIM_TAG_OFFSET + i).toByte, value)
-//      }
-//      //      if (internalRowBuilder.needId((Table.DIM_TAG_OFFSET + i).toByte)) {
-//      //        val bytes = new Array[Byte](dim.rStorable.size)
-//      //        bb.reset()
-//      //        bb.get(bytes)
-//      //        internalRowBuilder.setId((Table.DIM_TAG_OFFSET + i).toByte, new String(Hex.encodeHex(bytes)))
-//      //      }
-//
-//      i += 1
-//    }
-//    val currentTime = bb.getLong
-//    internalRowBuilder.set(Time(baseTime + currentTime))
-//  }
-
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
   }
@@ -658,31 +591,4 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     bb.get(res)
     res
   }
-
-//  private def loadValue(
-//      cursor: Cursor,
-//      context: InternalQueryContext,
-//      internalRowBuilder: InternalRowBuilder
-//  ): Unit = {
-//    val bb = cursor.value().asByteBuffer()
-//
-//    while (bb.hasRemaining) {
-//      val tag = bb.get()
-//      context.table.fieldForTag(tag) match {
-//        case Some(Left(metric)) =>
-//          val v = metric.dataType.storable.read(bb)
-//          internalRowBuilder.set(tag, v)
-//        case Some(Right(_: DictionaryDimension)) =>
-//          val v = DataType.stringDt.storable.read(bb)
-//          internalRowBuilder.set(tag, v)
-//        case Some(Right(hd: HashDimension[_, _])) =>
-//          val v = hd.tStorable.read(bb)
-//          internalRowBuilder.set(tag, v)
-//        case _ =>
-//          throw new IllegalStateException(
-//            s"Unknown tag: $tag [${context.table.fieldForTag(tag)}] , in table: ${context.table.name}"
-//          )
-//      }
-//    }
-//  }
 }

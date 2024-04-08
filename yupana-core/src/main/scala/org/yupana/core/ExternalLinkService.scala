@@ -18,7 +18,7 @@ package org.yupana.core
 
 import org.yupana.api.query._
 import org.yupana.api.schema.{ ExternalLink, Schema }
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 
 trait ExternalLinkService[T <: ExternalLink] {
@@ -32,15 +32,13 @@ trait ExternalLinkService[T <: ExternalLink] {
   /**
     * Sets requested external link expressions values into a batch of ValueData
     *
-    * @param rowBuilder row builder
-    * @param rows rows to be updated
+    * @param rows batch of rows to be updated
     * @param exprs expressions to be set
     */
   def setLinkedValues(
-      rowBuilder: InternalRowBuilder,
-      rows: Seq[InternalRow],
+      dstaset: BatchDataset,
       exprs: Set[LinkExpr[_]]
-  ): Seq[InternalRow]
+  ): Unit
 
   /**
     * Transforms condition according to filter by this external link conditions.

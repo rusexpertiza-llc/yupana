@@ -27,7 +27,7 @@ import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ DictionaryProvider, TSDao, TsdbQueryMetricsDao }
 import org.yupana.core.jit.{ ExpressionCalculatorFactory, JIT }
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder, KeyData }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.{ QueryContext, TsdbBase }
 import org.yupana.hbase.{ HBaseUtils, HdfsFileUtils, TsdbQueryMetricsDaoHBase }
@@ -113,8 +113,7 @@ abstract class TsdbSparkBase(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      rowBuilder: InternalRowBuilder,
-      rows: RDD[InternalRow],
+      rows: RDD[BatchDataset],
       metricCollector: MetricQueryCollector
   ): DataRowRDD = {
     val rdd = rows.mapPartitions { it =>
@@ -124,15 +123,14 @@ abstract class TsdbSparkBase(
   }
 
   def union(rdds: Seq[DataRowRDD]): DataRowRDD = {
-    val rdd = sparkContext.union(rdds.map(_.rows))
+    val rdd = sparkContext.union(rdds.map(_.data))
     new DataRowRDD(rdd, rdds.head.queryContext)
   }
 
   override def applyWindowFunctions(
       queryContext: QueryContext,
-      rowBuilder: InternalRowBuilder,
-      keysAndValues: RDD[(KeyData, InternalRow)]
-  ): RDD[(KeyData, InternalRow)] = {
+      keysAndValues: Collection[BatchDataset]
+  ): RDD[BatchDataset] = {
     throw new UnsupportedOperationException("Window functions are not supported in TSDB Spark")
   }
 }

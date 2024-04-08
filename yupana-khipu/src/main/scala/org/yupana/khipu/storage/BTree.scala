@@ -18,9 +18,7 @@ package org.yupana.khipu.storage
 
 class BTree(val root: NodeBlock, table: KTable) {
 
-  def explain(): Unit = {
-    println("ROOT children size:" + root.children.size)
-
+  def explain(): String = {
     var minLevel = Int.MaxValue
     var maxLevel = 0
     var minRows = Int.MaxValue
@@ -41,12 +39,14 @@ class BTree(val root: NodeBlock, table: KTable) {
 
     next(root, 1)
 
-    println("MIN LEVEL: " + minLevel)
-    println("MAX LEVEL: " + maxLevel)
-
-    println("MIN ROWS: " + minRows)
-    println("MAX ROWS: " + maxRows)
-
+    s"""
+      | BTree stats:
+      |   ROOT children size:  ${root.children.size}
+      |   MIN LEVEL: $minLevel
+      |   MAX LEVEL: $maxLevel
+      |   MIN ROWS: $minRows
+      |   MAX ROWS: $maxRows
+      |""".stripMargin
   }
 
   val rootId: Int = root.id

@@ -18,8 +18,7 @@ package org.yupana.core.jit
 
 import org.yupana.api.Time
 import org.yupana.api.query.{ LagExpr, WindowFunctionExpr }
-import org.yupana.api.utils.Tokenizer
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.readerwriter.MemoryBuffer
 
 import java.time.OffsetDateTime
@@ -29,59 +28,24 @@ import scala.collection.AbstractIterator
 trait ExpressionCalculator {
 
   def evaluateFilter(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      internalRow: InternalRow
-  ): Boolean
+      batch: BatchDataset
+  ): Unit
 
   def evaluateExpressions(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      internalRow: InternalRow
-  ): InternalRow
+      batch: BatchDataset
+  ): Unit
 
-  def evaluateZero(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      internalRow: InternalRow
-  ): InternalRow
+  def createKey(batch: BatchDataset, rowNum: Int): AnyRef
+  def evaluateFold(acc: HashTableDataset, batch: BatchDataset): Unit
 
-  def evaluateSequence(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      accumulator: InternalRow,
-      internalRow: InternalRow
-  ): InternalRow
+  def evaluateCombine(acc: HashTableDataset, batch: BatchDataset): Unit
 
-  def evaluateCombine(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      a: InternalRow,
-      b: InternalRow
-  ): InternalRow
+  def evaluatePostCombine(batch: BatchDataset): Unit
 
-  def evaluatePostMap(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      internalRow: InternalRow
-  ): InternalRow
+  def evaluatePostAggregateExprs(batch4: BatchDataset): Unit
+  def evaluatePostFilter(batch: BatchDataset): Unit
 
-  def evaluatePostAggregateExprs(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      internalRow: InternalRow
-  ): InternalRow
-
-  def evaluatePostFilter(
-      internalRowBuilder: InternalRowBuilder,
-      tokenizer: Tokenizer,
-      row: InternalRow
-  ): Boolean
-
-  def evaluateReadRow(
-      row: MemoryBuffer,
-      internalRowBuilder: InternalRowBuilder
-  ): InternalRow
+  def evaluateReadRow(buf: MemoryBuffer, batch: BatchDataset, rowNum: Int): Unit
 
   def evaluateWindow[I, O](winFuncExpr: WindowFunctionExpr[I, O], values: Array[I], index: Int): O = {
     winFuncExpr match {

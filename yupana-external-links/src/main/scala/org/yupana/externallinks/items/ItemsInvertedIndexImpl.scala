@@ -19,11 +19,11 @@ package org.yupana.externallinks.items
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
-import org.yupana.api.types.{ ID, ReaderWriter, TypedInt }
+import org.yupana.api.types.{ ID, ReaderWriter }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
 import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.readerwriter.ByteBufferEvalReaderWriter
@@ -36,7 +36,7 @@ object ItemsInvertedIndexImpl {
 
   val TABLE_NAME: String = "ts_items_reverse_index"
 
-  implicit val readerWriter: ReaderWriter[ByteBuffer, ID, TypedInt] = ByteBufferEvalReaderWriter
+  implicit val readerWriter: ReaderWriter[ByteBuffer, ID, Int, Int] = ByteBufferEvalReaderWriter
 
   def indexItems(schema: Schema)(items: Seq[(ItemDimension.KeyType, String)]): Map[String, Seq[ItemDimension.KeyType]] =
     items
@@ -116,10 +116,9 @@ class ItemsInvertedIndexImpl(
 
   // Read only external link
   override def setLinkedValues(
-      rowBuilder: InternalRowBuilder,
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
-  ): Seq[InternalRow] = { rows }
+  ): Unit = {}
 
   override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](

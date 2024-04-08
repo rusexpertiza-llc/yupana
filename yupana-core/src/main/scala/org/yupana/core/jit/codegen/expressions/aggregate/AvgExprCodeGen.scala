@@ -28,9 +28,9 @@ class AvgExprCodeGen(override val expression: AvgExpr[_]) extends AggregateExpre
 
   private val sumCodeGen = new SumExprCodeGen(sumExpr)
   private val countCodeGen = new CountExprCodeGen(countExpr)
-  override def generateZeroCode(state: State, row: TermName): CodeGenResult = {
-    val sum = sumCodeGen.generateZeroCode(state, row)
-    val count = countCodeGen.generateZeroCode(sum.state, row)
+  override def generateZeroCode(state: State, acc: TermName, row: TermName): CodeGenResult = {
+    val sum = sumCodeGen.generateZeroCode(state, acc, row)
+    val count = countCodeGen.generateZeroCode(sum.state, acc, row)
     CodeGenResult(sum.trees ++ count.trees, count.valueDeclaration, count.state)
   }
 

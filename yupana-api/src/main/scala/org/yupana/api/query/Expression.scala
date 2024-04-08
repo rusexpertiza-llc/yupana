@@ -622,6 +622,8 @@ sealed abstract class TypeConvertExpr[T, U](expr: Expression[T])(implicit dtt: D
 
 final case class Double2BigDecimalExpr(expr: Expression[Double]) extends TypeConvertExpr[Double, BigDecimal](expr)
 
+final case class BigDecimal2DoubleExpr(expr: Expression[BigDecimal]) extends TypeConvertExpr[BigDecimal, Double](expr)
+
 final case class Long2BigDecimalExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, BigDecimal](expr)
 final case class Long2DoubleExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, Double](expr)
 

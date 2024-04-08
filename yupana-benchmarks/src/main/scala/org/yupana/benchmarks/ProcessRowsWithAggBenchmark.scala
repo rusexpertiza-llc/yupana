@@ -16,26 +16,14 @@
 
 package org.yupana.benchmarks
 
-import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
+import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
 import org.yupana.api.Time
-import org.yupana.api.query.{ Expression, Query }
-import org.yupana.api.query.syntax.All.{
-  condition,
-  const,
-  count,
-  dimension,
-  divFrac,
-  double2bigDecimal,
-  gt,
-  long2BigDecimal,
-  metric,
-  min,
-  sum,
-  time
-}
+import org.yupana.api.query.{Expression, Query}
+import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
-import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
+import org.yupana.core.utils.metric._
+import org.yupana.metrics.Slf4jMetricReporter
+import org.yupana.schema.{Dimensions, ItemTableMetrics, Tables}
 
 import java.time.LocalDateTime
 
@@ -43,15 +31,36 @@ class ProcessRowsWithAggBenchmark {
 
   @Benchmark
   def processRowsWithAgg(state: TsdbBaseBenchmarkStateAgg): Int = {
-    state.tsdb
-      .processRows(
-        state.queryContext,
-        state.rowBuilder,
-        NoMetricCollector,
-        IteratorMapReducible.iteratorMR,
-        state.rows.iterator
-      )
-      .size
+    val mc = new StandaloneMetricCollector(state.query, "admin", "bench", 1000, new Slf4jMetricReporter)
+
+    var i =0
+    for (_ <- 1 to 1) {
+      val res = state.tsdb
+        .processRows(
+          state.queryContext,
+          mc,
+          IteratorMapReducible.iteratorMR,
+          state.dataset.iterator
+        )
+      i = 0
+      while (res.next()) {
+        i += 1
+      }
+      res.close()
+    }
+
+
+    mc.finish()
+
+//        mc.allMetrics.sortBy(_.name).foreach { metric =>
+//          println(
+//            s"${mc.fullId}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
+//          )
+//        }
+//        println(
+//          s"${mc.fullId}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultDuration)}; meta: ${mc.meta}"
+//        )
+    i
   }
 }
 
@@ -65,7 +74,7 @@ class TsdbBaseBenchmarkStateAgg extends TsdbBaseBenchmarkStateBase {
     fields = Seq(
       dimension(Dimensions.ITEM) as "item",
       sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
-      metric(ItemTableMetrics.sumField) as "total_sum",
+      sum(metric(ItemTableMetrics.sumField)) as "total_sum",
       divFrac(
         sum(divFrac(double2bigDecimal(metric(ItemTableMetrics.quantityField)), metric(ItemTableMetrics.sumField))),
         long2BigDecimal(count(dimension(Dimensions.ITEM)))

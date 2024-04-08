@@ -21,12 +21,12 @@ import org.scalatest._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConditionTransformation, Expression, LinkExpr }
-import org.yupana.api.schema.LinkField
-import org.yupana.core.model.InternalQuery
-import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
+import org.yupana.core.model.{ BatchDataset, InternalQuery }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.schema.LinkField
 import org.yupana.cache.CacheFactory
+import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
@@ -89,29 +89,26 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime + 100))
-            .set(metric(TestTableFields.TEST_FIELD), 1013d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+        batch.set(1, time, Time(pointTime + 100))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 1013d)
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
+        Iterator(batch)
+      }
 
-    row.get[Time]("time_time") shouldBe Time(pointTime)
-    row.get[Double]("testField") shouldBe 1012d
-    row.get[String]("A") shouldBe "test1"
-    row.get[Short]("B") shouldBe 2.toShort
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+    res.get[Time]("time_time") shouldBe Time(pointTime)
+    res.get[Double]("testField") shouldBe 1012d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2.toShort
   }
 
   it should "execute query with filter by values and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -142,29 +139,27 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 31.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime + 100))
-            .set(metric(TestTableFields.TEST_FIELD), 1013d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 31.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 31.toShort)
 
-    row.get[Time]("time_time") shouldBe Time(pointTime)
-    row.get[Double]("abs_test_field") shouldBe 1012d
-    row.get[String]("A") shouldBe "test1"
-    row.get[Short]("B") shouldBe 31
+        batch.set(1, time, Time(pointTime + 100))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 1013d)
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 31.toShort)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+    res.get[Time]("time_time") shouldBe Time(pointTime)
+    res.get[Double]("abs_test_field") shouldBe 1012d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 31
   }
 
   it should "execute query with filter by values not presented in query.fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -193,29 +188,29 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime + 100))
-            .set(metric(TestTableFields.TEST_FIELD), 1013d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    row.get[Time]("time_time") shouldBe Time(pointTime)
-    an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
-    row.get[String]("A") shouldBe "test1"
-    row.get[Short]("B") shouldBe 2
+        batch.set(1, time, Time(pointTime + 100))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 1013d)
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("time_time") shouldBe Time(pointTime)
+    an[NoSuchElementException] should be thrownBy res.get[Double]("testField")
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2
   }
 
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -245,31 +240,29 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(metric(TestTableFields.TEST_FIELD2), 1013d)
-            .set(dimension(TestDims.DIM_A), "test11")
-            .set(dimension(TestDims.DIM_B), 1.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime + 100))
-            .set(metric(TestTableFields.TEST_FIELD), 1013d)
-            .set(metric(TestTableFields.TEST_FIELD2), 1013d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(0, metric(TestTableFields.TEST_FIELD2), 1013d)
+        batch.set(0, dimension(TestDims.DIM_A), "test11")
+        batch.set(0, dimension(TestDims.DIM_B), 1.toShort)
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+        batch.set(1, time, Time(pointTime + 100))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 1013d)
+        batch.set(1, metric(TestTableFields.TEST_FIELD2), 1013d)
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
+        Iterator(batch)
+      }
 
-    row.get[Time]("time_time") shouldBe Time(pointTime)
-    an[NoSuchElementException] should be thrownBy row.get[Double]("testField")
-    row.get[String]("A") shouldBe "test11"
-    row.get[Short]("B") shouldBe 1
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("time_time") shouldBe Time(pointTime)
+    an[NoSuchElementException] should be thrownBy res.get[Double]("testField")
+    res.get[String]("A") shouldBe "test11"
+    res.get[Short]("B") shouldBe 1
   }
 
   it should "support IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -298,38 +291,35 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1014d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    val iterator = tsdb.query(query)
+        batch.set(1, time, Time(pointTime))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 1014d)
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
+        Iterator(batch)
+      }
 
-    val r1 = iterator.next()
+    val res = tsdb.query(query)
 
-    r1.get[Time]("time") shouldBe Time(pointTime)
-    r1.get[Double]("F1") shouldBe 1012d
-    r1.get[String]("A") shouldBe "test1"
-    r1.get[Short]("B") shouldBe 2
+    res.next() shouldBe true
+    res.get[Time]("time") shouldBe Time(pointTime)
+    res.get[Double]("F1") shouldBe 1012d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2
 
-    val r2 = iterator.next()
+    res.next() shouldBe true
+    res.get[Time]("time") shouldBe Time(pointTime)
+    res.get[Double]("F1") shouldBe 1014d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2
 
-    r2.get[Time]("time") shouldBe Time(pointTime)
-    r2.get[Double]("F1") shouldBe 1014d
-    r2.get[String]("A") shouldBe "test1"
-    r2.get[Short]("B") shouldBe 2
-
-    iterator.hasNext shouldBe false
+    res.next() shouldBe false
   }
 
   it should "support NOT IN for values" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -358,36 +348,36 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 123d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 234d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .setNull(metric(TestTableFields.TEST_FIELD))
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 123d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    val iterator = tsdb.query(query)
+        batch.set(1, time, Time(pointTime))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 234d)
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
 
-    val r = iterator.next()
+        batch.set(2, time, Time(pointTime))
+        batch.setNull(2, metric(TestTableFields.TEST_FIELD))
+        batch.set(2, dimension(TestDims.DIM_A), "test1")
+        batch.set(2, dimension(TestDims.DIM_B), 2.toShort)
 
-    r.get[Time]("time") shouldBe Time(pointTime)
-    r.get[Double]("F1") shouldBe 234d
-    r.get[String]("A") shouldBe "test1"
-    r.get[Short]("B") shouldBe 2
+        Iterator(batch)
+      }
 
-    iterator.hasNext shouldBe false
+    val res = tsdb.query(query)
+
+    res.next() shouldBe true
+
+    res.get[Time]("time") shouldBe Time(pointTime)
+    res.get[Double]("F1") shouldBe 234d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2
+
+    res.next() shouldBe false
   }
 
   it should "support AND for values, catalogs and tags" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -444,36 +434,36 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "asdsadasd")
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1012d)
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "Str@!")
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime))
-            .set(metric(TestTableFields.TEST_FIELD), 1013d)
-            .set(dimension(TestDims.DIM_A), "test1")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "asdsadasd")
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    val rows = tsdb.query(query).toList
-    rows should have size 1
-    val row = rows.head
+        batch.set(1, time, Time(pointTime))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 1012d)
+        batch.set(1, metric(TestTableFields.TEST_STRING_FIELD), "Str@!")
+        batch.set(1, dimension(TestDims.DIM_A), "test1")
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
 
-    row.get[Time]("time") shouldBe Time(pointTime)
-    row.get[Double]("F1") shouldBe 1012d
-    row.get[String]("A") shouldBe "test1"
-    row.get[Short]("B") shouldBe 2
+        batch.set(2, time, Time(pointTime))
+        batch.set(2, metric(TestTableFields.TEST_FIELD), 1013d)
+        batch.set(2, dimension(TestDims.DIM_A), "test1")
+        batch.set(2, dimension(TestDims.DIM_B), 2.toShort)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("time") shouldBe Time(pointTime)
+    res.get[Double]("F1") shouldBe 1012d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2
+    res.next() shouldBe false
+
   }
 
   it should "support IS NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -494,11 +484,10 @@ class TsdbDataFilterTest
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((builder, datas, _) =>
+      .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
+      .onCall((dataset, _) =>
         setCatalogValueByTag(
-          builder,
-          datas,
+          dataset,
           TestLinks.TEST_LINK,
           SparseTable("test2a" -> Map("testField" -> "some-value"))
         )
@@ -522,29 +511,28 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), 10d)
-            .set(dimension(TestDims.DIM_A), "test1a")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), 30d)
-            .set(dimension(TestDims.DIM_A), "test2a")
-            .set(dimension(TestDims.DIM_B), 3.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime1))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 10d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1a")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    val results = tsdb.query(query).toList
-    results should have size 1
+        batch.set(1, time, Time(pointTime1))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 30d)
+        batch.set(1, dimension(TestDims.DIM_A), "test2a")
+        batch.set(1, dimension(TestDims.DIM_B), 3.toShort)
+        Iterator(batch)
+      }
 
-    val r1 = results.head
-    r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("testField") shouldBe 10d
-    r1.get[String]("A") shouldBe "test1a"
-    r1.get[Short]("B") shouldBe 2
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+    res.get[Double]("testField") shouldBe 10d
+    res.get[String]("A") shouldBe "test1a"
+    res.get[Short]("B") shouldBe 2
+    res.next() shouldBe false
   }
 
   it should "support IS NOT NULL for catalog fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -565,11 +553,10 @@ class TsdbDataFilterTest
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((builder, datas, _) =>
+      .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
+      .onCall((ds, _) =>
         setCatalogValueByTag(
-          builder,
-          datas,
+          ds,
           TestLinks.TEST_LINK,
           SparseTable("test2a" -> Map("testField" -> "some-value"))
         )
@@ -593,30 +580,30 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), 10d)
-            .set(dimension(TestDims.DIM_A), "test1a")
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .buildAndReset(),
-          b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), 30d)
-            .set(dimension(TestDims.DIM_A), "test2a")
-            .set(dimension(TestDims.DIM_B), 3.toShort)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime1))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 10d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1a")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
 
-    val results = tsdb.query(query).toList
-    results should have size 1
+        batch.set(1, time, Time(pointTime1))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 30d)
+        batch.set(1, dimension(TestDims.DIM_A), "test2a")
+        batch.set(1, dimension(TestDims.DIM_B), 3.toShort)
+        Iterator(batch)
+      }
 
-    val r1 = results.head
-    r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.HOURS).toInstant.toEpochMilli)
-    r1.get[Double]("testField") shouldBe 30d
-    r1.get[String]("A") shouldBe "test2a"
-    r1.get[Short]("B") shouldBe 3
-    r1.get[String]("ctf") shouldBe "some-value"
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.HOURS).toInstant.toEpochMilli)
+    res.get[Double]("testField") shouldBe 30d
+    res.get[String]("A") shouldBe "test2a"
+    res.get[Short]("B") shouldBe 3
+    res.get[String]("ctf") shouldBe "some-value"
+
+    res.next() shouldBe false
   }
 
   it should "support IS NULL and IS NOT NULL for catalog fields within AND among other conditions" in withTsdbMock {
@@ -650,22 +637,20 @@ class TsdbDataFilterTest
         .returning(Seq.empty)
 
       (testCatalogServiceMock.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-        .onCall((builder, datas, _) =>
+        .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
+        .onCall((ds, _) =>
           setCatalogValueByTag(
-            builder,
-            datas,
+            ds,
             TestLinks.TEST_LINK,
             SparseTable("test2a" -> Map("testField" -> "some-value"))
           )
         )
 
       (testCatalogServiceMock2.setLinkedValues _)
-        .expects(*, *, Set(link(TestLinks.TEST_LINK2, "testField2")).asInstanceOf[Set[LinkExpr[_]]])
-        .onCall((builder, datas, _) =>
+        .expects(*, Set(link(TestLinks.TEST_LINK2, "testField2")).asInstanceOf[Set[LinkExpr[_]]])
+        .onCall((ds, _) =>
           setCatalogValueByTag(
-            builder,
-            datas,
+            ds,
             TestLinks.TEST_LINK2,
             SparseTable("test1a" -> Map("testField2" -> "c2-value"), "test2a" -> Map("testField2" -> "some-value"))
           )
@@ -689,39 +674,39 @@ class TsdbDataFilterTest
           *,
           *
         )
-        .onCall((_, b, _, _) =>
-          Iterator(
-            b.set(time, Time(pointTime1))
-              .set(metric(TestTableFields.TEST_FIELD), 1001d)
-              .set(dimension(TestDims.DIM_A), "test2a")
-              .set(dimension(TestDims.DIM_B), 15.toShort)
-              .buildAndReset(),
-            b.set(time, Time(pointTime1 + 10))
-              .set(metric(TestTableFields.TEST_FIELD), 1002d)
-              .set(dimension(TestDims.DIM_A), "test2a")
-              .set(dimension(TestDims.DIM_B), 15.toShort)
-              .buildAndReset(),
-            b.set(time, Time(pointTime1 + 10))
-              .set(metric(TestTableFields.TEST_FIELD), 103d)
-              .set(dimension(TestDims.DIM_A), "test2a")
-              .set(dimension(TestDims.DIM_B), 15.toShort)
-              .buildAndReset(),
-            b.set(time, Time(pointTime1 + 10))
-              .set(metric(TestTableFields.TEST_FIELD), 1003d)
-              .set(dimension(TestDims.DIM_A), "test1a")
-              .set(dimension(TestDims.DIM_B), 15.toShort)
-              .buildAndReset()
-          )
-        )
+        .onCall { (_, _, dsSchema, _) =>
+          val batch = new BatchDataset(dsSchema)
+          batch.set(0, time, Time(pointTime1))
+          batch.set(0, metric(TestTableFields.TEST_FIELD), 1001d)
+          batch.set(0, dimension(TestDims.DIM_A), "test2a")
+          batch.set(0, dimension(TestDims.DIM_B), 15.toShort)
 
-      val results = tsdb.query(query).toList
-      results should have size 1
+          batch.set(1, time, Time(pointTime1 + 10))
+          batch.set(1, metric(TestTableFields.TEST_FIELD), 1002d)
+          batch.set(1, dimension(TestDims.DIM_A), "test2a")
+          batch.set(1, dimension(TestDims.DIM_B), 15.toShort)
 
-      val r1 = results.head
-      r1.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-      r1.get[Double]("testField") shouldBe 1003d
-      r1.get[String]("A") shouldBe "test1a"
-      r1.get[Short]("B") shouldBe 15.toShort
+          batch.set(2, time, Time(pointTime1 + 10))
+          batch.set(2, metric(TestTableFields.TEST_FIELD), 103d)
+          batch.set(2, dimension(TestDims.DIM_A), "test2a")
+          batch.set(2, dimension(TestDims.DIM_B), 15.toShort)
+
+          batch.set(3, time, Time(pointTime1 + 10))
+          batch.set(3, metric(TestTableFields.TEST_FIELD), 1003d)
+          batch.set(3, dimension(TestDims.DIM_A), "test1a")
+          batch.set(3, dimension(TestDims.DIM_B), 15.toShort)
+          Iterator(batch)
+        }
+
+      val res = tsdb.query(query)
+      res.next() shouldBe true
+
+      res.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+      res.get[Double]("testField") shouldBe 1003d
+      res.get[String]("A") shouldBe "test1a"
+      res.get[Short]("B") shouldBe 15.toShort
+
+      res.next() shouldBe false
   }
 
   it should "support IS NULL and IS NOT NULL inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -735,11 +720,10 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     (testCatalogServiceMock.setLinkedValues _)
-      .expects(*, *, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
-      .onCall((builder, datas, _) =>
+      .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
+      .onCall((ds, _) =>
         setCatalogValueByTag(
-          builder,
-          datas,
+          ds,
           TestLinks.TEST_LINK,
           SparseTable("test1a" -> Map("testField" -> "c1-value"))
         )
@@ -782,25 +766,26 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime1))
-            .set(metric(TestTableFields.TEST_FIELD), 1011d)
-            .set(dimension(TestDims.DIM_A), "test1a")
-            .buildAndReset(),
-          b.set(time, Time(pointTime2))
-            .set(metric(TestTableFields.TEST_FIELD), 3001d)
-            .set(dimension(TestDims.DIM_A), "test2a")
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime1))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1011d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1a")
 
-    val results = tsdb.query(query).toList
-    results should have size 1
+        batch.set(1, time, Time(pointTime2))
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 3001d)
+        batch.set(1, dimension(TestDims.DIM_A), "test2a")
 
-    val r1 = results.head
-    r1.get[Time]("d") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    r1.get[Double]("quantity") shouldBe 1011d
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("d") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
+    res.get[Double]("quantity") shouldBe 1011d
+
+    res.next() shouldBe false
   }
 
   it should "filter before calculation if possible" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -824,17 +809,16 @@ class TsdbDataFilterTest
         *,
         *
       )
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(time, Time(pointTime))
-            .set(metric(TestTable2Fields.TEST_FIELD2), 0d)
-            .set(metric(TestTable2Fields.TEST_FIELD3), BigDecimal(5))
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTable2Fields.TEST_FIELD2), 0d)
+        batch.set(0, metric(TestTable2Fields.TEST_FIELD3), BigDecimal(5))
+        Iterator(batch)
+      }
 
-    val results = tsdb.query(query).toList
-    results should have size 0
+    val results = tsdb.query(query)
+    results.next() shouldBe false
   }
 
   it should "support numeric filtering on external links fields" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -847,32 +831,30 @@ class TsdbDataFilterTest
 
     (tsdbDaoMock.query _)
       .expects(*, *, *, *)
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(Time(from.plusMinutes(10))).set(dimension(TestDims.DIM_B), 12.toShort).buildAndReset(),
-          b.set(Time(from.plusHours(3))).set(dimension(TestDims.DIM_B), 15.toShort).buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, Time(from.plusMinutes(10)))
+        batch.set(0, dimension(TestDims.DIM_B), 12.toShort)
+        batch.set(1, Time(from.plusHours(3)))
+        batch.set(1, dimension(TestDims.DIM_B), 15.toShort)
+        Iterator(batch)
+      }
 
     (link5.setLinkedValues _)
-      .expects(*, *, *)
-      .onCall((builder, rows, _) =>
-        rows.map { r =>
-          val v = r.get(builder, dimension(TestDims.DIM_B))
-          builder
-            .setFieldsFromRow(r)
-            .set(doubleLinkExpr, if (v == 12) 10.0 else 30.0)
-            .buildAndReset()
+      .expects(*, *)
+      .onCall { (ds, _) =>
+        for (i <- 0 until ds.size) {
+          val v = ds.get(i, dimension(TestDims.DIM_B))
+          ds.set(i, doubleLinkExpr, if (v == 12) 10.0 else 30.0)
         }
-      )
+      }
 
-    (link5.transformCondition _).expects(*).onCall((c: FlatAndCondition) => Seq.empty)
+    (link5.transformCondition _).expects(*).onCall((_: FlatAndCondition) => Seq.empty)
 
-    val rows = tsdb.query(query).toList
+    val res = tsdb.query(query)
 
-    rows.size shouldEqual 1
-    val r1 = rows.head
-    r1.get[Int]("B") shouldBe 15
+    res.next() shouldEqual true
+    res.get[Int]("B") shouldBe 15
   }
 
   it should "support OR conditions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -882,22 +864,22 @@ class TsdbDataFilterTest
 
     (tsdbDaoMock.query _)
       .expects(*, *, *, *)
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(Time(from.plusMinutes(2)))
-            .set(dimension(TestDims.DIM_B), 1.toShort)
-            .set(metric(TestTableFields.TEST_FIELD), 4d)
-            .buildAndReset(),
-          b.set(Time(from.plusMinutes(2)))
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .set(metric(TestTableFields.TEST_FIELD), 8d)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, Time(from.plusMinutes(2)))
+        batch.set(0, dimension(TestDims.DIM_B), 1.toShort)
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 4d)
 
-    val rows = tsdb.query(query).toList
+        batch.set(1, Time(from.plusMinutes(2)))
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 8d)
+        Iterator(batch)
+      }
 
-    rows should have size 2
+    val rows = tsdb.query(query)
+
+    rows.next() shouldBe true
+    rows.next() shouldBe true
   }
 
   it should "support OR on different times" in withTsdbMock { (tsdb, tsdbDaoMock) =>
@@ -908,32 +890,36 @@ class TsdbDataFilterTest
 
     (tsdbDaoMock.query _)
       .expects(*, *, *, *)
-      .onCall((_, b, _, _) =>
-        Iterator(
-          b.set(Time(from.plusMinutes(2)))
-            .set(dimension(TestDims.DIM_B), 1.toShort)
-            .set(metric(TestTableFields.TEST_FIELD), 4d)
-            .buildAndReset(),
-          b.set(Time(from.plusMinutes(2)))
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .set(metric(TestTableFields.TEST_FIELD), 8d)
-            .buildAndReset(),
-          b.set(Time(from.minusYears(1).plusMinutes(2)))
-            .set(dimension(TestDims.DIM_B), 1.toShort)
-            .set(metric(TestTableFields.TEST_FIELD), 4d)
-            .buildAndReset(),
-          b.set(Time(from.minusYears(1).plusMinutes(2)))
-            .set(dimension(TestDims.DIM_B), 2.toShort)
-            .set(metric(TestTableFields.TEST_FIELD), 8d)
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, Time(from.plusMinutes(2)))
+        batch.set(0, dimension(TestDims.DIM_B), 1.toShort)
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 4d)
 
-    val rows = tsdb.query(query).toList
+        batch.set(1, Time(from.plusMinutes(2)))
+        batch.set(1, dimension(TestDims.DIM_B), 2.toShort)
+        batch.set(1, metric(TestTableFields.TEST_FIELD), 8d)
 
-    rows should have size 3
-    rows.exists(r =>
-      r.get[Time]("time") == Time(from.minusYears(1).plusMinutes(2)) && r.get[Double]("testField") != 8d
-    ) shouldBe false
+        batch.set(2, Time(from.minusYears(1).plusMinutes(2)))
+        batch.set(2, dimension(TestDims.DIM_B), 1.toShort)
+        batch.set(2, metric(TestTableFields.TEST_FIELD), 4d)
+
+        batch.set(3, Time(from.minusYears(1).plusMinutes(2)))
+        batch.set(3, dimension(TestDims.DIM_B), 2.toShort)
+        batch.set(3, metric(TestTableFields.TEST_FIELD), 8d)
+        Iterator(batch)
+      }
+
+    val rows = tsdb.query(query)
+
+    var i = 0
+    var fl = false
+    while (rows.next()) {
+      val t = rows.get[Time]("time") == Time(from.minusYears(1).plusMinutes(2)) && rows.get[Double]("testField") != 8d
+      fl = fl || t
+      i += 1
+    }
+    i shouldBe 3
+    fl shouldBe false
   }
 }

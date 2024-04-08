@@ -27,7 +27,7 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.api.types.{ ID, ReaderWriter, TypedInt }
+import org.yupana.api.types.{ ID, ReaderWriter }
 import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
@@ -45,7 +45,6 @@ import scala.collection.immutable.NumericRange
 import scala.util.Using
 
 object HBaseUtils extends StrictLogging {
-
   type TimeShiftedValue = (Long, Array[Byte])
   type TimeShiftedValues = Array[TimeShiftedValue]
   type ValuesByGroup = Map[Int, TimeShiftedValues]
@@ -59,7 +58,7 @@ object HBaseUtils extends StrictLogging {
   val MAX_ROW_SIZE = 2_000_000
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
 
-  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan

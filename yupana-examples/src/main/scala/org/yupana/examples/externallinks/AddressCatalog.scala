@@ -19,7 +19,7 @@ package org.yupana.examples.externallinks
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Schema }
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Dimensions
@@ -59,14 +59,12 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
     }
 
   override def setLinkedValues(
-      rowBuilder: InternalRowBuilder,
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
-  ): Seq[InternalRow] = {
+  ): Unit = {
     ExternalLinkUtils.setLinkedValues(
       externalLink,
-      rowBuilder,
-      rows,
+      batch,
       exprs,
       fieldValuesForDimValues
     )

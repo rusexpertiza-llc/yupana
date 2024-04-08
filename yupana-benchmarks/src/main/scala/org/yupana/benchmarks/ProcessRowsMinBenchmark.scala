@@ -30,15 +30,18 @@ class ProcessRowsMinBenchmark {
 
   @Benchmark
   def processRowsMinimal(state: TsdbBaseBenchmarkStateMin): Int = {
-    state.tsdb
+    val res = state.tsdb
       .processRows(
         state.queryContext,
-        state.rowBuilder,
         NoMetricCollector,
         IteratorMapReducible.iteratorMR,
-        state.rows.iterator
+        state.dataset.iterator
       )
-      .size
+    var i = 0
+    while (res.next()) {
+      i += 1
+    }
+    i
   }
 }
 

@@ -17,17 +17,17 @@
 package org.yupana.core.dao
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.core.{ MapReducible, QueryContext }
-import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
+import org.yupana.core.{MapReducible, QueryContext}
+import org.yupana.core.model.{BatchDataset, InternalQuery, InternalRowSchema}
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait TSReadingDao[Collection[_], IdType] {
   def query(
       query: InternalQuery,
-      valueDataBuilder: InternalRowBuilder,
       queryContext: QueryContext,
+      datasetSchema: InternalRowSchema,
       metricCollector: MetricQueryCollector
-  ): Collection[InternalRow]
+  ): Collection[BatchDataset]
 
   def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Collection]
 

@@ -99,7 +99,7 @@ class TableTest extends AnyFlatSpec with Matchers {
     println(s"Overhead: ${totalSize - rowsSize} bytes (${totalSize.toLong * 100 / rowsSize - 100}%)")
     KhipuMetricCollector.logStat()
 
-    table.explain()
+    println(table.explain())
 
   }
 }

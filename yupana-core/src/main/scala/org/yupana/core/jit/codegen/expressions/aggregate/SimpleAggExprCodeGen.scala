@@ -18,7 +18,7 @@ package org.yupana.core.jit.codegen.expressions.aggregate
 
 import org.yupana.api.query.AggregateExpr
 import org.yupana.core.jit.codegen.CommonGen
-import org.yupana.core.jit.{ CodeGenResult, Decl, State, ValueDeclaration }
+import org.yupana.core.jit.{CodeGenResult, Decl, ExpressionCodeGenFactory, State, ValueDeclaration}
 
 import scala.reflect.runtime.universe._
 
@@ -32,11 +32,11 @@ trait SimpleAggExprCodeGen[T <: AggregateExpr[_, _, _]] extends AggregateExpress
 
   def globalDeclarations(): Seq[Decl] = Seq.empty
 
-  override def generateZeroCode(state: State, row: TermName): CodeGenResult = {
+  override def generateZeroCode(state: State, acc: TermName, row: TermName): CodeGenResult = {
     val dState = stateWithGlobalDeclarations(state)
 
-    val r = dState.withReadFromRow(row, expression.expr)
-    val w = r.state.withWriteToRow(row, expression)
+    val r = ExpressionCodeGenFactory.codeGenerator(expression.expr).generateEvalCode(dState, row)
+    val w = r.state.withWriteToRow(acc, expression)
 
     val valDecl = w.valueDeclaration
     val validityTree = q"val ${valDecl.validityFlagName} = true"
@@ -53,7 +53,7 @@ trait SimpleAggExprCodeGen[T <: AggregateExpr[_, _, _]] extends AggregateExpress
     val dState = stateWithGlobalDeclarations(state)
 
     val accRes = dState.withReadFromRow(accRow, expression)
-    val rowRes = accRes.state.withReadFromRow(row, expression.expr)
+    val rowRes = ExpressionCodeGenFactory.codeGenerator(expression.expr).generateEvalCode(accRes.state, row)
 
     val valDecl = ValueDeclaration(s"res_${accRes.valueDeclaration.valueName}")
 

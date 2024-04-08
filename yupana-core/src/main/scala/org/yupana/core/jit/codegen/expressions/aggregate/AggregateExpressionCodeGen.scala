@@ -25,7 +25,7 @@ import scala.reflect.runtime.universe._
 
 trait AggregateExpressionCodeGen[T <: AggregateExpr[_, _, _]] extends ExpressionCodeGen[T] {
 
-  def generateZeroCode(state: State, row: TermName): CodeGenResult
+  def generateZeroCode(state: State, accRow: TermName, row: TermName): CodeGenResult
 
   def generateFoldCode(state: State, accRow: TermName, row: TermName): CodeGenResult
 

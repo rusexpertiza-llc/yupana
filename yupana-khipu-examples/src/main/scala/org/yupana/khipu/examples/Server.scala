@@ -19,13 +19,15 @@ package org.yupana.khipu.examples
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
+import org.yupana.core.auth.{DaoAuthorizer, PermissionService, TsdbRole, UserManager, YupanaUser}
+import org.yupana.core.dao.UserDao
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.utils.metric.{ MetricQueryCollector, StandaloneMetricCollector }
-import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig, TimeSeriesQueryEngine }
+import org.yupana.core.utils.metric.{MetricQueryCollector, StandaloneMetricCollector}
+import org.yupana.core.{FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig}
 import org.yupana.khipu.TSDBKhipu
 import org.yupana.metrics.Slf4jMetricReporter
-import org.yupana.netty.{ NonEmptyUserAuthorizer, ServerContext, YupanaServer }
+import org.yupana.netty.{ServerContext, YupanaServer}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -44,19 +46,43 @@ object Server extends StrictLogging {
 
     val metricReporter = new Slf4jMetricReporter[MetricQueryCollector]
 
-    val mc = (query: Query) => new StandaloneMetricCollector(query, "select", 1000, metricReporter)
+    val metricCreator = { (query: Query, user: String) =>
+      new StandaloneMetricCollector(
+        query,
+        user,
+        "query",
+        tsdbConfig.metricsUpdateInterval,
+        metricReporter
+      )
+    }
+    val userDao = new UserDao {
 
-    val tsdb = TSDBKhipu(schema, identity, tsdbConfig, config.settings, changelogDao, mc)
+      override def createUser(userName: String, password: Option[String], role: TsdbRole): Boolean = false
+
+      override def updateUser(userName: String, password: Option[String], role: Option[TsdbRole]): Boolean = false
+
+      override def deleteUser(userName: String): Boolean = false
+
+      override def findUser(userName: String): Option[YupanaUser] = None
+
+      override def listUsers(): List[YupanaUser] = List.empty
+    }
+
+    val tsdb = TSDBKhipu(schema, identity, tsdbConfig, config.settings, changelogDao, metricCreator)
+    val userManager = new UserManager(userDao, Some("admin"), Some("admin"))
 
     val queryEngineRouter = new QueryEngineRouter(
-      new TimeSeriesQueryEngine(tsdb),
+      tsdb,
       new FlatQueryEngine(metricsDao, changelogDao),
       new JdbcMetadataProvider(schema, 2, 0, "2.0"),
-      new SqlQueryProcessor(schema)
+      new SqlQueryProcessor(schema),
+      new PermissionService(putEnabled = true),
+      userManager
+
     )
     logger.info("Registering catalogs")
 
-    val ctx = ServerContext(queryEngineRouter, NonEmptyUserAuthorizer)
+    val ctx = ServerContext(queryEngineRouter, new DaoAuthorizer(userManager))
     val server = new YupanaServer(config.host, config.port, 4, ctx)
     val f = server.start()
     logger.info(s"Yupana server started, listening on ${config.host}:${config.port}")

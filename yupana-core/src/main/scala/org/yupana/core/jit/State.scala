@@ -22,8 +22,8 @@ import org.yupana.core.jit.State.RowOperation
 import scala.reflect.runtime.universe._
 
 case class State(
-    index: Map[Expression[_], Int],
-    required: Set[Expression[_]],
+    valueExprIndex: Map[Expression[_], Int],
+    refExprIndex: Map[Expression[_], Int],
     refs: Seq[(AnyRef, Decl)],
     globalDecls: Seq[(Any, Decl)],
     rowOperations: Seq[RowOperation],
@@ -39,6 +39,10 @@ case class State(
     this.copy(localValueDeclarations = from.localValueDeclarations)
   }
 
+  def expressionIndex(expression: Expression[_]): Int = {
+    valueExprIndex.getOrElse(expression, refExprIndex(expression))
+  }
+
   def hasWriteOps: Boolean = {
     rowOperations.exists { op =>
       op.opType == State.RowOpType.WriteRef || op.opType == State.RowOpType.WriteField
@@ -47,7 +51,7 @@ case class State(
 
   def withLocalValueDeclaration(expr: Expression[_]): (ValueDeclaration, State) = {
     val s1 = withExpression(expr)
-    val i = s1.index(expr)
+    val i = s1.expressionIndex(expr)
     val decl = ValueDeclaration(s"expr_$i")
     decl -> s1.copy(localValueDeclarations = localValueDeclarations + (expr -> decl))
   }
@@ -61,40 +65,59 @@ case class State(
   }
 
   def withExpression(expr: Expression[_]): State = {
-    this.copy(index = if (index.contains(expr)) index else index + (expr -> index.size))
+    if (expr.dataType.internalStorable.isRefType) {
+      withRefExpression(expr)
+    } else {
+      withValueExpression(expr)
+    }
   }
 
-  def withReadRefFromRow(row: TermName, expr: Expression[_]): CodeGenResult = {
-    withRowOperation(row, expr, State.RowOpType.ReadRef)
+  def withValueExpression(expr: Expression[_]): State = {
+    this.copy(valueExprIndex =
+      if (valueExprIndex.contains(expr)) valueExprIndex
+      else valueExprIndex + (expr -> (valueExprIndex.size + refExprIndex.size))
+    )
+  }
+
+  def withRefExpression(expr: Expression[_]): State = {
+    this.copy(refExprIndex =
+      if (refExprIndex.contains(expr)) refExprIndex
+      else refExprIndex + (expr -> (refExprIndex.size + valueExprIndex.size))
+    )
+  }
+
+  def withReadRefFromRow(row: TermName, expr: Expression[_], tpe: Tree): CodeGenResult = {
+    withRowOperation(row, expr, State.RowOpType.ReadRef, Some(tpe))
   }
 
   def withWriteRefToRow(row: TermName, expr: Expression[_], valueDeclaration: ValueDeclaration): State = {
-    withRowOperation(row, expr, State.RowOpType.WriteRef, valueDeclaration)
+    withRowOperation(row, expr, State.RowOpType.WriteRef, valueDeclaration, None)
   }
 
   def withWriteRefToRow(row: TermName, expr: Expression[_]): CodeGenResult = {
-    withRowOperation(row, expr, State.RowOpType.WriteRef)
+    withRowOperation(row, expr, State.RowOpType.WriteRef, None)
   }
 
   def withReadFromRow(row: TermName, expr: Expression[_]): CodeGenResult = {
-    withRowOperation(row, expr, State.RowOpType.ReadField)
+    withRowOperation(row, expr, State.RowOpType.ReadField, None)
   }
 
   def withReadFromRow(row: TermName, expr: Expression[_], valueDeclaration: ValueDeclaration): State = {
-    this.withRowOperation(row, expr, State.RowOpType.ReadField, valueDeclaration)
+    withRowOperation(row, expr, State.RowOpType.ReadField, valueDeclaration, None)
   }
 
   def withWriteToRow(row: TermName, expr: Expression[_], valueDeclaration: ValueDeclaration): State = {
-    this.withRowOperation(row, expr, State.RowOpType.WriteField, valueDeclaration)
+    this.withRowOperation(row, expr, State.RowOpType.WriteField, valueDeclaration, None)
   }
 
   def withWriteToRow(row: TermName, expr: Expression[_]): CodeGenResult = {
-    this.withRowOperation(row, expr, State.RowOpType.WriteField)
+    this.withRowOperation(row, expr, State.RowOpType.WriteField, None)
   }
   private def withRowOperation(
       row: TermName,
       expr: Expression[_],
-      opType: State.RowOpType.Value
+      opType: State.RowOpType.Value,
+      tpe: Option[Tree],
   ): CodeGenResult = {
     rowOperations.find(op => op.row == row && op.expr == expr && op.opType == opType) match {
       case Some(op) =>
@@ -104,23 +127,31 @@ case class State(
         val valName = TermName("field_" + idx)
         val validFlagName = TermName("field_valid_" + idx)
         val valueDecl = ValueDeclaration(valName, validFlagName)
-        CodeGenResult(Seq.empty, valueDecl, withRowOperation(row, expr, opType, valueDecl))
+        CodeGenResult(Seq.empty, valueDecl, withRowOperation(row, expr, opType, valueDecl, tpe))
     }
   }
   private def withRowOperation(
       row: TermName,
       expr: Expression[_],
       opType: State.RowOpType.Value,
-      valueDeclaration: ValueDeclaration
+      valueDeclaration: ValueDeclaration,
+      tpe: Option[Tree]
   ): State = {
-    this
+    val s = this
       .copy(
-        rowOperations = this.rowOperations :+ RowOperation(row, expr, opType, valueDeclaration)
+        rowOperations = this.rowOperations :+ RowOperation(row, expr, opType, valueDeclaration, tpe)
       )
-      .withExpression(expr)
-  }
 
-  def withRequired(e: Expression[_]): State = copy(required = required + e)
+    opType match {
+      case State.RowOpType.WriteField | State.RowOpType.ReadField if expr.dataType.internalStorable.isRefType =>
+        s.withRefExpression(expr)
+      case State.RowOpType.WriteField | State.RowOpType.ReadField =>
+        s.withExpression(expr)
+      case State.RowOpType.WriteRef | State.RowOpType.ReadRef =>
+        s.withRefExpression(expr)
+      case _ => throw new IllegalStateException(s"Unknown $opType")
+    }
+  }
 
   def withNamedGlobal(name: TermName, tpe: Tree, tree: Tree): State = {
     if (!globalDecls.exists(_._1 == name))
@@ -166,7 +197,7 @@ object State {
       row: TermName,
       expr: Expression[_],
       opType: RowOpType.Value,
-      valueDeclaration: ValueDeclaration
+      valueDeclaration: ValueDeclaration,
+      tpe: Option[Tree]
   )
-
 }

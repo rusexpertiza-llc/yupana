@@ -29,11 +29,9 @@ object PostAgrregateStageGen {
   ): (Seq[Tree], State) = {
     val aggregatesAndWinFuncs = CommonGen.findAggregates(query.fields) ++ CommonGen.findWindowFunctions(query.fields)
 
-    if (aggregatesAndWinFuncs.nonEmpty) {
+    if (aggregatesAndWinFuncs.nonEmpty || query.fields.exists(_.expr.isInstanceOf[ConstantExpr[_]])) {
 
-      val groupByState = CommonGen.copyGroupByFields(state, query, row)
-
-      val readExprsState = aggregatesAndWinFuncs.zipWithIndex.foldLeft(groupByState) {
+      val readExprsState = aggregatesAndWinFuncs.zipWithIndex.foldLeft(state) {
         case (s, (e, idx)) =>
           s.withReadFromRow(row, e, ValueDeclaration(s"agg_$idx"))
       }

@@ -6,16 +6,20 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, Query, RemoveCondition }
 import org.yupana.api.utils.CloseableIterator
+import org.yupana.cache.CacheFactory
 import org.yupana.core._
 import org.yupana.core.jit.JIT
-import org.yupana.core.model.InternalRowBuilder
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.externallinks.TestSchema
 import org.yupana.schema.externallinks.{ ItemsInvertedIndex, RelatedItemsCatalog }
 import org.yupana.schema.{ Dimensions, Tables }
+import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
+
+import java.util.Properties
 
 class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFactory {
   import org.yupana.api.query.syntax.All._
@@ -33,6 +37,10 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
   private val calculator = new ConstantCalculator(RussianTokenizer)
 
   "RelatedItemsCatalogImpl" should "handle phrase field in conditions" in {
+    val properties = new Properties()
+    properties.load(getClass.getClassLoader.getResourceAsStream("app.properties"))
+    CacheFactory.init(Settings(properties))
+
     val tsdb = mock[MockedTsdb]
     val catalog = new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
 
@@ -44,35 +52,26 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
     )
 
-    val qc1 = new QueryContext(expQuery1, None, JIT, NoMetricCollector)
-    val rowBuilder1 = new InternalRowBuilder(qc1)
+    val qc1 = new QueryContext(expQuery1, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery1, YupanaUser.ANONYMOUS)
-      .returning(
-        new TsdbServerResult(
-          qc1,
-          rowBuilder1,
-          CloseableIterator.pure(
-            Seq(
-              rowBuilder1
-                .set(dimension(Dimensions.KKM_ID), 123456)
-                .set(time, Time(120))
-                .buildAndReset(),
-              rowBuilder1
-                .set(dimension(Dimensions.KKM_ID), 123456)
-                .set(time, Time(150))
-                .buildAndReset(),
-              rowBuilder1
-                .set(dimension(Dimensions.KKM_ID), 345112)
-                .set(time, Time(120))
-                .buildAndReset()
-            ).iterator
-          )
-        )
-      )
+      .returning({
+        val batch = BatchDataset(qc1)
+
+        batch.set(0, dimension(Dimensions.KKM_ID), 123456)
+        batch.set(0, time, Time(120))
+
+        batch.set(1, dimension(Dimensions.KKM_ID), 123456)
+        batch.set(1, time, Time(150))
+
+        batch.set(2, dimension(Dimensions.KKM_ID), 345112)
+        batch.set(2, time, Time(120))
+
+        new TsdbServerResult(qc1, CloseableIterator.pure(Iterator(batch)))
+      })
 
     val expQuery2 = Query(
       Tables.itemsKkmTable,
@@ -82,29 +81,20 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
     )
 
-    val qc2 = new QueryContext(expQuery2, None, JIT, NoMetricCollector)
-    val rowBuilder2 = new InternalRowBuilder(qc2)
+    val qc2 = new QueryContext(expQuery2, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.query _)
       .expects(expQuery2, YupanaUser.ANONYMOUS)
-      .returning(
-        new TsdbServerResult(
-          qc2,
-          rowBuilder2,
-          CloseableIterator.pure(
-            Seq(
-              rowBuilder2
-                .set(dimension(Dimensions.KKM_ID), 123456)
-                .set(time, Time(125))
-                .buildAndReset(),
-              rowBuilder2
-                .set(dimension(Dimensions.KKM_ID), 123456)
-                .set(time, Time(120))
-                .buildAndReset()
-            ).iterator
-          )
-        )
-      )
+      .returning({
+        val batch = BatchDataset(qc2)
+        batch.set(0, dimension(Dimensions.KKM_ID), 123456)
+        batch.set(0, time, Time(125))
+
+        batch.set(1, dimension(Dimensions.KKM_ID), 123456)
+        batch.set(1, time, Time(120))
+
+        new TsdbServerResult(qc2, CloseableIterator.pure(Iterator(batch)))
+      })
 
     val c1 = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("хлеб ржаной"))
     val c2 = notIn(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.PHRASE_FIELD)), Set("бородинский"))
@@ -151,31 +141,22 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
     )
 
-    val qc = new QueryContext(expQuery, None, JIT, NoMetricCollector)
-    val rowBuilder = new InternalRowBuilder(qc)
+    val qc = new QueryContext(expQuery, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
       .expects(expQuery, YupanaUser.ANONYMOUS)
-      .returning(
-        new TsdbServerResult(
-          qc,
-          rowBuilder,
-          CloseableIterator.pure(
-            Seq(
-              rowBuilder
-                .set(dimension(Dimensions.KKM_ID), 123456)
-                .set(time, Time(220))
-                .buildAndReset(),
-              rowBuilder
-                .set(dimension(Dimensions.KKM_ID), 654321)
-                .set(time, Time(330))
-                .buildAndReset()
-            ).iterator
-          )
-        )
-      )
+      .returning({
+        val batch = BatchDataset(qc)
+        batch.set(0, dimension(Dimensions.KKM_ID), 123456)
+        batch.set(0, time, Time(220))
+
+        batch.set(1, dimension(Dimensions.KKM_ID), 654321)
+        batch.set(1, time, Time(330))
+
+        new TsdbServerResult(qc, CloseableIterator.pure(Iterator(batch)))
+      })
 
     val c = in(lower(link(RelatedItemsCatalog, RelatedItemsCatalog.ITEM_FIELD)), Set("яйцо молодильное 1к"))
     val conditions = catalog.transformCondition(

@@ -16,57 +16,57 @@
 
 package org.yupana.spark
 
-import java.sql.{ Timestamp, Types }
+import java.sql.{Timestamp, Types}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.types._
-import org.apache.spark.{ Partition, TaskContext }
-import org.yupana.api.{ Blob, Time }
-import org.yupana.api.query.{ DataRow, QueryField }
+import org.apache.spark.{Partition, TaskContext}
+import org.yupana.api.{Blob, Time}
+import org.yupana.api.query.QueryField
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
-import org.yupana.core.{ QueryContext, TsdbResultBase }
+import org.yupana.core.model.BatchDataset
+import org.yupana.core.{QueryContext, TsdbResultBase}
 
-class DataRowRDD(override val rows: RDD[InternalRow], override val queryContext: QueryContext)
-    extends RDD[DataRow](rows)
+import scala.collection.mutable.ArrayBuffer
+
+class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext: QueryContext)
+    extends RDD[Row](data)
     with TsdbResultBase[RDD] {
 
   private val fields = queryContext.query.fields.toArray
 
-  override lazy val internalRowBuilder: InternalRowBuilder = new InternalRowBuilder(queryContext)
 
-  override def compute(split: Partition, context: TaskContext): Iterator[DataRow] = {
-    rows
+  override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
+    data
       .iterator(split, context)
-      .map(row => dataRow(row))
+      .flatMap { batch =>
+        val buf = ArrayBuffer.empty[Row]
+        batch.foreach { rowNum =>
+          val values = fields.map { f =>
+            batch.get(rowNum, f.expr) match {
+              case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
+              case Blob(bytes) => bytes
+              case x           => x
+            }
+          }.toArray
+
+          val row = Row(values)
+          buf.append(row)
+        }
+        buf.iterator
+      }
   }
 
-  override protected def getPartitions: Array[Partition] = rows.partitions
+  override protected def getPartitions: Array[Partition] = data.partitions
 
   def toDF(spark: SparkSession): DataFrame = {
-    val rowRdd = rows.map(v => createRow(v))
-    spark.createDataFrame(rowRdd, createSchema)
+    spark.createDataFrame(this, createSchema)
   }
 
   private def createSchema: StructType = {
     val fields = queryContext.query.fields.map(fieldToSpark)
     StructType(fields)
-  }
-
-  private def createRow(internalRow: InternalRow): Row = {
-    val values = fields.indices.map { i =>
-      val index = dataIndexForFieldIndex(i)
-      val field = fields(i)
-      if (internalRow.isDefined(internalRowBuilder, index)) {
-        internalRow.get(internalRowBuilder, index)(field.expr.dataType.internalStorable) match {
-          case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
-          case Blob(bytes) => bytes
-          case x           => x
-        }
-      } else null
-    }
-    Row(values: _*)
   }
 
   private def fieldToSpark(field: QueryField): StructField = {

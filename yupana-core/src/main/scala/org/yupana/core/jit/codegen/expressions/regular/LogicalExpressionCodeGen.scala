@@ -31,7 +31,7 @@ trait LogicalExpressionCodeGen extends ExpressionCodeGen[Expression[Boolean]] {
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val exprState = state.withExpression(expression)
-    val index = exprState.index(expression)
+    val index = exprState.expressionIndex(expression)
 
     val head = ExpressionCodeGenFactory.codeGenerator(conditions.head).generateEvalCode(exprState, row)
 

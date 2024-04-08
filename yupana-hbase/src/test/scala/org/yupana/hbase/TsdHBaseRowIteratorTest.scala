@@ -3,7 +3,7 @@ package org.yupana.hbase
 import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.core._
-import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
+import org.yupana.core.model.InternalQuery
 import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, time }
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.scalatest.flatspec.AnyFlatSpec
@@ -37,9 +37,9 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
     Seq.empty
   )
 
-  val queryContext = new QueryContext(query, None, JIT, NoMetricCollector)
+  val queryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
-  val rowBuilder = new InternalRowBuilder(queryContext)
+  val datasetSchema = queryContext.internalRowSchema
 
   val internalQuery =
     InternalQuery(
@@ -62,14 +62,14 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
         .hbaseRow
     )
 
-    val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
+    val it = new TSDHBaseRowIterator(internalQueryContext, rows, datasetSchema)
 
-    val dp1 = it.next()
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
-    dp1.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
-    dp1.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
-    dp1.get[Time](rowBuilder, time) shouldBe Time(1001)
+    val batch = it.next()
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    batch.get[String](0, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    batch.get[Long](0, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    batch.get[Time](0, time) shouldBe Time(1001)
   }
 
   it should "iterate on one hbase row and one DataPoint adn two column families" in {
@@ -86,14 +86,14 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
         .hbaseRow
     )
 
-    val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
+    val it = new TSDHBaseRowIterator(internalQueryContext, rows, datasetSchema)
 
-    val dp1 = it.next()
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
-    dp1.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
-    dp1.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
-    dp1.get[Time](rowBuilder, time) shouldBe Time(1001)
+    val batch = it.next()
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    batch.get[String](0, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    batch.get[Long](0, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    batch.get[Time](0, time) shouldBe Time(1001)
   }
 
   it should "iterate on one hbase row and two DataPoints" in {
@@ -114,21 +114,20 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
         .hbaseRow
     )
 
-    val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
+    val it = new TSDHBaseRowIterator(internalQueryContext, rows, datasetSchema)
 
-    val dp1 = it.next()
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
-    dp1.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
-    dp1.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
-    dp1.get[Time](rowBuilder, time) shouldBe Time(1001)
+    val batch = it.next()
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    batch.get[String](0, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    batch.get[Long](0, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    batch.get[Time](0, time) shouldBe Time(1001)
 
-    val dp2 = it.next()
-    dp2.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
-    dp2.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
-    dp2.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
-    dp2.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
-    dp2.get[Time](rowBuilder, time) shouldBe Time(1002)
+    batch.get[Double](1, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
+    batch.get[Double](1, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
+    batch.get[String](1, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
+    batch.get[Long](1, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
+    batch.get[Time](1, time) shouldBe Time(1002)
   }
 
   it should "iterate on one hbase row and two DataPoints and two families" in {
@@ -151,21 +150,20 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
         .hbaseRow
     )
 
-    val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
+    val it = new TSDHBaseRowIterator(internalQueryContext, rows, datasetSchema)
 
-    val dp1 = it.next()
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
-    dp1.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
-    dp1.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
-    dp1.get[Time](rowBuilder, time) shouldBe Time(1001)
+    val batch = it.next()
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    batch.get[String](0, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    batch.get[Long](0, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    batch.get[Time](0, time) shouldBe Time(1001)
 
-    val dp2 = it.next()
-    dp2.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
-    dp2.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
-    dp2.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
-    dp2.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
-    dp2.get[Time](rowBuilder, time) shouldBe Time(1002)
+    batch.get[Double](1, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
+    batch.get[Double](1, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
+    batch.get[String](1, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
+    batch.get[Long](1, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
+    batch.get[Time](1, time) shouldBe Time(1002)
   }
 
   it should "iterate on two hbase row and two DataPoints and two families" in {
@@ -203,35 +201,32 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
         .hbaseRow
     )
 
-    val it = new TSDHBaseRowIterator(internalQueryContext, rows, new InternalRowBuilder(queryContext))
+    val it = new TSDHBaseRowIterator(internalQueryContext, rows, datasetSchema)
 
-    val dp1 = it.next()
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
-    dp1.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
-    dp1.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
-    dp1.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
-    dp1.get[Time](rowBuilder, time) shouldBe Time(1001)
+    val batch = it.next()
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD)) shouldBe 42d
+    batch.get[Double](0, metric(TestTableFields.TEST_FIELD2)) shouldBe 43d
+    batch.get[String](0, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "e"
+    batch.get[Long](0, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 44L
+    batch.get[Time](0, time) shouldBe Time(1001)
 
-    val dp2 = it.next()
-    dp2.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
-    dp2.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
-    dp2.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
-    dp2.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
-    dp2.get[Time](rowBuilder, time) shouldBe Time(1002)
+    batch.get[Double](1, metric(TestTableFields.TEST_FIELD)) shouldBe 52d
+    batch.get[Double](1, metric(TestTableFields.TEST_FIELD2)) shouldBe 53d
+    batch.get[String](1, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "ee"
+    batch.get[Long](1, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 54L
+    batch.get[Time](1, time) shouldBe Time(1002)
 
-    val dp3 = it.next()
-    dp3.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 142d
-    dp3.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 143d
-    dp3.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "2e"
-    dp3.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 144L
-    dp3.get[Time](rowBuilder, time) shouldBe Time(1001)
+    batch.get[Double](2, metric(TestTableFields.TEST_FIELD)) shouldBe 142d
+    batch.get[Double](2, metric(TestTableFields.TEST_FIELD2)) shouldBe 143d
+    batch.get[String](2, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "2e"
+    batch.get[Long](2, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 144L
+    batch.get[Time](2, time) shouldBe Time(1001)
 
-    val dp4 = it.next()
-    dp4.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD)) shouldBe 152d
-    dp4.get[Double](rowBuilder, metric(TestTableFields.TEST_FIELD2)) shouldBe 153d
-    dp4.get[String](rowBuilder, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "2ee"
-    dp4.get[Long](rowBuilder, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 154L
-    dp4.get[Time](rowBuilder, time) shouldBe Time(1002)
+    batch.get[Double](3, metric(TestTableFields.TEST_FIELD)) shouldBe 152d
+    batch.get[Double](3, metric(TestTableFields.TEST_FIELD2)) shouldBe 153d
+    batch.get[String](3, metric(TestTableFields.TEST_STRING_FIELD)) shouldBe "2ee"
+    batch.get[Long](3, metric(TestTableFields.TEST_LONG_FIELD)) shouldBe 154L
+    batch.get[Time](3, time) shouldBe Time(1002)
   }
 
 }

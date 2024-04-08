@@ -20,11 +20,12 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.cache.CacheFactory
 import org.yupana.core.jit.JIT
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.{ QueryContext, SimpleTsdbConfig, TSDB }
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry }
 import org.yupana.settings.Settings
+import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime
 import java.util.Properties
@@ -33,8 +34,7 @@ abstract class TsdbBaseBenchmarkStateBase {
   def query: Query
   def daoExprs: Seq[Expression[_]]
 
-  lazy val queryContext: QueryContext = new QueryContext(query, None, JIT, NoMetricCollector)
-  lazy val rowBuilder = new InternalRowBuilder(queryContext)
+  lazy val queryContext: QueryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   val qtime = LocalDateTime.of(2021, 5, 24, 22, 40, 0)
 
@@ -42,22 +42,21 @@ abstract class TsdbBaseBenchmarkStateBase {
     TimeExpr -> (i => Time(qtime.minusHours(i % 100))),
     MetricExpr(ItemTableMetrics.sumField) -> (i => BigDecimal(i.toDouble / 1000)),
     MetricExpr(ItemTableMetrics.quantityField) -> (i => math.abs(101d - i.toDouble / 10000)),
-    DimensionExpr(Dimensions.ITEM) -> (i => s"The thing #${i % 1000}"),
+    DimensionExpr(Dimensions.ITEM) -> (i => s"#${i % 1000}"),
     DimensionExpr(Dimensions.KKM_ID) -> (i => i % 500)
   )
 
-  def getRows(rowBuilder: InternalRowBuilder, n: Int, exprs: Seq[Expression[_]]): Seq[InternalRow] = {
-    val r = (1 to n)
-      .map { i =>
-        exprs.foreach { expr =>
-          val value = EXPR_CALC(expr)(i)
-          rowBuilder.set(expr.asInstanceOf[Expression[Any]], value)
+  def getDataset(n: Int): Array[BatchDataset] = {
+    val batch = BatchDataset(queryContext)
+    (0 until n)
+      .foreach { i =>
+        daoExprs.foreach {  expr  =>
+          val f = EXPR_CALC(expr)
+          val value = f(i + 1)
+          batch.set(i, expr.asInstanceOf[Expression[Any]], value)
         }
-        rowBuilder.buildAndReset()
       }
-      .toArray
-      .toSeq
-    r
+    Array(batch)
   }
 
   val properties = new Properties()
@@ -65,11 +64,7 @@ abstract class TsdbBaseBenchmarkStateBase {
   CacheFactory.init(Settings(properties))
 
   val tsdb: TSDB = new BenchTsdb()
-  lazy val rows: Seq[InternalRow] = getRows(
-    rowBuilder,
-    100000,
-    daoExprs
-  )
+  lazy val dataset: Array[BatchDataset] = getDataset(100000)
 }
 
 class BenchTsdb

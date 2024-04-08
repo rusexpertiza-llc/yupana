@@ -17,20 +17,23 @@
 package org.yupana.core.jit
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{ Expression, Query }
-import org.yupana.cache.{ Cache, CacheFactory }
+import org.yupana.api.query.{Expression, Query}
+import org.yupana.api.utils.Tokenizer
+import org.yupana.cache.{Cache, CacheFactory}
+import org.yupana.core.model.InternalRowSchema
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
-  private val calculatorCache: Cache[String, Array[Any] => ExpressionCalculator] =
+  private val calculatorCache: Cache[String, (Array[Any], Tokenizer) => ExpressionCalculator] =
     CacheFactory.initCache("calculator_cache")
 
   override def makeCalculator(
       query: Query,
-      condition: Option[Condition]
-  ): (ExpressionCalculator, Map[Expression[_], Int]) = {
+      condition: Option[Condition],
+      tokenizer: Tokenizer
+  ): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema) = {
 
-    val (tree, index, params) = JIT.generateCalculator(query, condition)
+    val (tree, index, params, schema) = JIT.generateCalculator(query, condition)
 
     val key = tree.toString()
 
@@ -38,6 +41,6 @@ object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
       JIT.compile(tree)
     }
 
-    (fun(params), index)
+    (fun(params, tokenizer), index, schema)
   }
 }

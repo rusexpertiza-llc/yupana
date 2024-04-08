@@ -86,13 +86,10 @@ trait KTable {
 //      freeBlocks = findFreeBlocks(bTree)
       setRootId(bTree.rootId)
     }
-//    println("LeafBlocks " + bTree.getLeafBlocks.size)
-//    println("ModeBlocks " + bTree.getNodeBlocks.size)
   }
 
-  def explain(): Unit = {
+  def explain(): String = {
     bTree.explain()
-
   }
 
   def blockSegment(id: Int): MemorySegment = {

@@ -23,25 +23,25 @@ import org.yupana.core.ConstantCalculator
 import org.yupana.core.utils.FlatAndCondition
 
 case class InternalQuery(
-    table: Table,
-    exprs: Set[Expression[_]],
-    condition: Seq[FlatAndCondition],
-    hints: Seq[QueryHint] = Seq.empty
-)
+                          table: Table,
+                          exprs: Set[Expression[_]],
+                          condition: Seq[FlatAndCondition],
+                          hints: Seq[QueryHint] = Seq.empty
+                        )
 
 object InternalQuery {
   def apply(
-      table: Table,
-      exprs: Set[Expression[_]],
-      condition: Condition,
-      hints: Seq[QueryHint]
-  )(implicit calculator: ConstantCalculator): InternalQuery =
+             table: Table,
+             exprs: Set[Expression[_]],
+             condition: Condition,
+             hints: Seq[QueryHint]
+           )(implicit calculator: ConstantCalculator): InternalQuery =
     new InternalQuery(table, exprs, FlatAndCondition(calculator, condition), hints)
 
   def apply(
-      table: Table,
-      exprs: Set[Expression[_]],
-      condition: Condition
-  )(implicit calculator: ConstantCalculator): InternalQuery =
+             table: Table,
+             exprs: Set[Expression[_]],
+             condition: Condition
+           )(implicit calculator: ConstantCalculator): InternalQuery =
     new InternalQuery(table, exprs, FlatAndCondition(calculator, condition), Seq.empty)
 }

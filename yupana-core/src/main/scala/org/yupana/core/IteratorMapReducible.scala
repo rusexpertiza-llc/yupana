@@ -16,7 +16,9 @@
 
 package org.yupana.core
 
+import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.CollectionUtils
+
 import scala.reflect.ClassTag
 
 class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible[Iterator] {
@@ -57,6 +59,17 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
     } else {
       Iterator.empty[B]
     }
+  }
+
+  override def aggregate2(it: Iterator[BatchDataset], queryContext: QueryContext)(
+      foldOp: (HashTableDataset, BatchDataset) => Unit,
+      combOp: (HashTableDataset, BatchDataset) => Unit
+  ): Iterator[BatchDataset] = {
+    val acc = HashTableDataset(queryContext)
+    it.foreach { batch =>
+      foldOp(acc, batch)
+    }
+    acc.iterator
   }
 
   override def distinct[A: ClassTag](it: Iterator[A]): Iterator[A] = it.toSet.iterator

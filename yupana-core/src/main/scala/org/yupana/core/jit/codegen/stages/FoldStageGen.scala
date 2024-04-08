@@ -27,13 +27,13 @@ object FoldStageGen {
   def mkZero(
       state: State,
       query: Query,
-      row: TermName
+      outputDataset: TermName,
+      inputDataset: TermName
   ): (Seq[Tree], State) = {
-    val groupByState = CommonGen.copyGroupByFields(state, query, row)
 
-    CommonGen.findAggregates(query.fields).foldLeft((Seq.empty[Tree], groupByState)) {
+    CommonGen.findAggregates(query.fields).foldLeft((Seq.empty[Tree], state)) {
       case ((ts, s), ae) =>
-        val r = ExpressionCodeGenFactory.aggExprCodeGenerator(ae).generateZeroCode(s, row)
+        val r = ExpressionCodeGenFactory.aggExprCodeGenerator(ae).generateZeroCode(s, outputDataset, inputDataset)
         (ts ++ r.trees) -> r.state
     }
   }
@@ -41,16 +41,13 @@ object FoldStageGen {
   def mkFold(
       state: State,
       query: Query,
-      acc: TermName,
-      row: TermName
+      outputDataset: TermName,
+      inputDataset: TermName
   ): (Seq[Tree], State) = {
-    val groupByState = CommonGen.copyGroupByFields(state, query, acc)
-
-    val (ts, ns) = CommonGen.findAggregates(query.fields).foldLeft((Seq.empty[Tree], groupByState)) {
+    CommonGen.findAggregates(query.fields).foldLeft((Seq.empty[Tree], state)) {
       case ((ts, s), ae) =>
-        val r = ExpressionCodeGenFactory.aggExprCodeGenerator(ae).generateFoldCode(s, acc, row)
+        val r = ExpressionCodeGenFactory.aggExprCodeGenerator(ae).generateFoldCode(s, outputDataset, inputDataset)
         (ts ++ r.trees) -> r.state
     }
-    (ts, ns)
   }
 }

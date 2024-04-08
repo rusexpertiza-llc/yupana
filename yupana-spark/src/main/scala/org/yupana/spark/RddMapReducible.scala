@@ -19,7 +19,8 @@ package org.yupana.spark
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.utils.CloseableIterator
-import org.yupana.core.MapReducible
+import org.yupana.core.{ MapReducible, QueryContext }
+import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import scala.collection.immutable.ArraySeq
@@ -103,4 +104,27 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     }
   }
 
+  override def aggregate2(c: RDD[BatchDataset], queryContext: QueryContext)(
+      foldOp: (HashTableDataset, BatchDataset) => Unit,
+      combOp: (HashTableDataset, BatchDataset) => Unit
+  ): RDD[BatchDataset] = {
+    val folded = c.mapPartitions { it =>
+      val acc = HashTableDataset(queryContext)
+      it.foreach { batch =>
+        foldOp(acc, batch)
+      }
+      acc
+        .partition(100)
+        .iterator
+    }
+
+    folded
+      .reduceByKey { (batches1, batches2) =>
+        val acc = HashTableDataset(queryContext)
+        batches1.foreach(batch => combOp(acc, batch))
+        batches2.foreach(batch => combOp(acc, batch))
+        acc.iterator.toArray
+      }
+      .flatMap(_._2)
+  }
 }

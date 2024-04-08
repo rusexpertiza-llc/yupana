@@ -354,7 +354,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
               null
             } else {
               val b = ByteBuffer.wrap(bytes)
-              rt.storable.read(b)
+              val t = rt.storable.read(b)
+              t
             }
         }
         .toArray

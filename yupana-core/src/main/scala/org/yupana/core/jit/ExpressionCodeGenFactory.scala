@@ -64,19 +64,36 @@ object ExpressionCodeGenFactory {
     }
   }
 
+  def needEvaluateInProjectionStage(expr: Expression[_]): Boolean = {
+    expr match {
+      case ConstantExpr(c, _)   => false
+      case TrueExpr             => false
+      case FalseExpr            => false
+      case NullExpr(_)          => false
+      case TimeExpr             => false
+      case DimensionExpr(_)     => false
+      case DimensionIdExpr(_)   => false
+      case MetricExpr(_)        => false
+      case DimIdInExpr(_, _)    => false
+      case DimIdNotInExpr(_, _) => false
+      case LinkExpr(_, _)       => false
+      case _                    => true
+    }
+  }
+
   private def createCodeGenerator(expr: Expression[_]): ExpressionCodeGen[_] = {
     expr match {
-      case ConstantExpr(c, _)   => new ConstantExpressionCodeGen(expr, c)
-      case TrueExpr             => new ConstantExpressionCodeGen(expr, true)
-      case FalseExpr            => new ConstantExpressionCodeGen(expr, false)
-      case NullExpr(_)          => new NullExpressionCodeGen(expr)
-      case TimeExpr             => new FieldExpressionGen(expr)
-      case DimensionExpr(_)     => new FieldExpressionGen(expr)
-      case DimensionIdExpr(_)   => new FieldExpressionGen(expr)
-      case MetricExpr(_)        => new FieldExpressionGen(expr)
-      case DimIdInExpr(_, _)    => new FieldExpressionGen(expr)
-      case DimIdNotInExpr(_, _) => new FieldExpressionGen(expr)
-      case LinkExpr(_, _)       => new FieldExpressionGen(expr)
+      case ConstantExpr(c, prepared) => new ConstantExpressionCodeGen(expr, c, prepared)
+      case TrueExpr                  => new ConstantExpressionCodeGen(expr, true, prepared = false)
+      case FalseExpr                 => new ConstantExpressionCodeGen(expr, false, prepared = false)
+      case NullExpr(_)               => new NullExpressionCodeGen(expr)
+      case TimeExpr                  => new FieldExpressionGen(expr)
+      case DimensionExpr(_)          => new FieldExpressionGen(expr)
+      case DimensionIdExpr(_)        => new FieldExpressionGen(expr)
+      case MetricExpr(_)             => new FieldExpressionGen(expr)
+      case DimIdInExpr(_, _)         => new FieldExpressionGen(expr)
+      case DimIdNotInExpr(_, _)      => new FieldExpressionGen(expr)
+      case LinkExpr(_, _)            => new FieldExpressionGen(expr)
 
       case e: AggregateExpr[_, _, _] =>
         aggExprCodeGenerator(e)
@@ -103,6 +120,8 @@ object ExpressionCodeGenFactory {
       case e @ DivFracExpr(_, _) => DivFracExpressionCodeGen.apply(e)
 
       case e @ Double2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, d => q"BigDecimal($d)")
+
+      case e @ BigDecimal2DoubleExpr(_) => UnaryExpressionCodeGen(e, b => q"$b.toDouble")
 
       case e @ Long2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, l => q"BigDecimal($l)")
       case e @ Long2DoubleExpr(_)     => UnaryExpressionCodeGen(e, l => q"$l.toDouble")

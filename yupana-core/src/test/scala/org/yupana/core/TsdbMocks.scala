@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
@@ -109,19 +109,20 @@ trait TsdbMocks extends MockFactory {
   }
 
   def setCatalogValueByTag(
-      builder: InternalRowBuilder,
-      rows: Seq[InternalRow],
+      dataset: BatchDataset,
       catalog: ExternalLink,
       catalogValues: Table[String, String, String]
-  ): Seq[InternalRow] = {
-    rows.map { row =>
-      builder.setFieldsFromRow(row)
-      val tagValue = row.get(builder, DimensionExpr(catalog.dimension)).asInstanceOf[String]
-      catalogValues.row(tagValue).foreach {
-        case (field, value) =>
-          builder.set(LinkExpr(catalog, field), value)
+  ): Unit = {
+    for (i <- (0 until dataset.size)) {
+      if (dataset.isDefined(i, DimensionExpr(catalog.dimension))) {
+        val dimValue = dataset.get(i, DimensionExpr(catalog.dimension)).asInstanceOf[String]
+        catalogValues.row(dimValue).foreach {
+          case (field, value) =>
+            if (value != null) {
+              dataset.set(i, LinkExpr(catalog, field), value)
+            }
+        }
       }
-      builder.buildAndReset()
     }
   }
 

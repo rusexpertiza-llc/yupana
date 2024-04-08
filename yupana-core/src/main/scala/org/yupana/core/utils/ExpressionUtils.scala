@@ -61,6 +61,7 @@ object ExpressionUtils {
       case e @ AbsExpr(a)        => AbsExpr(transform(t)(a))(e.num)
 
       case Double2BigDecimalExpr(e) => Double2BigDecimalExpr(transform(t)(e))
+      case BigDecimal2DoubleExpr(e) => BigDecimal2DoubleExpr(transform(t)(e))
       case Long2DoubleExpr(e)       => Long2DoubleExpr(transform(t)(e))
       case Long2BigDecimalExpr(e)   => Long2BigDecimalExpr(transform(t)(e))
       case Int2LongExpr(e)          => Int2LongExpr(transform(t)(e))

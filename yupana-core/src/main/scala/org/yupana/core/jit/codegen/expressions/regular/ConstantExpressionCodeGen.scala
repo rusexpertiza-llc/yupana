@@ -20,15 +20,15 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
+import org.yupana.api.types.{ArrayDataType, DataType, TupleDataType}
 import org.yupana.core.jit.codegen.CommonGen.mkType
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
-import org.yupana.core.jit.{ CodeGenResult, State }
+import org.yupana.core.jit.{CodeGenResult, State}
 
 import scala.reflect.runtime.universe._
-import scala.reflect.{ ClassTag, classTag }
+import scala.reflect.{ClassTag, classTag}
 
-class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any)
+class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any, prepared: Boolean)
     extends ExpressionCodeGen[Expression[_]] {
 
   private val byRefTypes: Set[ClassTag[_]] = Set(classTag[Time], classTag[BigDecimal], classTag[PeriodDuration])
@@ -36,7 +36,7 @@ class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any)
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val (valueDeclaration, exprState) = state.withLocalValueDeclaration(expression)
 
-    val (t, ns) = mkValueTree(exprState, expression.dataType)(v)
+    val (t, ns) = mkValueTree(exprState, expression.dataType, prepared)(v)
 
     val validityTree = q"val ${valueDeclaration.validityFlagName} = true"
     val valueTree = q"val ${valueDeclaration.valueName} = $t"
@@ -44,10 +44,13 @@ class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any)
     CodeGenResult(Seq(validityTree, valueTree), valueDeclaration, ns)
   }
 
-  private def mkValueTree(state: State, dataType: DataType)(v: Any): (Tree, State) = {
+  private def mkValueTree(state: State, dataType: DataType, prepared: Boolean)(v: Any): (Tree, State) = {
     val tpe = mkType(dataType)
 
     val (t, ns) = dataType.kind match {
+      case TypeKind.Regular if byRefTypes.contains(dataType.classTag) || prepared =>
+        val (name, ns) = state.withRef(v.asInstanceOf[AnyRef], mkType(dataType))
+        q"$name" -> ns
       case TypeKind.Regular if byRefTypes.contains(dataType.classTag) =>
         val (name, ns) = state.withRef(v.asInstanceOf[AnyRef], mkType(dataType))
         q"$name" -> ns
@@ -57,8 +60,8 @@ class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any)
       case TypeKind.Tuple =>
         val tt = dataType.asInstanceOf[TupleDataType[_, _]]
         val (a, b) = v.asInstanceOf[(_, _)]
-        val (aTree, s1) = mkValueTree(state, tt.aType)(a)
-        val (bTree, s2) = mkValueTree(s1, tt.bType)(b)
+        val (aTree, s1) = mkValueTree(state, tt.aType, prepared = false)(a)
+        val (bTree, s2) = mkValueTree(s1, tt.bType, prepared = false)(b)
         (Apply(Ident(TermName("Tuple2")), List(aTree, bTree)), s2)
 
       case TypeKind.Array =>
@@ -77,7 +80,7 @@ class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any)
   ): (Tree, State) = {
     val (literals, newState) = values.toList.foldLeft((List.empty[Tree], state)) {
       case ((ts, s), v) =>
-        val (t, ns) = mkValueTree(s, tpe)(v)
+        val (t, ns) = mkValueTree(s, tpe, prepared = false)(v)
         (ts :+ t, ns)
     }
     Apply(Ident(TermName("Seq")), literals) -> newState

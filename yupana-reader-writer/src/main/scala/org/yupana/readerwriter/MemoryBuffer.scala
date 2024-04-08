@@ -56,6 +56,15 @@ final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long,
     new MemoryBuffer(base, baseOffset + offset, size - offset)
   }
 
+  def reallocateHeap(newSize: Int): Unit = {
+    val a = UNSAFE.allocateUninitializedArray(classOf[Byte], newSize)
+    val b = Unsafe.ARRAY_BYTE_BASE_OFFSET
+    UNSAFE.copyMemory(base, baseOffset, a, b, size)
+    this.base = a
+    this.baseOffset = b
+    this.initSize = newSize
+  }
+
   def get(bytes: Array[Byte]): Unit = {
     val p = pos
     pos += bytes.length
@@ -108,6 +117,54 @@ final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long,
       baseOffset + offset,
       size
     )
+  }
+
+  def putChars(chars: Array[Char]): Unit = {
+      val p = pos
+      pos += chars.length * 2
+      UNSAFE.copyMemory(
+        chars,
+        Unsafe.ARRAY_CHAR_BASE_OFFSET,
+        base,
+        baseOffset + p,
+        chars.length * 2
+      )
+    }
+
+  def putChars(offset: Int, chars: Array[Char]): Unit = {
+    UNSAFE.copyMemory(
+      chars,
+      Unsafe.ARRAY_CHAR_BASE_OFFSET,
+      base,
+      baseOffset + offset,
+      chars.length * 2
+    )
+  }
+
+  def getChars(size: Int): Array[Char] = {
+    val chars = Array.ofDim[Char](size / 2)
+    val p = pos
+    pos += size
+    UNSAFE.copyMemory(
+      base,
+      baseOffset + p,
+      chars,
+      Unsafe.ARRAY_CHAR_BASE_OFFSET,
+      size
+    )
+    chars
+  }
+
+  def getChars(offset: Int, size: Int): Array[Char] = {
+    val chars = Array.ofDim[Char](size / 2)
+    UNSAFE.copyMemory(
+      base,
+      baseOffset + offset,
+      chars,
+      Unsafe.ARRAY_CHAR_BASE_OFFSET,
+      size
+    )
+    chars
   }
 
   def get(): Byte = {
@@ -215,23 +272,35 @@ final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long,
   }
 
   override def hashCode(): Int = {
-    var h = MurmurHash3.arraySeed
-    var i = 0
-    while (i < size) {
-      h = MurmurHash3.mix(h, get(i))
-      i += 1
+    if (size == 8) {
+      getLong(0).hashCode()
+    } else if (size == 4) {
+      getInt(0)
+    } else {
+      var h = MurmurHash3.arraySeed
+
+      var i = 0
+      while (i < size) {
+        h = MurmurHash3.mix(h, get(i))
+        i += 1
+      }
+      MurmurHash3.finalizeHash(h, size.toInt)
     }
-    MurmurHash3.finalizeHash(h, size.toInt)
   }
 
   override def equals(obj: Any): Boolean = {
     obj match {
       case that: MemoryBuffer if that.size == size =>
-        var i = 0
-        while (i < size && get(i) == that.get(i)) {
-          i += 1
+        if (size == 8) {
+          this.getLong(0) == that.getLong(0)
+        } else {
+          var i = 0
+          while (i < size && get(i) == that.get(i)) {
+            i += 1
+          }
+          i == size
         }
-        i == size
+
       case _ => false
     }
   }

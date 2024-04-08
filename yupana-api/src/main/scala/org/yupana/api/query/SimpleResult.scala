@@ -28,14 +28,45 @@ case class SimpleResult(
 
   private val nameIndexMap = fieldNames.zipWithIndex.toMap
 
+  private var currentRow: Option[Array[Any]] = None
+
   override def dataIndexForFieldName(name: String): Int = nameIndexMap(name)
   override def dataIndexForFieldIndex(idx: Int): Int = idx
 
-  override def hasNext: Boolean = rows.hasNext
-
-  override def next(): DataRow = new DataRow(rows.next(), dataIndexForFieldName, dataIndexForFieldIndex)
+  override def next(): Boolean = {
+    if (rows.hasNext) {
+      currentRow = Some(rows.next())
+      true
+    } else {
+      false
+    }
+  }
 
   override def close(): Unit = rows.close()
+
+  override def isEmpty(name: String): Boolean = {
+    val idx = dataIndexForFieldName(name)
+    currentRow.get(idx) == null
+  }
+
+  override def isEmpty(index: Int): Boolean = {
+    val idx = dataIndexForFieldIndex(index)
+    currentRow.get(idx) == null
+  }
+
+  override def get[T](name: String): T = {
+    val idx = dataIndexForFieldName(name)
+    currentRow.get(idx).asInstanceOf[T]
+  }
+
+  override def get[T](index: Int): T = {
+    val idx = dataIndexForFieldIndex(index)
+    currentRow.get(idx).asInstanceOf[T]
+  }
+
+  override def isLast(): Boolean = {
+    !rows.hasNext
+  }
 }
 
 object SimpleResult {

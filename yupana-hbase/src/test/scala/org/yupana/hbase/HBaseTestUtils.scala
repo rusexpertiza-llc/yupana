@@ -5,7 +5,7 @@ import java.util.UUID
 import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.types.{ DataType, ID, ReaderWriter, TypedInt }
+import org.yupana.api.types.{ DataType, ID, ReaderWriter }
 import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.jdk.CollectionConverters._
@@ -68,7 +68,7 @@ object HBaseTestUtils {
     }
 
     def field[T](tag: Int, value: T)(implicit dt: DataType.Aux[T]): RowBuilder = {
-      implicit val rw: ReaderWriter[MemoryBuffer, ID, TypedInt] = MemoryBufferEvalReaderWriter
+      implicit val rw: ReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
       val b = MemoryBuffer.allocateHeap(1024)
       DataType[T].storable

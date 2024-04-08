@@ -17,7 +17,7 @@
 package org.yupana.readerwriter
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
+import org.yupana.api.types.{ ID, InternalReaderWriter }
 import org.yupana.api.{ Blob, Time }
 
 import java.math.BigInteger
@@ -25,7 +25,9 @@ import java.nio.charset.StandardCharsets
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
-object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with Serializable {
+object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, ID, Int, Int] with Serializable {
+
+  override def sizeOfBoolean: Int = 1
 
   override def readBoolean(b: MemoryBuffer): Boolean = {
     b.get() != 0
@@ -54,15 +56,17 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     b.get(offset, d)
   }
 
-  override def writeBytes(b: MemoryBuffer, v: ID[Array[Byte]]): TypedInt[Int] = {
+  override def writeBytes(b: MemoryBuffer, v: ID[Array[Byte]]): Int = {
     b.put(v)
     v.length
   }
 
-  override def writeBytes(b: MemoryBuffer, offset: Int, v: ID[Array[Byte]]): TypedInt[Int] = {
+  override def writeBytes(b: MemoryBuffer, offset: Int, v: ID[Array[Byte]]): Int = {
     b.put(offset, v)
     v.length
   }
+
+  override val sizeOfInt: Int = 4
 
   override def readInt(b: MemoryBuffer): Int = {
     b.getInt()
@@ -81,6 +85,9 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     b.putInt(offset, v)
     4
   }
+
+  override def sizeOfLong: Int = 8
+
   override def readLong(b: MemoryBuffer): Long = {
     b.getLong()
   }
@@ -99,6 +106,8 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     8
   }
 
+  override def sizeOfDouble: Int = 8
+
   override def readDouble(b: MemoryBuffer): Double = {
     b.getDouble()
   }
@@ -116,6 +125,9 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     b.putDouble(offset, v)
     8
   }
+
+  override def sizeOfShort: Int = 2
+
   override def readShort(b: MemoryBuffer): Short = {
     b.getShort()
   }
@@ -138,6 +150,8 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     b.get()
   }
 
+  override def sizeOfByte: Int = 1
+
   override def readByte(b: MemoryBuffer, offset: Int): Byte = {
     b.get(offset)
   }
@@ -150,6 +164,8 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     b.put(offset, v)
     1
   }
+
+  override def sizeOfTime: Int = 8
 
   override def readTime(b: MemoryBuffer): Time = {
     Time(b.getLong())
@@ -167,6 +183,10 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
   override def writeTime(b: MemoryBuffer, offset: Int, v: Time): Int = {
     b.putLong(offset, v.millis)
     8
+  }
+
+  override def sizeOfTuple[T, U](v: (T, U), tSize: ID[T] => Int, uSize: ID[U] => Int): Int = {
+    tSize(v._1) + uSize(v._2)
   }
 
   override def readTuple[T, U](b: MemoryBuffer, tReader: MemoryBuffer => T, uReader: MemoryBuffer => U): (T, U) = {
@@ -200,8 +220,67 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
       uWrite: (MemoryBuffer, U) => Int
   ): Int = {
     val bb = b.asSlice(offset)
-    tWrite(bb, v._1) + uWrite(bb, v._2)
+    writeTuple(bb, v, tWrite, uWrite)
   }
+
+  override def sizeOfTuple2[T, U](v: (T, U), tSize: ID[T] => Int, uSize: ID[U] => Int): Int = {
+    4 + tSize(v._1) + 4 + uSize(v._2)
+  }
+
+  override def readTuple2[T, U](
+      b: MemoryBuffer,
+      tReader: (MemoryBuffer, Int) => ID[T],
+      uReader: (MemoryBuffer, Int) => ID[U]
+  ): (T, U) = {
+    val tSize = b.getInt()
+    val t = tReader(b, tSize)
+    val uSize = b.getInt()
+    val u = uReader(b, uSize)
+    (t, u)
+  }
+
+  override def readTuple2[T, U](
+      b: MemoryBuffer,
+      offset: Int,
+      tReader: (MemoryBuffer, Int) => ID[T],
+      uReader: (MemoryBuffer, Int) => ID[U]
+  ): (T, U) = {
+    val bb = b.asSlice(offset)
+    val tSize = bb.getInt()
+    val t = tReader(bb, tSize)
+    val uSize = bb.getInt()
+    val u = uReader(bb, uSize)
+    (t, u)
+  }
+
+  override def writeTuple2[T, U](
+      b: MemoryBuffer,
+      v: (T, U),
+      tWrite: (MemoryBuffer, ID[T]) => Int,
+      uWrite: (MemoryBuffer, ID[U]) => Int
+  ): Int = {
+    val pos = b.position()
+    b.position(pos + 4)
+    val tSize = tWrite(b, v._1)
+    b.putInt(pos, tSize)
+    b.position(pos + 4 + tSize + 4)
+    val uSize = uWrite(b, v._2)
+    b.putInt(pos + 4 + uSize)
+    4 + tSize + 4 + uSize
+  }
+
+  override def writeTuple2[T, U](
+      bb: MemoryBuffer,
+      offset: Int,
+      v: (T, U),
+      tWrite: (MemoryBuffer, ID[T]) => Int,
+      uWrite: (MemoryBuffer, ID[U]) => Int
+  ): Int = {
+    val b = bb.asSlice(offset)
+    writeTuple2(b, v, tWrite, uWrite)
+  }
+
+  override def sizeOfString(v: String): Int = 4 + v.length
 
   override def readString(b: MemoryBuffer): String = {
     val length = b.getInt()
@@ -229,6 +308,58 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     b.putInt(offset, a.length)
     b.put(offset + 4, a)
     a.length + 4
+  }
+
+  override def sizeOfString2(v: String): Int = {
+    v.length * 2
+  }
+
+  override def readString2(b: MemoryBuffer, size: Int): ID[String] = {
+    new String(b.getChars(size))
+  }
+
+  override def readString2(b: MemoryBuffer, offset: Int, size: Int): ID[String] = {
+    val chars = b.getChars(offset, size)
+    new String(chars)
+  }
+
+  override def writeString2(b: MemoryBuffer, v: ID[String]): Int = {
+    val chars = v.toCharArray
+    b.putChars(chars)
+    v.length * 2
+  }
+
+  override def writeString2(b: MemoryBuffer, offset: Int, v: ID[String]): Int = {
+    val chars = v.toCharArray
+    b.putChars(offset, chars)
+    v.length * 2
+  }
+
+  def sizeOfVlong(v: Long): Int = {
+    if (v <= 127 && v > -112) {
+      1
+    } else {
+      var ll = v
+      var len = -112
+
+      if (ll < 0) {
+        len = -120
+        ll ^= -1L
+      }
+
+      var tmp = ll
+      while (tmp != 0) {
+        tmp >>= 8
+        len -= 1
+      }
+
+      len = if (len < -120) {
+        -(len + 120)
+      } else {
+        -(len + 112)
+      }
+      len + 1
+    }
   }
 
   override def readVLong(bb: MemoryBuffer, offset: Int): Long = {
@@ -316,33 +447,6 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     }
   }
 
-  def vLongSize(v: Long) = {
-    if (v <= 127 && v > -112) {
-      1
-    } else {
-      var ll = v
-      var len = -112
-
-      if (ll < 0) {
-        len = -120
-        ll ^= -1L
-      }
-
-      var tmp = ll
-      while (tmp != 0) {
-        tmp >>= 8
-        len -= 1
-      }
-
-      len = if (len < -120) {
-        -(len + 120)
-      } else {
-        -(len + 112)
-      }
-      len + 1
-    }
-  }
-
   override def writeVLong(bb: MemoryBuffer, offset: Int, v: Long): Int = {
     if (v <= 127 && v > -112) {
       bb.put(offset, v.toByte)
@@ -362,7 +466,7 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
         len -= 1
       }
 
-      bb.put(offset + 1, len.toByte)
+      bb.put(offset, len.toByte)
 
       len = if (len < -120) {
         -(len + 120)
@@ -375,9 +479,9 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
       while (idx >= 0) {
         val shift = idx * 8
         val mask = 0xFFL << shift
-        bb.put(offset + i + 2, ((ll & mask) >> shift).toByte)
+        bb.put(offset + i + 1, ((ll & mask) >> shift).toByte)
         idx -= 1
-        i += i
+        i += 1
       }
       len + 1
     }
@@ -422,6 +526,12 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     writeVLong(b, offset, v)
   }
 
+  override def sizeOfBigDecimal(v: BigDecimal): Int = {
+    val u = v.underlying()
+    val a = u.unscaledValue().toByteArray
+    sizeOfVlong(u.scale()) + sizeOfVlong(a.length) + a.length
+  }
+
   override def readBigDecimal(b: MemoryBuffer): BigDecimal = {
     val scale = readVInt(b)
     val size = readVInt(b)
@@ -432,9 +542,9 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
 
   override def readBigDecimal(b: MemoryBuffer, offset: Int): BigDecimal = {
     val scale = readVInt(b, offset)
-    val sScale = vLongSize(scale)
+    val sScale = sizeOfVlong(scale)
     val size = readVInt(b, offset + sScale)
-    val sSize = vLongSize(size)
+    val sSize = sizeOfVlong(size)
     val bytes = Array.ofDim[Byte](size)
     b.get(offset + sScale + sSize, bytes)
     new java.math.BigDecimal(new BigInteger(bytes), scale)
@@ -456,6 +566,71 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     val s2 = writeVLong(b, offset + s1, a.length)
     b.put(offset + s1 + s2, a)
     s1 + s2 + a.length
+  }
+
+  override def sizeOfBigDecimal2(v: BigDecimal): Int = {
+    val u = v.underlying()
+    val s = if (u.precision() >= 19) u.unscaledValue().bitLength() / 8 + 1 else 8
+    sizeOfInt + s
+  }
+
+  override def readBigDecimal2(b: MemoryBuffer, size: Int): BigDecimal = {
+    val scale = readInt(b)
+    if (size <= 12) {
+      val unscaledLong = b.getLong()
+      java.math.BigDecimal.valueOf(unscaledLong, scale)
+    } else {
+      val bytes = Array.ofDim[Byte](size - sizeOfInt)
+      b.get(bytes)
+      new java.math.BigDecimal(new BigInteger(bytes), scale)
+    }
+  }
+
+  override def readBigDecimal2(b: MemoryBuffer, offset: Int, size: Int): BigDecimal = {
+    val scale = readInt(b, offset)
+    if (size <= 12) {
+      val unscaledLong = b.getLong(offset + sizeOfInt)
+      java.math.BigDecimal.valueOf(unscaledLong, scale)
+    } else {
+      val bytes = Array.ofDim[Byte](size - sizeOfInt)
+      b.get(offset + sizeOfInt, bytes)
+      new java.math.BigDecimal(new BigInteger(bytes), scale)
+    }
+  }
+
+  override def writeBigDecimal2(b: MemoryBuffer, v: BigDecimal): Int = {
+
+    val u = v.underlying()
+    val s1 = writeInt(b, u.scale())
+
+    if (u.precision() >= 19 && u.unscaledValue().bitLength() > 63) {
+      val unscaled = u.unscaledValue()
+      val a = unscaled.toByteArray
+      b.put(a)
+      s1 + a.length
+    } else {
+      b.putLong(u.scaleByPowerOfTen(u.scale()).longValue())
+      s1 + sizeOfLong
+    }
+  }
+
+  override def writeBigDecimal2(b: MemoryBuffer, offset: Int, v: BigDecimal): Int = {
+    val u = v.underlying()
+    val s1 = writeInt(b, offset, u.scale())
+    if (u.precision() >= 19 && u.unscaledValue().bitLength() > 63) {
+      val a = u.unscaledValue().toByteArray
+      b.put(offset + s1, a)
+      s1 + a.length
+    } else {
+      b.putLong(offset + s1, u.scaleByPowerOfTen(u.scale()).longValue())
+      s1 + sizeOfLong
+    }
+  }
+
+  override def sizeOfSeq[T](v: Seq[T], size: ID[T] => Int): Int = {
+    v.foldLeft(sizeOfVlong(v.size)) { (s, vv) =>
+      s + size(vv)
+    }
   }
 
   override def readSeq[T: ClassTag](b: MemoryBuffer, reader: MemoryBuffer => T): Seq[T] = {
@@ -494,10 +669,58 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
   ): Int = {
     val p = b.position()
     b.position(offset)
-    val s1 = writeVInt(b, offset, seq.size)
+    val s1 = writeVInt(b, seq.size)
     val s = seq.foldLeft(s1)((s, v) => s + writer(b, v))
     b.position(p)
     s
+  }
+
+  override def sizeOfSeq2[T](v: Seq[T], size: T => Int): Int = {
+    val valuesSize = v.foldLeft(4) { (s, vv) =>
+      s + size(vv)
+    }
+    valuesSize + v.size * sizeOfInt
+  }
+
+  override def readSeq2[T: ClassTag](b: MemoryBuffer, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
+    val size = readInt(b)
+    val result = ListBuffer.empty[T]
+
+    for (_ <- 0 until size) {
+      val vSize = b.getInt()
+      result += reader(b, vSize)
+    }
+
+    result.toSeq
+  }
+
+  override def readSeq2[T: ClassTag](b: MemoryBuffer, offset: Int, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
+    val bb = b.asSlice(offset)
+    readSeq2(bb, reader)
+  }
+
+  override def writeSeq2[T](b: MemoryBuffer, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
+      implicit ct: ClassTag[T]
+  ): Int = {
+    val s1 = writeInt(b, seq.size)
+    seq.foldLeft(s1) { (size, v) =>
+      val pos = b.position()
+      b.position(pos + sizeOfInt)
+      val vSize = writer(b, v)
+      b.putInt(pos, vSize)
+      size + vSize + sizeOfInt
+    }
+  }
+
+  override def writeSeq2[T](b: MemoryBuffer, offset: Int, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
+      implicit ct: ClassTag[T]
+  ): Int = {
+    val bb = b.asSlice(offset)
+    writeSeq2(bb, seq, writer)
+  }
+
+  override def sizeOfBlob(v: Blob): Int = {
+    sizeOfVlong(v.bytes.length) + v.bytes.length
   }
 
   override def readBlob(b: MemoryBuffer): Blob = {
@@ -529,6 +752,32 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
     s + v.bytes.length
   }
 
+  override def sizeOfBlob2(v: Blob): Int = {
+    v.bytes.length
+  }
+
+  override def readBlob2(b: MemoryBuffer, size: Int): ID[Blob] = {
+    val data = new Array[Byte](size)
+    b.get(data)
+    Blob(data)
+  }
+
+  override def readBlob2(b: MemoryBuffer, offset: Int, size: Int): ID[Blob] = {
+    val data = new Array[Byte](size)
+    b.get(offset, data)
+    Blob(data)
+  }
+
+  override def writeBlob2(b: MemoryBuffer, v: ID[Blob]): Int = {
+    b.put(v.bytes)
+    v.bytes.length
+  }
+
+  override def writeBlob2(b: MemoryBuffer, offset: Int, v: ID[Blob]): Int = {
+    b.put(offset, v.bytes)
+    v.bytes.length
+  }
+
   override def readVTime(b: MemoryBuffer): Time = {
     Time(readVLong(b))
   }
@@ -542,6 +791,10 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
 
   override def writeVTime(b: MemoryBuffer, offset: Int, v: Time): Int = {
     writeVLong(b, offset, v.millis)
+  }
+
+  override def sizeOfPeriodDuration(v: PeriodDuration): Int = {
+    sizeOfString(v.toString)
   }
 
   override def readPeriodDuration(b: MemoryBuffer): PeriodDuration = {
@@ -561,5 +814,4 @@ object MemoryBufferEvalReaderWriter extends ByteReaderWriter[MemoryBuffer] with 
   override def writePeriodDuration(b: MemoryBuffer, offset: Int, v: PeriodDuration): Int = {
     writeString(b, offset, v.toString)
   }
-
 }

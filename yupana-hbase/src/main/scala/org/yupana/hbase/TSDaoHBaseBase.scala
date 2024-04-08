@@ -18,27 +18,27 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
-import org.apache.hadoop.hbase.client.{ Result => HResult }
+import org.apache.hadoop.hbase.client.{Result => HResult}
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema._
 import org.yupana.api.types.ByteReaderWriter
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
+import org.yupana.api.utils.{PrefetchedSortedSetIterator, SortedSetIterator}
 import org.yupana.core.QueryContext
 import org.yupana.core.dao._
-import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder }
+import org.yupana.core.model.{BatchDataset, InternalQuery, InternalRowSchema}
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.readerwriter.{MemoryBuffer, MemoryBufferEvalReaderWriter}
 
 import scala.util.Try
 
 object TSDaoHBaseBase {
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
-  val EXTRACT_BATCH_SIZE = 10000
+  val EXTRACT_BATCH_SIZE = 100000
   val INSERT_BATCH_SIZE = 5000
   val PUTS_BATCH_SIZE = 1000
 }
@@ -101,10 +101,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
 
   override def query(
       query: InternalQuery,
-      internalRowBuilder: InternalRowBuilder,
       queryContext: QueryContext,
+      datasetSchema: InternalRowSchema,
       metricCollector: MetricQueryCollector
-  ): Collection[InternalRow] = {
+  ): Collection[BatchDataset] = {
 
     val context = InternalQueryContext(query, metricCollector)
     val mr = mapReduceEngine(metricCollector)
@@ -134,14 +134,12 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     val sizeLimitedRangeScanDims = rangeScanDimensions(query, prefetchedDimIterators)
 
     if (hasEmptyFilter) {
-      mr.empty[InternalRow]
+      mr.empty[BatchDataset]
     } else {
       val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
         d -> prefetchedDimIterators(d)
       }.toMap
-      val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
 
-      val rows = executeScans(context, intervals, rangeScanDimIds)
 
       val rowPostFilter: RowFilter = if (flatAndConditions.distinct.size == 1) {
         val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }
@@ -160,6 +158,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
         squashedFilters.excludeTime.getOrElse(Set.empty)
       )
 
+      val rangeScanDimIds = rangeScanFilters(rangeScanDimIterators)
+
+      val rows = executeScans(context, intervals, rangeScanDimIds)
+
       import org.yupana.core.utils.metric.MetricUtils._
 
       val table = query.table // prevent query serialization in Spark
@@ -169,8 +171,17 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
           rs.filter(r => rowPostFilter(HBaseUtils.parseRowKey(r.getRow, table)))
         }
 
-        new TSDHBaseRowIterator(context, filtered.iterator, internalRowBuilder)
-          .filter(r => timeFilter(r.get[Time](internalRowBuilder, internalRowBuilder.timeIndex).millis))
+        val batchIterator = new TSDHBaseRowIterator(context, filtered.iterator, datasetSchema)
+
+        batchIterator.map { batch =>
+          batch.foreach { rowNum =>
+            val time = batch.getTime(rowNum)
+            if (!timeFilter(time.millis)) {
+              batch.setDeleted(rowNum)
+            }
+          }
+          batch
+        }
       }.withSavedMetrics(context.metricsCollector)
     }
   }

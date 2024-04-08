@@ -30,13 +30,27 @@ object ProjectionStageGen {
   ): (Seq[Tree], State) = {
 
     val aggregates = CommonGen.findAggregates(query.fields)
-    val exprs = if (aggregates.nonEmpty) aggregates.map(_.expr) ++ query.groupBy else query.fields.map(_.expr).toList
-
-    val stateWithExtLinkExprs = findExternalLinkExprs(query).foldLeft(state) { (newState, expr) =>
-      newState.withExpression(DimensionExpr(expr.link.dimension))
+    val exprs = if (aggregates.isEmpty) {
+      query.fields
+        .map(_.expr)
+        .filter(ExpressionCodeGenFactory.needEvaluateInProjectionStage)
+        .toList
+    } else {
+      query.groupBy.filter(ExpressionCodeGenFactory.needEvaluateInProjectionStage)
     }
 
-    val (ts, ns) = exprs.foldLeft((Seq.empty[Tree], stateWithExtLinkExprs)) {
+    val stateWithExtLinkExprs = findExternalLinkExprs(query).foldLeft(state) { (s, expr) =>
+      s.withExpression(DimensionExpr(expr.link.dimension))
+    }
+
+    val stateWithExprs = query.fields
+      .map(_.expr)
+      .filterNot(ExpressionCodeGenFactory.needEvaluateInProjectionStage)
+      .foldLeft(stateWithExtLinkExprs) { (s, expr) =>
+        s.withExpression(expr)
+      }
+
+    val (ts, ns) = exprs.foldLeft((Seq.empty[Tree], stateWithExprs)) {
       case ((ts, s), e) =>
         val r = ExpressionCodeGenFactory.codeGenerator(e).generateEvalCode(s, row)
         val s2 = r.state.withWriteToRow(row, e, r.valueDeclaration)

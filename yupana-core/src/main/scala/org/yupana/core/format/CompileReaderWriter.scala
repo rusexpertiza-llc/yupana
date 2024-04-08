@@ -18,15 +18,13 @@ package org.yupana.core.format
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.{ Blob, Time }
-import org.yupana.api.types.ReaderWriter
+import org.yupana.api.types.InternalReaderWriter
 import org.yupana.core.jit.codegen.CommonGen
 
 import scala.reflect.ClassTag
-import scala.reflect.runtime.universe
-import scala.reflect.runtime.universe.Tree
 import scala.reflect.runtime.universe._
 
-object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with Serializable {
+object CompileReaderWriter extends InternalReaderWriter[Tree, TypedTree, Tree, Tree] with Serializable {
 
   private val evalRW = q"_root_.org.yupana.readerwriter.MemoryBufferEvalReaderWriter"
 
@@ -34,7 +32,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.readBytes($b, $d)"
   }
 
-  override def readBytes(b: Tree, offset: Int, d: TypedTree[Array[Byte]]): TypedTree[Unit] = {
+  override def readBytes(b: Tree, offset: Tree, d: TypedTree[Array[Byte]]): TypedTree[Unit] = {
     q"$evalRW.readBytes($b, $offset, $d)"
   }
 
@@ -42,15 +40,19 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeBytes($b, $v)"
   }
 
-  override def writeBytes(b: Tree, offset: Int, v: TypedTree[Array[Byte]]): TypedTree[Int] = {
+  override def writeBytes(b: Tree, offset: Tree, v: TypedTree[Array[Byte]]): TypedTree[Int] = {
     q"$evalRW.writeBytes($b, $offset, $v)"
+  }
+
+  override def sizeOfInt: Tree = {
+    q"$evalRW.sizeOfInt"
   }
 
   override def readInt(b: Tree): TypedTree[Int] = {
     q"$evalRW.readInt($b)"
   }
 
-  override def readInt(b: Tree, offset: Int): TypedTree[Int] = {
+  override def readInt(b: Tree, offset: Tree): TypedTree[Int] = {
     q"$evalRW.readInt($b, $offset)"
   }
 
@@ -58,15 +60,19 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeInt($b, $v)"
   }
 
-  override def writeInt(b: Tree, offset: Int, v: TypedTree[Int]): TypedTree[Int] = {
+  override def writeInt(b: Tree, offset: Tree, v: TypedTree[Int]): TypedTree[Int] = {
     q"$evalRW.writeInt($b, $offset, $v)"
+  }
+
+  override def sizeOfLong: Tree = {
+    q"$evalRW.sizeOfLong"
   }
 
   override def readLong(b: Tree): TypedTree[Long] = {
     q"$evalRW.readLong($b)"
   }
 
-  override def readLong(b: Tree, offset: Int): TypedTree[Long] = {
+  override def readLong(b: Tree, offset: Tree): TypedTree[Long] = {
     q"$evalRW.readLong($b, $offset)"
   }
 
@@ -75,16 +81,20 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
 
   }
 
-  override def writeLong(b: Tree, offset: Int, v: TypedTree[Long]): TypedTree[Long] = {
+  override def writeLong(b: Tree, offset: Tree, v: TypedTree[Long]): TypedTree[Long] = {
     q"$evalRW.writeLong($b, $offset, $v)"
 
+  }
+
+  override def sizeOfDouble: Tree = {
+    q"$evalRW.sizeOfDouble"
   }
 
   override def readDouble(b: Tree): TypedTree[Double] = {
     q"$evalRW.readDouble($b)"
   }
 
-  override def readDouble(b: Tree, offset: Int): TypedTree[Double] = {
+  override def readDouble(b: Tree, offset: Tree): TypedTree[Double] = {
     q"$evalRW.readDouble($b, $offset)"
   }
 
@@ -92,15 +102,19 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeDouble($b, $v)"
   }
 
-  override def writeDouble(b: Tree, offset: Int, v: TypedTree[Double]): TypedTree[Double] = {
+  override def writeDouble(b: Tree, offset: Tree, v: TypedTree[Double]): TypedTree[Double] = {
     q"$evalRW.writeDouble($b, $offset, $v)"
+  }
+
+  override def sizeOfShort: Tree = {
+    q"$evalRW.sizeOfShort"
   }
 
   override def readShort(b: Tree): TypedTree[Short] = {
     q"$evalRW.readShort($b)"
   }
 
-  override def readShort(b: Tree, offset: Int): TypedTree[Short] = {
+  override def readShort(b: Tree, offset: Tree): TypedTree[Short] = {
     q"$evalRW.readShort($b, $offset)"
   }
 
@@ -108,15 +122,19 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeShort($b, $v)"
   }
 
-  override def writeShort(b: Tree, offset: Int, v: TypedTree[Short]): TypedTree[Short] = {
+  override def writeShort(b: Tree, offset: Tree, v: TypedTree[Short]): TypedTree[Short] = {
     q"$evalRW.writeShort($b, $offset, $v)"
+  }
+
+  override def sizeOfByte: Tree = {
+    q"$evalRW.sizeOfByte"
   }
 
   override def readByte(b: Tree): TypedTree[Byte] = {
     q"$evalRW.readByte($b)"
   }
 
-  override def readByte(b: Tree, offset: Int): TypedTree[Byte] = {
+  override def readByte(b: Tree, offset: Tree): TypedTree[Byte] = {
     q"$evalRW.readByte($b, $offset)"
   }
 
@@ -124,23 +142,37 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeByte($b, $v)"
   }
 
-  override def writeByte(b: Tree, offset: Int, v: TypedTree[Byte]): TypedTree[Byte] = {
+  override def writeByte(b: Tree, offset: Tree, v: TypedTree[Byte]): TypedTree[Byte] = {
     q"$evalRW.writeByte($b, $offset, $v)"
+  }
+
+  override def sizeOfTime: Tree = {
+    q"$evalRW.sizeOfTime"
   }
 
   override def readTime(b: Tree): TypedTree[Time] = {
     q"$evalRW.readTime($b)"
   }
 
-  override def readTime(b: Tree, offset: Int): TypedTree[Time] = {
+  override def readTime(b: Tree, offset: Tree): TypedTree[Time] = {
     q"$evalRW.readTime($b, $offset)"
   }
 
   override def writeTime(b: Tree, v: TypedTree[Time]): TypedTree[Time] = {
     q"$evalRW.writeTime($b, $v)"
   }
-  override def writeTime(b: Tree, offset: Int, v: TypedTree[Time]): TypedTree[Time] = {
+  override def writeTime(b: Tree, offset: Tree, v: TypedTree[Time]): TypedTree[Time] = {
     q"$evalRW.writeTime($b, $offset, $v)"
+  }
+
+  override def sizeOfTuple[T, U](
+      v: TypedTree[(T, U)],
+      tSize: TypedTree[T] => Tree,
+      uSize: TypedTree[U] => Tree
+  ): Tree = {
+    val t = tSize(q"$v._1")
+    val u = uSize(q"$v._3")
+    q"$t + $u"
   }
 
   override def readTuple[T, U](
@@ -155,7 +187,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
 
   override def readTuple[T, U](
       b: Tree,
-      offset: Int,
+      offset: Tree,
       tReader: Tree => TypedTree[T],
       uReader: Tree => TypedTree[U]
   ): TypedTree[(T, U)] = {
@@ -174,29 +206,101 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     val t = tWrite(b, q"$v._1")
     val u = uWrite(b, q"$v._2")
     q"""
-       $t
-       $u
+       $t + $u
        """
   }
 
   override def writeTuple[T, U](
       b: Tree,
-      offset: Int,
+      offset: Tree,
       v: TypedTree[(T, U)],
       tWrite: (Tree, TypedTree[T]) => TypedTree[T],
       uWrite: (Tree, TypedTree[U]) => TypedTree[U]
   ): TypedTree[(T, U)] = {
     q"""
-       val bb = $b.slice($offset, $b.limit() - $offset)
-       ${tWrite(q"bb", q"$v._1")}
-       ${uWrite(q"bb", q"$v._2")}
+       val bb = $b.asSlice($offset, $b.size - $offset)
+       ${tWrite(q"bb", q"$v._1")} + ${uWrite(q"bb", q"$v._2")}
        """
+  }
+
+  override def sizeOfTuple2[T, U](
+      v: TypedTree[(T, U)],
+      tSize: TypedTree[T] => Tree,
+      uSize: TypedTree[U] => Tree
+  ): Tree = {
+    val t = tSize(q"$v._1")
+    val u = uSize(q"$v._3")
+    q"4 + $t + 4 + $u"
+  }
+
+  override def readTuple2[T, U](
+      b: Tree,
+      tReader: (Tree, Tree) => TypedTree[T],
+      uReader: (Tree, Tree) => TypedTree[U]
+  ): TypedTree[(T, U)] = {
+    val ts = q"$b.getInt()"
+    val t = tReader(b, ts)
+    val us = q"$b.getInt()"
+    val u = uReader(b, us)
+    q"($t, $u)"
+  }
+
+  override def readTuple2[T, U](
+      b: Tree,
+      offset: Tree,
+      tReader: (Tree, Tree) => TypedTree[T],
+      uReader: (Tree, Tree) => TypedTree[U]
+  ): TypedTree[(T, U)] = {
+    q"""
+        val bb = $b.asSlice(offset)
+        val tSize = bb.getInt()
+        val t = ${tReader(q"bb", q"tSize")}
+        val uSize = bb.getInt()
+        val u = ${uReader(q"bb", q"uSize")}
+        (t, u)
+       """
+  }
+
+  override def writeTuple2[T, U](
+      b: Tree,
+      v: TypedTree[(T, U)],
+      tWrite: (Tree, TypedTree[T]) => Tree,
+      uWrite: (Tree, TypedTree[U]) => Tree
+  ): Tree = {
+    q"""
+        val pos = $b.position()
+        $b.position(pos + 4)
+        val tSize = ${tWrite(b, q"$v._1")}
+        $b.putInt(pos, tSize)
+        $b.position(pos + 4 + tSize + 4)
+        val uSize = ${uWrite(b, q"$v._2")}
+        $b.putInt(pos + 4 + uSize)
+        4 + tSize + 4 + uSize
+       """
+  }
+
+  override def writeTuple2[T, U](
+      bb: Tree,
+      offset: Tree,
+      v: TypedTree[(T, U)],
+      tWrite: (Tree, TypedTree[T]) => Tree,
+      uWrite: (Tree, TypedTree[U]) => Tree
+  ): Tree = {
+    q"""
+       val tb = $bb.asSlice($offset)
+       ${writeTuple2(q"tb", v, tWrite, uWrite)}
+       """
+  }
+
+  override def sizeOfBoolean: Tree = {
+    q"$evalRW.sizeOfBoolean"
   }
 
   override def readBoolean(b: Tree): TypedTree[Boolean] = {
     q"$evalRW.readBoolean($b)"
   }
-  override def readBoolean(b: Tree, offset: Int): TypedTree[Boolean] = {
+
+  override def readBoolean(b: Tree, offset: Tree): TypedTree[Boolean] = {
     q"$evalRW.readBoolean($b, $offset)"
   }
 
@@ -204,15 +308,19 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeBoolean($b, $v)"
   }
 
-  override def writeBoolean(b: Tree, offset: Int, v: TypedTree[Boolean]): TypedTree[Boolean] = {
+  override def writeBoolean(b: Tree, offset: Tree, v: TypedTree[Boolean]): TypedTree[Boolean] = {
     q"$evalRW.writeBoolean($b, $offset, $v)"
+  }
+
+  override def sizeOfString(v: TypedTree[String]): Tree = {
+    q"$evalRW.sizeOfString($v)"
   }
 
   override def readString(b: Tree): TypedTree[String] = {
     q"$evalRW.readString($b)"
   }
 
-  override def readString(b: Tree, offset: Int): TypedTree[String] = {
+  override def readString(b: Tree, offset: Tree): TypedTree[String] = {
     q"$evalRW.readString($b, $offset)"
   }
 
@@ -220,15 +328,35 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeString($b, $v)"
   }
 
-  override def writeString(b: Tree, offset: Int, v: TypedTree[String]): TypedTree[String] = {
+  override def writeString(b: Tree, offset: Tree, v: TypedTree[String]): TypedTree[String] = {
     q"$evalRW.writeString($b, $offset, $v)"
+  }
+
+  override def sizeOfString2(v: TypedTree[String]): Tree = {
+    q"$evalRW.sizeOfString2($v)"
+  }
+
+  override def readString2(b: Tree, size: Tree): TypedTree[String] = {
+    q"$evalRW.readString2($b, $size)"
+  }
+
+  override def readString2(b: Tree, offset: Tree, size: Tree): TypedTree[String] = {
+    q"$evalRW.readString2($b, $offset, $size)"
+  }
+
+  override def writeString2(b: Tree, v: TypedTree[String]): Tree = {
+    q"$evalRW.writeString2($b, $v)"
+  }
+
+  override def writeString2(b: Tree, offset: Tree, v: TypedTree[String]): Tree = {
+    q"$evalRW.writeString2($b, $offset, $v)"
   }
 
   override def readVLong(b: Tree): TypedTree[Long] = {
     q"$evalRW.readVLong($b)"
   }
 
-  override def readVLong(b: Tree, offset: Int): TypedTree[Long] = {
+  override def readVLong(b: Tree, offset: Tree): TypedTree[Long] = {
     q"$evalRW.readVLong($b, $offset)"
   }
 
@@ -236,7 +364,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeVLong($b, $v)"
   }
 
-  override def writeVLong(b: Tree, offset: Int, v: TypedTree[Long]): TypedTree[Long] = {
+  override def writeVLong(b: Tree, offset: Tree, v: TypedTree[Long]): TypedTree[Long] = {
     q"$evalRW.writeVLong($b, $offset, $v)"
   }
 
@@ -244,7 +372,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.readVInt($b)"
   }
 
-  override def readVInt(b: Tree, offset: Int): TypedTree[Int] = {
+  override def readVInt(b: Tree, offset: Tree): TypedTree[Int] = {
     q"$evalRW.readVInt($b, $offset)"
   }
 
@@ -252,7 +380,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeVInt($b, $v)"
   }
 
-  override def writeVInt(b: Tree, offset: Int, v: TypedTree[Int]): TypedTree[Int] = {
+  override def writeVInt(b: Tree, offset: Tree, v: TypedTree[Int]): TypedTree[Int] = {
     q"$evalRW.writeVInt($b, $offset, $v)"
   }
 
@@ -260,7 +388,7 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.readVShort($b)"
   }
 
-  override def readVShort(b: Tree, offset: Int): TypedTree[Short] = {
+  override def readVShort(b: Tree, offset: Tree): TypedTree[Short] = {
     q"$evalRW.readVShort($b, $offset)"
   }
 
@@ -268,15 +396,19 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeVShort($b, $v)"
   }
 
-  override def writeVShort(b: Tree, offset: Int, v: TypedTree[Short]): TypedTree[Short] = {
+  override def writeVShort(b: Tree, offset: Tree, v: TypedTree[Short]): TypedTree[Short] = {
     q"$evalRW.writeVShort($b, $offset, $v)"
+  }
+
+  override def sizeOfBigDecimal(v: TypedTree[BigDecimal]): Tree = {
+    q"$evalRW.sizeOfBigDecimal($v)"
   }
 
   override def readBigDecimal(b: Tree): TypedTree[BigDecimal] = {
     q"$evalRW.readBigDecimal($b)"
   }
 
-  override def readBigDecimal(b: Tree, offset: Int): TypedTree[BigDecimal] = {
+  override def readBigDecimal(b: Tree, offset: Tree): TypedTree[BigDecimal] = {
     q"$evalRW.readBigDecimal($b, $offset)"
   }
 
@@ -284,15 +416,35 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeBigDecimal($b, $v)"
   }
 
-  override def writeBigDecimal(b: Tree, offset: Int, v: TypedTree[BigDecimal]): TypedTree[BigDecimal] = {
+  override def writeBigDecimal(b: Tree, offset: Tree, v: TypedTree[BigDecimal]): TypedTree[BigDecimal] = {
     q"$evalRW.writeBigDecimal($b, $offset, $v)"
+  }
+
+  override def sizeOfBigDecimal2(v: TypedTree[BigDecimal]): Tree = {
+    q"$evalRW.sizeOfBigDecimal2($v)"
+  }
+
+  override def readBigDecimal2(b: Tree, size: Tree): TypedTree[BigDecimal] = {
+    q"$evalRW.readBigDecimal2($b, $size)"
+  }
+
+  override def readBigDecimal2(b: Tree, offset: Tree, size: Tree): TypedTree[BigDecimal] = {
+    q"$evalRW.readBigDecimal2($b, $offset, $size)"
+  }
+
+  override def writeBigDecimal2(b: Tree, v: TypedTree[BigDecimal]): TypedTree[BigDecimal] = {
+    q"$evalRW.writeBigDecimal2($b, $v)"
+  }
+
+  override def writeBigDecimal2(b: Tree, offset: Tree, v: TypedTree[BigDecimal]): TypedTree[BigDecimal] = {
+    q"$evalRW.writeBigDecimal2($b, $offset, $v)"
   }
 
   override def readVTime(b: Tree): TypedTree[Time] = {
     q"$evalRW.readVTime($b)"
   }
 
-  override def readVTime(b: Tree, offset: Int): TypedTree[Time] = {
+  override def readVTime(b: Tree, offset: Tree): TypedTree[Time] = {
     q"$evalRW.readVTime($b, $offset)"
   }
 
@@ -300,8 +452,12 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeVTime($b, $v)"
   }
 
-  override def writeVTime(b: Tree, offset: Int, v: TypedTree[Time]): TypedTree[Time] = {
+  override def writeVTime(b: Tree, offset: Tree, v: TypedTree[Time]): TypedTree[Time] = {
     q"$evalRW.writeVTime($b, $offset, $v)"
+  }
+
+  override def sizeOfSeq[T](v: TypedTree[Seq[T]], size: TypedTree[T] => Tree): Tree = {
+    q"$evalRW.sizeOfSeq($v, (vv) => {${size(q"vv")}})"
   }
 
   override def readSeq[T: ClassTag](b: Tree, reader: Tree => TypedTree[T]): TypedTree[Seq[T]] = {
@@ -309,16 +465,12 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
   }
 
   override def readSeq[T: ClassTag](
-      b: universe.Tree,
-      offset: Int,
-      reader: universe.Tree => TypedTree[T]
+      b: Tree,
+      offset: Tree,
+      reader: Tree => TypedTree[T]
   ): TypedTree[Seq[T]] = {
     q"""
-       val p = $b.position()
-       $b.position($offset)
-       val r = $evalRW.readSeq($b, (rb) => {${reader(q"rb")}})
-       $b.position(p)
-       r
+       val r = $evalRW.readSeq($b, $offset, (rb) => {${reader(q"rb")}})
        """
   }
 
@@ -333,25 +485,56 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
 
   override def writeSeq[T](
       b: Tree,
-      offset: Int,
+      offset: Tree,
       seq: TypedTree[Seq[T]],
       writer: (Tree, TypedTree[T]) => TypedTree[T]
   )(implicit ct: ClassTag[T]): TypedTree[Seq[T]] = {
-    val tpe = CommonGen.className(ct)
+    val tpe = Ident(TypeName(CommonGen.className(ct)))
     q"""
-       val p = $b.position()
-        $b.position($offset)
-        val s = $evalRW.writeSeq($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})
-        $b.position(p)
-        s
+        $evalRW.writeSeq($b, $offset, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})
        """
+  }
+
+  override def sizeOfSeq2[T](v: TypedTree[Seq[T]], size: TypedTree[T] => Tree): Tree = {
+    q"$evalRW.sizeOfSeq2($v, (vv) => {${size(q"vv")}})"
+
+  }
+
+  override def readSeq2[T: ClassTag](b: Tree, reader: (Tree, Tree) => TypedTree[T]): TypedTree[Seq[T]] = {
+    q"$evalRW.readSeq2($b, (rb, s) => {${reader(q"rb", q"s")}})"
+  }
+
+  override def readSeq2[T: ClassTag](b: Tree, offset: Tree, reader: (Tree, Tree) => TypedTree[T]): TypedTree[Seq[T]] = {
+    q"""
+       val r = $evalRW.readSeq2($b, $offset, (rb, s) => {${reader(q"rb", q"s")}})
+     """
+  }
+
+  override def writeSeq2[T](b: Tree, seq: TypedTree[Seq[T]], writer: (Tree, TypedTree[T]) => Tree)(
+      implicit ct: ClassTag[T]
+  ): Tree = {
+    val tpe = Ident(TypeName(CommonGen.className(ct)))
+    q"$evalRW.writeSeq2($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})"
+  }
+
+  override def writeSeq2[T](b: Tree, offset: Tree, seq: TypedTree[Seq[T]], writer: (Tree, TypedTree[T]) => Tree)(
+      implicit ct: ClassTag[T]
+  ): Tree = {
+    val tpe = Ident(TypeName(CommonGen.className(ct)))
+    q"""
+        $evalRW.writeSeq2($b, $offset, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})
+       """
+  }
+
+  override def sizeOfBlob(v: TypedTree[Blob]): Tree = {
+    q"$evalRW.sizeOfBlob($v)"
   }
 
   override def readBlob(b: Tree): TypedTree[Blob] = {
     q"$evalRW.readBlob($b)"
   }
 
-  override def readBlob(b: Tree, offset: Int): TypedTree[Blob] = {
+  override def readBlob(b: Tree, offset: Tree): TypedTree[Blob] = {
     q"$evalRW.readBlob($b, $offset)"
   }
 
@@ -359,22 +542,46 @@ object CompileReaderWriter extends ReaderWriter[Tree, TypedTree, TypedTree] with
     q"$evalRW.writeBlob($b, $v)"
   }
 
-  override def writeBlob(b: Tree, offset: Int, v: TypedTree[Blob]): TypedTree[Blob] = {
+  override def writeBlob(b: Tree, offset: Tree, v: TypedTree[Blob]): TypedTree[Blob] = {
     q"$evalRW.writeBlob($b, $offset, $v)"
+  }
+
+  override def sizeOfBlob2(v: TypedTree[Blob]): Tree = {
+    q"$evalRW.sizeOfBlob2($v)"
+  }
+
+  override def readBlob2(b: Tree, size: Tree): TypedTree[Blob] = {
+    q"$evalRW.readBlob2($b, $size)"
+  }
+
+  override def readBlob2(b: Tree, offset: Tree, size: Tree): TypedTree[Blob] = {
+    q"$evalRW.readBlob($b, $offset, $size)"
+  }
+
+  override def writeBlob2(b: Tree, v: TypedTree[Blob]): Tree = {
+    q"$evalRW.writeBlob2($b, $v)"
+  }
+
+  override def writeBlob2(b: Tree, offset: Tree, v: TypedTree[Blob]): Tree = {
+    q"$evalRW.writeBlob2($b, $offset, $v)"
+  }
+
+  override def sizeOfPeriodDuration(v: TypedTree[PeriodDuration]): Tree = {
+    q"$evalRW.sizeOfPeriodDuration($v)"
   }
 
   override def readPeriodDuration(b: Tree): TypedTree[PeriodDuration] = {
     q"$evalRW.readPeriodDuration($b)"
   }
 
-  override def readPeriodDuration(b: Tree, offset: Int): TypedTree[PeriodDuration] = {
+  override def readPeriodDuration(b: Tree, offset: Tree): TypedTree[PeriodDuration] = {
     q"$evalRW.readPeriodDuration($b, $offset)"
   }
 
   override def writePeriodDuration(b: Tree, v: TypedTree[PeriodDuration]): TypedTree[PeriodDuration] = {
     q"$evalRW.writePeriodDuration($b, $v)"
   }
-  override def writePeriodDuration(b: Tree, offset: Int, v: TypedTree[PeriodDuration]): TypedTree[PeriodDuration] = {
+  override def writePeriodDuration(b: Tree, offset: Tree, v: TypedTree[PeriodDuration]): TypedTree[PeriodDuration] = {
     q"$evalRW.writePeriodDuration($b, $offset, $v)"
   }
 
