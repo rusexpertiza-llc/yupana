@@ -309,7 +309,7 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
         bb.writeByte(((ll & mask) >> shift).toByte)
         idx -= 1
       }
-      len
+      len + 1
     }
   }
 
@@ -336,7 +336,7 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
       } else {
         -(len + 112)
       }
-      len
+      len + 1
     }
   }
 
@@ -359,7 +359,7 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
         len -= 1
       }
 
-      bb.setByte(offset + 1, len.toByte)
+      bb.setByte(offset, len.toByte)
 
       len = if (len < -120) {
         -(len + 120)
@@ -372,11 +372,11 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
       while (idx >= 0) {
         val shift = idx * 8
         val mask = 0xFFL << shift
-        bb.setByte(offset + i + 2, ((ll & mask) >> shift).toByte)
+        bb.setByte(offset + i + 1, ((ll & mask) >> shift).toByte)
         idx -= 1
-        i += i
+        i += 1
       }
-      len
+      len + 1
     }
   }
 
