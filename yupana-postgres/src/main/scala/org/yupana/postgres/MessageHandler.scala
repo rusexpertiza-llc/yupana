@@ -65,18 +65,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     }
   }
 
-  private def simpleQuery(ctx: ChannelHandlerContext, sql: String): Unit = {
-    context.queryEngineRouter.query(user, sql, Map.empty) match {
-      case Right(result) =>
-        ctx.write(makeDescription(result))
-        writeResult(ctx, result, IndexedSeq.empty)
-      case Left(error) =>
-        writeError(ctx, error)
-    }
-    ctx.write(ReadyForQuery)
-    ctx.flush()
-  }
-
   def findTypes(ts: Seq[Int]): Either[String, Seq[Option[DataType]]] = {
     CollectionUtils.collectErrors(ts.map(t => if (t != 0) PgTypes.typeForPg(t).map(Some(_)) else Right(None)))
   }
@@ -247,7 +235,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
             if (p.prepared != EmptyQuery) {
               context.queryEngineRouter.execute(user, p.prepared) match {
                 case Right(result) =>
-                  writeResult(ctx, result, p.resultIsBinary)
+                  writeResult(ctx, result, p.resultIsBinary, limit)
                   ctx.flush()
                 case Left(error) => writeError(ctx, error)
               }
@@ -260,13 +248,36 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     }
   }
 
-  private def writeResult(ctx: ChannelHandlerContext, r: Result, resultIsBinary: IndexedSeq[Boolean]): Unit = {
+  private def simpleQuery(ctx: ChannelHandlerContext, sql: String): Unit = {
+    context.queryEngineRouter.parse(preprocess(sql)).flatMap(context.queryEngineRouter.bind(_, Map.empty)) match {
+      case Right(PreparedCommand(SetValue(_, _), _, _, _)) => ctx.write(CommandComplete("SET"))
+      case Right(x) =>
+        context.queryEngineRouter.execute(user, x) match {
+          case Right(result) =>
+            ctx.write(makeDescription(result))
+            writeResult(ctx, result, IndexedSeq.empty, 0)
+          case Left(error) => writeError(ctx, error)
+        }
+      case Left(error) => writeError(ctx, error)
+    }
+    ctx.write(ReadyForQuery)
+    ctx.flush()
+  }
+
+  private def writeResult(
+      ctx: ChannelHandlerContext,
+      result: Result,
+      resultIsBinary: IndexedSeq[Boolean],
+      limit: Int
+  ): Unit = {
     var count = 0
 
-    val resultTypes = r.dataTypes.zipWithIndex
+    val resultTypes = result.dataTypes.zipWithIndex
 
-    r.foreach { r =>
-      ctx.write(makeRow(resultTypes, r, resultIsBinary))
+    val r = if (limit > 0) result.take(limit) else result
+
+    r.foreach { row =>
+      ctx.write(makeRow(resultTypes, row, resultIsBinary))
       count += 1
     }
 

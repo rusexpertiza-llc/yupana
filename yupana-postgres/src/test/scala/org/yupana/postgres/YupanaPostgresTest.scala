@@ -6,7 +6,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.Query
+import org.yupana.api.query.{ Expression, Query }
 import org.yupana.cache.CacheFactory
 import org.yupana.core._
 import org.yupana.core.auth.{ Authorizer, PermissionService, TsdbRole, YupanaUser }
@@ -81,7 +81,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(
+          Set[Expression[_]](
             time,
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_LONG_FIELD),
@@ -126,6 +126,78 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
     rs.getMetaData.getColumnType(3) shouldEqual Types.VARCHAR
     rs.getString(3) shouldEqual "reply"
+  }
+
+  it should "work in simple query mode" in withServerStarted { (server, dao) =>
+
+    import org.yupana.api.query.syntax.All._
+
+    val from = LocalDateTime.of(2024, 4, 1, 0, 0, 0)
+    val to = LocalDateTime.of(2024, 4, 8, 0, 0, 0)
+
+    (dao.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            metric(TestTableFields.TEST_LONG_FIELD),
+            metric(TestTableFields.TEST_STRING_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            equ(lower(dimension(TestDims.DIM_A)), const("test me!"))
+          )
+        ),
+        *,
+        *
+      )
+      .onCall((_, b, _) =>
+        Iterator(
+          b.set(Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
+            .set(metric(TestTableFields.TEST_FIELD), 33.3d)
+            .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
+            .set(metric(TestTableFields.TEST_STRING_FIELD), "reply!")
+            .buildAndReset()
+        )
+      )
+
+    val port = server.getPort
+    val props = new Properties()
+    props.setProperty("user", "test")
+    props.setProperty("password", "12345")
+    props.setProperty("preferQueryMode", "simple")
+
+    val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", props)
+    val stmt = conn.createStatement
+    val rs = stmt.executeQuery("""SELECT testField, testLongField, testStringField
+                                       |  FROM test_table
+                                       |  WHERE a = 'test me!' AND
+                                       |    time >= TIMESTAMP '2024-04-01' AND
+                                       |    time < TIMESTAMP '2024-04-08'""".stripMargin)
+
+    rs.next()
+
+    rs.getMetaData.getColumnType(1) shouldEqual Types.DOUBLE
+    rs.getDouble(1) shouldEqual 33.3d
+
+    rs.getMetaData.getColumnType(2) shouldEqual Types.BIGINT
+    rs.getDouble(2) shouldEqual 55L
+
+    rs.getMetaData.getColumnType(3) shouldEqual Types.VARCHAR
+    rs.getString(3) shouldEqual "reply!"
+  }
+
+  it should "handle force ssl with error" in withServerStarted { (server, _) =>
+    val port = server.getPort
+    val props = new Properties()
+    props.setProperty("user", "test")
+    props.setProperty("password", "12345")
+    props.setProperty("ssl", "true")
+
+    an[PSQLException] should be thrownBy DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", props)
   }
 
   it should "provide error on invalid queries" in withServerStarted { (server, _) =>
