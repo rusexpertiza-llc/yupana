@@ -20,13 +20,13 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.types.{ArrayDataType, DataType, TupleDataType}
+import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
 import org.yupana.core.jit.codegen.CommonGen.mkType
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
-import org.yupana.core.jit.{CodeGenResult, State}
+import org.yupana.core.jit.{ CodeGenResult, State }
 
 import scala.reflect.runtime.universe._
-import scala.reflect.{ClassTag, classTag}
+import scala.reflect.{ ClassTag, classTag }
 
 class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any, prepared: Boolean)
     extends ExpressionCodeGen[Expression[_]] {

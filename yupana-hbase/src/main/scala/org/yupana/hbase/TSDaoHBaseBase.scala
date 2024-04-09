@@ -18,20 +18,20 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
-import org.apache.hadoop.hbase.client.{Result => HResult}
+import org.apache.hadoop.hbase.client.{ Result => HResult }
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema._
 import org.yupana.api.types.ByteReaderWriter
 import org.yupana.api.utils.ConditionMatchers._
-import org.yupana.api.utils.{PrefetchedSortedSetIterator, SortedSetIterator}
+import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.QueryContext
 import org.yupana.core.dao._
-import org.yupana.core.model.{BatchDataset, InternalQuery, InternalRowSchema}
+import org.yupana.core.model.{ BatchDataset, InternalQuery, InternalRowSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.readerwriter.{MemoryBuffer, MemoryBufferEvalReaderWriter}
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.util.Try
 
@@ -139,7 +139,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
       val rangeScanDimIterators = sizeLimitedRangeScanDims.map { d =>
         d -> prefetchedDimIterators(d)
       }.toMap
-
 
       val rowPostFilter: RowFilter = if (flatAndConditions.distinct.size == 1) {
         val includeRowFilter = prefetchedDimIterators.filter { case (d, _) => !sizeLimitedRangeScanDims.contains(d) }

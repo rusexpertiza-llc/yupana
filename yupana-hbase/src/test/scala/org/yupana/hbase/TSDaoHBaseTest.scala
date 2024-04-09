@@ -201,8 +201,6 @@ class TSDaoHBaseTest
     batch.get[String](0, 1) shouldEqual "test2"
   }
 
-
-
   it should "use most strict time conditions" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000

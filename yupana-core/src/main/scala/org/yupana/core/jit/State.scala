@@ -117,7 +117,7 @@ case class State(
       row: TermName,
       expr: Expression[_],
       opType: State.RowOpType.Value,
-      tpe: Option[Tree],
+      tpe: Option[Tree]
   ): CodeGenResult = {
     rowOperations.find(op => op.row == row && op.expr == expr && op.opType == opType) match {
       case Some(op) =>

@@ -16,14 +16,14 @@
 
 package org.yupana.benchmarks
 
-import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
+import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.StandaloneMetricCollector
 import org.yupana.metrics.Slf4jMetricReporter
-import org.yupana.schema.{Dimensions, ItemTableMetrics, Tables}
+import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
 import java.time.LocalDateTime
 
@@ -74,7 +74,7 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
       divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
 //      metric(ItemTableMetrics.quantityField) as "quantity",
 //      metric(ItemTableMetrics.sumField) as "sum",
-      plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt",
+      plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt"
 //      plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1))) as "sum",
 //      bigDecimal2Double(plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1)))) as "ds2",
 //      plus(bigDecimal2Double(metric(ItemTableMetrics.sumField)), const(1.1d)) as "ds",

@@ -17,8 +17,8 @@
 package org.yupana.core.dao
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.core.{MapReducible, QueryContext}
-import org.yupana.core.model.{BatchDataset, InternalQuery, InternalRowSchema}
+import org.yupana.core.{ MapReducible, QueryContext }
+import org.yupana.core.model.{ BatchDataset, InternalQuery, InternalRowSchema }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait TSReadingDao[Collection[_], IdType] {

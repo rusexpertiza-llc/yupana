@@ -34,7 +34,7 @@ import java.time.{ OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbArithmeticTest
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with TsdbMocks
     with OptionValues

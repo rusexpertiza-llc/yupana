@@ -16,14 +16,14 @@
 
 package org.yupana.benchmarks
 
-import org.openjdk.jmh.annotations.{Benchmark, Scope, State}
+import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
-import org.yupana.api.query.{Expression, Query}
+import org.yupana.api.query.{ Expression, Query }
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric._
 import org.yupana.metrics.Slf4jMetricReporter
-import org.yupana.schema.{Dimensions, ItemTableMetrics, Tables}
+import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
 import java.time.LocalDateTime
 
@@ -33,7 +33,7 @@ class ProcessRowsWithAggBenchmark {
   def processRowsWithAgg(state: TsdbBaseBenchmarkStateAgg): Int = {
     val mc = new StandaloneMetricCollector(state.query, "admin", "bench", 1000, new Slf4jMetricReporter)
 
-    var i =0
+    var i = 0
     for (_ <- 1 to 1) {
       val res = state.tsdb
         .processRows(
@@ -48,7 +48,6 @@ class ProcessRowsWithAggBenchmark {
       }
       res.close()
     }
-
 
     mc.finish()
 

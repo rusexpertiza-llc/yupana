@@ -18,7 +18,7 @@ package org.yupana.core.jit.codegen.expressions.aggregate
 
 import org.yupana.api.query.AggregateExpr
 import org.yupana.core.jit.codegen.CommonGen
-import org.yupana.core.jit.{CodeGenResult, Decl, ExpressionCodeGenFactory, State, ValueDeclaration}
+import org.yupana.core.jit.{ CodeGenResult, Decl, ExpressionCodeGenFactory, State, ValueDeclaration }
 
 import scala.reflect.runtime.universe._
 

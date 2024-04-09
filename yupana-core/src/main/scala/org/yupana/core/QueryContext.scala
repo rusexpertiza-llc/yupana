@@ -19,10 +19,9 @@ package org.yupana.core
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
-import org.yupana.core.jit.{ExpressionCalculator, ExpressionCalculatorFactory}
+import org.yupana.core.jit.{ ExpressionCalculator, ExpressionCalculatorFactory }
 import org.yupana.core.model.InternalRowSchema
 import org.yupana.core.utils.metric.MetricQueryCollector
-
 
 class QueryContext(
     val query: Query,

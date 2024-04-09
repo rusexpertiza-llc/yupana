@@ -19,15 +19,15 @@ package org.yupana.khipu.examples
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.query.Query
-import org.yupana.core.auth.{DaoAuthorizer, PermissionService, TsdbRole, UserManager, YupanaUser}
+import org.yupana.core.auth.{ DaoAuthorizer, PermissionService, TsdbRole, UserManager, YupanaUser }
 import org.yupana.core.dao.UserDao
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
-import org.yupana.core.utils.metric.{MetricQueryCollector, StandaloneMetricCollector}
-import org.yupana.core.{FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig}
+import org.yupana.core.utils.metric.{ MetricQueryCollector, StandaloneMetricCollector }
+import org.yupana.core.{ FlatQueryEngine, QueryEngineRouter, SimpleTsdbConfig }
 import org.yupana.khipu.TSDBKhipu
 import org.yupana.metrics.Slf4jMetricReporter
-import org.yupana.netty.{ServerContext, YupanaServer}
+import org.yupana.netty.{ ServerContext, YupanaServer }
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -78,7 +78,6 @@ object Server extends StrictLogging {
       new SqlQueryProcessor(schema),
       new PermissionService(putEnabled = true),
       userManager
-
     )
     logger.info("Registering catalogs")
 

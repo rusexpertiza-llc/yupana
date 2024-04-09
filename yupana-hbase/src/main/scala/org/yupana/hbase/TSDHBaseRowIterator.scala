@@ -18,15 +18,15 @@ package org.yupana.hbase
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.codec.binary.Hex
-import org.apache.hadoop.hbase.client.{Result => HBaseResult}
+import org.apache.hadoop.hbase.client.{ Result => HBaseResult }
 import org.apache.hadoop.hbase.util.Bytes
-import org.apache.hadoop.hbase.{Cell, CellUtil}
+import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
-import org.yupana.api.schema.{DictionaryDimension, HashDimension, RawDimension, Table}
-import org.yupana.api.types.{ByteReaderWriter, DataType}
-import org.yupana.core.model.{BatchDataset, InternalRowSchema}
+import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
+import org.yupana.core.model.{ BatchDataset, InternalRowSchema }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
-import org.yupana.readerwriter.{MemoryBuffer, MemoryBufferEvalReaderWriter}
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.collection.AbstractIterator
 

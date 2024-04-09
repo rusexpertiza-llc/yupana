@@ -32,8 +32,7 @@ object TSDBKhipu {
       tsdbConfig: TsdbConfig,
       settings: Settings,
       changelogDao: ChangelogDao,
-      metricCollectorCreator: (Query, String) => MetricQueryCollector = (_,_) => NoMetricCollector
-
+      metricCollectorCreator: (Query, String) => MetricQueryCollector = (_, _) => NoMetricCollector
   ): TSDB = {
     CacheFactory.init(settings)
 

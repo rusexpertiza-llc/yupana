@@ -16,10 +16,10 @@
 
 package org.yupana.core.jit.codegen.expressions.aggregate
 
-import org.yupana.api.query.{AggregateExpr, DistinctCountExpr, DistinctRandomExpr}
+import org.yupana.api.query.{ AggregateExpr, DistinctCountExpr, DistinctRandomExpr }
 import org.yupana.core.jit.codegen.CommonGen
 import org.yupana.core.jit.codegen.CommonGen.className
-import org.yupana.core.jit.{CodeGenResult, ExpressionCodeGenFactory, State, ValueDeclaration}
+import org.yupana.core.jit.{ CodeGenResult, ExpressionCodeGenFactory, State, ValueDeclaration }
 
 import scala.reflect.runtime.universe._
 
@@ -105,7 +105,6 @@ object DistinctExprsCodeGen {
         val r = state.withReadRefFromRow(acc, expression, q"$setType")
 
         val valDecl = ValueDeclaration(s"post_comb_${r.valueDeclaration.valueName}")
-
 
         val validityTree = q"val ${valDecl.validityFlagName} = true"
         val valueTree = q"val ${valDecl.valueName} = ${r.valueDeclaration.valueName}.size"

@@ -7,9 +7,7 @@ import org.yupana.api.query.Expression
 import org.yupana.api.query.syntax.All.const
 import org.yupana.readerwriter.MemoryBuffer
 
-class HashTableDatasetTest extends AnyFlatSpec
-  with Matchers
-  with ScalaCheckDrivenPropertyChecks  {
+class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   val intExpr = const(10)
   val doubleExpr = const(10.0)
@@ -99,7 +97,6 @@ class HashTableDatasetTest extends AnyFlatSpec
       ds.set(key, intExpr, i)
     }
 
-
     range.foreach { i =>
       val key = testKey(i)
       ds.get(key, intExpr) shouldEqual i
@@ -113,4 +110,3 @@ class HashTableDatasetTest extends AnyFlatSpec
   }
 
 }
-

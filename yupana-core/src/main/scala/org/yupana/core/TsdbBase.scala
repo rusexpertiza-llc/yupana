@@ -20,13 +20,13 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ExternalLink, Schema}
+import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.dao.{ChangelogDao, TSDao}
+import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.jit.ExpressionCalculatorFactory
-import org.yupana.core.model.{BatchDataset, HashTableDataset, InternalQuery}
-import org.yupana.core.utils.metric.{MetricQueryCollector, NoMetricCollector}
-import org.yupana.core.utils.{ConditionUtils, FlatAndCondition}
+import org.yupana.core.model.{ BatchDataset, HashTableDataset, InternalQuery }
+import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
 import org.yupana.metrics.Failed
 
 /**

@@ -50,7 +50,7 @@ abstract class TsdbBaseBenchmarkStateBase {
     val batch = BatchDataset(queryContext)
     (0 until n)
       .foreach { i =>
-        daoExprs.foreach {  expr  =>
+        daoExprs.foreach { expr =>
           val f = EXPR_CALC(expr)
           val value = f(i + 1)
           batch.set(i, expr.asInstanceOf[Expression[Any]], value)

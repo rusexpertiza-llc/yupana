@@ -120,16 +120,16 @@ final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long,
   }
 
   def putChars(chars: Array[Char]): Unit = {
-      val p = pos
-      pos += chars.length * 2
-      UNSAFE.copyMemory(
-        chars,
-        Unsafe.ARRAY_CHAR_BASE_OFFSET,
-        base,
-        baseOffset + p,
-        chars.length * 2
-      )
-    }
+    val p = pos
+    pos += chars.length * 2
+    UNSAFE.copyMemory(
+      chars,
+      Unsafe.ARRAY_CHAR_BASE_OFFSET,
+      base,
+      baseOffset + p,
+      chars.length * 2
+    )
+  }
 
   def putChars(offset: Int, chars: Array[Char]): Unit = {
     UNSAFE.copyMemory(

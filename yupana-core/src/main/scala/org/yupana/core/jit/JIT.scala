@@ -21,7 +21,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.jit.codegen.stages._
-import org.yupana.core.jit.codegen.{BatchDatasetGen, CommonGen}
+import org.yupana.core.jit.codegen.{ BatchDatasetGen, CommonGen }
 import org.yupana.core.model.InternalRowSchema
 
 object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializable {
@@ -36,9 +36,10 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   private val toolBox = currentMirror.mkToolBox()
 
   def makeCalculator(
-                      query: Query,
-                      condition: Option[Condition],
-                      tokenizer: Tokenizer): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema) = {
+      query: Query,
+      condition: Option[Condition],
+      tokenizer: Tokenizer
+  ): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema) = {
     val (tree, known, params, schema) = generateCalculator(query, condition)
 
     val res = compile(tree)(params, tokenizer)
@@ -49,7 +50,10 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   def compile(tree: Tree): (Array[Any], Tokenizer) => ExpressionCalculator = {
     toolBox.eval(tree).asInstanceOf[(Array[Any], Tokenizer) => ExpressionCalculator]
   }
-  def generateCalculator(query: Query, condition: Option[Condition]): (Tree, Map[Expression[_], Int], Array[Any], InternalRowSchema) = {
+  def generateCalculator(
+      query: Query,
+      condition: Option[Condition]
+  ): (Tree, Map[Expression[_], Int], Array[Any], InternalRowSchema) = {
     val batch = TermName("batch")
     val initialState =
       State(
@@ -116,46 +120,45 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
 
            override def hashCode(): Int = {
               var h = 0
-               ..${
-                   query.groupBy.zipWithIndex.map { case (expr, i) =>
-                     val valDecl = ValueDeclaration(s"keyField_$i")
-                     val read = BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl)
-                     val mixfunc = if (i == 0) {
-                        q"valueHash"
-                     } else if (i < query.groupBy.size - 1) {
-                        q"scala.util.hashing.MurmurHash3.mix(h, valueHash)"
-                     } else {
-                       q"scala.util.hashing.MurmurHash3.finalizeHash(scala.util.hashing.MurmurHash3.mix(h, valueHash), ${query.groupBy.size})"
-                     }
-                       q"""
+               ..${query.groupBy.zipWithIndex.map {
+          case (expr, i) =>
+            val valDecl = ValueDeclaration(s"keyField_$i")
+            val read = BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl)
+            val mixfunc = if (i == 0) {
+              q"valueHash"
+            } else if (i < query.groupBy.size - 1) {
+              q"scala.util.hashing.MurmurHash3.mix(h, valueHash)"
+            } else {
+              q"scala.util.hashing.MurmurHash3.finalizeHash(scala.util.hashing.MurmurHash3.mix(h, valueHash), ${query.groupBy.size})"
+            }
+            q"""
                          {
                             ..$read
                             val valueHash = if (${valDecl.validityFlagName}) ${valDecl.valueName}.hashCode() else 0
                             h = $mixfunc
                          }
                      """
-                   }
-                }
+        }}
                 h
            }
 
            override def equals(that: scala.Any): Boolean = {
               var r = true
-              ..${
-                 query.groupBy.zipWithIndex.map { case (expr, i) =>
-                   val valDecl1 = ValueDeclaration(s"keyField1_$i")
-                   val valDecl2 = ValueDeclaration(s"keyField2_$i")
+              ..${query.groupBy.zipWithIndex.map {
+          case (expr, i) =>
+            val valDecl1 = ValueDeclaration(s"keyField1_$i")
+            val valDecl2 = ValueDeclaration(s"keyField2_$i")
 
-                   val read1 = BatchDatasetGen.mkGet(schema, expr, TermName("thatDs"), q"that.asInstanceOf[Key].rowNum", valDecl1)
-                   val read2 =  BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl2)
-                   q"""
+            val read1 =
+              BatchDatasetGen.mkGet(schema, expr, TermName("thatDs"), q"that.asInstanceOf[Key].rowNum", valDecl1)
+            val read2 = BatchDatasetGen.mkGet(schema, expr, TermName("ds"), q"rowNum", valDecl2)
+            q"""
                        val thatDs = that.asInstanceOf[Key].ds
                       ..$read1
                       ..$read2
                       r = r & (${valDecl1.validityFlagName} == ${valDecl2.validityFlagName}) & (${valDecl1.valueName} == ${valDecl2.valueName})
                    """
-                 }
-              }
+        }}
               r
            }
         }
@@ -185,7 +188,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
                   rowNum += 1
                }
             """
-          } else { q"()" }}
+        } else { q"()" }}
         }
 
        override def createKey($batch: BatchDataset, rowNum: Int): AnyRef = {
@@ -244,7 +247,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
                   val accRowNum = acc.rowNumber(rowPtr)
                   ..${BatchDatasetGen.mkGetValues(reducedState, schema, accBatch, q"accRowNum")}
                   ..$reduce
-                  ..${BatchDatasetGen.mkSetValues(reducedState, schema, accBatch,  q"accRowNum")}
+                  ..${BatchDatasetGen.mkSetValues(reducedState, schema, accBatch, q"accRowNum")}
                 }
               }
               rowNum += 1

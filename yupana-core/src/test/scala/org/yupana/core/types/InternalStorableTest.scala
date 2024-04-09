@@ -21,9 +21,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.types.{ID, InternalReaderWriter, InternalStorable }
-import org.yupana.api.{Blob, Time}
-import org.yupana.readerwriter.{MemoryBuffer, MemoryBufferEvalReaderWriter}
+import org.yupana.api.types.{ ID, InternalReaderWriter, InternalStorable }
+import org.yupana.api.{ Blob, Time }
+import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 class InternalStorableTest
     extends AnyFlatSpec

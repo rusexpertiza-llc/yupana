@@ -18,14 +18,14 @@ package org.yupana.core.jit.codegen.expressions.aggregate
 
 import org.yupana.api.query.HLLCountExpr
 import org.yupana.core.jit.codegen.CommonGen
-import org.yupana.core.jit.{CodeGenResult, ExpressionCodeGenFactory, State, ValueDeclaration}
+import org.yupana.core.jit.{ CodeGenResult, ExpressionCodeGenFactory, State, ValueDeclaration }
 
 import scala.reflect.runtime.universe._
 
 class HLLCountExprCodeGen(override val expression: HLLCountExpr[_])
     extends AggregateExpressionCodeGen[HLLCountExpr[_]] {
 
-  val hllType: Tree =  tq"_root_.com.twitter.algebird.HLL"
+  val hllType: Tree = tq"_root_.com.twitter.algebird.HLL"
 
   override def generateZeroCode(state: State, acc: TermName, row: TermName): CodeGenResult = {
     val r = ExpressionCodeGenFactory.codeGenerator(expression.expr).generateEvalCode(state, row)

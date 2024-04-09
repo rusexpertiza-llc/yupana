@@ -17,9 +17,9 @@
 package org.yupana.core.jit
 
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.query.{Expression, Query}
+import org.yupana.api.query.{ Expression, Query }
 import org.yupana.api.utils.Tokenizer
-import org.yupana.cache.{Cache, CacheFactory}
+import org.yupana.cache.{ Cache, CacheFactory }
 import org.yupana.core.model.InternalRowSchema
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {

@@ -44,7 +44,8 @@ object CacheFactory extends StrictLogging {
   private var nameSuffix: Option[String] = None
 
   def createDescription[K: BoxingTag, V: BoxingTag](name: String): CacheDescription.Aux[K, V] = {
-    if (settings == null) throw new IllegalStateException("CacheUtils were not properly initialized. Use CacheFactory.init")
+    if (settings == null)
+      throw new IllegalStateException("CacheUtils were not properly initialized. Use CacheFactory.init")
     val engine = settings.opt[String](s"analytics.caches.$name.engine") match {
       case Some(engineName) =>
         if (factories.contains(engineName)) {
