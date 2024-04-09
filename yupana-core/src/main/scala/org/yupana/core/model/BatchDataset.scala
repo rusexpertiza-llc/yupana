@@ -23,7 +23,7 @@ import org.yupana.api.types.{ ID, InternalReaderWriter, InternalStorable }
 import org.yupana.core.QueryContext
 import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
-final class BatchDataset(val schema: InternalRowSchema, val capacity: Int = BatchDataset.MAX_MUM_OF_ROWS) {
+final class BatchDataset(val schema: InternalRowSchema, val capacity: Int = BatchDataset.MAX_MUM_OF_ROWS) extends Serializable {
   import BatchDataset._
 
   private val bitSet: Array[Long] = Array.ofDim(capacity * schema.validityMapSize)
