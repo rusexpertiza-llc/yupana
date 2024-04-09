@@ -76,10 +76,10 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
   }
 
   override def query(
-                      query: InternalQuery,
-                      queryContext: QueryContext,
-                      datasetSchema: DatasetSchema,
-                      metricCollector: MetricQueryCollector
+      query: InternalQuery,
+      queryContext: QueryContext,
+      datasetSchema: DatasetSchema,
+      metricCollector: MetricQueryCollector
   ): Iterator[BatchDataset] = {
 
     val mr = mapReduceEngine(metricCollector)

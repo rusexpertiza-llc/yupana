@@ -96,9 +96,9 @@ object BatchDatasetGen {
   }
 
   def mkSetValueToRow(
-                       schema: DatasetSchema,
-                       rowNum: Tree,
-                       tag: Byte
+      schema: DatasetSchema,
+      rowNum: Tree,
+      tag: Byte
   )(valName: Tree, dataset: Tree): Tree = {
     val index = schema.fieldIndex(tag)
     val expr = schema.getExpr(index)
@@ -106,9 +106,9 @@ object BatchDatasetGen {
   }
 
   def mkSetValueToRow(
-                       schema: DatasetSchema,
-                       rowId: Tree,
-                       expr: Expression[_]
+      schema: DatasetSchema,
+      rowId: Tree,
+      expr: Expression[_]
   )(valDecl: ValueDeclaration, dataset: Tree): Tree = {
     val index = schema.fieldIndex(expr)
     if (index >= 0) {
@@ -129,9 +129,9 @@ object BatchDatasetGen {
   }
 
   def mkWriteValue(
-                    schema: DatasetSchema,
-                    rowId: Tree,
-                    expr: Expression[_]
+      schema: DatasetSchema,
+      rowId: Tree,
+      expr: Expression[_]
   )(value: Tree, dataset: Tree): Tree = {
 
     val fieldIndex = schema.fieldIndex(expr)
@@ -179,11 +179,11 @@ object BatchDatasetGen {
   }
 
   def mkGet(
-             schema: DatasetSchema,
-             expr: Expression[_],
-             dataset: TermName,
-             rowId: Tree,
-             valueDeclaration: ValueDeclaration
+      schema: DatasetSchema,
+      expr: Expression[_],
+      dataset: TermName,
+      rowId: Tree,
+      valueDeclaration: ValueDeclaration
   ): Seq[Tree] = {
     if (expr.dataType.internalStorable.isRefType) {
       mkGetRef(schema, expr, dataset, rowId, valueDeclaration, CommonGen.mkType(expr))
@@ -193,12 +193,12 @@ object BatchDatasetGen {
   }
 
   private def mkGetRef(
-                        schema: DatasetSchema,
-                        expr: Expression[_],
-                        dataset: TermName,
-                        rowId: Tree,
-                        valueDeclaration: ValueDeclaration,
-                        exprType: Tree
+      schema: DatasetSchema,
+      expr: Expression[_],
+      dataset: TermName,
+      rowId: Tree,
+      valueDeclaration: ValueDeclaration,
+      exprType: Tree
   ): Seq[Tree] = {
     val ordinal = schema.refFieldOrdinal(expr)
     val valueTree =
@@ -212,11 +212,11 @@ object BatchDatasetGen {
   }
 
   def mkGetValue(
-                  schema: DatasetSchema,
-                  expr: Expression[_],
-                  dataset: TermName,
-                  rowId: Tree,
-                  valueDeclaration: ValueDeclaration
+      schema: DatasetSchema,
+      expr: Expression[_],
+      dataset: TermName,
+      rowId: Tree,
+      valueDeclaration: ValueDeclaration
   ): Seq[Tree] = {
     if (expr.isNullable) {
       val index = schema.fieldIndex(expr)
@@ -247,8 +247,8 @@ object BatchDatasetGen {
   }
 
   private def mkReadValueFromRow(
-                                  schema: DatasetSchema,
-                                  expr: Expression[_]
+      schema: DatasetSchema,
+      expr: Expression[_]
   )(dataset: TermName, rowId: Tree): Tree = {
     val fieldIndex = schema.fieldIndex(expr)
 

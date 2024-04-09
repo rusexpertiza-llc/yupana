@@ -23,10 +23,10 @@ import org.yupana.core.utils.metric.MetricQueryCollector
 
 trait TSReadingDao[Collection[_], IdType] {
   def query(
-             query: InternalQuery,
-             queryContext: QueryContext,
-             datasetSchema: DatasetSchema,
-             metricCollector: MetricQueryCollector
+      query: InternalQuery,
+      queryContext: QueryContext,
+      datasetSchema: DatasetSchema,
+      metricCollector: MetricQueryCollector
   ): Collection[BatchDataset]
 
   def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Collection]

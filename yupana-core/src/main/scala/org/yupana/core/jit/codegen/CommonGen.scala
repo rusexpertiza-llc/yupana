@@ -118,12 +118,12 @@ object CommonGen {
   }
 
   def copyAggregateFields(
-                           query: Query,
-                           schema: DatasetSchema,
-                           srcDataset: TermName,
-                           srcRowId: Tree,
-                           dstDataset: TermName,
-                           dstRowId: Tree
+      query: Query,
+      schema: DatasetSchema,
+      srcDataset: TermName,
+      srcRowId: Tree,
+      dstDataset: TermName,
+      dstRowId: Tree
   ): Seq[Tree] = {
     findAggregates(query.fields).zipWithIndex.flatMap {
       case (expr, i) =>
@@ -135,11 +135,11 @@ object CommonGen {
   }
 
   def mkCreateKey(
-                   keyBufName: TermName,
-                   query: Query,
-                   schema: DatasetSchema,
-                   batch: TermName,
-                   rowNum: Tree
+      keyBufName: TermName,
+      query: Query,
+      schema: DatasetSchema,
+      batch: TermName,
+      rowNum: Tree
   ): Seq[Tree] = {
 
     val exprsAndValDecls = query.groupBy.zipWithIndex.map {

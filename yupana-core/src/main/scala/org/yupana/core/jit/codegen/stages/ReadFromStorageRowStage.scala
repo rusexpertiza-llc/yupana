@@ -28,11 +28,11 @@ import scala.reflect.runtime.universe._
 object ReadFromStorageRowStage {
 
   def mkReadRow(
-                 query: Query,
-                 buf: TermName,
-                 schema: DatasetSchema,
-                 batch: TermName,
-                 rowNum: TermName
+      query: Query,
+      buf: TermName,
+      schema: DatasetSchema,
+      batch: TermName,
+      rowNum: TermName
   ): Tree = {
     implicit val rw: ReaderWriter[Tree, TypedTree, Tree, Tree] = CompileReaderWriter
 

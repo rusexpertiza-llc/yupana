@@ -100,10 +100,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   }
 
   override def query(
-                      query: InternalQuery,
-                      queryContext: QueryContext,
-                      datasetSchema: DatasetSchema,
-                      metricCollector: MetricQueryCollector
+      query: InternalQuery,
+      queryContext: QueryContext,
+      datasetSchema: DatasetSchema,
+      metricCollector: MetricQueryCollector
   ): Collection[BatchDataset] = {
 
     val context = InternalQueryContext(query, metricCollector)
