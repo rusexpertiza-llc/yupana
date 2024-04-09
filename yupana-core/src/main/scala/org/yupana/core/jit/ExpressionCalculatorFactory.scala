@@ -19,12 +19,12 @@ package org.yupana.core.jit
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, Query }
 import org.yupana.api.utils.Tokenizer
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 
 trait ExpressionCalculatorFactory {
   def makeCalculator(
       query: Query,
       condition: Option[Condition],
       tokenizer: Tokenizer
-  ): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema)
+  ): (ExpressionCalculator, Map[Expression[_], Int], DatasetSchema)
 }

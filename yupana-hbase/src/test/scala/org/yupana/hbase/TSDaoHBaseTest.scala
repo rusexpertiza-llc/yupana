@@ -151,7 +151,7 @@ class TSDaoHBaseTest
       .query(
         InternalQuery(testTable, exprs.toSet, and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -188,7 +188,7 @@ class TSDaoHBaseTest
       .query(
         InternalQuery(testTable, exprs.toSet, and(gt(time, const(Time(from))), le(time, const(Time(to))))),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -233,7 +233,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -278,7 +278,7 @@ class TSDaoHBaseTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1")))
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -325,7 +325,7 @@ class TSDaoHBaseTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1")))
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -372,7 +372,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
         NoMetricCollector
       )
       .toList
@@ -445,7 +445,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -475,7 +475,7 @@ class TSDaoHBaseTest
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.DIM_A), Set()))
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -519,7 +519,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -591,7 +591,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -657,7 +657,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
         NoMetricCollector
       )
       .toList
@@ -715,7 +715,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -769,7 +769,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -835,7 +835,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -861,7 +861,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -915,7 +915,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -968,7 +968,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1017,7 +1017,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1080,7 +1080,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
         NoMetricCollector
       )
       .toList
@@ -1132,7 +1132,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1182,7 +1182,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1258,7 +1258,7 @@ class TSDaoHBaseTest
           )
         ),
         null,
-        new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1328,7 +1328,7 @@ class TSDaoHBaseTest
         )
       ),
       null,
-      new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
       NoMetricCollector
     )
 
@@ -1374,7 +1374,7 @@ class TSDaoHBaseTest
         )
       ),
       null,
-      new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
       NoMetricCollector
     )
 
@@ -1425,7 +1425,7 @@ class TSDaoHBaseTest
         )
       ),
       null,
-      new InternalRowSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
       NoMetricCollector
     )
 

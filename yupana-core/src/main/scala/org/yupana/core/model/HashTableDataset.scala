@@ -24,12 +24,12 @@ import org.yupana.readerwriter.MemoryBuffer
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-final class HashTableDataset(schema: InternalRowSchema) {
+final class HashTableDataset(schema: DatasetSchema) {
   import HashTableDataset._
 
   private val hashMap = new mutable.AnyRefMap[AnyRef, RowPointer]
 
-  private var batches = Array(new BatchDataset(schema: InternalRowSchema))
+  private var batches = Array(new BatchDataset(schema: DatasetSchema))
 
   def iterator: Iterator[BatchDataset] = batches.iterator
 

@@ -19,11 +19,11 @@ package org.yupana.core.model
 import org.yupana.api.query.{ DimensionExpr, DimensionIdExpr, Expression, MetricExpr, TimeExpr }
 import org.yupana.api.schema.{ Dimension, Table }
 
-final class InternalRowSchema(
+final class DatasetSchema(
     valueExprIndex: Map[Expression[_], Int],
     refExprIndex: Map[Expression[_], Int],
     table: Option[Table]
-) {
+) extends Serializable {
 
   val exprIndex: Map[Expression[_], Int] = refExprIndex ++ valueExprIndex
 

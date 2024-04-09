@@ -25,7 +25,7 @@ import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
 import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext }
-import org.yupana.core.model.{ BatchDataset, InternalQuery, InternalRowSchema, UpdateInterval }
+import org.yupana.core.model.{ BatchDataset, InternalQuery, DatasetSchema, UpdateInterval }
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
@@ -76,10 +76,10 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
   }
 
   override def query(
-      query: InternalQuery,
-      queryContext: QueryContext,
-      datasetSchema: InternalRowSchema,
-      metricCollector: MetricQueryCollector
+                      query: InternalQuery,
+                      queryContext: QueryContext,
+                      datasetSchema: DatasetSchema,
+                      metricCollector: MetricQueryCollector
   ): Iterator[BatchDataset] = {
 
     val mr = mapReduceEngine(metricCollector)

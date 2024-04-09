@@ -20,7 +20,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.jit.{ ExpressionCalculator, ExpressionCalculatorFactory }
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 class QueryContext(
@@ -33,9 +33,9 @@ class QueryContext(
 
   @transient private var calc: ExpressionCalculator = _
   @transient private var idx: Map[Expression[_], Int] = _
-  @transient private var schema: InternalRowSchema = _
+  @transient private var schema: DatasetSchema = _
 
-  def internalRowSchema: InternalRowSchema = {
+  def internalRowSchema: DatasetSchema = {
     if (schema == null) init()
     schema
   }

@@ -6,7 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.Expression.Condition
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.model.{ BatchDataset, InternalRowSchema }
+import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.RussianTokenizer
@@ -115,7 +115,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       link(TestLink, TestLink.field2) -> 3
     )
 
-    val schema = new InternalRowSchema(valExprIndex, refExprIndex, Some(table))
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Some(table))
     val batch = new BatchDataset(schema)
 
     batch.set(0, time, Time(10L))

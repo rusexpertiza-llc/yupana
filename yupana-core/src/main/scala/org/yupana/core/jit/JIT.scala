@@ -22,7 +22,7 @@ import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
 import org.yupana.core.jit.codegen.stages._
 import org.yupana.core.jit.codegen.{ BatchDatasetGen, CommonGen }
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 
 object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializable {
 
@@ -39,7 +39,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       query: Query,
       condition: Option[Condition],
       tokenizer: Tokenizer
-  ): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema) = {
+  ): (ExpressionCalculator, Map[Expression[_], Int], DatasetSchema) = {
     val (tree, known, params, schema) = generateCalculator(query, condition)
 
     val res = compile(tree)(params, tokenizer)
@@ -53,7 +53,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   def generateCalculator(
       query: Query,
       condition: Option[Condition]
-  ): (Tree, Map[Expression[_], Int], Array[Any], InternalRowSchema) = {
+  ): (Tree, Map[Expression[_], Int], Array[Any], DatasetSchema) = {
     val batch = TermName("batch")
     val initialState =
       State(
@@ -93,7 +93,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
 
     val paramsArray = postFilterState.refs.map(_._1).toArray[Any]
 
-    val schema = new InternalRowSchema(postFilterState.valueExprIndex, postFilterState.refExprIndex, query.table)
+    val schema = new DatasetSchema(postFilterState.valueExprIndex, postFilterState.refExprIndex, query.table)
 
     val rowNum = TermName("rowNum")
     val readRow = ReadFromStorageRowStage.mkReadRow(query, buf, schema, batch, rowNum)

@@ -18,7 +18,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
 
   "BatchDataset" should "set and get values of different types for the same row" in {
 
-    val schema = new InternalRowSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
     val batch = new BatchDataset(schema)
 
     batch.set(0, intExpr, 1)
@@ -37,7 +37,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
   }
 
   it should "set and get values of different types in several rows" in {
-    val schema = new InternalRowSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
     val batch = new BatchDataset(schema)
 
     batch.set(0, intExpr, 1)
@@ -87,7 +87,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
   }
 
   it should "set and get fixed length values" in {
-    val schema = new InternalRowSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
     val batch = new BatchDataset(schema)
 
     val rowNum = for (n <- Gen.choose(0, BatchDataset.MAX_MUM_OF_ROWS)) yield n
@@ -101,7 +101,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
   }
 
   it should "set and get variable length values" in {
-    val schema = new InternalRowSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
     val batch = new BatchDataset(schema)
 
     val rowNum = Gen.choose(0, BatchDataset.MAX_MUM_OF_ROWS - 1)

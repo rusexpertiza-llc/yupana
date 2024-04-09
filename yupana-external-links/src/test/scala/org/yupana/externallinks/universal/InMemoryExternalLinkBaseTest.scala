@@ -6,7 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.model.{ BatchDataset, InternalRowSchema }
+import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.utils.RussianTokenizer
@@ -85,7 +85,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       link(testExternalLink, TestExternalLink.testField3) -> 5
     )
 
-    val schema = new InternalRowSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
     val batch = new BatchDataset(schema)
 
     batch.set(0, time, Time(100))

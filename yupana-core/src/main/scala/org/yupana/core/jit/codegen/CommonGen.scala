@@ -21,7 +21,7 @@ import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, InternalReaderWriter, TupleDataType }
 import org.yupana.core.format.{ CompileReaderWriter, TypedTree }
 import org.yupana.core.jit.{ State, ValueDeclaration }
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe._
@@ -118,12 +118,12 @@ object CommonGen {
   }
 
   def copyAggregateFields(
-      query: Query,
-      schema: InternalRowSchema,
-      srcDataset: TermName,
-      srcRowId: Tree,
-      dstDataset: TermName,
-      dstRowId: Tree
+                           query: Query,
+                           schema: DatasetSchema,
+                           srcDataset: TermName,
+                           srcRowId: Tree,
+                           dstDataset: TermName,
+                           dstRowId: Tree
   ): Seq[Tree] = {
     findAggregates(query.fields).zipWithIndex.flatMap {
       case (expr, i) =>
@@ -135,11 +135,11 @@ object CommonGen {
   }
 
   def mkCreateKey(
-      keyBufName: TermName,
-      query: Query,
-      schema: InternalRowSchema,
-      batch: TermName,
-      rowNum: Tree
+                   keyBufName: TermName,
+                   query: Query,
+                   schema: DatasetSchema,
+                   batch: TermName,
+                   rowNum: Tree
   ): Seq[Tree] = {
 
     val exprsAndValDecls = query.groupBy.zipWithIndex.map {
@@ -186,7 +186,7 @@ object CommonGen {
     }
   }
 
-  def mkWriteGroupByFields(query: Query, schema: InternalRowSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
+  def mkWriteGroupByFields(query: Query, schema: DatasetSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
     val exprsAndValDecls = query.groupBy.zipWithIndex.map {
       case (expr, idx) =>
         expr -> ValueDeclaration(s"key_$idx")
@@ -199,7 +199,7 @@ object CommonGen {
     ts :+ q"$batch.updateSize($rowNum)"
   }
 
-  def mkReadGroupByFields(query: Query, schema: InternalRowSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
+  def mkReadGroupByFields(query: Query, schema: DatasetSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
     val exprsAndValDecls = query.groupBy.zipWithIndex.map {
       case (expr, idx) =>
         expr -> ValueDeclaration(s"key_$idx")

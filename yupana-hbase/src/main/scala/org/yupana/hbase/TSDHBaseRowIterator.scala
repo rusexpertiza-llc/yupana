@@ -24,7 +24,7 @@ import org.apache.hadoop.hbase.{ Cell, CellUtil }
 import org.yupana.api.Time
 import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension, Table }
 import org.yupana.api.types.{ ByteReaderWriter, DataType }
-import org.yupana.core.model.{ BatchDataset, InternalRowSchema }
+import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
 import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
@@ -33,7 +33,7 @@ import scala.collection.AbstractIterator
 class TSDHBaseRowIterator(
     context: InternalQueryContext,
     rows: Iterator[HBaseResult],
-    schema: InternalRowSchema
+    schema: DatasetSchema
 ) extends AbstractIterator[BatchDataset]
     with StrictLogging {
 

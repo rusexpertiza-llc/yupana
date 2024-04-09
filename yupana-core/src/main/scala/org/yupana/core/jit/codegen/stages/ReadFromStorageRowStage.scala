@@ -22,17 +22,17 @@ import org.yupana.api.types.ReaderWriter
 import org.yupana.core.format.{ CompileReaderWriter, TypedTree }
 import org.yupana.core.jit.ValueDeclaration
 import org.yupana.core.jit.codegen.BatchDatasetGen
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 
 import scala.reflect.runtime.universe._
 object ReadFromStorageRowStage {
 
   def mkReadRow(
-      query: Query,
-      buf: TermName,
-      schema: InternalRowSchema,
-      batch: TermName,
-      rowNum: TermName
+                 query: Query,
+                 buf: TermName,
+                 schema: DatasetSchema,
+                 batch: TermName,
+                 rowNum: TermName
   ): Tree = {
     implicit val rw: ReaderWriter[Tree, TypedTree, Tree, Tree] = CompileReaderWriter
 

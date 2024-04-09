@@ -20,7 +20,7 @@ import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, Query }
 import org.yupana.api.utils.Tokenizer
 import org.yupana.cache.{ Cache, CacheFactory }
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
@@ -31,7 +31,7 @@ object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
       query: Query,
       condition: Option[Condition],
       tokenizer: Tokenizer
-  ): (ExpressionCalculator, Map[Expression[_], Int], InternalRowSchema) = {
+  ): (ExpressionCalculator, Map[Expression[_], Int], DatasetSchema) = {
 
     val (tree, index, params, schema) = JIT.generateCalculator(query, condition)
 

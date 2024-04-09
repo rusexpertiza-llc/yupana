@@ -28,7 +28,7 @@ import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.QueryContext
 import org.yupana.core.dao._
-import org.yupana.core.model.{ BatchDataset, InternalQuery, InternalRowSchema }
+import org.yupana.core.model.{ BatchDataset, InternalQuery, DatasetSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
@@ -100,10 +100,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   }
 
   override def query(
-      query: InternalQuery,
-      queryContext: QueryContext,
-      datasetSchema: InternalRowSchema,
-      metricCollector: MetricQueryCollector
+                      query: InternalQuery,
+                      queryContext: QueryContext,
+                      datasetSchema: DatasetSchema,
+                      metricCollector: MetricQueryCollector
   ): Collection[BatchDataset] = {
 
     val context = InternalQueryContext(query, metricCollector)

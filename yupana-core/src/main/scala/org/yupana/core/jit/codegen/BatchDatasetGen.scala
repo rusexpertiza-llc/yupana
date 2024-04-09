@@ -21,7 +21,7 @@ import org.yupana.api.types.InternalReaderWriter
 import org.yupana.core.format.{ CompileReaderWriter, TypedTree }
 import org.yupana.core.jit.State.RowOperation
 import org.yupana.core.jit.{ State, ValueDeclaration }
-import org.yupana.core.model.InternalRowSchema
+import org.yupana.core.model.DatasetSchema
 
 import scala.reflect.runtime.universe._
 
@@ -29,14 +29,14 @@ object BatchDatasetGen {
 
   implicit val rw: InternalReaderWriter[Tree, TypedTree, Tree, Tree] = CompileReaderWriter
 
-  def mkSetValues(state: State, schema: InternalRowSchema, rowId: Tree): Seq[Tree] = {
+  def mkSetValues(state: State, schema: DatasetSchema, rowId: Tree): Seq[Tree] = {
     mkSetValues(state, schema, None, rowId)
   }
 
-  def mkSetValues(state: State, schema: InternalRowSchema, dataset: TermName, rowId: Tree): Seq[Tree] = {
+  def mkSetValues(state: State, schema: DatasetSchema, dataset: TermName, rowId: Tree): Seq[Tree] = {
     mkSetValues(state, schema, Some(dataset), rowId)
   }
-  def mkSetValues(state: State, schema: InternalRowSchema, dataset: Option[TermName], rowId: Tree): Seq[Tree] = {
+  def mkSetValues(state: State, schema: DatasetSchema, dataset: Option[TermName], rowId: Tree): Seq[Tree] = {
     val ts1 = state.rowOperations.distinct.collect {
 
       case RowOperation(ds, expr, opType, valueDeclaration, _) if opType == State.RowOpType.WriteRef =>
@@ -54,7 +54,7 @@ object BatchDatasetGen {
     ts1 ++ ts2
   }
 
-  def mkSet(schema: InternalRowSchema, rowId: Tree, expr: Expression[_])(
+  def mkSet(schema: DatasetSchema, rowId: Tree, expr: Expression[_])(
       valDecl: ValueDeclaration,
       dataset: Tree
   ): Tree = {
@@ -65,7 +65,7 @@ object BatchDatasetGen {
     }
   }
 
-  private def mkSetRef(schema: InternalRowSchema, expr: Expression[_])(
+  private def mkSetRef(schema: DatasetSchema, expr: Expression[_])(
       valueDeclaration: ValueDeclaration,
       rowId: Tree,
       dataset: Tree
@@ -84,7 +84,7 @@ object BatchDatasetGen {
     }
   }
 
-  private def mkSetNotNullRef(schema: InternalRowSchema, expr: Expression[_])(
+  private def mkSetNotNullRef(schema: DatasetSchema, expr: Expression[_])(
       valueDeclaration: ValueDeclaration,
       rowId: Tree,
       dataset: Tree
@@ -96,9 +96,9 @@ object BatchDatasetGen {
   }
 
   def mkSetValueToRow(
-      schema: InternalRowSchema,
-      rowNum: Tree,
-      tag: Byte
+                       schema: DatasetSchema,
+                       rowNum: Tree,
+                       tag: Byte
   )(valName: Tree, dataset: Tree): Tree = {
     val index = schema.fieldIndex(tag)
     val expr = schema.getExpr(index)
@@ -106,9 +106,9 @@ object BatchDatasetGen {
   }
 
   def mkSetValueToRow(
-      schema: InternalRowSchema,
-      rowId: Tree,
-      expr: Expression[_]
+                       schema: DatasetSchema,
+                       rowId: Tree,
+                       expr: Expression[_]
   )(valDecl: ValueDeclaration, dataset: Tree): Tree = {
     val index = schema.fieldIndex(expr)
     if (index >= 0) {
@@ -129,9 +129,9 @@ object BatchDatasetGen {
   }
 
   def mkWriteValue(
-      schema: InternalRowSchema,
-      rowId: Tree,
-      expr: Expression[_]
+                    schema: DatasetSchema,
+                    rowId: Tree,
+                    expr: Expression[_]
   )(value: Tree, dataset: Tree): Tree = {
 
     val fieldIndex = schema.fieldIndex(expr)
@@ -157,14 +157,14 @@ object BatchDatasetGen {
     }
   }
 
-  def mkGetValues(state: State, schema: InternalRowSchema, rowId: Tree): Seq[Tree] = {
+  def mkGetValues(state: State, schema: DatasetSchema, rowId: Tree): Seq[Tree] = {
     mkGetValues(state, schema, None, rowId)
   }
-  def mkGetValues(state: State, schema: InternalRowSchema, dataset: TermName, rowId: Tree): Seq[Tree] = {
+  def mkGetValues(state: State, schema: DatasetSchema, dataset: TermName, rowId: Tree): Seq[Tree] = {
     mkGetValues(state, schema, Some(dataset), rowId)
   }
 
-  def mkGetValues(state: State, schema: InternalRowSchema, fromDataset: Option[TermName], rowId: Tree): Seq[Tree] = {
+  def mkGetValues(state: State, schema: DatasetSchema, fromDataset: Option[TermName], rowId: Tree): Seq[Tree] = {
     state.rowOperations.distinct
       .filter(op => fromDataset.forall(_ == op.row))
       .collect {
@@ -179,11 +179,11 @@ object BatchDatasetGen {
   }
 
   def mkGet(
-      schema: InternalRowSchema,
-      expr: Expression[_],
-      dataset: TermName,
-      rowId: Tree,
-      valueDeclaration: ValueDeclaration
+             schema: DatasetSchema,
+             expr: Expression[_],
+             dataset: TermName,
+             rowId: Tree,
+             valueDeclaration: ValueDeclaration
   ): Seq[Tree] = {
     if (expr.dataType.internalStorable.isRefType) {
       mkGetRef(schema, expr, dataset, rowId, valueDeclaration, CommonGen.mkType(expr))
@@ -193,12 +193,12 @@ object BatchDatasetGen {
   }
 
   private def mkGetRef(
-      schema: InternalRowSchema,
-      expr: Expression[_],
-      dataset: TermName,
-      rowId: Tree,
-      valueDeclaration: ValueDeclaration,
-      exprType: Tree
+                        schema: DatasetSchema,
+                        expr: Expression[_],
+                        dataset: TermName,
+                        rowId: Tree,
+                        valueDeclaration: ValueDeclaration,
+                        exprType: Tree
   ): Seq[Tree] = {
     val ordinal = schema.refFieldOrdinal(expr)
     val valueTree =
@@ -212,11 +212,11 @@ object BatchDatasetGen {
   }
 
   def mkGetValue(
-      schema: InternalRowSchema,
-      expr: Expression[_],
-      dataset: TermName,
-      rowId: Tree,
-      valueDeclaration: ValueDeclaration
+                  schema: DatasetSchema,
+                  expr: Expression[_],
+                  dataset: TermName,
+                  rowId: Tree,
+                  valueDeclaration: ValueDeclaration
   ): Seq[Tree] = {
     if (expr.isNullable) {
       val index = schema.fieldIndex(expr)
@@ -247,8 +247,8 @@ object BatchDatasetGen {
   }
 
   private def mkReadValueFromRow(
-      schema: InternalRowSchema,
-      expr: Expression[_]
+                                  schema: DatasetSchema,
+                                  expr: Expression[_]
   )(dataset: TermName, rowId: Tree): Tree = {
     val fieldIndex = schema.fieldIndex(expr)
 
