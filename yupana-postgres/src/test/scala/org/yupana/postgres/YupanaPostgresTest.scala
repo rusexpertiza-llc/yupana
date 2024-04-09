@@ -85,12 +85,15 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             time,
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_LONG_FIELD),
-            metric(TestTableFields.TEST_STRING_FIELD)
+            metric(TestTableFields.TEST_STRING_FIELD),
+            metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
+            metric(TestTableFields.TEST_BYTE_FIELD)
           ),
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(lower(dimension(TestDims.DIM_A)), const("test me"))
+            equ(lower(dimension(TestDims.DIM_A)), const("test me")),
+            le(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), const(BigDecimal(66)))
           )
         ),
         *,
@@ -102,19 +105,23 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             .set(metric(TestTableFields.TEST_FIELD), 33.3d)
             .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "reply")
+            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(42))
             .buildAndReset()
         )
       )
 
     val port = server.getPort
     val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", "test", "12345")
-    val stmt = conn.prepareStatement("""SELECT testField, testLongField, testStringField
+    val stmt = conn.prepareStatement(
+      """SELECT testField, testLongField, testStringField, testBigDecimalField, testByteField
         |  FROM test_table
-        |  WHERE A = ? AND TIME >= ? and TIME < ?""".stripMargin)
+        |  WHERE A = ? AND TIME >= ? and TIME < ? and testBigDecimalField <= ?""".stripMargin
+    )
 
     stmt.setString(1, "test me")
     stmt.setTimestamp(2, Timestamp.valueOf(from))
     stmt.setTimestamp(3, Timestamp.valueOf(to))
+    stmt.setBigDecimal(4, java.math.BigDecimal.valueOf(66))
     val rs = stmt.executeQuery()
     rs.next()
 
@@ -126,6 +133,13 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
     rs.getMetaData.getColumnType(3) shouldEqual Types.VARCHAR
     rs.getString(3) shouldEqual "reply"
+
+    rs.getMetaData.getColumnType(4) shouldEqual Types.NUMERIC
+    rs.getBigDecimal(4) shouldEqual java.math.BigDecimal.valueOf(42)
+
+    rs.getMetaData.getColumnType(5) shouldEqual Types.NUMERIC
+    rs.getByte(5) shouldBe 0
+    rs.wasNull() shouldBe true
   }
 
   it should "work in simple query mode" in withServerStarted { (server, dao) =>
@@ -157,7 +171,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
       .onCall((_, b, _) =>
         Iterator(
           b.set(Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
-            .set(metric(TestTableFields.TEST_FIELD), 33.3d)
+            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), 33.3d)
             .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "reply!")
             .buildAndReset()
