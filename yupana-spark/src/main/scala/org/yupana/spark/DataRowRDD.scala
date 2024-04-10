@@ -16,17 +16,18 @@
 
 package org.yupana.spark
 
-import java.sql.{ Timestamp, Types }
+import java.sql.{Timestamp, Types}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.types._
-import org.apache.spark.{ Partition, TaskContext }
-import org.yupana.api.{ Blob, Time }
+import org.apache.spark.{Partition, TaskContext}
+import org.yupana.api.{Blob, Time}
 import org.yupana.api.query.QueryField
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.core.model.BatchDataset
-import org.yupana.core.{ QueryContext, TsdbResultBase }
+import org.yupana.core.{QueryContext, TsdbResultBase}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -35,6 +36,8 @@ class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext
     with TsdbResultBase[RDD] {
 
   private val fields = queryContext.query.fields.toArray
+
+  private val schema = createSchema
 
   override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
     data
@@ -48,9 +51,8 @@ class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext
               case Blob(bytes) => bytes
               case x           => x
             }
-          }.toArray
-
-          val row = Row(values)
+          }
+          val row = new GenericRowWithSchema(values, schema)
           buf.append(row)
         }
         buf.iterator
