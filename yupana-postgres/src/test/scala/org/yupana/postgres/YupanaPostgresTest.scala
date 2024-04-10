@@ -5,7 +5,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 import org.yupana.api.query.{ Expression, Query }
 import org.yupana.cache.CacheFactory
 import org.yupana.core._
@@ -87,7 +87,8 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             metric(TestTableFields.TEST_LONG_FIELD),
             metric(TestTableFields.TEST_STRING_FIELD),
             metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
-            metric(TestTableFields.TEST_BYTE_FIELD)
+            metric(TestTableFields.TEST_BYTE_FIELD),
+            metric(TestTableFields.TEST_BLOB_FIELD)
           ),
           and(
             ge(time, const(Time(from))),
@@ -106,6 +107,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "reply")
             .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(42))
+            .set(metric(TestTableFields.TEST_BLOB_FIELD), Blob(Array(1, 2, 3)))
             .buildAndReset()
         )
       )
@@ -113,7 +115,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
     val port = server.getPort
     val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", "test", "12345")
     val stmt = conn.prepareStatement(
-      """SELECT testField, testLongField, testStringField, testBigDecimalField, testByteField
+      """SELECT testField, testLongField, testStringField, testBigDecimalField, testByteField, testBlobField
         |  FROM test_table
         |  WHERE A = ? AND TIME >= ? and TIME < ? and testBigDecimalField <= ?""".stripMargin
     )
@@ -140,6 +142,9 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
     rs.getMetaData.getColumnType(5) shouldEqual Types.NUMERIC
     rs.getByte(5) shouldBe 0
     rs.wasNull() shouldBe true
+
+    rs.getMetaData.getColumnType(6) shouldEqual Types.BINARY
+    rs.getBytes(6) shouldEqual Array(1, 2, 3)
   }
 
   it should "work in simple query mode" in withServerStarted { (server, dao) =>

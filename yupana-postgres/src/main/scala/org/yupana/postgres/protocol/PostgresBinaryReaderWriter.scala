@@ -363,32 +363,29 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readBlob(b: ByteBuf): Blob = {
-    val size = readVInt(b)
+    val size = b.readInt()
     val data = new Array[Byte](size)
     b.readBytes(data)
     Blob(data)
   }
 
   override def readBlob(b: ByteBuf, offset: Int): Blob = {
-    val p = b.readerIndex()
-    b.readerIndex(offset)
-    val size = readVInt(b)
+    val size = b.getInt(offset)
     val data = new Array[Byte](size)
-    b.readBytes(data)
-    b.readerIndex(p)
+    b.getBytes(offset + 4, data)
     Blob(data)
   }
 
   override def writeBlob(b: ByteBuf, v: Blob): Int = {
-    val s = writeVInt(b, v.bytes.length)
+    b.writeInt(v.bytes.length)
     b.writeBytes(v.bytes)
-    s + v.bytes.length
+    4 + v.bytes.length
   }
 
   override def writeBlob(b: ByteBuf, offset: Int, v: Blob): Int = {
-    val s = writeVInt(b, offset, v.bytes.length)
-    b.setBytes(offset + s, v.bytes)
-    s + v.bytes.length
+    b.setInt(offset, v.bytes.length)
+    b.setBytes(offset + 4, v.bytes)
+    4 + v.bytes.length
   }
 
   override def readVTime(b: ByteBuf): Time = {

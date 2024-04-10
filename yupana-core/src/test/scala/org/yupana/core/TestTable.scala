@@ -1,6 +1,6 @@
 package org.yupana.core
 
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -27,6 +27,7 @@ object TestTableFields {
   val TEST_BIGDECIMAL_FIELD: Metric.Aux[BigDecimal] = Metric[BigDecimal]("testBigDecimalField", 5)
   val TEST_TIME_FIELD: Metric.Aux[Time] = Metric[Time]("testTimeField", 6)
   val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 7)
+  val TEST_BLOB_FIELD: Metric.Aux[Blob] = Metric[Blob]("testBlobField", 8)
 }
 
 object TestTable2Fields {
@@ -98,7 +99,8 @@ object TestSchema {
       TestTableFields.TEST_LONG_FIELD,
       TestTableFields.TEST_BIGDECIMAL_FIELD,
       TestTableFields.TEST_TIME_FIELD,
-      TestTableFields.TEST_BYTE_FIELD
+      TestTableFields.TEST_BYTE_FIELD,
+      TestTableFields.TEST_BLOB_FIELD
     ),
     externalLinks =
       Seq(TestLinks.TEST_LINK, TestLinks.TEST_LINK2, TestLinks.TEST_LINK3, TestLinks.TEST_LINK4, TestLinks.TEST_LINK5),

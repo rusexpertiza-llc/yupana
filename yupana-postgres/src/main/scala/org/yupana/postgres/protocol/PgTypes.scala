@@ -16,7 +16,7 @@
 
 package org.yupana.postgres.protocol
 
-import org.yupana.api.Time
+import org.yupana.api.{ Blob, Time }
 import org.yupana.api.types.DataType
 
 import java.sql.Types
@@ -54,6 +54,7 @@ object PgTypes {
       case Types.DECIMAL   => true
       case Types.DOUBLE    => true
       case Types.TIMESTAMP => true
+      case Types.BLOB      => true
       case _               => false
     }
   }
@@ -69,6 +70,7 @@ object PgTypes {
       case Types.DECIMAL   => PG_TYPE_NUMERIC
       case Types.DOUBLE    => PG_TYPE_FLOAT8
       case Types.TIMESTAMP => PG_TYPE_TIMESTAMP
+      case Types.BLOB      => PG_TYPE_BYTEA
       case _               => PG_TYPE_UNKNOWN
     }
   }
@@ -82,6 +84,7 @@ object PgTypes {
     case PG_TYPE_INT8      => Right(DataType[Long])
     case PG_TYPE_FLOAT8    => Right(DataType[Double])
     case PG_TYPE_TIMESTAMP => Right(DataType[Time])
+    case PG_TYPE_BYTEA     => Right(DataType[Blob])
     case x                 => Left(s"Unsupported type $x")
   }
 }
