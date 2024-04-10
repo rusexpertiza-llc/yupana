@@ -13,7 +13,7 @@ import org.yupana.hbase.ChangelogDaoHBase
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
 import java.sql.Timestamp
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.time.temporal.ChronoUnit
 
 trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSession with SparkTestEnv {
@@ -108,7 +108,9 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
 
     result should have size 1
 
-    result(0).getAs[Timestamp]("day").toLocalDateTime shouldEqual now.truncatedTo(ChronoUnit.DAYS).toLocalDateTime
+    LocalDateTime.ofInstant(result(0).getAs[Timestamp]("day").toInstant, ZoneOffset.UTC) shouldEqual now
+      .truncatedTo(ChronoUnit.DAYS)
+      .toLocalDateTime
     // withZone(DateTimeZone.UTC).withTimeAtStartOfDay().toLocalDateTime
 
     result(0).getAs[Int]("kkmId") shouldEqual 123
