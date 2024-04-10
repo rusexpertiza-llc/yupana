@@ -103,6 +103,25 @@ class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDriv
     }
   }
 
+  it should "partition" in {
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val ds = new HashTableDataset(schema)
+
+    val key: AnyRef = "1"
+    ds.set(key, intExpr, 1)
+    ds.set(key, doubleExpr, 2.0d)
+    ds.set(key, stringExpr, "3")
+    ds.set(key, refExpr, 4.toByte)
+
+    val r = ds.partition(1)
+
+    val batch = r.toMap.apply(0).apply(0)
+    batch.get(0, intExpr) shouldEqual 1
+    batch.get(0, doubleExpr) shouldEqual 2.0
+    batch.get(0, stringExpr) shouldEqual "3"
+    batch.get(0, refExpr) shouldEqual 4.toByte
+  }
+
   def testKey(v: Long): MemoryBuffer = {
     val buf = MemoryBuffer.allocateHeap(8)
     buf.putLong(v)

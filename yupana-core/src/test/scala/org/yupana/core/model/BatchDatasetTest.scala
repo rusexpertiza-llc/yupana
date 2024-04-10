@@ -6,6 +6,8 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.query.Expression
 import org.yupana.api.query.syntax.All.const
 import org.scalacheck.{ Arbitrary, Gen }
+
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream }
 class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   val intExpr = const(10)
@@ -115,5 +117,27 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
           batch.isDefined(r, stringExpr) shouldEqual true
         }
     }
+  }
+
+  it should "serialize/deserialize" in {
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val batch = new BatchDataset(schema)
+    batch.set(0, intExpr, 1)
+    batch.set(0, doubleExpr, 2.0d)
+    batch.set(0, stringExpr, "3")
+    batch.set(0, refExpr, 1.toByte)
+
+    val bf = new ByteArrayOutputStream(1000000)
+    val oos = new ObjectOutputStream(bf)
+    oos.writeObject(batch)
+
+    val is = new ByteArrayInputStream(bf.toByteArray)
+    val ois = new ObjectInputStream(is)
+    val deserializedBatch = ois.readObject().asInstanceOf[BatchDataset]
+
+    deserializedBatch.get(0, intExpr) shouldEqual 1
+    deserializedBatch.get(0, doubleExpr) shouldEqual 2.0
+    deserializedBatch.get(0, stringExpr) shouldEqual "3"
+    deserializedBatch.get(0, refExpr) shouldEqual 1.toByte
   }
 }

@@ -32,11 +32,7 @@ final class DatasetSchema(
   val numOfFields: Int = Seq(valueExprIndex.values.maxOption, refExprIndex.values.maxOption).flatten.sum + 1
   val numOfRefFields: Int = refExprIndex.size
 
-  val validityMapSize: Int = (numOfFields + 1) / 64 + 1
-  val validityMapAreaSize: Int = validityMapSize * 8
-  val fixedAreaOffset: Int = 0
   val fixedLengthFieldsBytesSize: Int = getFixedAreaSize(valueExprIndex)
-  val variableLengthFieldsAreaOffset: Int = 4 + fixedLengthFieldsBytesSize + validityMapAreaSize
 
   private val tagIndexMappingArray: Array[Int] = createTagByIndexMappingArray(exprIndex, table)
   private val dimIdMappingArray: Array[Int] = createDimIdMappingArray(exprIndex, table)

@@ -27,7 +27,7 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
     extends Serializable {
   import BatchDataset._
 
-  private val bitSet: Array[Long] = Array.ofDim(capacity * schema.validityMapSize)
+  private val bitSet: Array[Long] = Array.ofDim(capacity * (schema.numOfFields + 1) / 64 + 1)
 
   private val fixedLengthFieldsArea: MemoryBuffer =
     MemoryBuffer.allocateHeap(capacity * schema.fixedLengthFieldsBytesSize)
@@ -64,13 +64,13 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
 
     var fieldIndex = 0
     while (fieldIndex < schema.numOfFields) {
-      val offset = getOffset(rowNum, fieldIndex)
       if (schema.isRef(fieldIndex)) {
         val ordinal = schema.refFieldOrdinal(fieldIndex)
         val ref = src.getRef[AnyRef](srcRowNum, ordinal)
         setRef(rowNum, ordinal, ref)
       }
 
+      val offset = getOffset(rowNum, fieldIndex)
       if (!schema.isFixed(fieldIndex)) {
         val len = fixedLengthFieldsArea.getInt(offset)
         if (len > 12) {

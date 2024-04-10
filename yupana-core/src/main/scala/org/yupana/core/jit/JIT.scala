@@ -238,7 +238,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
                   val ptr = acc.newRow()
                   val $accBatch = acc.batch(ptr)
                   val accRowNum = acc.rowNumber(ptr)
-                   ..${CommonGen.copyAggregateFields(query, schema, batch, q"rowNum", accBatch, q"accRowNum")}
+                   ${CommonGen.copyAggregateFields(batch, q"rowNum", accBatch, q"accRowNum")}
                    ..${CommonGen.mkWriteGroupByFields(query, schema, accBatch, q"accRowNum")}
                   acc.updateKey(new Key($accBatch, accRowNum), ptr)
                 } else {

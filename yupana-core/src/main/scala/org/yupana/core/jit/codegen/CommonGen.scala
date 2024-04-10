@@ -118,72 +118,14 @@ object CommonGen {
   }
 
   def copyAggregateFields(
-      query: Query,
-      schema: DatasetSchema,
       srcDataset: TermName,
       srcRowId: Tree,
       dstDataset: TermName,
       dstRowId: Tree
-  ): Seq[Tree] = {
-    findAggregates(query.fields).zipWithIndex.flatMap {
-      case (expr, i) =>
-        val valDecl = ValueDeclaration(s"copy_field_$i")
-        val getTrees = BatchDatasetGen.mkGetValue(schema, expr, srcDataset, srcRowId, valDecl)
-        val setTree = BatchDatasetGen.mkSetValueToRow(schema, dstRowId, expr)(valDecl, q"$dstDataset")
-        getTrees :+ setTree
-    }
-  }
-
-  def mkCreateKey(
-      keyBufName: TermName,
-      query: Query,
-      schema: DatasetSchema,
-      batch: TermName,
-      rowNum: Tree
-  ): Seq[Tree] = {
-
-    val exprsAndValDecls = query.groupBy.zipWithIndex.map {
-      case (expr, idx) =>
-        expr -> ValueDeclaration(s"key_$idx")
-    }
-
-    if (exprsAndValDecls.size > 0) {
-
-      val sizeTree = exprsAndValDecls
-        .map {
-          case (expr, valueDeclaration) =>
-            val sizeTree =
-              expr.dataType.internalStorable.size(q"${valueDeclaration.valueName}": TypedTree[expr.dataType.T])
-            q"""if (${valueDeclaration.validityFlagName}) $sizeTree else 0""": Tree
-        }
-        .reduce((a, b) => q"$a + $b")
-
-      val bufTree =
-        q"""
-          val $keyBufName = MemoryBuffer.allocateHeap($sizeTree)
-        """
-
-      val readKeyTrees = exprsAndValDecls.flatMap {
-        case (expr, valDecl) => BatchDatasetGen.mkGetValue(schema, expr, batch, rowNum, valDecl)
-      }
-
-      val writeBufTrees = exprsAndValDecls.map {
-        case (expr, valDecl) =>
-          val writeTree = expr.dataType.internalStorable.write[Tree, TypedTree, Tree, Tree](
-            q"$keyBufName",
-            q"${valDecl.valueName}": TypedTree[expr.dataType.T]
-          )
-          q"""if (${valDecl.validityFlagName}) $writeTree"""
-      }
-
-      (readKeyTrees :+ bufTree) ++ writeBufTrees
-
-    } else {
-      val tree = q"""
-          val $keyBufName = MemoryBuffer.allocateHeap(0)
-        """
-      Seq(tree)
-    }
+  ): Tree = {
+    q"""
+       $dstDataset.copyRowFrom($dstRowId, $srcDataset, $srcRowId)
+    """
   }
 
   def mkWriteGroupByFields(query: Query, schema: DatasetSchema, batch: TermName, rowNum: Tree): Seq[Tree] = {
