@@ -171,7 +171,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
       .onCall((_, b, _) =>
         Iterator(
           b.set(Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
-            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), 33.3d)
+            .set(metric(TestTableFields.TEST_FIELD), 33.3d)
             .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
             .set(metric(TestTableFields.TEST_STRING_FIELD), "reply!")
             .buildAndReset()
