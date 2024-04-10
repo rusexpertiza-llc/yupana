@@ -47,7 +47,7 @@ class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext
         batch.foreach { rowNum =>
           val values = fields.map { f =>
             batch.get(rowNum, f.expr) match {
-              case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
+              case t @ Time(_) => new Timestamp(t.millis)
               case Blob(bytes) => bytes
               case x           => x
             }
