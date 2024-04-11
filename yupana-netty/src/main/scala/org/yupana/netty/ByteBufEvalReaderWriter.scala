@@ -209,9 +209,9 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
   }
 
   override def readString(b: ByteBuf, offset: Int): String = {
-    val length = b.readInt()
+    val length = b.getInt(offset)
     val bytes = Array.ofDim[Byte](length)
-    b.getBytes(offset, bytes)
+    b.getBytes(offset + 4, bytes)
     new String(bytes, StandardCharsets.UTF_8)
   }
 
@@ -467,15 +467,14 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
   }
 
   override def readSeq[T: ClassTag](b: ByteBuf, offset: Int, reader: ByteBuf => T): Seq[T] = {
-    val p = b.readerIndex()
-    b.readerIndex(offset)
-    val size = readVInt(b)
+    val slice = b.slice(offset, b.capacity() - offset)
+
+    val size = readVInt(slice)
     val result = ListBuffer.empty[T]
 
     for (_ <- 0 until size) {
-      result += reader(b)
+      result += reader(slice)
     }
-    b.readerIndex(p)
     result.toSeq
   }
 
@@ -489,12 +488,10 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
   override def writeSeq[T](b: ByteBuf, offset: Int, seq: Seq[T], writer: (ByteBuf, T) => Int)(
       implicit ct: ClassTag[T]
   ): Int = {
-    val p = b.writerIndex()
-    b.writerIndex(offset)
-    val s1 = writeVInt(b, offset, seq.size)
-    val s = seq.foldLeft(s1)((s, v) => s + writer(b, v))
-    b.writerIndex(p)
-    s
+    val slice = b.slice(offset, b.capacity() - offset)
+    slice.writerIndex(0)
+    val s1 = writeVInt(slice, seq.size)
+    seq.foldLeft(s1)((s, v) => s + writer(slice, v))
   }
 
   override def readBlob(b: ByteBuf): Blob = {
@@ -505,13 +502,12 @@ object ByteBufEvalReaderWriter extends ByteReaderWriter[ByteBuf] with Serializab
   }
 
   override def readBlob(b: ByteBuf, offset: Int): Blob = {
-    val p = b.readerIndex()
-    b.readerIndex(offset)
-    val size = readVInt(b)
+    val slice = b.slice(offset, b.capacity() - offset)
+    val size = readVInt(slice)
     val data = new Array[Byte](size)
-    b.readBytes(data)
-    b.readerIndex(p)
+    slice.readBytes(data)
     Blob(data)
+
   }
 
   override def writeBlob(b: ByteBuf, v: Blob): Int = {

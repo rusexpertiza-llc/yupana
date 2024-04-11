@@ -203,7 +203,7 @@ lazy val netty = (project in file("yupana-netty"))
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, core, protocol)
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", protocol)
 
 lazy val postgres = (project in file("yupana-postgres"))
   .settings(

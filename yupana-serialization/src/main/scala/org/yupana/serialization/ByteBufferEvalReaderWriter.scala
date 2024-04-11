@@ -211,9 +211,9 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
   }
 
   override def readString(b: ByteBuffer, offset: Int): String = {
-    val length = b.getInt()
+    val length = b.getInt(offset)
     val bytes = Array.ofDim[Byte](length)
-    b.get(offset, bytes)
+    b.get(offset + 4, bytes)
     new String(bytes, StandardCharsets.UTF_8)
   }
 
@@ -493,7 +493,7 @@ object ByteBufferEvalReaderWriter extends ByteReaderWriter[ByteBuffer] with Seri
   ): Int = {
     val p = b.position()
     b.position(offset)
-    val s1 = writeVInt(b, offset, seq.size)
+    val s1 = writeVInt(b, seq.size)
     val s = seq.foldLeft(s1)((s, v) => s + writer(b, v))
     b.position(p)
     s
