@@ -38,6 +38,7 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
     assert(b.getInt(offset) == 1)
     b.getBoolean(offset + 4)
   }
+
   override def writeBoolean(b: ByteBuf, v: Boolean): Int = {
     b.writeInt(1)
     b.writeBoolean(v)
@@ -124,14 +125,15 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   override def writeDouble(b: ByteBuf, v: Double): Int = {
     b.writeInt(8)
     b.writeDouble(v)
-    8
+    12
   }
 
   override def writeDouble(b: ByteBuf, offset: Int, v: Double): Int = {
-    b.setDouble(offset, 8)
+    b.setInt(offset, 8)
     b.setDouble(offset + 4, v)
-    8
+    12
   }
+
   override def readShort(b: ByteBuf): Short = {
     assert(b.readInt() == 2)
     b.readShort()
@@ -145,13 +147,13 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   override def writeShort(b: ByteBuf, v: Short): Int = {
     b.writeInt(2)
     b.writeShort(v)
-    2
+    6
   }
 
   override def writeShort(b: ByteBuf, offset: Int, v: Short): Int = {
     b.setInt(offset, 2)
     b.setShort(offset + 4, v)
-    2
+    6
   }
 
   override def readByte(b: ByteBuf): Byte = {
