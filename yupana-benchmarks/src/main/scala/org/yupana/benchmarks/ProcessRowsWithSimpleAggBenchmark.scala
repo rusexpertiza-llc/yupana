@@ -53,11 +53,8 @@ class TsdbBaseBenchmarkStateSimpleAgg extends TsdbBaseBenchmarkStateBase {
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
-//      truncDay(time) as "day",
       divInt(dimension(Dimensions.KKM_ID), const(1000)) as "half_of_kkm",
       sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
-//      min(metric(ItemTableMetrics.quantityField)) as "total_quantity",
-//      max(metric(ItemTableMetrics.quantityField)) as "total_quantity",
       sum(ItemTableMetrics.sumField) as "sum_sum"
     ),
     filter = None,
@@ -65,7 +62,6 @@ class TsdbBaseBenchmarkStateSimpleAgg extends TsdbBaseBenchmarkStateBase {
   )
 
   override val daoExprs: Seq[Expression[_]] = Seq(
-//    time,
     dimension(Dimensions.KKM_ID),
     metric(ItemTableMetrics.quantityField),
     metric(ItemTableMetrics.sumField)

@@ -375,7 +375,7 @@ lazy val khipuExamples = (project in file("yupana-khipu-examples"))
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings, noPublishSettings)
-  .dependsOn(core % "compile->test", api, schema) //, hbase, hbase % "compile->test")
+  .dependsOn(core % "compile->test", api, schema, externalLinks, hbase, hbase % "compile->test")
   .settings(
     name := "yupana-benchmarks",
     libraryDependencies ++= Seq(

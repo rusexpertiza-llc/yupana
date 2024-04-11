@@ -50,15 +50,6 @@ class ProcessRowsWithAggBenchmark {
     }
 
     mc.finish()
-
-//        mc.allMetrics.sortBy(_.name).foreach { metric =>
-//          println(
-//            s"${mc.fullId}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
-//          )
-//        }
-//        println(
-//          s"${mc.fullId}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultDuration)}; meta: ${mc.meta}"
-//        )
     i
   }
 }

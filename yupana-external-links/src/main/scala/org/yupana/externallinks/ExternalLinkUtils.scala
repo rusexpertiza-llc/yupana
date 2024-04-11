@@ -175,7 +175,6 @@ object ExternalLinkUtils {
 
   def setLinkedValuesTimeSensitive[R](
       externalLink: ExternalLink.Aux[R],
-      exprIndex: scala.collection.Map[Expression[_], Int],
       batch: BatchDataset,
       linkExprs: Set[LinkExpr[_]],
       fieldValuesForDimValues: (Set[String], Set[R], Time, Time) => Map[R, Array[TimeSensitiveFieldValues]]
@@ -183,8 +182,8 @@ object ExternalLinkUtils {
 
     val dimExpr = DimensionExpr(externalLink.dimension.aux)
     val fields = linkExprs.map(_.linkField.name)
-    val dimIdIdx = exprIndex(dimExpr)
-    val timeIdx = exprIndex(TimeExpr)
+    val dimIdIdx = batch.schema.fieldIndex(dimExpr)
+    val timeIdx = batch.schema.fieldIndex(TimeExpr)
 
     implicit val internalStorable: InternalStorable[R] = externalLink.dimension.dataType.internalStorable
 
@@ -237,7 +236,7 @@ object ExternalLinkUtils {
     val (dimValues, from, to) = getDimValuesAndPeriod
 
     val allFieldsValues = fieldValuesForDimValues(fields, dimValues, from, to)
-    val linkExprsIdx = linkExprs.toSeq.map(e => e -> exprIndex(e))
+    val linkExprsIdx = linkExprs.toSeq.map(e => e -> batch.schema.fieldIndex(e))
 
     batch.foreach { rowNum =>
       val dimId = batch.get[R](rowNum, dimIdIdx)

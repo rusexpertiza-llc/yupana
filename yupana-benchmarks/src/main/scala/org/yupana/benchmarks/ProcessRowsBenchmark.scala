@@ -45,16 +45,6 @@ class ProcessRowsBenchmark {
     }
     res.close()
     mc.finish()
-
-//    mc.allMetrics.sortBy(_.name).foreach { metric =>
-//      println(
-//        s"${mc.fullId}; stage: ${metric.name}; time: ${formatNanoTime(metric.time)}; count: ${metric.count}"
-//      )
-//    }
-//    println(
-//      s"${mc.fullId}; operation: ${mc.operationName} finished; time: ${formatNanoTime(mc.resultDuration)}; meta: ${mc.meta}"
-//    )
-
     i
   }
 
@@ -68,18 +58,13 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
       time as "time",
-//      truncDay(time) as "day",
-//      dimension(Dimensions.ITEM) as "item",
-//      plus(dimension(Dimensions.KKM_ID), const(2)) as "plus_to_kkm",
+      truncDay(time) as "day",
+      dimension(Dimensions.ITEM) as "item",
       divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
-//      metric(ItemTableMetrics.quantityField) as "quantity",
-//      metric(ItemTableMetrics.sumField) as "sum",
-      plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt"
-//      plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1))) as "sum",
-//      bigDecimal2Double(plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1)))) as "ds2",
-//      plus(bigDecimal2Double(metric(ItemTableMetrics.sumField)), const(1.1d)) as "ds",
-//      divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))) as "price"
-//      divFrac(bigDecimal2Double(metric(ItemTableMetrics.sumField)), metric(ItemTableMetrics.quantityField)) as "price"
+      metric(ItemTableMetrics.quantityField) as "quantity",
+      metric(ItemTableMetrics.sumField) as "sum",
+      plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt",
+      plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1))) as "sum"
     ),
     filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
     groupBy = Seq.empty
@@ -88,9 +73,9 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
   val daoExprs: Seq[Expression[_]] =
     Seq(
       time,
-//      dimension(Dimensions.ITEM),
+      dimension(Dimensions.ITEM),
       metric(ItemTableMetrics.quantityField),
-//      metric(ItemTableMetrics.sumField),
+      metric(ItemTableMetrics.sumField),
       dimension(Dimensions.KKM_ID)
     )
 }
