@@ -71,7 +71,7 @@ lazy val protocol = (project in file("yupana-protocol"))
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test
     )
   )
-  .dependsOn(api, serialization)
+  .dependsOn(api)
   .disablePlugins(AssemblyPlugin)
 
 lazy val jdbc = (project in file("yupana-jdbc"))

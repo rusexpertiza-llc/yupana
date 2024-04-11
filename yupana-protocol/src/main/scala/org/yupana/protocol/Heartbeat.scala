@@ -16,8 +16,6 @@
 
 package org.yupana.protocol
 
-import org.yupana.serialization.ReadWrite
-
 /** Keep alive message from client to server */
 case class Heartbeat(time: Int) extends Command[Heartbeat](Heartbeat)
 

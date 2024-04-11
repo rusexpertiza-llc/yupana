@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.serialization
+package org.yupana.protocol
 
 import org.yupana.api.types.ByteReaderWriter
 

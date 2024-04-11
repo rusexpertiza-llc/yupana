@@ -16,8 +16,6 @@
 
 package org.yupana.protocol
 
-import org.yupana.serialization.ReadWrite
-
 /** Cancels query execution without reading to the end. */
 case class Cancel(id: Int) extends Command[Cancel](Cancel)
 

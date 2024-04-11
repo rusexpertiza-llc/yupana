@@ -15,20 +15,14 @@
  */
 
 package org.yupana.postgres.protocol
+
 import io.netty.buffer.ByteBuf
 import org.yupana.postgres.NettyUtils
-//import org.yupana.serialization.Write
-//import org.yupana.serialization.Write.const
 
 import java.nio.charset.Charset
 
 case class ErrorResponse(message: String) extends TaggedServerMessage {
   override val tag: Byte = 'E'
-
-//  val write: Write[ErrorResponse] =
-//    const[Byte]('S') ~> const[String]("ERROR") ~> const[Byte]('M') ~> Write[String].map[ErrorResponse](
-//      _.message
-//    ) <~ const[Byte](0)
 
   override def writePayload(buf: ByteBuf, charset: Charset): Unit = {
     buf.writeByte('S')

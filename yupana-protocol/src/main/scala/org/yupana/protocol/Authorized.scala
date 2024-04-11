@@ -16,8 +16,6 @@
 
 package org.yupana.protocol
 
-import org.yupana.serialization.ReadWrite
-
 /** Server response when the authorization was succeed */
 case class Authorized() extends Response[Authorized](Authorized)
 

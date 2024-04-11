@@ -16,8 +16,6 @@
 
 package org.yupana.protocol
 
-import org.yupana.serialization.ReadWrite
-
 /**
   * Field definition
   *

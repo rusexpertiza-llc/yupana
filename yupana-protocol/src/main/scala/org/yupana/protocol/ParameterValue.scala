@@ -17,7 +17,6 @@
 package org.yupana.protocol
 
 import org.yupana.api.types.ByteReaderWriter
-import org.yupana.serialization.ReadWrite
 
 sealed trait ParameterValue
 
