@@ -46,6 +46,10 @@ trait StorableTestBase
 
     "Serialization" should "preserve doubles on write read cycle" in readWriteTest[Double]
 
+    it should "preserve Bytes on write read cycle" in readWriteTest[Byte]
+
+    it should "preserve Shorts on write read cycle" in readWriteTest[Short]
+
     it should "preserve Ints on write read cycle" in readWriteTest[Int]
 
     it should "preserve Longs on write read cycle" in readWriteTest[Long]
@@ -63,6 +67,28 @@ trait StorableTestBase
     it should "preserve sequences of String on read write cycle" in readWriteTest[Seq[String]]
 
     it should "preserve BLOBs on read write cycle" in readWriteTest[Blob]
+
+    def readWriteTest[T: Storable: Arbitrary] = {
+      val storable = implicitly[Storable[T]]
+
+      forAll { t: T =>
+        val bb = bufUtils.createBuffer(65535)
+        val posBeforeWrite = bufUtils.position(bb)
+        val actualSize = storable.write(bb, t: ID[T])
+        val posAfterWrite = bufUtils.position(bb)
+        val expectedSize = posAfterWrite - posBeforeWrite
+        expectedSize shouldEqual actualSize
+        bufUtils.rewind(bb)
+        storable.read(bb) shouldEqual t
+
+        storable.write(bb, 1000, t: ID[T]) shouldEqual expectedSize
+        storable.read(bb, 1000) shouldEqual t
+      }
+    }
+  }
+
+  def compactTest[B](readerWriter: ReaderWriter[B, ID, TypedInt], bufUtils: BufUtils[B]): Unit = {
+    implicit val rw: ReaderWriter[B, ID, TypedInt] = readerWriter
 
     it should "compact numbers" in {
       val storable = implicitly[Storable[Long]]
@@ -102,24 +128,6 @@ trait StorableTestBase
       longStorable.write(bb, 3000000000L: ID[Long])
       bufUtils.rewind(bb)
       an[IllegalArgumentException] should be thrownBy intStorable.read(bb)
-    }
-
-    def readWriteTest[T: Storable: Arbitrary] = {
-      val storable = implicitly[Storable[T]]
-
-      forAll { t: T =>
-        val bb = bufUtils.createBuffer(65535)
-        val posBeforeWrite = bufUtils.position(bb)
-        val actualSize = storable.write(bb, t: ID[T])
-        val posAfterWrite = bufUtils.position(bb)
-        val expectedSize = posAfterWrite - posBeforeWrite
-        expectedSize shouldEqual actualSize
-        bufUtils.rewind(bb)
-        storable.read(bb) shouldEqual t
-
-        storable.write(bb, 1000, t: ID[T]) shouldEqual expectedSize
-        storable.read(bb, 1000) shouldEqual t
-      }
     }
   }
 }

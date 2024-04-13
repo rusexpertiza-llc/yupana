@@ -30,25 +30,25 @@ import scala.reflect.ClassTag
 
 class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
   override def readBoolean(b: ByteBuf): Boolean = {
-    assert(b.readInt() == 1)
+    checkSize(b, 1)
     b.readBoolean()
   }
 
   override def readBoolean(b: ByteBuf, offset: Int): Boolean = {
-    assert(b.getInt(offset) == 1)
+    checkSize(b, offset, 1)
     b.getBoolean(offset + 4)
   }
 
   override def writeBoolean(b: ByteBuf, v: Boolean): Int = {
     b.writeInt(1)
     b.writeBoolean(v)
-    1
+    5
   }
 
   override def writeBoolean(b: ByteBuf, offset: Int, v: Boolean): Int = {
     b.setInt(offset, 1)
     b.setBoolean(offset + 4, v)
-    1
+    5
   }
 
   override def readBytes(b: ByteBuf, d: ID[Array[Byte]]): ID[Unit] = {
@@ -70,55 +70,55 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readInt(b: ByteBuf): Int = {
-    assert(b.readInt() == 4)
+    checkSize(b, 4)
     b.readInt()
   }
 
   override def readInt(b: ByteBuf, offset: Int): Int = {
-    assert(b.getInt(offset) == 4)
+    checkSize(b, offset, 4)
     b.getInt(offset + 4)
   }
 
   override def writeInt(b: ByteBuf, v: Int): Int = {
     b.writeInt(4)
     b.writeInt(v)
-    4
+    8
   }
 
   override def writeInt(b: ByteBuf, offset: Int, v: Int): Int = {
     b.setInt(offset, 4)
     b.setInt(offset + 4, v)
-    4
+    8
   }
   override def readLong(b: ByteBuf): Long = {
-    assert(b.readInt() == 8)
+    checkSize(b, 8)
     b.readLong()
   }
 
   override def readLong(b: ByteBuf, offset: Int): Long = {
-    assert(b.getInt(offset) == 8)
+    checkSize(b, offset, 8)
     b.getLong(offset + 4)
   }
 
   override def writeLong(b: ByteBuf, v: Long): Int = {
     b.writeInt(8)
     b.writeLong(v)
-    8
+    12
   }
 
   override def writeLong(b: ByteBuf, offset: Int, v: Long): Int = {
     b.setInt(offset, 8)
     b.setLong(offset + 4, v)
-    8
+    12
   }
 
   override def readDouble(b: ByteBuf): Double = {
-    assert(b.readInt() == 8)
+    checkSize(b, 8)
     b.readDouble()
   }
 
   override def readDouble(b: ByteBuf, offset: Int): Double = {
-    assert(b.getInt(offset) == 8)
+    checkSize(b, offset, 8)
     b.getDouble(offset + 4)
   }
 
@@ -135,12 +135,12 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readShort(b: ByteBuf): Short = {
-    assert(b.readInt() == 2)
+    checkSize(b, 2)
     b.readShort()
   }
 
   override def readShort(b: ByteBuf, offset: Int): Short = {
-    assert(b.getShort(offset) == 2)
+    checkSize(b, offset, 2)
     b.getShort(offset + 4)
   }
 
@@ -157,12 +157,11 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readByte(b: ByteBuf): Byte = {
-    assert(b.readInt() == 1)
-    b.readByte()
+    readNumeric(b).byteValue()
   }
 
   override def readByte(b: ByteBuf, offset: Int): Byte = {
-    readNumeric(b).byteValue()
+    readNumeric(b, offset).byteValue()
   }
 
   override def writeByte(b: ByteBuf, v: Byte): Int = {
@@ -170,33 +169,45 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def writeByte(b: ByteBuf, offset: Int, v: Byte): Int = {
-    b.setInt(offset, 1)
-    b.setByte(offset + 4, v)
-    1
+    writeNumeric(b, offset, JBigDecimal.valueOf(v))
+  }
+
+  private def doubleToTime(dbl: Double): Time = {
+    val secs = dbl.toLong
+    val millis = ((dbl - secs) * 1000).toLong
+
+    println(s"DTT SEC: $secs millis=$millis")
+
+    Time(secs + PostgresBinaryReaderWriter.PG_EPOCH_DIFF + millis)
+  }
+
+  private def timeToDouble(v: Time): Double = {
+    val sec = v.millis / 1000
+    val nanos = (v.millis - sec * 1000).toDouble / 1000
+
+    println(s"TTD SEC: $sec nanos=$nanos")
+
+    (sec - PostgresBinaryReaderWriter.PG_EPOCH_DIFF).toDouble + nanos
   }
 
   override def readTime(b: ByteBuf): Time = {
     val dbl = java.lang.Double.longBitsToDouble(readLong(b))
-    val secs = dbl.toLong
-    val millis = ((dbl - secs) * 1000).toLong
-    Time(secs + PostgresBinaryReaderWriter.PG_EPOCH_DIFF + millis)
+    doubleToTime(dbl)
   }
 
   override def readTime(b: ByteBuf, offset: Int): Time = {
-    ???
+    val dbl = java.lang.Double.longBitsToDouble(readLong(b, offset))
+    doubleToTime(dbl)
   }
 
   override def writeTime(b: ByteBuf, v: Time): Int = {
-
-    val sec = v.millis / 1000
-    val nanos = (v.millis - sec * 1000).toDouble / 1000
-    val value = (sec - PostgresBinaryReaderWriter.PG_EPOCH_DIFF).toDouble + nanos
+    val value = timeToDouble(v)
     writeLong(b, java.lang.Double.doubleToLongBits(value))
   }
 
   override def writeTime(b: ByteBuf, offset: Int, v: Time): Int = {
-    b.setLong(offset, v.millis)
-    8
+    val value = timeToDouble(v)
+    writeLong(b, offset, java.lang.Double.doubleToLongBits(value))
   }
 
   override def readTuple[T, U](b: ByteBuf, tReader: ByteBuf => T, uReader: ByteBuf => U): (T, U) = {
@@ -240,9 +251,9 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readString(b: ByteBuf, offset: Int): String = {
-    val length = b.readInt()
+    val length = b.getInt(offset)
     val bytes = Array.ofDim[Byte](length)
-    b.getBytes(offset, bytes)
+    b.getBytes(offset + 4, bytes)
     new String(bytes, charset)
   }
 
@@ -307,23 +318,23 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readBigDecimal(b: ByteBuf): BigDecimal = {
-    PostgresBinaryReaderWriter.readNumeric(b)
+    readNumeric(b)
   }
 
   override def readBigDecimal(b: ByteBuf, offset: Int): BigDecimal = {
-    ???
+    readNumeric(b, offset)
   }
 
   override def writeBigDecimal(b: ByteBuf, v: BigDecimal): Int = {
-    PostgresBinaryReaderWriter.writeNumeric(b, v.underlying())
+    writeNumeric(b, v.underlying())
   }
 
   override def writeBigDecimal(b: ByteBuf, offset: Int, v: BigDecimal): Int = {
-    ???
+    writeNumeric(b, offset, v.underlying())
   }
 
   override def readSeq[T: ClassTag](b: ByteBuf, reader: ByteBuf => T): Seq[T] = {
-    val size = readVInt(b)
+    val size = b.readInt()
     val result = ListBuffer.empty[T]
 
     for (_ <- 0 until size) {
@@ -334,34 +345,30 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   }
 
   override def readSeq[T: ClassTag](b: ByteBuf, offset: Int, reader: ByteBuf => T): Seq[T] = {
-    val p = b.readerIndex()
-    b.readerIndex(offset)
-    val size = readVInt(b)
+    val slice = b.slice(offset, b.capacity() - offset)
+    val size = slice.readInt()
     val result = ListBuffer.empty[T]
 
     for (_ <- 0 until size) {
-      result += reader(b)
+      result += reader(slice)
     }
-    b.readerIndex(p)
     result.toSeq
   }
 
   override def writeSeq[T](b: ByteBuf, seq: Seq[T], writer: (ByteBuf, T) => Int)(
       implicit ct: ClassTag[T]
   ): Int = {
-    val s1 = writeVInt(b, seq.size)
-    seq.foldLeft(s1)((s, v) => s + writer(b, v))
+    b.writeInt(seq.size)
+    seq.foldLeft(4)((s, v) => s + writer(b, v))
   }
 
   override def writeSeq[T](b: ByteBuf, offset: Int, seq: Seq[T], writer: (ByteBuf, T) => Int)(
       implicit ct: ClassTag[T]
   ): Int = {
-    val p = b.writerIndex()
-    b.writerIndex(offset)
-    val s1 = writeVInt(b, offset, seq.size)
-    val s = seq.foldLeft(s1)((s, v) => s + writer(b, v))
-    b.writerIndex(p)
-    s
+    val slice = b.slice(offset, b.capacity() - offset)
+    slice.writerIndex(0)
+    slice.writeInt(seq.size)
+    seq.foldLeft(4)((s, v) => s + writer(slice, v))
   }
 
   override def readBlob(b: ByteBuf): Blob = {
@@ -422,6 +429,16 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   override def writePeriodDuration(b: ByteBuf, offset: Int, v: PeriodDuration): Int = {
     writeString(b, offset, v.toString)
   }
+
+  private def checkSize(b: ByteBuf, expected: Int): Unit = {
+    val s = b.readInt()
+    if (s != expected) throw new IllegalArgumentException(s"Expected size $expected, but got $s")
+  }
+
+  private def checkSize(b: ByteBuf, offset: Int, expected: Int): Unit = {
+    val s = b.getInt(offset)
+    if (s != expected) throw new IllegalArgumentException(s"Expected size $expected, but got $s")
+  }
 }
 
 object PostgresBinaryReaderWriter {
@@ -444,9 +461,7 @@ object PostgresBinaryReaderWriter {
     bi(1).intValue
   }
 
-  // This implementation is based on the H2 server:
-  // https://github.com/h2database/h2database/blob/master/h2/src/main/org/h2/server/pg/PgServerThread.java#L761
-  private def writeNumeric(b: ByteBuf, value: JBigDecimal): Int = {
+  private def extractParts(value: JBigDecimal): (Int, Int, Int, ArrayBuffer[Int]) = {
     var weight = 0
     val groups = ArrayBuffer.empty[Int]
     var scale = value.scale
@@ -475,9 +490,18 @@ object PostgresBinaryReaderWriter {
       groups.append(remainder)
       while (unscaled(0).signum != 0) groups.append(divide(unscaled, MAX_GROUP_SIZE))
     }
-    val groupCount = groups.size
-    if (groupCount + weight > Short.MaxValue || scale > Short.MaxValue)
+    if (groups.size + weight > Short.MaxValue || scale > Short.MaxValue)
       throw new IllegalArgumentException(s"Invalid number value ${value.toString}")
+
+    (weight, scale, signum, groups)
+  }
+
+  // This implementation is based on the H2 server:
+  // https://github.com/h2database/h2database/blob/master/h2/src/main/org/h2/server/pg/PgServerThread.java#L761
+  private def writeNumeric(b: ByteBuf, value: JBigDecimal): Int = {
+    val (weight, scale, signum, groups) = extractParts(value)
+    val groupCount = groups.size
+
     b.writeInt(8 + groupCount * 2)
     b.writeShort(groupCount)
     b.writeShort(groupCount + weight)
@@ -488,6 +512,27 @@ object PostgresBinaryReaderWriter {
     b.writeShort(scale)
     for (i <- groupCount - 1 to 0 by -1) {
       b.writeShort(groups(i))
+    }
+
+    4 + 2 + 2 + 2 + 2 + groupCount * 2
+  }
+
+  private def writeNumeric(b: ByteBuf, offset: Int, value: JBigDecimal): Int = {
+
+    val (weight, scale, signum, groups) = extractParts(value)
+    val groupCount = groups.size
+
+    b.setInt(offset, 8 + groupCount * 2)
+    b.setShort(offset + 4, groupCount)
+    b.setShort(offset + 6, groupCount + weight)
+    b.setShort(
+      offset + 8,
+      if (signum < 0) NUMERIC_NEGATIVE
+      else NUMERIC_POSITIVE
+    )
+    b.setShort(offset + 10, scale)
+    for (i <- 0 until groupCount) {
+      b.setShort(offset + 12 + i * 2, groups(groupCount - i - 1))
     }
 
     4 + 2 + 2 + 2 + 2 + groupCount * 2
@@ -511,8 +556,37 @@ object PostgresBinaryReaderWriter {
       else new JBigDecimal(BigInteger.ZERO, scale)
     } else {
       var n = BigInteger.ZERO
-      for (i <- 0 until len) {
+      for (_ <- 0 until len) {
         val c = b.readShort()
+        if (c < 0 || c > 9_999) throw new IllegalArgumentException(s"Incorrect chunk $c")
+        n = n.multiply(NUMERIC_CHUNK_MULTIPLIER).add(BigInteger.valueOf(c))
+      }
+      if (sign != NUMERIC_POSITIVE) n = n.negate
+
+      new JBigDecimal(n, (len - weight - 1) * 4).setScale(scale)
+    }
+  }
+
+  private def readNumeric(b: ByteBuf, offset: Int): JBigDecimal = {
+    val size = b.getInt(offset)
+    if (size < 8) throw new IllegalArgumentException(s"DECIMAL size is to small, $size")
+
+    val len = b.getShort(offset + 4)
+    val weight = b.getShort(offset + 6)
+    val sign = b.getShort(offset + 8)
+    val scale = b.getShort(offset + 10)
+    if (len * 2 + 8 != size) throw new IllegalArgumentException(s"DECIMAL size is incorrect, ${len * 2 + 8} != $size")
+    if (sign == NUMERIC_NAN) throw new IllegalArgumentException("DECIMAL cannot be NaN")
+    if (sign != NUMERIC_POSITIVE && sign != NUMERIC_NEGATIVE)
+      throw new IllegalArgumentException(s"Invalid sign, $sign")
+    if ((scale & 0x3FFF) != scale) throw throw new IllegalArgumentException(s"Invalid scale, $scale")
+    if (len == 0) {
+      if (scale == 0) JBigDecimal.ZERO
+      else new JBigDecimal(BigInteger.ZERO, scale)
+    } else {
+      var n = BigInteger.ZERO
+      for (i <- 0 until len) {
+        val c = b.getShort(offset + 12 + i * 2)
         if (c < 0 || c > 9_999) throw new IllegalArgumentException(s"Incorrect chunk $c")
         n = n.multiply(NUMERIC_CHUNK_MULTIPLIER).add(BigInteger.valueOf(c))
       }

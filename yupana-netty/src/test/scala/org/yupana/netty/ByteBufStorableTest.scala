@@ -13,4 +13,5 @@ class ByteBufStorableTest extends StorableTestBase {
 
   "ByteBuf" should behave like storableTest(ByteBufEvalReaderWriter, byteBufUtils)
 
+  it should behave like compactTest(ByteBufEvalReaderWriter, byteBufUtils)
 }
