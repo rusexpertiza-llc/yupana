@@ -19,9 +19,9 @@ package org.yupana.etl
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
-import org.yupana.hbase.{ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers}
+import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{Dimensions, ItemDimension}
+import org.yupana.schema.{ Dimensions, ItemDimension }
 
 trait EtlHBaseContext extends Serializable {
   def tsdb: TSDB
