@@ -38,13 +38,11 @@ import org.yupana.hbase.TSDBHBase
  * limitations under the License.
  */
 
-class EtlSparkHBaseContext(cfg: EtlSparkHBaseConfig, schema: Schema)
-    extends EtlHBaseContext(cfg, schema)
-    with Serializable {
+class EtlSparkHBaseContext(cfg: EtlSparkHBaseConfig, schema: Schema) extends EtlHBaseContext with Serializable {
 
   private def initTsdb: TSDB = {
     val tsdb = TSDBHBase(cfg.tsdbConfig, schema, identity[Query] _, None)
-    setup(tsdb)
+    EtlHBaseContext.createAndRegisterInvertedIndex(tsdb, cfg, schema)
     EtlSparkHBaseContext.tsdb = Some(tsdb)
     tsdb
   }

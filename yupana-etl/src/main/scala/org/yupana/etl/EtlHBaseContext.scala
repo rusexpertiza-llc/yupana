@@ -19,13 +19,17 @@ package org.yupana.etl
 import org.yupana.api.schema.Schema
 import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
-import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers }
+import org.yupana.hbase.{ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers}
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.yupana.schema.{Dimensions, ItemDimension}
 
-abstract class EtlHBaseContext(val cfg: EtlHbaseConfig, schema: Schema) extends Serializable {
+trait EtlHBaseContext extends Serializable {
+  def tsdb: TSDB
+}
 
-  def setup(tsdbInstance: TSDB): Unit = {
+object EtlHBaseContext {
+
+  def createAndRegisterInvertedIndex(tsdb: TSDB, cfg: EtlHbaseConfig, schema: Schema): Unit = {
     val hBaseConnection =
       new ExternalLinkHBaseConnection(cfg.tsdbConfig.hBaseConfiguration, cfg.tsdbConfig.hbaseNamespace)
     val invertedIndexDao = new InvertedIndexDaoHBase[String, ItemDimension.KeyType](
@@ -42,8 +46,6 @@ abstract class EtlHBaseContext(val cfg: EtlHbaseConfig, schema: Schema) extends 
       cfg.putIntoInvertedIndex,
       ItemsInvertedIndex
     )
-    tsdbInstance.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
+    tsdb.registerExternalLink(ItemsInvertedIndex, itemsInvertedIndex)
   }
-
-  def tsdb: TSDB
 }
