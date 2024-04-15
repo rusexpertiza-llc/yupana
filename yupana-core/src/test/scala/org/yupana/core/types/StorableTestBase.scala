@@ -21,7 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.types.{ ID, ReaderWriter, Storable, TypedInt }
+import org.yupana.api.types.{ ID, ReaderWriter, Storable, StringReaderWriter, TypedInt }
 import org.yupana.api.{ Blob, Time }
 
 import java.time.{ LocalDateTime, ZoneOffset }
@@ -136,6 +136,35 @@ trait StorableTestBase
       longStorable.write(bb, 3000000000L: ID[Long])
       bufUtils.rewind(bb)
       an[IllegalArgumentException] should be thrownBy intStorable.read(bb)
+    }
+  }
+
+  def stringStorageTest(stringReaderWriter: StringReaderWriter): Unit = {
+    implicit val srw = stringReaderWriter
+
+    "StringSerialization" should "preserve Booleans on write read cycle" in readWriteTest[Boolean]
+
+    it should "preserve Strings on write read cycle" in readWriteTest[String]
+
+    it should "preserve Bytes on write read cycle" in readWriteTest[Byte]
+    it should "preserve Shorts on write read cycle" in readWriteTest[Short]
+    it should "preserve Ints on write read cycle" in readWriteTest[Int]
+    it should "preserve Longs on write read cycle" in readWriteTest[Long]
+
+    it should "preserve Doubles on write read cycle" in readWriteTest[Double]
+    it should "preserve BigDecimals on write read cycle" in readWriteTest[BigDecimal]
+
+    it should "preserve Time on write read cycle" in readWriteTest[Time]
+
+    def readWriteTest[T: Storable: Arbitrary] = {
+      val storable = implicitly[Storable[T]]
+
+      forAll { t: T =>
+        val str = storable.writeString(t)
+        val restored = storable.readString(str)
+
+        restored shouldEqual t
+      }
     }
   }
 }

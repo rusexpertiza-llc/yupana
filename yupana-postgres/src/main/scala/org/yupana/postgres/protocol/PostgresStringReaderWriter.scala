@@ -17,15 +17,15 @@
 package org.yupana.postgres.protocol
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
 import org.yupana.api.types.StringReaderWriter
+import org.yupana.api.{ Blob, Time }
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 object PostgresStringReaderWriter extends StringReaderWriter {
 
-  private val dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssx")
+  private val dtf = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSS")
 
   override def readBoolean(s: String): Boolean =
     if (s == "t") true else if (s == "f") false else throw new IllegalArgumentException(s"Invalid boolean value $s")

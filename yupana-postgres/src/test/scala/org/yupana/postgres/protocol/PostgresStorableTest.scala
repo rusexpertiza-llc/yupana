@@ -14,4 +14,6 @@ class PostgresStorableTest extends StorableTestBase {
   }
 
   "Postgres" should behave like storableTest(new PostgresBinaryReaderWriter(StandardCharsets.UTF_8), byteBufUtils)
+
+  it should behave like stringStorageTest(PostgresStringReaderWriter)
 }
