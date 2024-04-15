@@ -20,7 +20,7 @@ import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
 import org.yupana.api.{ Blob, Time }
-import org.yupana.postgres.protocol.PostgresBinaryReaderWriter.{ readNumeric, writeNumeric }
+import org.yupana.postgres.protocol.PostgresBinaryReaderWriter.{ PG_EPOCH_DIFF, readNumeric, writeNumeric }
 
 import java.math.{ BigInteger, BigDecimal => JBigDecimal }
 import java.nio.charset.Charset
@@ -172,22 +172,16 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
     writeNumeric(b, offset, JBigDecimal.valueOf(v))
   }
 
-  private def doubleToTime(dbl: Double): Time = {
-    val secs = dbl.toLong
-    val millis = ((dbl - secs) * 1000).toLong
-
-    println(s"DTT SEC: $secs millis=$millis")
-
-    Time(secs + PostgresBinaryReaderWriter.PG_EPOCH_DIFF + millis)
+  def doubleToTime(dbl: Double): Time = {
+    val secs = dbl + PG_EPOCH_DIFF
+    val millis = math.round((secs % 1) * 1_000)
+    Time(secs.toLong * 1000 + millis)
   }
 
-  private def timeToDouble(v: Time): Double = {
+  def timeToDouble(v: Time): Double = {
     val sec = v.millis / 1000
-    val nanos = (v.millis - sec * 1000).toDouble / 1000
-
-    println(s"TTD SEC: $sec nanos=$nanos")
-
-    (sec - PostgresBinaryReaderWriter.PG_EPOCH_DIFF).toDouble + nanos
+    val nanos = (v.millis % 1000).toDouble * 1_000_000
+    (sec - PostgresBinaryReaderWriter.PG_EPOCH_DIFF).toDouble + nanos / 1_000_000_000
   }
 
   override def readTime(b: ByteBuf): Time = {

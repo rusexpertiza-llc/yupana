@@ -16,13 +16,15 @@
 
 package org.yupana.core.types
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.{ Arbitrary, Gen }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.types.{ ID, ReaderWriter, Storable, TypedInt }
 import org.yupana.api.{ Blob, Time }
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 trait StorableTestBase
     extends AnyFlatSpec
@@ -36,7 +38,13 @@ trait StorableTestBase
     def rewind(bb: B): Unit
   }
 
-  implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
+  implicit private val genTime: Arbitrary[Time] = Arbitrary(timeGen)
+
+  private def timeGen: Gen[Time] = {
+    val minTime = LocalDateTime.of(-5000, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
+    val maxTime = LocalDateTime.of(5000, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
+    Gen.choose(minTime, maxTime).map(Time.apply)
+  }
 
   implicit private val genBlob: Arbitrary[Blob] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(Blob.apply))
 
