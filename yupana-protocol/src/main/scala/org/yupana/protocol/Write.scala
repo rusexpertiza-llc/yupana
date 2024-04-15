@@ -32,12 +32,6 @@ object Write {
 
   def apply[T](implicit ev: Write[T]): Write[T] = ev
 
-  def const[T](c: T)(implicit cw: Write[T]): Write[Unit] = new Write[Unit] {
-    override def write[B: ByteReaderWriter](buf: B, t: Unit): Unit = {
-      cw.write(buf, c)
-    }
-  }
-
   def product2[T, F1, F2](from: T => (F1, F2))(implicit wf1: Write[F1], wf2: Write[F2]): Write[T] = new Write[T] {
     override def write[B: ByteReaderWriter](buf: B, t: T): Unit = {
       val (f1, f2) = from(t)
