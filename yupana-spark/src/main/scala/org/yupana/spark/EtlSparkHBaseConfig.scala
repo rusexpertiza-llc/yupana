@@ -19,8 +19,7 @@ package org.yupana.spark
 import org.apache.spark.SparkConf
 import org.yupana.etl.EtlHbaseConfig
 
-class EtlSparkHBaseConfig(sparkConf: SparkConf)
-    extends EtlHbaseConfig(
-      tsdbConfig = new SparkHBaseTsdbConfig(sparkConf),
-      putIntoInvertedIndex = sparkConf.getBoolean("tsd.etl.load-inverted-index", defaultValue = false)
-    )
+class EtlSparkHBaseConfig(sparkConf: SparkConf) extends EtlHbaseConfig {
+  override val tsdbConfig: SparkHBaseTsdbConfig = new SparkHBaseTsdbConfig(sparkConf)
+  override val putIntoInvertedIndex: Boolean = sparkConf.getBoolean("tsd.etl.load-inverted-index", defaultValue = false)
+}
