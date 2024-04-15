@@ -25,7 +25,7 @@ import java.time.format.DateTimeFormatter
 
 object PostgresStringReaderWriter extends StringReaderWriter {
 
-  private val dtf = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss.SSS")
+  private val dtf = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss[.SSS][x]")
 
   override def readBoolean(s: String): Boolean =
     if (s == "t") true else if (s == "f") false else throw new IllegalArgumentException(s"Invalid boolean value $s")
