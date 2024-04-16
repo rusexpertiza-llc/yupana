@@ -223,11 +223,11 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     writeTuple(bb, v, tWrite, uWrite)
   }
 
-  override def sizeOfTuple2[T, U](v: (T, U), tSize: ID[T] => Int, uSize: ID[U] => Int): Int = {
+  override def sizeOfTupleSizeSpecified[T, U](v: (T, U), tSize: ID[T] => Int, uSize: ID[U] => Int): Int = {
     4 + tSize(v._1) + 4 + uSize(v._2)
   }
 
-  override def readTuple2[T, U](
+  override def readTupleSizeSpecified[T, U](
       b: MemoryBuffer,
       tReader: (MemoryBuffer, Int) => ID[T],
       uReader: (MemoryBuffer, Int) => ID[U]
@@ -239,7 +239,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     (t, u)
   }
 
-  override def readTuple2[T, U](
+  override def readTupleSizeSpecified[T, U](
       b: MemoryBuffer,
       offset: Int,
       tReader: (MemoryBuffer, Int) => ID[T],
@@ -253,7 +253,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     (t, u)
   }
 
-  override def writeTuple2[T, U](
+  override def writeTupleSizeSpecified[T, U](
       b: MemoryBuffer,
       v: (T, U),
       tWrite: (MemoryBuffer, ID[T]) => Int,
@@ -269,7 +269,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     4 + tSize + 4 + uSize
   }
 
-  override def writeTuple2[T, U](
+  override def writeTupleSizeSpecified[T, U](
       bb: MemoryBuffer,
       offset: Int,
       v: (T, U),
@@ -277,7 +277,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
       uWrite: (MemoryBuffer, ID[U]) => Int
   ): Int = {
     val b = bb.asSlice(offset)
-    writeTuple2(b, v, tWrite, uWrite)
+    writeTupleSizeSpecified(b, v, tWrite, uWrite)
   }
 
   override def sizeOfString(v: String): Int = 4 + v.length
@@ -310,26 +310,26 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     a.length + 4
   }
 
-  override def sizeOfString2(v: String): Int = {
+  override def sizeOfStringSizeSpecified(v: String): Int = {
     v.length * 2
   }
 
-  override def readString2(b: MemoryBuffer, size: Int): ID[String] = {
+  override def readStringSizeSpecified(b: MemoryBuffer, size: Int): ID[String] = {
     new String(b.getChars(size))
   }
 
-  override def readString2(b: MemoryBuffer, offset: Int, size: Int): ID[String] = {
+  override def readStringSizeSpecified(b: MemoryBuffer, offset: Int, size: Int): ID[String] = {
     val chars = b.getChars(offset, size)
     new String(chars)
   }
 
-  override def writeString2(b: MemoryBuffer, v: ID[String]): Int = {
+  override def writeStringSizeSpecified(b: MemoryBuffer, v: ID[String]): Int = {
     val chars = v.toCharArray
     b.putChars(chars)
     v.length * 2
   }
 
-  override def writeString2(b: MemoryBuffer, offset: Int, v: ID[String]): Int = {
+  override def writeStringSizeSpecified(b: MemoryBuffer, offset: Int, v: ID[String]): Int = {
     val chars = v.toCharArray
     b.putChars(offset, chars)
     v.length * 2
@@ -568,13 +568,13 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     s1 + s2 + a.length
   }
 
-  override def sizeOfBigDecimal2(v: BigDecimal): Int = {
+  override def sizeOfBigDecimalSizeSpecified(v: BigDecimal): Int = {
     val u = v.underlying()
     val s = if (u.precision() >= 19) u.unscaledValue().bitLength() / 8 + 1 else 8
     sizeOfInt + s
   }
 
-  override def readBigDecimal2(b: MemoryBuffer, size: Int): BigDecimal = {
+  override def readBigDecimalSizeSpecified(b: MemoryBuffer, size: Int): BigDecimal = {
     val scale = readInt(b)
     if (size <= 12) {
       val unscaledLong = b.getLong()
@@ -586,7 +586,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     }
   }
 
-  override def readBigDecimal2(b: MemoryBuffer, offset: Int, size: Int): BigDecimal = {
+  override def readBigDecimalSizeSpecified(b: MemoryBuffer, offset: Int, size: Int): BigDecimal = {
     val scale = readInt(b, offset)
     if (size <= 12) {
       val unscaledLong = b.getLong(offset + sizeOfInt)
@@ -598,7 +598,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     }
   }
 
-  override def writeBigDecimal2(b: MemoryBuffer, v: BigDecimal): Int = {
+  override def writeBigDecimalSizeSpecified(b: MemoryBuffer, v: BigDecimal): Int = {
 
     val u = v.underlying()
     val s1 = writeInt(b, u.scale())
@@ -614,7 +614,7 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     }
   }
 
-  override def writeBigDecimal2(b: MemoryBuffer, offset: Int, v: BigDecimal): Int = {
+  override def writeBigDecimalSizeSpecified(b: MemoryBuffer, offset: Int, v: BigDecimal): Int = {
     val u = v.underlying()
     val s1 = writeInt(b, offset, u.scale())
     if (u.precision() >= 19 && u.unscaledValue().bitLength() > 63) {
@@ -675,14 +675,14 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     s
   }
 
-  override def sizeOfSeq2[T](v: Seq[T], size: T => Int): Int = {
+  override def sizeOfSeqSizeSpecified[T](v: Seq[T], size: T => Int): Int = {
     val valuesSize = v.foldLeft(4) { (s, vv) =>
       s + size(vv)
     }
     valuesSize + v.size * sizeOfInt
   }
 
-  override def readSeq2[T: ClassTag](b: MemoryBuffer, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
+  override def readSeqSizeSpecified[T: ClassTag](b: MemoryBuffer, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
     val size = readInt(b)
     val result = ListBuffer.empty[T]
 
@@ -694,12 +694,12 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     result.toSeq
   }
 
-  override def readSeq2[T: ClassTag](b: MemoryBuffer, offset: Int, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
+  override def readSeqSizeSpecified[T: ClassTag](b: MemoryBuffer, offset: Int, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
     val bb = b.asSlice(offset)
-    readSeq2(bb, reader)
+    readSeqSizeSpecified(bb, reader)
   }
 
-  override def writeSeq2[T](b: MemoryBuffer, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
+  override def writeSeqSizeSpecified[T](b: MemoryBuffer, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
       implicit ct: ClassTag[T]
   ): Int = {
     val s1 = writeInt(b, seq.size)
@@ -712,11 +712,11 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     }
   }
 
-  override def writeSeq2[T](b: MemoryBuffer, offset: Int, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
+  override def writeSeqSizeSpecified[T](b: MemoryBuffer, offset: Int, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
       implicit ct: ClassTag[T]
   ): Int = {
     val bb = b.asSlice(offset)
-    writeSeq2(bb, seq, writer)
+    writeSeqSizeSpecified(bb, seq, writer)
   }
 
   override def sizeOfBlob(v: Blob): Int = {
@@ -752,28 +752,28 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     s + v.bytes.length
   }
 
-  override def sizeOfBlob2(v: Blob): Int = {
+  override def sizeOfBlobSizeSpecified(v: Blob): Int = {
     v.bytes.length
   }
 
-  override def readBlob2(b: MemoryBuffer, size: Int): ID[Blob] = {
+  override def readBlobSizeSpecified(b: MemoryBuffer, size: Int): ID[Blob] = {
     val data = new Array[Byte](size)
     b.get(data)
     Blob(data)
   }
 
-  override def readBlob2(b: MemoryBuffer, offset: Int, size: Int): ID[Blob] = {
+  override def readBlobSizeSpecified(b: MemoryBuffer, offset: Int, size: Int): ID[Blob] = {
     val data = new Array[Byte](size)
     b.get(offset, data)
     Blob(data)
   }
 
-  override def writeBlob2(b: MemoryBuffer, v: ID[Blob]): Int = {
+  override def writeBlobSizeSpecified(b: MemoryBuffer, v: ID[Blob]): Int = {
     b.put(v.bytes)
     v.bytes.length
   }
 
-  override def writeBlob2(b: MemoryBuffer, offset: Int, v: ID[Blob]): Int = {
+  override def writeBlobSizeSpecified(b: MemoryBuffer, offset: Int, v: ID[Blob]): Int = {
     b.put(offset, v.bytes)
     v.bytes.length
   }

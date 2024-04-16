@@ -32,17 +32,14 @@ object BitSetOps {
   def set(bitset: Array[Long], bitNum: Int): Unit = {
     val index = bitNum / 64
     val bit = bitNum % 64
-    bitset(index) = bitset(index) | (1L << bit)
+    bitset(index) |= (1L << bit)
   }
 
   @ForceInline
   def clear(bitset: Array[Long], bitNum: Int): Unit = {
     val index = bitNum / 64
     val bit = bitNum % 64
-    val old = bitset(index)
-    val mask = 1L << bit
-    if ((old & mask) != 0) {
-      bitset(index) = old ^ mask
-    }
+    val mask = java.lang.Long.rotateLeft(0xfffffffe, bit)
+    bitset(index) &= mask
   }
 }

@@ -109,25 +109,25 @@ object InternalStorable {
     override val isRefType = true
 
     override def size[V[_], S](v: V[BigDecimal])(implicit rw: InternalReaderWriter[_, V, S, _]): S =
-      rw.sizeOfBigDecimal2(v)
+      rw.sizeOfBigDecimalSizeSpecified(v)
 
     override val fixedSize: Option[Int] = None
 
     override def read[B, V[_], S, O](b: B, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[BigDecimal] =
-      rw.readBigDecimal2(b, size)
+      rw.readBigDecimalSizeSpecified(b, size)
 
     override def read[B, V[_], S, O](b: B, offset: O, size: S)(
         implicit rw: InternalReaderWriter[B, V, S, O]
     ): V[BigDecimal] =
-      rw.readBigDecimal2(b, offset, size)
+      rw.readBigDecimalSizeSpecified(b, offset, size)
 
     override def write[B, V[_], S, O](b: B, v: V[BigDecimal])(implicit rw: InternalReaderWriter[B, V, S, O]): S =
-      rw.writeBigDecimal2(b, v)
+      rw.writeBigDecimalSizeSpecified(b, v)
 
     override def write[B, V[_], S, O](b: B, offset: O, v: V[BigDecimal])(
         implicit rw: InternalReaderWriter[B, V, S, O]
     ): S =
-      rw.writeBigDecimal2(b, offset, v)
+      rw.writeBigDecimalSizeSpecified(b, offset, v)
   }
 
   implicit val byteStorable: InternalStorable[Byte] = new InternalStorable[Byte] {
@@ -220,24 +220,24 @@ object InternalStorable {
 
     override val isRefType = true
 
-    override def size[V[_], S](v: V[String])(implicit rw: InternalReaderWriter[_, V, S, _]): S = rw.sizeOfString2(v)
+    override def size[V[_], S](v: V[String])(implicit rw: InternalReaderWriter[_, V, S, _]): S = rw.sizeOfStringSizeSpecified(v)
 
     override val fixedSize: Option[Int] = None
 
     override def read[B, V[_], S, O](b: B, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[String] =
-      rw.readString2(b, size)
+      rw.readStringSizeSpecified(b, size)
 
     override def read[B, V[_], S, O](b: B, offset: O, size: S)(
         implicit rw: InternalReaderWriter[B, V, S, O]
     ): V[String] =
-      rw.readString2(b, offset, size)
+      rw.readStringSizeSpecified(b, offset, size)
 
     override def write[B, V[_], S, O](b: B, v: V[String])(implicit rw: InternalReaderWriter[B, V, S, O]): S =
-      rw.writeString2(b, v)
+      rw.writeStringSizeSpecified(b, v)
 
     override def write[B, V[_], S, O](b: B, offset: O, v: V[String])(
         implicit rw: InternalReaderWriter[B, V, S, O]
-    ): S = rw.writeString2(b, offset, v)
+    ): S = rw.writeStringSizeSpecified(b, offset, v)
   }
 
   implicit val timestampStorable: InternalStorable[Time] = new InternalStorable[Time] {
@@ -296,21 +296,21 @@ object InternalStorable {
 
     override val isRefType = true
 
-    override def size[V[_], S](v: V[Blob])(implicit rw: InternalReaderWriter[_, V, S, _]): S = rw.sizeOfBlob2(v)
+    override def size[V[_], S](v: V[Blob])(implicit rw: InternalReaderWriter[_, V, S, _]): S = rw.sizeOfBlobSizeSpecified(v)
 
     override val fixedSize: Option[Int] = None
 
     override def read[B, V[_], S, O](b: B, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[Blob] =
-      rw.readBlob2(b, size)
+      rw.readBlobSizeSpecified(b, size)
 
     override def read[B, V[_], S, O](b: B, offset: O, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[Blob] =
-      rw.readBlob2(b, offset, size)
+      rw.readBlobSizeSpecified(b, offset, size)
 
     override def write[B, V[_], S, O](b: B, v: V[Blob])(implicit rw: InternalReaderWriter[B, V, S, O]): S =
-      rw.writeBlob2(b, v)
+      rw.writeBlobSizeSpecified(b, v)
 
     override def write[B, V[_], S, O](b: B, offset: O, v: V[Blob])(implicit rw: InternalReaderWriter[B, V, S, O]): S =
-      rw.writeBlob2(b, offset, v)
+      rw.writeBlobSizeSpecified(b, offset, v)
   }
 
   implicit def seqStorable[T](implicit tStorable: InternalStorable[T], ct: ClassTag[T]): InternalStorable[Seq[T]] = {
@@ -319,29 +319,29 @@ object InternalStorable {
       override val isRefType = true
 
       override def size[V[_], S](v: V[Seq[T]])(implicit rw: InternalReaderWriter[_, V, S, _]): S = {
-        rw.sizeOfSeq2(v, (x: V[T]) => tStorable.size(x)(rw))
+        rw.sizeOfSeqSizeSpecified(v, (x: V[T]) => tStorable.size(x)(rw))
       }
 
       override val fixedSize: Option[Int] = None
 
       override def read[B, V[_], S, O](bb: B, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[Seq[T]] = {
-        rw.readSeq2(bb, (b, s) => tStorable.read(b, s)(rw))
+        rw.readSeqSizeSpecified(bb, (b, s) => tStorable.read(b, s)(rw))
       }
 
       override def read[B, V[_], S, O](bb: B, offset: O, size: S)(
           implicit rw: InternalReaderWriter[B, V, S, O]
       ): V[Seq[T]] = {
-        rw.readSeq2(bb, offset, (b, s) => tStorable.read(b, s)(rw))
+        rw.readSeqSizeSpecified(bb, offset, (b, s) => tStorable.read(b, s)(rw))
       }
 
       override def write[B, V[_], S, O](bb: B, v: V[Seq[T]])(implicit rw: InternalReaderWriter[B, V, S, O]): S = {
-        rw.writeSeq2(bb, v, (b, vv: V[T]) => tStorable.write(b, vv)(rw))
+        rw.writeSeqSizeSpecified(bb, v, (b, vv: V[T]) => tStorable.write(b, vv)(rw))
       }
 
       override def write[B, V[_], S, O](bb: B, offset: O, v: V[Seq[T]])(
           implicit rw: InternalReaderWriter[B, V, S, O]
       ): S = {
-        rw.writeSeq2(bb, offset, v, (b, vv: V[T]) => tStorable.write(b, vv)(rw))
+        rw.writeSeqSizeSpecified(bb, offset, v, (b, vv: V[T]) => tStorable.write(b, vv)(rw))
       }
     }
   }
@@ -361,23 +361,23 @@ object InternalStorable {
       override val fixedSize: Option[Int] = tStorable.fixedSize.flatMap(ts => uStorable.fixedSize.map(us => ts + us))
 
       override def read[B, V[_], S, O](bb: B, size: S)(implicit rw: InternalReaderWriter[B, V, S, O]): V[(T, U)] = {
-        rw.readTuple2(bb, (b, s) => tStorable.read(b, s)(rw), (b, s) => uStorable.read(b, s)(rw))
+        rw.readTupleSizeSpecified(bb, (b, s) => tStorable.read(b, s)(rw), (b, s) => uStorable.read(b, s)(rw))
       }
 
       override def read[B, V[_], S, O](bb: B, offset: O, size: S)(
           implicit rw: InternalReaderWriter[B, V, S, O]
       ): V[(T, U)] = {
-        rw.readTuple2(bb, offset, (b, s) => tStorable.read(b, s)(rw), (b, s) => uStorable.read(b, s)(rw))
+        rw.readTupleSizeSpecified(bb, offset, (b, s) => tStorable.read(b, s)(rw), (b, s) => uStorable.read(b, s)(rw))
       }
 
       override def write[B, V[_], S, O](bb: B, v: V[(T, U)])(implicit rw: InternalReaderWriter[B, V, S, O]): S = {
-        rw.writeTuple2(bb, v, (b, v: V[T]) => tStorable.write(b, v)(rw), (b, v: V[U]) => uStorable.write(b, v))
+        rw.writeTupleSizeSpecified(bb, v, (b, v: V[T]) => tStorable.write(b, v)(rw), (b, v: V[U]) => uStorable.write(b, v))
       }
 
       override def write[B, V[_], S, O](bb: B, offset: O, v: V[(T, U)])(
           implicit rw: InternalReaderWriter[B, V, S, O]
       ): S = {
-        rw.writeTuple2(
+        rw.writeTupleSizeSpecified(
           bb,
           offset,
           v,

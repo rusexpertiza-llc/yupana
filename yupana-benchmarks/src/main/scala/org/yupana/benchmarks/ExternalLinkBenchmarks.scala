@@ -105,7 +105,7 @@ class ExternalLinkBenchmarkState {
 
   val dim: RawDimension[Int] = BenchLink.dim
   val dimExpr: DimensionExpr[Int] = DimensionExpr[Int](dim.aux)
-  val table = new SchemaTable(1, "benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
+  val table = new SchemaTable("benchTable", 1L, Seq(dim), Seq.empty, Seq(BenchLink), Tables.epochTime)
   val linkExpr: LinkExpr[String] = LinkExpr(BenchLink, BenchLink.F1)
   val t0: OffsetDateTime = OffsetDateTime.of(2019, 4, 2, 0, 0, 0, 0, ZoneOffset.UTC)
   val t1: OffsetDateTime = t0.plusYears(1)

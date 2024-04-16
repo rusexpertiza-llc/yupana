@@ -34,7 +34,6 @@ object ExampleSchema {
   val SUM = Metric[Long]("sum", 2)
 
   val salesTable = new Table(
-    id = 1,
     name = "sales",
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(CAT, BRAND, DEVICE, OPERATION, POS),

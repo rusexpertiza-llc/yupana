@@ -23,7 +23,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
   val metrics = Seq(METRIC_A, METRIC_B, METRIC_C, METRIC_D)
 
   val table1 = new Table(
-    1,
     name = "table_1",
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
@@ -33,7 +32,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
   )
 
   val table2 = new Table(
-    1,
     name = "table_2",
     rowTimeSpan = 86400000L * 30L,
     dimensionSeq = Seq(DIM_A, DIM_B, DIM_C, DIM_D),
@@ -68,7 +66,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
 
   it should "return check errors" in {
     val significantlyDifferentTable1 = new Table(
-      1,
       name = "table_1",
       rowTimeSpan = 86400000L * 31L,
       dimensionSeq = Seq(DIM_A, DIM_C),
@@ -92,7 +89,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
     val METRIC_B_LOW_PRIORITY = Metric[Long]("metric_b", 2, 2)
 
     val table1WithChangedGroups = new Table(
-      1,
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
@@ -115,7 +111,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
     val METRIC_B_WRONG_TAG = Metric[Long]("metric_b", 20, 2)
 
     val table1WithChangedTag = new Table(
-      1,
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
@@ -136,7 +131,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
 
   it should "return unknown field warning" in {
     val slightlyDifferentTable1 = new Table(
-      1,
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
@@ -158,7 +152,6 @@ class PersistentSchemaCheckerTest extends AnyFlatSpec with Matchers with Inside 
     val NEW_METRIC = Metric[Long]("new_metric", 2, 2)
 
     val table1WithNewMetric = new Table(
-      1,
       name = "table_1",
       rowTimeSpan = 86400000L * 30L,
       dimensionSeq = Seq(DIM_B, DIM_A, DIM_C, DIM_D),
