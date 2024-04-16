@@ -6,7 +6,7 @@ import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.types.{ DataType, ID, ReaderWriter }
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.jdk.CollectionConverters._
 import scala.reflect.api

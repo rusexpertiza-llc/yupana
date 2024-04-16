@@ -18,7 +18,7 @@ import org.yupana.core._
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 

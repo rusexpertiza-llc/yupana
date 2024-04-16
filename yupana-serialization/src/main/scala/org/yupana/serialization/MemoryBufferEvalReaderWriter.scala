@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.readerwriter
+package org.yupana.serialization
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ID, InternalReaderWriter }
@@ -694,7 +694,11 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     result.toSeq
   }
 
-  override def readSeqSizeSpecified[T: ClassTag](b: MemoryBuffer, offset: Int, reader: (MemoryBuffer, Int) => ID[T]): ID[Seq[T]] = {
+  override def readSeqSizeSpecified[T: ClassTag](
+      b: MemoryBuffer,
+      offset: Int,
+      reader: (MemoryBuffer, Int) => ID[T]
+  ): ID[Seq[T]] = {
     val bb = b.asSlice(offset)
     readSeqSizeSpecified(bb, reader)
   }
@@ -712,7 +716,12 @@ object MemoryBufferEvalReaderWriter extends InternalReaderWriter[MemoryBuffer, I
     }
   }
 
-  override def writeSeqSizeSpecified[T](b: MemoryBuffer, offset: Int, seq: ID[Seq[T]], writer: (MemoryBuffer, ID[T]) => Int)(
+  override def writeSeqSizeSpecified[T](
+      b: MemoryBuffer,
+      offset: Int,
+      seq: ID[Seq[T]],
+      writer: (MemoryBuffer, ID[T]) => Int
+  )(
       implicit ct: ClassTag[T]
   ): Int = {
     val bb = b.asSlice(offset)

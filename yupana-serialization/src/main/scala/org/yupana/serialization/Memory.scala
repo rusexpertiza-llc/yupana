@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.readerwriter
+package org.yupana.serialization
 
 object Memory {
   def convertEndian(v: Int): Int = {

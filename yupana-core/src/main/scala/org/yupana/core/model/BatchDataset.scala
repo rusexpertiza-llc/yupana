@@ -21,7 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression
 import org.yupana.api.types.{ ID, InternalReaderWriter, InternalStorable }
 import org.yupana.core.QueryContext
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDataset.MAX_MUM_OF_ROWS)
     extends Serializable {

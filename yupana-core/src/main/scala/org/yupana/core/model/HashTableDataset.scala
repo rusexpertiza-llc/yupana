@@ -19,7 +19,7 @@ package org.yupana.core.model
 import org.yupana.api.query.Expression
 import org.yupana.api.types.InternalStorable
 import org.yupana.core.QueryContext
-import org.yupana.readerwriter.MemoryBuffer
+import org.yupana.serialization.MemoryBuffer
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

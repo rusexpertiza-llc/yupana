@@ -29,7 +29,7 @@ import org.yupana.core.model.{ BatchDataset, InternalQuery, DatasetSchema, Updat
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
-import org.yupana.readerwriter.{ ByteBufferEvalReaderWriter, MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ ByteBufferEvalReaderWriter, MemoryBuffer, MemoryBufferEvalReaderWriter }
 import org.yupana.settings.Settings
 
 import java.io.File

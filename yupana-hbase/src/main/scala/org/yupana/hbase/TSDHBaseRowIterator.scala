@@ -26,7 +26,7 @@ import org.yupana.api.schema.{ DictionaryDimension, HashDimension, RawDimension,
 import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.hbase.HBaseUtils.TAGS_POSITION_IN_ROW_KEY
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.collection.AbstractIterator
 

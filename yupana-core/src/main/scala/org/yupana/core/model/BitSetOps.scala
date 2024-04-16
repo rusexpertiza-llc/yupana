@@ -39,7 +39,7 @@ object BitSetOps {
   def clear(bitset: Array[Long], bitNum: Int): Unit = {
     val index = bitNum / 64
     val bit = bitNum % 64
-    val mask = java.lang.Long.rotateLeft(0xfffffffe, bit)
+    val mask = java.lang.Long.rotateLeft(0xFFFFFFFE, bit)
     bitset(index) &= mask
   }
 }

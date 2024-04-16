@@ -2,7 +2,7 @@ package org.yupana.core.providers
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{EitherValues, Inspectors, OptionValues}
+import org.scalatest.{ EitherValues, Inspectors, OptionValues }
 import org.yupana.api.types.DataType
 import org.yupana.core.TestSchema
 

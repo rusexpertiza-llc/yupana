@@ -1,6 +1,6 @@
 package org.yupana.core.types
 
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 class MemoryBufferStorableTest extends StorableTestBase {
 

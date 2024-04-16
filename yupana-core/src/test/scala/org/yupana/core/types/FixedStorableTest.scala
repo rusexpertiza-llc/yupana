@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.types.{ FixedStorable, ID, ReaderWriter }
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 

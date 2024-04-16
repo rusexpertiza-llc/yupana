@@ -17,12 +17,12 @@
 package org.yupana.khipu.storage
 
 import jdk.internal.misc.Unsafe
-import org.yupana.readerwriter.Memory._
+import org.yupana.serialization.Memory._
 import MemorySegment._
 import jdk.incubator.foreign
 import jdk.incubator.foreign.ResourceScope
 import jdk.internal.foreign.AbstractMemorySegmentImpl
-import org.yupana.readerwriter.MemoryBuffer
+import org.yupana.serialization.MemoryBuffer
 
 import java.nio.channels.FileChannel
 import java.nio.file.Path

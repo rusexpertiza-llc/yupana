@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.readerwriter
+package org.yupana.serialization
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID }

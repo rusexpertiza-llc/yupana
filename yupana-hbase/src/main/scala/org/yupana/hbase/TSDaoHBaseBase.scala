@@ -31,7 +31,7 @@ import org.yupana.core.dao._
 import org.yupana.core.model.{ BatchDataset, InternalQuery, DatasetSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.core.utils.metric.MetricQueryCollector
-import org.yupana.readerwriter.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.util.Try
 

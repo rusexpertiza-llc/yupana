@@ -17,7 +17,7 @@ lazy val javaVersion = Def.setting {
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
-    readerWriter,
+    serialization,
     protocol,
     jdbc,
     utils,
@@ -56,7 +56,7 @@ lazy val api = (project in file("yupana-api"))
   )
   .disablePlugins(AssemblyPlugin)
 
-lazy val readerWriter = (project in file("yupana-reader-writer"))
+lazy val serialization = (project in file("yupana-serialization"))
   .settings(
     name := "yupana-reader-writer",
     allSettings,
@@ -77,7 +77,7 @@ lazy val protocol = (project in file("yupana-protocol"))
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test
     )
   )
-  .dependsOn(readerWriter)
+  .dependsOn(serialization)
   .disablePlugins(AssemblyPlugin)
 
 lazy val jdbc = (project in file("yupana-jdbc"))
@@ -105,7 +105,7 @@ lazy val jdbc = (project in file("yupana-jdbc"))
   )
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(AssemblyPlugin)
-  .dependsOn(api, protocol, readerWriter)
+  .dependsOn(api, protocol, serialization)
 
 lazy val utils = (project in file("yupana-utils"))
   .settings(
@@ -169,7 +169,7 @@ lazy val core = (project in file("yupana-core"))
       "org.scalatestplus"             %% "scalacheck-1-17"              % versions.scalaTestCheck     % Test
     )
   )
-  .dependsOn(api, readerWriter, settings, metrics, cache, utils % Test)
+  .dependsOn(api, serialization, settings, metrics, cache, utils % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val hbase = (project in file("yupana-hbase"))

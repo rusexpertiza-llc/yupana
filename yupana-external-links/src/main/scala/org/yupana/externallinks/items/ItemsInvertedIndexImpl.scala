@@ -26,7 +26,7 @@ import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 

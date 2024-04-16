@@ -1,6 +1,6 @@
 package org.yupana.core.types
 
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
 

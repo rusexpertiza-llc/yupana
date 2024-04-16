@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.yupana.readerwriter
+package org.yupana.serialization
 
 import jdk.internal.misc.Unsafe
 import Memory._
@@ -25,7 +25,7 @@ import scala.util.hashing.MurmurHash3
 final class MemoryBuffer(private var base: AnyRef, private var baseOffset: Long, private var initSize: Long)
     extends Serializable {
 
-  import org.yupana.readerwriter.MemoryBuffer.UNSAFE
+  import org.yupana.serialization.MemoryBuffer.UNSAFE
 
   private var pos: Int = 0
 

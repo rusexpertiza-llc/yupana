@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.yupana.api.query.Expression
 import org.yupana.api.query.syntax.All.const
-import org.yupana.readerwriter.MemoryBuffer
+import org.yupana.serialization.MemoryBuffer
 
 class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 

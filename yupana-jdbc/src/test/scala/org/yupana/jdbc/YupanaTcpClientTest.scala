@@ -7,7 +7,7 @@ import org.yupana.api.Time
 import org.yupana.api.types.{ ByteReaderWriter, ID, Storable }
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
-import org.yupana.readerwriter.ByteBufferEvalReaderWriter
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.io.IOException
 import java.nio.ByteBuffer

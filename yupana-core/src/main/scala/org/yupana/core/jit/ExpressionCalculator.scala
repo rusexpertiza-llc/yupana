@@ -19,7 +19,7 @@ package org.yupana.core.jit
 import org.yupana.api.Time
 import org.yupana.api.query.{ LagExpr, WindowFunctionExpr }
 import org.yupana.core.model.{ BatchDataset, HashTableDataset }
-import org.yupana.readerwriter.MemoryBuffer
+import org.yupana.serialization.MemoryBuffer
 
 import java.time.OffsetDateTime
 import java.time.temporal.{ ChronoUnit, TemporalAdjuster, TemporalUnit }

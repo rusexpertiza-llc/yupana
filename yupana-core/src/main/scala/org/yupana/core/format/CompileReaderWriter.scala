@@ -26,7 +26,7 @@ import scala.reflect.runtime.universe._
 
 object CompileReaderWriter extends InternalReaderWriter[Tree, TypedTree, Tree, Tree] with Serializable {
 
-  private val evalRW = q"_root_.org.yupana.readerwriter.MemoryBufferEvalReaderWriter"
+  private val evalRW = q"_root_.org.yupana.serialization.MemoryBufferEvalReaderWriter"
 
   override def readBytes(b: Tree, d: TypedTree[Array[Byte]]): TypedTree[Unit] = {
     q"$evalRW.readBytes($b, $d)"
@@ -504,7 +504,11 @@ object CompileReaderWriter extends InternalReaderWriter[Tree, TypedTree, Tree, T
     q"$evalRW.readSeqSizeSpecified($b, (rb, s) => {${reader(q"rb", q"s")}})"
   }
 
-  override def readSeqSizeSpecified[T: ClassTag](b: Tree, offset: Tree, reader: (Tree, Tree) => TypedTree[T]): TypedTree[Seq[T]] = {
+  override def readSeqSizeSpecified[T: ClassTag](
+      b: Tree,
+      offset: Tree,
+      reader: (Tree, Tree) => TypedTree[T]
+  ): TypedTree[Seq[T]] = {
     q"""
        val r = $evalRW.readSeqSizeSpecified($b, $offset, (rb, s) => {${reader(q"rb", q"s")}})
      """
@@ -517,12 +521,20 @@ object CompileReaderWriter extends InternalReaderWriter[Tree, TypedTree, Tree, T
     q"$evalRW.writeSeqSizeSpecified($b, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})"
   }
 
-  override def writeSeqSizeSpecified[T](b: Tree, offset: Tree, seq: TypedTree[Seq[T]], writer: (Tree, TypedTree[T]) => Tree)(
+  override def writeSeqSizeSpecified[T](
+      b: Tree,
+      offset: Tree,
+      seq: TypedTree[Seq[T]],
+      writer: (Tree, TypedTree[T]) => Tree
+  )(
       implicit ct: ClassTag[T]
   ): Tree = {
     val tpe = Ident(TypeName(CommonGen.className(ct)))
     q"""
-        $evalRW.writeSeqSizeSpecified($b, $offset, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(q"rb", q"v")}})
+        $evalRW.writeSeqSizeSpecified($b, $offset, $seq, (rb, v: _root_.org.yupana.api.types.ID[$tpe]) => {${writer(
+        q"rb",
+        q"v"
+      )}})
        """
   }
 

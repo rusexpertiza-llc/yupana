@@ -100,7 +100,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     val tree =
       q"""
     import _root_.java.nio.ByteBuffer
-    import _root_.org.yupana.readerwriter.MemoryBuffer
+    import _root_.org.yupana.serialization.MemoryBuffer
     import _root_.org.yupana.api.Time
     import _root_.org.yupana.api.types.DataType
     import _root_.org.yupana.api.utils.Tokenizer
