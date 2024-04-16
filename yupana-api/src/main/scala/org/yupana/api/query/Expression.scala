@@ -76,19 +76,19 @@ sealed abstract class AggregateExpr[In, M, Out](val expr: Expression[In], val na
 
   override val kind: ExprKind = if (expr.kind == Simple || expr.kind == Const) Aggregate else Invalid
 
-  override val isNullable: Boolean = expr.isNullable
-
   override def encode: String = s"agg($name,${expr.encode})"
 }
 
 final case class MinExpr[I](override val expr: Expression[I])(implicit val ord: Ordering[I])
     extends AggregateExpr[I, I, I](expr, "min") {
   override val dataType: DataType.Aux[I] = expr.dataType
+  override val isNullable: Boolean = expr.isNullable
 }
 
 final case class MaxExpr[I](override val expr: Expression[I])(implicit val ord: Ordering[I])
     extends AggregateExpr[I, I, I](expr, "max") {
   override val dataType: DataType.Aux[I] = expr.dataType
+  override val isNullable: Boolean = expr.isNullable
 }
 
 final case class SumExpr[In, Out](override val expr: Expression[In])(
@@ -98,6 +98,7 @@ final case class SumExpr[In, Out](override val expr: Expression[In])(
     implicit val guard: SumExpr.SumGuard[In, Out]
 ) extends AggregateExpr[In, In, Out](expr, "sum") {
   override val dataType: DataType.Aux[Out] = dt
+  override val isNullable: Boolean = expr.isNullable
 }
 
 object SumExpr {
@@ -115,20 +116,24 @@ object SumExpr {
 final case class AvgExpr[I](override val expr: Expression[I])(implicit val numeric: Numeric[I])
     extends AggregateExpr[I, I, BigDecimal](expr, "avg") {
   override val dataType: DataType.Aux[BigDecimal] = DataType[BigDecimal]
+  override val isNullable: Boolean = expr.isNullable
 }
 
 final case class CountExpr[I](override val expr: Expression[I]) extends AggregateExpr[I, Long, Long](expr, "count") {
   override val dataType: DataType.Aux[Long] = DataType[Long]
+  override val isNullable: Boolean = false
 }
 
 final case class DistinctCountExpr[I](override val expr: Expression[I])
     extends AggregateExpr[I, Set[I], Int](expr, "distinct_count") {
   override val dataType: DataType.Aux[Int] = DataType[Int]
+  override val isNullable: Boolean = false
 }
 
 final case class HLLCountExpr[I](override val expr: Expression[I], accuracy: Double)
     extends AggregateExpr[I, Set[I], Long](expr, "hll_count") {
   override val dataType: DataType.Aux[Long] = DataType[Long]
+  override val isNullable: Boolean = false
 }
 
 final case class DistinctRandomExpr[I](override val expr: Expression[I])
