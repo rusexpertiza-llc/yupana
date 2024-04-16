@@ -40,7 +40,7 @@ final class HashTableDataset(schema: DatasetSchema) {
   def partition(numOfPartitions: Int): Seq[(Int, Array[BatchDataset])] = {
     val partitions = Array.fill(numOfPartitions) { ArrayBuffer.empty[BatchDataset] }
     hashMap.foreachEntry { (key, ptr) =>
-      val partition = key.hashCode() % numOfPartitions
+      val partition = math.abs(key.hashCode() % numOfPartitions)
       val partBatches = partitions(partition)
       val dstBatch = if (partBatches.nonEmpty && partBatches.last.size < partBatches.last.capacity) {
         partBatches.last
