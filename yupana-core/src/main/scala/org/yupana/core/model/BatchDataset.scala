@@ -62,7 +62,6 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
       schema.fixedLengthFieldsBytesSize
     )
 
-
     var fieldIndex = 0
     while (fieldIndex < schema.numOfFields) {
       if (schema.isRef(fieldIndex)) {
