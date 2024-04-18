@@ -62,6 +62,7 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
       schema.fixedLengthFieldsBytesSize
     )
 
+
     var fieldIndex = 0
     while (fieldIndex < schema.numOfFields) {
       if (schema.isRef(fieldIndex)) {
@@ -71,7 +72,7 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
       }
 
       val offset = getOffset(rowNum, fieldIndex)
-      if (!schema.isFixed(fieldIndex)) {
+      if (!schema.isFixed(fieldIndex) && !schema.isRef(fieldIndex)) {
         val len = fixedLengthFieldsArea.getInt(offset)
         if (len > 12) {
           val srcVOffset = fixedLengthFieldsArea.getInt(offset + 4)
