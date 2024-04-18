@@ -20,7 +20,7 @@ import com.typesafe.scalalogging.StrictLogging
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import io.netty.channel.{ ChannelHandlerContext, SimpleChannelInboundHandler }
 import io.netty.util.ReferenceCountUtil
-import org.yupana.api.query.{ DataRow, Result }
+import org.yupana.api.query.Result
 import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.auth.YupanaUser
@@ -274,10 +274,8 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
 
     val resultTypes = result.dataTypes.zipWithIndex
 
-    val r = if (limit > 0) result.take(limit) else result
-
-    r.foreach { row =>
-      ctx.write(makeRow(resultTypes, row, resultIsBinary))
+    while (result.next() && (limit == 0 || count < limit)) {
+      ctx.write(makeRow(resultTypes, result, resultIsBinary))
       count += 1
     }
 
@@ -297,11 +295,13 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     )
   }
 
-  private def makeRow(types: Seq[(DataType, Int)], row: DataRow, resultIsBinary: IndexedSeq[Boolean]): RowData = {
+  private def makeRow(types: Seq[(DataType, Int)], row: Result, resultIsBinary: IndexedSeq[Boolean]): RowData = {
 
     val bufs = types.map {
       case (dt, idx) =>
         val buf = Unpooled.buffer()
+
+        println(s"IS EMPTY $idx => ${row.isEmpty(idx)}")
 
         if (row.isEmpty(idx)) {
           buf.writeInt(-1)

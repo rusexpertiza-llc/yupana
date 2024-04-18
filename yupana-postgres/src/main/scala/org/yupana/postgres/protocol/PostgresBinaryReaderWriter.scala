@@ -18,7 +18,7 @@ package org.yupana.postgres.protocol
 
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.{ ByteReaderWriter, ID, TypedInt }
+import org.yupana.api.types.{ ByteReaderWriter, ID }
 import org.yupana.api.{ Blob, Time }
 import org.yupana.postgres.protocol.PostgresBinaryReaderWriter.{ PG_EPOCH_DIFF, readNumeric, writeNumeric }
 
@@ -29,6 +29,32 @@ import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
 import scala.reflect.ClassTag
 
 class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
+  override def sizeOfBoolean: Int = ???
+
+  override def sizeOfByte: Int = ???
+
+  override def sizeOfInt: Int = ???
+
+  override def sizeOfLong: Int = ???
+
+  override def sizeOfDouble: Int = ???
+
+  override def sizeOfShort: Int = ???
+
+  override def sizeOfString(v: ID[String]): Int = ???
+
+  override def sizeOfBigDecimal(v: ID[BigDecimal]): Int = ???
+
+  override def sizeOfTime: Int = ???
+
+  override def sizeOfTuple[T, U](v: (T, U), tSize: ID[T] => Int, uSize: ID[U] => Int): Int = ???
+
+  override def sizeOfSeq[T](v: ID[Seq[T]], size: ID[T] => Int): Int = ???
+
+  override def sizeOfBlob(v: ID[Blob]): Int = ???
+
+  override def sizeOfPeriodDuration(v: ID[PeriodDuration]): Int = ???
+
   override def readBoolean(b: ByteBuf): Boolean = {
     checkSize(b, 1)
     b.readBoolean()
@@ -59,12 +85,12 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
     b.getBytes(offset, d)
   }
 
-  override def writeBytes(b: ByteBuf, v: ID[Array[Byte]]): TypedInt[Int] = {
+  override def writeBytes(b: ByteBuf, v: ID[Array[Byte]]): Int = {
     b.writeBytes(v)
     v.length
   }
 
-  override def writeBytes(b: ByteBuf, offset: Int, v: ID[Array[Byte]]): TypedInt[Int] = {
+  override def writeBytes(b: ByteBuf, offset: Int, v: ID[Array[Byte]]): Int = {
     b.setBytes(offset, v)
     v.length
   }

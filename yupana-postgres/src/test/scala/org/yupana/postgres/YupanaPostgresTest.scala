@@ -11,7 +11,7 @@ import org.yupana.cache.CacheFactory
 import org.yupana.core._
 import org.yupana.core.auth.{ Authorizer, PermissionService, TsdbRole, YupanaUser }
 import org.yupana.core.dao.ChangelogDao
-import org.yupana.core.model.InternalQuery
+import org.yupana.core.model.{ BatchDataset, InternalQuery }
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.NoMetricCollector
@@ -98,19 +98,19 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
           )
         ),
         *,
-        *
+        *,
+        NoMetricCollector
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
-            .set(metric(TestTableFields.TEST_FIELD), 33.3d)
-            .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "reply")
-            .set(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(42))
-            .set(metric(TestTableFields.TEST_BLOB_FIELD), Blob(Array(1, 2, 3)))
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, schema, _) =>
+        val batch = new BatchDataset(schema)
+        batch.set(0, Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 33.3d)
+        batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 55L)
+        batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "reply")
+        batch.set(0, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(42))
+        batch.set(0, metric(TestTableFields.TEST_BLOB_FIELD), Blob(Array(1, 2, 3)))
+        Iterator(batch)
+      }
 
     val port = server.getPort
     val conn = DriverManager.getConnection(s"jdbc:postgresql://localhost:$port/", "test", "12345")
@@ -171,17 +171,17 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
           )
         ),
         *,
-        *
+        *,
+        NoMetricCollector
       )
-      .onCall((_, b, _) =>
-        Iterator(
-          b.set(Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
-            .set(metric(TestTableFields.TEST_FIELD), 33.3d)
-            .set(metric(TestTableFields.TEST_LONG_FIELD), 55L)
-            .set(metric(TestTableFields.TEST_STRING_FIELD), "reply!")
-            .buildAndReset()
-        )
-      )
+      .onCall { (_, _, schema, _) =>
+        val b = new BatchDataset(schema)
+        b.set(0, Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
+        b.set(0, metric(TestTableFields.TEST_FIELD), 33.3d)
+        b.set(0, metric(TestTableFields.TEST_LONG_FIELD), 55L)
+        b.set(0, metric(TestTableFields.TEST_STRING_FIELD), "reply!")
+        Iterator(b)
+      }
 
     val port = server.getPort
     val props = new Properties()
@@ -252,7 +252,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
     val queryEngine = new QueryEngineRouter(tsdb, null, jmp, sqp, new PermissionService(putEnabled = true), null)
 
-    val server = new YupanaPostgres("localhost", 0, 4, PgContext(queryEngine, new TestAuthorizer))
+    val server = new YupanaPostgres("localhost", 5432, 4, PgContext(queryEngine, new TestAuthorizer))
     server.start()
     body(server, tsdbDaoMock)
     server.stop()

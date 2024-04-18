@@ -69,11 +69,21 @@ class TsdbServerResult(
   override def close(): Unit = data.close()
 
   override def isEmpty(name: String): Boolean = {
-    batch.get.isNull(rowNumber, dataIndexForFieldName(name))
+    val dataIndex = dataIndexForFieldName(name)
+    if (batch.get.isRef(rowNumber, dataIndex))
+      batch.get.isNullRef(rowNumber, dataIndex)
+    else batch.get.isNull(rowNumber, dataIndex)
   }
 
   override def isEmpty(index: Int): Boolean = {
-    batch.get.isNull(rowNumber, dataIndexForFieldIndex(index))
+    val dataIndex = dataIndexForFieldIndex(index)
+    if (batch.get.isRef(rowNumber, dataIndex)) {
+      println(s"${index} ($dataIndex) Ref")
+      batch.get.isNullRef(rowNumber, dataIndex)
+    } else {
+      println(s"${index} ($dataIndex) Not ref")
+      batch.get.isNull(rowNumber, dataIndex)
+    }
   }
 
   override def get[T](name: String): T = {
