@@ -517,10 +517,9 @@ val commonSettings = Seq(
     "-Djdk.reflect.useDirectMethodHandle=false"
   ),
   Test / fork := true,
-  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.hbase\\.proto\\..*;org\\.yupana\\.benchmarks\\..*",
+  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;;org\\.yupana\\.khipu\\.examples\\..*;org\\.yupana\\.benchmarks\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
 )
-
 
 val noPublishSettings = Seq(
   publish / skip := true

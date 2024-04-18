@@ -208,7 +208,7 @@ trait TsdbBase extends StrictLogging {
     }
 
     val stage2res = if (hasAggregates && !hasWindowFunctions) {
-      val aggregated = mr.aggregate2(stage1res, queryContext)(
+      val aggregated = mr.aggregateDatasets(stage1res, queryContext)(
         (acc: HashTableDataset, batch: BatchDataset) => {
           metricCollector.reduceOperation.measure(batch.size) {
             queryContext.calculator.evaluateFold(acc, batch)

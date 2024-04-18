@@ -42,7 +42,7 @@ class EtlContext(
 
   private def initTsdb: TSDB = {
 
-    logger.info("Inti Yupana TSDB with HBase engine")
+    logger.info("Init Yupana TSDB with HBase engine")
 
     val tsdb = TSDBHBase(
       hBaseConfiguration,

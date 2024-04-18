@@ -62,7 +62,7 @@ class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext
   override protected def getPartitions: Array[Partition] = data.partitions
 
   def toDF(spark: SparkSession): DataFrame = {
-    spark.createDataFrame(this, createSchema)
+    spark.createDataFrame(this, schema)
   }
 
   private def createSchema: StructType = {

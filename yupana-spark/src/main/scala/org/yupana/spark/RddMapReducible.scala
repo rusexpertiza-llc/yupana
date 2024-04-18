@@ -104,7 +104,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     }
   }
 
-  override def aggregate2(c: RDD[BatchDataset], queryContext: QueryContext)(
+  override def aggregateDatasets(c: RDD[BatchDataset], queryContext: QueryContext)(
       foldOp: (HashTableDataset, BatchDataset) => Unit,
       combOp: (HashTableDataset, BatchDataset) => Unit
   ): RDD[BatchDataset] = {

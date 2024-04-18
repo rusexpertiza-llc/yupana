@@ -38,7 +38,7 @@ trait MapReducible[Collection[_]] extends Serializable {
       c: Collection[A]
   )(createZero: A => B, seqOp: (B, A) => B, combOp: (B, B) => B): Collection[B]
 
-  def aggregate2(
+  def aggregateDatasets(
       c: Collection[BatchDataset],
       queryContext: QueryContext
   )(

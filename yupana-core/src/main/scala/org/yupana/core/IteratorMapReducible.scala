@@ -61,7 +61,7 @@ class IteratorMapReducible(reduceLimit: Int = Int.MaxValue) extends MapReducible
     }
   }
 
-  override def aggregate2(it: Iterator[BatchDataset], queryContext: QueryContext)(
+  override def aggregateDatasets(it: Iterator[BatchDataset], queryContext: QueryContext)(
       foldOp: (HashTableDataset, BatchDataset) => Unit,
       combOp: (HashTableDataset, BatchDataset) => Unit
   ): Iterator[BatchDataset] = {

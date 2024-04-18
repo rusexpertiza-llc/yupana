@@ -19,7 +19,7 @@ package org.yupana.protocol
 import org.yupana.api.types.ByteReaderWriter
 
 /**
-  * Type class for data serialization from / to the [[ByteReaderWriter]]
+  * Type class for data serialization
   *
   * @tparam T type to be serialized
   */

@@ -129,7 +129,7 @@ abstract class TsdbSparkBase(
 
   override def applyWindowFunctions(
       queryContext: QueryContext,
-      keysAndValues: Collection[BatchDataset]
+      keysAndValues: RDD[BatchDataset]
   ): RDD[BatchDataset] = {
     throw new UnsupportedOperationException("Window functions are not supported in TSDB Spark")
   }

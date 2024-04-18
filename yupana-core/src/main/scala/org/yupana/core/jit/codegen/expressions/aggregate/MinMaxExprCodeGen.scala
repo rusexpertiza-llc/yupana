@@ -22,7 +22,10 @@ import org.yupana.core.jit.{ Decl, ValueDeclaration }
 
 import scala.reflect.runtime.universe._
 
-trait MinMaxExprCodeGen extends SimpleAggExprCodeGen[AggregateExpr[_, _, _]] {
+abstract class MinMaxExprCodeGen(override val expression: AggregateExpr[_, _, _])
+    extends SimpleAggExprCodeGen[AggregateExpr[_, _, _]] {
+
+  override def zeroTree(innerExprValue: ValueDeclaration): Tree = q"${innerExprValue.valueName}"
 
   override def globalDeclarations(): Seq[Decl] = {
     val aType = CommonGen.mkType(expression.expr)
@@ -35,16 +38,12 @@ trait MinMaxExprCodeGen extends SimpleAggExprCodeGen[AggregateExpr[_, _, _]] {
       )
     )
   }
-
 }
 
 object MinMaxExprCodeGen {
 
   def min(expr: MinExpr[_]): MinMaxExprCodeGen = {
-    new MinMaxExprCodeGen {
-      override def expression: AggregateExpr[_, _, _] = expr
-
-      override def zeroTree(innerExprValue: ValueDeclaration): Tree = q"${innerExprValue.valueName}"
+    new MinMaxExprCodeGen(expr) {
 
       override def foldTree(accValue: ValueDeclaration, innerExprValue: ValueDeclaration): Tree =
         q"${CommonGen.ordValName(expression.expr.dataType)}.min(${accValue.valueName}, ${innerExprValue.valueName})"
@@ -55,10 +54,7 @@ object MinMaxExprCodeGen {
   }
 
   def max(expr: MaxExpr[_]): MinMaxExprCodeGen = {
-    new MinMaxExprCodeGen {
-      override def expression: AggregateExpr[_, _, _] = expr
-
-      override def zeroTree(innerExprValue: ValueDeclaration): Tree = q"${innerExprValue.valueName}"
+    new MinMaxExprCodeGen(expr) {
 
       override def foldTree(accValue: ValueDeclaration, innerExprValue: ValueDeclaration): Tree =
         q"${CommonGen.ordValName(expression.expr.dataType)}.max(${accValue.valueName}, ${innerExprValue.valueName})"
