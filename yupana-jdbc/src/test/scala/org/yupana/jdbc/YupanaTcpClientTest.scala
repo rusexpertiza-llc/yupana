@@ -168,13 +168,15 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
       result.name shouldEqual "items_kkm"
 
-      val rows = result.toList
+      result.next() shouldEqual true
 
-      rows(0).get[Time]("time") shouldEqual Time(13333L)
-      rows(0).get[String]("item") shouldEqual "икра баклажанная"
+      result.get[Time]("time") shouldEqual Time(13333L)
+      result.get[String]("item") shouldEqual "икра баклажанная"
 
-      rows(1).get[Time]("time") shouldEqual Time(21112L)
-      rows(1).get[String]("item") shouldEqual null
+      result.next() shouldEqual true
+
+      result.get[Time]("time") shouldEqual Time(21112L)
+      result.get[String]("item") shouldEqual null
     }
   }
 
@@ -199,9 +201,11 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
       val result = client.prepareQuery(sql, Map.empty).result
       result.name shouldEqual "table"
 
-      val rows = result.toList
-      rows should have length 15
-      rows.map(_.get[Int](0)) should contain theSameElementsInOrderAs (1 to 15)
+      var r = Seq.empty[Int]
+      while (result.next()) {
+        r = r :+ result.get[Int](0)
+      }
+      r should contain theSameElementsInOrderAs (1 to 15)
     }
   }
 
@@ -273,13 +277,13 @@ class YupanaTcpClientTest extends AnyFlatSpec with Matchers with OptionValues wi
 
       result.name shouldEqual "items_kkm"
 
-      val rows = result.toList
+      result.next() shouldEqual true
+      result.get[Time]("time") shouldEqual Time(13333L)
+      result.get[String]("item") shouldEqual "икра баклажанная"
 
-      rows(0).get[Time]("time") shouldEqual Time(13333L)
-      rows(0).get[String]("item") shouldEqual "икра баклажанная"
-
-      rows(1).get[Time]("time") shouldEqual Time(21112L)
-      rows(1).get[String]("item") shouldEqual null
+      result.next() shouldEqual true
+      result.get[Time]("time") shouldEqual Time(21112L)
+      result.get[String]("item") shouldEqual null
     }
   }
 

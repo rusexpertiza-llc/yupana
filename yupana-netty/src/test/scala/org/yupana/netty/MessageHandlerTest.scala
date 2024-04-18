@@ -339,7 +339,7 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
 
   private def auth(ch: EmbeddedChannel): Unit = {
     val cmd = new Hello(ProtocolVersion.value, "3.2.1", 1234567L, Map.empty)
-    val frame = cmd.toFrame[ByteBuf](Unpooled.buffer())
+    val frame = cmd.toFrame(Unpooled.buffer())
 
     ch.writeInbound(frame)
     val respFrame = ch.readOutbound[Frame[ByteBuf]]()

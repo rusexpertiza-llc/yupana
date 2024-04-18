@@ -26,6 +26,7 @@ trait TsdbConfig {
   val reduceLimit: Int
   val needCheckSchema: Boolean
   val compression: String
+  val dbEngine: String
 }
 
 case class SimpleTsdbConfig(
@@ -37,5 +38,6 @@ case class SimpleTsdbConfig(
     maxRegions: Int = 50,
     reduceLimit: Int = Int.MaxValue,
     needCheckSchema: Boolean = true,
-    compression: String = "snappy"
+    compression: String = "snappy",
+    dbEngine: String = "hbase"
 ) extends TsdbConfig

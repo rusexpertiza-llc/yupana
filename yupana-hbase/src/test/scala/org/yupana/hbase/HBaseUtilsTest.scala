@@ -34,9 +34,9 @@ class HBaseUtilsTest extends AnyFlatSpec with Matchers with MockFactory with Opt
     (dictionaryDaoMock.getIdByValue _).expects(DIM_B, "b value").returning(Some(1L))
     (dictionaryDaoMock.getIdByValue _).expects(DIM_C, "c value").returning(Some(31L))
 
-    val bytes = HBaseUtils.rowKeyBuffer(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider)
+    val bytes = HBaseUtils.rowKeyBuffer(dp, TestTable, HBaseUtils.tableKeySize(TestTable), dictionaryProvider).bytes()
     val expectedRowKey = TSDRowKey(HBaseUtils.baseTime(time, TestTable), Array(Some(4), Some(1L), Some(31L)))
-    val actualRowKey = HBaseUtils.parseRowKey(bytes.array(), TestTable)
+    val actualRowKey = HBaseUtils.parseRowKey(bytes, TestTable)
 
     actualRowKey should be(expectedRowKey)
   }

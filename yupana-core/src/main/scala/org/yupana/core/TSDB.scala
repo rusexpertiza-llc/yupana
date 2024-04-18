@@ -23,8 +23,11 @@ import org.yupana.api.schema.{ ExternalLink, Schema }
 import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
-import org.yupana.core.model.{ InternalRow, KeyData }
+import org.yupana.core.jit.{ CachingExpressionCalculatorFactory, ExpressionCalculatorFactory }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric._
+
+import scala.collection.mutable
 
 class TSDB(
     override val schema: Schema,
@@ -65,58 +68,78 @@ class TSDB(
 
   override def finalizeQuery(
       queryContext: QueryContext,
-      data: Iterator[Array[Any]],
+      data: Iterator[BatchDataset],
       metricCollector: MetricQueryCollector
   ): TsdbServerResult = {
-
     val it = CloseableIterator(data, metricCollector.finish())
     new TsdbServerResult(queryContext, it)
   }
 
   override def applyWindowFunctions(
       queryContext: QueryContext,
-      keysAndValues: Iterator[(KeyData, InternalRow)]
-  ): Iterator[(KeyData, InternalRow)] = {
-    val seq = keysAndValues.zipWithIndex.toList
+      batches: Iterator[BatchDataset]
+  ): Iterator[BatchDataset] = {
+    val batchesArray = batches.toArray
 
-    val grouped = seq
-      .groupBy(_._1._1)
-      .map {
-        case (keyData, group) =>
-          val (values, rowNumbers) = group
-            .map { case ((_, row), rowNumber) => (row, rowNumber) }
-            .toArray
-            .sortBy(_._1.get[Time](queryContext, TimeExpr))
-            .unzip
+    val groups = mutable.AnyRefMap.empty[AnyRef, mutable.ArrayBuffer[Long]]
 
-          keyData -> ((values, rowNumbers.zipWithIndex.toMap))
+    val keyDataRowIdSeq = mutable.ArrayBuffer.empty[(AnyRef, Long)]
+
+    batchesArray.zipWithIndex.foreach {
+      case (batch, batchIdx) =>
+        var batchRowNum = 0
+        while (batchRowNum < batch.size) {
+          if (!batch.isDeleted(batchRowNum)) {
+            val key = queryContext.calculator.createKey(batch, batchRowNum)
+            val rowId = (batchIdx.toLong << 32) + batchRowNum.toLong
+            val rowIds = groups.getOrElseUpdate(key, mutable.ArrayBuffer.empty)
+            rowIds.append(rowId)
+            keyDataRowIdSeq.append(key -> rowId)
+          }
+          batchRowNum += 1
+        }
+    }
+
+    val sortedGroups = groups.mapValuesNow { rowIds =>
+      rowIds.sortInPlaceBy { rowId =>
+        val batchIdx = (rowId >> 32).toInt
+        val rowNum = (rowId & 0xFFFFFFFFL).toInt
+        batchesArray(batchIdx).get[Time](rowNum, TimeExpr)
       }
 
-    val winFieldsAndGroupValues = queryContext.query.fields.map(_.expr).collect {
+      val rowIdToPosMap = rowIds.zipWithIndex.toMap
+      rowIdToPosMap
+    }
+
+    val winExprGroupsWithValues = queryContext.query.fields.map(_.expr).collect {
       case winFuncExpr: WindowFunctionExpr[_, _] =>
-        val values = grouped.map {
-          case (key, (vs, rowNumIndex)) =>
-            val funcValues = winFuncExpr.expr.dataType.classTag.newArray(vs.length)
-            vs.indices.foreach { i =>
-              funcValues(i) = vs(i).get(queryContext, winFuncExpr.expr)
-            }
-            (key, (funcValues, rowNumIndex))
+        val values = sortedGroups.mapValuesNow { rowIdToPosMap =>
+          val funcValues = winFuncExpr.expr.dataType.classTag.newArray(rowIdToPosMap.size)
+          rowIdToPosMap.foreachEntry { (rowId, _) =>
+            val batchIdx = (rowId >> 32).toInt
+            val rowNum = (rowId & 0xFFFFFFFFL).toInt
+            funcValues(rowIdToPosMap(rowId)) = batchesArray(batchIdx).get(rowNum, winFuncExpr.expr)
+          }
+          (funcValues, rowIdToPosMap)
         }
         winFuncExpr -> values
     }
 
-    seq.map {
-      case ((keyData, valueData), rowNumber) =>
-        winFieldsAndGroupValues.foreach {
-          case (winFuncExpr, groups) =>
-            val (group, rowIndex) = groups(keyData)
-            rowIndex.get(rowNumber).map { index =>
-              val value = queryContext.calculator.evaluateWindow(winFuncExpr, group, index)
-              valueData.set(queryContext, winFuncExpr, value)
+    keyDataRowIdSeq.foreach {
+      case (key, rowId) =>
+        winExprGroupsWithValues.foreach {
+          case (winFuncExpr, groupValues) =>
+            val (values, rowIdToPosMap) = groupValues(key)
+            val pos = rowIdToPosMap(rowId)
+            val value = queryContext.calculator.evaluateWindow(winFuncExpr, values, pos)
+            if (value != null) {
+              val batchIdx = (rowId >> 32).toInt
+              val rowNum = (rowId & 0xFFFFFFFFL).toInt
+              batchesArray(batchIdx).set(rowNum, winFuncExpr, value)
             }
         }
-        keyData -> valueData
-    }.iterator
+    }
+    batchesArray.iterator
   }
 
   override def linkService(catalog: ExternalLink): ExternalLinkService[_ <: ExternalLink] = {

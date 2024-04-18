@@ -27,14 +27,14 @@ import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
-import org.yupana.api.types.{ ByteReaderWriter, ID }
+import org.yupana.api.types.{ ID, ReaderWriter }
 import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
-import org.yupana.serialization.ByteBufferEvalReaderWriter
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import java.nio.ByteBuffer
 import java.time.temporal.TemporalAdjusters
@@ -45,7 +45,6 @@ import scala.collection.immutable.NumericRange
 import scala.util.Using
 
 object HBaseUtils extends StrictLogging {
-
   type TimeShiftedValue = (Long, Array[Byte])
   type TimeShiftedValues = Array[TimeShiftedValue]
   type ValuesByGroup = Map[Int, TimeShiftedValues]
@@ -59,7 +58,7 @@ object HBaseUtils extends StrictLogging {
   val MAX_ROW_SIZE = 2_000_000
   val tsdbSchemaTableName: String = tableNamePrefix + "table"
 
-  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+  implicit val readerWriter: ReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
   def baseTime(time: Long, table: Table): Long = {
     time - time % table.rowTimeSpan
@@ -102,7 +101,7 @@ object HBaseUtils extends StrictLogging {
           val (puts, intervals) = grouped
             .map {
               case (keyBuffer, dps) =>
-                val key = keyBuffer.array()
+                val key = keyBuffer.bytes()
                 val baseTime = Bytes.toLong(key)
                 (
                   createPutOperation(table, key, dps),
@@ -303,7 +302,12 @@ object HBaseUtils extends StrictLogging {
     val baseTimeLs = baseTimeList(from, to, table)
     val dimIdsList = dimIds.toList.map {
       case (dim, ids) =>
-        ids.toList.map(id => dim.rStorable.write(id.asInstanceOf[dim.R]))
+        ids.toList.map { id =>
+          val a = Array.ofDim[Byte](dim.rStorable.size)
+          val b = MemoryBuffer.ofBytes(a)
+          dim.rStorable.write(b, id.asInstanceOf[dim.R]: ID[dim.R])
+          a
+        }
     }
     val crossJoinedDimIds = CollectionUtils.crossJoin(dimIdsList)
     val keySize = tableKeySize(table)
@@ -331,7 +335,6 @@ object HBaseUtils extends StrictLogging {
     val stopBuffer = ByteBuffer.allocate(keySize)
     startBuffer.put(bytes)
     stopBuffer.put(Bytes.unsignedCopyAndIncrement(bytes))
-
     new RowRange(startBuffer.array(), true, stopBuffer.array(), false)
   }
 
@@ -358,7 +361,7 @@ object HBaseUtils extends StrictLogging {
     val dimReprs = Array.ofDim[Option[Any]](table.dimensionSeq.size)
 
     var i = 0
-    val bb = ByteBuffer.wrap(bytes, TAGS_POSITION_IN_ROW_KEY, bytes.length - TAGS_POSITION_IN_ROW_KEY)
+    val bb = MemoryBuffer.ofBytes(bytes).asSlice(TAGS_POSITION_IN_ROW_KEY, bytes.length - TAGS_POSITION_IN_ROW_KEY)
     table.dimensionSeq.foreach { dim =>
       val value = dim.rStorable.read(bb)
       dimReprs(i) = Some(value)
@@ -538,36 +541,33 @@ object HBaseUtils extends StrictLogging {
       table: Table,
       keySize: Int,
       dictionaryProvider: DictionaryProvider
-  ): ByteBuffer = {
+  ): MemoryBuffer = {
     val bt = HBaseUtils.baseTime(dataPoint.time, table)
     val baseTimeBytes = Bytes.toBytes(bt)
 
-    val buffer = ByteBuffer
-      .allocate(keySize)
-      .put(baseTimeBytes)
+    val array = Array.ofDim[Byte](keySize)
+    val buffer = MemoryBuffer.ofBytes(array)
 
-    table.dimensionSeq.foreach { dim =>
-      val bytes = dim match {
-        case dd: DictionaryDimension =>
-          val id = dataPoint.dimensions
-            .get(dim)
-            .asInstanceOf[Option[String]]
-            .filter(_.trim.nonEmpty)
-            .map(v => dictionaryProvider.dictionary(dd).id(v))
-            .getOrElse(NULL_VALUE)
-          Bytes.toBytes(id)
+    buffer.put(baseTimeBytes)
 
-        case rd: RawDimension[_] =>
-          val v = dataPoint.dimensions(dim).asInstanceOf[rd.T]
-          rd.rStorable.write(v)
+    table.dimensionSeq.foreach {
+      case dd: DictionaryDimension =>
+        val id = dataPoint.dimensions
+          .get(dd)
+          .asInstanceOf[Option[String]]
+          .filter(_.trim.nonEmpty)
+          .map(v => dictionaryProvider.dictionary(dd).id(v))
+          .getOrElse(NULL_VALUE)
+        readerWriter.writeLong(buffer, id)
 
-        case hd: HashDimension[_, _] =>
-          val v = dataPoint.dimensions(dim).asInstanceOf[hd.T]
-          val hash = hd.hashFunction(v).asInstanceOf[hd.R]
-          hd.rStorable.write(hash)
-      }
+      case rd: RawDimension[_] =>
+        val v = dataPoint.dimensions(rd).asInstanceOf[rd.T]
+        rd.rStorable.write(buffer, v: ID[rd.T])
 
-      buffer.put(bytes)
+      case hd: HashDimension[_, _] =>
+        val v = dataPoint.dimensions(hd).asInstanceOf[hd.T]
+        val hash = hd.hashFunction(v).asInstanceOf[hd.R]
+        hd.rStorable.write(buffer, hash: ID[hd.R])
     }
 
     buffer.rewind()
@@ -601,7 +601,8 @@ object HBaseUtils extends StrictLogging {
       dimensions: Map[Dimension, Any],
       metricValues: Seq[MetricValue]
   ): Array[Byte] = {
-    val bf = ByteBuffer.allocate(MAX_ROW_SIZE)
+    val bf = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
+
     metricValues.foreach { f =>
       require(
         table.metricTagsSet.contains(f.metric.tag),
@@ -620,7 +621,6 @@ object HBaseUtils extends StrictLogging {
         val tag = table.dimensionTag(d)
         readerWriter.writeByte(bf, tag)
         d.tStorable.write(bf, value.asInstanceOf[d.T]: ID[d.T])
-
       case _ =>
     }
 

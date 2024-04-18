@@ -19,7 +19,7 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
-import org.yupana.core.model.InternalRow
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.{ ExternalLinkService, TsdbBase }
@@ -102,20 +102,25 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     val timeIdx = result.queryContext.exprsIndex(time)
     val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID))
 
-    val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.rows) { a =>
-      val kkmId = a(kkmIdIdx)
-      val time = a(timeIdx)
-      Set((time.asInstanceOf[Time], kkmId.asInstanceOf[Int]))
+    val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.data) { batch =>
+      var res = Set.empty[(Time, Dimensions.KKM_ID.T)]
+      var i = 0
+      while (i < batch.size) {
+        if (!batch.isDeleted(i)) {
+          val kkmId = batch.get[Dimensions.KKM_ID.T](i, kkmIdIdx)
+          val time = batch.get[Time](i, timeIdx)
+          res += (time -> kkmId)
+        }
+        i += 1
+      }
+      res
     }
 
     tsdb.mapReduceEngine(NoMetricCollector).fold(extracted)(Set.empty)(_ ++ _).toSeq
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      valueData: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
-  ): Unit = {
-    // may be throw exception here?
-  }
+  ): Unit = {}
 }

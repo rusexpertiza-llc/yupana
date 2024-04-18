@@ -1,14 +1,13 @@
 package org.yupana.hbase
 
+import java.nio.charset.StandardCharsets
+import java.util.UUID
 import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.types.{ ByteReaderWriter, DataType, ID }
-import org.yupana.serialization.ByteBufferEvalReaderWriter
+import org.yupana.api.types.{ DataType, ID, ReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
-import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
-import java.util.UUID
 import scala.jdk.CollectionConverters._
 import scala.reflect.api
 import scala.reflect.api.{ TypeCreator, Universe }
@@ -69,9 +68,9 @@ object HBaseTestUtils {
     }
 
     def field[T](tag: Int, value: T)(implicit dt: DataType.Aux[T]): RowBuilder = {
-      implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+      implicit val rw: ReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
-      val b = ByteBuffer.allocate(1024)
+      val b = MemoryBuffer.allocateHeap(1024)
       DataType[T].storable
       dt.storable.write(b, value: ID[T])
       val s = b.position()

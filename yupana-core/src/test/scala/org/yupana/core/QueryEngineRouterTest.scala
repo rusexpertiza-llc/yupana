@@ -4,6 +4,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ BeforeAndAfterAll, EitherValues }
 import org.yupana.api.Time
+import org.yupana.api.query.Result
 import org.yupana.api.types.DataType
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.{ PermissionService, TsdbRole, UserManager, YupanaUser }
@@ -26,9 +27,9 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
   }
 
   "QueryEngineRouter" should "handle selects" in withEngineRouter { (qer, _, _, _, _) =>
-    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SELECT 1", Map.empty).value.toList
-    res should have size 1
-    res.head.get[BigDecimal](0) shouldEqual 1
+    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SELECT 1", Map.empty).value
+    res.next() shouldEqual true
+    res.get[BigDecimal](0) shouldEqual 1
   }
 
   it should "not allow select for disabled user" in withEngineRouter { (qer, _, _, _, _) =>
@@ -71,37 +72,40 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
   }
 
   it should "handle show tables" in withEngineRouter { (qer, _, _, _, _) =>
-    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW TABLES", Map.empty).value.toList
-    res.map(_.get[String]("TABLE_NAME")) should contain theSameElementsAs TestSchema.schema.tables.values.map(_.name)
+    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW TABLES", Map.empty).value
+
+    iterateResult(res)(() =>
+      res.get[String]("TABLE_NAME")
+    ) should contain theSameElementsAs TestSchema.schema.tables.values.map(_.name)
   }
 
   it should "handle show version" in withEngineRouter { (qer, _, _, _, _) =>
-    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW VERSION", Map.empty).value.toList
-    res should have size 1
-    res.head.get[String]("VERSION") shouldEqual "1.2.3"
+    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW VERSION", Map.empty).value
+    res.next() shouldEqual true
+    res.get[String]("VERSION") shouldEqual "1.2.3"
   }
 
   it should "handle show columns" in withEngineRouter { (qer, _, _, _, _) =>
     val res =
-      qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW COLUMNS FROM test_table", Map.empty).value.toList
+      qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW COLUMNS FROM test_table", Map.empty).value
 
     val fieldNames = List("time") ++ TestSchema.testTable.dimensionSeq.map(_.name) ++
       TestSchema.testTable.metrics.map(_.name) ++
       TestSchema.testTable.externalLinks.flatMap(e => e.fields.map(f => e.linkName + "_" + f.name))
 
-    res.map(_.get[String]("COLUMN_NAME")) should contain theSameElementsAs fieldNames
+    iterateResult(res)(() => res.get[String]("COLUMN_NAME")) should contain theSameElementsAs fieldNames
   }
 
   it should "handle show functions" in withEngineRouter { (qer, _, _, _, _) =>
     val res =
-      qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW FUNCTIONS FOR VARCHAR", Map.empty).value.toList
-    res.map(_.get[String]("NAME")) shouldEqual FunctionRegistry.functionsForType(DataType[String])
+      qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW FUNCTIONS FOR VARCHAR", Map.empty).value
+    iterateResult(res)(() => res.get[String]("NAME")) shouldEqual FunctionRegistry.functionsForType(DataType[String])
   }
 
   it should "handle list queries" in withEngineRouter { (qer, _, metricsDao, _, _) =>
     (metricsDao.queriesByFilter _).expects(None, None).returning(Iterator())
-    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW QUERIES", Map.empty).value.toList
-    res should have size 0
+    val res = qer.query(YupanaUser("test", None, TsdbRole.ReadOnly), "SHOW QUERIES", Map.empty).value
+    res.next() shouldBe false
   }
 
   it should "handle delete metrics" in withEngineRouter { (qer, _, metricsDao, _, _) =>
@@ -110,9 +114,9 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
       qer
         .query(YupanaUser("test", None, TsdbRole.Admin), "DELETE QUERIES WHERE query_id = '123'", Map.empty)
         .value
-        .toList
-    res should have size 1
-    res.head.get[Int]("DELETED") shouldEqual 2
+
+    res.next() shouldBe true
+    res.get[Int]("DELETED") shouldEqual 2
   }
 
   it should "handle show query intervals" in withEngineRouter { (qer, _, _, changelogDao, _) =>
@@ -130,8 +134,8 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
           Map.empty
         )
         .value
-        .toList
-    res should have size 1
+    res.next() shouldBe true
+    res.next() shouldBe false
   }
 
   it should "list users" in withEngineRouter { (qer, _, _, _, userDao) =>
@@ -139,9 +143,8 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
       .expects()
       .returning(List(YupanaUser("test", None, TsdbRole.Admin), YupanaUser("test 2", None, TsdbRole.ReadWrite)))
 
-    val res = qer.query(YupanaUser("test", None, TsdbRole.Admin), "SHOW USERS", Map.empty).value.toList
-    res should have size 2
-    res.map(_.get[String]("NAME")) should contain theSameElementsAs List("test", "test 2")
+    val res = qer.query(YupanaUser("test", None, TsdbRole.Admin), "SHOW USERS", Map.empty).value
+    iterateResult(res)(() => res.get[String]("NAME")) should contain theSameElementsAs List("test", "test 2")
   }
 
   it should "prevent list users for non admins" in withEngineRouter { (qer, _, _, _, _) =>
@@ -161,9 +164,8 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
         Map.empty
       )
       .value
-      .toList
-    res should have size 1
-    res.head.get[String]("STATUS") shouldEqual "OK"
+    res.next() shouldEqual true
+    res.get[String]("STATUS") shouldEqual "OK"
   }
 
   it should "prevent create users for non admins" in withEngineRouter { (qer, _, _, _, _) =>
@@ -190,9 +192,8 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
         Map.empty
       )
       .value
-      .toList
-    res should have size 1
-    res.head.get[String]("STATUS") shouldEqual "OK"
+    res.next() shouldEqual true
+    res.get[String]("STATUS") shouldEqual "OK"
   }
 
   it should "prevent modify users for non admins" in withEngineRouter { (qer, _, _, _, _) =>
@@ -212,9 +213,9 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
       .expects("test3")
       .returning(true)
 
-    val res = qer.query(YupanaUser("test", None, TsdbRole.Admin), "DROP USER 'test3'", Map.empty).value.toList
-    res should have size 1
-    res.head.get[String]("STATUS") shouldEqual "OK"
+    val res = qer.query(YupanaUser("test", None, TsdbRole.Admin), "DROP USER 'test3'", Map.empty).value
+    res.next() shouldEqual true
+    res.get[String]("STATUS") shouldEqual "OK"
   }
 
   it should "inform if user not found" in withEngineRouter { (qer, _, _, _, userDao) =>
@@ -246,5 +247,13 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
 
       f(qer, tsdbDao, metricsDao, changelogDao, userDao)
     }
+
+  private def iterateResult[T](res: Result)(f: () => T): Seq[T] = {
+    var r = Seq.empty[T]
+    while (res.next()) {
+      r = r :+ f()
+    }
+    r
+  }
 
 }

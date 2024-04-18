@@ -1,6 +1,5 @@
 package org.yupana.hbase
 
-import org.yupana.api.types.FixedStorable
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -11,8 +10,8 @@ trait InvertedIndexDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with 
       "test",
       Serializers.stringSerializer,
       Serializers.stringDeserializer,
-      FixedStorable[Int].write,
-      FixedStorable[Int].read
+      Serializers.intSerializer,
+      Serializers.intDeserializer
     )
 
     dao.put("foo", Set(1, 2, 3, 5))
@@ -29,8 +28,8 @@ trait InvertedIndexDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with 
       "test_batch",
       Serializers.stringSerializer,
       Serializers.stringDeserializer,
-      FixedStorable[Int].write,
-      FixedStorable[Int].read
+      Serializers.intSerializer,
+      Serializers.intDeserializer
     )
 
     dao.batchPut(Map("foo" -> Set(1, 2, 3, 5), "bar" -> Set(4, 5, 6)))
@@ -45,8 +44,8 @@ trait InvertedIndexDaoHBaseTest extends HBaseTestBase with AnyFlatSpecLike with 
       "test_prefix",
       Serializers.stringSerializer,
       Serializers.stringDeserializer,
-      FixedStorable[Int].write,
-      FixedStorable[Int].read
+      Serializers.intSerializer,
+      Serializers.intDeserializer
     )
 
     dao.batchPut(Map("a" -> Set(1, 2), "aa" -> Set(3, 4), "aaa" -> Set(4, 5, 6)))

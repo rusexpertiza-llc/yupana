@@ -21,7 +21,8 @@ import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
 import org.yupana.core._
-import org.yupana.core.model.{ InternalQuery, InternalRowBuilder }
+import org.yupana.core.jit.JIT
+import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.hbase.{ HBaseTestUtils, InternalQueryContext, TSDHBaseRowIterator }
 import org.yupana.utils.RussianTokenizer
@@ -35,7 +36,7 @@ class TSDHBaseRowIteratorBenchmark {
     val it = new TSDHBaseRowIterator(
       state.internalQueryContext,
       state.rows.iterator,
-      new InternalRowBuilder(state.queryContext)
+      state.queryContext.internalRowSchema
     )
     it.foldLeft(0) { (a, r) =>
       a + 1
@@ -46,7 +47,7 @@ class TSDHBaseRowIteratorBenchmark {
 @State(Scope.Benchmark)
 class TSDHBaseRowBencmarkState {
   val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
-  val N = 10000000
+  val N = 1000000
   val rows = {
     val time = qtime.toInstant.toEpochMilli + 24L * 60 * 60 * 1000
     (1 to N).map { i =>
@@ -79,7 +80,7 @@ class TSDHBaseRowBencmarkState {
     Seq.empty
   )
 
-  val queryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
+  val queryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   implicit val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 

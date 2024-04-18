@@ -20,6 +20,8 @@ import org.yupana.api.query.Result
 import org.yupana.api.types.{ ByteReaderWriter, ID }
 import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
 
+import scala.collection.mutable.ListBuffer
+
 class Stream(id: Int, result: Result) {
 
   private var rows = 0
@@ -33,35 +35,37 @@ class Stream(id: Int, result: Result) {
   def next(count: Int): Seq[Response[_]] = {
 
     val batch = createBatch(result, count)
-    if (result.hasNext) {
-      batch
-    } else {
+    if (result.isLast()) {
       batch :+ createFooter(result)
+    } else {
+      batch
     }
   }
 
-  def hasNext: Boolean = result.hasNext
+  def hasNext: Boolean = !result.isLast()
 
   private def createBatch(result: Result, size: Int): Seq[ResultRow] = {
-    result
-      .take(size)
-      .map { row =>
-        val bytes = resultTypes.map {
-          case (rt, idx) =>
-            val v = row.get[rt.T](idx)
-            if (v != null) {
-              val size = rt.storable.write(buffer, 0, v: ID[rt.T])
-              val a = Array.ofDim[Byte](size)
-              buffer.getBytes(0, a)
-              a
-            } else {
-              Array.empty[Byte]
-            }
-        }
-        rows += 1
-        ResultRow(id, bytes)
+    val res = ListBuffer.empty[ResultRow]
+
+    var i = 0
+    while (i < size && result.next()) {
+      val bytes = resultTypes.map {
+        case (rt, idx) =>
+          val v = result.get[rt.T](idx)
+          if (v != null) {
+            val size = rt.storable.write(buffer, 0, v: ID[rt.T])
+            val a = Array.ofDim[Byte](size)
+            buffer.getBytes(0, a)
+            a
+          } else {
+            Array.empty[Byte]
+          }
       }
-      .toSeq
+      rows += 1
+      res += ResultRow(id, bytes)
+      i += 1
+    }
+    res.toSeq
   }
 
   private def createFooter(result: Result): ResultFooter = {

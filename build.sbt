@@ -26,12 +26,14 @@ lazy val yupana = (project in file("."))
     cache,
     core,
     hbase,
+    khipu,
     netty,
     postgres,
     spark,
     schema,
     externalLinks,
     examples,
+    khipuExamples,
     ehcache,
     ignite,
     caffeine,
@@ -57,11 +59,16 @@ lazy val api = (project in file("yupana-api"))
 
 lazy val serialization = (project in file("yupana-serialization"))
   .settings(
-    name := "yupana-serialization",
-    allSettings
+    name := "yupana-reader-writer",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
+      "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
+      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
+    )
   )
-  .dependsOn(api)
   .disablePlugins(AssemblyPlugin)
+  .dependsOn(api)
 
 lazy val protocol = (project in file("yupana-protocol"))
   .settings(
@@ -189,6 +196,14 @@ lazy val hbase = (project in file("yupana-hbase"))
     )
   )
   .dependsOn(core % "compile->compile ; test->test", cache, caffeine % Test)
+  .disablePlugins(AssemblyPlugin)
+
+lazy val khipu = (project in file("yupana-khipu"))
+  .settings(
+    name := "yupana-khipu",
+    allSettings
+  )
+  .dependsOn(core % "compile->compile ; test->test", caffeine % Test)
   .disablePlugins(AssemblyPlugin)
 
 lazy val netty = (project in file("yupana-netty"))
@@ -361,6 +376,20 @@ lazy val examples = (project in file("yupana-examples"))
   .dependsOn(spark, netty, hbase, schema, externalLinks, ehcache % Runtime)
   .enablePlugins(FlywayPlugin)
 
+lazy val khipuExamples = (project in file("yupana-khipu-examples"))
+  .settings(
+    name := "yupana-khipu-examples",
+    allSettings,
+    noPublishSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe"                %  "config"                         % "1.4.3",
+      "ch.qos.logback"              %  "logback-classic"                % versions.logback              % Runtime
+    )
+  )
+  .dependsOn(khipu, netty, schema, externalLinks, jdbc, caffeine % Runtime)
+  .disablePlugins(AssemblyPlugin)
+
+
 lazy val benchmarks = (project in file("yupana-benchmarks"))
   .enablePlugins(JmhPlugin)
   .settings(commonSettings, noPublishSettings)
@@ -479,7 +508,30 @@ val commonSettings = Seq(
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
-  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;org\\.yupana\\.hbase\\.proto\\..*;org\\.yupana\\.benchmarks\\..*",
+  Test / javaOptions ++= Seq(
+    "--add-opens=java.base/jdk.internal.misc=ALL-UNNAMED",
+    "--add-modules=jdk.incubator.foreign",
+    "--add-exports=jdk.incubator.foreign/jdk.internal.foreign=ALL-UNNAMED",
+    // taken from https://github.com/apache/spark/blob/v3.5.0/launcher/src/main/java/org/apache/spark/launcher/JavaModuleOptions.java
+    "-XX:+IgnoreUnrecognizedVMOptions",
+    "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+    "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+    "--add-opens=java.base/java.io=ALL-UNNAMED",
+    "--add-opens=java.base/java.net=ALL-UNNAMED",
+    "--add-opens=java.base/java.nio=ALL-UNNAMED",
+    "--add-opens=java.base/java.util=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+    "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+    "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+    "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+    "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+    "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED",
+    "-Djdk.reflect.useDirectMethodHandle=false"
+  ),
+  Test / fork := true,
+  coverageExcludedPackages := "<empty>;org\\.yupana\\.examples\\..*;;org\\.yupana\\.khipu\\.examples\\..*;org\\.yupana\\.benchmarks\\..*",
   headerLicense := Some(HeaderLicense.ALv2("2019", "Rusexpertiza LLC"))
 )
 

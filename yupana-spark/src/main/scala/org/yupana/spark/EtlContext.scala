@@ -16,6 +16,7 @@
 
 package org.yupana.spark
 
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hbase.HBaseConfiguration
 import org.yupana.api.schema.Schema
@@ -23,12 +24,14 @@ import org.yupana.core.TSDB
 import org.yupana.externallinks.items.ItemsInvertedIndexImpl
 import org.yupana.hbase.{ ExternalLinkHBaseConnection, InvertedIndexDaoHBase, Serializers, TSDBHBase }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{ Dimensions, ItemDimension }
+import org.yupana.schema.ItemDimension
 
 class EtlContext(
     val cfg: EtlConfig,
     schema: Schema
-) extends Serializable {
+) extends Serializable
+    with StrictLogging {
+
   def hBaseConfiguration: Configuration = {
     val hbaseconf = HBaseConfiguration.create()
     hbaseconf.set("hbase.zookeeper.quorum", cfg.hbaseZookeeper)
@@ -38,31 +41,36 @@ class EtlContext(
   }
 
   private def initTsdb: TSDB = {
-    val tsdb =
-      TSDBHBase(
-        hBaseConfiguration,
-        cfg.hbaseNamespace,
-        schema,
-        identity,
-        cfg.settings,
-        cfg,
-        None
-      )
+
+    logger.info("Init Yupana TSDB with HBase engine")
+
+    val tsdb = TSDBHBase(
+      hBaseConfiguration,
+      cfg.hbaseNamespace,
+      schema,
+      identity,
+      cfg.settings,
+      cfg,
+      None
+    )
     setup(tsdb)
+
     EtlContext.tsdb = Some(tsdb)
     tsdb
   }
 
   protected def setup(tsdbInstance: TSDB): Unit = {
     val hBaseConnection = new ExternalLinkHBaseConnection(hBaseConfiguration, cfg.hbaseNamespace)
+
     val invertedIndexDao = new InvertedIndexDaoHBase[String, ItemDimension.KeyType](
       hBaseConnection,
       ItemsInvertedIndexImpl.TABLE_NAME,
       Serializers.stringSerializer,
       Serializers.stringDeserializer,
-      Dimensions.ITEM.rStorable.write,
-      Dimensions.ITEM.rStorable.read
+      ItemsInvertedIndexImpl.valueSerializer,
+      ItemsInvertedIndexImpl.valueDeserializer
     )
+
     val itemsInvertedIndex = new ItemsInvertedIndexImpl(
       schema,
       invertedIndexDao,

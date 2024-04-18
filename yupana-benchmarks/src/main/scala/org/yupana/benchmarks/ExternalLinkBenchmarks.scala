@@ -20,11 +20,15 @@ import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, RawDimension, Table => SchemaTable }
-import org.yupana.core.{ ExpressionCalculatorFactory, QueryContext }
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder, TimeSensitiveFieldValues }
+import org.yupana.core.QueryContext
+import org.yupana.core.jit.JIT
+import org.yupana.core.model.{ BatchDataset, TimeSensitiveFieldValues }
+import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.schema.Tables
+import org.yupana.utils.RussianTokenizer
+
 import java.time.{ OffsetDateTime, ZoneOffset }
 
 object BenchLink extends ExternalLink {
@@ -45,8 +49,7 @@ class ExternalLinkBenchmarks {
   def setLinkedValues(state: ExternalLinkBenchmarkState): Unit = {
     ExternalLinkUtils.setLinkedValues[Int](
       state.externalLink,
-      state.exprIndex,
-      state.rows,
+      state.batch,
       state.exprs,
       fieldValuesForDimValues
     )
@@ -56,8 +59,7 @@ class ExternalLinkBenchmarks {
   def setLinkedValuesTimeSensitive(state: ExternalLinkBenchmarkState): Unit = {
     ExternalLinkUtils.setLinkedValuesTimeSensitive[Int](
       state.externalLink,
-      state.exprIndex,
-      state.rows,
+      state.batch,
       state.exprs,
       fieldValuesForDimValuesTimeSensitive
     )
@@ -74,7 +76,8 @@ class ExternalLinkBenchmarks {
       from: Time,
       to: Time
   ): Map[Int, Array[TimeSensitiveFieldValues]] = {
-    val times = for (t <- from.millis to to.millis by 1) yield Time(t)
+    val step = (to.millis - from.millis) / 10
+    val times = for (t <- from.millis to to.millis by step) yield Time(t)
     dimIds.map { dimId =>
       dimId -> times.map(t => TimeSensitiveFieldValues(t, Map(BenchLink.F1 -> s"$dimId-f1-val"))).toArray
     }.toMap
@@ -102,15 +105,18 @@ class ExternalLinkBenchmarkState {
       )
     )
   )
-  val queryContext: QueryContext = new QueryContext(query, None, ExpressionCalculatorFactory)
+  val queryContext: QueryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
-  var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex.toMap
-  var rows: Seq[InternalRow] = 1 to 10000 map { i =>
-    new InternalRowBuilder(exprIndex, None)
-      .set(dimExpr, i - (i % 2))
-      .set(TimeExpr, Time(System.currentTimeMillis()))
-      .buildAndReset()
+  var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex
+  var batch: BatchDataset = {
+    val batch = BatchDataset(queryContext)
+    1 to 10000 foreach { rowNum =>
+      batch.set(rowNum, dimExpr, rowNum - (rowNum % 2))
+      batch.set(rowNum, TimeExpr, Time(System.currentTimeMillis()))
+    }
+    batch
   }
+
   var exprs: Set[LinkExpr[_]] = Set(linkExpr)
 }

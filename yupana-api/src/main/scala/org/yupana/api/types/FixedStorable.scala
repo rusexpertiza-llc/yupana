@@ -16,9 +16,6 @@
 
 package org.yupana.api.types
 
-import java.nio.ByteBuffer
-import java.{ lang => jl }
-
 import org.yupana.api.Time
 
 import scala.annotation.implicitNotFound
@@ -27,46 +24,134 @@ import scala.annotation.implicitNotFound
 trait FixedStorable[T] extends Serializable {
   val size: Int
 
-  def read(a: Array[Byte]): T
-  def read(bb: ByteBuffer): T
-  def write(t: T): Array[Byte]
+  def read[B, V[_], S, O](b: B)(implicit rw: ReaderWriter[B, V, S, O]): V[T]
+
+  def read[B, V[_], S, O](b: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[T]
+
+  def write[B, V[_], S, O](b: B, v: V[T])(implicit rw: ReaderWriter[B, V, S, O]): S
+
+  def write[B, V[_], S, O](b: B, offset: O, v: V[T])(implicit rw: ReaderWriter[B, V, S, O]): S
 }
 
 object FixedStorable {
 
   def apply[T](implicit ev: FixedStorable[T]): FixedStorable[T] = ev
 
-  implicit val longStorable: FixedStorable[Long] = of(jl.Long.BYTES, _.getLong, _.putLong)
-  implicit val intStorable: FixedStorable[Int] = of(jl.Integer.BYTES, _.getInt, _.putInt)
-  implicit val doubleStorable: FixedStorable[Double] = of(jl.Double.BYTES, _.getDouble, _.putDouble)
-  implicit val shortStorable: FixedStorable[Short] = of(jl.Short.BYTES, _.getShort, _.putShort)
-  implicit val byteStorable: FixedStorable[Byte] = of(jl.Byte.BYTES, _.get, _.put)
-  implicit val timeStorable: FixedStorable[Time] = wrap(longStorable, (l: Long) => new Time(l), _.millis)
-  implicit def tupleStorable[T, U](
-      implicit tStrable: FixedStorable[T],
-      uStorable: FixedStorable[U]
-  ): FixedStorable[(T, U)] = {
-    of(
-      tStrable.size + uStorable.size,
-      bb => (tStrable.read(bb), uStorable.read(bb)),
-      bb => d => bb.put(tStrable.write(d._1)).put(uStorable.write(d._2))
-    )
+  implicit val intStorable: FixedStorable[Int] = new FixedStorable[Int] {
+    override val size: Int = 4
+    override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Int] = rw.readInt(bb)
+    override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Int] =
+      rw.readInt(bb, offset)
+    override def write[B, V[_], S, O](bb: B, v: V[Int])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeInt(bb, v)
+    override def write[B, V[_], S, O](bb: B, offset: O, v: V[Int])(
+        implicit rw: ReaderWriter[B, V, S, O]
+    ): S =
+      rw.writeInt(bb, offset, v)
   }
 
-  def of[T](s: Int, r: ByteBuffer => T, w: ByteBuffer => T => ByteBuffer): FixedStorable[T] =
-    new FixedStorable[T] {
-      override val size: Int = s
+  implicit val longStorable: FixedStorable[Long] = new FixedStorable[Long] {
+    override val size: Int = 8
+    override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Long] = rw.readLong(bb)
+    override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Long] =
+      rw.readLong(bb, offset)
+    override def write[B, V[_], S, O](bb: B, v: V[Long])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeLong(bb, v)
+    override def write[B, V[_], S, O](bb: B, offset: O, v: V[Long])(
+        implicit rw: ReaderWriter[B, V, S, O]
+    ): S =
+      rw.writeLong(bb, offset, v)
+  }
 
-      override def read(bb: ByteBuffer): T = r(bb)
-      override def read(a: Array[Byte]): T = read(ByteBuffer.wrap(a))
-      override def write(t: T): Array[Byte] = w(ByteBuffer.allocate(size))(t).array()
+  implicit val doubleStorable: FixedStorable[Double] = new FixedStorable[Double] {
+    override val size: Int = 8
+    override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Double] = rw.readDouble(bb)
+    override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Double] =
+      rw.readDouble(bb, offset)
+    override def write[B, V[_], S, O](bb: B, v: V[Double])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeDouble(bb, v)
+    override def write[B, V[_], S, O](bb: B, offset: O, v: V[Double])(
+        implicit rw: ReaderWriter[B, V, S, O]
+    ): S = rw.writeDouble(bb, offset, v)
+  }
+
+  implicit val shortStorable: FixedStorable[Short] = new FixedStorable[Short] {
+    override val size: Int = 2
+    override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Short] = rw.readShort(bb)
+    override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Short] =
+      rw.readShort(bb, offset)
+    override def write[B, V[_], S, O](bb: B, v: V[Short])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeShort(bb, v)
+    override def write[B, V[_], S, O](bb: B, offset: O, v: V[Short])(
+        implicit rw: ReaderWriter[B, V, S, O]
+    ): S = rw.writeShort(bb, offset, v)
+  }
+
+  implicit val byteStorable: FixedStorable[Byte] = new FixedStorable[Byte] {
+    override val size: Int = 1
+    override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Byte] = rw.readByte(bb)
+    override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Byte] =
+      rw.readByte(bb, offset)
+    override def write[B, V[_], S, O](bb: B, v: V[Byte])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeByte(bb, v)
+    override def write[B, V[_], S, O](bb: B, offset: O, v: V[Byte])(
+        implicit rw: ReaderWriter[B, V, S, O]
+    ): S =
+      rw.writeByte(bb, offset, v)
+  }
+
+  implicit val timeStorable: FixedStorable[Time] = new FixedStorable[Time] {
+    override val size: Int = 8
+    override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Time] = rw.readTime(bb)
+    override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Time] =
+      rw.readTime(bb, offset)
+    override def write[B, V[_], S, O](bb: B, v: V[Time])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeTime(bb, v)
+    override def write[B, V[_], S, O](bb: B, offset: O, v: V[Time])(
+        implicit rw: ReaderWriter[B, V, S, O]
+    ): S =
+      rw.writeTime(bb, offset, v)
+  }
+
+  implicit def tupleStorable[T, U](
+      implicit tStorable: FixedStorable[T],
+      uStorable: FixedStorable[U]
+  ): FixedStorable[(T, U)] = {
+    new FixedStorable[(T, U)] {
+      override val size: Int = tStorable.size + uStorable.size
+
+      override def read[B, V[_], S, O](bb: B)(implicit rw: ReaderWriter[B, V, S, O]): V[(T, U)] = {
+        rw.readTuple(
+          bb,
+          b => tStorable.read(b)(rw),
+          b => uStorable.read(b)(rw)
+        )
+      }
+
+      override def read[B, V[_], S, O](bb: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[(T, U)] = {
+        rw.readTuple(bb, offset, b => tStorable.read(b)(rw), b => uStorable.read(b)(rw))
+      }
+
+      override def write[B, V[_], S, O](bb: B, v: V[(T, U)])(implicit rw: ReaderWriter[B, V, S, O]): S = {
+        rw.writeTuple(
+          bb,
+          v,
+          (b, v: V[T]) => tStorable.write(b, v)(rw),
+          (b, v: V[U]) => uStorable.write(b, v)(rw)
+        )
+      }
+
+      override def write[B, V[_], S, O](bb: B, offset: O, v: V[(T, U)])(
+          implicit rw: ReaderWriter[B, V, S, O]
+      ): S = {
+        rw.writeTuple(
+          bb,
+          offset,
+          v,
+          (b, v: V[T]) => tStorable.write(b, v)(rw),
+          (b, v: V[U]) => uStorable.write(b, v)(rw)
+        )
+      }
     }
-
-  def wrap[T, U](storable: FixedStorable[T], from: T => U, to: U => T): FixedStorable[U] = new FixedStorable[U] {
-    override val size: Int = storable.size
-
-    override def read(a: Array[Byte]): U = from(storable.read(a))
-    override def read(bb: ByteBuffer): U = from(storable.read(bb))
-    override def write(t: U): Array[Byte] = storable.write(to(t))
   }
 }

@@ -228,6 +228,8 @@ class PrefetchedSortedSetIterator[T] private[utils] (it: SortedSetIterator[T], p
   private var bufferLen = 0
   private var index = 0
 
+  def currentIndex: Int = index
+
   def isAllFetched: Boolean = {
     hasNext
     !it.hasNext

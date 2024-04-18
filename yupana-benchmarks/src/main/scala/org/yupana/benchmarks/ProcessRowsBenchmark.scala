@@ -21,7 +21,8 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
-import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.core.utils.metric.StandaloneMetricCollector
+import org.yupana.metrics.Slf4jMetricReporter
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
 
 import java.time.LocalDateTime
@@ -30,15 +31,23 @@ class ProcessRowsBenchmark {
 
   @Benchmark
   def processRows(state: TsdbBaseBenchmarkState): Int = {
-    state.tsdb
+    val mc = new StandaloneMetricCollector(state.query, "admin", "bench", 1000, new Slf4jMetricReporter)
+    val res = state.tsdb
       .processRows(
         state.queryContext,
-        NoMetricCollector,
+        mc,
         IteratorMapReducible.iteratorMR,
-        state.rows.iterator
+        state.dataset.iterator
       )
-      .size
+    var i = 0
+    while (res.next()) {
+      i += 1
+    }
+    res.close()
+    mc.finish()
+    i
   }
+
 }
 
 @State(Scope.Benchmark)
@@ -49,10 +58,13 @@ class TsdbBaseBenchmarkState extends TsdbBaseBenchmarkStateBase {
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
       time as "time",
+      truncDay(time) as "day",
       dimension(Dimensions.ITEM) as "item",
       divInt(dimension(Dimensions.KKM_ID), const(2)) as "half_of_kkm",
       metric(ItemTableMetrics.quantityField) as "quantity",
-      divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))) as "price"
+      metric(ItemTableMetrics.sumField) as "sum",
+      plus(metric(ItemTableMetrics.quantityField), const(1.11)) as "tt",
+      plus(metric(ItemTableMetrics.sumField), const(BigDecimal(1))) as "sum"
     ),
     filter = Some(gt(divInt(dimension(Dimensions.KKM_ID), const(2)), const(100))),
     groupBy = Seq.empty

@@ -39,7 +39,7 @@ class Slf4jMetricReporter[C <: MetricCollector] extends MetricReporter[C] with S
 }
 
 object Slf4jMetricReporter {
-  private def formatNanoTime(value: Long): String = {
+  def formatNanoTime(value: Long): String = {
     new java.text.DecimalFormat("#.##########").format(value / 1000000000.0)
   }
 }
