@@ -16,8 +16,11 @@
 
 package org.yupana.protocol
 
+import org.yupana.api.types.ByteReaderWriter
+
 /**
   * Helper class for a message type. Provides methods to serialize and deserialize messages.
+  *
   * @tparam M type of the message
   */
 trait MessageHelper[M <: Message[M]] {
@@ -34,18 +37,16 @@ trait MessageHelper[M <: Message[M]] {
     * @tparam B buffer instance to be used (depends on environment)
     * @return Frame containing serialized message
     */
-  def toFrame[B: Buffer](c: M): Frame = {
-    val b = implicitly[Buffer[B]]
-    val buf = b.alloc(Frame.MAX_FRAME_SIZE)
-    readWrite.write(buf, c)
-    Frame(tag.value, b.toByteArray(buf))
+  def toFrame[B: ByteReaderWriter](c: M, b: B): Frame[B] = {
+    readWrite.write(b, c)
+    Frame(tag.value, b)
   }
 
   /**
     * Reads message from the data frame. Checks frame type before reading.
     * @return deserialized message or None, if frame type doesn't match message type.
     */
-  def readFrameOpt[B: Buffer](f: Frame): Option[M] = {
+  def readFrameOpt[B: ByteReaderWriter](f: Frame[B]): Option[M] = {
     Option.when(f.frameType == tag.value)(readFrame(f))
   }
 
@@ -55,7 +56,7 @@ trait MessageHelper[M <: Message[M]] {
     * @tparam B buffer instance
     * @return deserialized message
     */
-  def readFrame[B: Buffer](f: Frame): M = {
-    readWrite.read(implicitly[Buffer[B]].wrap(f.payload))
+  def readFrame[B: ByteReaderWriter](f: Frame[B]): M = {
+    readWrite.read(f.payload)
   }
 }

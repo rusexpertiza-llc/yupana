@@ -33,12 +33,16 @@ case class TsdbQueryMetrics(
 )
 
 object TsdbQueryMetrics {
+  val initQueryContextQualifier = "init_query_context"
   val createDimensionFiltersQualifier = "create_dimensions_filters"
   val createScansQualifier = "create_scans"
   val scanQualifier = "scan"
   val createContextQualifier = "create_context"
   val loadTagsQualifier = "load_tags"
   val filterRowsQualifier = "filter_rows"
+  val filterQualifier = "filter"
+  val evaluateExpressionsQualifier = "evaluate_expressions"
+  val extractKeyDataQualifier = "extract_key_data"
   val windowFunctionsCheckQualifier = "window_functions_check"
   val windowFunctionsQualifier = "window_functions"
   val mapOperationQualifier = "map_operation"
@@ -65,11 +69,16 @@ object TsdbQueryMetrics {
   val metricSpeed = "speed"
 
   val qualifiers = List(
+    initQueryContextQualifier,
     createDimensionFiltersQualifier,
     createScansQualifier,
+    createContextQualifier,
     scanQualifier,
     loadTagsQualifier,
     filterRowsQualifier,
+    filterQualifier,
+    evaluateExpressionsQualifier,
+    extractKeyDataQualifier,
     windowFunctionsCheckQualifier,
     windowFunctionsQualifier,
     mapOperationQualifier,

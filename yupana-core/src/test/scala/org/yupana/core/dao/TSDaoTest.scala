@@ -5,8 +5,8 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.query.DataPoint
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.schema.Table
-import org.yupana.core.{ IteratorMapReducible, MapReducible }
-import org.yupana.core.model.{ InternalQuery, InternalRow, InternalRowBuilder, UpdateInterval }
+import org.yupana.core.{ IteratorMapReducible, MapReducible, QueryContext }
+import org.yupana.core.model.{ BatchDataset, DatasetSchema, InternalQuery, UpdateInterval }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
 import java.time.{ OffsetDateTime, ZoneOffset }
@@ -33,9 +33,10 @@ class TSDaoTest extends AnyFlatSpec with Matchers {
 
       override def query(
           query: InternalQuery,
-          valueDataBuilder: InternalRowBuilder,
+          queryContext: QueryContext,
+          datasetSchema: DatasetSchema,
           metricCollector: MetricQueryCollector
-      ): Iterator[InternalRow] = ???
+      ): Iterator[BatchDataset] = ???
 
       override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] = ???
       override def isSupportedCondition(condition: Condition): Boolean = ???

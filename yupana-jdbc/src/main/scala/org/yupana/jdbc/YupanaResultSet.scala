@@ -16,8 +16,9 @@
 
 package org.yupana.jdbc
 
-import org.yupana.api.query.{ DataRow, Result }
-import org.yupana.api.types.{ ArrayDataType, DataType }
+import org.yupana.api.query.Result
+import org.yupana.api.types.ArrayDataType
+import org.yupana.api.types.DataType
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.{ Time => ApiTime }
 
@@ -41,11 +42,10 @@ class YupanaResultSet protected[jdbc] (
   private val dataTypes = result.dataTypes.toArray
 
   private var currentIdx = -1
-  private var it: Iterator[DataRow] = result
-  private var currentRow: DataRow = _
 
   private var wasNullValue = false
   private var closed = false
+  private var isInAfterLastPosition = false
 
   @throws[SQLException]
   override def getStatement: Statement = statement
@@ -53,15 +53,14 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def next: Boolean = {
     checkClosed()
-
-    if (it.hasNext) {
-      currentIdx += 1
-      currentRow = it.next()
-      true
-    } else {
-      currentRow = null
-      false
+    if (isLast) {
+      isInAfterLastPosition = true
     }
+    val r = result.next()
+    if (r) {
+      currentIdx += 1
+    }
+    r
   }
 
   private def onlyForwardException(): Boolean =
@@ -77,8 +76,7 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def isAfterLast: Boolean = {
     checkClosed()
-
-    !it.hasNext && currentRow == null
+    isInAfterLastPosition
   }
 
   @throws[SQLException]
@@ -90,7 +88,7 @@ class YupanaResultSet protected[jdbc] (
   @throws[SQLException]
   override def isLast: Boolean = {
     checkClosed()
-    !it.hasNext && currentRow != null
+    !isInAfterLastPosition && result.isLast()
   }
 
   @throws[SQLException]
@@ -125,9 +123,8 @@ class YupanaResultSet protected[jdbc] (
 
     if (isAfterLast) onlyForwardException()
 
-    while (it.hasNext) {
+    while (!isLast && result.next()) {
       currentIdx += 1
-      currentRow = it.next()
     }
     true
   }
@@ -144,9 +141,7 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (row < currentIdx + 1) onlyForwardException()
-    it = result.drop(row - currentIdx - 2)
-    currentRow = it.next()
-    currentIdx = row - 1
+    while (currentIdx < row - 1 && next()) {}
     true
   }
 
@@ -155,9 +150,10 @@ class YupanaResultSet protected[jdbc] (
     checkClosed()
 
     if (rows < 0) onlyForwardException()
-    it = result.drop(rows - 1)
-    currentRow = it.next()
-    currentIdx = currentIdx + rows
+    var c = 0
+    while (c < rows && next()) {
+      c += 1
+    }
     true
   }
 
@@ -190,8 +186,6 @@ class YupanaResultSet protected[jdbc] (
       streamId.foreach(statement.connection.cancelStream)
     }
     closed = true
-    currentRow = null
-    it = Iterator.empty
     currentIdx = -1
   }
 
@@ -375,19 +369,19 @@ class YupanaResultSet protected[jdbc] (
   private def checkRow(): Unit = {
     checkClosed()
 
-    if (currentRow == null) {
-      if (currentIdx == -1) {
-        throw new SQLException("Trying to read before next call")
-      } else {
-        throw new SQLException("Reading after the last row")
-      }
+    if (currentIdx == -1) {
+      throw new SQLException("Trying to read before next call")
+    }
+
+    if (isAfterLast) {
+      throw new SQLException("Reading after the last row")
     }
   }
 
   private def getPrimitive[T <: AnyVal](i: Int, default: T, cast: (DataType, Any) => T): T = {
     checkRow()
+    val cell = result.get[T](i - 1)
     val dt = dataTypes(i - 1)
-    val cell = currentRow.get[dt.T](i - 1)
     wasNullValue = cell == null
     if (cell == null) {
       default
@@ -402,7 +396,7 @@ class YupanaResultSet protected[jdbc] (
 
   private def getReference[T <: AnyRef](i: Int, f: AnyRef => T): T = {
     checkRow()
-    val cell = currentRow.get[T](i - 1)
+    val cell = result.get[T](i - 1)
 
     wasNullValue = cell == null
     if (cell == null) {

@@ -2,3 +2,4 @@
 -Xms2G
 -Xmx2G
 -XX:MaxMetaspaceSize=1024M
+-XX:MaxDirectMemorySize=16G

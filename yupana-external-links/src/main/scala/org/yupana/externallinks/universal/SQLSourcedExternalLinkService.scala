@@ -23,7 +23,7 @@ import org.yupana.api.schema.{ Dimension, ExternalLink, Schema }
 import org.yupana.api.types.{ BoxingTag, DataType }
 import org.yupana.cache.{ Cache, CacheFactory }
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.model.InternalRow
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable, Table }
 import org.yupana.externallinks.ExternalLinkUtils
 import org.yupana.externallinks.universal.JsonCatalogs.SQLExternalLinkDescription
@@ -52,14 +52,12 @@ class SQLSourcedExternalLinkService[DimensionValue](
     )
 
   override def setLinkedValues(
-      exprIndex: collection.Map[Expression[_], Int],
-      rows: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
   ): Unit = {
     ExternalLinkUtils.setLinkedValues(
       externalLink,
-      exprIndex,
-      rows,
+      batch,
       exprs,
       fieldValuesForDimValues
     )

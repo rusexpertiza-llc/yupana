@@ -16,31 +16,31 @@
 
 package org.yupana.metrics
 
-import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.atomic.AtomicLong
 
 class MetricImpl(
     val name: String,
     metricCollector: MetricCollector
 ) extends Metric {
 
-  private val countAdder: LongAdder = new LongAdder()
-  private val timeAdder: LongAdder = new LongAdder()
+  private val countAdder = new AtomicLong()
+  private val timeAdder = new AtomicLong()
 
-  override def time: Long = timeAdder.sum()
-  override def count: Long = countAdder.sum()
+  override def time: Long = timeAdder.get()
+  override def count: Long = countAdder.get()
 
   override def reset(): Unit = {
-    countAdder.reset()
-    timeAdder.reset()
+    countAdder.set(0)
+    timeAdder.set(0)
   }
 
   override def measure[T](cnt: Int)(f: => T): T =
     try {
       val start = System.nanoTime()
       val result = f
-      countAdder.add(cnt)
+      countAdder.addAndGet(cnt)
       val end = System.nanoTime()
-      timeAdder.add(end - start)
+      timeAdder.addAndGet(end - start)
       metricCollector.metricUpdated(this, end)
       result
     } catch {

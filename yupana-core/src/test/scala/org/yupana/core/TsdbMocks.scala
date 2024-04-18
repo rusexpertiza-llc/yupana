@@ -6,7 +6,7 @@ import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
-import org.yupana.core.model.InternalRow
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
@@ -93,16 +93,19 @@ trait TsdbMocks extends MockFactory {
   }
 
   def setCatalogValueByTag(
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      datas: Seq[InternalRow],
+      dataset: BatchDataset,
       catalog: ExternalLink,
       catalogValues: Table[String, String, String]
   ): Unit = {
-    datas.foreach { v =>
-      val tagValue = v.get(exprIndex, DimensionExpr(catalog.dimension)).asInstanceOf[String]
-      catalogValues.row(tagValue).foreach {
-        case (field, value) =>
-          v.set(exprIndex, LinkExpr(catalog, field), value)
+    for (i <- (0 until dataset.size)) {
+      if (dataset.isDefined(i, DimensionExpr(catalog.dimension))) {
+        val dimValue = dataset.get(i, DimensionExpr(catalog.dimension)).asInstanceOf[String]
+        catalogValues.row(dimValue).foreach {
+          case (field, value) =>
+            if (value != null) {
+              dataset.set(i, LinkExpr(catalog, field), value)
+            }
+        }
       }
     }
   }

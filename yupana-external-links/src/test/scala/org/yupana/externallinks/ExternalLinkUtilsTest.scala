@@ -6,7 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.query.Expression.Condition
 import org.yupana.core.ConstantCalculator
-import org.yupana.core.model.InternalRowBuilder
+import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable, Table }
 import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.utils.RussianTokenizer
@@ -105,38 +105,37 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
         SparseTable[String, String, String](dimValues.map(dv => dv -> fields.map(f => f -> s"$f:$dv").toMap).toMap)
     }
 
-    val exprIndex = Map[Expression[_], Int](
-      time -> 0,
+    val valExprIndex = Map[Expression[_], Int](
+      time -> 0
+    )
+
+    val refExprIndex = Map[Expression[_], Int](
       dimension(xDim) -> 1,
       link(TestLink, TestLink.field1) -> 2,
       link(TestLink, TestLink.field2) -> 3
     )
 
-    val ib = new InternalRowBuilder(exprIndex, Some(table))
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Some(table))
+    val batch = new BatchDataset(schema)
 
-    val row1 = ib
-      .set(time, Time(10L))
-      .set(dimension(xDim), "foo")
-      .buildAndReset()
+    batch.set(0, time, Time(10L))
+    batch.set(0, dimension(xDim), "foo")
 
-    val row2 = ib
-      .set(dimension(xDim), "bar")
-      .set(time, Time(20L))
-      .buildAndReset()
-    val rows = Seq(row1, row2)
+    batch.set(1, dimension(xDim), "bar")
+    batch.set(1, time, Time(20L))
 
     ExternalLinkUtils.setLinkedValues[String](
       TestLink,
-      exprIndex,
-      rows,
+      batch,
       Set(link(TestLink, TestLink.field1), link(TestLink, TestLink.field2)),
       testSetter
     )
 
-    row1.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
-    row1.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
-    row2.get[String](exprIndex, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
-    row2.get[String](exprIndex, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
+    batch.get[String](0, link(TestLink, TestLink.field1)) shouldEqual "field1:foo"
+    batch.get[String](0, link(TestLink, TestLink.field2)) shouldEqual "field2:foo"
+
+    batch.get[String](1, link(TestLink, TestLink.field1)) shouldEqual "field1:bar"
+    batch.get[String](1, link(TestLink, TestLink.field2)) shouldEqual "field2:bar"
   }
 
   it should "cross join multiple values" in {

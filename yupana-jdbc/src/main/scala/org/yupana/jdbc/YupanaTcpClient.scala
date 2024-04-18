@@ -17,12 +17,13 @@
 package org.yupana.jdbc
 
 import org.yupana.api.query.SimpleResult
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ ByteReaderWriter, DataType }
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.jdbc.YupanaConnection.QueryResult
 import org.yupana.jdbc.YupanaTcpClient.Handler
 import org.yupana.jdbc.build.BuildInfo
 import org.yupana.protocol._
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.net.{ InetSocketAddress, StandardSocketOptions }
 import java.nio.ByteBuffer
@@ -52,6 +53,8 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   private val HEARTBEAT_INTERVAL = 30_000
 
   private var closed: Boolean = true
+
+  implicit val readerWriter: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
 
   private def ensureNotClosed(): Unit = {
     closed &= !channel.isOpen
@@ -301,16 +304,18 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
 
   private def write(request: Command[_]): Future[Unit] = {
     logger.fine(s"Writing command ${request.helper.tag.value.toChar}")
-    val f = request.toFrame
-    val bb = ByteBuffer.allocate(f.payload.length + 4 + 1)
+    val f = request.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    val bb = ByteBuffer.allocate(f.payload.position() + 4 + 1)
     bb.put(f.frameType)
-    bb.putInt(f.payload.length)
+    bb.putInt(f.payload.position())
+    f.payload.flip()
     bb.put(f.payload)
     bb.flip()
 
     JdbcUtils.wrapHandler[Unit](
       new CompletionHandler[Integer, Promise[Unit]] {
         override def completed(result: Integer, p: Promise[Unit]): Unit = p.success(())
+
         override def failed(exc: Throwable, p: Promise[Unit]): Unit = p.failure(exc)
       },
       (p, h) => channel.write(bb, p, h)
@@ -348,7 +353,9 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
             if (bytes.isEmpty) {
               null
             } else {
-              rt.storable.read(bytes)
+              val b = ByteBuffer.wrap(bytes)
+              val t = rt.storable.read(b)
+              t
             }
         }
         .toArray

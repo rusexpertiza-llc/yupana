@@ -17,6 +17,7 @@
 package org.yupana.netty
 
 import com.typesafe.scalalogging.StrictLogging
+import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import org.yupana.api.query.Result
 import org.yupana.core.auth.YupanaUser
@@ -32,7 +33,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
     super.channelInactive(ctx)
   }
 
-  override def channelRead0(ctx: ChannelHandlerContext, frame: Frame): Unit = {
+  override def channelRead0(ctx: ChannelHandlerContext, frame: Frame[ByteBuf]): Unit = {
     frame.frameType match {
       case Tags.SQL_QUERY.value   => processMessage(ctx, frame, SqlQuery)(pq => handleQuery(ctx, pq))
       case Tags.BATCH_QUERY.value => processMessage(ctx, frame, BatchQuery)(bq => handleBatchQuery(ctx, bq))

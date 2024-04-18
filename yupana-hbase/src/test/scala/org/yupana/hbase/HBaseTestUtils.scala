@@ -2,11 +2,11 @@ package org.yupana.hbase
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-
 import org.apache.hadoop.hbase.Cell
 import org.apache.hadoop.hbase.client.Result
 import org.apache.hadoop.hbase.util.Bytes
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, ID, ReaderWriter }
+import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
 import scala.jdk.CollectionConverters._
 import scala.reflect.api
@@ -67,24 +67,18 @@ object HBaseTestUtils {
       new RowBuilder(key, (family, time, Array.empty[Byte]) :: cells)
     }
 
-    def field(tag: Int, value: Long): RowBuilder = {
-      field(tag, DataType.intDt[Long].storable.write(value))
-    }
+    def field[T](tag: Int, value: T)(implicit dt: DataType.Aux[T]): RowBuilder = {
+      implicit val rw: ReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
 
-    def field(tag: Int, value: String): RowBuilder = {
-      field(tag, DataType.stringDt.storable.write(value))
-    }
+      val b = MemoryBuffer.allocateHeap(1024)
+      DataType[T].storable
+      dt.storable.write(b, value: ID[T])
+      val s = b.position()
+      val valueArray = Array.ofDim[Byte](s)
+      b.rewind()
+      b.get(valueArray)
 
-    def field(tag: Int, value: Double): RowBuilder = {
-      field(tag, DataType.fracDt[Double].storable.write(value))
-    }
-
-    def field(tag: Int, value: BigDecimal): RowBuilder = {
-      field(tag, DataType.fracDt[BigDecimal].storable.write(value))
-    }
-
-    def field(tag: Int, value: Array[Byte]): RowBuilder = {
-      val f = tag.toByte +: value
+      val f = tag.toByte +: valueArray
       val (family, time, bytes) = cells.head
       new RowBuilder(key, (family, time, bytes ++ f) :: cells.tail)
     }

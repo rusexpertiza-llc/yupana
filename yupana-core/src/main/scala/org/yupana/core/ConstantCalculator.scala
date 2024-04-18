@@ -19,6 +19,7 @@ package org.yupana.core
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
+import org.yupana.core.jit.ExpressionCalculator
 
 import java.time.DayOfWeek
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
@@ -86,6 +87,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case IsNotNullExpr(e) => evaluateConstant(e) != null
 
       case Double2BigDecimalExpr(e) => evaluateUnary(e)(BigDecimal.valueOf(_))
+      case BigDecimal2DoubleExpr(e) => evaluateUnary(e)(_.toDouble)
       case Long2BigDecimalExpr(e)   => evaluateUnary(e)(BigDecimal.valueOf(_))
       case Long2DoubleExpr(e)       => evaluateUnary(e)(_.toDouble)
       case Int2LongExpr(e)          => evaluateUnary(e)(_.toLong)

@@ -16,18 +16,20 @@
 
 package org.yupana.protocol
 
+import org.yupana.api.types.ByteReaderWriter
+
 /**
-  * Type class for data serialization from / to the [[Buffer]]
+  * Type class for data serialization
   *
   * @tparam T type to be serialized
   */
 trait ReadWrite[T] { self =>
 
   /** Deserialize data from buffer */
-  def read[B: Buffer](buf: B): T
+  def read[B: ByteReaderWriter](buf: B): T
 
   /** Serialize data into buffer */
-  def write[B: Buffer](buf: B, t: T): Unit
+  def write[B: ByteReaderWriter](buf: B, t: T): Unit
 
   /**
     * Creates a ReadWrite instance for type A from the instance for type T
@@ -36,8 +38,8 @@ trait ReadWrite[T] { self =>
     * @tparam A a new type
     */
   def imap[A](to: T => A)(from: A => T): ReadWrite[A] = new ReadWrite[A] {
-    override def read[B: Buffer](buf: B): A = to(self.read(buf))
-    override def write[B: Buffer](buf: B, t: A): Unit = self.write(buf, from(t))
+    override def read[B: ByteReaderWriter](buf: B): A = to(self.read(buf))
+    override def write[B: ByteReaderWriter](buf: B, t: A): Unit = self.write(buf, from(t))
   }
 }
 
@@ -45,52 +47,52 @@ object ReadWrite {
   def apply[T](implicit ev: ReadWrite[T]): ReadWrite[T] = ev
 
   implicit val rwBytes: ReadWrite[Array[Byte]] = new ReadWrite[Array[Byte]] {
-    override def read[B](buf: B)(implicit b: Buffer[B]): Array[Byte] = {
+    override def read[B](buf: B)(implicit b: ByteReaderWriter[B]): Array[Byte] = {
       val length = b.readInt(buf)
       val result = new Array[Byte](length)
-      b.read(buf, result)
+      b.readBytes(buf, result)
       result
     }
 
-    override def write[B](buf: B, t: Array[Byte])(implicit b: Buffer[B]): Unit = {
+    override def write[B](buf: B, t: Array[Byte])(implicit b: ByteReaderWriter[B]): Unit = {
       b.writeInt(buf, t.length)
-      b.write(buf, t)
+      b.writeBytes(buf, t)
     }
   }
 
   val empty: ReadWrite[Unit] = new ReadWrite[Unit] {
-    override def read[B: Buffer](buf: B): Unit = ()
-    override def write[B: Buffer](buf: B, t: Unit): Unit = ()
+    override def read[B: ByteReaderWriter](buf: B): Unit = ()
+    override def write[B: ByteReaderWriter](buf: B, t: Unit): Unit = ()
   }
 
   implicit val rwByte: ReadWrite[Byte] = new ReadWrite[Byte] {
-    override def read[B: Buffer](buf: B): Byte = implicitly[Buffer[B]].readByte(buf)
-    override def write[B: Buffer](buf: B, t: Byte): Unit = implicitly[Buffer[B]].writeByte(buf, t)
+    override def read[B: ByteReaderWriter](buf: B): Byte = implicitly[ByteReaderWriter[B]].readByte(buf)
+    override def write[B: ByteReaderWriter](buf: B, t: Byte): Unit = implicitly[ByteReaderWriter[B]].writeByte(buf, t)
   }
 
   implicit val rwInt: ReadWrite[Int] = new ReadWrite[Int] {
-    override def read[B: Buffer](buf: B): Int = implicitly[Buffer[B]].readInt(buf)
-    override def write[B: Buffer](buf: B, t: Int): Unit = implicitly[Buffer[B]].writeInt(buf, t)
+    override def read[B: ByteReaderWriter](buf: B): Int = implicitly[ByteReaderWriter[B]].readInt(buf)
+    override def write[B: ByteReaderWriter](buf: B, t: Int): Unit = implicitly[ByteReaderWriter[B]].writeInt(buf, t)
   }
 
   implicit val rwLong: ReadWrite[Long] = new ReadWrite[Long] {
-    override def read[B](buf: B)(implicit b: Buffer[B]): Long = b.readLong(buf)
-    override def write[B](buf: B, t: Long)(implicit b: Buffer[B]): Unit = b.writeLong(buf, t)
+    override def read[B](buf: B)(implicit b: ByteReaderWriter[B]): Long = b.readLong(buf)
+    override def write[B](buf: B, t: Long)(implicit b: ByteReaderWriter[B]): Unit = b.writeLong(buf, t)
   }
 
   implicit val rwString: ReadWrite[String] = new ReadWrite[String] {
-    override def read[B](buf: B)(implicit b: Buffer[B]): String = b.readString(buf)
-    override def write[B](buf: B, t: String)(implicit b: Buffer[B]): Unit = b.writeString(buf, t)
+    override def read[B](buf: B)(implicit b: ByteReaderWriter[B]): String = b.readString(buf)
+    override def write[B](buf: B, t: String)(implicit b: ByteReaderWriter[B]): Unit = b.writeString(buf, t)
   }
 
   implicit val rwBigDecimal: ReadWrite[BigDecimal] = implicitly[ReadWrite[String]].imap(BigDecimal.apply)(_.toString())
 
   implicit def rwOption[T](implicit rwt: ReadWrite[T]): ReadWrite[Option[T]] = new ReadWrite[Option[T]] {
-    override def read[B](buf: B)(implicit b: Buffer[B]): Option[T] = {
+    override def read[B](buf: B)(implicit b: ByteReaderWriter[B]): Option[T] = {
       if (b.readByte(buf) == 1) Some(rwt.read(buf)) else None
     }
 
-    override def write[B](buf: B, t: Option[T])(implicit b: Buffer[B]): Unit = {
+    override def write[B](buf: B, t: Option[T])(implicit b: ByteReaderWriter[B]): Unit = {
       t match {
         case Some(t) =>
           b.writeByte(buf, 1)
@@ -102,14 +104,14 @@ object ReadWrite {
 
   implicit def readSeq[T](implicit rwt: ReadWrite[T]): ReadWrite[Seq[T]] =
     new ReadWrite[Seq[T]] {
-      override def read[B](buf: B)(implicit b: Buffer[B]): Seq[T] = {
+      override def read[B](buf: B)(implicit b: ByteReaderWriter[B]): Seq[T] = {
         val len = b.readInt(buf)
         (0 until len).map { _ =>
           rwt.read(buf)
         }
       }
 
-      override def write[B](buf: B, t: Seq[T])(implicit b: Buffer[B]): Unit = {
+      override def write[B](buf: B, t: Seq[T])(implicit b: ByteReaderWriter[B]): Unit = {
         b.writeInt(buf, t.length)
         t.foreach(x => rwt.write(buf, x))
       }
@@ -124,9 +126,9 @@ object ReadWrite {
   def product2[T, F1, F2](to: (F1, F2) => T)(
       from: T => (F1, F2)
   )(implicit rwf1: ReadWrite[F1], rwf2: ReadWrite[F2]): ReadWrite[T] = new ReadWrite[T] {
-    override def read[B: Buffer](buf: B): T = to(rwf1.read(buf), rwf2.read(buf))
+    override def read[B: ByteReaderWriter](buf: B): T = to(rwf1.read(buf), rwf2.read(buf))
 
-    override def write[B: Buffer](buf: B, t: T): Unit = {
+    override def write[B: ByteReaderWriter](buf: B, t: T): Unit = {
       val (f1, f2) = from(t)
       rwf1.write(buf, f1)
       rwf2.write(buf, f2)
@@ -137,9 +139,9 @@ object ReadWrite {
       from: T => (F1, F2, F3)
   )(implicit rwf1: ReadWrite[F1], rwf2: ReadWrite[F2], rwf3: ReadWrite[F3]): ReadWrite[T] =
     new ReadWrite[T] {
-      override def read[B: Buffer](buf: B): T = to(rwf1.read(buf), rwf2.read(buf), rwf3.read(buf))
+      override def read[B: ByteReaderWriter](buf: B): T = to(rwf1.read(buf), rwf2.read(buf), rwf3.read(buf))
 
-      override def write[B: Buffer](buf: B, t: T): Unit = {
+      override def write[B: ByteReaderWriter](buf: B, t: T): Unit = {
         val (f1, f2, f3) = from(t)
         rwf1.write(buf, f1)
         rwf2.write(buf, f2)
@@ -151,9 +153,10 @@ object ReadWrite {
       from: T => (F1, F2, F3, F4)
   )(implicit rwf1: ReadWrite[F1], rwf2: ReadWrite[F2], rwf3: ReadWrite[F3], rwf4: ReadWrite[F4]): ReadWrite[T] =
     new ReadWrite[T] {
-      override def read[B: Buffer](buf: B): T = to(rwf1.read(buf), rwf2.read(buf), rwf3.read(buf), rwf4.read(buf))
+      override def read[B: ByteReaderWriter](buf: B): T =
+        to(rwf1.read(buf), rwf2.read(buf), rwf3.read(buf), rwf4.read(buf))
 
-      override def write[B: Buffer](buf: B, t: T): Unit = {
+      override def write[B: ByteReaderWriter](buf: B, t: T): Unit = {
         val (f1, f2, f3, f4) = from(t)
         rwf1.write(buf, f1)
         rwf2.write(buf, f2)

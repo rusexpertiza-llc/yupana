@@ -19,10 +19,10 @@ package org.yupana.benchmarks
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
 import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, Query }
-import org.yupana.api.query.syntax.All.{ const, dimension, metric, time }
+import org.yupana.api.query.syntax.All.{ const, metric, time, min }
 import org.yupana.core.IteratorMapReducible
 import org.yupana.core.utils.metric.NoMetricCollector
-import org.yupana.schema.{ Dimensions, ItemTableMetrics, Tables }
+import org.yupana.schema.{ ItemTableMetrics, Tables }
 
 import java.time.LocalDateTime
 
@@ -30,14 +30,18 @@ class ProcessRowsMinBenchmark {
 
   @Benchmark
   def processRowsMinimal(state: TsdbBaseBenchmarkStateMin): Int = {
-    state.tsdb
+    val res = state.tsdb
       .processRows(
         state.queryContext,
         NoMetricCollector,
         IteratorMapReducible.iteratorMR,
-        state.rows.iterator
+        state.dataset.iterator
       )
-      .size
+    var i = 0
+    while (res.next()) {
+      i += 1
+    }
+    i
   }
 }
 
@@ -48,14 +52,12 @@ class TsdbBaseBenchmarkStateMin extends TsdbBaseBenchmarkStateBase {
     from = const(Time(LocalDateTime.now().minusDays(1))),
     to = const(Time(LocalDateTime.now())),
     fields = Seq(
-      time as "time",
-      dimension(Dimensions.ITEM) as "item",
-      metric(ItemTableMetrics.quantityField) as "quantity"
+      min(metric(ItemTableMetrics.quantityField)) as "quantity"
     ),
     filter = None,
     groupBy = Seq.empty
   )
 
   override val daoExprs: Seq[Expression[_]] =
-    Seq(time, dimension(Dimensions.ITEM), metric(ItemTableMetrics.quantityField))
+    Seq(time, metric(ItemTableMetrics.quantityField))
 }

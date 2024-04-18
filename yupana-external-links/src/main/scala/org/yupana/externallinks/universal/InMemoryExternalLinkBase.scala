@@ -16,11 +16,10 @@
 
 package org.yupana.externallinks.universal
 
-import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
 import org.yupana.core.ExternalLinkService
-import org.yupana.core.model.{ InternalRow, InternalRowBuilder }
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.ExternalLinkUtils
 
@@ -31,7 +30,7 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
 
   def keyIndex: Int
 
-  def fillKeyValues(indexMap: scala.collection.Map[Expression[_], Int], valueData: Seq[InternalRow]): Unit
+  def fillKeyValues(batch: BatchDataset): Unit
 
   def keyExpr: Expression[String]
 
@@ -63,29 +62,22 @@ abstract class InMemoryExternalLinkBase[T <: ExternalLink](orderedFields: Seq[St
   }
 
   override def setLinkedValues(
-      exprIndex: scala.collection.Map[Expression[_], Int],
-      valueData: Seq[InternalRow],
+      batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
   ): Unit = {
-    val dimExpr = DimensionExpr(externalLink.dimension.aux)
-    val indexMap = Seq[Expression[_]](TimeExpr, dimExpr, keyExpr).distinct.zipWithIndex.toMap
-    val valueDataBuilder = new InternalRowBuilder(indexMap, None)
 
-    val keyValueData = valueData.map { vd =>
-      valueDataBuilder
-        .set(dimExpr, vd.get(exprIndex, dimExpr))
-        .set(TimeExpr, vd.get[Time](exprIndex, TimeExpr))
-        .buildAndReset()
-    }
+    fillKeyValues(batch)
 
-    fillKeyValues(indexMap, keyValueData)
-
-    keyValueData.zip(valueData).foreach {
-      case (kvd, vd) =>
-        val keyValue = kvd.get[String](indexMap(keyExpr))
-        exprs.foreach { expr =>
-          vd.set(exprIndex, expr, fieldValueForKeyValue(expr.linkField.name)(keyValue))
+    batch.foreach { rowNum =>
+      val keyValue = batch.get[String](rowNum, keyExpr)
+      exprs.foreach { expr =>
+        val v = fieldValueForKeyValue(expr.linkField.name)(keyValue)
+        if (v != null) {
+          batch.set(rowNum, expr.asInstanceOf[Expression[String]], v)
+        } else {
+          batch.setNull(rowNum, expr.asInstanceOf[Expression[String]])
         }
+      }
     }
   }
 

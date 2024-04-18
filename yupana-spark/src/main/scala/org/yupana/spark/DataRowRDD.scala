@@ -18,31 +18,51 @@ package org.yupana.spark
 
 import java.sql.{ Timestamp, Types }
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema
 import org.apache.spark.sql.{ DataFrame, Row, SparkSession }
 import org.apache.spark.sql.types._
 import org.apache.spark.{ Partition, TaskContext }
 import org.yupana.api.{ Blob, Time }
-import org.yupana.api.query.{ DataRow, QueryField }
+import org.yupana.api.query.QueryField
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType.TypeKind
+import org.yupana.core.model.BatchDataset
 import org.yupana.core.{ QueryContext, TsdbResultBase }
 
-class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val queryContext: QueryContext)
-    extends RDD[DataRow](rows)
+import scala.collection.mutable.ArrayBuffer
+
+class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext: QueryContext)
+    extends RDD[Row](data)
     with TsdbResultBase[RDD] {
 
-  override def compute(split: Partition, context: TaskContext): Iterator[DataRow] = {
-    rows
+  private val fields = queryContext.query.fields.toArray
+
+  private val schema = createSchema
+
+  override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
+    data
       .iterator(split, context)
-      .map(data => new DataRow(data, dataIndexForFieldName, dataIndexForFieldIndex))
+      .flatMap { batch =>
+        val buf = ArrayBuffer.empty[Row]
+        batch.foreach { rowNum =>
+          val values = fields.map { f =>
+            batch.get(rowNum, f.expr) match {
+              case t @ Time(_) => new Timestamp(t.millis)
+              case Blob(bytes) => bytes
+              case x           => x
+            }
+          }
+          val row = new GenericRowWithSchema(values, schema)
+          buf.append(row)
+        }
+        buf.iterator
+      }
   }
 
-  override protected def getPartitions: Array[Partition] = rows.partitions
+  override protected def getPartitions: Array[Partition] = data.partitions
 
   def toDF(spark: SparkSession): DataFrame = {
-    val fields = queryContext.query.fields
-    val rowRdd = rows.map(v => createRow(v, fields))
-    spark.createDataFrame(rowRdd, createSchema)
+    spark.createDataFrame(this, schema)
   }
 
   private def createSchema: StructType = {
@@ -50,21 +70,11 @@ class DataRowRDD(override val rows: RDD[Array[Any]], @transient override val que
     StructType(fields)
   }
 
-  private def createRow(a: Array[Any], fields: Seq[QueryField]): Row = {
-    val values = fields.indices.map(idx =>
-      a(dataIndexForFieldIndex(idx)) match {
-        case t @ Time(_) => new Timestamp(t.toDateTime.toInstant.toEpochMilli)
-        case Blob(bytes) => bytes
-        case x           => x
-      }
-    )
-    Row(values: _*)
-  }
-
   private def fieldToSpark(field: QueryField): StructField = {
     val sparkType = DataRowRDD.yupanaToSparkType(field.expr.dataType)
     StructField(field.name, sparkType, nullable = true)
   }
+
 }
 
 object DataRowRDD {

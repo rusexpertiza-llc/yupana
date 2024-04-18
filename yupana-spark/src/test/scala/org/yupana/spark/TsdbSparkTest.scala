@@ -12,7 +12,8 @@ import org.yupana.core.dao.ChangelogDao
 import org.yupana.hbase.ChangelogDaoHBase
 import org.yupana.schema.{ Dimensions, ItemTableMetrics, SchemaRegistry, Tables }
 
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.sql.Timestamp
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.time.temporal.ChronoUnit
 
 trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSession with SparkTestEnv {
@@ -100,20 +101,21 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
         dimension(Dimensions.KKM_ID).toField
       ),
       None,
-      Seq(truncDay(time), dimension(Dimensions.ITEM))
+      Seq(truncDay(time), dimension(Dimensions.KKM_ID))
     )
 
     val result = tsdbSpark.query(query).collect()
 
     result should have size 1
-    result(0)
-      .get[Time]("day")
-      .toLocalDateTime shouldEqual now.truncatedTo(ChronoUnit.DAYS).toLocalDateTime
+
+    LocalDateTime.ofInstant(result(0).getAs[Timestamp]("day").toInstant, ZoneOffset.UTC) shouldEqual now
+      .truncatedTo(ChronoUnit.DAYS)
+      .toLocalDateTime
     // withZone(DateTimeZone.UTC).withTimeAtStartOfDay().toLocalDateTime
 
-    result(0).get[Int]("kkmId") shouldEqual 123
+    result(0).getAs[Int]("kkmId") shouldEqual 123
 
-    result(0).get[BigDecimal]("min_price") shouldEqual BigDecimal(48)
+    result(0).getAs[BigDecimal]("min_price") shouldEqual BigDecimal(48)
 
   }
 }

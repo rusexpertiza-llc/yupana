@@ -1,6 +1,8 @@
 package org.yupana.jdbc
 
+import org.yupana.api.types.ByteReaderWriter
 import org.yupana.protocol.{ Frame, Message }
+import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -41,17 +43,17 @@ class ServerMock {
     s.close()
   }
 
-  def readAndSendResponses[T](id: Int, parse: Frame => T, respond: T => Seq[Message[_]]): Future[T] = {
+  def readAndSendResponses[T](id: Int, parse: Frame[ByteBuffer] => T, respond: T => Seq[Message[_]]): Future[T] = {
     readBytesSendResponsesAndPack(id, parse, respond, ServerMock.pack)
   }
 
-  def readAnySendRaw[T](id: Int, parse: Frame => T, respond: T => Seq[Array[Byte]]): Future[T] = {
+  def readAnySendRaw[T](id: Int, parse: Frame[ByteBuffer] => T, respond: T => Seq[Array[Byte]]): Future[T] = {
     readBytesSendResponsesAndPack(id, parse, respond, ByteBuffer.wrap)
   }
 
   private def readBytesSendResponsesAndPack[R, X](
       id: Int,
-      parse: Frame => X,
+      parse: Frame[ByteBuffer] => X,
       respond: X => Seq[R],
       pack: R => ByteBuffer
   ): Future[X] = {
@@ -68,10 +70,9 @@ class ServerMock {
           try {
             bb.flip()
             val frameType = bb.get()
-            val reqSize = bb.getInt()
-            val bytes = new Array[Byte](reqSize)
-            bb.get(bytes)
-            val frame = Frame(frameType, bytes)
+            bb.getInt()
+            val payload = bb.slice
+            val frame = Frame(frameType, payload)
             val cmd = parse(frame)
             val responses = respond(cmd)
             responses foreach { response =>
@@ -97,11 +98,14 @@ class ServerMock {
 }
 
 object ServerMock {
+  implicit val rw: ByteReaderWriter[ByteBuffer] = ByteBufferEvalReaderWriter
+
   def pack(data: Message[_]): ByteBuffer = {
-    val frame = data.toFrame[ByteBuffer]
-    val resp = ByteBuffer.allocate(frame.payload.length + 4 + 1)
+    val frame = data.toFrame[ByteBuffer](ByteBuffer.allocate(Frame.MAX_FRAME_SIZE))
+    frame.payload.flip()
+    val resp = ByteBuffer.allocate(frame.payload.remaining() + 4 + 1)
     resp.put(frame.frameType)
-    resp.putInt(frame.payload.length)
+    resp.putInt(frame.payload.remaining())
     resp.put(frame.payload)
     resp.flip()
     resp
