@@ -252,7 +252,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
 
     val queryEngine = new QueryEngineRouter(tsdb, null, jmp, sqp, new PermissionService(putEnabled = true), null)
 
-    val server = new YupanaPostgres("localhost", 5432, 4, PgContext(queryEngine, new TestAuthorizer))
+    val server = new YupanaPostgres("localhost", 0, 4, PgContext(queryEngine, new TestAuthorizer))
     server.start()
     body(server, tsdbDaoMock)
     server.stop()

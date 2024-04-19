@@ -148,7 +148,7 @@ trait TsdbBase extends StrictLogging {
                 )
               )
 
-            val daoExprs = qc.exprsIndex.keys.collect {
+            val daoExprs = qc.datasetSchema.exprIndex.keys.collect {
               case e: DimensionExpr[_] => e
               case e: DimensionIdExpr  => e
               case e: MetricExpr[_]    => e
@@ -158,7 +158,7 @@ trait TsdbBase extends StrictLogging {
             val internalQuery =
               new InternalQuery(table, daoExprs.toSet[Expression[_]], substitutedCondition, query.hints)
 
-            val rows = dao.query(internalQuery, qc, qc.internalRowSchema, metricCollector)
+            val rows = dao.query(internalQuery, qc, qc.datasetSchema, metricCollector)
 
             (rows, qc)
 
@@ -173,7 +173,7 @@ trait TsdbBase extends StrictLogging {
             new QueryContext(optimizedQuery, query.filter, schema.tokenizer, calculatorFactory, metricCollector)
           )
 
-        val ds = new BatchDataset(qc.internalRowSchema)
+        val ds = new BatchDataset(qc.datasetSchema)
         ds.removeDeleted(0)
         val rows = mr.singleton(ds)
         (rows, qc)

@@ -99,8 +99,8 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
 
     val result = tsdb.query(q)
 
-    val timeIdx = result.queryContext.exprsIndex(time)
-    val kkmIdIdx = result.queryContext.exprsIndex(dimension(Dimensions.KKM_ID))
+    val timeIdx = result.queryContext.datasetSchema.exprIndex(time)
+    val kkmIdIdx = result.queryContext.datasetSchema.exprIndex(dimension(Dimensions.KKM_ID))
 
     val extracted = tsdb.mapReduceEngine(NoMetricCollector).map(result.data) { batch =>
       var res = Set.empty[(Time, Dimensions.KKM_ID.T)]

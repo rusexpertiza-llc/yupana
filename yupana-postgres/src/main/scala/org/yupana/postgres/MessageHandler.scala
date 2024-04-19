@@ -300,9 +300,6 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     val bufs = types.map {
       case (dt, idx) =>
         val buf = Unpooled.buffer()
-
-        println(s"IS EMPTY $idx => ${row.isEmpty(idx)}")
-
         if (row.isEmpty(idx)) {
           buf.writeInt(-1)
         } else {

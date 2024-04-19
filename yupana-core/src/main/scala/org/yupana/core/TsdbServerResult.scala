@@ -78,10 +78,9 @@ class TsdbServerResult(
   override def isEmpty(index: Int): Boolean = {
     val dataIndex = dataIndexForFieldIndex(index)
     if (batch.get.isRef(rowNumber, dataIndex)) {
-      println(s"${index} ($dataIndex) Ref")
-      batch.get.isNullRef(rowNumber, dataIndex)
+      val ordinal = queryContext.datasetSchema.refFieldOrdinal(dataIndex)
+      batch.get.isNullRef(rowNumber, ordinal)
     } else {
-      println(s"${index} ($dataIndex) Not ref")
       batch.get.isNull(rowNumber, dataIndex)
     }
   }

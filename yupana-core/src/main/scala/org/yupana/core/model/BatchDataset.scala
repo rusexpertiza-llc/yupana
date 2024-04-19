@@ -383,7 +383,7 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
 
 object BatchDataset {
   def apply(qc: QueryContext) = {
-    new BatchDataset(qc.internalRowSchema)
+    new BatchDataset(qc.datasetSchema)
   }
 
   implicit val readerWriter: InternalReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter
