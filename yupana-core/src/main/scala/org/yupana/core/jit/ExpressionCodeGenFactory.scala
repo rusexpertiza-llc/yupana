@@ -83,18 +83,19 @@ object ExpressionCodeGenFactory {
 
   private def createCodeGenerator(expr: Expression[_]): ExpressionCodeGen[_] = {
     expr match {
-      case ConstantExpr(c, prepared) => new ConstantExpressionCodeGen(expr, c, prepared)
-      case UntypedConstantExpr(s)    => throw new IllegalArgumentException(s"Untyped constant '$s' in calculator!")
-      case TrueExpr                  => new ConstantExpressionCodeGen(expr, true, prepared = false)
-      case FalseExpr                 => new ConstantExpressionCodeGen(expr, false, prepared = false)
-      case NullExpr(_)               => new NullExpressionCodeGen(expr)
-      case TimeExpr                  => new FieldExpressionGen(expr)
-      case DimensionExpr(_)          => new FieldExpressionGen(expr)
-      case DimensionIdExpr(_)        => new FieldExpressionGen(expr)
-      case MetricExpr(_)             => new FieldExpressionGen(expr)
-      case DimIdInExpr(_, _)         => new FieldExpressionGen(expr)
-      case DimIdNotInExpr(_, _)      => new FieldExpressionGen(expr)
-      case LinkExpr(_, _)            => new FieldExpressionGen(expr)
+      case ConstantExpr(c, prepared)  => new ConstantExpressionCodeGen(expr, c, prepared)
+      case PlaceholderExpr(id, _)     => throw new IllegalStateException(s"Placeholder #$id passed to calculator")
+      case UntypedPlaceholderExpr(id) => throw new IllegalStateException(s"Placeholder #$id passed to calculator")
+      case TrueExpr                   => new ConstantExpressionCodeGen(expr, true, prepared = false)
+      case FalseExpr                  => new ConstantExpressionCodeGen(expr, false, prepared = false)
+      case NullExpr(_)                => new NullExpressionCodeGen(expr)
+      case TimeExpr                   => new FieldExpressionGen(expr)
+      case DimensionExpr(_)           => new FieldExpressionGen(expr)
+      case DimensionIdExpr(_)         => new FieldExpressionGen(expr)
+      case MetricExpr(_)              => new FieldExpressionGen(expr)
+      case DimIdInExpr(_, _)          => new FieldExpressionGen(expr)
+      case DimIdNotInExpr(_, _)       => new FieldExpressionGen(expr)
+      case LinkExpr(_, _)             => new FieldExpressionGen(expr)
 
       case e: AggregateExpr[_, _, _] =>
         aggExprCodeGenerator(e)

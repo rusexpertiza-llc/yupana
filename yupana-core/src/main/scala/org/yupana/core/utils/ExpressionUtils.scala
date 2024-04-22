@@ -26,18 +26,19 @@ object ExpressionUtils {
 
   def transform[T](t: Transformer)(expr: Expression[T]): Expression[T] = {
     t(expr).getOrElse(expr match {
-      case TimeExpr               => expr
-      case NullExpr(_)            => expr
-      case ConstantExpr(_, _)     => expr
-      case UntypedConstantExpr(_) => expr
-      case TrueExpr               => expr
-      case FalseExpr              => expr
-      case LinkExpr(_, _)         => expr
-      case MetricExpr(_)          => expr
-      case DimensionExpr(_)       => expr
-      case DimensionIdExpr(_)     => expr
-      case DimIdInExpr(_, _)      => expr
-      case DimIdNotInExpr(_, _)   => expr
+      case TimeExpr                  => expr
+      case NullExpr(_)               => expr
+      case ConstantExpr(_, _)        => expr
+      case PlaceholderExpr(_, _)     => expr
+      case UntypedPlaceholderExpr(_) => expr
+      case TrueExpr                  => expr
+      case FalseExpr                 => expr
+      case LinkExpr(_, _)            => expr
+      case MetricExpr(_)             => expr
+      case DimensionExpr(_)          => expr
+      case DimensionIdExpr(_)        => expr
+      case DimIdInExpr(_, _)         => expr
+      case DimIdNotInExpr(_, _)      => expr
 
       case EqExpr(a, b)     => EqExpr(transform(t)(a), transform(t)(b))
       case NeqExpr(a, b)    => NeqExpr(transform(t)(a), transform(t)(b))

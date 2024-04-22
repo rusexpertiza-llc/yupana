@@ -169,10 +169,15 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
   }
 }
 
-final case class UntypedConstantExpr(v: String) extends ConstExpr[String] {
-  override val dataType: DataType.Aux[String] = DataType[String]
-  override val isNullable: Boolean = false
-  override def encode: String = s"const($v)"
+final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
+  override val isNullable: Boolean = true
+  override def encode: String = s"?:${dataType.meta.javaTypeName}"
+}
+
+final case class UntypedPlaceholderExpr(id: Int) extends ConstExpr[Null] {
+  override val dataType: DataType.Aux[Null] = DataType[Null]
+  override val isNullable: Boolean = true
+  override def encode: String = s"?"
 }
 
 case object TimeExpr extends Expression[Time] {

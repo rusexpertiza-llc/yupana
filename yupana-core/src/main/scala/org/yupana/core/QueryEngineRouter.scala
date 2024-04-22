@@ -50,7 +50,7 @@ class QueryEngineRouter(
       implicit srw: StringReaderWriter
   ): Either[String, PreparedStatement] = {
     statement match {
-      case select: Select => sqlQueryProcessor.createQuery(select, params).map(PreparedSelect)
+      case select: Select => sqlQueryProcessor.createQuery(select).map(PreparedSelect)
       case ShowTables =>
         val meta = metadataProvider.listTablesMeta
         Right(PreparedCommand(ShowTables, params, meta._1, meta._2))

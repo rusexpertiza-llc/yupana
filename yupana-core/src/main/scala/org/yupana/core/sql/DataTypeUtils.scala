@@ -17,7 +17,7 @@
 package org.yupana.core.sql
 
 import org.yupana.api.query._
-import org.yupana.api.types.{ DataType, StringReaderWriter }
+import org.yupana.api.types.DataType
 import org.yupana.core.ConstantCalculator
 
 object DataTypeUtils {
@@ -36,11 +36,7 @@ object DataTypeUtils {
     override val b: Expression[T0] = y
   }
 
-  def constCast[U, T](
-      const: ConstExpr[U],
-      dataType: DataType.Aux[T],
-      calc: ConstantCalculator
-  )(implicit stringReaderWriter: StringReaderWriter): Either[String, T] = {
+  def constCast[U, T](const: ConstExpr[U], dataType: DataType.Aux[T], calc: ConstantCalculator): Either[String, T] = {
     const match {
       case ConstantExpr(v, _) =>
         if (const.dataType == dataType) {
@@ -56,12 +52,7 @@ object DataTypeUtils {
               s"Cannot convert value '$v' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
             )
         }
-      case UntypedConstantExpr(s) =>
-        try {
-          Right(dataType.storable.readString(s))
-        } catch {
-          case e: Throwable => Left(s"Cannot cast untyped value $s to $dataType, ${e.getMessage}")
-        }
+
       case NullExpr(_) => Right(null.asInstanceOf[T])
       case TrueExpr =>
         if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
@@ -69,6 +60,10 @@ object DataTypeUtils {
       case FalseExpr =>
         if (dataType == DataType[Boolean]) Right(false.asInstanceOf[T])
         else Left(s"Cannot convert FALSE to data type $dataType")
+
+      case _ =>
+        println(s"CONST IS $const")
+        ???
     }
   }
 
@@ -76,7 +71,7 @@ object DataTypeUtils {
       e: Expression[U],
       dataType: DataType.Aux[T],
       calculator: ConstantCalculator
-  )(implicit stringReaderWriter: StringReaderWriter): Either[String, Expression[T]] = {
+  ): Either[String, Expression[T]] = {
     if (e.dataType == dataType) Right(e.asInstanceOf[Expression[T]])
     else {
       e match {
@@ -97,14 +92,15 @@ object DataTypeUtils {
     }
   }
 
-  def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator)(
-      implicit stringReaderWriter: StringReaderWriter
-  ): Either[String, ExprPair] = {
+  def alignTypes[T, U](ca: Expression[T], cb: Expression[U], calc: ConstantCalculator): Either[String, ExprPair] = {
     if (ca.dataType == cb.dataType) {
       Right(DataTypeUtils.pair[T](ca, cb.asInstanceOf[Expression[T]]))
     } else {
       (ca, cb) match {
         case (_: ConstantExpr[_], _: ConstantExpr[_]) => convertRegular(ca, cb)
+
+        case (UntypedPlaceholderExpr(id), _) => Right(pair(PlaceholderExpr(id, cb.dataType.aux), cb))
+        case (_, UntypedPlaceholderExpr(id)) => Right(pair(ca, PlaceholderExpr(id, ca.dataType.aux)))
 
         case (c: ConstExpr[_], _) =>
           constCast(c, cb.dataType, calc).map(cc => DataTypeUtils.pair(wrapConstant(cc, cb.dataType), cb))

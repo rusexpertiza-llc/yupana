@@ -33,10 +33,12 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
     import ExpressionCalculator.truncateTimeBy
 
     expr match {
-      case ConstantExpr(x, _) => x
-      case NullExpr(_)        => null.asInstanceOf[T]
-      case TrueExpr           => true
-      case FalseExpr          => false
+      case ConstantExpr(x, _)         => x
+      case NullExpr(_)                => null.asInstanceOf[T]
+      case TrueExpr                   => true
+      case FalseExpr                  => false
+      case PlaceholderExpr(id, _)     => throw new IllegalStateException(s"Placeholder #$id passed to calculator")
+      case UntypedPlaceholderExpr(id) => throw new IllegalStateException(s"Placeholder #$id passed to calculator")
 
       case ConditionExpr(condition, positive, negative) =>
         val x = evaluateConstant(condition)
@@ -151,8 +153,6 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case MetricExpr(_) | DimensionExpr(_) | TimeExpr | LinkExpr(_, _) | DimIdInExpr(_, _) | DimIdNotInExpr(_, _) |
           DimensionIdExpr(_) | LagExpr(_) | _: AggregateExpr[_, _, _] =>
         throw new IllegalArgumentException(s"Expression is not constant $expr")
-
-      case UntypedConstantExpr(s) => throw new IllegalArgumentException(s"Value $s should be typed before")
     }
   }
 
