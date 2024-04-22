@@ -19,6 +19,7 @@ package org.yupana.core.sql.parser
 import fastparse._
 import NoWhitespace._
 import org.threeten.extra.PeriodDuration
+import org.yupana.api.Time
 
 import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
 
@@ -39,7 +40,7 @@ object ValueParser {
   private def falseConst[$: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
 
   def placeholder[$: P]: P[Placeholder] = {
-    val p = P("?")
+    val p = P("?" | ("$" ~ intNumber))
     val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
 
     if (p.isSuccess) {
@@ -107,11 +108,12 @@ object ValueParser {
     P("{" ~ wsp ~ tsWord ~/ wsp ~ "'" ~ dateAndTime ~ "'" ~ wsp ~ "}")
   }
 
-  def numericValue[$: P]: P[NumericValue] = P(number).map(NumericValue)
-  def stringValue[$: P]: P[StringValue] = P(string).map(StringValue)
-  def booleanValue[$: P]: P[BooleanValue] = P(boolean).map(BooleanValue)
+  def numericValue[$: P]: P[TypedValue[BigDecimal]] = P(number).map(TypedValue[BigDecimal](_))
+  def stringValue[$: P]: P[TypedValue[String]] = P(string).map(TypedValue[String](_))
+  def booleanValue[$: P]: P[TypedValue[Boolean]] = P(boolean).map(TypedValue[Boolean](_))
   def nullValue[$: P]: P[NullValue.type] = P(nullWord).map(_ => NullValue)
-  def timestampValue[$: P]: P[TimestampValue] = P(pgTimestamp | msTimestamp).map(TimestampValue.apply)
+  def timestampValue[$: P]: P[TypedValue[Time]] =
+    P(pgTimestamp | msTimestamp).map(t => TypedValue(Time(t)))
 
   def INTERVAL_PARTS[$: P]: List[IntervalPart] = List(
     IntervalPart(

@@ -18,6 +18,7 @@ package org.yupana.protocol
 
 /**
   * Server greeting to the client
+  *
   * @param protocolVersion server protocol version
   * @param reqTime client request time from [[Hello]]
   */

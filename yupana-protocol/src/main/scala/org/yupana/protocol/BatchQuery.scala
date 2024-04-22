@@ -18,6 +18,7 @@ package org.yupana.protocol
 
 /**
   * Batch query
+  *
   * @param id request id
   * @param query query text
   * @param params list of params

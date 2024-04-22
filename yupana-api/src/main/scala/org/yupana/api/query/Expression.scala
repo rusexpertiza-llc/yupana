@@ -169,6 +169,12 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
   }
 }
 
+final case class UntypedConstantExpr(v: String) extends ConstExpr[String] {
+  override val dataType: DataType.Aux[String] = DataType[String]
+  override val isNullable: Boolean = false
+  override def encode: String = s"const($v)"
+}
+
 case object TimeExpr extends Expression[Time] {
   override val dataType: DataType.Aux[Time] = DataType[Time]
   override val kind: ExprKind = Simple
@@ -221,7 +227,7 @@ final case class LinkExpr[T](link: ExternalLink, linkField: LinkField.Aux[T]) ex
   override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 
   override def encode: String = s"link(${link.linkName}, ${linkField.name})"
-  def queryFieldName: String = link.linkName + "_" + linkField.name
+  private def queryFieldName: String = link.linkName + "_" + linkField.name
   def toField: QueryField = QueryField(queryFieldName, this)
 }
 

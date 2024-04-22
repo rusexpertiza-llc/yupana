@@ -10,7 +10,7 @@ import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWriter }
 
 import java.time.{ LocalDateTime, OffsetDateTime, Period, ZoneOffset }
 
@@ -18,6 +18,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
 
   import org.yupana.api.query.syntax.All._
 
+  implicit val srw: StringReaderWriter = SimpleStringReaderWriter
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   import TestDims._
@@ -444,9 +445,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       createQuery(
         statement,
         Map(
-          1 -> parser.TimestampValue(from),
-          2 -> parser.TimestampValue(to),
-          3 -> parser.StringValue("123456789")
+          1 -> parser.TypedValue(Time(from)),
+          2 -> parser.TypedValue(Time(to)),
+          3 -> parser.TypedValue("123456789")
         )
       )
     ) {
@@ -464,6 +465,36 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           dimension(DIM_B) as "b"
         )
       case Left(msg) => fail(msg)
+    }
+  }
+
+  it should "handle untyped placeholder values" in {
+    val statement =
+      """SELECT SUM(TestField), month(time) as m, b FROM test_table
+        | WHERE time >= ? and time < ? AND a = ?
+        | GROUP BY m, b
+      """.stripMargin
+
+    val from = "2024-03-27T15:49:44"
+    val to = "2024-03-27T23:57:32"
+
+    inside(
+      createQuery(
+        statement,
+        Map(
+          1 -> parser.UntypedValue(from),
+          2 -> parser.UntypedValue(to),
+          3 -> parser.TypedValue("123456789")
+        )
+      )
+    ) {
+      case Right(q) =>
+        q.table.value.name shouldEqual "test_table"
+        q.filter.value shouldBe and(
+          ge(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)), prepared = true)),
+          lt(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)), prepared = true)),
+          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
+        )
     }
   }
 
@@ -507,8 +538,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       createQuery(
         statement,
         Map(
-          1 -> parser.StringValue("Test me"),
-          2 -> parser.TimestampValue(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC))
+          1 -> parser.TypedValue("Test me"),
+          2 -> parser.TypedValue(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC)))
         )
       )
     ) {
@@ -1320,16 +1351,16 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
       Seq(
         Map(
-          1 -> parser.StringValue("aaa"),
-          2 -> parser.NumericValue(12),
-          3 -> parser.TimestampValue(t1),
-          4 -> parser.NumericValue(1.1)
+          1 -> parser.TypedValue("aaa"),
+          2 -> parser.TypedValue(BigDecimal(12)),
+          3 -> parser.TypedValue(Time(t1)),
+          4 -> parser.TypedValue(BigDecimal(1.1))
         ),
         Map(
-          1 -> parser.StringValue("ccc"),
-          2 -> parser.NumericValue(34),
-          3 -> parser.TimestampValue(t2),
-          4 -> parser.NumericValue(2.2)
+          1 -> parser.TypedValue("ccc"),
+          2 -> parser.TypedValue(BigDecimal(34)),
+          3 -> parser.TypedValue(Time(t2)),
+          4 -> parser.TypedValue(BigDecimal(2.2))
         )
       )
     ) match {
@@ -1391,16 +1422,16 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
       Seq(
         Map(
-          1 -> parser.StringValue("aaa"),
-          2 -> parser.NumericValue(33),
-          3 -> parser.TimestampValue(t1),
-          4 -> parser.NumericValue(1.1)
+          1 -> parser.TypedValue("aaa"),
+          2 -> parser.TypedValue(BigDecimal(33)),
+          3 -> parser.TypedValue(Time(t1)),
+          4 -> parser.TypedValue(BigDecimal(1.1))
         ),
         Map(
-          1 -> parser.StringValue("ccc"),
-          2 -> parser.NumericValue(66),
-          3 -> parser.TimestampValue(t2),
-          4 -> parser.StringValue("2.2")
+          1 -> parser.TypedValue("ccc"),
+          2 -> parser.TypedValue(BigDecimal(66)),
+          3 -> parser.TypedValue(Time(t2)),
+          4 -> parser.TypedValue("2.2")
         )
       )
     ) match {
@@ -1414,11 +1445,11 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       "UPSERT INTO test_table (a, b, time, testField, testLink_testfield) VALUES (?, ?, ?, ?, ?)",
       Seq(
         Map(
-          1 -> parser.StringValue("aaa"),
-          2 -> parser.StringValue("bbb"),
-          3 -> parser.TimestampValue(OffsetDateTime.now()),
-          4 -> parser.NumericValue(1.1),
-          5 -> parser.StringValue("ccc")
+          1 -> parser.TypedValue("aaa"),
+          2 -> parser.TypedValue("bbb"),
+          3 -> parser.TypedValue(Time(OffsetDateTime.now())),
+          4 -> parser.TypedValue(BigDecimal(1.1)),
+          5 -> parser.TypedValue("ccc")
         )
       )
     ) match {

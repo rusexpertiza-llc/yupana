@@ -18,6 +18,7 @@ package org.yupana.protocol
 
 /**
   * Authentication request
+  *
   * @param methods supported authentication methods
   */
 case class CredentialsRequest(methods: Seq[String]) extends Response[CredentialsRequest](CredentialsRequest)

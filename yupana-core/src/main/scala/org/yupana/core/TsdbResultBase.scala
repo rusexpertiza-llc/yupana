@@ -22,10 +22,10 @@ import org.yupana.core.model.BatchDataset
 trait TsdbResultBase[T[_]] {
 
   protected val nameIndex: Seq[(String, Int)] =
-    queryContext.query.fields.map(f => f.name -> queryContext.exprsIndex(f.expr))
+    queryContext.query.fields.map(f => f.name -> queryContext.datasetSchema.fieldIndex(f.expr))
   protected lazy val nameIndexMap: Map[String, Int] = nameIndex.toMap
   protected lazy val fieldIndex: Array[Int] = nameIndex.map(_._2).toArray
-  protected lazy val exprByIndex: Map[Int, Expression[_]] = queryContext.exprsIndex.map {
+  protected lazy val exprByIndex: Map[Int, Expression[_]] = queryContext.datasetSchema.exprIndex.map {
     case (expr, idx) => idx -> expr
   }
 
@@ -36,15 +36,4 @@ trait TsdbResultBase[T[_]] {
   def dataIndexForFieldName(name: String): Int = nameIndexMap(name)
 
   def dataIndexForFieldIndex(idx: Int): Int = fieldIndex(idx)
-
-//  def dataRow(row: InternalRowBatch, rowNumber: Int): DataRow = {
-//    val rowArray = Array.ofDim[Any](queryContext.exprsIndex.size)
-//    queryContext.query.fields.foreach { field =>
-//      val index = queryContext.exprsIndex(field.expr)
-//      if (!field.expr.isNullable || row.isDefined(rowNumber, index)) {
-//        rowArray(index) = row.get(rowNumber, index)(field.expr.dataType.internalStorable)
-//      }
-//    }
-//    new DataRow(rowArray, dataIndexForFieldName, dataIndexForFieldIndex)
-//  }
 }

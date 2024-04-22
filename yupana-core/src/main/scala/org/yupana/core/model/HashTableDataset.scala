@@ -228,6 +228,6 @@ object HashTableDataset {
   val KEY_NOT_FOUND: RowPointer = -1L
 
   def apply(qc: QueryContext): HashTableDataset = {
-    new HashTableDataset(qc.internalRowSchema)
+    new HashTableDataset(qc.datasetSchema)
   }
 }

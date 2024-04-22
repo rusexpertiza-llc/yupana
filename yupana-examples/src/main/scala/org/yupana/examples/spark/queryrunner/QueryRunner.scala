@@ -20,6 +20,7 @@ import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
@@ -56,6 +57,7 @@ object QueryRunner {
   }
 
   def executeQuery(sql: String, tsdbSpark: TsdbSpark): Either[String, DataRowRDD] = {
+    implicit val srw: StringReaderWriter = SimpleStringReaderWriter
     SqlParser.parse(sql) flatMap {
       case s: Select =>
         new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).map { q =>

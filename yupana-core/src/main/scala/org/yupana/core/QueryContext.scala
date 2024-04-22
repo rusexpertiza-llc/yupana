@@ -32,17 +32,11 @@ class QueryContext(
 ) extends Serializable {
 
   @transient private var calc: ExpressionCalculator = _
-  @transient private var idx: Map[Expression[_], Int] = _
   @transient private var schema: DatasetSchema = _
 
-  def internalRowSchema: DatasetSchema = {
+  def datasetSchema: DatasetSchema = {
     if (schema == null) init()
     schema
-  }
-
-  def exprsIndex: Map[Expression[_], Int] = {
-    if (idx == null) init()
-    idx
   }
 
   def calculator: ExpressionCalculator = {
@@ -50,17 +44,12 @@ class QueryContext(
     calc
   }
 
-  lazy val groupByIndices: Array[(Expression[_], Int)] = query.groupBy
-    .map(expr => (expr, exprsIndex.apply(expr)))
-    .toArray
-
-  lazy val linkExprs: Seq[LinkExpr[_]] = exprsIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
+  lazy val linkExprs: Seq[LinkExpr[_]] = datasetSchema.exprIndex.keys.collect { case le: LinkExpr[_] => le }.toSeq
 
   private def init(): Unit = {
     metricCollector.initQueryContext.measure(1) {
-      val (calculator, index, dsSchema) = calculatorFactory.makeCalculator(query, postCondition, tokenizer)
+      val (calculator, dsSchema) = calculatorFactory.makeCalculator(query, postCondition, tokenizer)
       calc = calculator
-      idx = dsSchema.exprIndex
       schema = dsSchema
     }
   }

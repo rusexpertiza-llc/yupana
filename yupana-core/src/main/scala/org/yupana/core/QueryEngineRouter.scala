@@ -17,8 +17,8 @@
 package org.yupana.core
 
 import org.yupana.api.query.{ Result, SimpleResult }
-import org.yupana.api.types.DataType
-import org.yupana.core.auth.{ Action, PermissionService, Object, UserManager, YupanaUser }
+import org.yupana.api.types.{ DataType, StringReaderWriter }
+import org.yupana.core.auth.{ Action, Object, PermissionService, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser._
@@ -32,52 +32,85 @@ class QueryEngineRouter(
     userManager: UserManager
 ) {
 
-  def query(user: YupanaUser, sql: String, params: Map[Int, Value]): Either[String, Result] = {
-    SqlParser.parse(sql) flatMap {
-      case select: Select =>
+  def query(user: YupanaUser, sql: String, params: Map[Int, Value])(
+      implicit srw: StringReaderWriter
+  ): Either[String, Result] = {
+    for {
+      parsed <- parse(sql)
+      prepared <- bind(parsed, params)
+      result <- execute(user, prepared)
+    } yield result
+  }
+
+  def parse(sql: String): Either[String, Statement] = {
+    SqlParser.parse(sql)
+  }
+
+  def bind(statement: Statement, params: Map[Int, Value])(
+      implicit srw: StringReaderWriter
+  ): Either[String, PreparedStatement] = {
+    statement match {
+      case select: Select => sqlQueryProcessor.createQuery(select, params).map(PreparedSelect)
+      case ShowTables =>
+        val meta = metadataProvider.listTablesMeta
+        Right(PreparedCommand(ShowTables, params, meta._1, meta._2))
+      case x => Right(PreparedCommand(x, params, Nil, Nil))
+    }
+  }
+
+  def execute(user: YupanaUser, statement: PreparedStatement)(
+      implicit srw: StringReaderWriter
+  ): Either[String, Result] = {
+    statement match {
+      case select: PreparedSelect =>
         for {
-          _ <- hasPermission(user, Object.Table(select.tableName), Action.Read)
-          query <- sqlQueryProcessor.createQuery(select, params)
-        } yield tsdb.query(query, user)
+          _ <- hasPermission(user, Object.Table(select.query.table.map(_.name)), Action.Read)
+        } yield tsdb.query(select.query, user)
 
-      case upsert: Upsert =>
-        hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
-          .flatMap(_ => doUpsert(user, upsert, Seq(params)))
+      case EmptyQuery => Right(SimpleResult("", Nil, Nil, Iterator.empty))
 
-      case ShowTables => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.listTables)
+      case PreparedCommand(statement, params, _, _) =>
+        statement match {
+          case upsert: Upsert =>
+            hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
+              .flatMap(_ => doUpsert(user, upsert, Seq(params)))
 
-      case ShowVersion => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.version)
+          case ShowTables => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.listTables)
 
-      case ShowColumns(tableName) =>
-        hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.describeTable(tableName))
+          case ShowVersion => hasPermission(user, Object.Metadata, Action.Read).map(_ => metadataProvider.version)
 
-      case ShowFunctions(typeName) =>
-        hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.listFunctions(typeName))
+          case ShowColumns(tableName) =>
+            hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.describeTable(tableName))
 
-      case ShowQueryMetrics(filter, limit) =>
-        hasPermission(user, Object.Queries, Action.Read).map(_ =>
-          QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit)
-        )
+          case ShowFunctions(typeName) =>
+            hasPermission(user, Object.Metadata, Action.Read).flatMap(_ => metadataProvider.listFunctions(typeName))
 
-      case KillQuery(filter) =>
-        hasPermission(user, Object.Queries, Action.Write).map(_ =>
-          QueryInfoProvider.handleKillQuery(flatQueryEngine, filter)
-        )
+          case ShowQueryMetrics(filter, limit) =>
+            hasPermission(user, Object.Queries, Action.Read).map(_ =>
+              QueryInfoProvider.handleShowQueries(flatQueryEngine, filter, limit)
+            )
 
-      case DeleteQueryMetrics(filter) =>
-        hasPermission(user, Object.Queries, Action.Write).map(_ =>
-          QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter)
-        )
+          case KillQuery(filter) =>
+            hasPermission(user, Object.Queries, Action.Write).map(_ =>
+              QueryInfoProvider.handleKillQuery(flatQueryEngine, filter)
+            )
 
-      case ShowUpdatesIntervals(condition) =>
-        hasPermission(user, Object.Queries, Action.Read).flatMap(_ =>
-          UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
-        )
+          case DeleteQueryMetrics(filter) =>
+            hasPermission(user, Object.Queries, Action.Write).map(_ =>
+              QueryInfoProvider.handleDeleteQueryMetrics(flatQueryEngine, filter)
+            )
 
-      case CreateUser(u, p, r) => createUser(user, u, p, r)
-      case DropUser(u)         => deleteUser(user, u)
-      case AlterUser(u, p, r)  => updateUser(user, u, p, r)
-      case ShowUsers           => listUsers(user)
+          case ShowUpdatesIntervals(condition) =>
+            hasPermission(user, Object.Queries, Action.Read).flatMap(_ =>
+              UpdatesIntervalsProvider.handleGetUpdatesIntervals(flatQueryEngine, condition, params)
+            )
+
+          case CreateUser(u, p, r) => createUser(user, u, p, r)
+          case DropUser(u)         => deleteUser(user, u)
+          case AlterUser(u, p, r)  => updateUser(user, u, p, r)
+          case ShowUsers           => listUsers(user)
+          case x                   => Left(s"Unsupported query type $x")
+        }
     }
   }
 
@@ -132,7 +165,9 @@ class QueryEngineRouter(
     else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
-  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]]): Either[String, Result] = {
+  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]])(
+      implicit srw: StringReaderWriter
+  ): Either[String, Result] = {
     SqlParser.parse(sql).flatMap {
       case upsert: Upsert =>
         hasPermission(user, Object.Table(Some(upsert.tableName)), Action.Write)
@@ -145,7 +180,7 @@ class QueryEngineRouter(
       user: YupanaUser,
       upsert: Upsert,
       params: Seq[Map[Int, Value]]
-  ): Either[String, Result] = {
+  )(implicit srw: StringReaderWriter): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       tsdb.put(dps.iterator, user)
       Right(singleResult("RESULT", "OK"))

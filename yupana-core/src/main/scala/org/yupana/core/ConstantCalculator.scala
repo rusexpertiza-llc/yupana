@@ -151,6 +151,8 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case MetricExpr(_) | DimensionExpr(_) | TimeExpr | LinkExpr(_, _) | DimIdInExpr(_, _) | DimIdNotInExpr(_, _) |
           DimensionIdExpr(_) | LagExpr(_) | _: AggregateExpr[_, _, _] =>
         throw new IllegalArgumentException(s"Expression is not constant $expr")
+
+      case UntypedConstantExpr(s) => throw new IllegalArgumentException(s"Value $s should be typed before")
     }
   }
 

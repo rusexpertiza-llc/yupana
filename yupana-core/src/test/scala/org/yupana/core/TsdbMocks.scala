@@ -4,6 +4,7 @@ import org.scalamock.scalatest.MockFactory
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
+import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.model.BatchDataset
@@ -111,7 +112,7 @@ trait TsdbMocks extends MockFactory {
   }
 
   private val calculator = new ConstantCalculator(RussianTokenizer)
-
+  implicit val srw: StringReaderWriter = SimpleStringReaderWriter
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
   def createQuery(sql: String): Query = {
@@ -125,3 +126,5 @@ trait TsdbMocks extends MockFactory {
       .fold(fail(_), identity)
   }
 }
+
+object TsdbMocks extends TsdbMocks

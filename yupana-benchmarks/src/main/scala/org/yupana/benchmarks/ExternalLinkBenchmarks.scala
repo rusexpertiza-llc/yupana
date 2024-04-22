@@ -108,7 +108,6 @@ class ExternalLinkBenchmarkState {
   val queryContext: QueryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
 
   var externalLink: ExternalLink.Aux[Int] = BenchLink
-  var exprIndex: Map[Expression[_], Int] = queryContext.exprsIndex
   var batch: BatchDataset = {
     val batch = BatchDataset(queryContext)
     1 to 10000 foreach { rowNum =>

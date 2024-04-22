@@ -56,3 +56,5 @@ case class ShowUpdatesIntervals(condition: Option[SqlExpr]) extends Statement
 case class CreateUser(name: String, password: Option[String], role: Option[String]) extends Statement
 case class AlterUser(name: String, password: Option[String], role: Option[String]) extends Statement
 case class DropUser(name: String) extends Statement
+
+case class SetValue(key: String, value: Value) extends Statement

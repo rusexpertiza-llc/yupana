@@ -39,12 +39,12 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       query: Query,
       condition: Option[Condition],
       tokenizer: Tokenizer
-  ): (ExpressionCalculator, Map[Expression[_], Int], DatasetSchema) = {
-    val (tree, known, params, schema) = generateCalculator(query, condition)
+  ): (ExpressionCalculator, DatasetSchema) = {
+    val (tree, params, schema) = generateCalculator(query, condition)
 
     val res = compile(tree)(params, tokenizer)
 
-    (res, known, schema)
+    (res, schema)
   }
 
   def compile(tree: Tree): (Array[Any], Tokenizer) => ExpressionCalculator = {
@@ -53,7 +53,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   def generateCalculator(
       query: Query,
       condition: Option[Condition]
-  ): (Tree, Map[Expression[_], Int], Array[Any], DatasetSchema) = {
+  ): (Tree, Array[Any], DatasetSchema) = {
     val batch = TermName("batch")
     val initialState =
       State(
@@ -306,7 +306,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
-    (tree, schema.exprIndex, paramsArray, schema)
+    (tree, paramsArray, schema)
   }
 
   private def prettyTree(tree: Tree): String = {

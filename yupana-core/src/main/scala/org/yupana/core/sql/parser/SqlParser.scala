@@ -142,7 +142,7 @@ object SqlParser {
     }
   }
 
-  def mathExpr[$: P]: P[SqlExpr] = chained1(minusMathTerm | mathTerm, mathTerm, plus | minus)
+  def mathExpr[$: P]: P[SqlExpr] = chained1(mathTerm | minusMathTerm, mathTerm, plus | minus)
 
   def expr[$: P]: P[SqlExpr] = P(condition)
 
@@ -361,8 +361,10 @@ object SqlParser {
   def alterUser[$: P]: P[AlterUser] =
     P(alterWord ~ userWord ~/ username).flatMap(n => setExtras(AlterUser(n, None, None)))
 
+  def setValue[$: P]: P[SetValue] = P(setWord ~/ name ~ "=" ~/ ValueParser.value).map(SetValue.tupled)
+
   def statement[$: P]: P[Statement] = P(
-    (select | upsert | show | createUser | alterUser | kill | delete | dropUser) ~ ";".? ~ End
+    (select | upsert | show | createUser | alterUser | kill | delete | dropUser | setValue) ~ ";".? ~ End
   )
 
   def parse(sql: String): Either[String, Statement] = {

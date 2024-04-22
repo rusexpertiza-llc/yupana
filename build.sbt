@@ -17,8 +17,8 @@ lazy val javaVersion = Def.setting {
 lazy val yupana = (project in file("."))
   .aggregate(
     api,
-    serialization,
     protocol,
+    serialization,
     jdbc,
     utils,
     settings,
@@ -28,6 +28,7 @@ lazy val yupana = (project in file("."))
     hbase,
     khipu,
     netty,
+    postgres,
     spark,
     schema,
     externalLinks,
@@ -77,7 +78,7 @@ lazy val protocol = (project in file("yupana-protocol"))
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test
     )
   )
-  .dependsOn(serialization)
+  .dependsOn(api)
   .disablePlugins(AssemblyPlugin)
 
 lazy val jdbc = (project in file("yupana-jdbc"))
@@ -212,14 +213,27 @@ lazy val netty = (project in file("yupana-netty"))
     libraryDependencies ++= Seq(
       "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
       "io.netty"                    %  "netty-all"                     % versions.netty,
-      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
 
       "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
       "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
-      "org.scalatestplus"           %% "scalacheck-1-17"               % versions.scalaTestCheck      % Test,
       "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
     )
-  ).disablePlugins(AssemblyPlugin).dependsOn(api, protocol, core % "compile->compile;test->test")
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", protocol)
+
+lazy val postgres = (project in file("yupana-postgres"))
+  .settings(
+    name := "yupana-postgres",
+    allSettings,
+    libraryDependencies ++= Seq(
+      "com.typesafe.scala-logging"  %% "scala-logging"                 % versions.scalaLogging,
+      "io.netty"                    %  "netty-all"                     % versions.netty,
+
+      "ch.qos.logback"              %  "logback-classic"               % versions.logback             % Runtime,
+      "org.postgresql"              %  "postgresql"                    % versions.postgresqlJdbc      % Test,
+      "org.scalatest"               %% "scalatest"                     % versions.scalaTest           % Test,
+      "org.scalamock"               %% "scalamock"                     % versions.scalaMock           % Test
+    )
+  ).disablePlugins(AssemblyPlugin).dependsOn(api, core % "compile->compile; test->test", serialization)
 
 lazy val spark = (project in file("yupana-spark"))
   .settings(
@@ -463,7 +477,7 @@ lazy val versions = new {
   val lucene = "6.6.0"
   val ignite = "2.8.1"
   val ehcache = "3.9.7"
-  val caffeine = "2.9.3"
+  val caffeine = "3.1.8"
 
   val circe = "0.14.5" // To have same cats version wuth Spark
 
@@ -471,7 +485,7 @@ lazy val versions = new {
   val hikariCP = "4.0.3"
   val logback = "1.3.14"
   val h2Jdbc = "1.4.200"
-  val postgresqlJdbc = "42.3.3"
+  val postgresqlJdbc = "42.7.3"
 
   val scalaTest = "3.2.18"
   val scalaTestCheck = "3.2.18.0"

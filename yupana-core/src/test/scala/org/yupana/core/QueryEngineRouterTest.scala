@@ -1,8 +1,9 @@
 package org.yupana.core
 
-import org.scalatest.{ BeforeAndAfterAll, EitherValues }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{ BeforeAndAfterAll, EitherValues }
+import org.yupana.api.Time
 import org.yupana.api.query.Result
 import org.yupana.api.types.DataType
 import org.yupana.cache.CacheFactory
@@ -10,8 +11,8 @@ import org.yupana.core.auth.{ PermissionService, TsdbRole, UserManager, YupanaUs
 import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao, UserDao }
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.providers.JdbcMetadataProvider
-import org.yupana.core.sql.parser.{ NumericValue, StringValue, TimestampValue }
 import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
+import org.yupana.core.sql.parser.TypedValue
 import org.yupana.settings.Settings
 
 import java.time.OffsetDateTime
@@ -56,11 +57,11 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
         "UPSERT INTO test_table(time, A, B, testField, testStringField) VALUES(?, ?, ?, ?, ?)",
         List(
           Map(
-            1 -> TimestampValue(OffsetDateTime.now()),
-            2 -> StringValue("A"),
-            3 -> NumericValue(2),
-            4 -> NumericValue(5),
-            5 -> StringValue("one")
+            1 -> TypedValue(Time(OffsetDateTime.now())),
+            2 -> TypedValue("A"),
+            3 -> TypedValue(2),
+            4 -> TypedValue(5),
+            5 -> TypedValue("one")
           )
         )
       )

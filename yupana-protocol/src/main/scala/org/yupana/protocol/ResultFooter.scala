@@ -18,6 +18,7 @@ package org.yupana.protocol
 
 /**
   * Query execution statistics
+  *
   * @param id request id
   * @param millis execution time
   * @param rows number of rows provided to the client

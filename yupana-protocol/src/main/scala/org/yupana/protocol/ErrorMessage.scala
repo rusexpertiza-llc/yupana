@@ -18,6 +18,7 @@ package org.yupana.protocol
 
 /**
   * Error message from server to client
+  *
   * @param message text of the message
   * @param streamId if the error related to some query
   * @param severity message importance

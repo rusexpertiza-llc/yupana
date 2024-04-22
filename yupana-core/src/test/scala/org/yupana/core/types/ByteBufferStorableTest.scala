@@ -1,5 +1,6 @@
 package org.yupana.core.types
 
+import org.yupana.api.types.SimpleStringReaderWriter
 import org.yupana.serialization.ByteBufferEvalReaderWriter
 
 import java.nio.ByteBuffer
@@ -14,4 +15,7 @@ class ByteBufferStorableTest extends StorableTestBase {
 
   "ByteBuffer" should behave like storableTest(ByteBufferEvalReaderWriter, byteBufferUtils)
 
+  it should behave like compactTest(ByteBufferEvalReaderWriter, byteBufferUtils)
+
+  it should behave like stringStorageTest(SimpleStringReaderWriter)
 }

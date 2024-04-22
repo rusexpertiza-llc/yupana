@@ -3,11 +3,11 @@ package org.yupana.core.providers
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{ EitherValues, Inspectors, OptionValues }
-import org.yupana.api.types.DataType
+import org.yupana.api.types.{ DataType, SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.TestSchema
 
 class JdbcMetadataProviderTest extends AnyFlatSpec with Inspectors with Matchers with OptionValues with EitherValues {
-
+  implicit val srw: StringReaderWriter = SimpleStringReaderWriter
   val metadataProvider = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2")
 
   "JdbcMetadataProvider" should "return None when unknown table description has been requested" in {

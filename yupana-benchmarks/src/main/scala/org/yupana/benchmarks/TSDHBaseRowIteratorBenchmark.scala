@@ -36,7 +36,7 @@ class TSDHBaseRowIteratorBenchmark {
     val it = new TSDHBaseRowIterator(
       state.internalQueryContext,
       state.rows.iterator,
-      state.queryContext.internalRowSchema
+      state.queryContext.datasetSchema
     )
     it.foldLeft(0) { (a, r) =>
       a + 1

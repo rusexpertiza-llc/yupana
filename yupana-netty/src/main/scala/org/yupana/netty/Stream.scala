@@ -17,8 +17,10 @@
 package org.yupana.netty
 import io.netty.buffer.{ ByteBuf, Unpooled }
 import org.yupana.api.query.Result
-import org.yupana.api.types.{ ID, ReaderWriter }
+import org.yupana.api.types.{ ByteReaderWriter, ID }
 import org.yupana.protocol.{ Response, ResultFooter, ResultRow }
+
+import scala.collection.mutable.ListBuffer
 
 class Stream(id: Int, result: Result) {
 
@@ -26,7 +28,7 @@ class Stream(id: Int, result: Result) {
   private val resultTypes = result.dataTypes.zipWithIndex
   val MAX_VALUE_SIZE = 2_000_000
   private val buffer = Unpooled.buffer(MAX_VALUE_SIZE)
-  implicit val readerWriter: ReaderWriter[ByteBuf, ID, Int, Int] = ByteBufEvalReaderWriter
+  implicit val readerWriter: ByteReaderWriter[ByteBuf] = ByteBufEvalReaderWriter
 
   def close(): Unit = result.close()
 
@@ -43,7 +45,7 @@ class Stream(id: Int, result: Result) {
   def hasNext: Boolean = !result.isLast()
 
   private def createBatch(result: Result, size: Int): Seq[ResultRow] = {
-    var seq = Seq.empty[ResultRow]
+    val res = ListBuffer.empty[ResultRow]
 
     var i = 0
     while (i < size && result.next()) {
@@ -60,10 +62,10 @@ class Stream(id: Int, result: Result) {
           }
       }
       rows += 1
-      seq = seq :+ ResultRow(id, bytes)
+      res += ResultRow(id, bytes)
       i += 1
     }
-    seq
+    res.toSeq
   }
 
   private def createFooter(result: Result): ResultFooter = {

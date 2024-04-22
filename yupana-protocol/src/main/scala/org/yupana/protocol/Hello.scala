@@ -18,6 +18,7 @@ package org.yupana.protocol
 
 /**
   * Greeting message from client to server
+  *
   * @param protocolVersion client protocol version
   * @param clientVersion client version
   * @param timestamp client timestamp

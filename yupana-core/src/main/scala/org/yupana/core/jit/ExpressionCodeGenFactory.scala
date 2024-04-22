@@ -84,6 +84,7 @@ object ExpressionCodeGenFactory {
   private def createCodeGenerator(expr: Expression[_]): ExpressionCodeGen[_] = {
     expr match {
       case ConstantExpr(c, prepared) => new ConstantExpressionCodeGen(expr, c, prepared)
+      case UntypedConstantExpr(s)    => throw new IllegalArgumentException(s"Untyped constant '$s' in calculator!")
       case TrueExpr                  => new ConstantExpressionCodeGen(expr, true, prepared = false)
       case FalseExpr                 => new ConstantExpressionCodeGen(expr, false, prepared = false)
       case NullExpr(_)               => new NullExpressionCodeGen(expr)

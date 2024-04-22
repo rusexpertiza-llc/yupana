@@ -1,12 +1,14 @@
 package org.yupana.core.types
 
-import org.scalacheck.Arbitrary
+import org.scalacheck.{ Arbitrary, Gen }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.yupana.api.types.{ ID, ReaderWriter, Storable }
+import org.yupana.api.types.{ ID, ReaderWriter, Storable, StringReaderWriter }
 import org.yupana.api.{ Blob, Time }
+
+import java.time.{ LocalDateTime, ZoneOffset }
 
 trait StorableTestBase
     extends AnyFlatSpec
@@ -20,7 +22,13 @@ trait StorableTestBase
     def rewind(bb: B): Unit
   }
 
-  implicit private val genTime: Arbitrary[Time] = Arbitrary(Arbitrary.arbitrary[Long].map(Time.apply))
+  implicit private val genTime: Arbitrary[Time] = Arbitrary(timeGen)
+
+  private def timeGen: Gen[Time] = {
+    val minTime = LocalDateTime.of(-5000, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
+    val maxTime = LocalDateTime.of(5000, 1, 1, 0, 0, 0).toInstant(ZoneOffset.UTC).toEpochMilli
+    Gen.choose(minTime, maxTime).map(Time.apply)
+  }
 
   implicit private val genBlob: Arbitrary[Blob] = Arbitrary(Arbitrary.arbitrary[Array[Byte]].map(Blob.apply))
 
@@ -29,6 +37,10 @@ trait StorableTestBase
     implicit val rw: ReaderWriter[B, ID, Int, Int] = readerWriter
 
     "Serialization" should "preserve doubles on write read cycle" in readWriteTest[Double]
+
+    it should "preserve Bytes on write read cycle" in readWriteTest[Byte]
+
+    it should "preserve Shorts on write read cycle" in readWriteTest[Short]
 
     it should "preserve Ints on write read cycle" in readWriteTest[Int]
 
@@ -47,6 +59,28 @@ trait StorableTestBase
     it should "preserve sequences of String on read write cycle" in readWriteTest[Seq[String]]
 
     it should "preserve BLOBs on read write cycle" in readWriteTest[Blob]
+
+    def readWriteTest[T: Storable: Arbitrary] = {
+      val storable = implicitly[Storable[T]]
+
+      forAll { t: T =>
+        val bb = bufUtils.createBuffer(65535)
+        val posBeforeWrite = bufUtils.position(bb)
+        val actualSize = storable.write(bb, t: ID[T])
+        val posAfterWrite = bufUtils.position(bb)
+        val expectedSize = posAfterWrite - posBeforeWrite
+        expectedSize shouldEqual actualSize
+        bufUtils.rewind(bb)
+        storable.read(bb) shouldEqual t
+
+        storable.write(bb, 1000, t: ID[T]) shouldEqual expectedSize
+        storable.read(bb, 1000) shouldEqual t
+      }
+    }
+  }
+
+  def compactTest[B](readerWriter: ReaderWriter[B, ID, Int, Int], bufUtils: BufUtils[B]): Unit = {
+    implicit val rw: ReaderWriter[B, ID, Int, Int] = readerWriter
 
     it should "compact numbers" in {
       val storable = implicitly[Storable[Long]]
@@ -87,22 +121,33 @@ trait StorableTestBase
       bufUtils.rewind(bb)
       an[IllegalArgumentException] should be thrownBy intStorable.read(bb)
     }
+  }
+
+  def stringStorageTest(stringReaderWriter: StringReaderWriter): Unit = {
+    implicit val srw = stringReaderWriter
+
+    "StringSerialization" should "preserve Booleans on write read cycle" in readWriteTest[Boolean]
+
+    it should "preserve Strings on write read cycle" in readWriteTest[String]
+
+    it should "preserve Bytes on write read cycle" in readWriteTest[Byte]
+    it should "preserve Shorts on write read cycle" in readWriteTest[Short]
+    it should "preserve Ints on write read cycle" in readWriteTest[Int]
+    it should "preserve Longs on write read cycle" in readWriteTest[Long]
+
+    it should "preserve Doubles on write read cycle" in readWriteTest[Double]
+    it should "preserve BigDecimals on write read cycle" in readWriteTest[BigDecimal]
+
+    it should "preserve Time on write read cycle" in readWriteTest[Time]
 
     def readWriteTest[T: Storable: Arbitrary] = {
       val storable = implicitly[Storable[T]]
 
       forAll { t: T =>
-        val bb = bufUtils.createBuffer(65535)
-        val posBeforeWrite = bufUtils.position(bb)
-        val actualSize = storable.write(bb, t: ID[T])
-        val posAfterWrite = bufUtils.position(bb)
-        val expectedSize = posAfterWrite - posBeforeWrite
-        expectedSize shouldEqual actualSize
-        bufUtils.rewind(bb)
-        storable.read(bb) shouldEqual t
+        val str = storable.writeString(t)
+        val restored = storable.readString(str)
 
-        storable.write(bb, 1000, t: ID[T]) shouldEqual expectedSize
-        storable.read(bb, 1000) shouldEqual t
+        restored shouldEqual t
       }
     }
   }
