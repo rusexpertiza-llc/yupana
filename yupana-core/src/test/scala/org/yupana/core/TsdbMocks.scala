@@ -13,10 +13,11 @@ import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.utils.RussianTokenizer
+import org.scalatest.TestSuite
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
-trait TsdbMocks extends MockFactory {
+trait TsdbMocks extends MockFactory { self: TestSuite =>
 
   def mockCatalogService(tsdb: TSDB, catalog: ExternalLink): ExternalLinkService[TestLinks.TestLink] = {
     val catalogService = mock[ExternalLinkService[TestLinks.TestLink]]
@@ -126,5 +127,3 @@ trait TsdbMocks extends MockFactory {
       .fold(fail(_), identity)
   }
 }
-
-object TsdbMocks extends TsdbMocks
