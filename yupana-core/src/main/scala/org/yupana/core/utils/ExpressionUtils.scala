@@ -19,122 +19,165 @@ package org.yupana.core.utils
 import org.yupana.api.query._
 
 object ExpressionUtils {
-  trait Transformer {
-    def apply[T](e: Expression[T]): Option[Expression[T]]
-    def isDefinedAt[T](e: Expression[T]): Boolean = apply(e).nonEmpty
+  trait Transformer[M[_]] {
+    def apply[T](e: Expression[T]): Option[M[Expression[T]]]
   }
 
-  def transform[T](t: Transformer)(expr: Expression[T]): Expression[T] = {
+  trait Monad[M[_]] {
+    def map[A, B](x: M[A])(f: A => B): M[B]
+    def flatMap[A, B](x: M[A])(f: A => M[B]): M[B]
+    def pure[A](x: A): M[A]
+    def traverseSeq[A, B](xs: Seq[A])(f: A => M[B]): M[Seq[B]]
+  }
+
+  type Id[T] = T
+  type TransformError[T] = Either[String, T]
+
+  implicit val idMonad: Monad[Id] = new Monad[Id] {
+    override def map[A, B](x: Id[A])(f: A => B): Id[B] = f(x)
+    override def flatMap[A, B](x: Id[A])(f: A => Id[B]): Id[B] = f(x)
+    override def pure[A](x: A): Id[A] = x
+    override def traverseSeq[A, B](xs: Seq[A])(f: A => Id[B]): Id[Seq[B]] = xs.map(f)
+  }
+
+  implicit val teMonad: Monad[TransformError] = new Monad[TransformError] {
+    override def map[A, B](x: TransformError[A])(f: A => B): TransformError[B] = x.map(f)
+    override def flatMap[A, B](x: TransformError[A])(f: A => TransformError[B]): TransformError[B] = x.flatMap(f)
+    override def pure[A](x: A): TransformError[A] = Right(x)
+    override def traverseSeq[A, B](xs: Seq[A])(f: A => TransformError[B]): TransformError[Seq[B]] = {
+      xs.foldRight(Right(List.empty[B]).withLeft[String])((v, a) => a.flatMap(bs => f(v).map(b => b :: bs)))
+    }
+  }
+
+  def transform[T, M[_]](t: Transformer[M])(expr: Expression[T])(implicit m: Monad[M]): M[Expression[T]] = {
     t(expr).getOrElse(expr match {
-      case TimeExpr                  => expr
-      case NullExpr(_)               => expr
-      case ConstantExpr(_, _)        => expr
-      case PlaceholderExpr(_, _)     => expr
-      case UntypedPlaceholderExpr(_) => expr
-      case TrueExpr                  => expr
-      case FalseExpr                 => expr
-      case LinkExpr(_, _)            => expr
-      case MetricExpr(_)             => expr
-      case DimensionExpr(_)          => expr
-      case DimensionIdExpr(_)        => expr
-      case DimIdInExpr(_, _)         => expr
-      case DimIdNotInExpr(_, _)      => expr
+      case TimeExpr                  => m.pure(expr)
+      case NullExpr(_)               => m.pure(expr)
+      case ConstantExpr(_, _)        => m.pure(expr)
+      case PlaceholderExpr(_, _)     => m.pure(expr)
+      case UntypedPlaceholderExpr(_) => m.pure(expr)
+      case TrueExpr                  => m.pure(expr)
+      case FalseExpr                 => m.pure(expr)
+      case LinkExpr(_, _)            => m.pure(expr)
+      case MetricExpr(_)             => m.pure(expr)
+      case DimensionExpr(_)          => m.pure(expr)
+      case DimensionIdExpr(_)        => m.pure(expr)
+      case DimIdInExpr(_, _)         => m.pure(expr)
+      case DimIdNotInExpr(_, _)      => m.pure(expr)
 
-      case EqExpr(a, b)     => EqExpr(transform(t)(a), transform(t)(b))
-      case NeqExpr(a, b)    => NeqExpr(transform(t)(a), transform(t)(b))
-      case e @ LtExpr(a, b) => LtExpr(transform(t)(a), transform(t)(b))(e.ordering)
-      case e @ GtExpr(a, b) => GtExpr(transform(t)(a), transform(t)(b))(e.ordering)
-      case e @ LeExpr(a, b) => LeExpr(transform(t)(a), transform(t)(b))(e.ordering)
-      case e @ GeExpr(a, b) => GeExpr(transform(t)(a), transform(t)(b))(e.ordering)
-      case InExpr(e, vs)    => InExpr(transform(t)(e), vs)
-      case NotInExpr(e, vs) => NotInExpr(transform(t)(e), vs)
-      case IsNullExpr(e)    => IsNullExpr(e)
-      case IsNotNullExpr(e) => IsNotNullExpr(e)
-      case AndExpr(es)      => AndExpr(es.map(transform(t)))
-      case OrExpr(es)       => OrExpr(es.map(transform(t)))
-      case NotExpr(e)       => NotExpr(transform(t)(e))
+      case EqExpr(a, b)  => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => EqExpr(ta, tb)))
+      case NeqExpr(a, b) => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => NeqExpr(ta, tb)))
+      case e @ LtExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => LtExpr(ta, tb)(e.ordering)))
+      case e @ GtExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => GtExpr(ta, tb)(e.ordering)))
+      case e @ LeExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => LeExpr(ta, tb)(e.ordering)))
+      case e @ GeExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => GeExpr(ta, tb)(e.ordering)))
+      case InExpr(e, vs)    => m.map(transform(t)(e))(te => InExpr(te, vs))
+      case NotInExpr(e, vs) => m.map(transform(t)(e))(te => InExpr(te, vs))
+      case IsNullExpr(e)    => m.map(transform(t)(e))(IsNullExpr.apply)
+      case IsNotNullExpr(e) => m.map(transform(t)(e))(IsNullExpr.apply)
+      case AndExpr(es)      => m.map(m.traverseSeq(es)(transform(t)))(AndExpr.apply)
+      case OrExpr(es)       => m.map(m.traverseSeq(es)(transform(t)))(OrExpr.apply)
+      case NotExpr(e)       => m.map(transform(t)(e))(NotExpr.apply)
 
-      case e @ PlusExpr(a, b)    => PlusExpr(transform(t)(a), transform(t)(b))(e.numeric)
-      case e @ MinusExpr(a, b)   => MinusExpr(transform(t)(a), transform(t)(b))(e.numeric)
-      case e @ TimesExpr(a, b)   => TimesExpr(transform(t)(a), transform(t)(b))(e.numeric)
-      case e @ DivIntExpr(a, b)  => DivIntExpr(transform(t)(a), transform(t)(b))(e.integral)
-      case e @ DivFracExpr(a, b) => DivFracExpr(transform(t)(a), transform(t)(b))(e.fractional)
-      case e @ UnaryMinusExpr(a) => UnaryMinusExpr(transform(t)(a))(e.num)
-      case e @ AbsExpr(a)        => AbsExpr(transform(t)(a))(e.num)
+      case e @ PlusExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => PlusExpr(ta, tb)(e.numeric)))
+      case e @ MinusExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => MinusExpr(ta, tb)(e.numeric)))
+      case e @ TimesExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => TimesExpr(ta, tb)(e.numeric)))
+      case e @ DivIntExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => DivIntExpr(ta, tb)(e.integral)))
+      case e @ DivFracExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => PlusExpr(ta, tb)(e.fractional)))
+      case e @ UnaryMinusExpr(a) => m.map(transform(t)(a))(ta => UnaryMinusExpr(ta)(e.num))
+      case e @ AbsExpr(a)        => m.map(transform(t)(a))(ta => AbsExpr(ta)(e.num))
 
-      case Double2BigDecimalExpr(e) => Double2BigDecimalExpr(transform(t)(e))
-      case BigDecimal2DoubleExpr(e) => BigDecimal2DoubleExpr(transform(t)(e))
-      case Long2DoubleExpr(e)       => Long2DoubleExpr(transform(t)(e))
-      case Long2BigDecimalExpr(e)   => Long2BigDecimalExpr(transform(t)(e))
-      case Int2LongExpr(e)          => Int2LongExpr(transform(t)(e))
-      case Int2DoubleExpr(e)        => Int2DoubleExpr(transform(t)(e))
-      case Int2BigDecimalExpr(e)    => Int2BigDecimalExpr(transform(t)(e))
-      case Short2IntExpr(e)         => Short2IntExpr(transform(t)(e))
-      case Short2LongExpr(e)        => Short2LongExpr(transform(t)(e))
-      case Short2DoubleExpr(e)      => Short2DoubleExpr(transform(t)(e))
-      case Short2BigDecimalExpr(e)  => Short2BigDecimalExpr(transform(t)(e))
-      case Byte2ShortExpr(e)        => Byte2ShortExpr(transform(t)(e))
-      case Byte2IntExpr(e)          => Byte2IntExpr(transform(t)(e))
-      case Byte2LongExpr(e)         => Byte2LongExpr(transform(t)(e))
-      case Byte2DoubleExpr(e)       => Byte2DoubleExpr(transform(t)(e))
-      case Byte2BigDecimalExpr(e)   => Byte2BigDecimalExpr(transform(t)(e))
-      case ToStringExpr(e)          => ToStringExpr(transform(t)(e))(e.dataType)
+      case Double2BigDecimalExpr(e) => m.map(transform(t)(e))(Double2BigDecimalExpr.apply)
+      case BigDecimal2DoubleExpr(e) => m.map(transform(t)(e))(BigDecimal2DoubleExpr.apply)
+      case Long2DoubleExpr(e)       => m.map(transform(t)(e))(Long2DoubleExpr.apply)
+      case Long2BigDecimalExpr(e)   => m.map(transform(t)(e))(Long2BigDecimalExpr.apply)
+      case Int2LongExpr(e)          => m.map(transform(t)(e))(Int2LongExpr.apply)
+      case Int2DoubleExpr(e)        => m.map(transform(t)(e))(Int2DoubleExpr.apply)
+      case Int2BigDecimalExpr(e)    => m.map(transform(t)(e))(Int2BigDecimalExpr.apply)
+      case Short2IntExpr(e)         => m.map(transform(t)(e))(Short2IntExpr.apply)
+      case Short2LongExpr(e)        => m.map(transform(t)(e))(Short2LongExpr.apply)
+      case Short2DoubleExpr(e)      => m.map(transform(t)(e))(Short2DoubleExpr.apply)
+      case Short2BigDecimalExpr(e)  => m.map(transform(t)(e))(Short2BigDecimalExpr.apply)
+      case Byte2ShortExpr(e)        => m.map(transform(t)(e))(Byte2ShortExpr.apply)
+      case Byte2IntExpr(e)          => m.map(transform(t)(e))(Byte2IntExpr.apply)
+      case Byte2LongExpr(e)         => m.map(transform(t)(e))(Byte2LongExpr.apply)
+      case Byte2DoubleExpr(e)       => m.map(transform(t)(e))(Byte2DoubleExpr.apply)
+      case Byte2BigDecimalExpr(e)   => m.map(transform(t)(e))(Byte2BigDecimalExpr.apply)
+      case ToStringExpr(e)          => m.map(transform(t)(e))(te => ToStringExpr(te)(e.dataType))
 
-      case TupleExpr(a, b)    => TupleExpr(transform(t)(a), transform(t)(b))(a.dataType, b.dataType)
-      case ae @ ArrayExpr(es) => ArrayExpr(es.map(transform(t)))(ae.elementDataType)
+      case TupleExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => TupleExpr(ta, tb)(a.dataType, b.dataType)))
+      case ae @ ArrayExpr(es) => m.map(m.traverseSeq(es)(transform(t)))(xs => ArrayExpr(xs)(ae.elementDataType))
 
-      case ContainsExpr(a, b)     => ContainsExpr(transform(t)(a), transform(t)(b))
-      case ContainsAnyExpr(a, b)  => ContainsAnyExpr(transform(t)(a), transform(t)(b))
-      case ContainsAllExpr(a, b)  => ContainsAllExpr(transform(t)(a), transform(t)(b))
-      case ContainsSameExpr(a, b) => ContainsSameExpr(transform(t)(a), transform(t)(b))
-      case ArrayLengthExpr(a)     => ArrayLengthExpr(transform(t)(a))
-      case ArrayToStringExpr(a)   => ArrayToStringExpr(transform(t)(a))
-      case ArrayTokensExpr(a)     => ArrayTokensExpr(transform(t)(a))
+      case ContainsExpr(a, b) => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => ContainsExpr(ta, tb)))
+      case ContainsAnyExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => ContainsAnyExpr(ta, tb)))
+      case ContainsAllExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => ContainsAllExpr(ta, tb)))
+      case ContainsSameExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => ContainsSameExpr(ta, tb)))
+      case ArrayLengthExpr(a)   => m.map(transform(t)(a))(ArrayLengthExpr.apply)
+      case ArrayToStringExpr(a) => m.map(transform(t)(a))(ArrayToStringExpr.apply)
+      case ArrayTokensExpr(a)   => m.map(transform(t)(a))(ArrayTokensExpr.apply)
 
-      case UpperExpr(e)     => UpperExpr(transform(t)(e))
-      case LowerExpr(e)     => LowerExpr(transform(t)(e))
-      case ConcatExpr(a, b) => ConcatExpr(transform(t)(a), transform(t)(b))
-      case SplitExpr(e)     => SplitExpr(transform(t)(e))
-      case TokensExpr(e)    => TokensExpr(transform(t)(e))
-      case LengthExpr(e)    => LengthExpr(transform(t)(e))
+      case UpperExpr(e)     => m.map(transform(t)(e))(UpperExpr.apply)
+      case LowerExpr(e)     => m.map(transform(t)(e))(LowerExpr.apply)
+      case ConcatExpr(a, b) => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => ConcatExpr(ta, tb)))
+      case SplitExpr(e)     => m.map(transform(t)(e))(SplitExpr.apply)
+      case TokensExpr(e)    => m.map(transform(t)(e))(TokensExpr.apply)
+      case LengthExpr(e)    => m.map(transform(t)(e))(LengthExpr.apply)
 
-      case ExtractYearExpr(e)    => ExtractYearExpr(transform(t)(e))
-      case ExtractQuarterExpr(e) => ExtractQuarterExpr(transform(t)(e))
-      case ExtractMonthExpr(e)   => ExtractMonthExpr(transform(t)(e))
-      case ExtractDayExpr(e)     => ExtractDayExpr(transform(t)(e))
-      case ExtractHourExpr(e)    => ExtractHourExpr(transform(t)(e))
-      case ExtractMinuteExpr(e)  => ExtractMinuteExpr(transform(t)(e))
-      case ExtractSecondExpr(e)  => ExtractSecondExpr(transform(t)(e))
+      case ExtractYearExpr(e)    => m.map(transform(t)(e))(ExtractYearExpr.apply)
+      case ExtractQuarterExpr(e) => m.map(transform(t)(e))(ExtractQuarterExpr.apply)
+      case ExtractMonthExpr(e)   => m.map(transform(t)(e))(ExtractMonthExpr.apply)
+      case ExtractDayExpr(e)     => m.map(transform(t)(e))(ExtractDayExpr.apply)
+      case ExtractHourExpr(e)    => m.map(transform(t)(e))(ExtractHourExpr.apply)
+      case ExtractMinuteExpr(e)  => m.map(transform(t)(e))(ExtractMinuteExpr.apply)
+      case ExtractSecondExpr(e)  => m.map(transform(t)(e))(ExtractSecondExpr.apply)
 
-      case TruncYearExpr(e)    => TruncYearExpr(transform(t)(e))
-      case TruncQuarterExpr(e) => TruncQuarterExpr(transform(t)(e))
-      case TruncMonthExpr(e)   => TruncMonthExpr(transform(t)(e))
-      case TruncWeekExpr(e)    => TruncWeekExpr(transform(t)(e))
-      case TruncDayExpr(e)     => TruncDayExpr(transform(t)(e))
-      case TruncHourExpr(e)    => TruncHourExpr(transform(t)(e))
-      case TruncMinuteExpr(e)  => TruncMinuteExpr(transform(t)(e))
-      case TruncSecondExpr(e)  => TruncSecondExpr(transform(t)(e))
+      case TruncYearExpr(e)    => m.map(transform(t)(e))(TruncYearExpr.apply)
+      case TruncQuarterExpr(e) => m.map(transform(t)(e))(TruncQuarterExpr.apply)
+      case TruncMonthExpr(e)   => m.map(transform(t)(e))(TruncMonthExpr.apply)
+      case TruncWeekExpr(e)    => m.map(transform(t)(e))(TruncWeekExpr.apply)
+      case TruncDayExpr(e)     => m.map(transform(t)(e))(TruncDayExpr.apply)
+      case TruncHourExpr(e)    => m.map(transform(t)(e))(TruncHourExpr.apply)
+      case TruncMinuteExpr(e)  => m.map(transform(t)(e))(TruncMinuteExpr.apply)
+      case TruncSecondExpr(e)  => m.map(transform(t)(e))(TruncSecondExpr.apply)
 
-      case PeriodPlusPeriodExpr(a, b) => PeriodPlusPeriodExpr(transform(t)(a), transform(t)(b))
-      case TimeMinusExpr(a, b)        => TimeMinusExpr(transform(t)(a), transform(t)(b))
-      case TimeMinusPeriodExpr(a, b)  => TimeMinusPeriodExpr(transform(t)(a), transform(t)(b))
-      case TimePlusPeriodExpr(a, b)   => TimePlusPeriodExpr(transform(t)(a), transform(t)(b))
+      case PeriodPlusPeriodExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => PeriodPlusPeriodExpr(ta, tb)))
+      case TimeMinusExpr(a, b) => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => TimeMinusExpr(ta, tb)))
+      case TimeMinusPeriodExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => TimeMinusPeriodExpr(ta, tb)))
+      case TimePlusPeriodExpr(a, b) =>
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => TimePlusPeriodExpr(ta, tb)))
 
-      case ConditionExpr(c, p, n) => ConditionExpr(transform(t)(c), transform(t)(p), transform(t)(n))
+      case ConditionExpr(c, p, n) =>
+        m.flatMap(transform(t)(c))(tc =>
+          m.flatMap(transform(t)(p))(tp => m.map(transform(t)(n))(tn => ConditionExpr(tc, tp, tn)))
+        )
 
-      case s @ SumExpr(e)            => SumExpr(transform(t)(e))(s.numeric, s.dt, s.guard)
-      case m @ MaxExpr(e)            => MaxExpr(transform(t)(e))(m.ord)
-      case m @ MinExpr(e)            => MinExpr(transform(t)(e))(m.ord)
-      case s @ AvgExpr(e)            => AvgExpr(transform(t)(e))(s.numeric)
-      case CountExpr(e)              => CountExpr(transform(t)(e))
-      case DistinctCountExpr(e)      => DistinctCountExpr(transform(t)(e))
-      case HLLCountExpr(e, accuracy) => HLLCountExpr(transform(t)(e), accuracy)
-      case DistinctRandomExpr(e)     => DistinctRandomExpr(transform(t)(e))
+      case s @ SumExpr(e)            => m.map(transform(t)(e))(te => SumExpr(te)(s.numeric, s.dt, s.guard))
+      case me @ MaxExpr(e)           => m.map(transform(t)(e))(te => MaxExpr(te)(me.ord))
+      case me @ MinExpr(e)           => m.map(transform(t)(e))(te => MinExpr(te)(me.ord))
+      case s @ AvgExpr(e)            => m.map(transform(t)(e))(te => AvgExpr(te)(s.numeric))
+      case CountExpr(e)              => m.map(transform(t)(e))(CountExpr.apply)
+      case DistinctCountExpr(e)      => m.map(transform(t)(e))(DistinctCountExpr.apply)
+      case HLLCountExpr(e, accuracy) => m.map(transform(t)(e))(te => HLLCountExpr(te, accuracy))
+      case DistinctRandomExpr(e)     => m.map(transform(t)(e))(DistinctRandomExpr.apply)
 
-      case LagExpr(e) => LagExpr(transform(t)(e))
+      case LagExpr(e) => m.map(transform(t)(e))(LagExpr.apply)
 
       // !!! DO NOT ADD DEFAULT CASE HERE, to keep matching exhaustive !!!
     })
   }
-
 }

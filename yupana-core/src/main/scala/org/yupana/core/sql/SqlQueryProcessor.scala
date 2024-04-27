@@ -50,24 +50,39 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     query.flatMap(validateQuery)
   }
 
-  def bindParameters(query: Query, parameters: Map[Int, Parameter])(
-      implicit srw: StringReaderWriter
-  ): Either[String, Query] = {
-    val fields = query.fields.map { field =>
-      QueryField(field.name, field.expr)
-    }
-
-    Query(query.table, fields, filter, groupBy, query.limit, postFilter)
-  }
-
-  def bindParameters(expression: Expression[_], parameters: Map[Int, Parameter])(implicit srw: StringReaderWriter) = {
-    val bindTransformer = new ExpressionUtils.Transformer {
+  def createTransformer(
+      parameters: Map[Int, Parameter]
+  ): ExpressionUtils.Transformer[ExpressionUtils.TransformError] = {
+    new ExpressionUtils.Transformer {
       override def apply[T](e: Expression[T]): Option[Expression[T]] = e match {
         case PlaceholderExpr(id, dt) =>
           parameters.get(id).map { case p @ TypedParameter(v) => DataTypeUtils.constCast() }
         case UntypedPlaceholderExpr(id) => parameters.get(id).map { case TypedParameter(v) => ConstantExpr(v) }
       }
     }
+  }
+
+  def bindParameters(query: Query, parameters: Map[Int, Parameter])(
+      implicit srw: StringReaderWriter
+  ): Either[String, Query] = {
+    import CollectionUtils._
+
+    val transformer = createTransformer(parameters)
+    for {
+      fields <- collectErrors(query.fields.map { field =>
+        bindParameters(field.expr, transformer).map(e => QueryField(field.name, e))
+      })
+      filter <- traverseOpt(query.filter)(e => bindParameters(e, transformer))
+      groupBy <- collectErrors(query.groupBy.map(e => bindParameters(e, transformer)))
+      postFilter <- traverseOpt(query.postFilter)(e => bindParameters(e, transformer))
+    } yield Query(query.table, fields, filter, groupBy, query.limit, postFilter, query.hints)
+  }
+
+  def bindParameters[T](
+      expression: Expression[T],
+      bindTransformer: ExpressionUtils.Transformer[ExpressionUtils.TransformError]
+  ): Either[String, Expression[T]] = {
+
     ExpressionUtils.transform(bindTransformer)(expression)
   }
 

@@ -19,7 +19,7 @@ package org.yupana.core
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.core.utils.ExpressionUtils
-import org.yupana.core.utils.ExpressionUtils.Transformer
+import org.yupana.core.utils.ExpressionUtils.{ Id, Transformer }
 
 object QueryOptimizer {
 
@@ -41,7 +41,7 @@ object QueryOptimizer {
   }
 
   def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
-    val transformer = new Transformer {
+    val transformer = new Transformer[Id] {
       override def apply[U](e: Expression[U]): Option[Expression[U]] = {
         if (e.kind == Const) Some(evaluateConstant(expressionCalculator)(e)) else None
       }
