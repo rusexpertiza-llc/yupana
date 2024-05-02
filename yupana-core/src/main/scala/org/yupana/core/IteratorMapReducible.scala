@@ -16,7 +16,7 @@
 
 package org.yupana.core
 
-import org.yupana.core.model.{BatchDataset, HashTableDataset}
+import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.CollectionUtils
 
 import scala.reflect.ClassTag

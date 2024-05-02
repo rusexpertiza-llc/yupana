@@ -3314,7 +3314,7 @@ class TsdbTest
       const(Time(qtime.plusDays(1))),
       Seq(
         time as "time",
-        metric(TestTableFields.TEST_LONG_FIELD) as "testLongField",
+        metric(TestTableFields.TEST_LONG_FIELD) as "testLongField"
       ),
       Some(EqExpr(metric(TestTableFields.TEST_LONG_FIELD), const(10L))),
       Seq.empty,
@@ -3330,7 +3330,7 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](
             time,
-            metric(TestTableFields.TEST_LONG_FIELD),
+            metric(TestTableFields.TEST_LONG_FIELD)
           ),
           and(
             equ(metric(TestTableFields.TEST_LONG_FIELD), const(10L)),
