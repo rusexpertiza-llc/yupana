@@ -3303,6 +3303,74 @@ class TsdbTest
     res.next() shouldBe false
   }
 
+  it should "execute query with limit" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        time as "time",
+        metric(TestTableFields.TEST_LONG_FIELD) as "testLongField",
+      ),
+      Some(EqExpr(metric(TestTableFields.TEST_LONG_FIELD), const(10L))),
+      Seq.empty,
+      Some(2),
+      None
+    )
+
+    val pointTime = qtime.toInstant.toEpochMilli + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_LONG_FIELD),
+          ),
+          and(
+            equ(metric(TestTableFields.TEST_LONG_FIELD), const(10L)),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          )
+        ),
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch1 = new BatchDataset(dsSchema)
+        batch1.set(0, time, Time(pointTime))
+        batch1.set(0, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+        batch1.set(1, time, Time(pointTime))
+        batch1.set(1, metric(TestTableFields.TEST_LONG_FIELD), 10L)
+        batch1.set(2, time, Time(pointTime))
+        batch1.set(2, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+
+        val batch2 = new BatchDataset(dsSchema)
+        batch2.set(0, time, Time(pointTime))
+        batch2.set(0, metric(TestTableFields.TEST_LONG_FIELD), 10L)
+        batch2.set(1, time, Time(pointTime))
+        batch2.set(1, metric(TestTableFields.TEST_LONG_FIELD), 1L)
+        batch2.set(2, time, Time(pointTime))
+        batch2.set(2, metric(TestTableFields.TEST_LONG_FIELD), 10L)
+        Iterator(batch1, batch2)
+      }
+
+    val res = tsdb.query(query)
+    var c = 0
+    while (res.next()) {
+      res.get[Time]("time") shouldBe Time(pointTime)
+      res.get[Double]("testLongField") shouldBe 10d
+      c += 1
+    }
+    c shouldBe 2
+  }
+
   it should "support queries without tables" in withTsdbMock { (tsdb, _) =>
     val query = Query(
       None,

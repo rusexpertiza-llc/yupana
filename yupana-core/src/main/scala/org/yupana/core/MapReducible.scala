@@ -57,7 +57,7 @@ trait MapReducible[Collection[_]] extends Serializable {
 
   def distinct[A: ClassTag](c: Collection[A]): Collection[A]
 
-  def limit[A: ClassTag](c: Collection[A])(n: Int): Collection[A]
+  def limit(c: Collection[BatchDataset])(n: Int): Collection[BatchDataset]
 
   def concat[A: ClassTag](a: Collection[A], b: Collection[A]): Collection[A]
 
