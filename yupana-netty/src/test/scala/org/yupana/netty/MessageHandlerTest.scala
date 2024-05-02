@@ -11,8 +11,7 @@ import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.{ ByteReaderWriter, DataType, SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.QueryEngineRouter
 import org.yupana.core.auth.{ NonEmptyUserAuthorizer, TsdbRole, YupanaUser }
-import org.yupana.core.sql.parser
-import org.yupana.core.sql.parser.Value
+import org.yupana.core.sql.{ Parameter, TypedParameter }
 import org.yupana.protocol._
 
 class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen with MockFactory {
@@ -107,15 +106,15 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     auth(ch)
 
     (queryEngine
-      .query(_: YupanaUser, _: String, _: Map[Int, Value])(_: StringReaderWriter))
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
       .expects(
         YupanaUser("test", None, TsdbRole.Admin),
         "SELECT ? + ? as five, ? as s, ? epoch",
         Map(
-          1 -> parser.TypedValue(BigDecimal(3)),
-          2 -> parser.TypedValue(BigDecimal(2)),
-          3 -> parser.TypedValue("str"),
-          4 -> parser.TypedValue(Time(0L))
+          1 -> TypedParameter(BigDecimal(3)),
+          2 -> TypedParameter(BigDecimal(2)),
+          3 -> TypedParameter("str"),
+          4 -> TypedParameter(Time(0L))
         ),
         *
       )
@@ -172,13 +171,13 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine
-      .query(_: YupanaUser, _: String, _: Map[Int, Value])(_: StringReaderWriter))
-      .expects(user, "SELECT 1", Map.empty[Int, parser.Value], *)
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT 1", Map.empty[Int, Parameter], *)
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     (queryEngine
-      .query(_: YupanaUser, _: String, _: Map[Int, Value])(_: StringReaderWriter))
-      .expects(user, "SELECT 2", Map.empty[Int, parser.Value], *)
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT 2", Map.empty[Int, Parameter], *)
       .returning(Right(SimpleResult("result 2", Seq("2"), Seq(DataType[Int]), Iterator(Array[Any](2)))))
 
     ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame(Unpooled.buffer()))
@@ -226,8 +225,8 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine
-      .query(_: YupanaUser, _: String, _: Map[Int, Value])(_: StringReaderWriter))
-      .expects(user, "SELECT x FROM table", Map.empty[Int, parser.Value], *)
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT x FROM table", Map.empty[Int, Parameter], *)
       .returning(Right(SimpleResult("table", Seq("x"), Seq(DataType[Int]), (1 to 15).map(x => Array[Any](x)).iterator)))
 
     ch.writeInbound(SqlQuery(1, "SELECT x FROM table", Map.empty).toFrame(Unpooled.buffer()))
@@ -259,13 +258,13 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine
-      .batchQuery(_: YupanaUser, _: String, _: Seq[Map[Int, Value]])(_: StringReaderWriter))
+      .batchQuery(_: YupanaUser, _: String, _: Seq[Map[Int, Parameter]])(_: StringReaderWriter))
       .expects(
         user,
         "UPSERT INTO test(a,b) VALUES (?, ?)",
         Seq(
-          Map(1 -> parser.TypedValue("a"), 2 -> parser.TypedValue(BigDecimal(5))),
-          Map(1 -> parser.TypedValue("b"), 2 -> parser.TypedValue(BigDecimal(7)))
+          Map(1 -> TypedParameter("a"), 2 -> TypedParameter(BigDecimal(5))),
+          Map(1 -> TypedParameter("b"), 2 -> TypedParameter(BigDecimal(7)))
         ),
         *
       )
@@ -292,8 +291,8 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine
-      .query(_: YupanaUser, _: String, _: Map[Int, Value])(_: StringReaderWriter))
-      .expects(user, "SELECT 1", Map.empty[Int, parser.Value], *)
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT 1", Map.empty[Int, Parameter], *)
       .returning(Right(SimpleResult("result 1", Seq("1"), Seq(DataType[Int]), Iterator(Array[Any](1)))))
 
     ch.writeInbound(SqlQuery(1, "SELECT 1", Map.empty).toFrame(Unpooled.buffer()))
@@ -317,8 +316,8 @@ class MessageHandlerTest extends AnyFlatSpec with Matchers with GivenWhenThen wi
     val ch = new EmbeddedChannel(new QueryHandler(ServerContext(queryEngine, NonEmptyUserAuthorizer), user))
 
     (queryEngine
-      .query(_: YupanaUser, _: String, _: Map[Int, Value])(_: StringReaderWriter))
-      .expects(user, "SELECT 2", Map.empty[Int, parser.Value], *)
+      .query(_: YupanaUser, _: String, _: Map[Int, Parameter])(_: StringReaderWriter))
+      .expects(user, "SELECT 2", Map.empty[Int, Parameter], *)
       .onCall(_ => throw new RuntimeException("Something wrong"))
 
     ch.writeInbound(SqlQuery(1, "SELECT 2", Map.empty).toFrame(Unpooled.buffer()))

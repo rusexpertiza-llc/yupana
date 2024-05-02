@@ -36,24 +36,31 @@ object DataTypeUtils {
     override val b: Expression[T0] = y
   }
 
+  def constCast[U, T](
+      v: U,
+      fromType: DataType.Aux[U],
+      toType: DataType.Aux[T],
+      calc: ConstantCalculator
+  ): Either[String, T] = {
+    if (fromType == toType) {
+      Right(v.asInstanceOf[T])
+    } else {
+      autoConverter(fromType, toType)
+        .map(conv => calc.evaluateConstant(conv(ConstantExpr(v)(fromType))))
+        .orElse(
+          partial(fromType, toType)
+            .flatMap(conv => conv(v))
+        )
+        .toRight(
+          s"Cannot convert value '$v' of type ${fromType.meta.sqlTypeName} to ${toType.meta.sqlTypeName}"
+        )
+    }
+  }
+
   def constCast[U, T](const: ConstExpr[U], dataType: DataType.Aux[T], calc: ConstantCalculator): Either[String, T] = {
     const match {
-      case ConstantExpr(v, _) =>
-        if (const.dataType == dataType) {
-          Right(v.asInstanceOf[T])
-        } else {
-          autoConverter(const.dataType, dataType.aux)
-            .map(conv => calc.evaluateConstant(conv(const)))
-            .orElse(
-              partial(const.dataType, dataType.aux)
-                .flatMap(conv => conv(v))
-            )
-            .toRight(
-              s"Cannot convert value '$v' of type ${const.dataType.meta.sqlTypeName} to ${dataType.meta.sqlTypeName}"
-            )
-        }
-
-      case NullExpr(_) => Right(null.asInstanceOf[T])
+      case ConstantExpr(v, _) => constCast(v, const.dataType, dataType, calc)
+      case NullExpr(_)        => Right(null.asInstanceOf[T])
       case TrueExpr =>
         if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
         else Left(s"Cannot convert TRUE to data type $dataType")

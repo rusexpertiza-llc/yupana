@@ -26,6 +26,7 @@ import org.yupana.core.ConstantCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 import org.yupana.core.utils.ExpressionUtils
+import org.yupana.core.utils.ExpressionUtils.{ TransformError, Transformer }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 
@@ -50,14 +51,25 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     query.flatMap(validateQuery)
   }
 
-  def createTransformer(
+  private def createTransformer(
       parameters: Map[Int, Parameter]
-  ): ExpressionUtils.Transformer[ExpressionUtils.TransformError] = {
-    new ExpressionUtils.Transformer {
-      override def apply[T](e: Expression[T]): Option[Expression[T]] = e match {
-        case PlaceholderExpr(id, dt) =>
-          parameters.get(id).map { case p @ TypedParameter(v) => DataTypeUtils.constCast() }
-        case UntypedPlaceholderExpr(id) => parameters.get(id).map { case TypedParameter(v) => ConstantExpr(v) }
+  )(implicit srw: StringReaderWriter): Transformer[TransformError] = {
+    new Transformer[TransformError] {
+      override def apply[T](e: Expression[T]): Option[TransformError[Expression[T]]] = {
+        e match {
+          case PlaceholderExpr(id, dt) =>
+            val res = parameters
+              .get(id)
+              .map {
+                case p @ TypedParameter(v) =>
+                  DataTypeUtils.constCast(v, p.dataType, dt.aux, calculator).map(x => ConstantExpr(x)(dt))
+                case UntypedParameter(v) => Right(ConstantExpr(dt.storable.readString(v))(dt))
+              }
+              .getOrElse(Left(s"No parameter value for #$id"))
+            Some(res)
+          case UntypedPlaceholderExpr(id) => Some(Left(s"Cannot deduce parameter #$id type"))
+          case _                          => None
+        }
       }
     }
   }
@@ -80,7 +92,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   def bindParameters[T](
       expression: Expression[T],
-      bindTransformer: ExpressionUtils.Transformer[ExpressionUtils.TransformError]
+      bindTransformer: Transformer[TransformError]
   ): Either[String, Expression[T]] = {
 
     ExpressionUtils.transform(bindTransformer)(expression)
@@ -88,9 +100,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   def createDataPoints(
       upsert: parser.Upsert,
-      parameters: Seq[Map[Int, parser.Value]]
-  ): Either[String, Seq[DataPoint]] = {
-    val params = if (parameters.isEmpty) Seq(Map.empty[Int, parser.Value]) else parameters
+      parameters: Seq[Map[Int, Parameter]]
+  )(implicit srw: StringReaderWriter): Either[String, Seq[DataPoint]] = {
+
+    println(s"SRW: $srw")
+
+    val params = if (parameters.isEmpty) Seq(Map.empty[Int, Parameter]) else parameters
 
     if (upsert.values.forall(_.size == upsert.fieldNames.size)) {
       (for {

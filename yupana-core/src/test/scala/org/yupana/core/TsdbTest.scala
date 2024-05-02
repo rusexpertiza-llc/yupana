@@ -8,7 +8,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
-import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
 import org.yupana.core.auth.{ TsdbRole, YupanaUser }
@@ -3249,7 +3248,6 @@ class TsdbTest
   }
 
   it should "handle queries like this" in withTsdbMock { (tsdb, tsdbDaoMock) =>
-    implicit val srw: StringReaderWriter = SimpleStringReaderWriter
     val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
     val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     val from = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)

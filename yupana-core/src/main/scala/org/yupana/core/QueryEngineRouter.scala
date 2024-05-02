@@ -20,7 +20,7 @@ import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.{ DataType, StringReaderWriter }
 import org.yupana.core.auth.{ Action, Object, PermissionService, UserManager, YupanaUser }
 import org.yupana.core.providers.{ JdbcMetadataProvider, QueryInfoProvider, UpdatesIntervalsProvider }
-import org.yupana.core.sql.SqlQueryProcessor
+import org.yupana.core.sql.{ Parameter, SqlQueryProcessor }
 import org.yupana.core.sql.parser._
 
 class QueryEngineRouter(
@@ -32,7 +32,7 @@ class QueryEngineRouter(
     userManager: UserManager
 ) {
 
-  def query(user: YupanaUser, sql: String, params: Map[Int, Value])(
+  def query(user: YupanaUser, sql: String, params: Map[Int, Parameter])(
       implicit srw: StringReaderWriter
   ): Either[String, Result] = {
     for {
@@ -46,11 +46,15 @@ class QueryEngineRouter(
     SqlParser.parse(sql)
   }
 
-  def bind(statement: Statement, params: Map[Int, Value])(
+  def bind(statement: Statement, params: Map[Int, Parameter])(
       implicit srw: StringReaderWriter
   ): Either[String, PreparedStatement] = {
     statement match {
-      case select: Select => sqlQueryProcessor.createQuery(select).map(PreparedSelect)
+      case select: Select =>
+        sqlQueryProcessor
+          .createQuery(select)
+          .flatMap(q => sqlQueryProcessor.bindParameters(q, params))
+          .map(PreparedSelect)
       case ShowTables =>
         val meta = metadataProvider.listTablesMeta
         Right(PreparedCommand(ShowTables, params, meta._1, meta._2))
@@ -165,7 +169,7 @@ class QueryEngineRouter(
     else Left(s"User ${user.name} doesn't have enough permissions")
   }
 
-  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Value]])(
+  def batchQuery(user: YupanaUser, sql: String, params: Seq[Map[Int, Parameter]])(
       implicit srw: StringReaderWriter
   ): Either[String, Result] = {
     SqlParser.parse(sql).flatMap {
@@ -179,7 +183,7 @@ class QueryEngineRouter(
   private def doUpsert(
       user: YupanaUser,
       upsert: Upsert,
-      params: Seq[Map[Int, Value]]
+      params: Seq[Map[Int, Parameter]]
   )(implicit srw: StringReaderWriter): Either[String, Result] = {
     sqlQueryProcessor.createDataPoints(upsert, params).flatMap { dps =>
       tsdb.put(dps.iterator, user)

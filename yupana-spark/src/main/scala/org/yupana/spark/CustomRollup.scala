@@ -23,7 +23,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ AndExpr, DataPoint, Expression }
 import org.yupana.api.schema.{ Metric, MetricValue, Rollup, Table }
-import org.yupana.api.types.SimpleStringReaderWriter
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 
@@ -65,7 +64,7 @@ abstract class CustomRollup(
       sql: String
   ): tsdbSpark.Result = {
     SqlParser.parse(sql) flatMap {
-      case s: Select => sqlQueryProcessor.createQuery(s)(SimpleStringReaderWriter)
+      case s: Select => sqlQueryProcessor.createQuery(s)
       case _         => Left(s"Bad query ($sql), Select expected")
     } match {
       case Right(query) =>

@@ -442,7 +442,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     val to = OffsetDateTime.of(2017, 9, 15, 0, 0, 0, 0, ZoneOffset.UTC)
 
     inside(
-      createQuery(statement).map(q =>
+      createQuery(statement).flatMap(q =>
         sqlQueryProcessor.bindParameters(
           q,
           Map(
@@ -470,35 +470,37 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
-//  it should "handle untyped placeholder values" in {
-//    val statement =
-//      """SELECT SUM(TestField), month(time) as m, b FROM test_table
-//        | WHERE time >= ? and time < ? AND a = ?
-//        | GROUP BY m, b
-//      """.stripMargin
-//
-//    val from = "2024-03-27T15:49:44"
-//    val to = "2024-03-27T23:57:32"
-//
-//    inside(
-//      createQuery(
-//        statement,
-//        Map(
-//          1 -> parser.UntypedValue(from),
-//          2 -> parser.UntypedValue(to),
-//          3 -> parser.TypedValue("123456789")
-//        )
-//      )
-//    ) {
-//      case Right(q) =>
-//        q.table.value.name shouldEqual "test_table"
-//        q.filter.value shouldBe and(
-//          ge(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)), prepared = true)),
-//          lt(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)), prepared = true)),
-//          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
-//        )
-//    }
-//  }
+  it should "handle untyped placeholder values" in {
+    val statement =
+      """SELECT SUM(TestField), month(time) as m, b FROM test_table
+        | WHERE time >= ? and time < ? AND a = ?
+        | GROUP BY m, b
+      """.stripMargin
+
+    val from = "2024-03-27T15:49:44"
+    val to = "2024-03-27T23:57:32"
+
+    inside(
+      createQuery(statement).flatMap(q =>
+        sqlQueryProcessor.bindParameters(
+          q,
+          Map(
+            1 -> UntypedParameter(from),
+            2 -> UntypedParameter(to),
+            3 -> TypedParameter("123456789")
+          )
+        )
+      )
+    ) {
+      case Right(q) =>
+        q.table.value.name shouldEqual "test_table"
+        q.filter.value shouldBe and(
+          ge(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)), prepared = true)),
+          lt(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)), prepared = true)),
+          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
+        )
+    }
+  }
 
   it should "handle nested queries with const fields" in {
     testQuery("""
@@ -537,7 +539,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       """.stripMargin
 
     inside(
-      createQuery(statement).map(q =>
+      createQuery(statement).flatMap(q =>
         sqlQueryProcessor.bindParameters(
           q,
           Map(
@@ -1355,16 +1357,16 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
       Seq(
         Map(
-          1 -> parser.TypedValue("aaa"),
-          2 -> parser.TypedValue(BigDecimal(12)),
-          3 -> parser.TypedValue(Time(t1)),
-          4 -> parser.TypedValue(BigDecimal(1.1))
+          1 -> TypedParameter("aaa"),
+          2 -> TypedParameter(BigDecimal(12)),
+          3 -> TypedParameter(Time(t1)),
+          4 -> TypedParameter(BigDecimal(1.1))
         ),
         Map(
-          1 -> parser.TypedValue("ccc"),
-          2 -> parser.TypedValue(BigDecimal(34)),
-          3 -> parser.TypedValue(Time(t2)),
-          4 -> parser.TypedValue(BigDecimal(2.2))
+          1 -> TypedParameter("ccc"),
+          2 -> TypedParameter(BigDecimal(34)),
+          3 -> TypedParameter(Time(t2)),
+          4 -> TypedParameter(BigDecimal(2.2))
         )
       )
     ) match {
@@ -1426,16 +1428,16 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       "UPSERT INTO test_table (a, b, time, testField) VALUES (?, ?, ?, ?)",
       Seq(
         Map(
-          1 -> parser.TypedValue("aaa"),
-          2 -> parser.TypedValue(BigDecimal(33)),
-          3 -> parser.TypedValue(Time(t1)),
-          4 -> parser.TypedValue(BigDecimal(1.1))
+          1 -> TypedParameter("aaa"),
+          2 -> TypedParameter(BigDecimal(33)),
+          3 -> TypedParameter(Time(t1)),
+          4 -> TypedParameter(BigDecimal(1.1))
         ),
         Map(
-          1 -> parser.TypedValue("ccc"),
-          2 -> parser.TypedValue(BigDecimal(66)),
-          3 -> parser.TypedValue(Time(t2)),
-          4 -> parser.TypedValue("2.2")
+          1 -> TypedParameter("ccc"),
+          2 -> TypedParameter(BigDecimal(66)),
+          3 -> TypedParameter(Time(t2)),
+          4 -> TypedParameter("2.2")
         )
       )
     ) match {
@@ -1449,11 +1451,11 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       "UPSERT INTO test_table (a, b, time, testField, testLink_testfield) VALUES (?, ?, ?, ?, ?)",
       Seq(
         Map(
-          1 -> parser.TypedValue("aaa"),
-          2 -> parser.TypedValue("bbb"),
-          3 -> parser.TypedValue(Time(OffsetDateTime.now())),
-          4 -> parser.TypedValue(BigDecimal(1.1)),
-          5 -> parser.TypedValue("ccc")
+          1 -> TypedParameter("aaa"),
+          2 -> TypedParameter("bbb"),
+          3 -> TypedParameter(Time(OffsetDateTime.now())),
+          4 -> TypedParameter(BigDecimal(1.1)),
+          5 -> TypedParameter("ccc")
         )
       )
     ) match {
@@ -1471,7 +1473,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
 
   private def createUpsert(
       sql: String,
-      params: Seq[Map[Int, parser.Value]] = Seq.empty
+      params: Seq[Map[Int, Parameter]] = Seq.empty
   ): Either[String, Seq[DataPoint]] = {
     SqlParser.parse(sql) flatMap {
       case u: parser.Upsert => sqlQueryProcessor.createDataPoints(u, params)
