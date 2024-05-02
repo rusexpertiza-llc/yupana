@@ -19,7 +19,7 @@ package org.yupana.spark
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.yupana.api.utils.CloseableIterator
-import org.yupana.core.{ MapReducible, QueryContext }
+import org.yupana.core.{ LimitIterator, MapReducible, QueryContext }
 import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.metric.MetricQueryCollector
 
@@ -88,9 +88,10 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
     saveMetricOnCompleteRdd(r)
   }
 
-  override def limit[A: ClassTag](c: RDD[A])(n: Int): RDD[A] = {
+  override def limit(c: RDD[BatchDataset])(n: Int): RDD[BatchDataset] = {
     val rdd = saveMetricOnCompleteRdd(c)
-    val r = sparkContext.parallelize(ArraySeq.unsafeWrapArray(rdd.take(n)))
+    val it = new LimitIterator(rdd.take(n).iterator, n)
+    val r = sparkContext.parallelize(it.toSeq)
     saveMetricOnCompleteRdd(r)
   }
 
@@ -99,7 +100,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
   override def materialize[A: ClassTag](c: RDD[A]): Seq[A] = ArraySeq.unsafeWrapArray(c.collect())
 
   private def saveMetricOnCompleteRdd[A: ClassTag](rdd: RDD[A]): RDD[A] = {
-    rdd.mapPartitionsWithIndex { (id, it) =>
+    rdd.mapPartitionsWithIndex { (_, it) =>
       CloseableIterator[A](it, metricCollector.checkpoint())
     }
   }
