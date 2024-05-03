@@ -3371,6 +3371,35 @@ class TsdbTest
     c shouldBe 2
   }
 
+  it should "handle empty result form DAO" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        time as "time",
+        dimension(TestDims.DIM_B) as "testDim"
+      )
+    )
+
+    (tsdbDaoMock.query _)
+      .expects(
+        *,
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, _, _) =>
+        Iterator.empty
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe false
+    res.isLast() shouldBe true
+  }
+
   it should "support queries without tables" in withTsdbMock { (tsdb, _) =>
     val query = Query(
       None,

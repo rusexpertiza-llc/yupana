@@ -128,7 +128,31 @@ class TSDaoHBaseTest
     }
   }
 
-  "TSDaoHBase" should "execute time bounded queries" in withMock { (dao, _, queryRunner) =>
+  "TSDaoHBase" should "handle empty result" in withMock { (dao, _, queryRunner) =>
+
+    val from = 1000
+    val to = 5000
+    val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
+
+    queryRunner
+      .expects(scan(from, to))
+      .returning(
+        Iterator.empty
+      )
+
+    val res = dao
+      .query(
+        InternalQuery(testTable, exprs.toSet, and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
+        null,
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        NoMetricCollector
+      )
+      .toList
+
+    res.size shouldEqual 0
+  }
+
+  it should "execute time bounded queries" in withMock { (dao, _, queryRunner) =>
     val from = 1000
     val to = 5000
     val exprs = Seq[Expression[_]](time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD))
