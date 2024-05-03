@@ -40,7 +40,7 @@ import scala.reflect.runtime.universe._
 object ExpressionCodeGenFactory {
 
   private val calculator = q"_root_.org.yupana.core.jit.ExpressionCalculator"
-  val tokenizer = TermName("tokenizer")
+  private val tokenizer = TermName("tokenizer")
   private val truncTime = q"_root_.org.yupana.core.jit.ExpressionCalculator.truncateTime"
   private val truncTimeBy = q"_root_.org.yupana.core.jit.ExpressionCalculator.truncateTimeBy"
   private val monday = q"_root_.java.time.DayOfWeek.MONDAY"
@@ -66,7 +66,7 @@ object ExpressionCodeGenFactory {
 
   def needEvaluateInProjectionStage(expr: Expression[_]): Boolean = {
     expr match {
-      case ConstantExpr(c, _)   => false
+      case ConstantExpr(_, _)   => false
       case TrueExpr             => false
       case FalseExpr            => false
       case NullExpr(_)          => false
@@ -96,6 +96,8 @@ object ExpressionCodeGenFactory {
       case DimIdInExpr(_, _)          => new FieldExpressionGen(expr)
       case DimIdNotInExpr(_, _)       => new FieldExpressionGen(expr)
       case LinkExpr(_, _)             => new FieldExpressionGen(expr)
+
+      case NowExpr => ???
 
       case e: AggregateExpr[_, _, _] =>
         aggExprCodeGenerator(e)

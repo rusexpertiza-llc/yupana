@@ -888,30 +888,22 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
   object LtTime extends LtMatcher[Time]
 
   it should "handle period arithmetic" in {
-    val now = OffsetDateTime.now(ZoneOffset.UTC).toInstant.toEpochMilli
     testQuery("""
         |SELECT SUM(testField) as sum, day(time) as d FROM test_table
         |  WHERE time >= trunc_day(now() - INTERVAL '3' MONTH) AND TIME < trunc_day(now())
         |  GROUP BY d, a
       """.stripMargin) { q =>
       q.table.value.name shouldEqual "test_table"
-      inside(q.filter.value) {
-        case AndExpr(Seq(from, to)) =>
-          inside(from) {
-            case GeTime(
-                  te,
-                  TruncDayExpr(TimeMinusPeriodExpr(ConstantExpr(t, _), ConstantExpr(p, _)))
-                ) =>
-              te shouldEqual TimeExpr
-              t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
-              p shouldEqual PeriodDuration.of(Period.ofMonths(3))
-          }
-          inside(to) {
-            case LtTime(te, TruncDayExpr(ConstantExpr(t, _))) =>
-              te shouldEqual TimeExpr
-              t.asInstanceOf[Time].millis shouldEqual (now +- 1000L)
-          }
-      }
+      q.filter.value shouldEqual
+        AndExpr(
+          Seq(
+            GeExpr(
+              TimeExpr,
+              TruncDayExpr(TimeMinusPeriodExpr(NowExpr, ConstantExpr(PeriodDuration.of(Period.ofMonths(3)))))
+            ),
+            LtExpr(TimeExpr, TruncDayExpr(NowExpr))
+          )
+        )
 
       q.fields should contain theSameElementsAs Seq(
         sum(metric(TestTableFields.TEST_FIELD)) as "sum",

@@ -151,7 +151,7 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case ArrayExpr(es) => es.map(e => evaluateConstant(e))
 
       case MetricExpr(_) | DimensionExpr(_) | TimeExpr | LinkExpr(_, _) | DimIdInExpr(_, _) | DimIdNotInExpr(_, _) |
-          DimensionIdExpr(_) | LagExpr(_) | _: AggregateExpr[_, _, _] =>
+          DimensionIdExpr(_) | LagExpr(_) | _: AggregateExpr[_, _, _] | NowExpr =>
         throw new IllegalArgumentException(s"Expression is not constant $expr")
     }
   }

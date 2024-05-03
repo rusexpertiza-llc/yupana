@@ -64,6 +64,7 @@ object ExpressionUtils {
       case DimensionIdExpr(_)        => m.pure(expr)
       case DimIdInExpr(_, _)         => m.pure(expr)
       case DimIdNotInExpr(_, _)      => m.pure(expr)
+      case NowExpr                   => m.pure(expr)
 
       case EqExpr(a, b)  => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => EqExpr(ta, tb)))
       case NeqExpr(a, b) => m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => NeqExpr(ta, tb)))
@@ -76,9 +77,9 @@ object ExpressionUtils {
       case e @ GeExpr(a, b) =>
         m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => GeExpr(ta, tb)(e.ordering)))
       case InExpr(e, vs)    => m.map(transform(t)(e))(te => InExpr(te, vs))
-      case NotInExpr(e, vs) => m.map(transform(t)(e))(te => InExpr(te, vs))
+      case NotInExpr(e, vs) => m.map(transform(t)(e))(te => NotInExpr(te, vs))
       case IsNullExpr(e)    => m.map(transform(t)(e))(IsNullExpr.apply)
-      case IsNotNullExpr(e) => m.map(transform(t)(e))(IsNullExpr.apply)
+      case IsNotNullExpr(e) => m.map(transform(t)(e))(IsNotNullExpr.apply)
       case AndExpr(es)      => m.map(m.traverseSeq(es)(transform(t)))(AndExpr.apply)
       case OrExpr(es)       => m.map(m.traverseSeq(es)(transform(t)))(OrExpr.apply)
       case NotExpr(e)       => m.map(transform(t)(e))(NotExpr.apply)
@@ -92,7 +93,7 @@ object ExpressionUtils {
       case e @ DivIntExpr(a, b) =>
         m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => DivIntExpr(ta, tb)(e.integral)))
       case e @ DivFracExpr(a, b) =>
-        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => PlusExpr(ta, tb)(e.fractional)))
+        m.flatMap(transform(t)(a))(ta => m.map(transform(t)(b))(tb => DivFracExpr(ta, tb)(e.fractional)))
       case e @ UnaryMinusExpr(a) => m.map(transform(t)(a))(ta => UnaryMinusExpr(ta)(e.num))
       case e @ AbsExpr(a)        => m.map(transform(t)(a))(ta => AbsExpr(ta)(e.num))
 

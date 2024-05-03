@@ -60,6 +60,10 @@ object FunctionRegistry {
     def apply[T](a: A[T], b: B[T], c: C[T]): Z
   }
 
+  val nullaryFunctions: Map[String, Expression[_]] = Map(
+    "now" -> NowExpr
+  )
+
   private val unaryFunctions: List[FunctionDesc] = List(
     // AGGREGATES
     FunctionDesc(
@@ -280,6 +284,10 @@ object FunctionRegistry {
         }
     )
   )
+
+  def nullary(name: String): Either[String, Expression[_]] = {
+    nullaryFunctions.get(name.toLowerCase).toRight(s"Undefined function $name")
+  }
 
   def unary(
       name: String,

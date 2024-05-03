@@ -180,6 +180,14 @@ final case class UntypedPlaceholderExpr(id: Int) extends ConstExpr[Null] {
   override def encode: String = s"?"
 }
 
+case object NowExpr extends Expression[Time] {
+  override val dataType: DataType.Aux[Time] = DataType[Time]
+  override val isNullable: Boolean = false
+  override def encode: String = "now()"
+  override val kind: ExprKind = Simple
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
+}
+
 case object TimeExpr extends Expression[Time] {
   override val dataType: DataType.Aux[Time] = DataType[Time]
   override val kind: ExprKind = Simple
