@@ -23,7 +23,7 @@ import java.sql.{ DriverManager, Timestamp, Types }
 import java.time.LocalDateTime
 import java.util.Properties
 
-class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll {
+class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll with TsdbMocks {
   println(Class.forName("org.postgresql.Driver").getName)
 
   implicit private val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
@@ -239,7 +239,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
   def withServerStarted(body: (YupanaPostgres, TSTestDao) => Any): Unit = {
     val jmp = new JdbcMetadataProvider(TestSchema.schema, 1, 2, "1.2.3")
     val sqp = new SqlQueryProcessor(TestSchema.schema)
-    val tsdbDaoMock = TsdbMocks.daoMock
+    val tsdbDaoMock = daoMock
     val changelogDaoMock = mock[ChangelogDao]
     val tsdb = new TSDB(
       TestSchema.schema,
