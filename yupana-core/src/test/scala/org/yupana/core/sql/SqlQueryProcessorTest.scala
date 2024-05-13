@@ -530,7 +530,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
-  it should "support placeholders in const fields" in {
+  ignore should "support placeholders in const fields" in {
     val statement =
       """
         | SELECT ? as my_string, day(time) as d

@@ -109,10 +109,11 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       } yield (table, fieldMap)).flatMap {
         case (table, fieldMap) =>
           val dps = params.flatMap { ps =>
+            val types = fieldMap.map { case (e, i) => (i, e.dataType) }.toSeq.sortBy(_._1).map(_._2)
             upsert.values.map { values =>
               for {
-                values <- getValues(table, values)
-                bound <- bindValues(values, ps)
+                consts <- getValues(values zip types)
+                bound <- bindValues(consts, ps)
                 time <- getTimeValue(fieldMap, bound)
                 dimensions <- getDimensionValues(table, fieldMap, bound)
                 metrics <- getMetricValues(fieldMap, bound)
@@ -370,13 +371,12 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   private def createTupleValue[T, U](
       a: ConstExpr[T],
-      b: ConstExpr[U],
-      prepared: Boolean
+      b: ConstExpr[U]
   ): Either[String, ConstExpr[_]] = {
     for {
       av <- DataTypeUtils.constCast(a, a.dataType, calculator)
       bv <- DataTypeUtils.constCast(b, b.dataType, calculator)
-    } yield ConstantExpr((av, bv), prepared)(DataType.tupleDt(a.dataType, b.dataType))
+    } yield ConstantExpr((av, bv))(DataType.tupleDt(a.dataType, b.dataType))
   }
 
   private def createBinary(
@@ -433,36 +433,40 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
   private def convertValue(
       v: parser.Value,
       exprType: ExprType,
-      prepared: Boolean = false
+      tpe: Option[DataType] = None
   ): Either[String, ConstExpr[_]] = {
     v match {
       case tv @ parser.TypedValue(s) if tv.dataType == DataType[String] =>
         val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]
-        Right(ConstantExpr(const, prepared))
+        Right(ConstantExpr(const))
 
       case tv @ parser.TypedValue(t) =>
-        Right(ConstantExpr(t, prepared)(tv.dataType))
+        Right(ConstantExpr(t)(tv.dataType))
 
       case parser.NullValue =>
         Right(NullExpr(DataType[Null]))
 
       case parser.PeriodValue(p) if exprType == ExprType.Cmp =>
         if (p.getPeriod.getYears == 0 && p.getPeriod.getMonths == 0) {
-          Right(ConstantExpr(p.getDuration.plusDays(p.getPeriod.getDays).toMillis, prepared))
+          Right(ConstantExpr(p.getDuration.plusDays(p.getPeriod.getDays).toMillis))
         } else {
           Left(s"Period $p cannot be used as duration, because it has months or years")
         }
 
-      case parser.PeriodValue(p) => Right(ConstantExpr(p, prepared))
+      case parser.PeriodValue(p) => Right(ConstantExpr(p))
 
       case parser.TupleValue(a, b) =>
         for {
-          ae <- convertValue(a, exprType, prepared)
-          be <- convertValue(b, exprType, prepared)
-          te <- createTupleValue(ae, be, prepared)
+          ae <- convertValue(a, exprType, tpe)
+          be <- convertValue(b, exprType, tpe)
+          te <- createTupleValue(ae, be)
         } yield te
 
-      case parser.Placeholder(id) => Right(UntypedPlaceholderExpr(id))
+      case parser.Placeholder(id) =>
+        tpe match {
+          case Some(t) => Right(PlaceholderExpr(id, t.aux))
+          case None    => Right(UntypedPlaceholderExpr(id))
+        }
     }
   }
 
@@ -585,12 +589,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       .map(_.toArray)
   }
 
-  private def getValues(
-      table: Table,
-      values: Seq[parser.SqlExpr]
-  ): Either[String, Seq[Expression[_]]] = {
-    val resolver = fieldByName(table)(_)
-    val vs = values.map(v => createExpr(resolver, v, ExprType.Math))
+  private def getValues(values: Seq[(parser.Value, DataType)]): Either[String, Seq[ConstExpr[_]]] = {
+    val vs = values.map {
+      case (v, t) => convertValue(v, ExprType.Math, Some(t))
+    }
     CollectionUtils.collectErrors(vs)
   }
 
