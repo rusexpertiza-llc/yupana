@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.core.sql
-
-import org.yupana.api.query.Expression
-
-sealed trait ProtoExpr
-case class ResolvedExpr[T](e: Expression[T]) extends ProtoExpr
-case class UnresolvedExpr(v: String) extends ProtoExpr
+//package org.yupana.core.sql
+//
+//import org.yupana.api.query.Expression
+//
+//sealed trait ProtoExpr
+//case class ResolvedExpr[T](e: Expression[T]) extends ProtoExpr
+//case class UnresolvedExpr(v: String) extends ProtoExpr

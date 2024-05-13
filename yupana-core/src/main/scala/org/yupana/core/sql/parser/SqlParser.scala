@@ -314,8 +314,11 @@ object SqlParser {
 
   def upsertFields[$: P]: P[Seq[String]] = "(" ~/ fieldWithSchema.rep(min = 1, sep = ",") ~ ")"
 
-  def values[$: P](count: Int): P[Seq[Seq[SqlExpr]]] =
-    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")").opaque(s"<$count expressions>").rep(1, ",")
+  def values[$: P](count: Int): P[Seq[IndexedSeq[SqlExpr]]] =
+    ("(" ~/ expr.rep(exactly = count, sep = ",") ~ ")")
+      .opaque(s"<$count expressions>")
+      .rep(1, ",")
+      .map(_.map(_.toIndexedSeq))
 
   def upsert[$: P]: P[Upsert] =
     P(upsertWord ~ intoWord ~/ schemaName ~/ upsertFields ~ valuesWord).flatMap {

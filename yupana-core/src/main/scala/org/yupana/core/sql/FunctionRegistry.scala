@@ -22,6 +22,32 @@ import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType }
 import org.yupana.core.ConstantCalculator
 
+sealed trait TypeMatcher {
+//  def matching(t: DataType): Boolean
+}
+
+case class ExactMatcher(dt: DataType) extends TypeMatcher {
+//  override def matching(t: DataType): Boolean = dt == t
+}
+
+case object NumberMatcher extends TypeMatcher {
+//  override def matching(t: DataType): Boolean = t.numeric.isDefined
+}
+
+case object OrdMatcher extends TypeMatcher {
+//  override def matching(t: DataType): Boolean = t.ordering.isDefined
+}
+
+case class ArrowMatcher(from: TypeMatcher, to: TypeMatcher) extends TypeMatcher
+
+//sealed trait TypeDeducer {
+//  def deduce(resultType: DataType, resultMatcher: TypeMatcher): Option[DataType]
+//}
+//
+//case class StrictDeducer(t: DataType) extends TypeDeducer {
+//  override def deduce(resultType: DataType, resultMatcher: TypeMatcher): Option[DataType] = Some(t)
+//}
+
 object FunctionRegistry {
 
   type ArrayExpr[T] = Expression[Seq[T]]

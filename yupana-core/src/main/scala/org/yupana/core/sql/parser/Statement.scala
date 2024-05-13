@@ -30,7 +30,7 @@ case class Select(
 case class Upsert(
     tableName: String,
     fieldNames: Seq[String],
-    values: Seq[Seq[SqlExpr]]
+    values: Seq[IndexedSeq[SqlExpr]]
 ) extends Statement
 
 case object ShowTables extends Statement
