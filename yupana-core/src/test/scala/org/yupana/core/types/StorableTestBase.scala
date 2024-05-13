@@ -63,8 +63,6 @@ trait StorableTestBase
     def readWriteTest[T: Storable: Arbitrary] = {
       val storable = implicitly[Storable[T]]
 
-
-
       forAll { t: T =>
         val bb = bufUtils.createBuffer(65535)
         val posBeforeWrite = bufUtils.position(bb)
