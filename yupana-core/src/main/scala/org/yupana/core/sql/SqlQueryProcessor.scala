@@ -577,7 +577,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           case Right(e: Expression[t]) if e.kind == Const =>
             val eval = calculator.evaluateConstant[t](e)
             if (eval != null) {
-              Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
+              Right(ConstantExpr(eval, prepared = true)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
             } else {
               Left(s"Cannon evaluate $e")
             }

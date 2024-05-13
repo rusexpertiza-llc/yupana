@@ -68,9 +68,8 @@ object DataTypeUtils {
         if (dataType == DataType[Boolean]) Right(false.asInstanceOf[T])
         else Left(s"Cannot convert FALSE to data type $dataType")
 
-      case _ =>
-        println(s"CONST IS $const")
-        ???
+      case PlaceholderExpr(id, t)     => Left(s"Const cast on Placeholder #$id:$t")
+      case UntypedPlaceholderExpr(id) => Left(s"Const cast on Placeholder #$id")
     }
   }
 
