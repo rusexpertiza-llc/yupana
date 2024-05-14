@@ -30,14 +30,14 @@ trait LogicalExpressionCodeGen extends ExpressionCodeGen[Expression[Boolean]] {
   def reducer(valueA: Tree, valueB: Tree): Tree
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
-    val exprState = state.withExpression(expression)
-    val index = exprState.expressionIndex(expression)
+
+    val (resValueDeclaration, exprState) = state.withLocalValueDeclaration(expression)
 
     val head = ExpressionCodeGenFactory.codeGenerator(conditions.head).generateEvalCode(exprState, row)
 
-    conditions.tail.zipWithIndex.foldLeft(head) {
+    val cr = conditions.tail.zipWithIndex.foldLeft(head) {
       case (acc, (cond, i)) =>
-        val valDecl = ValueDeclaration(s"cond_${index}_$i")
+        val valDecl = ValueDeclaration(s"cond_${resValueDeclaration.valueName}_$i")
 
         val r = ExpressionCodeGenFactory.codeGenerator(cond).generateEvalCode(acc.state, row)
 
@@ -61,6 +61,11 @@ trait LogicalExpressionCodeGen extends ExpressionCodeGen[Expression[Boolean]] {
         val trees = acc.trees ++ r.trees ++ Seq(validityTree, valueTree)
         CodeGenResult(trees, valDecl, r.state)
     }
+
+    val resValueTree = q"val ${resValueDeclaration.valueName} = ${cr.valueDeclaration.valueName}"
+    val resValidityTree = q"val ${resValueDeclaration.validityFlagName} = ${cr.valueDeclaration.validityFlagName}"
+    val resTress = cr.trees ++ Seq(resValidityTree, resValueTree)
+    cr.copy(trees = resTress, valueDeclaration = resValueDeclaration)
   }
 }
 
