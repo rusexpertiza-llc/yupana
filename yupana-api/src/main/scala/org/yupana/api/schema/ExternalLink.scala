@@ -15,6 +15,7 @@
  */
 
 package org.yupana.api.schema
+import org.yupana.api.query.{ DimensionExpr, Expression }
 
 /**
   * Defines external data source, which are linking to [[Table]]s.  Usually external links data mapped as one to
@@ -30,6 +31,8 @@ trait ExternalLink extends Serializable {
 
   /** Attached dimension */
   val dimension: Dimension.Aux[DimType]
+
+  def requiredExpressions: Seq[Expression[_]] = Seq(DimensionExpr(dimension))
 
   /** Set of field names for this link */
   val fields: Set[LinkField]

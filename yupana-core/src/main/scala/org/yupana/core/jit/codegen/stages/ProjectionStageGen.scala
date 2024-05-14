@@ -40,7 +40,9 @@ object ProjectionStageGen {
     }
 
     val stateWithExtLinkExprs = findExternalLinkExprs(query).foldLeft(state) { (s, expr) =>
-      s.withExpression(DimensionExpr(expr.link.dimension))
+      expr.link.requiredExpressions.foldLeft(s) { (s, e) =>
+        s.withExpression(e)
+      }
     }
 
     val stateWithExprs = query.fields
