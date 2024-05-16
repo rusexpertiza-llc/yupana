@@ -117,15 +117,13 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
   private def waitHelloResponse(reqTime: Long): Future[HelloResponse] = {
     waitFor(HelloResponse).flatMap { response =>
       if (response.protocolVersion != ProtocolVersion.value) {
-        Future.failed(
-          new YupanaException(
-            error(
-              s"Incompatible protocol versions: ${response.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
-            )
-          )
-        )
+        val msg =
+          s"Incompatible protocol versions: ${response.protocolVersion} on server and ${ProtocolVersion.value} in this driver"
+        logger.severe(msg)
+        Future.failed(new YupanaException(msg))
       } else if (response.reqTime != reqTime) {
-        Future.failed(new YupanaException(error("got wrong hello response")))
+        logger.severe(s"Request time $reqTime != response time ${response.reqTime}")
+        Future.failed(new YupanaException("Got wrong hello response"))
       } else {
         Future.successful(response)
       }
@@ -134,7 +132,9 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
 
   private def sendCredentials(cr: CredentialsRequest): Future[Unit] = {
     if (!cr.methods.contains(CredentialsRequest.METHOD_PLAIN)) {
-      Future.failed(new YupanaException(error(s"All the auth methods ${cr.methods.mkString(", ")} are not supported")))
+      val msg = s"All the auth methods ${cr.methods.mkString(", ")} are not supported"
+      logger.warning(msg)
+      Future.failed(new YupanaException(msg))
     } else {
       write(Credentials(CredentialsRequest.METHOD_PLAIN, user, password))
     }
@@ -271,14 +271,13 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
         case x if x == helper.tag.value => Future.successful(helper.readFrame[ByteBuffer](frame))
         case Tags.ERROR_MESSAGE.value =>
           val msg = ErrorMessage.readFrame(frame).message
-          Future.failed(new YupanaException(error(s"Got error response on '${helper.tag.value.toChar}', '$msg'")))
+          logger.warning(s"Got error response on '${helper.tag.value.toChar}', '$msg'")
+          Future.failed(new YupanaException(msg))
 
         case x =>
-          Future.failed(
-            new YupanaException(
-              error(s"Unexpected response '${x.toChar}' while waiting for '${helper.tag.value.toChar}'")
-            )
-          )
+          val error = s"Unexpected response '${x.toChar}' while waiting for '${helper.tag.value.toChar}'"
+          logger.severe(error)
+          Future.failed(new YupanaException(error))
       }
     }
   }
@@ -319,11 +318,6 @@ class YupanaTcpClient(val host: String, val port: Int, batchSize: Int, user: Opt
       },
       (p, h) => channel.write(bb, p, h)
     )
-  }
-
-  private def error(e: String): String = {
-    logger.warning(s"Got error message: $e")
-    e
   }
 
   override def close(): Unit = {
