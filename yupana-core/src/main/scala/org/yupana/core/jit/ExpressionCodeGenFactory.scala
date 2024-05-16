@@ -29,8 +29,10 @@ import org.yupana.core.jit.codegen.expressions.regular.{
   FieldExpressionGen,
   LogicalExpressionCodeGen,
   MathUnaryExpressionCodeGen,
+  NowExpressionCodeGen,
   NullExpressionCodeGen,
   OrdExpressionCodeGen,
+  PlaceholderExpressionCodeGen,
   TupleExpressionCodeGen,
   UnaryExpressionCodeGen
 }
@@ -66,7 +68,7 @@ object ExpressionCodeGenFactory {
 
   def needEvaluateInProjectionStage(expr: Expression[_]): Boolean = {
     expr match {
-      case ConstantExpr(_, _)   => false
+      case ConstantExpr(_)      => false
       case TrueExpr             => false
       case FalseExpr            => false
       case NullExpr(_)          => false
@@ -83,11 +85,11 @@ object ExpressionCodeGenFactory {
 
   private def createCodeGenerator(expr: Expression[_]): ExpressionCodeGen[_] = {
     expr match {
-      case ConstantExpr(c, prepared)  => new ConstantExpressionCodeGen(expr, c, prepared)
-      case PlaceholderExpr(id, _)     => throw new IllegalStateException(s"Placeholder #$id passed to calculator")
+      case ConstantExpr(c)            => new ConstantExpressionCodeGen(expr, c)
+      case pe @ PlaceholderExpr(_, _) => new PlaceholderExpressionCodeGen(pe)
       case UntypedPlaceholderExpr(id) => throw new IllegalStateException(s"Placeholder #$id passed to calculator")
-      case TrueExpr                   => new ConstantExpressionCodeGen(expr, true, prepared = false)
-      case FalseExpr                  => new ConstantExpressionCodeGen(expr, false, prepared = false)
+      case TrueExpr                   => new ConstantExpressionCodeGen(expr, true)
+      case FalseExpr                  => new ConstantExpressionCodeGen(expr, false)
       case NullExpr(_)                => new NullExpressionCodeGen(expr)
       case TimeExpr                   => new FieldExpressionGen(expr)
       case DimensionExpr(_)           => new FieldExpressionGen(expr)
@@ -96,8 +98,7 @@ object ExpressionCodeGenFactory {
       case DimIdInExpr(_, _)          => new FieldExpressionGen(expr)
       case DimIdNotInExpr(_, _)       => new FieldExpressionGen(expr)
       case LinkExpr(_, _)             => new FieldExpressionGen(expr)
-
-      case NowExpr => ???
+      case NowExpr                    => NowExpressionCodeGen
 
       case e: AggregateExpr[_, _, _] =>
         aggExprCodeGenerator(e)
@@ -121,7 +122,7 @@ object ExpressionCodeGenFactory {
       case e @ MinusExpr(_, _)   => BinaryExpressionCodeGen(e, (x, y) => q"""$x - $y""")
       case e @ TimesExpr(_, _)   => BinaryExpressionCodeGen(e, (x, y) => q"""$x * $y""")
       case e @ DivIntExpr(_, _)  => BinaryExpressionCodeGen(e, (x, y) => q"""$x / $y""")
-      case e @ DivFracExpr(_, _) => DivFracExpressionCodeGen.apply(e)
+      case e @ DivFracExpr(_, _) => new DivFracExpressionCodeGen(e)
 
       case e @ Double2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, d => q"BigDecimal($d)")
 

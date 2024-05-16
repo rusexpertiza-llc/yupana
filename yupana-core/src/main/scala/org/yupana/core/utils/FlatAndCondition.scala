@@ -146,8 +146,8 @@ object FlatAndCondition {
 
       case x: SimpleCondition => update(t => t.copy(conditions = t.conditions :+ x))
 
-      case ConstantExpr(true, _)  => tbcs
-      case ConstantExpr(false, _) => update(t => t.copy(conditions = t.conditions :+ FalseExpr))
+      case ConstantExpr(true)  => tbcs
+      case ConstantExpr(false) => update(t => t.copy(conditions = t.conditions :+ FalseExpr))
 
       case x => throw new IllegalArgumentException(s"Unexpected condition $x")
     }

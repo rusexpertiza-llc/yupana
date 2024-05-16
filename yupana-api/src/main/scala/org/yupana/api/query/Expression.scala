@@ -153,8 +153,7 @@ final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends Con
   override def encode: String = "null"
 }
 
-final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit override val dataType: DataType.Aux[T])
-    extends ConstExpr[T] {
+final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
 
   override val isNullable: Boolean = false
 

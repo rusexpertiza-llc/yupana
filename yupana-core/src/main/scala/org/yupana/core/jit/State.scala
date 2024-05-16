@@ -30,7 +30,7 @@ case class State(
     localValueDeclarations: Map[Expression[_], ValueDeclaration]
 ) {
 
-  private val params = TermName("params")
+  private val params = TermName("refs")
 
   def fresh(): State = {
     this.copy(rowOperations = Seq.empty, localValueDeclarations = Map.empty)

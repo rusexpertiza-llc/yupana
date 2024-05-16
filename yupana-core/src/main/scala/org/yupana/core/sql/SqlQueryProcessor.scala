@@ -84,7 +84,17 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       filter <- traverseOpt(query.filter)(e => bindParameters(e, transformer))
       groupBy <- collectErrors(query.groupBy.map(e => bindParameters(e, transformer)))
       postFilter <- traverseOpt(query.postFilter)(e => bindParameters(e, transformer))
-    } yield Query(query.table, fields, filter, groupBy, query.limit, postFilter, query.hints)
+    } yield Query(
+      query.table,
+      fields,
+      filter,
+      groupBy,
+      query.limit,
+      postFilter,
+      query.startTime,
+      query.params,
+      query.hints
+    )
   }
 
   def bindParameters[T](
@@ -577,7 +587,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
           case Right(e: Expression[t]) if e.kind == Const =>
             val eval = calculator.evaluateConstant[t](e)
             if (eval != null) {
-              Right(ConstantExpr(eval, prepared = true)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
+              Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
             } else {
               Left(s"Cannon evaluate $e")
             }

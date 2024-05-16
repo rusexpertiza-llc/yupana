@@ -53,7 +53,7 @@ object ExpressionUtils {
     t(expr).getOrElse(expr match {
       case TimeExpr                  => m.pure(expr)
       case NullExpr(_)               => m.pure(expr)
-      case ConstantExpr(_, _)        => m.pure(expr)
+      case ConstantExpr(_)           => m.pure(expr)
       case PlaceholderExpr(_, _)     => m.pure(expr)
       case UntypedPlaceholderExpr(_) => m.pure(expr)
       case TrueExpr                  => m.pure(expr)

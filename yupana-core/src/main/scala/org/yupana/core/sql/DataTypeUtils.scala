@@ -59,8 +59,8 @@ object DataTypeUtils {
 
   def constCast[U, T](const: ConstExpr[U], dataType: DataType.Aux[T], calc: ConstantCalculator): Either[String, T] = {
     const match {
-      case ConstantExpr(v, _) => constCast(v, const.dataType, dataType, calc)
-      case NullExpr(_)        => Right(null.asInstanceOf[T])
+      case ConstantExpr(v) => constCast(v, const.dataType, dataType, calc)
+      case NullExpr(_)     => Right(null.asInstanceOf[T])
       case TrueExpr =>
         if (dataType == DataType[Boolean]) Right(true.asInstanceOf[T])
         else Left(s"Cannot convert TRUE to data type $dataType")
@@ -81,14 +81,14 @@ object DataTypeUtils {
     if (e.dataType == dataType) Right(e.asInstanceOf[Expression[T]])
     else {
       e match {
-        case c @ ConstantExpr(_, p) =>
+        case c @ ConstantExpr(_) =>
           constCast(c, dataType, calculator)
             .orElse(
               manualConverter(e.dataType, dataType.aux)
                 .map(conv => calculator.evaluateConstant[T](conv(e)))
                 .toRight(s"Cannot convert $e of type ${e.dataType} to $dataType")
             )
-            .map(x => ConstantExpr(x, p)(dataType.aux))
+            .map(x => ConstantExpr(x)(dataType.aux))
         case _ =>
           autoConverter(e.dataType, dataType.aux)
             .orElse(manualConverter(e.dataType, dataType.aux))

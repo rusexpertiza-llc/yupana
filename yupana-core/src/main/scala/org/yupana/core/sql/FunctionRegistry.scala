@@ -267,7 +267,7 @@ object FunctionRegistry {
       "hll_count",
       (_, a: Expression[_], c: Expression[_]) =>
         c match {
-          case ConstantExpr(v, _) =>
+          case ConstantExpr(v) =>
             val tpe = a.dataType.meta.sqlTypeName
             val std_err = v.asInstanceOf[BigDecimal]
             if (!Set("VARCHAR", "BIGINT", "SHORT", "TIMESTAMP").contains(tpe)) {

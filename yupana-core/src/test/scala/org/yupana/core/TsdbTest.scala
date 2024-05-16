@@ -3416,13 +3416,14 @@ class TsdbTest
     val query = Query(
       None,
       Seq(extractDay(NowExpr) as "day_today"),
-      None
+      None,
+      startTime = Time(LocalDateTime.of(2024, 5, 16, 23, 42, 29))
     )
 
     val res = tsdb.query(query)
 
     res.next() shouldBe true
-    res.get[Int]("day_today") shouldEqual 7
+    res.get[Int]("day_today") shouldEqual 16
     res.next() shouldBe false
   }
 

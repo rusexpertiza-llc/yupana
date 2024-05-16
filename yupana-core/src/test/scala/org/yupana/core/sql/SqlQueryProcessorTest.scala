@@ -456,9 +456,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
-          ge(time, ConstantExpr(Time(from), prepared = true)),
-          lt(time, ConstantExpr(Time(to), prepared = true)),
-          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
+          ge(time, ConstantExpr(Time(from))),
+          lt(time, ConstantExpr(Time(to))),
+          equ(lower(dimension(DIM_A)), ConstantExpr("123456789"))
         )
         q.groupBy should contain theSameElementsAs List(dimension(DIM_B), truncMonth(time))
         q.fields should contain theSameElementsInOrderAs List(
@@ -495,9 +495,9 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
-          ge(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)), prepared = true)),
-          lt(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)), prepared = true)),
-          equ(lower(dimension(DIM_A)), ConstantExpr("123456789", prepared = true))
+          ge(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 15, 49, 44)))),
+          lt(time, ConstantExpr(Time(LocalDateTime.of(2024, 3, 27, 23, 57, 32)))),
+          equ(lower(dimension(DIM_A)), ConstantExpr("123456789"))
         )
     }
   }
@@ -552,8 +552,8 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       case Right(q) =>
         q.table.value.name shouldEqual "test_table"
         q.filter.value shouldBe and(
-          ge(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)), prepared = false)),
-          lt(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC)), prepared = true))
+          ge(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)))),
+          lt(time, ConstantExpr(Time(OffsetDateTime.of(2018, 1, 23, 16, 44, 20, 0, ZoneOffset.UTC))))
         )
         q.groupBy shouldBe empty
         q.fields should contain theSameElementsInOrderAs List(

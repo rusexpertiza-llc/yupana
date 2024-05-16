@@ -16,6 +16,7 @@
 
 package org.yupana.core.jit
 
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.Query
 import org.yupana.api.utils.Tokenizer
@@ -24,7 +25,7 @@ import org.yupana.core.model.DatasetSchema
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
-  private val calculatorCache: Cache[String, (Array[Any], Tokenizer) => ExpressionCalculator] =
+  private val calculatorCache: Cache[String, (Array[Any], Array[Any], Time, Tokenizer) => ExpressionCalculator] =
     CacheFactory.initCache("calculator_cache")
 
   override def makeCalculator(
@@ -33,7 +34,7 @@ object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema) = {
 
-    val (tree, params, schema) = JIT.generateCalculator(query, condition)
+    val (tree, refs, schema) = JIT.generateCalculator(query, condition)
 
     val key = tree.toString()
 
@@ -41,6 +42,6 @@ object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
       JIT.compile(tree)
     }
 
-    (fun(params, tokenizer), schema)
+    (fun(refs, query.params, query.startTime, tokenizer), schema)
   }
 }
