@@ -3412,6 +3412,20 @@ class TsdbTest
     res.next() shouldBe false
   }
 
+  it should "handle now function without tables" in withTsdbMock { (tsdb, _) =>
+    val query = Query(
+      None,
+      Seq(extractDay(NowExpr) as "day_today"),
+      None
+    )
+
+    val res = tsdb.query(query)
+
+    res.next() shouldBe true
+    res.get[Int]("day_today") shouldEqual 7
+    res.next() shouldBe false
+  }
+
   it should "be able to filter without table" in withTsdbMock { (tsdb, _) =>
     val q1 = Query(
       None,

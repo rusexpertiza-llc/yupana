@@ -42,6 +42,7 @@ case class Query(
     groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None,
+    startTime: Time = Time(System.currentTimeMillis()),
     hints: Seq[QueryHint] = Seq.empty
 ) {
 
