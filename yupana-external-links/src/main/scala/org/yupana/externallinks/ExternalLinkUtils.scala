@@ -51,37 +51,37 @@ object ExternalLinkUtils {
     ) {
       case ((cat, neg, oth), cond) =>
         cond match {
-          case EqExpr(LinkExpr(c, field), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case EqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case EqExpr(ConstantExpr(v, _), LinkExpr(c, field)) if c.linkName == linkName =>
+          case EqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
             ((cond, field.name, cs) :: cat, neg, oth)
 
-          case NeqExpr(LinkExpr(c, field), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case NeqExpr(LinkExpr(c, field), ConstantExpr(v)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NeqExpr(ConstantExpr(v, _), LinkExpr(c, field)) if c.linkName == linkName =>
+          case NeqExpr(ConstantExpr(v), LinkExpr(c, field)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
           case NotInExpr(LinkExpr(c, field), cs) if c.linkName == linkName =>
             (cat, (cond, field.name, cs) :: neg, oth)
 
-          case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case EqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
-          case EqString(ConstantExpr(v, _), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+          case EqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
             ((cond, field.name, Set[Any](v)) :: cat, neg, oth)
 
           case InString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
             ((cond, field.name, cs.asInstanceOf[Set[Any]]) :: cat, neg, oth)
 
-          case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v, _)) if c.linkName == linkName =>
+          case NeqString(LowerExpr(LinkExpr(c, field)), ConstantExpr(v)) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
-          case NeqString(ConstantExpr(v, _), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
+          case NeqString(ConstantExpr(v), LowerExpr(LinkExpr(c, field))) if c.linkName == linkName =>
             (cat, (cond, field.name, Set[Any](v)) :: neg, oth)
 
           case NotInString(LowerExpr(LinkExpr(c, field)), cs) if c.linkName == linkName =>
