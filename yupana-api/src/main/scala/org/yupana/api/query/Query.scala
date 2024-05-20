@@ -56,6 +56,7 @@ case class Query(
     val builder = new mutable.StringBuilder()
     builder.append(s"""Query(
          |  $uuidLog
+         |  start: $startTime
          |  FIELDS:
          |    $fs
          |""".stripMargin)
@@ -98,7 +99,8 @@ object Query {
       filter: Option[Condition],
       groupBy: Seq[Expression[_]],
       limit: Option[Int],
-      postFilter: Option[Condition]
+      postFilter: Option[Condition],
+      startTime: Time
   ): Query = {
 
     val newCondition = AndExpr(
@@ -108,11 +110,43 @@ object Query {
       ) ++ filter
     )
 
-    new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter)
+    new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter, startTime)
   }
 
-  def apply(table: Table, from: Expression[Time], to: Expression[Time], fields: Seq[QueryField]): Query =
-    apply(table, from, to, fields, None, Seq.empty, None, None)
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField],
+      filter: Option[Condition],
+      groupBy: Seq[Expression[_]],
+      limit: Option[Int],
+      postFilter: Option[Condition]
+  ): Query = apply(table, from, to, fields, filter, groupBy, limit, postFilter, Time(System.currentTimeMillis()))
+
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField],
+      startTime: Time
+  ): Query = apply(table, from, to, fields, None, Seq.empty, None, None, startTime)
+
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField]
+  ): Query = apply(table, from, to, fields, None, Seq.empty, None, None, Time(System.currentTimeMillis()))
+
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField],
+      filter: Condition,
+      startTime: Time
+  ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None, startTime)
 
   def apply(
       table: Table,
@@ -120,7 +154,17 @@ object Query {
       to: Expression[Time],
       fields: Seq[QueryField],
       filter: Condition
-  ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None)
+  ): Query = apply(table, from, to, fields, Some(filter), Seq.empty, None, None, Time(System.currentTimeMillis()))
+
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField],
+      filter: Option[Condition],
+      groupBy: Seq[Expression[_]],
+      startTime: Time
+  ): Query = apply(table, from, to, fields, filter, groupBy, None, None, startTime)
 
   def apply(
       table: Table,
@@ -129,6 +173,5 @@ object Query {
       fields: Seq[QueryField],
       filter: Option[Condition],
       groupBy: Seq[Expression[_]]
-  ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
-
+  ): Query = apply(table, from, to, fields, filter, groupBy, Time(System.currentTimeMillis()))
 }

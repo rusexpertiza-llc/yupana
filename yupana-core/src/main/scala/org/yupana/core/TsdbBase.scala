@@ -115,7 +115,7 @@ trait TsdbBase extends StrictLogging {
       case Some(table) =>
         optimizedQuery.filter match {
           case Some(conditionAsIs) =>
-            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs)
+            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs, query.startTime, query.params)
 
             val substitutedCondition = substituteLinks(flatAndCondition, metricCollector)
             logger.debug(s"Substituted condition: $substitutedCondition")

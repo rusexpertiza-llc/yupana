@@ -16,6 +16,7 @@
 
 package org.yupana.core.model
 
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ Expression, QueryHint }
 import org.yupana.api.schema.Table
@@ -34,14 +35,18 @@ object InternalQuery {
       table: Table,
       exprs: Set[Expression[_]],
       condition: Condition,
+      startTime: Time,
+      params: Array[Any],
       hints: Seq[QueryHint]
   )(implicit calculator: ConstantCalculator): InternalQuery =
-    new InternalQuery(table, exprs, FlatAndCondition(calculator, condition), hints)
+    new InternalQuery(table, exprs, FlatAndCondition(calculator, condition, startTime, params), hints)
 
   def apply(
       table: Table,
       exprs: Set[Expression[_]],
-      condition: Condition
+      condition: Condition,
+      startTime: Time,
+      params: Array[Any]
   )(implicit calculator: ConstantCalculator): InternalQuery =
-    new InternalQuery(table, exprs, FlatAndCondition(calculator, condition), Seq.empty)
+    new InternalQuery(table, exprs, FlatAndCondition(calculator, condition, startTime, params), Seq.empty)
 }

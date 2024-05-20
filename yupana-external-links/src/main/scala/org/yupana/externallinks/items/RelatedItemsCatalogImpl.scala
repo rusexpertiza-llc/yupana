@@ -37,9 +37,10 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   private def includeTransform(
       fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
-      to: Long
+      to: Long,
+      startTime: Time
   ): Seq[ConditionTransformation] = {
-    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
+    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to, startTime).toSet)
     val tuples = CollectionUtils.intersectAll(info)
     ConditionTransformation.replace(fieldsValues.map(_._1), in(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
@@ -47,9 +48,10 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   private def excludeTransform(
       fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
-      to: Long
+      to: Long,
+      startTime: Time
   ): Seq[ConditionTransformation] = {
-    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
+    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to, startTime).toSet)
     val tuples = info.fold(Set.empty)(_ union _)
     ConditionTransformation.replace(fieldsValues.map(_._1), notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
@@ -62,13 +64,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
     val include = if (includeExprValues.nonEmpty) {
-      includeTransform(includeExprValues, tbc.from, tbc.to)
+      includeTransform(includeExprValues, tbc.from, tbc.to, tbc.startTime)
     } else {
       Seq.empty
     }
 
     val exclude = if (excludeExprValues.nonEmpty) {
-      excludeTransform(excludeExprValues, tbc.from, tbc.to)
+      excludeTransform(excludeExprValues, tbc.from, tbc.to, tbc.startTime)
     } else {
       Seq.empty
     }
@@ -88,13 +90,14 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     }
   }
 
-  private def getTransactions(filter: SimpleCondition, from: Long, to: Long): Seq[(Time, Int)] = {
+  private def getTransactions(filter: SimpleCondition, from: Long, to: Long, startTime: Time): Seq[(Time, Int)] = {
     val q = Query(
       table = Tables.itemsKkmTable,
       from = const(Time(from)),
       to = const(Time(to)),
       fields = Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      filter = filter
+      filter = filter,
+      startTime = startTime
     )
 
     val result = tsdb.query(q)

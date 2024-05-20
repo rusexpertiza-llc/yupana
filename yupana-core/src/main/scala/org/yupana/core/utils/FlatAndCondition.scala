@@ -28,17 +28,13 @@ import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
   * @param to end time of the condition
   * @param conditions sequence of conditions
   */
-case class FlatAndCondition(from: Long, to: Long, conditions: Seq[SimpleCondition]) {
-  def toCondition: Condition = {
-    import org.yupana.api.query.syntax.All._
-
-    QueryOptimizer.simplifyCondition(
-      AndExpr(
-        Seq(ge(time, const(Time(from))), lt(time, const(Time(to)))) ++ conditions
-      )
-    )
-  }
-
+case class FlatAndCondition(
+    from: Long,
+    to: Long,
+    conditions: Seq[SimpleCondition],
+    startTime: Time,
+    params: Array[Any]
+) {
   override def hashCode(): Int = encoded.hashCode
 
   override def equals(obj: Any): Boolean = {
@@ -58,20 +54,30 @@ object FlatAndCondition {
 
   private case class FlatAndConditionParts(from: Option[Long], to: Option[Long], conditions: Seq[SimpleCondition])
 
-  def apply(constantCalculator: ConstantCalculator, condition: Condition): Seq[FlatAndCondition] = {
+  def apply(
+      constantCalculator: ConstantCalculator,
+      condition: Condition,
+      startTime: Time,
+      params: Array[Any]
+  ): Seq[FlatAndCondition] = {
     val parts = fromCondition(constantCalculator, Seq.empty, condition)
     val (errs, result) = parts.partitionMap { fac =>
       for {
         from <- fac.from.toRight(s"FROM time is not defined for ${AndExpr(fac.conditions)}")
         to <- fac.to.toRight(s"TO time is not defined for ${AndExpr(fac.conditions)}")
-      } yield FlatAndCondition(from, to, fac.conditions)
+      } yield FlatAndCondition(from, to, fac.conditions, startTime, params)
     }
 
     if (errs.isEmpty) result else throw new IllegalArgumentException(errs.mkString(", "))
   }
 
-  def single(constantCalculator: ConstantCalculator, condition: Condition): FlatAndCondition = {
-    FlatAndCondition(constantCalculator, condition) match {
+  def single(
+      constantCalculator: ConstantCalculator,
+      condition: Condition,
+      startTime: Time,
+      params: Array[Any]
+  ): FlatAndCondition = {
+    FlatAndCondition(constantCalculator, condition, startTime, params) match {
       case Seq(tbc) =>
         tbc
       case _ =>
