@@ -95,7 +95,9 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("test me")),
             le(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), const(BigDecimal(66)))
-          )
+          ),
+          Time(System.currentTimeMillis()),
+          Array.empty
         ),
         *,
         *,
@@ -168,7 +170,9 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("test me!"))
-          )
+          ),
+          Time(System.currentTimeMillis()),
+          Array.empty
         ),
         *,
         *,

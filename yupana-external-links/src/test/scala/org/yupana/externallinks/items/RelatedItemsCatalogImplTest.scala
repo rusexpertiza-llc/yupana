@@ -43,13 +43,15 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
 
     val tsdb = mock[MockedTsdb]
     val catalog = new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
+    val startTime = Time(System.currentTimeMillis())
 
     val expQuery1 = Query(
       Tables.itemsKkmTable,
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной")),
+      startTime = startTime
     )
 
     val qc1 = new QueryContext(expQuery1, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
@@ -78,7 +80,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
+      in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский")),
+      startTime = startTime
     )
 
     val qc2 = new QueryContext(expQuery2, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
@@ -107,7 +110,9 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           lt(time, const(Time(500L))),
           c1,
           c2
-        )
+        ),
+        startTime,
+        Array.empty
       ).head
     )
 
@@ -132,13 +137,15 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
   it should "handle item field in conditions" in {
     val tsdb = mock[MockedTsdb]
     val catalog = new RelatedItemsCatalogImpl(tsdb, RelatedItemsCatalog)
+    val startTime = Time(System.currentTimeMillis())
 
     val expQuery = Query(
       Tables.itemsKkmTable,
       const(Time(100L)),
       const(Time(500L)),
       Seq(dimension(Dimensions.KKM_ID).toField, time.toField),
-      in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
+      in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к")),
+      startTime = startTime
     )
 
     val qc = new QueryContext(expQuery, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
@@ -166,7 +173,9 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           ge(time, const(Time(100L))),
           lt(time, const(Time(500L))),
           c
-        )
+        ),
+        Time(System.currentTimeMillis()),
+        Array.empty
       ).head
     )
 
