@@ -61,7 +61,9 @@ class TsdbArithmeticTest
             equ(lower(dimension(TestDims.DIM_A)), const("taga")),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -109,7 +111,9 @@ class TsdbArithmeticTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("taga"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -175,7 +179,9 @@ class TsdbArithmeticTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(lower(dimension(TestDims.DIM_A)), Set("0000270761025003"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -218,7 +224,9 @@ class TsdbArithmeticTest
           InternalQuery(
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -278,7 +286,9 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -366,7 +376,9 @@ class TsdbArithmeticTest
               dimension(TestDims.DIM_A),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -427,7 +439,9 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_TIME_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -488,7 +502,9 @@ class TsdbArithmeticTest
           InternalQuery(
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_LONG_FIELD), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -552,7 +568,7 @@ class TsdbArithmeticTest
       ) should have message "std_err must be in range (0.00003, 0.367), but: std_err=0.3671"
   }
 
-  it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+  it should "throwing exception on calling hll_count for metric decimal field" in withTsdbMock { (_, _) =>
     val sql =
       "SELECT hll_count(testField, 0.01) as ch " +
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
@@ -587,7 +603,9 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_BYTE_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -662,7 +680,9 @@ class TsdbArithmeticTest
           InternalQuery(
             TestSchema.testTable4,
             Set[Expression[_]](dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -719,7 +739,9 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
               time
             ),
-            and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+            and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -762,7 +784,9 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -799,7 +823,9 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](dimension(TestDims.DIM_A), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -838,7 +864,9 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_STRING_FIELD), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -879,7 +907,9 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_FIELD), time),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -920,7 +950,9 @@ class TsdbArithmeticTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_B)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,

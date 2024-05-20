@@ -146,7 +146,9 @@ class TsdbTest
             equ(dimension(TestDims.DIM_A), const("test1")),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -204,7 +206,9 @@ class TsdbTest
             DimIdInExpr(TestDims.DIM_A, SortedSetIterator((123, 456L))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -256,7 +260,9 @@ class TsdbTest
             equ(time, const(Time(pointTime))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -311,7 +317,9 @@ class TsdbTest
             in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -372,7 +380,9 @@ class TsdbTest
             notIn(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"))),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -443,7 +453,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             neq(dimension(TestDims.DIM_A), const("test11"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -501,7 +513,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -561,7 +575,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -619,7 +635,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -701,7 +719,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -772,7 +792,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
-          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
+          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1))))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -816,7 +838,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
-          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1)))))
+          and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1))))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -884,7 +908,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -951,7 +977,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -990,7 +1018,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -1077,7 +1107,9 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               c
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1101,7 +1133,9 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               in(dimension(TestDims.DIM_A), Set())
-            )
+            ),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -1149,7 +1183,9 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               c
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1173,7 +1209,9 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
-            )
+            ),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -1226,7 +1264,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -1263,7 +1303,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -1332,7 +1374,9 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               c
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1369,7 +1413,9 @@ class TsdbTest
               ge(time, const(Time(from))),
               lt(time, const(Time(to))),
               DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
-            )
+            ),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -1450,7 +1496,9 @@ class TsdbTest
               lt(time, const(Time(to))),
               c,
               c2
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1471,7 +1519,9 @@ class TsdbTest
               lt(time, const(Time(to))),
               c3,
               c4
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1509,7 +1559,9 @@ class TsdbTest
               lt(time, const(Time(to))),
               notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
               in(dimension(TestDims.DIM_A), Set("test12", "test13"))
-            )
+            ),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -1585,7 +1637,9 @@ class TsdbTest
             c2,
             c3,
             c4
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -1623,7 +1677,9 @@ class TsdbTest
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
             notIn(dimension(TestDims.DIM_A), Set("test13")),
             neq(dimension(TestDims.DIM_A), const("test11"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -1688,7 +1744,9 @@ class TsdbTest
               lt(time, const(Time(to))),
               c1,
               c2
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1709,7 +1767,9 @@ class TsdbTest
               lt(time, const(Time(to))),
               c3,
               c4
-            )
+            ),
+            query.startTime,
+            Array.empty
           )
         )
         .returning(
@@ -1737,7 +1797,9 @@ class TsdbTest
               lt(time, const(Time(to))),
               in(dimension(TestDims.DIM_A), Set("test12")),
               in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-            )
+            ),
+            query.startTime,
+            Array.empty
           ),
           *,
           *,
@@ -1806,7 +1868,9 @@ class TsdbTest
             lt(time, const(Time(to))),
             c1,
             c2
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -1826,7 +1890,9 @@ class TsdbTest
             lt(time, const(Time(to))),
             c3,
             c4
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -1854,7 +1920,9 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort)),
             in(dimension(TestDims.DIM_A), Set("test11", "test12"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -1916,7 +1984,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -1943,7 +2013,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2023,7 +2095,9 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             c
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -2051,7 +2125,9 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2173,7 +2249,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2257,7 +2335,9 @@ class TsdbTest
             metric(TestTableFields.TEST_STRING_FIELD),
             dimension(TestDims.DIM_A)
           ),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query1.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2384,7 +2464,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2471,7 +2553,9 @@ class TsdbTest
             dimension(TestDims.DIM_A),
             dimension(TestDims.DIM_B)
           ),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2539,7 +2623,9 @@ class TsdbTest
             dimension(TestDims.DIM_A),
             dimension(TestDims.DIM_B)
           ),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2601,7 +2687,9 @@ class TsdbTest
             dimension(TestDims.DIM_A),
             dimension(TestDims.DIM_B)
           ),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2660,7 +2748,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -2696,7 +2786,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2778,7 +2870,9 @@ class TsdbTest
             dimension(TestDims.DIM_A),
             dimension(TestDims.DIM_B)
           ),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2882,7 +2976,9 @@ class TsdbTest
             dimension(TestDims.DIM_A),
             dimension(TestDims.DIM_B)
           ),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -2982,7 +3078,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3065,7 +3163,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_A)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3129,7 +3229,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3206,7 +3308,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3275,7 +3379,9 @@ class TsdbTest
         InternalQuery(
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_A)),
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3334,7 +3440,9 @@ class TsdbTest
             equ(metric(TestTableFields.TEST_LONG_FIELD), const(10L)),
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3477,7 +3585,9 @@ class TsdbTest
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
@@ -3565,7 +3675,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          )
+          ),
+          query.startTime,
+          Array.empty
         )
       )
       .returning(
@@ -3589,7 +3701,9 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("test1", "test12"))
-          )
+          ),
+          query.startTime,
+          Array.empty
         ),
         *,
         *,
