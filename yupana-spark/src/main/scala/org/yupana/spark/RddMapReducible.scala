@@ -115,7 +115,7 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
         foldOp(acc, batch)
       }
       acc
-        .partition(100)
+        .partition(c.sparkContext.defaultParallelism)
         .iterator
     }
 
