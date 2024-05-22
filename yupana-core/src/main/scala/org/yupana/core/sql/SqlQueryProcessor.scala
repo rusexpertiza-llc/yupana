@@ -28,6 +28,8 @@ import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
 import org.yupana.core.utils.ExpressionUtils
 import org.yupana.core.utils.ExpressionUtils.{ TransformError, Transformer }
 
+import scala.util.Try
+
 class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable {
 
   import SqlQueryProcessor._
@@ -71,38 +73,40 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
   }
 
+  private def getPlaceholders(expr: Expression[_]): List[Expression[_]] = {
+    expr.fold(List.empty[Expression[_]]) {
+      case (l, p @ PlaceholderExpr(_, _))     => p :: l
+      case (l, u @ UntypedPlaceholderExpr(_)) => u :: l
+      case (l, _)                             => l
+    }
+  }
+
   def bindParameters(query: Query, parameters: Map[Int, Parameter])(
       implicit srw: StringReaderWriter
   ): Either[String, Query] = {
-    import CollectionUtils._
+    val allPh = query.fields.flatMap(f => getPlaceholders(f.expr)) ++
+      query.filter.toSeq.flatMap(getPlaceholders) ++
+      query.groupBy.flatMap(getPlaceholders) ++
+      query.postFilter.toSeq.flatMap(getPlaceholders)
 
-    val transformer = createTransformer(parameters)
-    for {
-      fields <- collectErrors(query.fields.map { field =>
-        bindParameters(field.expr, transformer).map(e => QueryField(field.name, e))
-      })
-      filter <- traverseOpt(query.filter)(e => bindParameters(e, transformer))
-      groupBy <- collectErrors(query.groupBy.map(e => bindParameters(e, transformer)))
-      postFilter <- traverseOpt(query.postFilter)(e => bindParameters(e, transformer))
-    } yield Query(
-      query.table,
-      fields,
-      filter,
-      groupBy,
-      query.limit,
-      postFilter,
-      query.startTime,
-      query.params,
-      query.hints
-    )
-  }
+    val values = allPh.map {
+      case PlaceholderExpr(id, dt) =>
+        parameters
+          .get(id)
+          .toRight(s"Undefined parameter #$id")
+          .flatMap {
+            case p @ TypedParameter(v) => DataTypeUtils.constCast(v, p.dataType, dt.aux, calculator)
+            case UntypedParameter(v)   => Try(dt.storable.readString(v)).toEither.left.map(_.getMessage)
+          }
+          .map(id -> _)
+      case UntypedPlaceholderExpr(id) => Left(s"Cannot deduce parameter #$id type")
+      case e                          => Left(s"Unexpected expression $e")
+    }
 
-  def bindParameters[T](
-      expression: Expression[T],
-      bindTransformer: Transformer[TransformError]
-  ): Either[String, Expression[T]] = {
-
-    ExpressionUtils.transform(bindTransformer)(expression)
+    CollectionUtils.collectErrors(values).map { vs =>
+      val params = vs.sortBy(_._1).map(_._2).toArray
+      query.copy(params = params)
+    }
   }
 
   def createDataPoints(
@@ -583,7 +587,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     val transformer = createTransformer(parameters)
     CollectionUtils
       .collectErrors(values.map { e =>
-        bindParameters(e, transformer) match {
+        ExpressionUtils.transform(transformer)(e) match {
           case Right(e: Expression[t]) if e.kind == Const =>
             val eval = calculator.evaluateConstant[t](e)
             if (eval != null) {

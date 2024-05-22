@@ -85,6 +85,10 @@ case class Query(
            |""".stripMargin)
     }
 
+    if (params.nonEmpty) {
+      builder.append(s"""  PARAMS: ${params.zipWithIndex.map { case (p, i) => s"#$i = $p" }.mkString(", ")}\n""")
+    }
+
     builder.append(")")
     builder.toString
   }

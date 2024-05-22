@@ -5,6 +5,7 @@ import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
@@ -23,7 +24,7 @@ import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ LocalDateTime, ZoneOffset }
+import java.time.{ Duration, LocalDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbTest
@@ -170,6 +171,126 @@ class TsdbTest
     res.get[Double]("testField") shouldBe 1d
     res.get[String]("A") shouldBe "test1"
     res.get[Short]("B") shouldBe 2
+  }
+
+  it should "use parameter values in conditions" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val from = qtime.toInstant.toEpochMilli
+    val to = qtime.plusDays(1).toInstant.toEpochMilli
+
+    val query = new Query(
+      Some(TestSchema.testTable),
+      Seq(
+        time as "time_time",
+        metric(TestTableFields.TEST_FIELD) as "testField",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
+      ),
+      Some(
+        and(
+          equ(dimension(TestDims.DIM_A), param[String](1)),
+          ge(time, param[Time](2)),
+          lt(time, param[Time](3))
+        )
+      ),
+      params = Array("test1", Time(from), Time(to))
+    )
+
+    val pointTime = qtime.toInstant.toEpochMilli + 10
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD),
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B)
+          ),
+          and(
+            equ(dimension(TestDims.DIM_A), const("test1")),
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to)))
+          ),
+          query.startTime,
+          Array.empty
+        ),
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(pointTime))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+
+    res.get[Time]("time_time") shouldBe Time(pointTime)
+    res.get[Double]("testField") shouldBe 1d
+    res.get[String]("A") shouldBe "test1"
+    res.get[Short]("B") shouldBe 2
+  }
+
+  it should "use parameter values in projection" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+
+    val now = LocalDateTime.of(2024, 5, 23, 0, 35)
+
+    val query = new Query(
+      Some(TestSchema.testTable),
+      Seq(
+        truncDay(time) as "day",
+        divFrac(metric(TestTableFields.TEST_FIELD), param[Double](1)) as "x"
+      ),
+      Some(
+        and(
+          ge(time, TimeMinusPeriodExpr(NowExpr, const(PeriodDuration.of(Duration.of(1, ChronoUnit.DAYS))))),
+          lt(time, NowExpr)
+        )
+      ),
+      Seq(truncDay(time)),
+      startTime = Time(now),
+      params = Array(2d)
+    )
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_FIELD)
+          ),
+          and(
+            ge(time, const(Time(now.minusDays(1)))),
+            lt(time, const(Time(now)))
+          ),
+          query.startTime,
+          Array.empty
+        ),
+        *,
+        *,
+        NoMetricCollector
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, Time(LocalDateTime.of(2024, 5, 22, 22, 22, 22)))
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 10d)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+    res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 22, 0, 0, 0))
+    res.get[Double]("x") shouldBe 5d
+
+    res.next() shouldBe false
   }
 
   it should "execute query with filter by tag ids" in withTsdbMock { (tsdb, tsdbDaoMock) =>
