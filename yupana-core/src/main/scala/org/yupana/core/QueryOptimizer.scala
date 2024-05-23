@@ -33,19 +33,19 @@ object QueryOptimizer {
     )
   }
 
-  def optimizeCondition(expressionCalculator: ConstantCalculator, startTime: Time, params: Array[Any])(
+  def optimizeCondition(expressionCalculator: ConstantCalculator, startTime: Time, params: IndexedSeq[Any])(
       c: Condition
   ): Condition = {
     simplifyCondition(optimizeExpr(expressionCalculator, startTime, params)(c))
   }
 
-  def optimizeField(expressionCalculator: ConstantCalculator, startTime: Time, params: Array[Any])(
+  def optimizeField(expressionCalculator: ConstantCalculator, startTime: Time, params: IndexedSeq[Any])(
       field: QueryField
   ): QueryField = {
     field.copy(expr = optimizeExpr(expressionCalculator, startTime, params)(field.expr))
   }
 
-  def optimizeExpr[T](expressionCalculator: ConstantCalculator, startTime: Time, params: Array[Any])(
+  def optimizeExpr[T](expressionCalculator: ConstantCalculator, startTime: Time, params: IndexedSeq[Any])(
       expr: Expression[T]
   ): Expression[T] = {
     val transformer = new Transformer[Id] {
@@ -113,7 +113,7 @@ object QueryOptimizer {
   private def evaluateConstant[T](
       expressionCalculator: ConstantCalculator,
       startTime: Time,
-      params: Array[Any]
+      params: IndexedSeq[Any]
   )(e: Expression[T]): Expression[T] = {
     assert(e.kind == Const)
     val eval = expressionCalculator.evaluateConstant(e, Some(startTime), params)

@@ -26,7 +26,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
     val t1 = LocalDateTime.now()
     val t2 = t1.plusDays(1)
     val c = and(ge(time, const(Time(t1))), lt(time, const(Time(t2))), condition)
-    val tbcs = FlatAndCondition(calculator, c, Time(System.currentTimeMillis()), Array.empty)
+    val tbcs = FlatAndCondition(calculator, c, Time(System.currentTimeMillis()), IndexedSeq.empty)
     tbcs.flatMap(tbc =>
       ExternalLinkUtils.transformConditionT[String](TestLink.linkName, tbc, includeTransform, excludeTransform)
     )

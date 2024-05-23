@@ -129,7 +129,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
         calculator,
         and(c, ge(time, const(Time(t1))), le(time, const(Time(t2)))),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c),
@@ -148,7 +148,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2_2
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c2),
@@ -168,7 +168,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           le(time, const(Time(t2)))
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c3),
@@ -186,7 +186,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
         calculator,
         and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c),
@@ -205,7 +205,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2_2
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c2),
@@ -225,7 +225,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c3_2
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c3),

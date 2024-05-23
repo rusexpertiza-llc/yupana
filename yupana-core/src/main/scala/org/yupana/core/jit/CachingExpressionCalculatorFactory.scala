@@ -25,7 +25,7 @@ import org.yupana.core.model.DatasetSchema
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
-  private val calculatorCache: Cache[String, (Array[Any], Array[Any], Time, Tokenizer) => ExpressionCalculator] =
+  private val calculatorCache: Cache[String, (Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator] =
     CacheFactory.initCache("calculator_cache")
 
   override def makeCalculator(

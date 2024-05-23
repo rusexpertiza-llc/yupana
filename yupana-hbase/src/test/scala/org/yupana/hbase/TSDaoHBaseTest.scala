@@ -147,7 +147,7 @@ class TSDaoHBaseTest
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -184,7 +184,7 @@ class TSDaoHBaseTest
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -227,7 +227,7 @@ class TSDaoHBaseTest
           exprs.toSet,
           and(gt(time, const(Time(from))), le(time, const(Time(to)))),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -274,7 +274,7 @@ class TSDaoHBaseTest
             ge(const(Time(to)), time)
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -321,7 +321,7 @@ class TSDaoHBaseTest
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1"))),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -370,7 +370,7 @@ class TSDaoHBaseTest
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1"))),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -419,7 +419,7 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_B), const(-1.toShort))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
@@ -494,7 +494,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("test1", "test2"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -526,7 +526,7 @@ class TSDaoHBaseTest
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.DIM_A), Set())),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -572,7 +572,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("test2", "test3"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -646,7 +646,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -714,7 +714,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_X), Set("X 1", "X 2"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
@@ -774,7 +774,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_B), manyBs.toSet)
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -830,7 +830,7 @@ class TSDaoHBaseTest
             notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -898,7 +898,7 @@ class TSDaoHBaseTest
             neq(dimension(TestDims.DIM_A), const("test14"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -926,7 +926,7 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_A), const("tagValue1"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -982,7 +982,7 @@ class TSDaoHBaseTest
             DimIdInExpr(TestDims.DIM_A, SortedSetIterator(dimAHash("test12"), dimAHash("test22")))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1037,7 +1037,7 @@ class TSDaoHBaseTest
             neq(dimension(TestDims.DIM_A), const("test14"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1088,7 +1088,7 @@ class TSDaoHBaseTest
             equ(DimensionIdExpr(TestDims.DIM_A), const("000004d20000000000bc614e"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1153,7 +1153,7 @@ class TSDaoHBaseTest
             neq(DimensionIdExpr(TestDims.DIM_X), const("0000000000000001"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
@@ -1207,7 +1207,7 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_A), const("tag_a"))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1259,7 +1259,7 @@ class TSDaoHBaseTest
             equ(tuple(time, dimension(TestDims.DIM_A)), const((Time(pointTime2), "test42")))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1337,7 +1337,7 @@ class TSDaoHBaseTest
             in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"), (Time(pointTime1), "test51")))
           ),
           Time(100000L),
-          Array.empty
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1409,7 +1409,7 @@ class TSDaoHBaseTest
           )
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ),
       null,
       new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1457,7 +1457,7 @@ class TSDaoHBaseTest
           )
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ),
       null,
       new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1510,7 +1510,7 @@ class TSDaoHBaseTest
           )
         ),
         Time(100000L),
-        Array.empty
+        IndexedSeq.empty
       ),
       null,
       new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),

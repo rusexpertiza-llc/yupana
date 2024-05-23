@@ -43,7 +43,7 @@ case class Query(
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None,
     startTime: Time = Time(System.currentTimeMillis()),
-    params: Array[Any] = Array.empty,
+    params: IndexedSeq[Any] = IndexedSeq.empty,
     hints: Seq[QueryHint] = Seq.empty
 ) {
 

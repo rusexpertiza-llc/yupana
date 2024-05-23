@@ -50,8 +50,8 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     (res, schema)
   }
 
-  def compile(tree: Tree): (Array[Any], Array[Any], Time, Tokenizer) => ExpressionCalculator = {
-    toolBox.eval(tree).asInstanceOf[(Array[Any], Array[Any], Time, Tokenizer) => ExpressionCalculator]
+  def compile(tree: Tree): (Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator = {
+    toolBox.eval(tree).asInstanceOf[(Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator]
   }
 
   def generateCalculator(
@@ -114,7 +114,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     import _root_.org.threeten.extra.PeriodDuration
     import _root_.org.yupana.core.utils.Hash128Utils.timeHash
 
-    ($refs: Array[Any], $params: Array[Any], $now: Time, $tokenizer: Tokenizer) =>
+    ($refs: Array[Any], $params: IndexedSeq[Any], $now: Time, $tokenizer: Tokenizer) =>
       new _root_.org.yupana.core.jit.ExpressionCalculator {
 
         ..$defs

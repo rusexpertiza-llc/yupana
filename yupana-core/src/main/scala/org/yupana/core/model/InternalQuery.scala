@@ -36,7 +36,7 @@ object InternalQuery {
       exprs: Set[Expression[_]],
       condition: Condition,
       startTime: Time,
-      params: Array[Any],
+      params: IndexedSeq[Any],
       hints: Seq[QueryHint]
   )(implicit calculator: ConstantCalculator): InternalQuery =
     new InternalQuery(table, exprs, FlatAndCondition(calculator, condition, startTime, params), hints)
@@ -46,7 +46,7 @@ object InternalQuery {
       exprs: Set[Expression[_]],
       condition: Condition,
       startTime: Time,
-      params: Array[Any]
+      params: IndexedSeq[Any]
   )(implicit calculator: ConstantCalculator): InternalQuery =
     new InternalQuery(table, exprs, FlatAndCondition(calculator, condition, startTime, params), Seq.empty)
 }

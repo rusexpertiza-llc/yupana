@@ -99,7 +99,7 @@ class SQLSourcedCatalogServiceTest
           c1_2
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
     inCondition should contain theSameElementsAs Seq(
@@ -120,7 +120,7 @@ class SQLSourcedCatalogServiceTest
           c2_2
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 
@@ -191,7 +191,7 @@ class SQLSourcedCatalogServiceTest
           c1_2
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 
@@ -213,7 +213,7 @@ class SQLSourcedCatalogServiceTest
           c2_2
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 

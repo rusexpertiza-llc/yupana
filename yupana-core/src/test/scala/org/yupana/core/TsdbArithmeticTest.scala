@@ -63,7 +63,7 @@ class TsdbArithmeticTest
             lt(time, const(Time(to)))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -113,7 +113,7 @@ class TsdbArithmeticTest
             equ(lower(dimension(TestDims.DIM_A)), const("taga"))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -181,7 +181,7 @@ class TsdbArithmeticTest
             in(lower(dimension(TestDims.DIM_A)), Set("0000270761025003"))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -226,7 +226,7 @@ class TsdbArithmeticTest
             Set[Expression[_]](metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -288,7 +288,7 @@ class TsdbArithmeticTest
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -378,7 +378,7 @@ class TsdbArithmeticTest
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -441,7 +441,7 @@ class TsdbArithmeticTest
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -504,7 +504,7 @@ class TsdbArithmeticTest
             Set[Expression[_]](metric(TestTableFields.TEST_LONG_FIELD), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -605,7 +605,7 @@ class TsdbArithmeticTest
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -682,7 +682,7 @@ class TsdbArithmeticTest
             Set[Expression[_]](dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -741,7 +741,7 @@ class TsdbArithmeticTest
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -786,7 +786,7 @@ class TsdbArithmeticTest
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -825,7 +825,7 @@ class TsdbArithmeticTest
           Set[Expression[_]](dimension(TestDims.DIM_A), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -866,7 +866,7 @@ class TsdbArithmeticTest
           Set[Expression[_]](metric(TestTableFields.TEST_STRING_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -909,7 +909,7 @@ class TsdbArithmeticTest
           Set[Expression[_]](metric(TestTableFields.TEST_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -952,7 +952,7 @@ class TsdbArithmeticTest
           Set[Expression[_]](time, dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,

@@ -90,7 +90,7 @@ class TSDHBaseRowBencmarkState {
       exprs.map(_.expr).toSet,
       and(ge(time, const(Time(10))), lt(time, const(Time(20)))),
       Time(System.currentTimeMillis()),
-      Array.empty
+      IndexedSeq.empty
     )
   val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)
 }

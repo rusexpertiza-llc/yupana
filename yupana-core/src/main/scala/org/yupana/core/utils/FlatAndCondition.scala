@@ -33,7 +33,7 @@ case class FlatAndCondition(
     to: Long,
     conditions: Seq[SimpleCondition],
     startTime: Time,
-    params: Array[Any]
+    params: IndexedSeq[Any]
 ) {
   override def hashCode(): Int = encoded.hashCode
 
@@ -58,7 +58,7 @@ object FlatAndCondition {
       constantCalculator: ConstantCalculator,
       condition: Condition,
       startTime: Time,
-      params: Array[Any]
+      params: IndexedSeq[Any]
   ): Seq[FlatAndCondition] = {
     val parts = fromCondition(constantCalculator, startTime, Seq.empty, condition)
     val (errs, result) = parts.partitionMap { fac =>
@@ -75,7 +75,7 @@ object FlatAndCondition {
       constantCalculator: ConstantCalculator,
       condition: Condition,
       startTime: Time,
-      params: Array[Any]
+      params: IndexedSeq[Any]
   ): FlatAndCondition = {
     FlatAndCondition(constantCalculator, condition, startTime, params) match {
       case Seq(tbc) =>

@@ -149,13 +149,13 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   "QueryOptimizer" should "optimize simple conditions" in {
-    QueryOptimizer.optimizeExpr(calculator, Time(1000L), Array.empty)(
+    QueryOptimizer.optimizeExpr(calculator, Time(1000L), IndexedSeq.empty)(
       gt(dimension(TestDims.DIM_Y), plus(const(6L), const(36L)))
     ) shouldEqual gt(dimension(TestDims.DIM_Y), const(42L))
   }
 
   it should "optimize complex conditions" in {
-    QueryOptimizer.optimizeExpr(calculator, Time(1000L), Array.empty)(
+    QueryOptimizer.optimizeExpr(calculator, Time(1000L), IndexedSeq.empty)(
       and(
         gt(dimension(TestDims.DIM_Y), plus(const(6L), const(36L))),
         lt(dimension(TestDims.DIM_Y), minus(const(100L), const(25L)))
@@ -164,19 +164,19 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "optimize constant conditions" in {
-    QueryOptimizer.optimizeExpr(calculator, Time(1000L), Array.empty)(
+    QueryOptimizer.optimizeExpr(calculator, Time(1000L), IndexedSeq.empty)(
       and(gt(const(5), const(2)), equ(const(1), const(1)))
     ) shouldEqual const(true)
   }
 
   it should "optimize if-then-else expressions" in {
-    QueryOptimizer.optimizeExpr(calculator, Time(1000L), Array.empty)(
+    QueryOptimizer.optimizeExpr(calculator, Time(1000L), IndexedSeq.empty)(
       condition(equ(lower(dimension(TestDims.DIM_A)), lower(const("FOOooOO"))), const(1), plus(const(1), const(1)))
     ) shouldEqual condition(equ(lower(dimension(TestDims.DIM_A)), const("foooooo")), const(1), const(2))
   }
 
   it should "optimize inside aggregations" in {
-    QueryOptimizer.optimizeExpr(calculator, Time(1000L), Array.empty)(
+    QueryOptimizer.optimizeExpr(calculator, Time(1000L), IndexedSeq.empty)(
       sum(
         condition(
           equ(lower(dimension(TestDims.DIM_A)), lower(const("AAAAAAAA"))),
@@ -194,7 +194,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "optimize inside window functions" in {
-    QueryOptimizer.optimizeExpr(calculator, Time(1000L), Array.empty)(
+    QueryOptimizer.optimizeExpr(calculator, Time(1000L), IndexedSeq.empty)(
       lag(
         condition(
           equ(lower(dimension(TestDims.DIM_A)), lower(const("AAAAAAAA"))),

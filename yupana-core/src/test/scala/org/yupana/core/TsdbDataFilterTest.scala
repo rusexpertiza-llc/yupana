@@ -69,7 +69,7 @@ class TsdbDataFilterTest
             equ(metric(TestTableFields.TEST_FIELD), const(1012d))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -121,7 +121,7 @@ class TsdbDataFilterTest
             equ(dimension(TestDims.DIM_B), const(31.toShort))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -172,7 +172,7 @@ class TsdbDataFilterTest
             le(metric(TestTableFields.TEST_FIELD), const(1012d))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -226,7 +226,7 @@ class TsdbDataFilterTest
             neq(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -279,7 +279,7 @@ class TsdbDataFilterTest
             in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -338,7 +338,7 @@ class TsdbDataFilterTest
             notIn(metric(TestTableFields.TEST_FIELD), Set(123d, 456d))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -397,7 +397,7 @@ class TsdbDataFilterTest
             equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         )
       )
       .returning(
@@ -428,7 +428,7 @@ class TsdbDataFilterTest
             in(dimension(TestDims.DIM_A), Set("test1"))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -480,7 +480,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(FlatAndCondition.single(calculator, condition, query.startTime, Array.empty))
+      .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -507,7 +507,7 @@ class TsdbDataFilterTest
           ),
           condition,
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -551,7 +551,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(FlatAndCondition.single(calculator, condition, query.startTime, Array.empty))
+      .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -578,7 +578,7 @@ class TsdbDataFilterTest
           ),
           condition,
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -633,11 +633,11 @@ class TsdbDataFilterTest
       val condition = and(cs: _*)
 
       (testCatalogServiceMock.transformCondition _)
-        .expects(FlatAndCondition.single(calculator, condition, query.startTime, Array.empty))
+        .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
         .returning(Seq.empty)
 
       (testCatalogServiceMock2.transformCondition _)
-        .expects(FlatAndCondition.single(calculator, condition, query.startTime, Array.empty))
+        .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
         .returning(Seq.empty)
 
       (testCatalogServiceMock.setLinkedValues _)
@@ -674,7 +674,7 @@ class TsdbDataFilterTest
             ),
             condition,
             query.startTime,
-            Array.empty
+            IndexedSeq.empty
           ),
           *,
           *,
@@ -746,7 +746,7 @@ class TsdbDataFilterTest
             c
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         )
       )
       .returning(
@@ -770,7 +770,7 @@ class TsdbDataFilterTest
             in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,
@@ -815,7 +815,7 @@ class TsdbDataFilterTest
             neq(metric(TestTable2Fields.TEST_FIELD2), const(0d))
           ),
           query.startTime,
-          Array.empty
+          IndexedSeq.empty
         ),
         *,
         *,

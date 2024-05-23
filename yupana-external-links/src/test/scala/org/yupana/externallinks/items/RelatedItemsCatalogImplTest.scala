@@ -112,7 +112,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           c2
         ),
         startTime,
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 
@@ -174,8 +174,8 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           lt(time, const(Time(500L))),
           c
         ),
-        Time(System.currentTimeMillis()),
-        Array.empty
+        startTime,
+        IndexedSeq.empty
       ).head
     )
 

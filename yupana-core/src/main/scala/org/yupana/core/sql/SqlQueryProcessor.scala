@@ -104,7 +104,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
 
     CollectionUtils.collectErrors(values).map { vs =>
-      val params = vs.sortBy(_._1).map(_._2).toArray
+      val params = vs.sortBy(_._1).map(_._2).toIndexedSeq
       query.copy(params = params)
     }
   }

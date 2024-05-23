@@ -70,7 +70,7 @@ class ItemsInvertedIndexImplTest
           c2
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 
@@ -126,7 +126,7 @@ class ItemsInvertedIndexImplTest
           in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 
@@ -156,7 +156,7 @@ class ItemsInvertedIndexImplTest
           notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
         ),
         Time(System.currentTimeMillis()),
-        Array.empty
+        IndexedSeq.empty
       ).head
     )
 

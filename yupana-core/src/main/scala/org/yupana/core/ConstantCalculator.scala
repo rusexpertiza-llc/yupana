@@ -26,7 +26,11 @@ import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 
 class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
-  def evaluateConstant[T](expr: Expression[T], startTime: Option[Time] = None, params: Array[Any] = Array.empty): T = {
+  def evaluateConstant[T](
+      expr: Expression[T],
+      startTime: Option[Time] = None,
+      params: IndexedSeq[Any] = IndexedSeq.empty
+  ): T = {
     assert(expr.kind == Const)
 
     import ExpressionCalculator.truncateTime
@@ -165,12 +169,17 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
     }
   }
 
-  private def evaluateUnary[A, O](e: Expression[A], startTime: Option[Time], params: Array[Any])(f: A => O): O = {
+  private def evaluateUnary[A, O](e: Expression[A], startTime: Option[Time], params: IndexedSeq[Any])(f: A => O): O = {
     val ev = evaluateConstant(e, startTime, params)
     if (ev != null) f(ev) else null.asInstanceOf[O]
   }
 
-  private def evaluateBinary[A, B, O](a: Expression[A], b: Expression[B], startTime: Option[Time], params: Array[Any])(
+  private def evaluateBinary[A, B, O](
+      a: Expression[A],
+      b: Expression[B],
+      startTime: Option[Time],
+      params: IndexedSeq[Any]
+  )(
       f: (A, B) => O
   ): O = {
     val left = evaluateConstant(a, startTime, params)
