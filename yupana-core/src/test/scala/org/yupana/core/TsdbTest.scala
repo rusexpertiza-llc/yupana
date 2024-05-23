@@ -238,6 +238,89 @@ class TsdbTest
     res.get[Short]("B") shouldBe 2
   }
 
+  it should "use parameter values in external links" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
+    tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)
+
+    val now = Time(LocalDateTime.of(2024, 5, 23, 13, 23))
+    val from = Time(LocalDateTime.of(2024, 5, 1, 0, 0, 0))
+
+    val query = Query(
+      Some(TestSchema.testTable),
+      Seq(
+        truncDay(time) as "time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        dimension(TestDims.DIM_A) as "A",
+        link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
+      ),
+      Some(
+        and(
+          ge(time, param[Time](1)),
+          le(time, NowExpr),
+          equ(link(TestLinks.TEST_LINK, "testField"), param[String](2))
+        )
+      ),
+      Seq(
+        truncDay(time),
+        dimension(TestDims.DIM_A),
+        dimension(TestDims.DIM_B),
+        link(TestLinks.TEST_LINK, "testField")
+      ),
+      startTime = now,
+      params = IndexedSeq(
+        from,
+        "testFieldValue"
+      )
+    )
+
+    (() => testCatalogServiceMock.externalLink).expects().returning(TestLinks.TEST_LINK).anyNumberOfTimes()
+
+    (testCatalogServiceMock.transformCondition _).expects(
+      new FlatAndCondition(
+        from.millis,
+        now.millis + 1,
+        Seq(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
+        now,
+        IndexedSeq(from, "testFieldValue")
+      )
+    )
+
+    val pointTime = Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set(time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD)),
+          and(
+            ge(time, const(from)),
+            le(time, const(now)),
+            in(dimension(TestDims.DIM_A), Set("X", "Y"))
+          ),
+          now,
+          IndexedSeq.empty
+        ),
+        *,
+        *,
+        *
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+        batch.set(0, time, pointTime)
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
+        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query)
+    res.next() shouldBe true
+    res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 22, 0, 0, 0))
+    res.get[Double]("x") shouldBe 5d
+
+    res.next() shouldBe false
+  }
+
   it should "use parameter values in projection" in withTsdbMock { (tsdb, tsdbDaoMock) =>
 
     val now = LocalDateTime.of(2024, 5, 23, 0, 35)
