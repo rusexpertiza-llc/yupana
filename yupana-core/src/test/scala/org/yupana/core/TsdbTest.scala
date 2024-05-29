@@ -246,14 +246,15 @@ class TsdbTest
 
     val now = Time(LocalDateTime.of(2024, 5, 23, 13, 23))
     val from = Time(LocalDateTime.of(2024, 5, 1, 0, 0, 0))
+    val params = IndexedSeq(from, "testFieldValue")
 
     val query = Query(
       Some(TestSchema.testTable),
       Seq(
-        truncDay(time) as "time",
+        truncDay(time) as "day",
         sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
-        link(TestLinks.TEST_LINK, "testField") as "TestCatalog_testField"
+        link(TestLinks.TEST_LINK, "testField") as "link_field"
       ),
       Some(
         and(
@@ -269,38 +270,54 @@ class TsdbTest
         link(TestLinks.TEST_LINK, "testField")
       ),
       startTime = now,
-      params = IndexedSeq(
-        from,
-        "testFieldValue"
-      )
+      params = params
     )
 
     (() => testCatalogServiceMock.externalLink).expects().returning(TestLinks.TEST_LINK).anyNumberOfTimes()
 
-    (testCatalogServiceMock.transformCondition _).expects(
-      new FlatAndCondition(
-        from.millis,
-        now.millis + 1,
-        Seq(equ(link(TestLinks.TEST_LINK, "testField"), const("testFieldValue"))),
-        now,
-        IndexedSeq(from, "testFieldValue")
-      )
-    )
+    val c = equ(link(TestLinks.TEST_LINK, "testField"), param[String](2))
 
-    val pointTime = Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
+    (testCatalogServiceMock.transformCondition _)
+      .expects(
+        new FlatAndCondition(
+          from.millis,
+          now.millis + 1,
+          Seq(c),
+          now,
+          params
+        )
+      )
+      .returning(
+        ConditionTransformation.replace(
+          Seq(c),
+          in(dimension(TestDims.DIM_A), Set("X", "Y"))
+        )
+      )
+
+    (testCatalogServiceMock.setLinkedValues _)
+      .expects(*, Set[LinkExpr[_]](link(TestLinks.TEST_LINK, "testField")))
+      .onCall((ds, _) => {
+        setCatalogValueByTag(
+          ds,
+          TestLinks.TEST_LINK,
+          SparseTable("X" -> Map("testField" -> "testFieldValue"))
+        )
+      })
+
+    val pointTime = Time(LocalDateTime.of(2024, 5, 3, 12, 3, 5))
 
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), metric(TestTableFields.TEST_FIELD)),
+          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
           and(
             ge(time, const(from)),
             le(time, const(now)),
             in(dimension(TestDims.DIM_A), Set("X", "Y"))
           ),
           now,
-          IndexedSeq.empty
+          params
         ),
         *,
         *,
@@ -309,16 +326,17 @@ class TsdbTest
       .onCall { (_, _, dsSchema, _) =>
         val batch = new BatchDataset(dsSchema)
         batch.set(0, time, pointTime)
-        batch.set(0, metric(TestTableFields.TEST_FIELD), 1d)
-        batch.set(0, dimension(TestDims.DIM_A), "test1")
+        batch.set(0, metric(TestTableFields.TEST_FIELD), 3d)
+        batch.set(0, dimension(TestDims.DIM_A), "X")
         batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
         Iterator(batch)
       }
 
     val res = tsdb.query(query)
     res.next() shouldBe true
-    res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 22, 0, 0, 0))
-    res.get[Double]("x") shouldBe 5d
+    res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
+    res.get[Double]("sum_testField") shouldBe 3d
+    res.get[String]("link_field") shouldBe "testFieldValue"
 
     res.next() shouldBe false
   }
@@ -331,7 +349,7 @@ class TsdbTest
       Some(TestSchema.testTable),
       Seq(
         truncDay(time) as "day",
-        divFrac(metric(TestTableFields.TEST_FIELD), param[Double](1)) as "x"
+        sum(divFrac(metric(TestTableFields.TEST_FIELD), param[Double](1))) as "x"
       ),
       Some(
         and(

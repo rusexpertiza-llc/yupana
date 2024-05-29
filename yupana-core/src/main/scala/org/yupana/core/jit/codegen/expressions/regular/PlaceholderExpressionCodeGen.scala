@@ -17,6 +17,7 @@
 package org.yupana.core.jit.codegen.expressions.regular
 
 import org.yupana.api.query.{ Expression, PlaceholderExpr }
+import org.yupana.core.jit.codegen.CommonGen
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
 import org.yupana.core.jit.{ CodeGenResult, JIT, State }
 
@@ -27,7 +28,9 @@ class PlaceholderExpressionCodeGen(override val expression: PlaceholderExpr[_])
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val (valueDeclaration, exprState) = state.withLocalValueDeclaration(expression)
 
-    val t = q"${JIT.PARAMS}(${expression.id})"
+    val tpe = CommonGen.mkType(expression)
+
+    val t = q"${JIT.PARAMS}(${expression.id - 1}).asInstanceOf[$tpe]"
 
     val validityTree = q"val ${valueDeclaration.validityFlagName} = true"
     val valueTree = q"val ${valueDeclaration.valueName} = $t"
