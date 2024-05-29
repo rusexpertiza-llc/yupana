@@ -190,7 +190,8 @@ trait TsdbBase extends StrictLogging {
   ): Result = {
 
     val hasWindowFunctions = queryContext.query.fields.exists(_.expr.kind == Window)
-    val hasAggregates = queryContext.query.fields.exists(_.expr.kind == Aggregate)
+    val hasAggregates =
+      queryContext.query.fields.exists(_.expr.kind == Aggregate) || queryContext.query.groupBy.nonEmpty
 
     val stage1res = mr.map(rows) { batch =>
 

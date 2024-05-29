@@ -109,13 +109,14 @@ class RddMapReducible(@transient val sparkContext: SparkContext, metricCollector
       foldOp: (HashTableDataset, BatchDataset) => Unit,
       combOp: (HashTableDataset, BatchDataset) => Unit
   ): RDD[BatchDataset] = {
+    val partitions = c.sparkContext.defaultParallelism
     val folded = c.mapPartitions { it =>
       val acc = HashTableDataset(queryContext)
       it.foreach { batch =>
         foldOp(acc, batch)
       }
       acc
-        .partition(100)
+        .partition(partitions)
         .iterator
     }
 

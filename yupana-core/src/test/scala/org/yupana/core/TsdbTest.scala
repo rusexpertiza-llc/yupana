@@ -1079,6 +1079,13 @@ class TsdbTest
       res2.next()
       res2.get[Double]("tf") shouldBe 3d
     }
+
+    val res3 = tsdb.query(query)
+    var c = 0
+    while (res3.next()) {
+      c += 1
+    }
+    c shouldBe 2
   }
 
   it should "execute query without aggregation (grouping) by key" in withTsdbMock { (tsdb, tsdbDaoMock) =>
