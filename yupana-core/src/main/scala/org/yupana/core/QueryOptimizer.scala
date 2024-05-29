@@ -16,44 +16,16 @@
 
 package org.yupana.core
 
-import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.core.utils.ExpressionUtils
-import org.yupana.core.utils.ExpressionUtils.{ Id, Transformer }
 
 object QueryOptimizer {
 
-  def optimize(expressionCalculator: ConstantCalculator)(query: Query): Query = {
+  def optimize(query: Query): Query = {
     query.copy(
-      fields = query.fields.map(optimizeField(expressionCalculator, query.startTime, query.params)),
-      filter = query.filter.map(optimizeCondition(expressionCalculator, query.startTime, query.params)),
-      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator, query.startTime, query.params)),
-      groupBy = query.groupBy.map(e => optimizeExpr(expressionCalculator, query.startTime, query.params)(e))
+      filter = query.filter.map(simplifyCondition),
+      postFilter = query.postFilter.map(simplifyCondition)
     )
-  }
-
-  def optimizeCondition(expressionCalculator: ConstantCalculator, startTime: Time, params: IndexedSeq[Any])(
-      c: Condition
-  ): Condition = {
-    simplifyCondition(optimizeExpr(expressionCalculator, startTime, params)(c))
-  }
-
-  def optimizeField(expressionCalculator: ConstantCalculator, startTime: Time, params: IndexedSeq[Any])(
-      field: QueryField
-  ): QueryField = {
-    field.copy(expr = optimizeExpr(expressionCalculator, startTime, params)(field.expr))
-  }
-
-  def optimizeExpr[T](expressionCalculator: ConstantCalculator, startTime: Time, params: IndexedSeq[Any])(
-      expr: Expression[T]
-  ): Expression[T] = {
-    val transformer = new Transformer[Id] {
-      override def apply[U](e: Expression[U]): Option[Expression[U]] = {
-        if (e.kind == Const) Some(evaluateConstant(expressionCalculator, startTime, params)(e)) else None
-      }
-    }
-    ExpressionUtils.transform(transformer)(expr)
   }
 
   def simplifyCondition(condition: Condition): Condition = {
@@ -108,19 +80,5 @@ object QueryOptimizer {
         TrueExpr
       }
     }
-  }
-
-  private def evaluateConstant[T](
-      expressionCalculator: ConstantCalculator,
-      startTime: Time,
-      params: IndexedSeq[Any]
-  )(e: Expression[T]): Expression[T] = {
-    assert(e.kind == Const)
-    val eval = expressionCalculator.evaluateConstant(e, Some(startTime), params)
-    if (eval != null) {
-      ConstantExpr(eval)(
-        e.dataType
-      )
-    } else NullExpr[T](e.dataType)
   }
 }

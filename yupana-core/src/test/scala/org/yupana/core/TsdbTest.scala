@@ -178,6 +178,8 @@ class TsdbTest
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
 
+    val params = IndexedSeq("test1", Time(from), Time(to))
+
     val query = new Query(
       Some(TestSchema.testTable),
       Seq(
@@ -193,7 +195,7 @@ class TsdbTest
           lt(time, param[Time](3))
         )
       ),
-      params = IndexedSeq("test1", Time(from), Time(to))
+      params = params
     )
 
     val pointTime = qtime.toInstant.toEpochMilli + 10
@@ -209,12 +211,12 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(
-            equ(dimension(TestDims.DIM_A), const("test1")),
-            ge(time, const(Time(from))),
-            lt(time, const(Time(to)))
+            equ(dimension(TestDims.DIM_A), param[String](1)),
+            ge(time, param[Time](2)),
+            lt(time, param[Time](3))
           ),
           query.startTime,
-          IndexedSeq.empty
+          params
         ),
         *,
         *,

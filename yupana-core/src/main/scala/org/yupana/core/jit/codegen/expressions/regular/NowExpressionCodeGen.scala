@@ -17,19 +17,18 @@
 package org.yupana.core.jit.codegen.expressions.regular
 
 import org.yupana.api.query.NowExpr
-import org.yupana.core.jit.{ CodeGenResult, State }
+import org.yupana.core.jit.{ CodeGenResult, JIT, State }
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
 
 import scala.reflect.runtime.universe._
 
 object NowExpressionCodeGen extends ExpressionCodeGen[NowExpr.type] {
-  private val nowName = TermName("now")
   override def expression: NowExpr.type = NowExpr
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val (valueDeclaration, exprState) = state.withLocalValueDeclaration(expression)
     val validityTree = q"val ${valueDeclaration.validityFlagName} = true"
-    val valueTree = q"val ${valueDeclaration.valueName} = $nowName"
+    val valueTree = q"val ${valueDeclaration.valueName} = ${JIT.NOW}"
     CodeGenResult(Seq(validityTree, valueTree), valueDeclaration, exprState)
   }
 }

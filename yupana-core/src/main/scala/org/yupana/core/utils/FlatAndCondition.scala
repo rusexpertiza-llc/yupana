@@ -60,7 +60,7 @@ object FlatAndCondition {
       startTime: Time,
       params: IndexedSeq[Any]
   ): Seq[FlatAndCondition] = {
-    val parts = fromCondition(constantCalculator, startTime, Seq.empty, condition)
+    val parts = fromCondition(constantCalculator, startTime, params, Seq.empty, condition)
     val (errs, result) = parts.partitionMap { fac =>
       for {
         from <- fac.from.toRight(s"FROM time is not defined for ${AndExpr(fac.conditions)}")
@@ -106,6 +106,7 @@ object FlatAndCondition {
   private def fromCondition(
       expressionCalculator: ConstantCalculator,
       startTime: Time,
+      params: IndexedSeq[Any],
       tbcs: Seq[FlatAndConditionParts],
       condition: Condition
   ): Seq[FlatAndConditionParts] = {
@@ -116,7 +117,7 @@ object FlatAndCondition {
 
     def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
-        val const = expressionCalculator.evaluateConstant(e, Some(startTime))
+        val const = expressionCalculator.evaluateConstant(e, Some(startTime), params)
         update(t =>
           t.copy(from = t.from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset))
         )
@@ -127,7 +128,7 @@ object FlatAndCondition {
 
     def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
-        val const = expressionCalculator.evaluateConstant(e)
+        val const = expressionCalculator.evaluateConstant(e, Some(startTime), params)
         update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))
       } else {
         update(t => t.copy(conditions = t.conditions :+ c))
@@ -147,9 +148,9 @@ object FlatAndCondition {
       case c @ LeTime(TimeExpr, e) => updateTo(c, e, 1L)
       case c @ GeTime(e, TimeExpr) => updateTo(c, e, 1L)
 
-      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => fromCondition(expressionCalculator, startTime, t, c))
+      case AndExpr(cs) => cs.foldLeft(tbcs)((t, c) => fromCondition(expressionCalculator, startTime, params, t, c))
 
-      case OrExpr(cs) => cs.flatMap(c => fromCondition(expressionCalculator, startTime, tbcs, c))
+      case OrExpr(cs) => cs.flatMap(c => fromCondition(expressionCalculator, startTime, params, tbcs, c))
 
       case x: SimpleCondition => update(t => t.copy(conditions = t.conditions :+ x))
 

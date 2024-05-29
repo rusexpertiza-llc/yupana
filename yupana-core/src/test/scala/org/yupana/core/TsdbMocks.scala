@@ -1,6 +1,7 @@
 package org.yupana.core
 
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
@@ -12,8 +13,6 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.utils.RussianTokenizer
-import org.scalatest.TestSuite
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -99,7 +98,7 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
       catalog: ExternalLink,
       catalogValues: Table[String, String, String]
   ): Unit = {
-    for (i <- (0 until dataset.size)) {
+    for (i <- 0 until dataset.size) {
       if (dataset.isDefined(i, DimensionExpr(catalog.dimension))) {
         val dimValue = dataset.get(i, DimensionExpr(catalog.dimension)).asInstanceOf[String]
         catalogValues.row(dimValue).foreach {
@@ -112,7 +111,6 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
     }
   }
 
-  private val calculator = new ConstantCalculator(RussianTokenizer)
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
@@ -123,7 +121,7 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
-      .map(QueryOptimizer.optimize(calculator))
+      .map(QueryOptimizer.optimize)
       .fold(fail(_), identity)
   }
 }

@@ -31,9 +31,9 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   import scala.reflect.runtime.universe._
   import scala.tools.reflect.ToolBox
 
-  private val refs = TermName("refs")
-  private val params = TermName("params")
-  private val now = TermName("now")
+  val REFS = TermName("refs")
+  val PARAMS = TermName("params")
+  val NOW = TermName("now")
   private val tokenizer = TermName("tokenizer")
 
   private val toolBox = currentMirror.mkToolBox()
@@ -114,7 +114,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     import _root_.org.threeten.extra.PeriodDuration
     import _root_.org.yupana.core.utils.Hash128Utils.timeHash
 
-    ($refs: Array[Any], $params: IndexedSeq[Any], $now: Time, $tokenizer: Tokenizer) =>
+    ($REFS: Array[Any], $PARAMS: IndexedSeq[Any], $NOW: Time, $tokenizer: Tokenizer) =>
       new _root_.org.yupana.core.jit.ExpressionCalculator {
 
         ..$defs

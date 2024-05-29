@@ -102,7 +102,7 @@ trait TsdbBase extends StrictLogging {
     val preparedQuery = prepareQuery(query)
     logger.info(s"User ${user.name} start TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val optimizedQuery = QueryOptimizer.optimize(constantCalculator)(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
 
     logger.debug(s"Optimized query: $optimizedQuery")
 
