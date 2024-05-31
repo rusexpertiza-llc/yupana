@@ -25,8 +25,6 @@ import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.sql.SqlQueryProcessor.ExprType.ExprType
 import org.yupana.core.sql.parser.{ SqlFieldList, SqlFieldsAll }
-import org.yupana.core.utils.ExpressionUtils
-import org.yupana.core.utils.ExpressionUtils.{ TransformError, Transformer }
 
 import scala.util.Try
 
@@ -48,29 +46,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
 
     query.flatMap(validateQuery)
-  }
-
-  private def createTransformer(
-      parameters: Map[Int, Parameter]
-  )(implicit srw: StringReaderWriter): Transformer[TransformError] = {
-    new Transformer[TransformError] {
-      override def apply[T](e: Expression[T]): Option[TransformError[Expression[T]]] = {
-        e match {
-          case PlaceholderExpr(id, dt) =>
-            val res = parameters
-              .get(id)
-              .map {
-                case p @ TypedParameter(v) =>
-                  DataTypeUtils.constCast(v, p.dataType, dt.aux, calculator).map(x => ConstantExpr(x)(dt))
-                case UntypedParameter(v) => Right(ConstantExpr(dt.storable.readString(v))(dt))
-              }
-              .getOrElse(Left(s"No parameter value for #$id"))
-            Some(res)
-          case UntypedPlaceholderExpr(id) => Some(Left(s"Cannot deduce parameter #$id type"))
-          case _                          => None
-        }
-      }
-    }
   }
 
   private def getPlaceholders(expr: Expression[_]): List[Expression[_]] = {
@@ -126,11 +101,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
             val types = fieldMap.map { case (e, i) => (i, e.dataType) }.toSeq.sortBy(_._1).map(_._2)
             upsert.values.map { values =>
               for {
-                consts <- getValues(values zip types)
-                bound <- bindValues(consts, ps)
-                time <- getTimeValue(fieldMap, bound)
-                dimensions <- getDimensionValues(table, fieldMap, bound)
-                metrics <- getMetricValues(fieldMap, bound)
+                consts <- getValues(values zip types, ps)
+                time <- getTimeValue(fieldMap, consts)
+                dimensions <- getDimensionValues(table, fieldMap, consts)
+                metrics <- getMetricValues(fieldMap, consts)
               } yield {
                 DataPoint(table, time, dimensions, metrics)
               }
@@ -471,8 +445,8 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
       case parser.TupleValue(a, b) =>
         for {
-          ae <- convertValue(a, exprType, tpe)
-          be <- convertValue(b, exprType, tpe)
+          ae <- convertValue(a, exprType, None)
+          be <- convertValue(b, exprType, None)
           te <- createTupleValue(ae, be)
         } yield te
 
@@ -581,33 +555,28 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     exprs.map(_.zipWithIndex.toMap)
   }
 
-  private def bindValues(values: Seq[Expression[_]], parameters: Map[Int, Parameter])(
-      implicit srw: StringReaderWriter
-  ): Either[String, Array[ConstantExpr[_]]] = {
-    val transformer = createTransformer(parameters)
-    CollectionUtils
-      .collectErrors(values.map { e =>
-        ExpressionUtils.transform(transformer)(e) match {
-          case Right(e: Expression[t]) if e.kind == Const =>
-            val eval = calculator.evaluateConstant[t](e)
-            if (eval != null) {
-              Right(ConstantExpr(eval)(e.dataType.aux).asInstanceOf[ConstantExpr[_]])
-            } else {
-              Left(s"Cannon evaluate $e")
-            }
-          case Right(e) => Left(s"$e is not constant")
-
-          case Left(m) => Left(m)
-        }
-      })
-      .map(_.toArray)
-  }
-
-  private def getValues(values: Seq[(parser.Value, DataType)]): Either[String, Seq[ConstExpr[_]]] = {
+  private def getValues(
+      values: Seq[(parser.Value, DataType)],
+      parameters: Map[Int, Parameter]
+  )(implicit srw: StringReaderWriter): Either[String, Array[ConstantExpr[_]]] = {
     val vs = values.map {
-      case (v, t) => convertValue(v, ExprType.Math, Some(t))
+      case (v, t) =>
+        convertValue(v, ExprType.Math, Some(t)).flatMap {
+          case c @ ConstantExpr(_) => Right(c)
+          case PlaceholderExpr(id, dt) =>
+            parameters
+              .get(id)
+              .map {
+                case p @ TypedParameter(v) =>
+                  DataTypeUtils.constCast(v, p.dataType, dt.aux, calculator).map(x => ConstantExpr(x)(dt))
+                case UntypedParameter(v) => Right(ConstantExpr(dt.storable.readString(v))(dt))
+              }
+              .getOrElse(Left(s"No parameter value for #$id"))
+          case UntypedPlaceholderExpr(id) => Left(s"Cannot deduce type for placeholder $id")
+          case x                          => Left(s"Unexpected expression $x")
+        }
     }
-    CollectionUtils.collectErrors(vs)
+    CollectionUtils.collectErrors(vs).map(_.toArray)
   }
 
   private def getTimeValue(fieldMap: Map[Expression[_], Int], values: Array[ConstantExpr[_]]): Either[String, Long] = {
