@@ -1321,7 +1321,7 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         s shouldEqual "foo"
         fs should contain theSameElementsInOrderAs List("bar", "baz")
         vs should contain theSameElementsInOrderAs List(
-          List(Constant(TypedValue("bar value")), Constant(TypedValue(BigDecimal(42))))
+          List(TypedValue("bar value"), TypedValue(BigDecimal(42)))
         )
     }
   }
@@ -1332,8 +1332,8 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
         s shouldEqual "foo"
         fs should contain theSameElementsInOrderAs List("bar", "baz")
         vs should contain theSameElementsInOrderAs List(
-          List(Constant(TypedValue("abc")), Constant(TypedValue(BigDecimal(1)))),
-          List(Constant(TypedValue("def")), Constant(TypedValue(BigDecimal(2))))
+          List(TypedValue("abc"), TypedValue(BigDecimal(1))),
+          List(TypedValue("def"), TypedValue(BigDecimal(2)))
         )
     }
   }

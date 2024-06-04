@@ -1,16 +1,13 @@
 package org.yupana.core
 
-import org.yupana.api.query.{ AndExpr, OrExpr }
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.utils.RussianTokenizer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.query.{ AndExpr, OrExpr }
+import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
 
 class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
-
-  private val calculator = new ConstantCalculator(RussianTokenizer)
 
   "QueryOptimizer.simplifyCondition" should "keep simple condition as is" in {
     val c = equ[String](dimension(DictionaryDimension("foo")), const("bar"))
@@ -88,6 +85,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "handle nested ANDs in OR" in {
+    // (A && B || C && D) && E => (A && B && E) || (C && D && E)
     val c =
       and(
         or(
@@ -143,69 +141,6 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
       and(
         equ[String](dimension(DictionaryDimension("b")), const("b")),
         equ[String](dimension(DictionaryDimension("d")), const("d"))
-      )
-    )
-  }
-
-  "QueryOptimizer" should "optimize simple conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
-      gt(dimension(TestDims.DIM_Y), plus(const(6L), const(36L)))
-    ) shouldEqual gt(dimension(TestDims.DIM_Y), const(42L))
-  }
-
-  it should "optimize complex conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
-      and(
-        gt(dimension(TestDims.DIM_Y), plus(const(6L), const(36L))),
-        lt(dimension(TestDims.DIM_Y), minus(const(100L), const(25L)))
-      )
-    ) shouldEqual and(gt(dimension(TestDims.DIM_Y), const(42L)), lt(dimension(TestDims.DIM_Y), const(75L)))
-  }
-
-  it should "optimize constant conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
-      and(gt(const(5), const(2)), equ(const(1), const(1)))
-    ) shouldEqual const(true)
-  }
-
-  it should "optimize if-then-else expressions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
-      condition(equ(lower(dimension(TestDims.DIM_A)), lower(const("FOOooOO"))), const(1), plus(const(1), const(1)))
-    ) shouldEqual condition(equ(lower(dimension(TestDims.DIM_A)), const("foooooo")), const(1), const(2))
-  }
-
-  it should "optimize inside aggregations" in {
-    QueryOptimizer.optimizeExpr(calculator)(
-      sum(
-        condition(
-          equ(lower(dimension(TestDims.DIM_A)), lower(const("AAAAAAAA"))),
-          metric(TestTableFields.TEST_FIELD),
-          minus(minus(const(2d), const(1d)), const(1d))
-        )
-      )
-    ) shouldEqual sum(
-      condition(
-        equ(lower(dimension(TestDims.DIM_A)), const("aaaaaaaa")),
-        metric(TestTableFields.TEST_FIELD),
-        const(0d)
-      )
-    )
-  }
-
-  it should "optimize inside window functions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
-      lag(
-        condition(
-          equ(lower(dimension(TestDims.DIM_A)), lower(const("AAAAAAAA"))),
-          metric(TestTableFields.TEST_FIELD),
-          minus(minus(const(2d), const(1d)), const(1d))
-        )
-      )
-    ) shouldEqual lag(
-      condition(
-        equ(lower(dimension(TestDims.DIM_A)), const("aaaaaaaa")),
-        metric(TestTableFields.TEST_FIELD),
-        const(0d)
       )
     )
   }

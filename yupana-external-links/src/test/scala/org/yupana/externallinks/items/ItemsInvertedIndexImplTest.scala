@@ -68,7 +68,9 @@ class ItemsInvertedIndexImplTest
           le(time, const(Time(t2))),
           c1,
           c2
-        )
+        ),
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 
@@ -97,7 +99,7 @@ class ItemsInvertedIndexImplTest
     ).toSeq
   }
 
-  it should "put values storage" in withMocks { (index, dao, tsdb) =>
+  it should "put values storage" in withMocks { (index, dao, _) =>
 
     (dao.batchPut _).expects(where { vs: Map[String, Set[ItemDimension.KeyType]] =>
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
@@ -122,7 +124,9 @@ class ItemsInvertedIndexImplTest
           ge(time, const(Time(t1))),
           le(time, const(Time(t2))),
           in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
-        )
+        ),
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 
@@ -150,7 +154,9 @@ class ItemsInvertedIndexImplTest
           ge(time, const(Time(t1))),
           le(time, const(Time(t2))),
           notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
-        )
+        ),
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 

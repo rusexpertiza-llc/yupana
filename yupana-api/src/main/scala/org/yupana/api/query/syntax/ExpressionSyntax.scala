@@ -33,6 +33,7 @@ trait ExpressionSyntax {
   def link[T](link: ExternalLink, field: LinkField.Aux[T]): LinkExpr[T] = LinkExpr[T](link, field)
   def metric[T](m: Metric.Aux[T]) = MetricExpr(m)
   def const[T](c: T)(implicit rt: DataType.Aux[T]): Expression[T] = ConstantExpr[T](c)
+  def param[T](id: Int)(implicit dt: DataType.Aux[T]): Expression[T] = PlaceholderExpr(id, dt)
 
   def condition[T](condition: Condition, positive: Expression[T], negative: Expression[T]) =
     ConditionExpr(condition, positive, negative)

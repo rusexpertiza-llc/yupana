@@ -16,25 +16,19 @@
 
 package org.yupana.core.jit.codegen.expressions.regular
 
-import org.yupana.api.query.DivFracExpr
+import org.yupana.api.query.NowExpr
+import org.yupana.core.jit.{ CodeGenResult, JIT, State }
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
-import org.yupana.core.jit.{ CodeGenResult, State }
 
-import java.sql.Types
 import scala.reflect.runtime.universe._
 
-class DivFracExpressionCodeGen(override val expression: DivFracExpr[_]) extends ExpressionCodeGen[DivFracExpr[_]] {
+object NowExpressionCodeGen extends ExpressionCodeGen[NowExpr.type] {
+  override def expression: NowExpr.type = NowExpr
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
-    if (expression.dataType.meta.sqlType != Types.DECIMAL) {
-      BinaryExpressionCodeGen(expression, (x, y) => q"$x / $y").generateEvalCode(state, row)
-    } else {
-      val scale = expression.dataType.meta.scale
-      BinaryExpressionCodeGen(
-        expression,
-        (x, y) =>
-          q"new BigDecimal($x.bigDecimal.divide($y.bigDecimal, $scale, _root_.java.math.RoundingMode.HALF_EVEN))"
-      ).generateEvalCode(state, row)
-    }
+    val (valueDeclaration, exprState) = state.withLocalValueDeclaration(expression)
+    val validityTree = q"val ${valueDeclaration.validityFlagName} = true"
+    val valueTree = q"val ${valueDeclaration.valueName} = ${JIT.NOW}"
+    CodeGenResult(Seq(validityTree, valueTree), valueDeclaration, exprState)
   }
 }

@@ -24,6 +24,7 @@ import org.yupana.api.query.Result
 import org.yupana.api.types._
 import org.yupana.api.utils.CollectionUtils
 import org.yupana.core.auth.YupanaUser
+import org.yupana.core.sql.{ Parameter, TypedParameter, UntypedParameter }
 import org.yupana.core.sql.parser._
 import org.yupana.core.{ EmptyQuery, PreparedCommand, PreparedSelect, PreparedStatement }
 import org.yupana.postgres.MessageHandler.{ Parsed, Portal }
@@ -108,7 +109,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     }
   }
 
-  private def bind(statement: Statement, values: Map[Int, Value]): Either[String, PreparedStatement] = {
+  private def bind(statement: Statement, values: Map[Int, Parameter]): Either[String, PreparedStatement] = {
     statement match {
       case Select(None, SqlFieldsAll, None, Nil, None, None) => Right(EmptyQuery)
       case x                                                 => context.queryEngineRouter.bind(x, values)
@@ -135,21 +136,21 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
         if (paramCount < p.types.size) {
           logger.warn(s"Bind has only $paramCount parameters, but ${p.types.size} is required")
         }
-        val values = p.types
+        val parameters = p.types
           .take(paramCount)
           .zipWithIndex
           .map {
             case (dt, idx) =>
               val b = isBinary(idx, paramIsBinary)
-              idx + 1 -> readValue(data, b, dt.map(_.aux))
+              idx + 1 -> readParameter(data, b, dt.map(_.aux))
           }
           .toMap
 
-        logger.debug(s"Binding $values")
+        logger.debug(s"Binding $parameters")
         val resultFormatCount = data.readShort()
         val resultIsBinary = (0 until resultFormatCount).map(_ => data.readShort() == 1)
 
-        bind(p.statement, values) match {
+        bind(p.statement, parameters) match {
           case Right(prep) =>
             portals += portal -> Portal(p, prep, resultIsBinary)
             ctx.write(BindComplete)
@@ -166,7 +167,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     ReferenceCountUtil.release(data)
   }
 
-  private def readValue(in: ByteBuf, isBinary: Boolean, dataType: Option[DataType]): Value = {
+  private def readParameter(in: ByteBuf, isBinary: Boolean, dataType: Option[DataType]): Parameter = {
     dataType match {
       case Some(dt) =>
         val v = if (isBinary) {
@@ -175,10 +176,10 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
           val s = implicitly[Storable[String]].read(in)
           dt.storable.readString(s)
         }
-        TypedValue(v)(dt)
+        TypedParameter(v)(dt)
       case None =>
         val s = implicitly[Storable[String]].read(in)
-        UntypedValue(s)
+        UntypedParameter(s)
     }
   }
 

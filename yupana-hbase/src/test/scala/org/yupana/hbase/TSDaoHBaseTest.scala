@@ -142,7 +142,13 @@ class TSDaoHBaseTest
 
     val res = dao
       .query(
-        InternalQuery(testTable, exprs.toSet, and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          Time(100000L),
+          IndexedSeq.empty
+        ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
@@ -173,7 +179,13 @@ class TSDaoHBaseTest
 
     val res = dao
       .query(
-        InternalQuery(testTable, exprs.toSet, and(ge(time, const(Time(from))), lt(time, const(Time(to))))),
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          Time(100000L),
+          IndexedSeq.empty
+        ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
@@ -210,7 +222,13 @@ class TSDaoHBaseTest
 
     val res = dao
       .query(
-        InternalQuery(testTable, exprs.toSet, and(gt(time, const(Time(from))), le(time, const(Time(to))))),
+        InternalQuery(
+          testTable,
+          exprs.toSet,
+          and(gt(time, const(Time(from))), le(time, const(Time(to)))),
+          Time(100000L),
+          IndexedSeq.empty
+        ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
         NoMetricCollector
@@ -254,7 +272,9 @@ class TSDaoHBaseTest
             lt(const(Time(from + 100)), time),
             gt(const(Time(to)), time),
             ge(const(Time(to)), time)
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -299,7 +319,9 @@ class TSDaoHBaseTest
         InternalQuery(
           testTable,
           exprs.toSet,
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1")))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1"))),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -346,7 +368,9 @@ class TSDaoHBaseTest
         InternalQuery(
           testTable,
           exprs.toSet,
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1")))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1"))),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -393,7 +417,9 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             equ(dimension(TestDims.DIM_A), const("test1")),
             equ(dimension(TestDims.DIM_B), const(-1.toShort))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
@@ -466,7 +492,9 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test2"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -496,7 +524,9 @@ class TSDaoHBaseTest
         InternalQuery(
           testTable,
           exprs.toSet,
-          and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.DIM_A), Set()))
+          and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.DIM_A), Set())),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -540,7 +570,9 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("test1", "test2")),
             equ(dimension(TestDims.DIM_B), const(21.toShort)),
             in(dimension(TestDims.DIM_A), Set("test2", "test3"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -612,7 +644,9 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -678,7 +712,9 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
             equ(dimension(TestDims.DIM_B), const(1.toShort)),
             in(dimension(TestDims.DIM_X), Set("X 1", "X 2"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
@@ -736,7 +772,9 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), manyAs.toSet),
             in(dimension(TestDims.DIM_B), manyBs.toSet)
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -790,7 +828,9 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -856,7 +896,9 @@ class TSDaoHBaseTest
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
             notIn(dimension(TestDims.DIM_A), Set("test12", "test15")),
             neq(dimension(TestDims.DIM_A), const("test14"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -882,7 +924,9 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("tagValue1", "tagValue2")),
             equ(dimension(TestDims.DIM_A), const("tagValue1"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -936,7 +980,9 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             DimIdInExpr(TestDims.DIM_A, SortedSetIterator(dimAHash("test12"), dimAHash("test22")))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -989,7 +1035,9 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("test11", "test12")),
             DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(dimAHash("test11"), dimAHash("test15"))),
             neq(dimension(TestDims.DIM_A), const("test14"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1038,7 +1086,9 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(DimensionIdExpr(TestDims.DIM_A), const("000004d20000000000bc614e"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1101,7 +1151,9 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_B), const(42.toShort)),
             in(dimension(TestDims.DIM_X), Set("Foo", "Bar", "Baz")),
             neq(DimensionIdExpr(TestDims.DIM_X), const("0000000000000001"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
@@ -1153,7 +1205,9 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(dimension(TestDims.DIM_A), const("tag_a"))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1203,7 +1257,9 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(tuple(time, dimension(TestDims.DIM_A)), const((Time(pointTime2), "test42")))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1279,7 +1335,9 @@ class TSDaoHBaseTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"), (Time(pointTime1), "test51")))
-          )
+          ),
+          Time(100000L),
+          IndexedSeq.empty
         ),
         null,
         new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1349,7 +1407,9 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_A), const("foo")),
             in(dimension(TestDims.DIM_A), Set("bar", "baz"))
           )
-        )
+        ),
+        Time(100000L),
+        IndexedSeq.empty
       ),
       null,
       new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1395,7 +1455,9 @@ class TSDaoHBaseTest
             neq(dimension(TestDims.DIM_A), const("foo")),
             notIn(dimension(TestDims.DIM_A), Set("foo", "bar"))
           )
-        )
+        ),
+        Time(100000L),
+        IndexedSeq.empty
       ),
       null,
       new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
@@ -1446,7 +1508,9 @@ class TSDaoHBaseTest
             and(ge(time, const(Time(from1))), lt(time, const(Time(to1)))),
             and(ge(time, const(Time(from2))), lt(time, const(Time(to2))))
           )
-        )
+        ),
+        Time(100000L),
+        IndexedSeq.empty
       ),
       null,
       new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),

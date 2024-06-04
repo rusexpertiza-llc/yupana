@@ -21,7 +21,7 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
 
     val condition = and(ge(time, const(from)), lt(time, const(to)), equ(dimension(TestDims.DIM_A), const("value")))
 
-    val tbcs = FlatAndCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     tbcs should have size 1
     val tbc = tbcs.head
@@ -43,7 +43,7 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
       and(gt(time, const(from2)), le(time, const(to2)), in(metric(TestTableFields.TEST_FIELD), Set(1d, 2d)))
     )
 
-    val tbcs = FlatAndCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     tbcs should have size 2
     val tbc1 = tbcs(0)
@@ -81,7 +81,7 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
       neq(dimension(TestDims.DIM_B), const(3.toShort))
     )
 
-    val tbcs = FlatAndCondition(calculator, condition)
+    val tbcs = FlatAndCondition(calculator, condition, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     tbcs should have size 2
     val res1 = tbcs(0)
@@ -109,19 +109,22 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
     val to1 = 2000L
     val from2 = 3000L
     val to2 = 4000L
+    val start = Time(LocalDateTime.now())
 
     FlatAndCondition.mergeByTime(Seq()) shouldBe empty
 
     FlatAndCondition.mergeByTime(
       Seq(
-        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_A), const("x")))),
-        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_B), const(1.toShort)))),
+        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_A), const("x"))), start, IndexedSeq.empty),
+        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_B), const(1.toShort))), start, IndexedSeq.empty),
         FlatAndCondition(
           from2,
           to2,
-          Seq(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort)))
+          Seq(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))),
+          start,
+          IndexedSeq.empty
         ),
-        FlatAndCondition(from1, to2, Seq(in(dimension(TestDims.DIM_A), Set("y"))))
+        FlatAndCondition(from1, to2, Seq(in(dimension(TestDims.DIM_A), Set("y"))), start, IndexedSeq.empty)
       )
     ) should contain theSameElementsAs List(
       (

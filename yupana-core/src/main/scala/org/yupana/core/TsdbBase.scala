@@ -102,7 +102,7 @@ trait TsdbBase extends StrictLogging {
     val preparedQuery = prepareQuery(query)
     logger.info(s"User ${user.name} start TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val optimizedQuery = QueryOptimizer.optimize(constantCalculator)(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
 
     logger.debug(s"Optimized query: $optimizedQuery")
 
@@ -115,7 +115,7 @@ trait TsdbBase extends StrictLogging {
       case Some(table) =>
         optimizedQuery.filter match {
           case Some(conditionAsIs) =>
-            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs)
+            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs, query.startTime, query.params)
 
             val substitutedCondition = substituteLinks(flatAndCondition, metricCollector)
             logger.debug(s"Substituted condition: $substitutedCondition")

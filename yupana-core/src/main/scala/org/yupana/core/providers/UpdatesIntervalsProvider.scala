@@ -21,6 +21,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ Result, SimpleResult }
 import org.yupana.api.types.DataType
 import org.yupana.core.FlatQueryEngine
+import org.yupana.core.sql.{ Parameter, TypedParameter }
 import org.yupana.core.sql.parser._
 
 import java.time.OffsetDateTime
@@ -36,7 +37,7 @@ object UpdatesIntervalsProvider extends StrictLogging {
   def handleGetUpdatesIntervals(
       flatQueryEngine: FlatQueryEngine,
       maybeCondition: Option[SqlExpr],
-      parameters: Map[Int, Value]
+      parameters: Map[Int, Parameter]
   ): Either[String, Result] = {
 
     createFilter(maybeCondition, parameters).map { filter =>
@@ -93,7 +94,7 @@ object UpdatesIntervalsProvider extends StrictLogging {
 
   def createFilter(
       maybeCondition: Option[SqlExpr],
-      params: Map[Int, Value] = Map.empty
+      params: Map[Int, Parameter] = Map.empty
   ): Either[String, UpdatesIntervalsFilter] = {
     def addSimpleCondition(f: UpdatesIntervalsFilter, c: SqlExpr): Either[String, UpdatesIntervalsFilter] = {
       c match {
@@ -122,8 +123,8 @@ object UpdatesIntervalsProvider extends StrictLogging {
         case tv @ TypedValue(v) if tv.dataType == t => Right(v.asInstanceOf[T])
         case Placeholder(id) =>
           params.get(id).toRight(s"Parameter #$id is not defined").flatMap {
-            case tv @ TypedValue(v) if tv.dataType == t => Right(v.asInstanceOf[T])
-            case x                                      => Left(s"Got $x for parameter #$id, but $t is required")
+            case tv @ TypedParameter(v) if tv.dataType == t => Right(v.asInstanceOf[T])
+            case x                                          => Left(s"Got $x for parameter #$id, but $t is required")
           }
         case x => Left(s"Got $x but $t is required")
       }

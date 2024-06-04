@@ -144,7 +144,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
           )
         )
       ),
-      Map(1 -> TypedValue(Time(startTime)), 2 -> TypedValue(Time(endTime)), 3 -> TypedValue("the_table"))
+      Map(1 -> TypedParameter(Time(startTime)), 2 -> TypedParameter(Time(endTime)), 3 -> TypedParameter("the_table"))
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withUpdatedAfter(startTime)
       .withUpdatedBefore(endTime)
@@ -159,7 +159,7 @@ class UpdatesIntervalsProviderTest extends AnyFlatSpec with Matchers with Either
           )
         )
       ),
-      Map(1 -> TypedValue(Time(startTime)), 2 -> TypedValue("the_table"))
+      Map(1 -> TypedParameter(Time(startTime)), 2 -> TypedParameter("the_table"))
     ).value shouldBe UpdatesIntervalsFilter.empty
       .withRecalculatedAfter(startTime)
       .withTableName("the_table")

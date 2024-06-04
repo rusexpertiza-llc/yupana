@@ -18,7 +18,8 @@ package org.yupana.core
 
 import org.yupana.api.query.Query
 import org.yupana.api.types.DataType
-import org.yupana.core.sql.parser.{ Statement, Value }
+import org.yupana.core.sql.Parameter
+import org.yupana.core.sql.parser.Statement
 
 sealed trait PreparedStatement
 
@@ -26,7 +27,7 @@ case class PreparedSelect(query: Query) extends PreparedStatement
 
 case class PreparedCommand(
     statement: Statement,
-    value: Map[Int, Value],
+    value: Map[Int, Parameter],
     fieldNames: Seq[String],
     fieldTypes: Seq[DataType]
 ) extends PreparedStatement

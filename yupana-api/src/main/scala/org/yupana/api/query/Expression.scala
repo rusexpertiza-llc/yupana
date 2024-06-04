@@ -153,8 +153,7 @@ final case class NullExpr[T](override val dataType: DataType.Aux[T]) extends Con
   override def encode: String = "null"
 }
 
-final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit override val dataType: DataType.Aux[T])
-    extends ConstExpr[T] {
+final case class ConstantExpr[T](v: T)(implicit override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
 
   override val isNullable: Boolean = false
 
@@ -169,10 +168,23 @@ final case class ConstantExpr[T](v: T, prepared: Boolean = false)(implicit overr
   }
 }
 
-final case class UntypedConstantExpr(v: String) extends ConstExpr[String] {
-  override val dataType: DataType.Aux[String] = DataType[String]
+final case class PlaceholderExpr[T](id: Int, override val dataType: DataType.Aux[T]) extends ConstExpr[T] {
+  override val isNullable: Boolean = true
+  override def encode: String = s"?$id:${dataType.meta.javaTypeName}"
+}
+
+final case class UntypedPlaceholderExpr(id: Int) extends ConstExpr[Null] {
+  override val dataType: DataType.Aux[Null] = DataType[Null]
+  override val isNullable: Boolean = true
+  override def encode: String = s"?$id"
+}
+
+case object NowExpr extends Expression[Time] {
+  override val dataType: DataType.Aux[Time] = DataType[Time]
   override val isNullable: Boolean = false
-  override def encode: String = s"const($v)"
+  override def encode: String = "now()"
+  override val kind: ExprKind = Const
+  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
 }
 
 case object TimeExpr extends Expression[Time] {

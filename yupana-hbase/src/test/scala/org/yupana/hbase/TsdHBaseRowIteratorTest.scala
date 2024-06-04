@@ -45,7 +45,9 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
     InternalQuery(
       TestSchema.testTable,
       exprs.map(_.expr).toSet,
-      and(ge(time, const(Time(from))), lt(time, const(Time(to))))
+      and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+      Time(100000L),
+      IndexedSeq.empty
     )
   val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)
 

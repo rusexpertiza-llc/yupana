@@ -16,8 +16,10 @@
 
 package org.yupana.core.sql
 
-import org.yupana.api.query.Expression
+import org.yupana.api.types.DataType
 
-sealed trait ProtoExpr
-case class ResolvedExpr[T](e: Expression[T]) extends ProtoExpr
-case class UnresolvedExpr(v: String) extends ProtoExpr
+sealed trait Parameter
+
+case class TypedParameter[T](value: T)(implicit val dataType: DataType.Aux[T]) extends Parameter
+
+case class UntypedParameter(value: String) extends Parameter

@@ -18,35 +18,14 @@ package org.yupana.core
 
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.core.utils.ExpressionUtils
-import org.yupana.core.utils.ExpressionUtils.Transformer
 
 object QueryOptimizer {
 
-  def optimize(expressionCalculator: ConstantCalculator)(query: Query): Query = {
+  def optimize(query: Query): Query = {
     query.copy(
-      fields = query.fields.map(optimizeField(expressionCalculator)),
-      filter = query.filter.map(optimizeCondition(expressionCalculator)),
-      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator)),
-      groupBy = query.groupBy.map(e => optimizeExpr(expressionCalculator)(e))
+      filter = query.filter.map(simplifyCondition),
+      postFilter = query.postFilter.map(simplifyCondition)
     )
-  }
-
-  def optimizeCondition(expressionCalculator: ConstantCalculator)(c: Condition): Condition = {
-    simplifyCondition(optimizeExpr(expressionCalculator)(c))
-  }
-
-  def optimizeField(expressionCalculator: ConstantCalculator)(field: QueryField): QueryField = {
-    field.copy(expr = optimizeExpr(expressionCalculator)(field.expr))
-  }
-
-  def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
-    val transformer = new Transformer {
-      override def apply[U](e: Expression[U]): Option[Expression[U]] = {
-        if (e.kind == Const) Some(evaluateConstant(expressionCalculator)(e)) else None
-      }
-    }
-    ExpressionUtils.transform(transformer)(expr)
   }
 
   def simplifyCondition(condition: Condition): Condition = {
@@ -101,17 +80,5 @@ object QueryOptimizer {
         TrueExpr
       }
     }
-  }
-
-  private def evaluateConstant[T](
-      expressionCalculator: ConstantCalculator
-  )(e: Expression[T]): Expression[T] = {
-    assert(e.kind == Const)
-    val eval = expressionCalculator.evaluateConstant(e)
-    if (eval != null) {
-      ConstantExpr(eval)(
-        e.dataType
-      )
-    } else NullExpr[T](e.dataType)
   }
 }
