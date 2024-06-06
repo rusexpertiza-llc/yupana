@@ -19,7 +19,7 @@ class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDriv
 
   "HashTableDataset" should "set and get values for the same key" in {
 
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val ds = new HashTableDataset(schema)
 
     val key = testKey(10)
@@ -39,7 +39,7 @@ class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDriv
   }
 
   it should "set and get values of different types in several rows" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val ds = new HashTableDataset(schema)
 
     val key0 = testKey(0)
@@ -87,7 +87,7 @@ class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDriv
   }
 
   it should "operate on multiple batches" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val ds = new HashTableDataset(schema)
 
     val range = 0 to BatchDataset.MAX_MUM_OF_ROWS * 10
@@ -104,7 +104,7 @@ class HashTableDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDriv
   }
 
   it should "partition" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val ds = new HashTableDataset(schema)
 
     val key: AnyRef = "1"

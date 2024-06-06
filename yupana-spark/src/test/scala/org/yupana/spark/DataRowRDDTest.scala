@@ -46,7 +46,7 @@ trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSessi
 
     }
 
-    val drRdd = new DataRowRDD(rdd, queryContext)
+    val drRdd = new ResultRDD(rdd, queryContext)
     val df = drRdd.toDF(spark)
 
     df.schema shouldEqual StructType(

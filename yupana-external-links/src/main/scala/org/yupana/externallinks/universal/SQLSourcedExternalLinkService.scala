@@ -185,6 +185,10 @@ class SQLSourcedExternalLinkService[DimensionValue](
       .flatMap(_.values.map(_.asInstanceOf[DimensionValue]))
       .toSet
   }
+
+  override def put(dataPoints: Seq[DataPoint]): Unit = {}
+
+  override def put(batchDataset: BatchDataset): Unit = {}
 }
 
 object SQLSourcedExternalLinkService {

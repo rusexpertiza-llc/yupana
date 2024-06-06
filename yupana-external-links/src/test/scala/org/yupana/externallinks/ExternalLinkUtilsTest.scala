@@ -115,7 +115,7 @@ class ExternalLinkUtilsTest extends AnyFlatSpec with Matchers with MockFactory w
       link(TestLink, TestLink.field2) -> 3
     )
 
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, Some(table))
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, Some(table))
     val batch = new BatchDataset(schema)
 
     batch.set(0, time, Time(10L))

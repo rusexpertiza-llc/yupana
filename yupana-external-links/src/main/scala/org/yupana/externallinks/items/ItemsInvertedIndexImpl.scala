@@ -31,6 +31,7 @@ import org.yupana.schema.externallinks.ItemsInvertedIndex
 import org.yupana.schema.{ Dimensions, ItemDimension }
 
 import java.nio.ByteBuffer
+import scala.collection.mutable
 
 object ItemsInvertedIndexImpl {
 
@@ -86,6 +87,15 @@ class ItemsInvertedIndexImpl(
         .filter(_.trim.nonEmpty)
       putItemNames(items)
     }
+  }
+
+  override def put(batchDataset: BatchDataset): Unit = {
+    val items = mutable.Set.empty[String]
+    batchDataset.foreach { rowNum =>
+      val item = batchDataset.get[Dimensions.ITEM.T](rowNum, Dimensions.ITEM.name)
+      items.add(item)
+    }
+    putItemNames(items.toSet)
   }
 
   def putItemNames(names: Set[String]): Unit = {
@@ -152,4 +162,5 @@ class ItemsInvertedIndexImpl(
     val idsPerPrefix = transPrefixes.map(dimIdsForPrefix)
     SortedSetIterator.intersectAll(idsPerWord.toSeq ++ idsPerPrefix)
   }
+
 }

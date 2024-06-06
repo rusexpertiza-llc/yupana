@@ -19,7 +19,7 @@ package org.yupana.core
 import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query._
-import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.yupana.api.schema.{ ExternalLink, Schema, Table }
 import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
@@ -59,6 +59,16 @@ class TSDB(
   override def put(dataPoints: Collection[DataPoint], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
     if (config.putEnabled) {
       super.put(dataPoints, user)
+    } else throw new IllegalAccessException("Put is disabled")
+  }
+
+  override def putDataset(
+      table: Table,
+      dataset: Collection[BatchDataset],
+      user: YupanaUser
+  ): Unit = {
+    if (config.putEnabled) {
+      super.putDataset(table, dataset, user)
     } else throw new IllegalAccessException("Put is disabled")
   }
 

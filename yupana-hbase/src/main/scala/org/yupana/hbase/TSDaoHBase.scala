@@ -18,9 +18,9 @@ package org.yupana.hbase
 
 import org.apache.hadoop.hbase.client.{ Connection, Result => HResult }
 import org.yupana.api.query.DataPoint
-import org.yupana.api.schema.{ Dimension, Schema }
+import org.yupana.api.schema.{ Dimension, Schema, Table }
 import org.yupana.core.dao.DictionaryProvider
-import org.yupana.core.model.UpdateInterval
+import org.yupana.core.model.{ BatchDataset, UpdateInterval }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.{ IteratorMapReducible, MapReducible }
 import org.yupana.hbase.HBaseUtils._
@@ -59,7 +59,24 @@ class TSDaoHBase(
     }
   }
 
-  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
-    doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
+  override def put(
+      mr: MapReducible[Iterator],
+      dataPoints: Iterator[DataPoint],
+      username: String
+  ): Iterator[UpdateInterval] = {
+    mr.batchFlatMap(dataPoints, putsBatchSize) { dataPointsBatch =>
+      doPutBatch(connection, dictionaryProvider, namespace, username, putsBatchSize, dataPointsBatch)
+    }
+  }
+
+  override def putDataset(
+      mr: MapReducible[Iterator],
+      table: Table,
+      dataset: Iterator[BatchDataset],
+      username: String
+  ): Iterator[UpdateInterval] = {
+    mr.flatMap(dataset) { batch =>
+      doPutBatchDataset(connection, dictionaryProvider, namespace, username, batch, table)
+    }
   }
 }

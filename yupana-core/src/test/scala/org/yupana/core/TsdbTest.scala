@@ -24,7 +24,7 @@ import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ LocalDateTime, ZoneOffset }
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbTest
@@ -60,7 +60,7 @@ class TsdbTest
       tsdbDaoMock,
       changelogDaoMock,
       identity,
-      SimpleTsdbConfig(putEnabled = true),
+      SimpleTsdbConfig(putEnabled = true, putBatchSize = 2),
       { (_: Query, _: String) => NoMetricCollector }
     )
     val externalLinkServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
@@ -69,22 +69,31 @@ class TsdbTest
     val time = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC).toInstant.toEpochMilli
     val dims = Map[Dimension, Any](TestDims.DIM_A -> "test1", TestDims.DIM_B -> "test2")
     val dp1 = DataPoint(TestSchema.testTable, time, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
-    val dp2 = DataPoint(TestSchema.testTable, time + 1, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
-    val dp3 =
+    val dp2 =
       DataPoint(TestSchema.testTable2, time + 1, dims, Seq(MetricValue(TestTable2Fields.TEST_FIELD, BigDecimal(1))))
+    val dp3 = DataPoint(TestSchema.testTable, time + 1, dims, Seq(MetricValue(TestTableFields.TEST_FIELD, 1.0)))
+
+    val from = OffsetDateTime.of(2017, 10, 15, 0, 0, 0, 0, ZoneOffset.UTC)
+    val to = OffsetDateTime.of(2017, 10, 16, 0, 0, 0, 0, ZoneOffset.UTC)
+    val interval1 = UpdateInterval(TestSchema.testTable.name, from, to, OffsetDateTime.now(), "test")
+    val interval2 = UpdateInterval(TestSchema.testTable2.name, from, to, OffsetDateTime.now(), "test")
 
     val mr = new IteratorMapReducible()
-    (tsdbDaoMock.mapReduceEngine _).expects(NoMetricCollector).returning(mr)
+    (tsdbDaoMock.mapReduceEngine _).expects(NoMetricCollector).returning(mr).anyNumberOfTimes()
 
     (tsdbDaoMock.put _)
       .expects(where { (_, dps, user) =>
         dps.toSeq == Seq(dp1, dp2, dp3) && user == YupanaUser.ANONYMOUS.name
       })
-      .returning(Seq.empty[UpdateInterval])
+      .returning(Iterator(interval1, interval2, interval1))
 
-    (changelogDaoMock.putUpdatesIntervals _).expects(Seq.empty)
+    (changelogDaoMock.putUpdatesIntervals _)
+      .expects(where { actual: Seq[UpdateInterval] =>
+        actual.toSet == Set(interval1, interval2)
+      })
 
-    (externalLinkServiceMock.put _).expects(Seq(dp1, dp2, dp3))
+    (externalLinkServiceMock.put(_: Seq[DataPoint])).expects(Seq(dp1, dp2))
+    (externalLinkServiceMock.put(_: Seq[DataPoint])).expects(Seq(dp3))
 
     tsdb.put(Iterator(dp1, dp2, dp3))
   }

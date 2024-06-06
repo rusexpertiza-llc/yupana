@@ -17,10 +17,16 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
 
   val valExprIndex: Map[Expression[_], Int] = Map(intExpr -> 0, doubleExpr -> 2)
   val refExprIndex: Map[Expression[_], Int] = Map(refExpr -> 1, stringExpr -> 3)
+  val nameMapping: Map[String, Int] = Map(
+    "intField" -> 0,
+    "ref" -> 1,
+    "doubleField" -> 2,
+    "stringField" -> 3
+  )
 
   "BatchDataset" should "set and get values of different types for the same row" in {
 
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, nameMapping, None)
     val batch = new BatchDataset(schema)
 
     batch.set(0, intExpr, 1)
@@ -36,10 +42,14 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
     batch.isDefined(0, refExpr) shouldEqual true
     batch.isDefined(0, doubleExpr) shouldEqual true
     batch.isDefined(0, stringExpr) shouldEqual true
+
+    batch.get[Int](0, "intField") shouldEqual 1
+    batch.get[Double](0, "doubleField") shouldEqual 2.0
+    batch.get[String](0, "stringField") shouldEqual "text"
   }
 
   it should "set and get values of different types in several rows" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val batch = new BatchDataset(schema)
 
     batch.set(0, intExpr, 1)
@@ -89,7 +99,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
   }
 
   it should "set and get fixed length values" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val batch = new BatchDataset(schema)
 
     val rowNum = for (n <- Gen.choose(0, BatchDataset.MAX_MUM_OF_ROWS)) yield n
@@ -103,7 +113,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
   }
 
   it should "set and get variable length values" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val batch = new BatchDataset(schema)
 
     val rowNum = Gen.choose(0, BatchDataset.MAX_MUM_OF_ROWS - 1)
@@ -120,7 +130,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
   }
 
   it should "serialize/deserialize" in {
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val batch = new BatchDataset(schema)
     batch.set(0, intExpr, 1)
     batch.set(0, doubleExpr, 2.0d)

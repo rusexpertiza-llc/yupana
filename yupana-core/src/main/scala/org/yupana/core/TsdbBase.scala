@@ -20,11 +20,11 @@ import com.typesafe.scalalogging.StrictLogging
 import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
-import org.yupana.api.schema.{ ExternalLink, Schema }
+import org.yupana.api.schema.{ ExternalLink, Schema, Table }
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ ChangelogDao, TSDao }
 import org.yupana.core.jit.ExpressionCalculatorFactory
-import org.yupana.core.model.{ BatchDataset, HashTableDataset, InternalQuery }
+import org.yupana.core.model.{ BatchDataset, HashTableDataset, InternalQuery, UpdateInterval }
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
 import org.yupana.core.utils.{ ConditionUtils, FlatAndCondition }
 import org.yupana.metrics.Failed
@@ -317,6 +317,31 @@ trait TsdbBase extends StrictLogging {
     }
     val updatedIntervals = dao.put(mr, withExternalLinks, user.name)
 
-    changelogDao.putUpdatesIntervals(updatedIntervals)
+    updateIntervals(updatedIntervals)
   }
+
+  def putDataset(table: Table, dataset: Collection[BatchDataset], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
+    val mr = mapReduceEngine(NoMetricCollector)
+
+    val updated = mr.map(dataset) { batch =>
+      externalLinkServices.foreach(s => s.put(batch))
+      batch
+    }
+
+    val updatedIntervals = dao.putDataset(mr, table, updated, user.name)
+
+    updateIntervals(updatedIntervals)
+
+  }
+
+  private def updateIntervals(updateIntervals: Collection[UpdateInterval]): Unit = {
+    val mr = mapReduceEngine(NoMetricCollector)
+    val updateIntervalsByWhatUpdated = mr.map(updateIntervals)(i => i.whatUpdated -> i)
+    val mostRecentUpdateIntervalsByWhatUpdated =
+      mr.reduceByKey(updateIntervalsByWhatUpdated)((i1, i2) => if (i1.updatedAt.isAfter(i2.updatedAt)) i1 else i2)
+    val mostRecentUpdateIntervals = mr.map(mostRecentUpdateIntervalsByWhatUpdated)(_._2)
+    val materializedIntervals = mr.materialize(mostRecentUpdateIntervals).distinct
+    changelogDao.putUpdatesIntervals(materializedIntervals)
+  }
+
 }
