@@ -8,13 +8,14 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
 import org.yupana.cache.CacheFactory
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.{ BatchDataset, InternalQuery }
 import org.yupana.core.utils.SparseTable
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
-import java.time.{ OffsetDateTime, ZoneOffset }
+import java.time.{ LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbArithmeticTest
@@ -51,6 +52,7 @@ class TsdbArithmeticTest
   "TSDB" should "execute query with arithmetic (no aggregations)" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT testField + testField2 as some_sum FROM test_table WHERE A = 'taga'" + timeBounds()
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -62,7 +64,8 @@ class TsdbArithmeticTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -80,7 +83,7 @@ class TsdbArithmeticTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("some_sum") shouldBe 3d
@@ -96,7 +99,7 @@ class TsdbArithmeticTest
       " sum(testField) * max(testField2) / 2 as mult FROM test_table WHERE A = 'taga'" +
       timeBounds() + " GROUP BY A"
     val query = createQuery(sql)
-
+    val now = Time(LocalDateTime.now())
     (tsdbDaoMock.query _)
       .expects(
         InternalQuery(
@@ -112,7 +115,8 @@ class TsdbArithmeticTest
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("taga"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -133,7 +137,7 @@ class TsdbArithmeticTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("stf") shouldBe 4d
@@ -153,6 +157,7 @@ class TsdbArithmeticTest
       "FROM test_table " +
       "WHERE A in ('0000270761025003') " + timeBounds() + " GROUP BY A, address"
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -180,7 +185,8 @@ class TsdbArithmeticTest
             lt(time, const(Time(to))),
             in(lower(dimension(TestDims.DIM_A)), Set("0000270761025003"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -202,7 +208,7 @@ class TsdbArithmeticTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("totalSum") shouldBe -6d
@@ -216,7 +222,7 @@ class TsdbArithmeticTest
         "(distinct_count(testField) + distinct_count(testField2)) as plus5 " +
         "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -225,7 +231,8 @@ class TsdbArithmeticTest
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -245,7 +252,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
       res.get[Long]("plus4") shouldBe 4
@@ -271,7 +278,7 @@ class TsdbArithmeticTest
           |""".stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -287,7 +294,8 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -335,7 +343,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
       res.get[Long]("c1") shouldBe 3
@@ -364,7 +372,7 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -377,7 +385,8 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -406,7 +415,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
       res.get[Long]("cB") shouldBe 4
@@ -427,6 +436,7 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -440,7 +450,8 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -478,7 +489,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
       res.get[Long]("hllString") shouldBe 2
@@ -495,6 +506,7 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
 
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -503,7 +515,8 @@ class TsdbArithmeticTest
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_LONG_FIELD), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -525,7 +538,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
       res.get[Long]("c") shouldBe 0
@@ -589,7 +602,7 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val pointTime = from.toInstant.toEpochMilli + 10
 
       (tsdbDaoMock.query _)
@@ -604,7 +617,8 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -653,7 +667,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
 
@@ -672,6 +686,7 @@ class TsdbArithmeticTest
           "FROM test_table_4 " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
+      val now = Time(LocalDateTime.now())
 
       val pointTime = from.toInstant.toEpochMilli + 10
 
@@ -681,7 +696,8 @@ class TsdbArithmeticTest
             TestSchema.testTable4,
             Set[Expression[_]](dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -710,7 +726,7 @@ class TsdbArithmeticTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
       res.get[BigDecimal]("avgB") shouldBe 1.25
@@ -726,6 +742,7 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
+      val now = Time(LocalDateTime.now())
 
       val pointTime = from.toInstant.toEpochMilli + 10
 
@@ -740,7 +757,8 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -778,6 +796,7 @@ class TsdbArithmeticTest
     val sql = "SELECT testField + testLongField as plus2 " +
       "FROM test_table " + timeBounds(and = false)
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -785,7 +804,8 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -801,7 +821,7 @@ class TsdbArithmeticTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("plus2") shouldBe 4d
@@ -814,6 +834,7 @@ class TsdbArithmeticTest
       "FROM test_table " + timeBounds(and = false) +
       "HAVING (time - lag_time) >= INTERVAL '10' SECOND"
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
@@ -824,7 +845,8 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](dimension(TestDims.DIM_A), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -854,6 +876,7 @@ class TsdbArithmeticTest
       timeBounds(and = false) +
       "HAVING ((operator + lag_operator) <> 'MayorovaBlatov')"
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
@@ -865,7 +888,8 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_STRING_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -887,7 +911,7 @@ class TsdbArithmeticTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[String]("operator") shouldBe "Blatov"
@@ -898,6 +922,7 @@ class TsdbArithmeticTest
     val sql = "SELECT testField, lag(testField), testField + lag(testField) as plus2 " +
       "FROM test_table " + timeBounds(and = false) + " HAVING lag(testField) IS NOT NULL "
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
@@ -908,7 +933,8 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -926,7 +952,7 @@ class TsdbArithmeticTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
 
@@ -942,6 +968,7 @@ class TsdbArithmeticTest
     val link5 = mockCatalogService(tsdb, TestLinks.TEST_LINK5)
     val sql = "SELECT TestLink5_testField5D + 5 AS plus5 FROM test_table " + timeBounds(and = false)
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
@@ -951,7 +978,8 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -970,7 +998,7 @@ class TsdbArithmeticTest
         ds.set(0, doubleLinkExpr, 15.23)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
 

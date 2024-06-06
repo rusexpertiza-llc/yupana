@@ -48,14 +48,12 @@ class QueryTest extends AnyFlatSpec with Matchers {
       ),
       Seq(dimension(DIM_A), dimension(DIM_B)),
       Some(100),
-      Some(gt(sum(metric(FIELD)), const(1000d))),
-      Time(LocalDateTime.of(2024, 5, 20, 15, 9, 13))
+      Some(gt(sum(metric(FIELD)), const(1000d)))
     )
 
     query.toString shouldEqual
       s"""Query(
         |  query_id: ${query.id}
-        |  start: 2024-05-20T15:09:13Z
         |  FIELDS:
         |    dim(A) as DIM_A
         |    dim(B) as B
@@ -76,14 +74,12 @@ class QueryTest extends AnyFlatSpec with Matchers {
     val query = Query(
       None,
       Seq(plus(const(2), const(3)) as "five"),
-      None,
-      startTime = Time(LocalDateTime.of(2024, 5, 20, 15, 5, 22))
+      None
     )
 
     query.toString shouldEqual
       s"""Query(
          |  query_id: ${query.id}
-         |  start: 2024-05-20T15:05:22Z
          |  FIELDS:
          |    const(2:Integer) + const(3:Integer) as five
          |)""".stripMargin

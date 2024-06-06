@@ -118,6 +118,8 @@ class TsdbTest
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
 
+    val startTime = Time(System.currentTimeMillis())
+
     val query = Query(
       TestSchema.testTable,
       const(Time(qtime)),
@@ -148,7 +150,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          startTime,
           IndexedSeq.empty
         ),
         *,
@@ -164,7 +167,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, startTime)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -177,6 +180,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val startTime = Time(System.currentTimeMillis())
 
     val params = IndexedSeq("test1", Time(from), Time(to))
 
@@ -215,7 +219,8 @@ class TsdbTest
             ge(time, param[Time](2)),
             lt(time, param[Time](3))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          startTime,
           params
         ),
         *,
@@ -231,7 +236,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, startTime)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -269,7 +274,6 @@ class TsdbTest
         dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
       ),
-      startTime = now,
       params = params
     )
 
@@ -283,6 +287,7 @@ class TsdbTest
           from.millis,
           now.millis + 1,
           Seq(c),
+          YupanaUser.ANONYMOUS,
           now,
           params
         )
@@ -316,6 +321,7 @@ class TsdbTest
             le(time, const(now)),
             in(dimension(TestDims.DIM_A), Set("X", "Y"))
           ),
+          YupanaUser.ANONYMOUS,
           now,
           params
         ),
@@ -332,7 +338,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
     res.get[Double]("sum_testField") shouldBe 3d
@@ -358,7 +364,6 @@ class TsdbTest
         )
       ),
       Seq(truncDay(time)),
-      startTime = Time(now),
       params = IndexedSeq(2d)
     )
 
@@ -374,7 +379,8 @@ class TsdbTest
             ge(time, const(Time(now.minusDays(1)))),
             lt(time, const(Time(now)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          Time(now),
           IndexedSeq.empty
         ),
         *,
@@ -388,7 +394,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, Time(now))
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 22, 0, 0, 0))
     res.get[Double]("x") shouldBe 5d
@@ -400,6 +406,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -431,7 +438,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -447,7 +455,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -460,6 +468,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val pointTime = qtime.plusHours(2)
 
@@ -485,7 +494,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -500,7 +510,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -512,6 +522,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val pointTime1 = qtime.plusMinutes(10)
     val pointTime2 = qtime.plusHours(2)
@@ -542,7 +553,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -561,7 +573,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime2)
@@ -573,6 +585,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val pointTime1 = qtime.plusMinutes(10)
     val pointTime2 = qtime.plusHours(2)
@@ -605,7 +618,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -628,7 +642,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(pointTime1)
@@ -646,6 +660,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -678,7 +693,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             neq(dimension(TestDims.DIM_A), const("test11"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -694,7 +710,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -707,6 +723,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -738,7 +755,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -754,7 +772,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
 
@@ -768,6 +786,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -800,7 +819,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -821,7 +841,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -834,6 +854,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -860,7 +881,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -897,7 +919,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -905,7 +927,7 @@ class TsdbTest
       res1.get[String]("A") shouldBe "test12"
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -918,6 +940,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -944,7 +967,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -981,7 +1005,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -989,7 +1013,7 @@ class TsdbTest
       res1.get[Int]("A") shouldBe 4
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -1000,6 +1024,7 @@ class TsdbTest
 
   it should "execute total aggregation" in withTsdbMock { (tsdb, tsDaoMock) =>
     val qtime = LocalDateTime.of(2022, 2, 16, 15, 7)
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -1017,7 +1042,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1))))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -1038,7 +1064,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("total_sum") shouldEqual 111d
@@ -1047,6 +1073,7 @@ class TsdbTest
 
   it should "group by without aggregate functions" in withTsdbMock { (tsdb, tsDaoMock) =>
     val qtime = LocalDateTime.of(2022, 2, 16, 15, 7)
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -1063,7 +1090,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD)),
           and(ge(time, const(Time(qtime))), lt(time, const(Time(qtime.plusDays(1))))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -1084,21 +1112,21 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 3) { _ =>
       res1.next()
       res1.get[Double]("tf") shouldBe 1d
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 3) { _ =>
       res2.next()
       res2.get[Double]("tf") shouldBe 3d
     }
 
-    val res3 = tsdb.query(query)
+    val res3 = tsdb.query(query, now)
     var c = 0
     while (res3.next()) {
       c += 1
@@ -1110,6 +1138,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 12, 18, 11, 26).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       filter = Some(
@@ -1140,7 +1169,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -1165,7 +1195,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("sum_testField") shouldBe 4d
@@ -1178,6 +1208,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -1209,7 +1240,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -1250,7 +1282,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test12"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -1283,7 +1316,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -1294,7 +1327,7 @@ class TsdbTest
       res1.get[String]("TestCatalog_testField") shouldBe "testFieldValue"
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -1314,6 +1347,7 @@ class TsdbTest
       val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
       val from = qtime.toInstant.toEpochMilli
       val to = qtime.plusDays(1).toInstant.toEpochMilli
+      val now = Time(LocalDateTime.now())
 
       val query = Query(
         TestSchema.testTable,
@@ -1339,7 +1373,8 @@ class TsdbTest
               lt(time, const(Time(to))),
               c
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -1365,7 +1400,8 @@ class TsdbTest
               lt(time, const(Time(to))),
               in(dimension(TestDims.DIM_A), Set())
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -1374,7 +1410,7 @@ class TsdbTest
         )
         .returning(Iterator.empty)
 
-      val result = tsdb.query(query)
+      val result = tsdb.query(query, now)
       result.next() shouldBe false
   }
 
@@ -1385,6 +1421,7 @@ class TsdbTest
       val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
       val from = qtime.toInstant.toEpochMilli
       val to = qtime.plusDays(1).toInstant.toEpochMilli
+      val now = Time(LocalDateTime.now())
 
       val query = Query(
         TestSchema.testTable,
@@ -1415,7 +1452,8 @@ class TsdbTest
               lt(time, const(Time(to))),
               c
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -1441,7 +1479,8 @@ class TsdbTest
               lt(time, const(Time(to))),
               DimIdInExpr(TestDims.DIM_A, SortedSetIterator.empty[(Int, Long)])
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -1450,7 +1489,7 @@ class TsdbTest
         )
         .returning(Iterator.empty)
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
       res.next() shouldBe false
   }
 
@@ -1460,6 +1499,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -1496,7 +1536,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -1535,7 +1576,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("test11", "test12"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -1558,7 +1600,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -1575,6 +1617,7 @@ class TsdbTest
       val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
       val from = qtime.toInstant.toEpochMilli
       val to = qtime.plusDays(1).toInstant.toEpochMilli
+      val now = Time(LocalDateTime.now())
 
       val query = Query(
         TestSchema.testTable,
@@ -1606,7 +1649,8 @@ class TsdbTest
               lt(time, const(Time(to))),
               c
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -1645,7 +1689,8 @@ class TsdbTest
               lt(time, const(Time(to))),
               DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator((1, 1L), (2, 2L)))
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -1667,7 +1712,7 @@ class TsdbTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
 
       res.next() shouldBe true
 
@@ -1688,6 +1733,7 @@ class TsdbTest
       val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
       val from = qtime.toInstant.toEpochMilli
       val to = qtime.plusDays(1).toInstant.toEpochMilli
+      val now = Time(LocalDateTime.now())
 
       val query = Query(
         TestSchema.testTable,
@@ -1728,7 +1774,8 @@ class TsdbTest
               c,
               c2
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -1751,7 +1798,8 @@ class TsdbTest
               c3,
               c4
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -1791,7 +1839,8 @@ class TsdbTest
               notIn(dimension(TestDims.DIM_A), Set("test11", "test12")),
               in(dimension(TestDims.DIM_A), Set("test12", "test13"))
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -1813,7 +1862,7 @@ class TsdbTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
       res.next() shouldBe true
 
       res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -1829,6 +1878,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -1869,7 +1919,8 @@ class TsdbTest
             c3,
             c4
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -1909,7 +1960,8 @@ class TsdbTest
             notIn(dimension(TestDims.DIM_A), Set("test13")),
             neq(dimension(TestDims.DIM_A), const("test11"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -1925,7 +1977,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(pointTime)
@@ -1942,6 +1994,7 @@ class TsdbTest
       val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
       val from = qtime.toInstant.toEpochMilli
       val to = qtime.plusDays(1).toInstant.toEpochMilli
+      val now = Time(LocalDateTime.now())
 
       val query = Query(
         TestSchema.testTable,
@@ -1976,7 +2029,8 @@ class TsdbTest
               c1,
               c2
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -1999,7 +2053,8 @@ class TsdbTest
               c3,
               c4
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           )
         )
@@ -2029,7 +2084,8 @@ class TsdbTest
               in(dimension(TestDims.DIM_A), Set("test12")),
               in(dimension(TestDims.DIM_A), Set("test11", "test12"))
             ),
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -2050,7 +2106,7 @@ class TsdbTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
       res.next() shouldBe true
       res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
       res.get[Double]("sum_testField") shouldBe 2d
@@ -2066,6 +2122,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2018, 7, 20, 11, 49).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2100,7 +2157,8 @@ class TsdbTest
             c1,
             c2
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -2122,7 +2180,8 @@ class TsdbTest
             c3,
             c4
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -2152,7 +2211,8 @@ class TsdbTest
             in(dimension(TestDims.DIM_B), Set(23.toShort, 24.toShort)),
             in(dimension(TestDims.DIM_A), Set("test11", "test12"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2173,7 +2233,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     res.get[Double]("sum_testField") shouldBe 6d
@@ -2189,6 +2249,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2216,7 +2277,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -2245,7 +2307,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("Test a 1", "Test a 2", "Test a 3"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2267,7 +2330,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -2277,7 +2340,7 @@ class TsdbTest
       res1.get[Short]("B") shouldBe 1
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -2294,6 +2357,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2327,7 +2391,8 @@ class TsdbTest
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -2357,7 +2422,8 @@ class TsdbTest
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2389,7 +2455,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 4) { _ =>
       res1.next() shouldBe true
@@ -2399,7 +2465,7 @@ class TsdbTest
       res1.get[Short]("B") shouldBe 1.toShort
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 4) { _ =>
       res2.next() shouldBe true
@@ -2409,7 +2475,7 @@ class TsdbTest
       res2.get[Short]("B") shouldBe 1.toShort
     }
 
-    val res3 = tsdb.query(query)
+    val res3 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 4) { _ =>
       res3.next() shouldBe true
@@ -2419,7 +2485,7 @@ class TsdbTest
       res3.get[Short]("B") shouldBe 2.toShort
     }
 
-    val res4 = tsdb.query(query)
+    val res4 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 4) { _ =>
       res4.next() shouldBe true
@@ -2437,6 +2503,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2481,7 +2548,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2517,7 +2585,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -2526,7 +2594,7 @@ class TsdbTest
       res1.get[String]("TestCatalog_testField") shouldBe "testFieldValue2"
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -2540,6 +2608,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query1 = Query(
       TestSchema.testTable,
@@ -2567,7 +2636,8 @@ class TsdbTest
             dimension(TestDims.DIM_A)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query1.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2643,6 +2713,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2696,7 +2767,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2724,7 +2796,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -2735,7 +2807,7 @@ class TsdbTest
       res1.get[String]("TestCatalog3_testField3-3") shouldBe "Value2"
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -2753,6 +2825,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2785,7 +2858,8 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2811,7 +2885,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
     res.get[Time]("min_time") shouldBe Time(pointTime1)
@@ -2825,6 +2899,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2855,7 +2930,8 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2876,7 +2952,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[BigDecimal]("dummy") shouldEqual BigDecimal(1)
@@ -2890,6 +2966,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2919,7 +2996,8 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -2940,7 +3018,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -2955,6 +3033,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -2980,7 +3059,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -3018,7 +3098,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test12"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3046,7 +3127,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -3056,7 +3137,7 @@ class TsdbTest
       res1.get[Long]("count_TestCatalog_testField") shouldBe 2L
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -3072,6 +3153,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3102,7 +3184,8 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3144,7 +3227,7 @@ class TsdbTest
       }
       .anyNumberOfTimes()
 
-    val res1 = tsdb.query(query)
+    val res1 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res1.next() shouldBe true
@@ -3155,7 +3238,7 @@ class TsdbTest
       res1.get[Short]("B") shouldBe 2
     }
 
-    val res2 = tsdb.query(query)
+    val res2 = tsdb.query(query, now)
 
     forAtLeast(1, 1 to 2) { _ =>
       res2.next() shouldBe true
@@ -3172,6 +3255,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       Some(TestSchema.testTable),
@@ -3208,7 +3292,8 @@ class TsdbTest
             dimension(TestDims.DIM_B)
           ),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3258,7 +3343,7 @@ class TsdbTest
       (qtime.toLocalDateTime, qtime.toLocalDateTime, 1d, "testA1", 1.toShort),
       (qtime.toLocalDateTime.plusSeconds(1), qtime.toLocalDateTime, 1d, "testA1", 1.toShort)
     )
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     forAll(t) { (time, lagTime, testField, tagA, tagB) =>
       res.next() shouldBe true
@@ -3278,6 +3363,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3310,7 +3396,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3345,7 +3432,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -3360,6 +3447,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3395,7 +3483,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3424,7 +3513,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -3436,6 +3525,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3461,7 +3551,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3496,7 +3587,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -3512,6 +3603,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3540,7 +3632,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3560,7 +3653,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("testField") shouldBe 1d
@@ -3587,6 +3680,7 @@ class TsdbTest
     val format = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     val from = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val to = from.plusDays(1)
+    val now = Time(LocalDateTime.now())
 
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK2, testCatalogServiceMock)
@@ -3611,7 +3705,8 @@ class TsdbTest
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_A)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3631,7 +3726,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Double]("salesTicketsCount") shouldBe 1
@@ -3642,6 +3737,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3672,7 +3768,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3698,7 +3795,7 @@ class TsdbTest
         Iterator(batch1, batch2)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     var c = 0
     while (res.next()) {
       res.get[Time]("time") shouldBe Time(pointTime)
@@ -3710,6 +3807,7 @@ class TsdbTest
 
   it should "handle empty result form DAO" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3732,7 +3830,7 @@ class TsdbTest
         Iterator.empty
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe false
     res.isLast() shouldBe true
   }
@@ -3743,7 +3841,6 @@ class TsdbTest
       Seq(minus(const(10), const(3)) as "seven"),
       None
     )
-
     val res = tsdb.query(query)
 
     res.next() shouldBe true
@@ -3755,11 +3852,10 @@ class TsdbTest
     val query = Query(
       None,
       Seq(extractDay(NowExpr) as "day_today"),
-      None,
-      startTime = Time(LocalDateTime.of(2024, 5, 16, 23, 42, 29))
+      None
     )
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, Time(LocalDateTime.of(2024, 5, 16, 23, 42, 29)))
 
     res.next() shouldBe true
     res.get[Int]("day_today") shouldEqual 16
@@ -3789,6 +3885,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli
     val to = qtime.plusDays(1).toInstant.toEpochMilli
+    val now = Time(LocalDateTime.now())
 
     val query = Query(
       TestSchema.testTable,
@@ -3817,7 +3914,8 @@ class TsdbTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3834,7 +3932,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -3848,6 +3946,7 @@ class TsdbTest
     val qtime = LocalDateTime.of(2023, 2, 7, 1, 45).atOffset(ZoneOffset.UTC)
     val from = qtime
     val to = qtime.plusDays(1)
+    val now = Time(LocalDateTime.now())
 
     val tsdbDaoMock = daoMock
     val changelogDaoMock = mock[ChangelogDao]
@@ -3907,7 +4006,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -3933,7 +4033,8 @@ class TsdbTest
             lt(time, const(Time(to))),
             notIn(dimension(TestDims.DIM_A), Set("test1", "test12"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -3969,7 +4070,7 @@ class TsdbTest
       .expects(capture(capturedMetrics))
       .atLeastOnce()
 
-    val res = tsdb.query(query, YupanaUser("test", None, TsdbRole.ReadOnly))
+    val res = tsdb.query(query, now, YupanaUser("test", None, TsdbRole.ReadOnly))
 
     res.next() shouldBe true
     res.next() shouldBe false

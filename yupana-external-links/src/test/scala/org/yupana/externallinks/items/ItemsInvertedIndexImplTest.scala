@@ -14,6 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.cache.CacheFactory
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
@@ -69,6 +70,7 @@ class ItemsInvertedIndexImplTest
           c1,
           c2
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head
@@ -125,6 +127,7 @@ class ItemsInvertedIndexImplTest
           le(time, const(Time(t2))),
           in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head
@@ -155,6 +158,7 @@ class ItemsInvertedIndexImplTest
           le(time, const(Time(t2))),
           notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head

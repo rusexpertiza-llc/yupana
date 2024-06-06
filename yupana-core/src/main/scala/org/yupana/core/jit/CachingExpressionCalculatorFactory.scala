@@ -30,6 +30,7 @@ object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
   override def makeCalculator(
       query: Query,
+      startTime: Time,
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema) = {
@@ -42,6 +43,6 @@ object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
       JIT.compile(tree)
     }
 
-    (fun(refs, query.params, query.startTime, tokenizer), schema)
+    (fun(refs, query.params, startTime, tokenizer), schema)
   }
 }

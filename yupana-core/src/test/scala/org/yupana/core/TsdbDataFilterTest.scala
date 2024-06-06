@@ -10,6 +10,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.schema.LinkField
 import org.yupana.cache.CacheFactory
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
@@ -52,6 +53,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     val pointTime = from.toInstant.toEpochMilli + 10
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -68,7 +70,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             equ(metric(TestTableFields.TEST_FIELD), const(1012d))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -89,7 +92,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
     res.get[Time]("time_time") shouldBe Time(pointTime)
     res.get[Double]("testField") shouldBe 1012d
@@ -101,7 +104,7 @@ class TsdbDataFilterTest
     val sql = "SELECT time AS time_time, abs(testField) AS abs_test_field, A, B FROM test_table " +
       "WHERE testField = 1012 AND B = 31" + timeBounds()
     val query = createQuery(sql)
-
+    val now = Time(LocalDateTime.now())
     val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
@@ -120,7 +123,8 @@ class TsdbDataFilterTest
             equ(metric(TestTableFields.TEST_FIELD), const(1012d)),
             equ(dimension(TestDims.DIM_B), const(31.toShort))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -142,7 +146,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
     res.get[Time]("time_time") shouldBe Time(pointTime)
     res.get[Double]("abs_test_field") shouldBe 1012d
@@ -155,6 +159,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     val pointTime = from.toInstant.toEpochMilli + 10
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -171,7 +176,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             le(metric(TestTableFields.TEST_FIELD), const(1012d))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -194,7 +200,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -206,7 +212,7 @@ class TsdbDataFilterTest
   it should "execute query with filter by values comparing two ValueExprs" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val sql = "SELECT time AS time_time, A, B FROM test_table WHERE testField != testField2" + timeBounds()
     val query = createQuery(sql)
-
+    val now = Time(LocalDateTime.now())
     val pointTime = from.toInstant.toEpochMilli + 10
 
     (tsdbDaoMock.query _)
@@ -225,7 +231,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             neq(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -248,7 +255,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -262,6 +269,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     val pointTime = from.toInstant.toEpochMilli + 10
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -278,7 +286,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -299,7 +308,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
     res.get[Time]("time") shouldBe Time(pointTime)
@@ -321,6 +330,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     val pointTime = from.toInstant.toEpochMilli + 10
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -337,7 +347,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             notIn(metric(TestTableFields.TEST_FIELD), Set(123d, 456d))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -364,7 +375,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldBe true
 
@@ -383,6 +394,7 @@ class TsdbDataFilterTest
       "WHERE F1 IN (1012, 1014) AND testStringField != 'Str@!' AND TestLink2_testField2 = 'Str@!Ster'" +
       timeBounds()
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val c = equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
     (testCatalogServiceMock.transformCondition _)
@@ -396,7 +408,8 @@ class TsdbDataFilterTest
             neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
             equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -427,7 +440,8 @@ class TsdbDataFilterTest
             neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
             in(dimension(TestDims.DIM_A), Set("test1"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -455,7 +469,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(pointTime)
@@ -472,6 +486,7 @@ class TsdbDataFilterTest
     val sql = "SELECT day(time) AS t, testField, A, B " +
       "FROM test_table WHERE TestLink_testField IS NULL" + timeBounds()
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val condition = and(
       ge(time, const(Time(from))),
@@ -480,7 +495,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
+      .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -506,7 +521,8 @@ class TsdbDataFilterTest
             dimension(TestDims.DIM_B)
           ),
           condition,
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -527,7 +543,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -543,6 +559,7 @@ class TsdbDataFilterTest
     val sql = "SELECT hour(time) AS t, testField, A, B, TestLink_testField AS ctf " +
       "FROM test_table WHERE ctf IS NOT NULL" + timeBounds()
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     val condition = and(
       ge(time, const(Time(from))),
@@ -551,7 +568,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
+      .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -577,7 +594,8 @@ class TsdbDataFilterTest
             dimension(TestDims.DIM_B)
           ),
           condition,
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -598,7 +616,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.HOURS).toInstant.toEpochMilli)
@@ -619,7 +637,7 @@ class TsdbDataFilterTest
         "FROM test_table " +
         "WHERE TestLink_testField IS NULL AND cf2 IS NOT NULL AND testField >= 1000 AND A != 'test1' AND B = 15" + timeBounds()
       val query = createQuery(sql)
-
+      val now = Time(LocalDateTime.now())
       val cs = Seq(
         ge(time, const(Time(from))),
         lt(time, const(Time(to))),
@@ -633,11 +651,11 @@ class TsdbDataFilterTest
       val condition = and(cs: _*)
 
       (testCatalogServiceMock.transformCondition _)
-        .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
+        .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
         .returning(Seq.empty)
 
       (testCatalogServiceMock2.transformCondition _)
-        .expects(FlatAndCondition.single(calculator, condition, query.startTime, IndexedSeq.empty))
+        .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
         .returning(Seq.empty)
 
       (testCatalogServiceMock.setLinkedValues _)
@@ -673,7 +691,8 @@ class TsdbDataFilterTest
               dimension(TestDims.DIM_B)
             ),
             condition,
-            query.startTime,
+            YupanaUser.ANONYMOUS,
+            now,
             IndexedSeq.empty
           ),
           *,
@@ -704,7 +723,7 @@ class TsdbDataFilterTest
           Iterator(batch)
         }
 
-      val res = tsdb.query(query)
+      val res = tsdb.query(query, now)
       res.next() shouldBe true
 
       res.get[Time]("t") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -724,6 +743,7 @@ class TsdbDataFilterTest
         "FROM test_table " +
         "WHERE TestLink2_testField2 = 'test2'" + timeBounds() + " GROUP BY d"
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (testCatalogServiceMock.setLinkedValues _)
       .expects(*, Set(link(TestLinks.TEST_LINK, "testField")).asInstanceOf[Set[LinkExpr[_]]])
@@ -745,7 +765,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             c
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         )
       )
@@ -769,7 +790,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -789,7 +811,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
     res.next() shouldBe true
 
     res.get[Time]("d") shouldBe Time(from.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
@@ -803,6 +825,7 @@ class TsdbDataFilterTest
     val query = createQuery(sql)
 
     val pointTime = from.toInstant.toEpochMilli + 10
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(
@@ -814,7 +837,8 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             neq(metric(TestTable2Fields.TEST_FIELD2), const(0d))
           ),
-          query.startTime,
+          YupanaUser.ANONYMOUS,
+          now,
           IndexedSeq.empty
         ),
         *,
@@ -829,7 +853,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val results = tsdb.query(query)
+    val results = tsdb.query(query, now)
     results.next() shouldBe false
   }
 
@@ -838,7 +862,7 @@ class TsdbDataFilterTest
     val link5 = mockCatalogService(tsdb, TestLinks.TEST_LINK5)
     val sql = "SELECT B FROM test_table WHERE TestLink5_testField5D > 20" + timeBounds()
     val query = createQuery(sql)
-
+    val now = Time(LocalDateTime.now())
     val doubleLinkExpr = link[Double](TestLinks.TEST_LINK5, LinkField[Double]("testField5D"))
 
     (tsdbDaoMock.query _)
@@ -863,7 +887,7 @@ class TsdbDataFilterTest
 
     (link5.transformCondition _).expects(*).onCall((_: FlatAndCondition) => Seq.empty)
 
-    val res = tsdb.query(query)
+    val res = tsdb.query(query, now)
 
     res.next() shouldEqual true
     res.get[Int]("B") shouldBe 15
@@ -873,6 +897,7 @@ class TsdbDataFilterTest
     val sql = "SELECT B, testField from test_table where (B IN (1,2,3) OR testField = 8)" + timeBounds()
 
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(*, *, *, *)
@@ -888,7 +913,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val rows = tsdb.query(query)
+    val rows = tsdb.query(query, now)
 
     rows.next() shouldBe true
     rows.next() shouldBe true
@@ -899,6 +924,7 @@ class TsdbDataFilterTest
       ") OR (testField = 8" + timeBounds(from.minusYears(1), to.minusYears(1)) + ")"
 
     val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
 
     (tsdbDaoMock.query _)
       .expects(*, *, *, *)
@@ -922,7 +948,7 @@ class TsdbDataFilterTest
         Iterator(batch)
       }
 
-    val rows = tsdb.query(query)
+    val rows = tsdb.query(query, now)
 
     var i = 0
     var fl = false
