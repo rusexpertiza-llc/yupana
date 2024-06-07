@@ -69,7 +69,7 @@ class QueryEngineRouter(
       case select: PreparedSelect =>
         for {
           _ <- hasPermission(user, Object.Table(select.query.table.map(_.name)), Action.Read)
-        } yield tsdb.query(select.query, user)
+        } yield tsdb.query(select.query, user = user)
 
       case EmptyQuery => Right(SimpleResult("", Nil, Nil, Iterator.empty))
 

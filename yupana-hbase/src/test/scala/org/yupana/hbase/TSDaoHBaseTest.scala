@@ -15,6 +15,7 @@ import org.yupana.api.types.ByteReaderWriter
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
 import org.yupana.core._
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
@@ -146,6 +147,7 @@ class TSDaoHBaseTest
           testTable,
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -183,6 +185,7 @@ class TSDaoHBaseTest
           testTable,
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -226,6 +229,7 @@ class TSDaoHBaseTest
           testTable,
           exprs.toSet,
           and(gt(time, const(Time(from))), le(time, const(Time(to)))),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -273,6 +277,7 @@ class TSDaoHBaseTest
             gt(const(Time(to)), time),
             ge(const(Time(to)), time)
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -320,6 +325,7 @@ class TSDaoHBaseTest
           testTable,
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1"))),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -369,6 +375,7 @@ class TSDaoHBaseTest
           testTable,
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), equ(dimension(TestDims.DIM_A), const("test1"))),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -418,6 +425,7 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_A), const("test1")),
             equ(dimension(TestDims.DIM_B), const(-1.toShort))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -493,6 +501,7 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             in(dimension(TestDims.DIM_A), Set("test1", "test2"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -525,6 +534,7 @@ class TSDaoHBaseTest
           testTable,
           exprs.toSet,
           and(ge(time, const(Time(from))), lt(time, const(Time(to))), in(dimension(TestDims.DIM_A), Set())),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -571,6 +581,7 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_B), const(21.toShort)),
             in(dimension(TestDims.DIM_A), Set("test2", "test3"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -645,6 +656,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("A 1", "A 2", "A 3")),
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -713,6 +725,7 @@ class TSDaoHBaseTest
             equ(dimension(TestDims.DIM_B), const(1.toShort)),
             in(dimension(TestDims.DIM_X), Set("X 1", "X 2"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -773,6 +786,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), manyAs.toSet),
             in(dimension(TestDims.DIM_B), manyBs.toSet)
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -829,6 +843,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_B), Set(1.toShort, 2.toShort)),
             notIn(dimension(TestDims.DIM_B), Set(2.toShort, 3.toShort))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -897,6 +912,7 @@ class TSDaoHBaseTest
             notIn(dimension(TestDims.DIM_A), Set("test12", "test15")),
             neq(dimension(TestDims.DIM_A), const("test14"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -925,6 +941,7 @@ class TSDaoHBaseTest
             notIn(dimension(TestDims.DIM_A), Set("tagValue1", "tagValue2")),
             equ(dimension(TestDims.DIM_A), const("tagValue1"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -981,6 +998,7 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             DimIdInExpr(TestDims.DIM_A, SortedSetIterator(dimAHash("test12"), dimAHash("test22")))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1036,6 +1054,7 @@ class TSDaoHBaseTest
             DimIdNotInExpr(TestDims.DIM_A, SortedSetIterator(dimAHash("test11"), dimAHash("test15"))),
             neq(dimension(TestDims.DIM_A), const("test14"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1087,6 +1106,7 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             equ(DimensionIdExpr(TestDims.DIM_A), const("000004d20000000000bc614e"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1152,6 +1172,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_X), Set("Foo", "Bar", "Baz")),
             neq(DimensionIdExpr(TestDims.DIM_X), const("0000000000000001"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1206,6 +1227,7 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             equ(dimension(TestDims.DIM_A), const("tag_a"))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1258,6 +1280,7 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             equ(tuple(time, dimension(TestDims.DIM_A)), const((Time(pointTime2), "test42")))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1336,6 +1359,7 @@ class TSDaoHBaseTest
             lt(time, const(Time(to))),
             in(tuple(time, dimension(TestDims.DIM_A)), Set((Time(pointTime2), "test42"), (Time(pointTime1), "test51")))
           ),
+          YupanaUser.ANONYMOUS,
           Time(100000L),
           IndexedSeq.empty
         ),
@@ -1408,6 +1432,7 @@ class TSDaoHBaseTest
             in(dimension(TestDims.DIM_A), Set("bar", "baz"))
           )
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ),
@@ -1456,6 +1481,7 @@ class TSDaoHBaseTest
             notIn(dimension(TestDims.DIM_A), Set("foo", "bar"))
           )
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ),
@@ -1509,6 +1535,7 @@ class TSDaoHBaseTest
             and(ge(time, const(Time(from2))), lt(time, const(Time(to2))))
           )
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ),

@@ -20,6 +20,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, GtMatcher, LeMatcher, LtMatcher }
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.{ ConstantCalculator, QueryOptimizer }
 
 /**
@@ -32,6 +33,7 @@ case class FlatAndCondition(
     from: Long,
     to: Long,
     conditions: Seq[SimpleCondition],
+    user: YupanaUser,
     startTime: Time,
     params: IndexedSeq[Any]
 ) {
@@ -57,6 +59,7 @@ object FlatAndCondition {
   def apply(
       constantCalculator: ConstantCalculator,
       condition: Condition,
+      user: YupanaUser,
       startTime: Time,
       params: IndexedSeq[Any]
   ): Seq[FlatAndCondition] = {
@@ -65,7 +68,7 @@ object FlatAndCondition {
       for {
         from <- fac.from.toRight(s"FROM time is not defined for ${AndExpr(fac.conditions)}")
         to <- fac.to.toRight(s"TO time is not defined for ${AndExpr(fac.conditions)}")
-      } yield FlatAndCondition(from, to, fac.conditions, startTime, params)
+      } yield FlatAndCondition(from, to, fac.conditions, user, startTime, params)
     }
 
     if (errs.isEmpty) result else throw new IllegalArgumentException(errs.mkString(", "))
@@ -74,10 +77,11 @@ object FlatAndCondition {
   def single(
       constantCalculator: ConstantCalculator,
       condition: Condition,
+      user: YupanaUser,
       startTime: Time,
       params: IndexedSeq[Any]
   ): FlatAndCondition = {
-    FlatAndCondition(constantCalculator, condition, startTime, params) match {
+    FlatAndCondition(constantCalculator, condition, user, startTime, params) match {
       case Seq(tbc) =>
         tbc
       case _ =>

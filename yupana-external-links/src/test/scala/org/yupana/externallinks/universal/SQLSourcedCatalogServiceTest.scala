@@ -10,6 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, RemoveCondition }
 import org.yupana.cache.CacheFactory
 import org.yupana.core.ConstantCalculator
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
@@ -98,6 +99,7 @@ class SQLSourcedCatalogServiceTest
           lt(time, const(Time(t2))),
           c1_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head
@@ -119,6 +121,7 @@ class SQLSourcedCatalogServiceTest
           c2,
           c2_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head
@@ -190,6 +193,7 @@ class SQLSourcedCatalogServiceTest
           c1,
           c1_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head
@@ -212,6 +216,7 @@ class SQLSourcedCatalogServiceTest
           c2,
           c2_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(System.currentTimeMillis()),
         IndexedSeq.empty
       ).head

@@ -4,6 +4,7 @@ import org.scalatest.OptionValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.{ ConstantCalculator, TestDims, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
@@ -21,7 +22,8 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
 
     val condition = and(ge(time, const(from)), lt(time, const(to)), equ(dimension(TestDims.DIM_A), const("value")))
 
-    val tbcs = FlatAndCondition(calculator, condition, Time(LocalDateTime.now()), IndexedSeq.empty)
+    val tbcs =
+      FlatAndCondition(calculator, condition, YupanaUser.ANONYMOUS, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     tbcs should have size 1
     val tbc = tbcs.head
@@ -43,7 +45,8 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
       and(gt(time, const(from2)), le(time, const(to2)), in(metric(TestTableFields.TEST_FIELD), Set(1d, 2d)))
     )
 
-    val tbcs = FlatAndCondition(calculator, condition, Time(LocalDateTime.now()), IndexedSeq.empty)
+    val tbcs =
+      FlatAndCondition(calculator, condition, YupanaUser.ANONYMOUS, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     tbcs should have size 2
     val tbc1 = tbcs(0)
@@ -81,7 +84,8 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
       neq(dimension(TestDims.DIM_B), const(3.toShort))
     )
 
-    val tbcs = FlatAndCondition(calculator, condition, Time(LocalDateTime.now()), IndexedSeq.empty)
+    val tbcs =
+      FlatAndCondition(calculator, condition, YupanaUser.ANONYMOUS, Time(LocalDateTime.now()), IndexedSeq.empty)
 
     tbcs should have size 2
     val res1 = tbcs(0)
@@ -115,16 +119,38 @@ class FlatAndConditionTest extends AnyFlatSpec with Matchers with OptionValues {
 
     FlatAndCondition.mergeByTime(
       Seq(
-        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_A), const("x"))), start, IndexedSeq.empty),
-        FlatAndCondition(from1, to1, Seq(equ(dimension(TestDims.DIM_B), const(1.toShort))), start, IndexedSeq.empty),
+        FlatAndCondition(
+          from1,
+          to1,
+          Seq(equ(dimension(TestDims.DIM_A), const("x"))),
+          YupanaUser.ANONYMOUS,
+          start,
+          IndexedSeq.empty
+        ),
+        FlatAndCondition(
+          from1,
+          to1,
+          Seq(equ(dimension(TestDims.DIM_B), const(1.toShort))),
+          YupanaUser.ANONYMOUS,
+          start,
+          IndexedSeq.empty
+        ),
         FlatAndCondition(
           from2,
           to2,
           Seq(equ(dimension(TestDims.DIM_A), const("x")), equ(dimension(TestDims.DIM_B), const(1.toShort))),
+          YupanaUser.ANONYMOUS,
           start,
           IndexedSeq.empty
         ),
-        FlatAndCondition(from1, to2, Seq(in(dimension(TestDims.DIM_A), Set("y"))), start, IndexedSeq.empty)
+        FlatAndCondition(
+          from1,
+          to2,
+          Seq(in(dimension(TestDims.DIM_A), Set("y"))),
+          YupanaUser.ANONYMOUS,
+          start,
+          IndexedSeq.empty
+        )
       )
     ) should contain theSameElementsAs List(
       (

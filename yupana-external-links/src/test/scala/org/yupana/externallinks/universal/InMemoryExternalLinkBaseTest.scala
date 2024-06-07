@@ -6,6 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
@@ -128,6 +129,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       FlatAndCondition(
         calculator,
         and(c, ge(time, const(Time(t1))), le(time, const(Time(t2)))),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ).head
@@ -147,6 +149,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2,
           c2_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ).head
@@ -167,6 +170,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           ge(time, const(Time(t1))),
           le(time, const(Time(t2)))
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ).head
@@ -185,6 +189,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       FlatAndCondition(
         calculator,
         and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ).head
@@ -204,6 +209,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c2,
           c2_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ).head
@@ -224,6 +230,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c3,
           c3_2
         ),
+        YupanaUser.ANONYMOUS,
         Time(100000L),
         IndexedSeq.empty
       ).head

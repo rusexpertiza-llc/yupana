@@ -16,6 +16,7 @@
 
 package org.yupana.core.jit
 
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.Query
 import org.yupana.api.utils.Tokenizer
@@ -24,6 +25,7 @@ import org.yupana.core.model.DatasetSchema
 trait ExpressionCalculatorFactory {
   def makeCalculator(
       query: Query,
+      startTime: Time,
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema)
