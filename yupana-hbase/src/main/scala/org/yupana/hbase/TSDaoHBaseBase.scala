@@ -182,7 +182,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     }
   }
 
-  private def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
+  private def valuesToIds(
+      dimension: DictionaryDimension,
+      values: SortedSetIterator[String]
+  ): SortedSetIterator[IdType] = {
     val dictionary = dictionaryProvider.dictionary(dimension)
     val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(dimension.rOrdering.lt).iterator
     SortedSetIterator(it)

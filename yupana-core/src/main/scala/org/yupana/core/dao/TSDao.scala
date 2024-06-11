@@ -19,7 +19,7 @@ package org.yupana.core.dao
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema.Table
 import org.yupana.core.MapReducible
-import org.yupana.core.model.{BatchDataset, UpdateInterval}
+import org.yupana.core.model.{ BatchDataset, UpdateInterval }
 
 trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
 
