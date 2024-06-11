@@ -34,7 +34,8 @@ abstract class TsdbBaseBenchmarkStateBase {
   def query: Query
   def daoExprs: Seq[Expression[_]]
 
-  lazy val queryContext: QueryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
+  lazy val queryContext: QueryContext =
+    new QueryContext(query, Time(LocalDateTime.now()), None, RussianTokenizer, JIT, NoMetricCollector)
 
   val qtime = LocalDateTime.of(2021, 5, 24, 22, 40, 0)
 

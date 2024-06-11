@@ -10,6 +10,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, RemoveCondition }
 import org.yupana.cache.CacheFactory
 import org.yupana.core.ConstantCalculator
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
 import org.yupana.externallinks.universal.JsonCatalogs.{ SQLExternalLink, SQLExternalLinkConfig }
@@ -97,7 +98,10 @@ class SQLSourcedCatalogServiceTest
           c1,
           lt(time, const(Time(t2))),
           c1_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
     inCondition should contain theSameElementsAs Seq(
@@ -116,7 +120,10 @@ class SQLSourcedCatalogServiceTest
           le(time, const(Time(t2))),
           c2,
           c2_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 
@@ -185,7 +192,10 @@ class SQLSourcedCatalogServiceTest
           lt(const(Time(t2)), time),
           c1,
           c1_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 
@@ -205,7 +215,10 @@ class SQLSourcedCatalogServiceTest
           gt(time, const(Time(t2))),
           c2,
           c2_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 

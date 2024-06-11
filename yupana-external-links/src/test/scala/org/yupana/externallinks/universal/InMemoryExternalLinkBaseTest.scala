@@ -6,6 +6,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ AddCondition, DataPoint, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.{ BatchDataset, DatasetSchema }
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.externallinks.TestSchema
@@ -129,7 +130,13 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val t1 = LocalDateTime.of(2022, 10, 27, 1, 5)
     val t2 = t1.plusWeeks(1)
     testCatalog.transformCondition(
-      FlatAndCondition(calculator, and(c, ge(time, const(Time(t1))), le(time, const(Time(t2))))).head
+      FlatAndCondition(
+        calculator,
+        and(c, ge(time, const(Time(t1))), le(time, const(Time(t2)))),
+        YupanaUser.ANONYMOUS,
+        Time(100000L),
+        IndexedSeq.empty
+      ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c),
       AddCondition(in(lower(dimension(DictionaryDimension("TAG_X"))), Set("aaa")))
@@ -145,7 +152,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           le(time, const(Time(t2))),
           c2,
           c2_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(100000L),
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c2),
@@ -163,7 +173,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           c3_2,
           ge(time, const(Time(t1))),
           le(time, const(Time(t2)))
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(100000L),
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c3),
@@ -177,7 +190,13 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     val t2 = LocalDateTime.now()
     val t1 = t2.minusDays(3)
     testCatalog.transformCondition(
-      FlatAndCondition(calculator, and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c)).head
+      FlatAndCondition(
+        calculator,
+        and(ge(time, const(Time(t1))), le(time, const(Time(t2))), c),
+        YupanaUser.ANONYMOUS,
+        Time(100000L),
+        IndexedSeq.empty
+      ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c),
       AddCondition(notIn(lower(dimension(DictionaryDimension("TAG_X"))), Set("foo", "bar")))
@@ -193,7 +212,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           le(time, const(Time(t2))),
           c2,
           c2_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(100000L),
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c2),
@@ -211,7 +233,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
           le(time, const(Time(t2))),
           c3,
           c3_2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(100000L),
+        IndexedSeq.empty
       ).head
     ) should contain theSameElementsAs Seq(
       RemoveCondition(c3),

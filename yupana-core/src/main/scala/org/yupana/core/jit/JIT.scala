@@ -17,6 +17,7 @@
 package org.yupana.core.jit
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.utils.Tokenizer
@@ -30,26 +31,30 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   import scala.reflect.runtime.universe._
   import scala.tools.reflect.ToolBox
 
-  private val params = TermName("params")
+  val REFS = TermName("refs")
+  val PARAMS = TermName("params")
+  val NOW = TermName("now")
   private val tokenizer = TermName("tokenizer")
 
   private val toolBox = currentMirror.mkToolBox()
 
   def makeCalculator(
       query: Query,
+      startTime: Time,
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema) = {
-    val (tree, params, schema) = generateCalculator(query, condition)
+    val (tree, refs, schema) = generateCalculator(query, condition)
 
-    val res = compile(tree)(params, tokenizer)
+    val res = compile(tree)(refs, query.params, startTime, tokenizer)
 
     (res, schema)
   }
 
-  def compile(tree: Tree): (Array[Any], Tokenizer) => ExpressionCalculator = {
-    toolBox.eval(tree).asInstanceOf[(Array[Any], Tokenizer) => ExpressionCalculator]
+  def compile(tree: Tree): (Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator = {
+    toolBox.eval(tree).asInstanceOf[(Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator]
   }
+
   def generateCalculator(
       query: Query,
       condition: Option[Condition]
@@ -91,7 +96,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
 
     val buf = TermName("buf")
 
-    val paramsArray = postFilterState.refs.map(_._1).toArray[Any]
+    val refsArray = postFilterState.refs.map(_._1).toArray[Any]
 
     val nameMapping = query.fields.map { f =>
       val fieldIndex = postFilterState.valueExprIndex.getOrElse(f.expr, postFilterState.refExprIndex(f.expr))
@@ -120,7 +125,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
     import _root_.org.threeten.extra.PeriodDuration
     import _root_.org.yupana.core.utils.Hash128Utils.timeHash
 
-    ($params: Array[Any], $tokenizer: Tokenizer) =>
+    ($REFS: Array[Any], $PARAMS: IndexedSeq[Any], $NOW: Time, $tokenizer: Tokenizer) =>
       new _root_.org.yupana.core.jit.ExpressionCalculator {
 
         ..$defs
@@ -312,11 +317,11 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       val sortedIndex = schema.exprIndex.toList.sortBy(_._2).map { case (e, i) => s"$i -> $e" }
       logger.trace("Expr index: ")
       sortedIndex.foreach(s => logger.trace(s"  $s"))
-      logger.trace(s"Params size: ${paramsArray.length}")
+      logger.trace(s"Refs size: ${refsArray.length}")
       logger.trace(s"Tree: ${prettyTree(tree)}")
     }
 
-    (tree, paramsArray, schema)
+    (tree, refsArray, schema)
   }
 
   private def prettyTree(tree: Tree): String = {

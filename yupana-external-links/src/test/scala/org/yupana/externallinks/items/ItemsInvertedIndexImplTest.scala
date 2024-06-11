@@ -14,6 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.cache.CacheFactory
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.utils.FlatAndCondition
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
@@ -68,7 +69,10 @@ class ItemsInvertedIndexImplTest
           le(time, const(Time(t2))),
           c1,
           c2
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 
@@ -97,7 +101,7 @@ class ItemsInvertedIndexImplTest
     ).toSeq
   }
 
-  it should "put values storage" in withMocks { (index, dao, tsdb) =>
+  it should "put values storage" in withMocks { (index, dao, _) =>
 
     (dao.batchPut _).expects(where { vs: Map[String, Set[ItemDimension.KeyType]] =>
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
@@ -122,7 +126,10 @@ class ItemsInvertedIndexImplTest
           ge(time, const(Time(t1))),
           le(time, const(Time(t2))),
           in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 
@@ -150,7 +157,10 @@ class ItemsInvertedIndexImplTest
           ge(time, const(Time(t1))),
           le(time, const(Time(t2))),
           notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
-        )
+        ),
+        YupanaUser.ANONYMOUS,
+        Time(System.currentTimeMillis()),
+        IndexedSeq.empty
       ).head
     )
 

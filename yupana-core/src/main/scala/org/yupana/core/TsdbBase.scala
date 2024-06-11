@@ -97,12 +97,16 @@ trait TsdbBase extends StrictLogging {
     * The pipeline is not responsible for limiting. This means that collection have to be lazy, to avoid extra
     * calculations if limit is defined.
     */
-  def query(query: Query, user: YupanaUser = YupanaUser.ANONYMOUS): Result = {
+  def query(
+      query: Query,
+      startTime: Time = Time(System.currentTimeMillis()),
+      user: YupanaUser = YupanaUser.ANONYMOUS
+  ): Result = {
 
     val preparedQuery = prepareQuery(query)
     logger.info(s"User ${user.name} start TSDB query with ${preparedQuery.uuidLog} start: " + preparedQuery)
 
-    val optimizedQuery = QueryOptimizer.optimize(constantCalculator)(preparedQuery)
+    val optimizedQuery = QueryOptimizer.optimize(preparedQuery)
 
     logger.debug(s"Optimized query: $optimizedQuery")
 
@@ -115,7 +119,7 @@ trait TsdbBase extends StrictLogging {
       case Some(table) =>
         optimizedQuery.filter match {
           case Some(conditionAsIs) =>
-            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs)
+            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs, user, startTime, query.params)
 
             val substitutedCondition = substituteLinks(flatAndCondition, metricCollector)
             logger.debug(s"Substituted condition: $substitutedCondition")
@@ -141,6 +145,7 @@ trait TsdbBase extends StrictLogging {
               metricCollector.createContext.measure(1)(
                 new QueryContext(
                   optimizedQuery,
+                  startTime,
                   finalPostDaoCondition,
                   schema.tokenizer,
                   calculatorFactory,
@@ -170,7 +175,14 @@ trait TsdbBase extends StrictLogging {
       case None =>
         val qc =
           metricCollector.createContext.measure(1)(
-            new QueryContext(optimizedQuery, query.filter, schema.tokenizer, calculatorFactory, metricCollector)
+            new QueryContext(
+              optimizedQuery,
+              startTime,
+              query.filter,
+              schema.tokenizer,
+              calculatorFactory,
+              metricCollector
+            )
           )
 
         val ds = new BatchDataset(qc.datasetSchema)

@@ -30,8 +30,6 @@ case class State(
     localValueDeclarations: Map[Expression[_], ValueDeclaration]
 ) {
 
-  private val params = TermName("params")
-
   def fresh(): State = {
     this.copy(rowOperations = Seq.empty, localValueDeclarations = Map.empty)
   }
@@ -169,7 +167,7 @@ case class State(
   def withNewRef(ref: AnyRef, tpe: Tree): (TermName, State) = {
     val name = TermName(s"ref_${refs.size}")
     val refId = refs.size
-    val tree = q"$params($refId)"
+    val tree = q"${JIT.REFS}($refId)"
     val ns = copy(refs = refs :+ (ref -> Decl(name, tpe, tree)))
     name -> ns
   }

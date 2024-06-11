@@ -42,6 +42,7 @@ case class Query(
     groupBy: Seq[Expression[_]] = Seq.empty,
     limit: Option[Int] = None,
     postFilter: Option[Condition] = None,
+    params: IndexedSeq[Any] = IndexedSeq.empty,
     hints: Seq[QueryHint] = Seq.empty
 ) {
 
@@ -82,6 +83,10 @@ case class Query(
            |""".stripMargin)
     }
 
+    if (params.nonEmpty) {
+      builder.append(s"""  PARAMS: ${params.zipWithIndex.map { case (p, i) => s"#$i = $p" }.mkString(", ")}\n""")
+    }
+
     builder.append(")")
     builder.toString
   }
@@ -109,8 +114,12 @@ object Query {
     new Query(Some(table), fields, Some(newCondition), groupBy, limit, postFilter)
   }
 
-  def apply(table: Table, from: Expression[Time], to: Expression[Time], fields: Seq[QueryField]): Query =
-    apply(table, from, to, fields, None, Seq.empty, None, None)
+  def apply(
+      table: Table,
+      from: Expression[Time],
+      to: Expression[Time],
+      fields: Seq[QueryField]
+  ): Query = apply(table, from, to, fields, None, Seq.empty, None, None)
 
   def apply(
       table: Table,
@@ -128,5 +137,4 @@ object Query {
       filter: Option[Condition],
       groupBy: Seq[Expression[_]]
   ): Query = apply(table, from, to, fields, filter, groupBy, None, None)
-
 }

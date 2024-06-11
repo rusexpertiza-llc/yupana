@@ -31,10 +31,6 @@ case class TypedValue[T](value: T)(implicit val dataType: DataType.Aux[T]) exten
   override def asString: String = value.toString
 }
 
-case class UntypedValue(value: String) extends Value {
-  override def asString: String = value
-}
-
 case class PeriodValue(value: PeriodDuration) extends Value {
   override def asString: String = value.toString
 }

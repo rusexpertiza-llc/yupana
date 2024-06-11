@@ -11,8 +11,7 @@ import org.yupana.core.auth.{ PermissionService, TsdbRole, UserManager, YupanaUs
 import org.yupana.core.dao.{ ChangelogDao, QueryMetricsFilter, TsdbQueryMetricsDao, UserDao }
 import org.yupana.core.model.UpdateInterval
 import org.yupana.core.providers.JdbcMetadataProvider
-import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor }
-import org.yupana.core.sql.parser.TypedValue
+import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor, TypedParameter }
 import org.yupana.settings.Settings
 
 import java.time.OffsetDateTime
@@ -57,11 +56,11 @@ class QueryEngineRouterTest extends AnyFlatSpec with Matchers with TsdbMocks wit
         "UPSERT INTO test_table(time, A, B, testField, testStringField) VALUES(?, ?, ?, ?, ?)",
         List(
           Map(
-            1 -> TypedValue(Time(OffsetDateTime.now())),
-            2 -> TypedValue("A"),
-            3 -> TypedValue(2),
-            4 -> TypedValue(5),
-            5 -> TypedValue("one")
+            1 -> TypedParameter(Time(OffsetDateTime.now())),
+            2 -> TypedParameter("A"),
+            3 -> TypedParameter(2),
+            4 -> TypedParameter(5),
+            5 -> TypedParameter("one")
           )
         )
       )

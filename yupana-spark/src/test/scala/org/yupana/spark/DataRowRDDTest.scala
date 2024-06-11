@@ -32,7 +32,8 @@ trait DataRowRDDTest extends AnyFlatSpecLike with Matchers with SharedSparkSessi
       from = const(Time(LocalDateTime.now())),
       to = const(Time(LocalDateTime.now().minusHours(2)))
     )
-    val queryContext = new QueryContext(query, None, RussianTokenizer, JIT, NoMetricCollector)
+    val now = Time(LocalDateTime.now())
+    val queryContext = new QueryContext(query, now, None, RussianTokenizer, JIT, NoMetricCollector)
 
     val theTime = LocalDateTime.now().minusHours(1)
 

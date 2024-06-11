@@ -23,7 +23,7 @@ import org.yupana.api.Time
 import org.yupana.api.query.Result
 import org.yupana.api.types.{ SimpleStringReaderWriter, StringReaderWriter }
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.sql.parser
+import org.yupana.core.sql.{ Parameter, TypedParameter }
 import org.yupana.protocol._
 
 class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends FrameHandlerBase with StrictLogging {
@@ -53,7 +53,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
 
   private def handleQuery(ctx: ChannelHandlerContext, pq: SqlQuery): Unit = {
     logger.debug(s"""Processing SQL query (id: ${pq.id}): "${pq.query}"; parameters: ${pq.params}""")
-    val params = pq.params.map { case (index, p) => index -> convertValue(p) }
+    val params = pq.params.map { case (index, p) => index -> convertParameter(p) }
     serverContext.queryEngineRouter.query(user, pq.query, params) match {
       case Right(result) => addStream(ctx, pq.id, result)
       case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(pq.id)))
@@ -62,7 +62,7 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
 
   private def handleBatchQuery(ctx: ChannelHandlerContext, bq: BatchQuery): Unit = {
     logger.debug(s"""Processing batch SQL query (id: ${bq.id}): "${bq.query}"; parameters: ${bq.params}""")
-    val params = bq.params.map(_.map { case (index, p) => index -> convertValue(p) })
+    val params = bq.params.map(_.map { case (index, p) => index -> convertParameter(p) })
     serverContext.queryEngineRouter.batchQuery(user, bq.query, params) match {
       case Right(result) => addStream(ctx, bq.id, result)
       case Left(msg)     => writeResponse(ctx, ErrorMessage(msg, Some(bq.id)))
@@ -114,11 +114,11 @@ class QueryHandler(serverContext: ServerContext, user: YupanaUser) extends Frame
     ResultHeader(id, result.name, resultFields)
   }
 
-  private def convertValue(value: ParameterValue): parser.Value = {
+  private def convertParameter(value: ParameterValue): Parameter = {
     value match {
-      case StringValue(s)    => parser.TypedValue(s)
-      case NumericValue(n)   => parser.TypedValue(n)
-      case TimestampValue(t) => parser.TypedValue(Time(t))
+      case StringValue(s)    => TypedParameter(s)
+      case NumericValue(n)   => TypedParameter(n)
+      case TimestampValue(t) => TypedParameter(Time(t))
     }
   }
 

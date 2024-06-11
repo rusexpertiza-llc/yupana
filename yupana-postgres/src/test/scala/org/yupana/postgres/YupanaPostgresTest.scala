@@ -83,6 +83,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
           TestSchema.testTable,
           Set[Expression[_]](
             time,
+            dimension(TestDims.DIM_A),
             metric(TestTableFields.TEST_FIELD),
             metric(TestTableFields.TEST_LONG_FIELD),
             metric(TestTableFields.TEST_STRING_FIELD),
@@ -93,9 +94,12 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
           and(
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
-            equ(lower(dimension(TestDims.DIM_A)), const("test me")),
-            le(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), const(BigDecimal(66)))
-          )
+            equ(lower(dimension(TestDims.DIM_A)), param[String](1)),
+            le(metric(TestTableFields.TEST_BIGDECIMAL_FIELD), param[BigDecimal](4))
+          ),
+          YupanaUser.ANONYMOUS,
+          Time(System.currentTimeMillis()),
+          IndexedSeq("test me", Time(from), Time(to), BigDecimal(66))
         ),
         *,
         *,
@@ -104,6 +108,7 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
       .onCall { (_, _, schema, _) =>
         val batch = new BatchDataset(schema)
         batch.set(0, Time(LocalDateTime.of(2024, 4, 2, 3, 4, 5)))
+        batch.set(0, dimension(TestDims.DIM_A), "Test me")
         batch.set(0, metric(TestTableFields.TEST_FIELD), 33.3d)
         batch.set(0, metric(TestTableFields.TEST_LONG_FIELD), 55L)
         batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "reply")
@@ -168,7 +173,10 @@ class YupanaPostgresTest extends AnyFlatSpec with Matchers with MockFactory with
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("test me!"))
-          )
+          ),
+          YupanaUser.ANONYMOUS, // FIXME: SHOULD BE TEST!!!
+          Time(System.currentTimeMillis()),
+          IndexedSeq.empty
         ),
         *,
         *,

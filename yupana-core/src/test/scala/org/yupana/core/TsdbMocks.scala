@@ -1,6 +1,7 @@
 package org.yupana.core
 
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.schema.ExternalLink
@@ -12,8 +13,6 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
-import org.yupana.utils.RussianTokenizer
-import org.scalatest.TestSuite
 
 trait TSTestDao extends TSDao[Iterator, Long]
 
@@ -38,35 +37,35 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
       .expects(*)
       .onCall((c: Condition) =>
         c match {
-          case EqTime(_: TimeExpr.type, ConstantExpr(_, _))                  => true
-          case EqTime(ConstantExpr(_, _), _: TimeExpr.type)                  => true
-          case NeqTime(_: TimeExpr.type, ConstantExpr(_, _))                 => true
-          case NeqTime(ConstantExpr(_, _), _: TimeExpr.type)                 => true
-          case GtTime(_: TimeExpr.type, ConstantExpr(_, _))                  => true
-          case GtTime(ConstantExpr(_, _), _: TimeExpr.type)                  => true
-          case LtTime(_: TimeExpr.type, ConstantExpr(_, _))                  => true
-          case LtTime(ConstantExpr(_, _), _: TimeExpr.type)                  => true
-          case GeTime(_: TimeExpr.type, ConstantExpr(_, _))                  => true
-          case GeTime(ConstantExpr(_, _), _: TimeExpr.type)                  => true
-          case LeTime(_: TimeExpr.type, ConstantExpr(_, _))                  => true
-          case LeTime(ConstantExpr(_, _), _: TimeExpr.type)                  => true
-          case _: DimIdInExpr[_, _]                                          => true
-          case _: DimIdNotInExpr[_, _]                                       => true
-          case EqExpr(_: DimensionExpr[_], ConstantExpr(_, _))               => true
-          case EqExpr(ConstantExpr(_, _), _: DimensionExpr[_])               => true
-          case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_, _))  => true
-          case EqString(ConstantExpr(_, _), LowerExpr(_: DimensionExpr[_]))  => true
-          case NeqExpr(_: DimensionExpr[_], ConstantExpr(_, _))              => true
-          case NeqExpr(ConstantExpr(_, _), _: DimensionExpr[_])              => true
-          case NeqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_, _)) => true
-          case NeqString(LowerExpr(ConstantExpr(_, _)), _: DimensionExpr[_]) => true
-          case EqString(DimensionIdExpr(_), ConstantExpr(_, _))              => true
-          case EqString(ConstantExpr(_, _), DimensionIdExpr(_))              => true
-          case InExpr(_: DimensionExpr[_], _)                                => true
-          case NotInExpr(_: DimensionExpr[_], _)                             => true
-          case InString(LowerExpr(_: DimensionExpr[_]), _)                   => true
-          case NotInString(LowerExpr(_: DimensionExpr[_]), _)                => true
-          case _                                                             => false
+          case EqTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case EqTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case NeqTime(_: TimeExpr.type, ConstantExpr(_))                 => true
+          case NeqTime(ConstantExpr(_), _: TimeExpr.type)                 => true
+          case GtTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case GtTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case LtTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case LtTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case GeTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case GeTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case LeTime(_: TimeExpr.type, ConstantExpr(_))                  => true
+          case LeTime(ConstantExpr(_), _: TimeExpr.type)                  => true
+          case _: DimIdInExpr[_, _]                                       => true
+          case _: DimIdNotInExpr[_, _]                                    => true
+          case EqExpr(_: DimensionExpr[_], ConstantExpr(_))               => true
+          case EqExpr(ConstantExpr(_), _: DimensionExpr[_])               => true
+          case EqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_))  => true
+          case EqString(ConstantExpr(_), LowerExpr(_: DimensionExpr[_]))  => true
+          case NeqExpr(_: DimensionExpr[_], ConstantExpr(_))              => true
+          case NeqExpr(ConstantExpr(_), _: DimensionExpr[_])              => true
+          case NeqString(LowerExpr(_: DimensionExpr[_]), ConstantExpr(_)) => true
+          case NeqString(LowerExpr(ConstantExpr(_)), _: DimensionExpr[_]) => true
+          case EqString(DimensionIdExpr(_), ConstantExpr(_))              => true
+          case EqString(ConstantExpr(_), DimensionIdExpr(_))              => true
+          case InExpr(_: DimensionExpr[_], _)                             => true
+          case NotInExpr(_: DimensionExpr[_], _)                          => true
+          case InString(LowerExpr(_: DimensionExpr[_]), _)                => true
+          case NotInString(LowerExpr(_: DimensionExpr[_]), _)             => true
+          case _                                                          => false
         }
       )
       .anyNumberOfTimes()
@@ -99,7 +98,7 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
       catalog: ExternalLink,
       catalogValues: Table[String, String, String]
   ): Unit = {
-    for (i <- (0 until dataset.size)) {
+    for (i <- 0 until dataset.size) {
       if (dataset.isDefined(i, DimensionExpr(catalog.dimension))) {
         val dimValue = dataset.get(i, DimensionExpr(catalog.dimension)).asInstanceOf[String]
         catalogValues.row(dimValue).foreach {
@@ -112,7 +111,6 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
     }
   }
 
-  private val calculator = new ConstantCalculator(RussianTokenizer)
   implicit val srw: StringReaderWriter = SimpleStringReaderWriter
   private val sqlQueryProcessor = new SqlQueryProcessor(TestSchema.schema)
 
@@ -123,7 +121,7 @@ trait TsdbMocks extends MockFactory { self: TestSuite =>
         case s: Select => sqlQueryProcessor.createQuery(s)
         case x         => Left(s"SELECT statement expected, but got $x")
       }
-      .map(QueryOptimizer.optimize(calculator))
+      .map(QueryOptimizer.optimize)
       .fold(fail(_), identity)
   }
 }

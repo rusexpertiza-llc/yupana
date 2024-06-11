@@ -19,6 +19,7 @@ package org.yupana.externallinks.items
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
@@ -37,9 +38,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   private def includeTransform(
       fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
-      to: Long
+      to: Long,
+      user: YupanaUser,
+      startTime: Time
   ): Seq[ConditionTransformation] = {
-    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
+    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to, user, startTime).toSet)
     val tuples = CollectionUtils.intersectAll(info)
     ConditionTransformation.replace(fieldsValues.map(_._1), in(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
@@ -47,9 +50,11 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
   private def excludeTransform(
       fieldsValues: Seq[(SimpleCondition, String, Set[String])],
       from: Long,
-      to: Long
+      to: Long,
+      user: YupanaUser,
+      startTime: Time
   ): Seq[ConditionTransformation] = {
-    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to).toSet)
+    val info = createFilter(fieldsValues).map(c => getTransactions(c, from, to, user, startTime).toSet)
     val tuples = info.fold(Set.empty)(_ union _)
     ConditionTransformation.replace(fieldsValues.map(_._1), notIn(tuple(time, dimension(Dimensions.KKM_ID)), tuples))
   }
@@ -62,13 +67,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       ExternalLinkUtils.extractCatalogFieldsT[String](tbc, externalLink.linkName)
 
     val include = if (includeExprValues.nonEmpty) {
-      includeTransform(includeExprValues, tbc.from, tbc.to)
+      includeTransform(includeExprValues, tbc.from, tbc.to, tbc.user, tbc.startTime)
     } else {
       Seq.empty
     }
 
     val exclude = if (excludeExprValues.nonEmpty) {
-      excludeTransform(excludeExprValues, tbc.from, tbc.to)
+      excludeTransform(excludeExprValues, tbc.from, tbc.to, tbc.user, tbc.startTime)
     } else {
       Seq.empty
     }
@@ -88,7 +93,13 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
     }
   }
 
-  private def getTransactions(filter: SimpleCondition, from: Long, to: Long): Seq[(Time, Int)] = {
+  private def getTransactions(
+      filter: SimpleCondition,
+      from: Long,
+      to: Long,
+      user: YupanaUser,
+      startTime: Time
+  ): Seq[(Time, Int)] = {
     val q = Query(
       table = Tables.itemsKkmTable,
       from = const(Time(from)),
@@ -97,7 +108,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       filter = filter
     )
 
-    val result = tsdb.query(q)
+    val result = tsdb.query(q, startTime, user)
 
     val timeIdx = result.queryContext.datasetSchema.exprIndex(time)
     val kkmIdIdx = result.queryContext.datasetSchema.exprIndex(dimension(Dimensions.KKM_ID))
