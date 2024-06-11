@@ -19,6 +19,7 @@ package org.yupana.core.model
 import jdk.internal.vm.annotation.ForceInline
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
+import org.yupana.api.schema.Table
 import org.yupana.api.types.{ ID, InternalReaderWriter, InternalStorable }
 import org.yupana.core.QueryContext
 import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
@@ -394,8 +395,14 @@ final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int =
 }
 
 object BatchDataset {
+
   def apply(qc: QueryContext) = {
     new BatchDataset(qc.datasetSchema)
+  }
+
+  def apply(table: Table) = {
+    val schema = DatasetSchema(table)
+    new BatchDataset(schema)
   }
 
   implicit val readerWriter: InternalReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter

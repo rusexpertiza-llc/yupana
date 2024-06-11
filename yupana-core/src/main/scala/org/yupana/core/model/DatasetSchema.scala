@@ -198,3 +198,28 @@ final class DatasetSchema(
   }
 
 }
+
+object DatasetSchema {
+  def apply(table: Table) = {
+
+    val dimExprs = table.dimensionSeq.map { dim =>
+      dim.name -> DimensionExpr(dim.aux)
+    }
+    val metricExprs = table.metrics.map { metric =>
+      metric.name -> MetricExpr(metric.aux)
+    }
+
+    val allExprs: Seq[(String, Expression[_])] = ("time" -> TimeExpr) +: (dimExprs ++ metricExprs)
+
+    val (refExprIndex, valueExprIndex) =
+      allExprs.map(_._2).zipWithIndex.toMap.partition(_._1.dataType.internalStorable.isRefType)
+
+    val nameMapping = allExprs.map {
+      case (name, expr) =>
+        val index = refExprIndex.getOrElse(expr, valueExprIndex(expr))
+        name -> index
+    }.toMap
+
+    new DatasetSchema(valueExprIndex, refExprIndex, nameMapping, Some(table))
+  }
+}
