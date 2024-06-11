@@ -22,7 +22,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query.{ AndExpr, Expression }
 import org.yupana.api.schema.{ Rollup, Table }
-import org.yupana.api.types.SimpleStringReaderWriter
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
