@@ -39,7 +39,6 @@ object TSDaoHBaseBase {
   val CROSS_JOIN_LIMIT = 500000
   val RANGE_FILTERS_LIMIT = 100000
   val EXTRACT_BATCH_SIZE = 100000
-  val INSERT_BATCH_SIZE = 5000
   val PUTS_BATCH_SIZE = 1000
 }
 
@@ -54,8 +53,6 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
   type RowFilter = TSDRowKey => Boolean
 
   val schema: Schema
-
-  override val dataPointsBatchSize: Int = INSERT_BATCH_SIZE
 
   def dictionaryProvider: DictionaryProvider
 
@@ -185,7 +182,10 @@ trait TSDaoHBaseBase[Collection[_]] extends TSDao[Collection, Long] with StrictL
     }
   }
 
-  def valuesToIds(dimension: DictionaryDimension, values: SortedSetIterator[String]): SortedSetIterator[IdType] = {
+  private def valuesToIds(
+      dimension: DictionaryDimension,
+      values: SortedSetIterator[String]
+  ): SortedSetIterator[IdType] = {
     val dictionary = dictionaryProvider.dictionary(dimension)
     val it = dictionary.findIdsByValues(values.toSet).values.toSeq.sortWith(dimension.rOrdering.lt).iterator
     SortedSetIterator(it)

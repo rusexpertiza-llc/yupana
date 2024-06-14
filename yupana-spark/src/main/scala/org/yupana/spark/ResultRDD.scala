@@ -31,18 +31,23 @@ import org.yupana.core.{ QueryContext, TsdbResultBase }
 
 import scala.collection.mutable.ArrayBuffer
 
-class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext: QueryContext)
-    extends RDD[Row](data)
+class ResultRDD(override val data: RDD[BatchDataset], override val queryContext: QueryContext)
+    extends RDD[BatchDataset](data)
     with TsdbResultBase[RDD] {
 
   private val fields = queryContext.query.fields.toArray
 
   private val schema = createSchema
 
-  override def compute(split: Partition, context: TaskContext): Iterator[Row] = {
-    data
-      .iterator(split, context)
-      .flatMap { batch =>
+  override protected def getPartitions: Array[Partition] = data.partitions
+
+  override def compute(split: Partition, context: TaskContext): Iterator[BatchDataset] = {
+    data.iterator(split, context)
+  }
+
+  def toSparkSqlRDD: RDD[Row] = {
+    data.mapPartitions { it =>
+      it.flatMap { batch =>
         val buf = ArrayBuffer.empty[Row]
         batch.foreach { rowNum =>
           val values = fields.map { f =>
@@ -57,12 +62,11 @@ class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext
         }
         buf.iterator
       }
+    }
   }
 
-  override protected def getPartitions: Array[Partition] = data.partitions
-
   def toDF(spark: SparkSession): DataFrame = {
-    spark.createDataFrame(this, schema)
+    spark.createDataFrame(toSparkSqlRDD, schema)
   }
 
   private def createSchema: StructType = {
@@ -71,14 +75,14 @@ class DataRowRDD(override val data: RDD[BatchDataset], override val queryContext
   }
 
   private def fieldToSpark(field: QueryField): StructField = {
-    val sparkType = DataRowRDD.yupanaToSparkType(field.expr.dataType)
+    val sparkType = ResultRDD.yupanaToSparkType(field.expr.dataType)
     StructField(field.name, sparkType, nullable = true)
   }
 
 }
 
-object DataRowRDD {
-  private[DataRowRDD] val TYPE_MAP: Map[Int, DataType] = Map(
+object ResultRDD {
+  private[ResultRDD] val TYPE_MAP: Map[Int, DataType] = Map(
     Types.BOOLEAN -> BooleanType,
     Types.VARCHAR -> StringType,
     Types.TINYINT -> ByteType,

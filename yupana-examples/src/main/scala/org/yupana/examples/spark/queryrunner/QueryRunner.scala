@@ -26,7 +26,7 @@ import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.examples.ExampleSchema
 import org.yupana.examples.spark.TsdbSpark
 import org.yupana.hbase.ChangelogDaoHBase
-import org.yupana.spark.{ DataRowRDD, SparkConfUtils, SparkDictionaryProvider, TsDaoHBaseSpark }
+import org.yupana.spark.{ ResultRDD, SparkConfUtils, SparkDictionaryProvider, TsDaoHBaseSpark }
 
 object QueryRunner {
 
@@ -55,7 +55,7 @@ object QueryRunner {
     }
   }
 
-  def executeQuery(sql: String, tsdbSpark: TsdbSpark): Either[String, DataRowRDD] = {
+  def executeQuery(sql: String, tsdbSpark: TsdbSpark): Either[String, ResultRDD] = {
     SqlParser.parse(sql) flatMap {
       case s: Select =>
         new SqlQueryProcessor(ExampleSchema.schema).createQuery(s).map { q =>

@@ -134,4 +134,8 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       batch: BatchDataset,
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
+
+  override def put(dataPoints: Seq[DataPoint]): Unit = {}
+
+  override def put(batchDataset: BatchDataset): Unit = {}
 }

@@ -19,13 +19,16 @@ package org.yupana.core.model
 import jdk.internal.vm.annotation.ForceInline
 import org.yupana.api.Time
 import org.yupana.api.query.Expression
+import org.yupana.api.schema.Table
 import org.yupana.api.types.{ ID, InternalReaderWriter, InternalStorable }
 import org.yupana.core.QueryContext
 import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 
-final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDataset.MAX_MUM_OF_ROWS)
+final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int = BatchDataset.MAX_MUM_OF_ROWS)
     extends Serializable {
   import BatchDataset._
+
+  def schema: DatasetSchema = _schema
 
   private val bitSet: Array[Long] = Array.ofDim(capacity * (schema.numOfFields + 1) / 64 + 1)
 
@@ -88,6 +91,11 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
       fieldIndex += 1
     }
     updateSize(rowNum)
+  }
+
+  def setFieldName(expr: Expression[_], newFieldName: String): Unit = {
+    val newSchema = schema.withFieldName(schema.fieldIndex(expr), newFieldName)
+    _schema = newSchema
   }
 
   def setDeleted(rowNum: Int): Unit = {
@@ -207,6 +215,11 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
   def get[T](rowNumber: Int, expr: Expression[T]): T = {
     val index = schema.fieldIndex(expr)
     get[T](rowNumber, index)(expr.dataType.internalStorable)
+  }
+
+  def get[T](rowNumber: Int, fieldName: String)(implicit storable: InternalStorable[T]): T = {
+    val fieldIndex = schema.fieldIndex(fieldName)
+    get[T](rowNumber, fieldIndex)
   }
 
   def get[T](rowNumber: Int, fieldIndex: Int)(implicit storable: InternalStorable[T]): T = {
@@ -382,8 +395,14 @@ final class BatchDataset(val schema: DatasetSchema, val capacity: Int = BatchDat
 }
 
 object BatchDataset {
+
   def apply(qc: QueryContext) = {
     new BatchDataset(qc.datasetSchema)
+  }
+
+  def apply(table: Table) = {
+    val schema = DatasetSchema(table)
+    new BatchDataset(schema)
   }
 
   implicit val readerWriter: InternalReaderWriter[MemoryBuffer, ID, Int, Int] = MemoryBufferEvalReaderWriter

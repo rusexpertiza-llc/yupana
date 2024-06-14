@@ -152,7 +152,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -190,7 +190,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -234,7 +234,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -282,7 +282,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -330,7 +330,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -380,7 +380,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -430,7 +430,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable3)),
         NoMetricCollector
       )
       .toList
@@ -506,7 +506,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -539,7 +539,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -586,7 +586,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -661,7 +661,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -730,7 +730,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable3)),
         NoMetricCollector
       )
       .toList
@@ -791,7 +791,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -848,7 +848,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -917,7 +917,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -946,7 +946,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1003,7 +1003,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1059,7 +1059,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1111,7 +1111,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1177,7 +1177,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable3)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable3)),
         NoMetricCollector
       )
       .toList
@@ -1232,7 +1232,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1285,7 +1285,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1364,7 +1364,7 @@ class TSDaoHBaseTest
           IndexedSeq.empty
         ),
         null,
-        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+        new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
         NoMetricCollector
       )
       .toList
@@ -1437,7 +1437,7 @@ class TSDaoHBaseTest
         IndexedSeq.empty
       ),
       null,
-      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
       NoMetricCollector
     )
 
@@ -1486,7 +1486,7 @@ class TSDaoHBaseTest
         IndexedSeq.empty
       ),
       null,
-      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
       NoMetricCollector
     )
 
@@ -1540,7 +1540,7 @@ class TSDaoHBaseTest
         IndexedSeq.empty
       ),
       null,
-      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Some(testTable)),
+      new DatasetSchema(valExprIndex(exprs), refExprIndex(exprs), Map.empty, Some(testTable)),
       NoMetricCollector
     )
 
@@ -1577,7 +1577,18 @@ class TSDaoHBaseTest
 
     override val schema: Schema = TestSchema.schema
 
-    override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = ???
+    override def put(
+        mr: MapReducible[Iterator],
+        dataPoints: Iterator[DataPoint],
+        username: String
+    ): Iterator[UpdateInterval] = ???
+
+    override def putDataset(
+        mr: MapReducible[Iterator],
+        table: Table,
+        dataset: Iterator[BatchDataset],
+        username: String
+    ): Iterator[UpdateInterval] = ???
   }
 
   def withMock(body: (TestDao, DictionaryDao, QueryRunner) => Unit): Unit = {

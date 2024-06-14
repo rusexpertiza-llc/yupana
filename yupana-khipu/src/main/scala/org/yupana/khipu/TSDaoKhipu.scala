@@ -25,7 +25,7 @@ import org.yupana.api.utils.ConditionMatchers._
 import org.yupana.api.utils.{ PrefetchedSortedSetIterator, SortedSetIterator }
 import org.yupana.core.dao.TSDao
 import org.yupana.core.{ ConstantCalculator, IteratorMapReducible, MapReducible, QueryContext }
-import org.yupana.core.model.{ BatchDataset, InternalQuery, DatasetSchema, UpdateInterval }
+import org.yupana.core.model.{ BatchDataset, DatasetSchema, InternalQuery, UpdateInterval }
 import org.yupana.core.utils.{ CollectionUtils, FlatAndCondition }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.khipu.storage.{ Cursor, DB, KTable, Prefix, Row, StorageFormat }
@@ -34,7 +34,8 @@ import org.yupana.settings.Settings
 
 import java.io.File
 import java.nio.ByteBuffer
-import scala.collection.AbstractIterator
+import java.time.OffsetDateTime
+import scala.collection.{ AbstractIterator, mutable }
 
 class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Long] {
 
@@ -54,26 +55,44 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
 
   protected lazy val expressionCalculator: ConstantCalculator = new ConstantCalculator(schema.tokenizer)
 
-  override val dataPointsBatchSize: Int = 50000
-  val reduceLimit = 10000000
+  private val dataPointsBatchSize: Int = 50000
+  private val reduceLimit = 10000000
 
   override def mapReduceEngine(metricQueryCollector: MetricQueryCollector): MapReducible[Iterator] =
     new IteratorMapReducible(reduceLimit)
 
-  override def putBatch(username: String)(dataPointsBatch: Seq[DataPoint]): Seq[UpdateInterval] = {
+  override def put(
+      mr: MapReducible[Iterator],
+      dataPoints: Iterator[DataPoint],
+      username: String
+  ): Iterator[UpdateInterval] = {
+    mr.batchFlatMap(dataPoints, dataPointsBatchSize) { dataPointsBatch =>
+      val now = OffsetDateTime.now()
+      val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
 
-    dataPointsBatch.groupBy(_.table).foreach {
-      case (table, dps) =>
-        val rows = dps.map { dp =>
-          val key = keyBytes(dp, table, StorageFormat.keySize(table))
-          val value = valueBytes(dp, Metric.Groups.default)
-          Row(key, value)
-        }
-        db.tables(table.name).put(rows)
+      dataPointsBatch.groupBy(_.table).foreach {
+        case (table, dps) =>
+          val rows = dps.map { dp =>
+            val key = keyBytes(dp, table, StorageFormat.keySize(table))
+            val value = valueBytes(dp, Metric.Groups.default)
 
+            val btime = baseTime(dp.time, table)
+            updateIntervals.getOrElseUpdate(btime, UpdateInterval(table, btime, now, username))
+
+            Row(key, value)
+          }
+          db.tables(table.name).put(rows)
+      }
+      updateIntervals.values
     }
-    Seq.empty
   }
+
+  override def putDataset(
+      mr: MapReducible[Iterator],
+      table: Table,
+      dataset: Iterator[BatchDataset],
+      username: String
+  ): Iterator[UpdateInterval] = ???
 
   override def query(
       query: InternalQuery,
@@ -591,4 +610,5 @@ class TSDaoKhipu(schema: Schema, settings: Settings) extends TSDao[Iterator, Lon
     bb.get(res)
     res
   }
+
 }

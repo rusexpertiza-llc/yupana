@@ -104,7 +104,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
       Seq(truncDay(time), dimension(Dimensions.KKM_ID))
     )
 
-    val result = tsdbSpark.query(query).collect()
+    val result = tsdbSpark.query(query).toSparkSqlRDD.collect()
 
     result should have size 1
 

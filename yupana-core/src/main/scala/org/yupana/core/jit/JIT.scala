@@ -98,7 +98,17 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
 
     val refsArray = postFilterState.refs.map(_._1).toArray[Any]
 
-    val schema = new DatasetSchema(postFilterState.valueExprIndex, postFilterState.refExprIndex, query.table)
+    val nameMapping = query.fields.map { f =>
+      val fieldIndex = postFilterState.valueExprIndex.getOrElse(f.expr, postFilterState.refExprIndex(f.expr))
+      f.name -> fieldIndex
+    }.toMap
+
+    val schema = new DatasetSchema(
+      postFilterState.valueExprIndex,
+      postFilterState.refExprIndex,
+      nameMapping,
+      query.table
+    )
 
     val rowNum = TermName("rowNum")
     val readRow = ReadFromStorageRowStage.mkReadRow(query, buf, schema, batch, rowNum)

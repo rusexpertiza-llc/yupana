@@ -3,7 +3,7 @@ package org.yupana.externallinks.universal
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
-import org.yupana.api.query.{ AddCondition, DimensionExpr, Expression, RemoveCondition }
+import org.yupana.api.query.{ AddCondition, DataPoint, DimensionExpr, Expression, RemoveCondition }
 import org.yupana.api.schema._
 import org.yupana.core.ConstantCalculator
 import org.yupana.core.auth.YupanaUser
@@ -44,6 +44,10 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
     }
 
     override def keyExpr: Expression[String] = dimension(DictionaryDimension("TAG_X"))
+
+    override def put(dataPoints: Seq[DataPoint]): Unit = {}
+
+    override def put(batchDataset: BatchDataset): Unit = {}
   }
 
   class TestLink extends ExternalLink {
@@ -86,7 +90,7 @@ class InMemoryExternalLinkBaseTest extends AnyFlatSpec with Matchers {
       link(testExternalLink, TestExternalLink.testField3) -> 5
     )
 
-    val schema = new DatasetSchema(valExprIndex, refExprIndex, None)
+    val schema = new DatasetSchema(valExprIndex, refExprIndex, Map.empty, None)
     val batch = new BatchDataset(schema)
 
     batch.set(0, time, Time(100))

@@ -68,5 +68,7 @@ trait ExternalLinkService[T <: ExternalLink] {
     */
   def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation]
 
-  def put(dataPoints: Seq[DataPoint]): Unit = {}
+  def put(dataPoints: Seq[DataPoint]): Unit
+
+  def put(batchDataset: BatchDataset): Unit
 }

@@ -31,7 +31,7 @@ import org.yupana.api.types.{ ID, ReaderWriter }
 import org.yupana.api.utils.CloseableIterator
 import org.yupana.core.TsdbConfig
 import org.yupana.core.dao.DictionaryProvider
-import org.yupana.core.model.UpdateInterval
+import org.yupana.core.model.{ BatchDataset, UpdateInterval }
 import org.yupana.core.utils.metric.MetricQueryCollector
 import org.yupana.core.utils.{ CollectionUtils, QueryUtils }
 import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
@@ -39,7 +39,7 @@ import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 import java.nio.ByteBuffer
 import java.time.temporal.TemporalAdjusters
 import java.time.{ Instant, LocalDate, OffsetDateTime, ZoneOffset }
-import scala.collection.AbstractIterator
+import scala.collection.{ AbstractIterator, mutable }
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable.NumericRange
 import scala.util.Using
@@ -155,6 +155,47 @@ object HBaseUtils extends StrictLogging {
           logger.trace(s" -- DETAIL ROWS IN TABLE ${table.name}: ${puts.length}")
           updateIntervals
         }
+    }
+  }
+
+  def doPutBatchDataset(
+      connection: Connection,
+      dictionaryProvider: DictionaryProvider,
+      namespace: String,
+      username: String,
+      batch: BatchDataset,
+      table: Table
+  ): Seq[UpdateInterval] = {
+    Using.resource(connection.getTable(tableName(namespace, table))) { hbaseTable =>
+
+      val keySize = tableKeySize(table)
+      val now = OffsetDateTime.now()
+
+      val buf = MemoryBuffer.allocateHeap(1000)
+      val puts = mutable.Map.empty[MemoryBuffer, Put]
+      val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
+
+      batch.foreach { rowNum =>
+        val time = batch.getTime(rowNum)
+        val rowKey = rowKeyBuffer(batch, rowNum, table, keySize, dictionaryProvider)
+        table.metricGroups.foreach { group =>
+
+          buf.position(0)
+          writeFields(batch, rowNum, group, table, buf)
+
+          val put = puts.getOrElseUpdate(rowKey, new Put(rowKey.bytes()))
+          val timeBytes = Bytes.toBytes(time.millis)
+          val bytes = Array.ofDim[Byte](buf.position())
+          buf.get(0, bytes)
+          put.addColumn(family(group), timeBytes, bytes)
+        }
+
+        val baseTime = HBaseUtils.baseTime(time.millis, table)
+        updateIntervals.getOrElseUpdate(baseTime, UpdateInterval(table, baseTime, now, username))
+      }
+
+      hbaseTable.put(puts.values.toList.asJava)
+      updateIntervals.values.toSeq
     }
   }
 
@@ -574,6 +615,38 @@ object HBaseUtils extends StrictLogging {
     buffer
   }
 
+  private[hbase] def rowKeyBuffer(
+      dataset: BatchDataset,
+      rowNum: Int,
+      table: Table,
+      keySize: Int,
+      dictionaryProvider: DictionaryProvider
+  ): MemoryBuffer = {
+    val time = dataset.getTime(rowNum)
+    val bt = HBaseUtils.baseTime(time.millis, table)
+    val buffer = MemoryBuffer.allocateNative(keySize)
+    buffer.putLong(bt)
+
+    table.dimensionSeq.foreach {
+      case dd: DictionaryDimension =>
+        val value = dataset.get[String](rowNum, dd.name).trim
+        val id = dictionaryProvider.dictionary(dd).id(value)
+        readerWriter.writeLong(buffer, id)
+
+      case rd: RawDimension[_] =>
+        val value = dataset.get[rd.dataType.T](rowNum, rd.name)(rd.dataType.internalStorable)
+        rd.rStorable.write(buffer, value: ID[rd.T])
+
+      case hd: HashDimension[_, _] =>
+        val value = dataset.get[hd.T](rowNum, hd.name)(hd.dataType.internalStorable)
+        val hash = hd.hashFunction(value).asInstanceOf[hd.R]
+        hd.rStorable.write(buffer, hash: ID[hd.R])
+    }
+
+    buffer.rewind()
+    buffer
+  }
+
   private def scanMetricsToString(metrics: ScanMetrics): String = {
     metrics.getMetricsMap.asScala.map { case (k, v) => s""""$k":"$v"""" }.mkString("{", ",", "}")
   }
@@ -629,5 +702,38 @@ object HBaseUtils extends StrictLogging {
     val res = Array.ofDim[Byte](size)
     bf.get(res)
     res
+  }
+
+  private def writeFields(
+      dataset: BatchDataset,
+      rowNum: Int,
+      group: Int,
+      table: Table,
+      buffer: MemoryBuffer
+  ): Unit = {
+
+    table.metrics.foreach {
+      case metric if metric.group == group =>
+        val v = dataset.get(rowNum, metric.name)(metric.dataType.internalStorable)
+        readerWriter.writeByte(buffer, metric.tag)
+        metric.dataType.storable.write(buffer, v: ID[metric.T])
+      case _ =>
+    }
+
+    table.dimensionSeq.foreach {
+      case dim: DictionaryDimension =>
+        val tag = table.dimensionTag(dim)
+        readerWriter.writeByte(buffer, tag)
+        val v = dataset.get(rowNum, dim.name)(dim.dataType.internalStorable)
+        dim.dataType.storable.write(buffer, v.asInstanceOf[dim.T]: ID[dim.T])
+
+      case dim: HashDimension[_, _] =>
+        val tag = table.dimensionTag(dim)
+        readerWriter.writeByte(buffer, tag)
+        val v = dataset.get(rowNum, dim.name)(dim.dataType.internalStorable)
+        dim.tStorable.write(buffer, v.asInstanceOf[dim.T]: ID[dim.T])
+
+      case _: RawDimension[_] =>
+    }
   }
 }

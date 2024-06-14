@@ -84,7 +84,7 @@ abstract class TsdbSparkBase(
     with Serializable {
 
   override type Collection[X] = RDD[X]
-  override type Result = DataRowRDD
+  override type Result = ResultRDD
 
   override val extractBatchSize: Int = conf.extractBatchSize
   override val putBatchSize: Int = conf.putBatchSize
@@ -115,16 +115,16 @@ abstract class TsdbSparkBase(
       queryContext: QueryContext,
       rows: RDD[BatchDataset],
       metricCollector: MetricQueryCollector
-  ): DataRowRDD = {
+  ): ResultRDD = {
     val rdd = rows.mapPartitions { it =>
       CloseableIterator(it, metricCollector.finish())
     }
-    new DataRowRDD(rdd, queryContext)
+    new ResultRDD(rdd, queryContext)
   }
 
-  def union(rdds: Seq[DataRowRDD]): DataRowRDD = {
+  def union(rdds: Seq[ResultRDD]): ResultRDD = {
     val rdd = sparkContext.union(rdds.map(_.data))
-    new DataRowRDD(rdd, rdds.head.queryContext)
+    new ResultRDD(rdd, rdds.head.queryContext)
   }
 
   override def applyWindowFunctions(

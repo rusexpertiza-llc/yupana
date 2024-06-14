@@ -58,6 +58,10 @@ class AddressCatalogImpl(override val schema: Schema, override val externalLink:
       )
     }
 
+  override def put(dataPoints: Seq[DataPoint]): Unit = {}
+
+  override def put(batchDataset: BatchDataset): Unit = {}
+
   override def setLinkedValues(
       batch: BatchDataset,
       exprs: Set[LinkExpr[_]]

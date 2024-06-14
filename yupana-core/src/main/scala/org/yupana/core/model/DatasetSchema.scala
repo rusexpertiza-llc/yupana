@@ -22,6 +22,7 @@ import org.yupana.api.schema.{ Dimension, Table }
 final class DatasetSchema(
     valueExprIndex: Map[Expression[_], Int],
     refExprIndex: Map[Expression[_], Int],
+    nameMapping: Map[String, Int],
     table: Option[Table]
 ) extends Serializable {
 
@@ -80,6 +81,10 @@ final class DatasetSchema(
     tagIndexMappingArray(tag & 0xFF)
   }
 
+  def fieldIndex(fieldName: String): Int = {
+    nameMapping(fieldName)
+  }
+
   def getExpr(index: Int): Expression[_] = {
     valueExprIndex.find(_._2 == index).orElse(refExprIndex.find(_._2 == index)).get._1
   }
@@ -99,6 +104,11 @@ final class DatasetSchema(
           sizes(idx) = getFieldSize(expr)
       }
     sizes
+  }
+
+  def withFieldName(i: Int, newFieldName: String) = {
+    val newNameMapping = nameMapping.filterNot(_._2 != 1) + (newFieldName -> i)
+    new DatasetSchema(valueExprIndex, refExprIndex, newNameMapping, table)
   }
 
   private def getFieldsOffsets(fieldSizes: Array[Int]): Array[Int] = {
@@ -187,4 +197,29 @@ final class DatasetSchema(
     array
   }
 
+}
+
+object DatasetSchema {
+  def apply(table: Table) = {
+
+    val dimExprs = table.dimensionSeq.map { dim =>
+      dim.name -> DimensionExpr(dim.aux)
+    }
+    val metricExprs = table.metrics.map { metric =>
+      metric.name -> MetricExpr(metric.aux)
+    }
+
+    val allExprs: Seq[(String, Expression[_])] = ("time" -> TimeExpr) +: (dimExprs ++ metricExprs)
+
+    val (refExprIndex, valueExprIndex) =
+      allExprs.map(_._2).zipWithIndex.toMap.partition(_._1.dataType.internalStorable.isRefType)
+
+    val nameMapping = allExprs.map {
+      case (name, expr) =>
+        val index = refExprIndex.getOrElse(expr, valueExprIndex(expr))
+        name -> index
+    }.toMap
+
+    new DatasetSchema(valueExprIndex, refExprIndex, nameMapping, Some(table))
+  }
 }
