@@ -107,7 +107,7 @@ final class DatasetSchema(
   }
 
   def withFieldName(i: Int, newFieldName: String) = {
-    val newNameMapping = nameMapping.filterNot(_._2 != 1) + (newFieldName -> i)
+    val newNameMapping = nameMapping.filterNot(_._2 == i) + (newFieldName -> i)
     new DatasetSchema(valueExprIndex, refExprIndex, newNameMapping, table)
   }
 
