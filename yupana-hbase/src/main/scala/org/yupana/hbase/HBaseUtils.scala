@@ -25,6 +25,7 @@ import org.apache.hadoop.hbase.filter._
 import org.apache.hadoop.hbase.io.compress.Compression
 import org.apache.hadoop.hbase.io.encoding.DataBlockEncoding
 import org.apache.hadoop.hbase.util.Bytes
+import org.yupana.api.Time
 import org.yupana.api.query.DataPoint
 import org.yupana.api.schema._
 import org.yupana.api.types.{ ID, ReaderWriter }
@@ -176,7 +177,7 @@ object HBaseUtils extends StrictLogging {
       val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
 
       batch.foreach { rowNum =>
-        val time = batch.getTime(rowNum)
+        val time = batch.get[Time](rowNum, "time")
         val rowKey = rowKeyBuffer(batch, rowNum, table, keySize, dictionaryProvider)
         table.metricGroups.foreach { group =>
 
@@ -622,7 +623,7 @@ object HBaseUtils extends StrictLogging {
       keySize: Int,
       dictionaryProvider: DictionaryProvider
   ): MemoryBuffer = {
-    val time = dataset.getTime(rowNum)
+    val time = dataset.get[Time](rowNum, "time")
     val bt = HBaseUtils.baseTime(time.millis, table)
     val buffer = MemoryBuffer.allocateNative(keySize)
     buffer.putLong(bt)
