@@ -24,7 +24,7 @@
     "@docusaurus/module-type-aliases": "^3.4.0",
     "@docusaurus/tsconfig": "^3.4.0",
     "@docusaurus/types": "^3.4.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.2"
   },
   "browserslist": {
     "production": [
@@ -41,5 +41,5 @@
   "engines": {
     "node": ">=18.0"
   },
-  "packageManager": "yarn@4.2.2"
+  "packageManager": "yarn@4.3.1"
 }
