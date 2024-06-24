@@ -462,156 +462,240 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
 }
 
 object PostgresBinaryReaderWriter {
-  private val POWERS10 = Array(1, 10, 100, 1000, 10000)
-  private val MAX_GROUP_SCALE = 4
-  private val MAX_GROUP_SIZE = POWERS10(4)
+  private val INT_TEN_POWERS = Array(1, 10, 100, 1000, 10000)
+  private val BI_TEN_POWERS = Array.iterate(BigInteger.ONE, 32)(_.multiply(BigInteger.TEN))
   private val NUMERIC_POSITIVE = 0x0000
   private val NUMERIC_NEGATIVE = 0x4000
   private val NUMERIC_NAN = 0xC000.toShort
-  private val NUMERIC_CHUNK_MULTIPLIER = BigInteger.valueOf(10_000L)
+  private val BI_TEN_THOUSAND = BigInteger.valueOf(10_000L)
+  private val BI_MAX_LONG = BigInteger.valueOf(Long.MaxValue)
 
   private val PG_EPOCH_DIFF =
     Duration.between(Instant.EPOCH, LocalDate.of(2000, 1, 1).atStartOfDay.toInstant(ZoneOffset.UTC)).toSeconds
 
-//  private val PG_START_TIME = 1234L
-
-  private def divide(unscaled: Array[BigInteger], divisor: Int) = {
-    val bi = unscaled(0).divideAndRemainder(BigInteger.valueOf(divisor))
-    unscaled(0) = bi(0)
-    bi(1).intValue
-  }
-
-  private def extractParts(value: JBigDecimal): (Int, Int, Int, ArrayBuffer[Int]) = {
-    var weight = 0
-    val groups = ArrayBuffer.empty[Int]
+  def writeNumeric(b: ByteBuf, value: JBigDecimal): Int = {
+    val shorts = ArrayBuffer.empty[Short]
+    var unscaled = value.unscaledValue.abs
     var scale = value.scale
-    val signum = value.signum
-    if (signum != 0) {
-      val unscaled: Array[BigInteger] = Array(null)
-      if (scale < 0) {
-        unscaled(0) = value.setScale(0).unscaledValue
-        scale = 0
-      } else unscaled(0) = value.unscaledValue
-      if (signum < 0) unscaled(0) = unscaled(0).negate
-      weight = -scale / MAX_GROUP_SCALE - 1
-      var remainder = 0
-      val scaleChunk = scale % MAX_GROUP_SCALE
-      if (scaleChunk > 0) {
-        remainder = divide(unscaled, POWERS10(scaleChunk)) * POWERS10(MAX_GROUP_SCALE - scaleChunk)
-        if (remainder != 0) weight -= 1
-      }
-      if (remainder == 0) {
-        remainder = divide(unscaled, MAX_GROUP_SIZE)
-        while (remainder == 0) {
-          remainder = divide(unscaled, MAX_GROUP_SIZE)
+
+    if (unscaled == BigInteger.ZERO) {
+      val bytes = Array[Byte](0, 0, -1, -1, 0, 0)
+      b.writeInt(8)
+      b.writeBytes(bytes)
+      b.writeShort(math.max(0, scale))
+      12
+    } else {
+      var weight = -1
+      if (scale <= 0) {
+        // this means we have an integer
+        // adjust unscaled and weight
+        if (scale < 0) {
+          scale = Math.abs(scale)
+          // weight value covers 4 digits
+          weight += scale / 4
+          // whatever remains needs to be incorporated to the unscaled value
+          val mod = scale % 4
+          unscaled = unscaled.multiply(tenPower(mod))
+          scale = 0
+        }
+        while (unscaled.compareTo(BI_MAX_LONG) > 0) {
+          val pair = unscaled.divideAndRemainder(BI_TEN_THOUSAND)
+          unscaled = pair(0)
+          val shortValue = pair(1).shortValue
+          if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
           weight += 1
         }
+        var unscaledLong = unscaled.longValueExact
+        do {
+          val shortValue = (unscaledLong % 10000).toShort
+          if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+          unscaledLong = unscaledLong / 10000L
+          weight += 1
+        } while (unscaledLong != 0)
+      } else {
+        val split = unscaled.divideAndRemainder(tenPower(scale))
+        var decimal = split(1)
+        var wholes = split(0)
+        weight = -1
+        if (!(BigInteger.ZERO == decimal)) {
+          val mod = scale % 4
+          var segments = scale / 4
+          if (mod != 0) {
+            decimal = decimal.multiply(tenPower(4 - mod))
+            segments += 1
+          }
+          do {
+            val pair = decimal.divideAndRemainder(BI_TEN_THOUSAND)
+            decimal = pair(0)
+            val shortValue = pair(1).shortValue
+            if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+            segments -= 1
+          } while (!(BigInteger.ZERO == decimal))
+          // for the leading 0 shorts we either adjust weight (if no wholes)
+          // or push shorts
+          if (BigInteger.ZERO == wholes) weight -= segments
+          else {
+            // now add leading 0 shorts
+            for (_ <- 0 until segments) {
+              shorts += 0.toShort
+            }
+          }
+        }
+        while (!(BigInteger.ZERO == wholes)) {
+          weight += 1
+          val pair = wholes.divideAndRemainder(BI_TEN_THOUSAND)
+          wholes = pair(0)
+          val shortValue = pair(1).shortValue
+          if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+        }
       }
-      groups.append(remainder)
-      while (unscaled(0).signum != 0) groups.append(divide(unscaled, MAX_GROUP_SIZE))
+
+      val groupCount = shorts.length
+
+      b.writeInt(8 + groupCount * 2)
+
+      // 8 bytes for "header" and then 2 for each short//8 bytes for "header" and then 2 for each short
+      // number of 2-byte shorts representing 4 decimal digits//number of 2-byte shorts representing 4 decimal digits
+      b.writeShort(groupCount)
+      // 0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal//0 based number of 4 decimal digits (i.e. 2-byte shorts) before the decimal
+      b.writeShort(weight)
+      // indicates positive, negative or NaN//indicates positive, negative or NaN
+      b.writeShort(if (value.signum() == -1) NUMERIC_NEGATIVE else NUMERIC_POSITIVE)
+      // number of digits after the decimal//number of digits after the decimal
+      b.writeShort(math.max(0, scale))
+
+      shorts.foreach(x => b.writeShort(x))
+      4 + 2 + 2 + 2 + 2 + groupCount * 2
     }
-    if (groups.size + weight > Short.MaxValue || scale > Short.MaxValue)
-      throw new IllegalArgumentException(s"Invalid number value ${value.toString}")
-
-    (weight, scale, signum, groups)
-  }
-
-  // This implementation is based on the H2 server:
-  // https://github.com/h2database/h2database/blob/master/h2/src/main/org/h2/server/pg/PgServerThread.java#L761
-  private def writeNumeric(b: ByteBuf, value: JBigDecimal): Int = {
-    val (weight, scale, signum, groups) = extractParts(value)
-    val groupCount = groups.size
-
-    b.writeInt(8 + groupCount * 2)
-    b.writeShort(groupCount)
-    b.writeShort(groupCount + weight)
-    b.writeShort(
-      if (signum < 0) NUMERIC_NEGATIVE
-      else NUMERIC_POSITIVE
-    )
-    b.writeShort(scale)
-    for (i <- groupCount - 1 to 0 by -1) {
-      b.writeShort(groups(i))
-    }
-
-    4 + 2 + 2 + 2 + 2 + groupCount * 2
   }
 
   private def writeNumeric(b: ByteBuf, offset: Int, value: JBigDecimal): Int = {
-
-    val (weight, scale, signum, groups) = extractParts(value)
-    val groupCount = groups.size
-
-    b.setInt(offset, 8 + groupCount * 2)
-    b.setShort(offset + 4, groupCount)
-    b.setShort(offset + 6, groupCount + weight)
-    b.setShort(
-      offset + 8,
-      if (signum < 0) NUMERIC_NEGATIVE
-      else NUMERIC_POSITIVE
-    )
-    b.setShort(offset + 10, scale)
-    for (i <- 0 until groupCount) {
-      b.setShort(offset + 12 + i * 2, groups(groupCount - i - 1))
-    }
-
-    4 + 2 + 2 + 2 + 2 + groupCount * 2
+    val slice = b.slice(offset, b.capacity() - offset)
+    slice.writerIndex(0)
+    writeNumeric(slice, value)
   }
 
+  private def tenPower(exponent: Int): BigInteger = {
+    if (BI_TEN_POWERS.length > exponent) BI_TEN_POWERS(exponent) else BigInteger.TEN.pow(exponent)
+  }
+
+  // Implementation is based on Postgresql JDBC driver:
+  // https://github.com/pgjdbc/pgjdbc/blob/9a389df3067b8e880a1b4149845eed478d3a82a0/pgjdbc/src/main/java/org/postgresql/util/ByteConverter.java#L124
   private def readNumeric(b: ByteBuf): JBigDecimal = {
     val size = b.readInt()
-    if (size < 8) throw new IllegalArgumentException(s"DECIMAL size is to small, $size")
+    if (size < 8) throw new IllegalArgumentException("number of bytes should be at-least 8")
 
     val len = b.readShort()
-    val weight = b.readShort()
+    var weight = b.readShort().toInt
     val sign = b.readShort()
-    val scale = b.readShort()
+    val scale = b.readShort().toInt
+
     if (len * 2 + 8 != size) throw new IllegalArgumentException(s"DECIMAL size is incorrect, ${len * 2 + 8} != $size")
     if (sign == NUMERIC_NAN) throw new IllegalArgumentException("DECIMAL cannot be NaN")
     if (sign != NUMERIC_POSITIVE && sign != NUMERIC_NEGATIVE)
       throw new IllegalArgumentException(s"Invalid sign, $sign")
-    if ((scale & 0x3FFF) != scale) throw throw new IllegalArgumentException(s"Invalid scale, $scale")
-    if (len == 0) {
-      if (scale == 0) JBigDecimal.ZERO
-      else new JBigDecimal(BigInteger.ZERO, scale)
-    } else {
-      var n = BigInteger.ZERO
-      for (_ <- 0 until len) {
-        val c = b.readShort()
-        if (c < 0 || c > 9_999) throw new IllegalArgumentException(s"Incorrect chunk $c")
-        n = n.multiply(NUMERIC_CHUNK_MULTIPLIER).add(BigInteger.valueOf(c))
-      }
-      if (sign != NUMERIC_POSITIVE) n = n.negate
 
-      new JBigDecimal(n, (len - weight - 1) * 4).setScale(scale)
+    if ((scale & 0x3FFF) != scale) throw new IllegalArgumentException(s"Invalid scale, $scale")
+    if (len == 0) {
+      new JBigDecimal(BigInteger.ZERO, scale)
+    } else {
+      var d = b.readShort().toInt
+      if (weight < 0) {
+        assert(scale > 0)
+        var effectiveScale = scale
+        weight += 1
+        if (weight < 0) effectiveScale += 4 * weight
+        var i = 1
+        while (i < len && d == 0) {
+          effectiveScale -= 4
+          d = b.readShort()
+          i += 1
+        }
+        assert(effectiveScale > 0)
+        if (effectiveScale >= 4) effectiveScale -= 4
+        else {
+          d = (d / INT_TEN_POWERS(4 - effectiveScale)).toShort
+          effectiveScale = 0
+        }
+        var unscaledBI: BigInteger = null
+        var unscaledInt = d
+
+        while (i < len) {
+          if (i == 4 && effectiveScale > 2) unscaledBI = BigInteger.valueOf(unscaledInt)
+          d = b.readShort()
+          if (effectiveScale >= 4) {
+            if (unscaledBI == null) unscaledInt *= 10000
+            else unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
+            effectiveScale -= 4
+          } else {
+            if (unscaledBI == null) unscaledInt *= INT_TEN_POWERS(effectiveScale)
+            else unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
+            d = (d / INT_TEN_POWERS(4 - effectiveScale)).toShort
+            effectiveScale = 0
+          }
+          if (unscaledBI == null) unscaledInt += d
+          else if (d != 0) unscaledBI = unscaledBI.add(BigInteger.valueOf(d))
+
+          i += 1
+        }
+        if (unscaledBI == null) unscaledBI = BigInteger.valueOf(unscaledInt)
+        if (effectiveScale > 0) unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
+        if (sign == NUMERIC_NEGATIVE) unscaledBI = unscaledBI.negate
+        new JBigDecimal(unscaledBI, scale)
+      } else if (scale == 0) {
+        var unscaledBI: BigInteger = null
+        var unscaledInt = d
+        for (i <- 1 until len) {
+          if (i == 4) unscaledBI = BigInteger.valueOf(unscaledInt)
+          d = b.readShort()
+          if (unscaledBI == null) {
+            unscaledInt *= 10000
+            unscaledInt += d
+          } else {
+            unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
+            if (d != 0) unscaledBI = unscaledBI.add(BigInteger.valueOf(d))
+          }
+        }
+        if (unscaledBI == null) unscaledBI = BigInteger.valueOf(unscaledInt)
+        if (sign == NUMERIC_NEGATIVE) unscaledBI = unscaledBI.negate
+        val bigDecScale = (len - (weight + 1)) * 4
+        if (bigDecScale == 0) new JBigDecimal(unscaledBI)
+        else new JBigDecimal(unscaledBI, bigDecScale).setScale(0)
+      } else {
+        var unscaledBI: BigInteger = null
+        var unscaledInt = d
+        var effectiveWeight = weight
+        var effectiveScale = scale
+        for (i <- 1 until len) {
+          if (i == 4) unscaledBI = BigInteger.valueOf(unscaledInt)
+          d = b.readShort()
+          if (effectiveWeight > 0) {
+            effectiveWeight -= 1
+            if (unscaledBI == null) unscaledInt *= 10000
+            else unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
+          } else if (effectiveScale >= 4) {
+            effectiveScale -= 4
+            if (unscaledBI == null) unscaledInt *= 10000
+            else unscaledBI = unscaledBI.multiply(BI_TEN_THOUSAND)
+          } else {
+            if (unscaledBI == null) unscaledInt *= INT_TEN_POWERS(effectiveScale)
+            else unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
+            d = (d / INT_TEN_POWERS(4 - effectiveScale)).toShort
+            effectiveScale = 0
+          }
+          if (unscaledBI == null) unscaledInt += d
+          else if (d != 0) unscaledBI = unscaledBI.add(BigInteger.valueOf(d))
+        }
+        if (unscaledBI == null) unscaledBI = BigInteger.valueOf(unscaledInt)
+        if (effectiveWeight > 0) unscaledBI = unscaledBI.multiply(tenPower(effectiveWeight * 4))
+        if (effectiveScale > 0) unscaledBI = unscaledBI.multiply(tenPower(effectiveScale))
+        if (sign == NUMERIC_NEGATIVE) unscaledBI = unscaledBI.negate
+        new JBigDecimal(unscaledBI, scale)
+      }
     }
   }
 
   private def readNumeric(b: ByteBuf, offset: Int): JBigDecimal = {
-    val size = b.getInt(offset)
-    if (size < 8) throw new IllegalArgumentException(s"DECIMAL size is to small, $size")
-
-    val len = b.getShort(offset + 4)
-    val weight = b.getShort(offset + 6)
-    val sign = b.getShort(offset + 8)
-    val scale = b.getShort(offset + 10)
-    if (len * 2 + 8 != size) throw new IllegalArgumentException(s"DECIMAL size is incorrect, ${len * 2 + 8} != $size")
-    if (sign == NUMERIC_NAN) throw new IllegalArgumentException("DECIMAL cannot be NaN")
-    if (sign != NUMERIC_POSITIVE && sign != NUMERIC_NEGATIVE)
-      throw new IllegalArgumentException(s"Invalid sign, $sign")
-    if ((scale & 0x3FFF) != scale) throw throw new IllegalArgumentException(s"Invalid scale, $scale")
-    if (len == 0) {
-      if (scale == 0) JBigDecimal.ZERO
-      else new JBigDecimal(BigInteger.ZERO, scale)
-    } else {
-      var n = BigInteger.ZERO
-      for (i <- 0 until len) {
-        val c = b.getShort(offset + 12 + i * 2)
-        if (c < 0 || c > 9_999) throw new IllegalArgumentException(s"Incorrect chunk $c")
-        n = n.multiply(NUMERIC_CHUNK_MULTIPLIER).add(BigInteger.valueOf(c))
-      }
-      if (sign != NUMERIC_POSITIVE) n = n.negate
-      new JBigDecimal(n, (len - weight - 1) * 4).setScale(scale)
-    }
+    readNumeric(b.readSlice(offset))
   }
 }
