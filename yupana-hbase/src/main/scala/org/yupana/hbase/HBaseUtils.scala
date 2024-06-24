@@ -185,10 +185,11 @@ object HBaseUtils extends StrictLogging {
           writeFields(batch, rowNum, group, table, buf)
 
           val put = puts.getOrElseUpdate(rowKey, new Put(rowKey.bytes()))
-          val timeBytes = Bytes.toBytes(time.millis)
+          val restTime = HBaseUtils.restTime(time.millis, table)
+          val restTimeBytes = Bytes.toBytes(restTime)
           val bytes = Array.ofDim[Byte](buf.position())
           buf.get(0, bytes)
-          put.addColumn(family(group), timeBytes, bytes)
+          put.addColumn(family(group), restTimeBytes, bytes)
         }
 
         val baseTime = HBaseUtils.baseTime(time.millis, table)
