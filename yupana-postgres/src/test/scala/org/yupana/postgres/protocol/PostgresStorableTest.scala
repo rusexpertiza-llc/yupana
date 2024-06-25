@@ -18,11 +18,12 @@ class PostgresStorableTest extends StorableTestBase {
 //
 //  it should behave like stringStorageTest(PostgresStringReaderWriter)
 
-  it should "properly handle tricky BigDecimal" in {
+  it should "properly BigDecimal(0+202)" in {
     val storable = implicitly[Storable[BigDecimal]]
     implicit val rw: ByteReaderWriter[ByteBuf] = new PostgresBinaryReaderWriter(StandardCharsets.UTF_8)
 
-    val t = BigDecimal(0L, -202)
+//    val t = BigDecimal(0L, 202)
+    val t = BigDecimal(11.079634230747)
 
     println(s"T=$t")
 

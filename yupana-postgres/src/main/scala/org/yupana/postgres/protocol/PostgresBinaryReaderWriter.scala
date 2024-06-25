@@ -25,7 +25,7 @@ import org.yupana.postgres.protocol.PostgresBinaryReaderWriter.{ PG_EPOCH_DIFF, 
 import java.math.{ BigInteger, BigDecimal => JBigDecimal }
 import java.nio.charset.Charset
 import java.time.{ Duration, Instant, LocalDate, ZoneOffset }
-import scala.collection.mutable.{ ArrayBuffer, ListBuffer }
+import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[ByteBuf] {
@@ -474,7 +474,7 @@ object PostgresBinaryReaderWriter {
     Duration.between(Instant.EPOCH, LocalDate.of(2000, 1, 1).atStartOfDay.toInstant(ZoneOffset.UTC)).toSeconds
 
   def writeNumeric(b: ByteBuf, value: JBigDecimal): Int = {
-    val shorts = ArrayBuffer.empty[Short]
+    var shorts = List.empty[Short]
     var unscaled = value.unscaledValue.abs
     var scale = value.scale
 
@@ -502,13 +502,13 @@ object PostgresBinaryReaderWriter {
           val pair = unscaled.divideAndRemainder(BI_TEN_THOUSAND)
           unscaled = pair(0)
           val shortValue = pair(1).shortValue
-          if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+          if (shortValue != 0 || shorts.nonEmpty) shorts ::= shortValue
           weight += 1
         }
         var unscaledLong = unscaled.longValueExact
         do {
           val shortValue = (unscaledLong % 10000).toShort
-          if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+          if (shortValue != 0 || shorts.nonEmpty) shorts ::= shortValue
           unscaledLong = unscaledLong / 10000L
           weight += 1
         } while (unscaledLong != 0)
@@ -517,7 +517,7 @@ object PostgresBinaryReaderWriter {
         var decimal = split(1)
         var wholes = split(0)
         weight = -1
-        if (!(BigInteger.ZERO == decimal)) {
+        if (BigInteger.ZERO != decimal) {
           val mod = scale % 4
           var segments = scale / 4
           if (mod != 0) {
@@ -528,25 +528,26 @@ object PostgresBinaryReaderWriter {
             val pair = decimal.divideAndRemainder(BI_TEN_THOUSAND)
             decimal = pair(0)
             val shortValue = pair(1).shortValue
-            if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+            if (shortValue != 0 || shorts.nonEmpty) shorts ::= shortValue
             segments -= 1
-          } while (!(BigInteger.ZERO == decimal))
+          } while (BigInteger.ZERO != decimal)
           // for the leading 0 shorts we either adjust weight (if no wholes)
           // or push shorts
-          if (BigInteger.ZERO == wholes) weight -= segments
-          else {
+          if (BigInteger.ZERO == wholes) {
+            weight -= segments
+          } else {
             // now add leading 0 shorts
             for (_ <- 0 until segments) {
-              shorts += 0.toShort
+              shorts ::= 0.toShort
             }
           }
         }
-        while (!(BigInteger.ZERO == wholes)) {
+        while (BigInteger.ZERO != wholes) {
           weight += 1
           val pair = wholes.divideAndRemainder(BI_TEN_THOUSAND)
           wholes = pair(0)
           val shortValue = pair(1).shortValue
-          if (shortValue != 0 || shorts.nonEmpty) shorts += shortValue
+          if (shortValue != 0 || shorts.nonEmpty) shorts ::= shortValue
         }
       }
 
@@ -696,6 +697,6 @@ object PostgresBinaryReaderWriter {
   }
 
   private def readNumeric(b: ByteBuf, offset: Int): JBigDecimal = {
-    readNumeric(b.readSlice(offset))
+    readNumeric(b.slice(offset, b.capacity() - offset))
   }
 }
