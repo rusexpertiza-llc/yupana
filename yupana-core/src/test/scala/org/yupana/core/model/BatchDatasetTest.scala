@@ -145,6 +145,7 @@ class BatchDatasetTest extends AnyFlatSpec with Matchers with ScalaCheckDrivenPr
     val ois = new ObjectInputStream(is)
     val deserializedBatch = ois.readObject().asInstanceOf[BatchDataset]
 
+    deserializedBatch.isDefined(0, intExpr) shouldBe true
     deserializedBatch.get(0, intExpr) shouldEqual 1
     deserializedBatch.get(0, doubleExpr) shouldEqual 2.0
     deserializedBatch.get(0, stringExpr) shouldEqual "3"

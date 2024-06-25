@@ -67,10 +67,15 @@ final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int =
 
     var fieldIndex = 0
     while (fieldIndex < schema.numOfFields) {
+
       if (schema.isRef(fieldIndex)) {
         val ordinal = schema.refFieldOrdinal(fieldIndex)
         val ref = src.getRef[AnyRef](srcRowNum, ordinal)
         setRef(rowNum, ordinal, ref)
+      } else {
+        if (src.isDefined(srcRowNum, fieldIndex)) {
+          setValid(rowNum, fieldIndex)
+        }
       }
 
       val offset = getOffset(rowNum, fieldIndex)
