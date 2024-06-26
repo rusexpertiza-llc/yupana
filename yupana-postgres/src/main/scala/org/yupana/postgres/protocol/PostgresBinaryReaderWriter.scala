@@ -619,7 +619,7 @@ object PostgresBinaryReaderWriter {
           effectiveScale = 0
         }
         var unscaledBI: BigInteger = null
-        var unscaledInt = d
+        var unscaledInt = d.toLong
 
         while (i < len) {
           if (i == 4 && effectiveScale > 2) unscaledBI = BigInteger.valueOf(unscaledInt)
@@ -645,7 +645,7 @@ object PostgresBinaryReaderWriter {
         new JBigDecimal(unscaledBI, scale)
       } else if (scale == 0) {
         var unscaledBI: BigInteger = null
-        var unscaledInt = d
+        var unscaledInt = d.toLong
         for (i <- 1 until len) {
           if (i == 4) unscaledBI = BigInteger.valueOf(unscaledInt)
           d = b.readShort()
@@ -664,7 +664,7 @@ object PostgresBinaryReaderWriter {
         else new JBigDecimal(unscaledBI, bigDecScale).setScale(0)
       } else {
         var unscaledBI: BigInteger = null
-        var unscaledInt = d
+        var unscaledInt = d.toLong
         var effectiveWeight = weight
         var effectiveScale = scale
         for (i <- 1 until len) {
