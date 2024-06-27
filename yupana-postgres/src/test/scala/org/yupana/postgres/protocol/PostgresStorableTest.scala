@@ -9,7 +9,9 @@ class PostgresStorableTest extends StorableTestBase {
 
   val byteBufUtils: BufUtils[ByteBuf] = new BufUtils[ByteBuf] {
     override def createBuffer(size: Int): ByteBuf = Unpooled.buffer(size)
+
     override def position(buf: ByteBuf): Int = buf.writerIndex()
+
     override def rewind(bb: ByteBuf): Unit = {} // bb.rewind()
   }
 

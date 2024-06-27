@@ -52,7 +52,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-18"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -64,7 +64,7 @@ lazy val serialization = (project in file("yupana-serialization"))
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-18"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -167,7 +167,7 @@ lazy val core = (project in file("yupana-core"))
       "ch.qos.logback"                %  "logback-classic"              % versions.logback            % Test,
       "org.scalatest"                 %% "scalatest"                    % versions.scalaTest          % Test,
       "org.scalamock"                 %% "scalamock"                    % versions.scalaMock          % Test,
-      "org.scalatestplus"             %% "scalacheck-1-17"              % versions.scalaTestCheck     % Test
+      "org.scalatestplus"             %% "scalacheck-1-18"              % versions.scalaTestCheck     % Test
     )
   )
   .dependsOn(api, serialization, settings, metrics, cache, utils % Test)
@@ -479,7 +479,7 @@ lazy val versions = new {
   val ehcache = "3.9.7"
   val caffeine = "3.1.8"
 
-  val circe = "0.14.5" // To have same cats version wuth Spark
+  val circe = "0.14.5" // To have same cats version with Spark
 
   val flyway = "7.4.0"
   val hikariCP = "4.0.3"
@@ -487,8 +487,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.7.3"
 
-  val scalaTest = "3.2.18"
-  val scalaTestCheck = "3.2.18.0"
+  val scalaTest = "3.2.19"
+  val scalaTestCheck = "3.2.19.0"
   val scalaMock = "6.0.0"
 }
 
