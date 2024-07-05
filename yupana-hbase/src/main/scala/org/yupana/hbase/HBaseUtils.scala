@@ -172,7 +172,7 @@ object HBaseUtils extends StrictLogging {
       val keySize = tableKeySize(table)
       val now = OffsetDateTime.now()
 
-      val buf = MemoryBuffer.allocateHeap(1000)
+      val buf = MemoryBuffer.allocateHeap(MAX_ROW_SIZE)
       val puts = mutable.Map.empty[MemoryBuffer, Put]
       val updateIntervals = mutable.Map.empty[Long, UpdateInterval]
 
