@@ -39,12 +39,21 @@ trait SimpleAggExprCodeGen[T <: AggregateExpr[_, _, _]] extends AggregateExpress
     val w = r.state.withWriteToRow(acc, expression)
 
     val valDecl = w.valueDeclaration
-    val validityTree = q"val ${valDecl.validityFlagName} = true"
-    val valueTree = if (expression.expr.isNullable) {
-      q"val ${valDecl.valueName} = if (${r.valueDeclaration.validityFlagName}) ${zeroTree(r.valueDeclaration)} else ${CommonGen
-          .initVal(expression)}"
+
+    val (validityTree, valueTree) = if (expression.expr.isNullable) {
+      val validTree = q"val ${valDecl.validityFlagName} = ${r.valueDeclaration.validityFlagName}"
+      val valTree =
+        q"""val ${valDecl.valueName} =
+            if (${r.valueDeclaration.validityFlagName})
+              ${zeroTree(r.valueDeclaration)}
+            else
+              ${CommonGen.initVal(expression)}
+        """
+      (validTree, valTree)
     } else {
-      q"val ${valDecl.valueName} = ${zeroTree(r.valueDeclaration)}"
+      val validTree = q"val ${valDecl.validityFlagName} = true"
+      val valTree = q"val ${valDecl.valueName} = ${zeroTree(r.valueDeclaration)}"
+      (validTree, valTree)
     }
     CodeGenResult(r.trees ++ Seq(validityTree, valueTree), valDecl, w.state)
   }
@@ -58,19 +67,26 @@ trait SimpleAggExprCodeGen[T <: AggregateExpr[_, _, _]] extends AggregateExpress
     val valDecl = ValueDeclaration(s"res_${accRes.valueDeclaration.valueName}")
 
     val funcTree = foldTree(accRes.valueDeclaration, rowRes.valueDeclaration)
-    val validityTree =
-      q"val ${valDecl.validityFlagName} = true"
 
-    val valueTree = if (expression.expr.isNullable) {
-      q""" val ${valDecl.valueName} =
-                 if (${rowRes.valueDeclaration.validityFlagName}) {
+    val (validityTree, valueTree) = if (expression.expr.isNullable) {
+
+      val validTree =
+        q"val ${valDecl.validityFlagName} = ${accRes.valueDeclaration.validityFlagName} || ${rowRes.valueDeclaration.validityFlagName}"
+
+      val valTree = q""" val ${valDecl.valueName} =
+                 if (${accRes.valueDeclaration.validityFlagName} && ${rowRes.valueDeclaration.validityFlagName}) {
                     $funcTree
+                 } else if (${rowRes.valueDeclaration.validityFlagName}) {
+                    ${zeroTree(rowRes.valueDeclaration)}
                  } else {
                     ${accRes.valueDeclaration.valueName}
                  }
              """
+      (validTree, valTree)
     } else {
-      q"val ${valDecl.valueName} = $funcTree"
+      val validTree = q"val ${valDecl.validityFlagName} = true"
+      val valTree = q"val ${valDecl.valueName} = $funcTree"
+      (validTree, valTree)
     }
 
     val trees = accRes.trees ++ rowRes.trees ++ Seq(validityTree, valueTree)
@@ -86,11 +102,33 @@ trait SimpleAggExprCodeGen[T <: AggregateExpr[_, _, _]] extends AggregateExpress
 
     val rValue = ValueDeclaration(s"combine_${aRes.valueDeclaration.valueName}_${bRes.valueDeclaration.valueName}")
 
-    val validityTree =
-      q"val ${rValue.validityFlagName} = true"
+    val (validityTree, valueTree) = if (expression.expr.isNullable) {
+      val validTree =
+        q"val ${rValue.validityFlagName} = ${aRes.valueDeclaration.validityFlagName} || ${bRes.valueDeclaration.validityFlagName}"
 
-    val valueTree =
-      q"val ${rValue.valueName} = ${combineTree(aRes.valueDeclaration, bRes.valueDeclaration)}"
+      val valTree = q""" val ${rValue.valueName} =
+                 if (${aRes.valueDeclaration.validityFlagName} && ${bRes.valueDeclaration.validityFlagName}) {
+                    ${combineTree(aRes.valueDeclaration, bRes.valueDeclaration)}
+                 } else if (${aRes.valueDeclaration.validityFlagName}) {
+                    ${aRes.valueDeclaration.valueName}
+                 } else if (${bRes.valueDeclaration.validityFlagName}) {
+                    ${bRes.valueDeclaration.valueName}
+                 } else {
+                    ${CommonGen.initVal(expression)}
+                 }
+             """
+
+      (validTree, valTree)
+
+    } else {
+      val validTree =
+        q"val ${rValue.validityFlagName} = true"
+
+      val valTree =
+        q"val ${rValue.valueName} = ${combineTree(aRes.valueDeclaration, bRes.valueDeclaration)}"
+
+      (validTree, valTree)
+    }
 
     val ns = bRes.state.withWriteToRow(accRowA, expression, rValue)
     val trees = aRes.trees ++ bRes.trees ++ Seq(validityTree, valueTree)

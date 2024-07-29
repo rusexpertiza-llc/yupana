@@ -56,7 +56,7 @@ class AvgExprCodeGen(override val expression: AvgExpr[_]) extends AggregateExpre
     val validityTree = q"val ${avgVal.validityFlagName} = ${count.valueDeclaration.valueName} > 0"
     val valueTree =
       q"""val ${avgVal.valueName} =
-              if (${count.valueDeclaration.valueName} > 0)
+              if (${sum.valueDeclaration.validityFlagName} && ${count.valueDeclaration.valueName} > 0)
                  BigDecimal(${sum.valueDeclaration.valueName}.toDouble / ${count.valueDeclaration.valueName})
               else null
           """

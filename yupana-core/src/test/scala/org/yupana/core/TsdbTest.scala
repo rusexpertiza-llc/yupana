@@ -3945,7 +3945,7 @@ class TsdbTest
     res.next() shouldBe true
 
     res.get[Time]("time") shouldBe Time(qtime.truncatedTo(ChronoUnit.DAYS).toInstant.toEpochMilli)
-    res.get[Double]("sum_testField") shouldBe 0
+    res.isEmpty("sum_testField") shouldBe true
     res.get[Long]("count_testField") shouldBe 0
     res.get[Long]("distinct_count_testField") shouldBe 0
     res.get[Long]("record_count") shouldBe 2
