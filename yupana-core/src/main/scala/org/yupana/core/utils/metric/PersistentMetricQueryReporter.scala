@@ -43,10 +43,11 @@ class PersistentMetricQueryReporter(metricsDao: TsdbQueryMetricsDao, asyncSaving
   }
 
   private def saveMetricsFromBuffer(): Unit = {
-    if (asyncBuffer.size() > 0) {
+    if (!asyncBuffer.isEmpty) {
       val metricsToSave = mutable.ListBuffer.empty[InternalMetricData]
-      while (asyncBuffer.size() > 0) {
-        metricsToSave += asyncBuffer.poll()
+      while (!asyncBuffer.isEmpty) {
+        val m = asyncBuffer.poll()
+        if (m != null) metricsToSave += m
       }
       metricsDao.saveQueryMetrics(metricsToSave.toList)
     }
