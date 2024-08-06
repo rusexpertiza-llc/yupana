@@ -19,7 +19,7 @@ package org.yupana.api.types
 import org.threeten.extra.PeriodDuration
 
 import java.sql.Types
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 /**
   * Contains different meta information for type `T`
@@ -63,6 +63,8 @@ object DataTypeMeta {
     DataTypeMeta(Types.DOUBLE, 25, "DOUBLE", classOf[java.lang.Double], 17, 17)
   implicit val longMeta: DataTypeMeta[Long] = DataTypeMeta(Types.BIGINT, 20, "BIGINT", classOf[java.lang.Long], 19, 0)
   implicit val decimalMeta: DataTypeMeta[BigDecimal] = scaledDecimalMeta(MONEY_SCALE)
+  implicit val currencyMeta: DataTypeMeta[Currency] =
+    DataTypeMeta(Types.DECIMAL, 20, "CURRENCY", classOf[java.lang.Long], 19, 0)
   implicit val timestampMeta: DataTypeMeta[Time] =
     DataTypeMeta(Types.TIMESTAMP, 23, "TIMESTAMP", classOf[java.sql.Timestamp], 23, 6)
   implicit val periodMeta: DataTypeMeta[PeriodDuration] =

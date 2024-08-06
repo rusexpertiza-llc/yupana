@@ -17,12 +17,12 @@
 package org.yupana.api.query
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.Time
+import org.yupana.api.{Currency, Time}
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
+import org.yupana.api.schema.{Dimension, ExternalLink, LinkField, Metric}
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types._
-import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
+import org.yupana.api.utils.{CollectionUtils, SortedSetIterator}
 
 import scala.annotation.implicitNotFound
 
@@ -106,6 +106,7 @@ object SumExpr {
 
   implicit val sumInt: SumGuard[Int, Int] = SumGuard[Int, Int]()
   implicit val sumLong: SumGuard[Long, Long] = SumGuard[Long, Long]()
+  implicit val currencyGuard: SumGuard[Currency, Currency] = SumGuard[Currency, Currency]()
   implicit val sumDouble: SumGuard[Double, Double] = SumGuard[Double, Double]()
   implicit val sumFloat: SumGuard[Float, Float] = SumGuard[Float, Float]()
   implicit val sumByte: SumGuard[Byte, Int] = SumGuard[Byte, Int]()

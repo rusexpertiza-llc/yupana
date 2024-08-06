@@ -17,7 +17,7 @@
 package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import scala.annotation.implicitNotFound
 import scala.reflect.ClassTag
@@ -171,6 +171,18 @@ object Storable {
 
     override def readString(s: String)(implicit srw: StringReaderWriter): Time = srw.readTime(s)
     override def writeString(v: Time)(implicit srw: StringReaderWriter): String = srw.writeTime(v)
+  }
+
+  implicit val currencyStorable: Storable[Currency] = new Storable[Currency] {
+    override def read[B, V[_], S, O](b: B)(implicit rw: ReaderWriter[B, V, S, O]): V[Currency] = rw.readVCurrency(b)
+    override def read[B, V[_], S, O](b: B, offset: O)(implicit rw: ReaderWriter[B, V, S, O]): V[Currency] =
+      rw.readVCurrency(b, offset)
+    override def write[B, V[_], S, O](b: B, v: V[Currency])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeVCurrency(b, v)
+    override def write[B, V[_], S, O](b: B, offset: O, v: V[Currency])(implicit rw: ReaderWriter[B, V, S, O]): S =
+      rw.writeVCurrency(b, offset, v)
+    override def readString(s: String)(implicit srw: StringReaderWriter): Currency = srw.readCurrency(s)
+    override def writeString(v: Currency)(implicit srw: StringReaderWriter): String = srw.writeCurrency(v)
   }
 
   implicit val periodStorable: Storable[PeriodDuration] = new Storable[PeriodDuration] {

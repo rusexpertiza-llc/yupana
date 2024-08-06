@@ -18,7 +18,7 @@ package org.yupana.api.types
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import scala.reflect.ClassTag
 
@@ -110,6 +110,7 @@ object DataType {
     DataType[Byte],
     DataType[BigDecimal],
     DataType[Time],
+    DataType[Currency],
     DataType[Blob],
     DataType[Boolean],
     DataType[Null]
@@ -144,6 +145,9 @@ object DataType {
 
   implicit def intDt[T: Storable: InternalStorable: BoxingTag: DataTypeMeta: Integral: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), Some(implicitly[Integral[T]]), None)
+
+  implicit val currencyDt: DataType.Aux[Currency] =
+    create[Currency](Some(Ordering[Currency]), Some(Integral[Currency]), None)
 
   implicit def fracDt[T: Storable: InternalStorable: BoxingTag: DataTypeMeta: Fractional: ClassTag]: DataType.Aux[T] =
     create[T](Some(Ordering[T]), None, Some(implicitly[Fractional[T]]))
