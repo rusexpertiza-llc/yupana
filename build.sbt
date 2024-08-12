@@ -1,8 +1,10 @@
 import scalapb.compiler.Version.scalapbVersion
 import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
+import xerial.sbt.Sonatype.sonatypeCentralHost
 
 ThisBuild / useCoursier := false
+ThisBuild / sonatypeCredentialHost := sonatypeCentralHost
 
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
