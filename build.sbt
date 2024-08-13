@@ -397,11 +397,11 @@ lazy val benchmarks = (project in file("yupana-benchmarks"))
   .settings(
     name := "yupana-benchmarks",
     libraryDependencies ++= Seq(
-      "com.github.scopt"              %% "scopt"                      % versions.scopt,
-      "io.prometheus"                 %  "simpleclient"               % versions.prometheus,
-      "io.prometheus"                 %  "simpleclient_pushgateway"   % versions.prometheus,
-      "jakarta.ws.rs"                 %  "jakarta.ws.rs-api"          % "2.1.5",
-      "org.scalatest"                 %% "scalatest"                  % versions.scalaTest    % Test
+      "com.github.scopt"              %% "scopt"                                    % versions.scopt,
+      "io.prometheus"                 %  "prometheus-metrics-core"                  % versions.prometheus,
+      "io.prometheus"                 %  "prometheus-metrics-exporter-pushgateway"  % versions.prometheus,
+      "jakarta.ws.rs"                 %  "jakarta.ws.rs-api"                        % "2.1.5",
+      "org.scalatest"                 %% "scalatest"                                % versions.scalaTest    % Test
     ),
     excludeDependencies ++= Seq(
       // workaround for https://github.com/sbt/sbt/issues/3618
@@ -467,7 +467,7 @@ lazy val versions = new {
   val scalaLogging = "3.9.5"
   val fastparse = "3.1.1"
   val scopt = "4.1.0"
-  val prometheus = "0.16.0"
+  val prometheus = "1.3.1"
 
   val hbase = "2.5.7"
   val hadoop = "3.3.6"
