@@ -70,7 +70,7 @@ final class HashTableDataset(schema: DatasetSchema) {
     val ptr = hashMap.getOrElse(key, KEY_NOT_FOUND)
     if (ptr != KEY_NOT_FOUND) {
       val rowNum = rowNumber(ptr)
-      batch(ptr).isDefined(rowNum, fieldIndex)
+      batch(ptr).isDefinedValue(rowNum, fieldIndex)
     } else {
       false
     }
