@@ -243,7 +243,7 @@ object BatchDatasetGen {
       fieldIndex: Int,
       valueDeclaration: ValueDeclaration
   ): Tree = {
-    q"val ${valueDeclaration.validityFlagName} = $dataset.isDefinedValue($rowId, $fieldIndex)"
+    q"val ${valueDeclaration.validityFlagName} = $dataset.isValueDefined($rowId, $fieldIndex)"
   }
 
   private def mkReadValueFromRow(
