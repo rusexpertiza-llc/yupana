@@ -716,9 +716,11 @@ object HBaseUtils extends StrictLogging {
 
     table.metrics.foreach {
       case metric if metric.group == group =>
-        val v = dataset.get(rowNum, metric.name)(metric.dataType.internalStorable)
-        readerWriter.writeByte(buffer, metric.tag)
-        metric.dataType.storable.write(buffer, v: ID[metric.T])
+        if (dataset.isDefined(rowNum, metric.name)) {
+          val v = dataset.get(rowNum, metric.name)(metric.dataType.internalStorable)
+          readerWriter.writeByte(buffer, metric.tag)
+          metric.dataType.storable.write(buffer, v: ID[metric.T])
+        }
       case _ =>
     }
 
