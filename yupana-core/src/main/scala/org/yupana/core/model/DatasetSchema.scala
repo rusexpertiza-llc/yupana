@@ -30,7 +30,9 @@ final class DatasetSchema(
 
   val timeFieldIndex: Int = valueExprIndex.getOrElse(TimeExpr, -1)
 
-  val numOfFields: Int = Seq(valueExprIndex.values.maxOption, refExprIndex.values.maxOption).flatten.sum + 1
+  val numOfFields: Int =
+    Seq(valueExprIndex.values.maxOption, refExprIndex.values.maxOption).flatten.maxOption.map(_ + 1).getOrElse(0)
+
   val numOfRefFields: Int = refExprIndex.size
 
   val fixedLengthFieldsBytesSize: Int = getFixedAreaSize(valueExprIndex)
