@@ -4,7 +4,7 @@ import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
 import org.yupana.cache.CacheFactory
@@ -270,11 +270,13 @@ class TsdbArithmeticTest
           |count(testStringField) c3,
           |count(testLongField) c4,
           |count(testBigDecimalField) c5,
+          |count(testCurrencyField) c6,
           |distinct_count(testField) dc1,
           |distinct_count(testField2) dc2,
           |distinct_count(testStringField) dc3,
           |distinct_count(testLongField) dc4,
-          |distinct_count(testBigDecimalField) dc5
+          |distinct_count(testBigDecimalField) dc5,
+          |distinct_count(testCurrencyField) dc6
           |""".stripMargin +
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
       val query = createQuery(sql)
@@ -291,6 +293,7 @@ class TsdbArithmeticTest
               metric(TestTableFields.TEST_STRING_FIELD),
               metric(TestTableFields.TEST_LONG_FIELD),
               metric(TestTableFields.TEST_BIGDECIMAL_FIELD),
+              metric(TestTableFields.TEST_CURRENCY_FIELD),
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
@@ -311,6 +314,7 @@ class TsdbArithmeticTest
           batch.set(0, metric(TestTableFields.TEST_STRING_FIELD), "a")
           batch.setNull(0, metric(TestTableFields.TEST_LONG_FIELD))
           batch.set(0, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
+          batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(1))
 
           batch.set(1, time, Time(pointTime))
           batch.set(1, metric(TestTableFields.TEST_FIELD), 1d)
@@ -318,6 +322,7 @@ class TsdbArithmeticTest
           batch.setNull(1, metric(TestTableFields.TEST_STRING_FIELD))
           batch.set(1, metric(TestTableFields.TEST_LONG_FIELD), 1L)
           batch.setNull(1, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+          batch.setNull(1, metric(TestTableFields.TEST_CURRENCY_FIELD))
 
           batch.set(2, time, Time(pointTime))
           batch.set(2, metric(TestTableFields.TEST_FIELD), 2d)
@@ -325,6 +330,7 @@ class TsdbArithmeticTest
           batch.set(2, metric(TestTableFields.TEST_STRING_FIELD), "b")
           batch.set(2, metric(TestTableFields.TEST_LONG_FIELD), 1L)
           batch.setNull(2, metric(TestTableFields.TEST_BIGDECIMAL_FIELD))
+          batch.setNull(2, metric(TestTableFields.TEST_CURRENCY_FIELD))
 
           batch.set(3, time, Time(pointTime))
           batch.setNull(3, metric(TestTableFields.TEST_FIELD))
@@ -332,6 +338,7 @@ class TsdbArithmeticTest
           batch.setNull(3, metric(TestTableFields.TEST_STRING_FIELD))
           batch.set(3, metric(TestTableFields.TEST_LONG_FIELD), 2L)
           batch.set(3, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(2))
+          batch.set(3, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(2))
 
           batch.set(4, time, Time(pointTime))
           batch.set(4, metric(TestTableFields.TEST_FIELD), 1d)
@@ -339,6 +346,7 @@ class TsdbArithmeticTest
           batch.set(4, metric(TestTableFields.TEST_STRING_FIELD), "a")
           batch.setNull(4, metric(TestTableFields.TEST_LONG_FIELD))
           batch.set(4, metric(TestTableFields.TEST_BIGDECIMAL_FIELD), BigDecimal(1))
+          batch.set(4, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(1))
 
           Iterator(batch)
         }
@@ -351,11 +359,13 @@ class TsdbArithmeticTest
       res.get[Long]("c3") shouldBe 3
       res.get[Long]("c4") shouldBe 3
       res.get[Long]("c5") shouldBe 3
+      res.get[Long]("c6") shouldBe 3
       res.get[Long]("dc1") shouldBe 2
       res.get[Long]("dc2") shouldBe 0
       res.get[Long]("dc3") shouldBe 2
       res.get[Long]("dc4") shouldBe 2
       res.get[Long]("dc5") shouldBe 2
+      res.get[Long]("dc6") shouldBe 2
 
       res.next() shouldBe false
   }

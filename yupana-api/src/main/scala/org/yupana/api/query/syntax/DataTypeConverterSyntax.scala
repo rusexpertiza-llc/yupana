@@ -42,6 +42,8 @@ trait DataTypeConverterSyntax {
 
   def double2bigDecimal(e: Expression[Double]): Expression[BigDecimal] = Double2BigDecimalExpr(e)
   def bigDecimal2Double(e: Expression[BigDecimal]): Expression[Double] = BigDecimal2DoubleExpr(e)
+
+//  def double2Currency(e: Expression[Double]): Expression[Currency] = Double2CurrencyExpr(e)
 }
 
 object DataTypeConverterSyntax extends DataTypeConverterSyntax

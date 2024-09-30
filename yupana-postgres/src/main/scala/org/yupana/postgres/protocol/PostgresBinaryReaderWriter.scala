@@ -19,7 +19,7 @@ package org.yupana.postgres.protocol
 import io.netty.buffer.ByteBuf
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.{ ByteReaderWriter, ID }
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 import org.yupana.postgres.protocol.PostgresBinaryReaderWriter.{ PG_EPOCH_DIFF, readNumeric, writeNumeric }
 
 import java.math.{ BigInteger, BigDecimal => JBigDecimal }
@@ -449,6 +449,29 @@ class PostgresBinaryReaderWriter(charset: Charset) extends ByteReaderWriter[Byte
   override def writePeriodDuration(b: ByteBuf, offset: Int, v: PeriodDuration): Int = {
     writeString(b, offset, v.toString)
   }
+
+  private val CURRENCY_SUB: JBigDecimal = JBigDecimal.valueOf(Currency.SUB)
+  private def currencyToBigDecimal(c: Currency): JBigDecimal = JBigDecimal.valueOf(c.value).divide(CURRENCY_SUB)
+  private def bigDecimalToCurrency(d: JBigDecimal): Currency = Currency(d.multiply(CURRENCY_SUB).longValue())
+
+  override def sizeOfCurrency: Int = ???
+
+  override def readCurrency(b: ByteBuf): ID[Currency] = bigDecimalToCurrency(readNumeric(b))
+
+  override def readCurrency(b: ByteBuf, offset: Int): ID[Currency] = bigDecimalToCurrency(readNumeric(b, offset))
+
+  override def writeCurrency(b: ByteBuf, v: ID[Currency]): Int = writeNumeric(b, currencyToBigDecimal(v))
+
+  override def writeCurrency(b: ByteBuf, offset: Int, v: ID[Currency]): Int =
+    writeNumeric(b, offset, currencyToBigDecimal(v))
+
+  override def readVCurrency(b: ByteBuf): ID[Currency] = readCurrency(b)
+
+  override def readVCurrency(b: ByteBuf, offset: Int): ID[Currency] = readCurrency(b, offset)
+
+  override def writeVCurrency(b: ByteBuf, v: ID[Currency]): Int = writeCurrency(b, v)
+
+  override def writeVCurrency(b: ByteBuf, offset: Int, v: ID[Currency]): Int = writeCurrency(b, offset, v)
 
   private def checkSize(b: ByteBuf, expected: Int): Unit = {
     val s = b.readInt()

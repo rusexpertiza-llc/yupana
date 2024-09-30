@@ -18,7 +18,7 @@ package org.yupana.postgres.protocol
 
 import org.threeten.extra.PeriodDuration
 import org.yupana.api.types.StringReaderWriter
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -57,6 +57,10 @@ object PostgresStringReaderWriter extends StringReaderWriter {
 
   override def readPeriodDuration(s: String): PeriodDuration = PeriodDuration.parse(s)
   override def writePeriodDuration(v: PeriodDuration): String = v.toString
+
+  override def readCurrency(s: String): Currency = Currency.of(BigDecimal(s))
+
+  override def writeCurrency(v: Currency): String = v.toBigDecimal.toString
 
   override def readBlob(s: String): Blob = ???
 

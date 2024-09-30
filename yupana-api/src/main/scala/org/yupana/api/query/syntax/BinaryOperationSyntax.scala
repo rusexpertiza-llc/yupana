@@ -16,19 +16,15 @@
 
 package org.yupana.api.query.syntax
 
-import org.threeten.extra.PeriodDuration
-import org.yupana.api.Time
 import org.yupana.api.query._
+import org.yupana.api.types.guards.{ DivGuard, MinusGuard, PlusGuard, TimesGuard }
 
 trait BinaryOperationSyntax {
-  def minus[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = MinusExpr(a, b)
-  def minus(a: Expression[Time], b: Expression[Time]) = TimeMinusExpr(a, b)
-  def minus(a: Expression[Time], b: Expression[PeriodDuration]) = TimeMinusPeriodExpr(a, b)
-  def plus[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = PlusExpr(a, b)
-  def plus(a: Expression[Time], b: Expression[PeriodDuration]) = TimePlusPeriodExpr(a, b)
-  def times[T](a: Expression[T], b: Expression[T])(implicit n: Numeric[T]) = TimesExpr(a, b)
-  def divInt[T](a: Expression[T], b: Expression[T])(implicit n: Integral[T]) = DivIntExpr(a, b)
-  def divFrac[T](a: Expression[T], b: Expression[T])(implicit n: Fractional[T]) = DivFracExpr(a, b)
+  def minus[A, B, R](a: Expression[A], b: Expression[B])(implicit g: MinusGuard[A, B, R]) = MinusExpr(a, b)
+  def plus[A, B, R](a: Expression[A], b: Expression[B])(implicit g: PlusGuard[A, B, R]) =
+    PlusExpr[A, B, R](a, b)
+  def times[A, B, R](a: Expression[A], b: Expression[B])(implicit tg: TimesGuard[A, B, R]) = TimesExpr(a, b)
+  def div[A, B, R](a: Expression[A], b: Expression[B])(implicit dg: DivGuard[A, B, R]) = DivExpr(a, b)
 
   def contains[T](a: Expression[Seq[T]], b: Expression[T]) = ContainsExpr(a, b)
   def containsAll[T](a: Expression[Seq[T]], b: Expression[Seq[T]]) = ContainsAllExpr(a, b)

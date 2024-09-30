@@ -79,13 +79,12 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case ExtractMinuteExpr(e) => evaluateUnary(e, startTime, params)(_.toLocalDateTime.getMinute)
       case ExtractSecondExpr(e) => evaluateUnary(e, startTime, params)(_.toLocalDateTime.getSecond)
 
-      case p @ PlusExpr(a, b)    => evaluateBinary(a, b, startTime, params)(p.numeric.plus)
-      case m @ MinusExpr(a, b)   => evaluateBinary(a, b, startTime, params)(m.numeric.minus)
-      case t @ TimesExpr(a, b)   => evaluateBinary(a, b, startTime, params)(t.numeric.times)
-      case d @ DivIntExpr(a, b)  => evaluateBinary(a, b, startTime, params)(d.integral.quot)
-      case d @ DivFracExpr(a, b) => evaluateBinary(a, b, startTime, params)(d.fractional.div)
+      case p @ PlusExpr(a, b)  => evaluateBinary(a, b, startTime, params)(p.guard.plus)
+      case m @ MinusExpr(a, b) => evaluateBinary(a, b, startTime, params)(m.guard.minus)
+      case t @ TimesExpr(a, b) => evaluateBinary(a, b, startTime, params)(t.guard.times)
+      case d @ DivExpr(a, b)   => evaluateBinary(a, b, startTime, params)(d.dg.div)
 
-      case ConcatExpr(a, b) => evaluateBinary(a, b, startTime, params)(_ ++ _)
+//      case ConcatExpr(a, b) => evaluateBinary(a, b, startTime, params)(_ ++ _)
 
       case EqExpr(a, b)     => evaluateBinary(a, b, startTime, params)(_ == _)
       case NeqExpr(a, b)    => evaluateBinary(a, b, startTime, params)(_ != _)
@@ -143,12 +142,12 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
 
       case NotExpr(e) => evaluateUnary(e, startTime, params)(x => !x)
 
-      case TimeMinusExpr(a, b) => evaluateBinary(a, b, startTime, params)((x, y) => math.abs(x.millis - y.millis))
-      case TimeMinusPeriodExpr(a, b) =>
-        evaluateBinary(a, b, startTime, params)((t, p) => Time(t.toDateTime.minus(p).toInstant.toEpochMilli))
-      case TimePlusPeriodExpr(a, b) =>
-        evaluateBinary(a, b, startTime, params)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
-      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b, startTime, params)((x, y) => x plus y)
+//      case TimeMinusExpr(a, b) => evaluateBinary(a, b, startTime, params)((x, y) => math.abs(x.millis - y.millis))
+//      case TimeMinusPeriodExpr(a, b) =>
+//        evaluateBinary(a, b, startTime, params)((t, p) => Time(t.toDateTime.minus(p).toInstant.toEpochMilli))
+//      case TimePlusPeriodExpr(a, b) =>
+//        evaluateBinary(a, b, startTime, params)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
+//      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b, startTime, params)((x, y) => x plus y)
 
       case ArrayTokensExpr(e) =>
         evaluateUnary(e, startTime, params)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))

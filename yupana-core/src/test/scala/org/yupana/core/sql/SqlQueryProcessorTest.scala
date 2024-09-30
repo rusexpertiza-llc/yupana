@@ -783,7 +783,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         sum(
           condition(
             gt(metric(TestTableFields.TEST_FIELD), const(0d)),
-            divFrac(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)),
+            div(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)),
             NullExpr(DataType[Double])
           )
         ) as "d"
@@ -901,7 +901,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
           Seq(
             GeExpr(
               TimeExpr,
-              TruncDayExpr(TimeMinusPeriodExpr(NowExpr, ConstantExpr(PeriodDuration.of(Period.ofMonths(3)))))
+              TruncDayExpr(minus(NowExpr, ConstantExpr(PeriodDuration.of(Period.ofMonths(3)))))
             ),
             LtExpr(TimeExpr, TruncDayExpr(NowExpr))
           )
@@ -1162,7 +1162,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |""".stripMargin) { q =>
       q.table.value shouldEqual TestSchema.testTable2
       q.fields should contain theSameElementsInOrderAs Seq(
-        divFrac(int2Double(metric(TestTable2Fields.TEST_FIELD4)), metric(TestTable2Fields.TEST_FIELD2)) as "div"
+        div(int2Double(metric(TestTable2Fields.TEST_FIELD4)), metric(TestTable2Fields.TEST_FIELD2)) as "div"
       )
     }
   }
@@ -1300,11 +1300,11 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     testQuery("SELECT 10 / 2 as five, 5 + 2 as seven WHERE five <= seven") { q =>
       q.table shouldBe empty
       q.fields should contain theSameElementsInOrderAs Seq(
-        divFrac(const(BigDecimal(10)), const(BigDecimal(2))) as "five",
+        div(const(BigDecimal(10)), const(BigDecimal(2))) as "five",
         plus(const(BigDecimal(5)), const(BigDecimal(2))) as "seven"
       )
       q.filter.value shouldEqual le(
-        divFrac(const(BigDecimal(10)), const(BigDecimal(2))),
+        div(const(BigDecimal(10)), const(BigDecimal(2))),
         plus(const(BigDecimal(5)), const(BigDecimal(2)))
       )
 

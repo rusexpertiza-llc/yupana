@@ -16,13 +16,13 @@
 
 package org.yupana.api.query
 
-import org.threeten.extra.PeriodDuration
-import org.yupana.api.{Currency, Time}
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.Expression.Condition
-import org.yupana.api.schema.{Dimension, ExternalLink, LinkField, Metric}
+import org.yupana.api.schema.{ Dimension, ExternalLink, LinkField, Metric }
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types._
-import org.yupana.api.utils.{CollectionUtils, SortedSetIterator}
+import org.yupana.api.types.guards.{ DivGuard, MinusGuard, PlusGuard, TimesGuard }
+import org.yupana.api.utils.{ CollectionUtils, SortedSetIterator }
 
 import scala.annotation.implicitNotFound
 
@@ -93,28 +93,28 @@ final case class MaxExpr[I](override val expr: Expression[I])(implicit val ord: 
 
 final case class SumExpr[In, Out](override val expr: Expression[In])(
     implicit val numeric: Numeric[Out],
-    implicit val dt: DataType.Aux[Out],
+    val dt: DataType.Aux[Out],
     @implicitNotFound("Unsupported sum expressions for types: ${In}, ${Out}")
-    implicit val guard: SumExpr.SumGuard[In, Out]
+    val guard: SumExpr.SumGuard[In, Out]
 ) extends AggregateExpr[In, In, Out](expr, "sum") {
   override val dataType: DataType.Aux[Out] = dt
   override val isNullable: Boolean = expr.isNullable
 }
 
 object SumExpr {
-  case class SumGuard[In, Out]()
+  final class SumGuard[In, Out]
 
-  implicit val sumInt: SumGuard[Int, Int] = SumGuard[Int, Int]()
-  implicit val sumLong: SumGuard[Long, Long] = SumGuard[Long, Long]()
-  implicit val currencyGuard: SumGuard[Currency, Currency] = SumGuard[Currency, Currency]()
-  implicit val sumDouble: SumGuard[Double, Double] = SumGuard[Double, Double]()
-  implicit val sumFloat: SumGuard[Float, Float] = SumGuard[Float, Float]()
-  implicit val sumByte: SumGuard[Byte, Int] = SumGuard[Byte, Int]()
-  implicit val sumShort: SumGuard[Short, Int] = SumGuard[Short, Int]()
-  implicit val sumBigDecimal: SumGuard[BigDecimal, BigDecimal] = SumGuard[BigDecimal, BigDecimal]()
+  implicit val sumInt: SumGuard[Int, Int] = new SumGuard[Int, Int]
+  implicit val sumLong: SumGuard[Long, Long] = new SumGuard[Long, Long]
+  implicit val sumDouble: SumGuard[Double, Double] = new SumGuard[Double, Double]
+  implicit val sumFloat: SumGuard[Float, Float] = new SumGuard[Float, Float]
+  implicit val sumByte: SumGuard[Byte, Int] = new SumGuard[Byte, Int]
+  implicit val sumShort: SumGuard[Short, Int] = new SumGuard[Short, Int]
+  implicit val sumBigDecimal: SumGuard[BigDecimal, BigDecimal] = new SumGuard[BigDecimal, BigDecimal]
+  implicit val sumCurrency: SumGuard[Currency, Currency] = new SumGuard[Currency, Currency]
 }
 
-final case class AvgExpr[I](override val expr: Expression[I])(implicit val numeric: Numeric[I])
+final case class AvgExpr[I](override val expr: Expression[I])(implicit val numeric: Num[I])
     extends AggregateExpr[I, I, BigDecimal](expr, "avg") {
   override val dataType: DataType.Aux[BigDecimal] = DataType[BigDecimal]
   override val isNullable: Boolean = expr.isNullable
@@ -260,12 +260,12 @@ sealed abstract class UnaryOperationExpr[In, Out](expr: Expression[In], function
   override def toString: String = s"$functionName($expr)"
 }
 
-final case class UnaryMinusExpr[N](expr: Expression[N])(implicit val num: Numeric[N])
+final case class UnaryMinusExpr[N](expr: Expression[N])(implicit val num: Num[N])
     extends UnaryOperationExpr[N, N](expr, "-") {
   override val dataType: DataType.Aux[N] = expr.dataType
 }
 
-final case class AbsExpr[N](expr: Expression[N])(implicit val num: Numeric[N])
+final case class AbsExpr[N](expr: Expression[N])(implicit val num: Num[N])
     extends UnaryOperationExpr[N, N](expr, "abs") {
   override val dataType: DataType.Aux[N] = expr.dataType
 }
@@ -444,62 +444,56 @@ final case class GeExpr[T](override val a: Expression[T], override val b: Expres
 ) extends BinaryOperationExpr[T, T, Boolean](a, b, ">=", isInfix = true)
     with SimpleCondition
 
-final case class PlusExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val numeric: Numeric[N]
-) extends BinaryOperationExpr[N, N, N](a, b, "+", isInfix = true) {
-  override val dataType: DataType.Aux[N] = a.dataType
+final case class PlusExpr[A, B, R](override val a: Expression[A], override val b: Expression[B])(
+    implicit val guard: PlusGuard[A, B, R]
+) extends BinaryOperationExpr[A, B, R](a, b, "+", isInfix = true) {
+  override val dataType: DataType.Aux[R] = guard.dataType
 }
 
-final case class MinusExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val numeric: Numeric[N]
-) extends BinaryOperationExpr[N, N, N](a, b, "-", isInfix = true) {
-  override val dataType: DataType.Aux[N] = a.dataType
+final case class MinusExpr[A, B, R](override val a: Expression[A], override val b: Expression[B])(
+    implicit val guard: MinusGuard[A, B, R]
+) extends BinaryOperationExpr[A, B, R](a, b, "-", isInfix = true) {
+  override val dataType: DataType.Aux[R] = guard.dataType
 }
 
-final case class TimesExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val numeric: Numeric[N]
-) extends BinaryOperationExpr[N, N, N](a, b, "*", isInfix = true) {
-  override val dataType: DataType.Aux[N] = a.dataType
+final case class TimesExpr[A, B, R](override val a: Expression[A], override val b: Expression[B])(
+    implicit val guard: TimesGuard[A, B, R]
+) extends BinaryOperationExpr[A, B, R](a, b, "*", isInfix = true) {
+  override val dataType: DataType.Aux[R] = guard.dataType
 }
 
-final case class DivIntExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val integral: Integral[N]
-) extends BinaryOperationExpr[N, N, N](a, b, "/", isInfix = true) {
-  override val dataType: DataType.Aux[N] = a.dataType
+final case class DivExpr[A, B, R](override val a: Expression[A], override val b: Expression[B])(
+    implicit val dg: DivGuard[A, B, R]
+) extends BinaryOperationExpr[A, B, R](a, b, "/", isInfix = true) {
+  override val dataType: DataType.Aux[R] = dg.dataType
 }
 
-final case class DivFracExpr[N](override val a: Expression[N], override val b: Expression[N])(
-    implicit val fractional: Fractional[N]
-) extends BinaryOperationExpr[N, N, N](a, b, "/", isInfix = true) {
-  override val dataType: DataType.Aux[N] = a.dataType
-}
-
-final case class TimeMinusExpr(override val a: Expression[Time], override val b: Expression[Time])
-    extends BinaryOperationExpr[Time, Time, Long](a, b, "-", isInfix = true) {
-  override val dataType: DataType.Aux[Long] = DataType[Long]
-}
-
-final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
-    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "-", isInfix = true) {
-  override val dataType: DataType.Aux[Time] = DataType[Time]
-}
-
-final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
-    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "+", isInfix = true) {
-  override val dataType: DataType.Aux[Time] = DataType[Time]
-}
-
-final case class PeriodPlusPeriodExpr(
-    override val a: Expression[PeriodDuration],
-    override val b: Expression[PeriodDuration]
-) extends BinaryOperationExpr[PeriodDuration, PeriodDuration, PeriodDuration](a, b, "+", isInfix = true) {
-  override val dataType: DataType.Aux[PeriodDuration] = DataType[PeriodDuration]
-}
-
-final case class ConcatExpr(override val a: Expression[String], override val b: Expression[String])
-    extends BinaryOperationExpr[String, String, String](a, b, "+", isInfix = true) {
-  override val dataType: DataType.Aux[String] = DataType[String]
-}
+//final case class TimeMinusExpr(override val a: Expression[Time], override val b: Expression[Time])
+//    extends BinaryOperationExpr[Time, Time, Long](a, b, "-", isInfix = true) {
+//  override val dataType: DataType.Aux[Long] = DataType[Long]
+//}
+//
+//final case class TimeMinusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
+//    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "-", isInfix = true) {
+//  override val dataType: DataType.Aux[Time] = DataType[Time]
+//}
+//
+//final case class TimePlusPeriodExpr(override val a: Expression[Time], override val b: Expression[PeriodDuration])
+//    extends BinaryOperationExpr[Time, PeriodDuration, Time](a, b, "+", isInfix = true) {
+//  override val dataType: DataType.Aux[Time] = DataType[Time]
+//}
+//
+//final case class PeriodPlusPeriodExpr(
+//    override val a: Expression[PeriodDuration],
+//    override val b: Expression[PeriodDuration]
+//) extends BinaryOperationExpr[PeriodDuration, PeriodDuration, PeriodDuration](a, b, "+", isInfix = true) {
+//  override val dataType: DataType.Aux[PeriodDuration] = DataType[PeriodDuration]
+//}
+//
+//final case class ConcatExpr(override val a: Expression[String], override val b: Expression[String])
+//    extends BinaryOperationExpr[String, String, String](a, b, "+", isInfix = true) {
+//  override val dataType: DataType.Aux[String] = DataType[String]
+//}
 
 final case class ContainsExpr[T](override val a: Expression[Seq[T]], override val b: Expression[T])
     extends BinaryOperationExpr[Seq[T], T, Boolean](a, b, "contains", isInfix = false) {
@@ -645,10 +639,13 @@ sealed abstract class TypeConvertExpr[T, U](expr: Expression[T])(implicit dtt: D
 }
 
 final case class Double2BigDecimalExpr(expr: Expression[Double]) extends TypeConvertExpr[Double, BigDecimal](expr)
+//final case class Double2CurrencyExpr(expr: Expression[Double]) extends TypeConvertExpr[Double, Currency](expr)
 
 final case class BigDecimal2DoubleExpr(expr: Expression[BigDecimal]) extends TypeConvertExpr[BigDecimal, Double](expr)
+//final case class Currency2DoubleExpr(expr: Expression[Currency]) extends TypeConvertExpr[Currency, Double](expr)
 
 final case class Long2BigDecimalExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, BigDecimal](expr)
+//final case class Long2CurrencyExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, Currency](expr)
 final case class Long2DoubleExpr(expr: Expression[Long]) extends TypeConvertExpr[Long, Double](expr)
 
 final case class Int2LongExpr(expr: Expression[Int]) extends TypeConvertExpr[Int, Long](expr)

@@ -25,7 +25,7 @@ import org.yupana.core.jit.codegen.expressions.regular.{
   ConditionExpressionCodeGen,
   ConditionWithRefCodeGen,
   ConstantExpressionCodeGen,
-  DivFracExpressionCodeGen,
+  DivExpressionCodeGen,
   FieldExpressionGen,
   LogicalExpressionCodeGen,
   MathUnaryExpressionCodeGen,
@@ -108,21 +108,22 @@ object ExpressionCodeGenFactory {
 
       case e @ TupleExpr(_, _) => TupleExpressionCodeGen(e)
 
-      case e @ GtExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x > $y""", "gt")
-      case e @ LtExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x < $y""", "lt")
-      case e @ GeExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x >= $y""", "gteq")
-      case e @ LeExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x <= $y""", "lteq")
-      case e @ EqExpr(_, _)  => BinaryExpressionCodeGen(e, (x, y) => q"""$x == $y""")
+      case e @ GtExpr(a: Expression[at], b: Expression[bt]) =>
+        OrdExpressionCodeGen(e, (x: Expr[at], y: Expr[bt]) => reify(x.splice > y.splice), "gt")
+      case e @ LtExpr(_, _) => OrdExpressionCodeGen(e, (x, y) => q"""$x < $y""", "lt")
+      case e @ GeExpr(_, _) => OrdExpressionCodeGen(e, (x, y) => q"""$x >= $y""", "gteq")
+      case e @ LeExpr(_, _) => OrdExpressionCodeGen(e, (x, y) => q"""$x <= $y""", "lteq")
+      case e @ EqExpr(_, _) =>
+        BinaryExpressionCodeGen[e.a.dataType.T, e.b.dataType.T, Boolean, EqExpr[_]](e, (x, y) => reify(x == y))
       case e @ NeqExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x != $y""")
 
       case e @ InExpr(_, vs)    => ConditionWithRefCodeGen(e, vs, (v, r) => q"$r.contains($v)")
       case e @ NotInExpr(_, vs) => ConditionWithRefCodeGen(e, vs, (v, r) => q"!$r.contains($v)")
 
-      case e @ PlusExpr(_, _)    => BinaryExpressionCodeGen(e, (x, y) => q"""$x + $y""")
-      case e @ MinusExpr(_, _)   => BinaryExpressionCodeGen(e, (x, y) => q"""$x - $y""")
-      case e @ TimesExpr(_, _)   => BinaryExpressionCodeGen(e, (x, y) => q"""$x * $y""")
-      case e @ DivIntExpr(_, _)  => BinaryExpressionCodeGen(e, (x, y) => q"""$x / $y""")
-      case e @ DivFracExpr(_, _) => new DivFracExpressionCodeGen(e)
+      case e @ PlusExpr(_, _)  => BinaryExpressionCodeGen(e, (x, y) => q"""$x + $y""")
+      case e @ MinusExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x - $y""")
+      case e @ TimesExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x * $y""")
+      case e @ DivExpr(_, _)   => new DivExpressionCodeGen(e)
 
       case e @ Double2BigDecimalExpr(_) => UnaryExpressionCodeGen(e, d => q"BigDecimal($d)")
 
@@ -171,12 +172,12 @@ object ExpressionCodeGenFactory {
       case e @ ExtractMinuteExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getMinute")
       case e @ ExtractSecondExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.toLocalDateTime.getSecond")
 
-      case e @ TimeMinusExpr(a, b) =>
-        BinaryExpressionCodeGen(e, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
-      case e @ TimeMinusPeriodExpr(a, b) =>
-        BinaryExpressionCodeGen(e, (t, p) => q"Time($t.toDateTime.minus($p))")
-      case e @ TimePlusPeriodExpr(a, b)   => BinaryExpressionCodeGen(e, (t, p) => q"Time($t.toDateTime.plus($p))")
-      case e @ PeriodPlusPeriodExpr(a, b) => BinaryExpressionCodeGen(e, (x, y) => q"$x plus $y")
+//      case e @ TimeMinusExpr(a, b) =>
+//        BinaryExpressionCodeGen(e, (x, y) => q"_root_.scala.math.abs($x.millis - $y.millis)")
+//      case e @ TimeMinusPeriodExpr(a, b) =>
+//        BinaryExpressionCodeGen(e, (t, p) => q"Time($t.toDateTime.minus($p))")
+//      case e @ TimePlusPeriodExpr(a, b)   => BinaryExpressionCodeGen(e, (t, p) => q"Time($t.toDateTime.plus($p))")
+//      case e @ PeriodPlusPeriodExpr(a, b) => BinaryExpressionCodeGen(e, (x, y) => q"$x plus $y")
 
       case e @ IsNullExpr(a)    => UnaryExpressionCodeGen(e, _ => q"false", Some(q"true"))
       case e @ IsNotNullExpr(a) => UnaryExpressionCodeGen(e, _ => q"true", Some(q"false"))
@@ -193,10 +194,9 @@ object ExpressionCodeGenFactory {
       case e @ AndExpr(_) => LogicalExpressionCodeGen.and(e)
       case e @ OrExpr(_)  => LogicalExpressionCodeGen.or(e)
 
-      case e @ TokensExpr(a)    => UnaryExpressionCodeGen(e, x => q"$tokenizer.transliteratedTokens($x)")
-      case e @ SplitExpr(a)     => UnaryExpressionCodeGen(e, x => q"$calculator.splitBy($x, !_.isLetterOrDigit).toSeq")
-      case e @ LengthExpr(a)    => UnaryExpressionCodeGen(e, x => q"$x.length")
-      case e @ ConcatExpr(a, b) => BinaryExpressionCodeGen(e, (x, y) => q"$x + $y")
+      case e @ TokensExpr(a) => UnaryExpressionCodeGen(e, x => q"$tokenizer.transliteratedTokens($x)")
+      case e @ SplitExpr(a)  => UnaryExpressionCodeGen(e, x => q"$calculator.splitBy($x, !_.isLetterOrDigit).toSeq")
+      case e @ LengthExpr(a) => UnaryExpressionCodeGen(e, x => q"$x.length")
 
       case e @ ArrayExpr(_) => ArrayExpressionCodeGen(e)
 

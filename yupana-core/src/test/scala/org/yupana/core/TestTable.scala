@@ -1,6 +1,6 @@
 package org.yupana.core
 
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -28,6 +28,7 @@ object TestTableFields {
   val TEST_TIME_FIELD: Metric.Aux[Time] = Metric[Time]("testTimeField", 6)
   val TEST_BYTE_FIELD: Metric.Aux[Byte] = Metric[Byte]("testByteField", 7)
   val TEST_BLOB_FIELD: Metric.Aux[Blob] = Metric[Blob]("testBlobField", 8)
+  val TEST_CURRENCY_FIELD: Metric.Aux[Currency] = Metric[Currency]("testCurrencyField", 9)
 }
 
 object TestTable2Fields {
@@ -98,6 +99,7 @@ object TestSchema {
       TestTableFields.TEST_FIELD2,
       TestTableFields.TEST_LONG_FIELD,
       TestTableFields.TEST_BIGDECIMAL_FIELD,
+      TestTableFields.TEST_CURRENCY_FIELD,
       TestTableFields.TEST_TIME_FIELD,
       TestTableFields.TEST_BYTE_FIELD,
       TestTableFields.TEST_BLOB_FIELD

@@ -70,7 +70,7 @@ class TsdbBaseBenchmarkStateAgg extends TsdbBaseBenchmarkStateBase {
         long2BigDecimal(count(dimension(Dimensions.ITEM)))
       ) as "avg",
       min(
-        divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField)))
+        divFrac(metric(ItemTableMetrics.sumField), double2Currency(metric(ItemTableMetrics.quantityField)))
       ) as "min_price",
       sum(
         condition(

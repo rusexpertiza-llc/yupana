@@ -16,14 +16,14 @@
 
 package org.yupana.core.jit.codegen.expressions.regular
 
-import org.yupana.api.query.DivFracExpr
+import org.yupana.api.query.DivExpr
 import org.yupana.core.jit.codegen.expressions.ExpressionCodeGen
-import org.yupana.core.jit.{ CodeGenResult, State }
+import org.yupana.core.jit.{CodeGenResult, State}
 
 import java.sql.Types
 import scala.reflect.runtime.universe._
 
-class DivFracExpressionCodeGen(override val expression: DivFracExpr[_]) extends ExpressionCodeGen[DivFracExpr[_]] {
+class DivFracExpressionCodeGen(override val expression: DivExpr[_]) extends ExpressionCodeGen[DivExpr[_]] {
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     if (expression.dataType.meta.sqlType != Types.DECIMAL) {

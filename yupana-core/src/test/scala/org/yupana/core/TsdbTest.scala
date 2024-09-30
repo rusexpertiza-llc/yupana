@@ -364,11 +364,11 @@ class TsdbTest
       Some(TestSchema.testTable),
       Seq(
         truncDay(time) as "day",
-        sum(divFrac(metric(TestTableFields.TEST_FIELD), param[Double](1))) as "x"
+        sum(div(metric(TestTableFields.TEST_FIELD), param[Double](1))) as "x"
       ),
       Some(
         and(
-          ge(time, TimeMinusPeriodExpr(NowExpr, const(PeriodDuration.of(Duration.of(1, ChronoUnit.DAYS))))),
+          ge(time, minus(NowExpr, const(PeriodDuration.of(Duration.of(1, ChronoUnit.DAYS))))),
           lt(time, NowExpr)
         )
       ),
