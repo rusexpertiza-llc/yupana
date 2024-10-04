@@ -19,23 +19,7 @@ package org.yupana.core.jit
 import org.yupana.api.query._
 import org.yupana.core.jit.codegen.expressions._
 import org.yupana.core.jit.codegen.expressions.aggregate._
-import org.yupana.core.jit.codegen.expressions.regular.{
-  ArrayExpressionCodeGen,
-  BinaryExpressionCodeGen,
-  ConditionExpressionCodeGen,
-  ConditionWithRefCodeGen,
-  ConstantExpressionCodeGen,
-  DivExpressionCodeGen,
-  FieldExpressionGen,
-  LogicalExpressionCodeGen,
-  MathUnaryExpressionCodeGen,
-  NowExpressionCodeGen,
-  NullExpressionCodeGen,
-  OrdExpressionCodeGen,
-  PlaceholderExpressionCodeGen,
-  TupleExpressionCodeGen,
-  UnaryExpressionCodeGen
-}
+import org.yupana.core.jit.codegen.expressions.regular._
 
 import scala.reflect.runtime.universe._
 
@@ -108,20 +92,18 @@ object ExpressionCodeGenFactory {
 
       case e @ TupleExpr(_, _) => TupleExpressionCodeGen(e)
 
-      case e @ GtExpr(a: Expression[at], b: Expression[bt]) =>
-        OrdExpressionCodeGen(e, (x: Expr[at], y: Expr[bt]) => reify(x.splice > y.splice), "gt")
-      case e @ LtExpr(_, _) => OrdExpressionCodeGen(e, (x, y) => q"""$x < $y""", "lt")
-      case e @ GeExpr(_, _) => OrdExpressionCodeGen(e, (x, y) => q"""$x >= $y""", "gteq")
-      case e @ LeExpr(_, _) => OrdExpressionCodeGen(e, (x, y) => q"""$x <= $y""", "lteq")
-      case e @ EqExpr(_, _) =>
-        BinaryExpressionCodeGen[e.a.dataType.T, e.b.dataType.T, Boolean, EqExpr[_]](e, (x, y) => reify(x == y))
+      case e @ GtExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x > $y""", "gt")
+      case e @ LtExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x < $y""", "lt")
+      case e @ GeExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x >= $y""", "gteq")
+      case e @ LeExpr(_, _)  => OrdExpressionCodeGen(e, (x, y) => q"""$x <= $y""", "lteq")
+      case e @ EqExpr(_, _)  => BinaryExpressionCodeGen(e, (x, y) => q"""$x == $y""")
       case e @ NeqExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x != $y""")
 
       case e @ InExpr(_, vs)    => ConditionWithRefCodeGen(e, vs, (v, r) => q"$r.contains($v)")
       case e @ NotInExpr(_, vs) => ConditionWithRefCodeGen(e, vs, (v, r) => q"!$r.contains($v)")
 
-      case e @ PlusExpr(_, _)  => BinaryExpressionCodeGen(e, (x, y) => q"""$x + $y""")
-      case e @ MinusExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x - $y""")
+      case e @ PlusExpr(_, _)  => new PlusExpressionCodeGen(e)
+      case e @ MinusExpr(_, _) => new MinusExpressionCodeGen(e)
       case e @ TimesExpr(_, _) => BinaryExpressionCodeGen(e, (x, y) => q"""$x * $y""")
       case e @ DivExpr(_, _)   => new DivExpressionCodeGen(e)
 

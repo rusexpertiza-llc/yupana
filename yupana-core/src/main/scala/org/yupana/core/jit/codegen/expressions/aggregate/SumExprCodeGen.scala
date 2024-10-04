@@ -18,6 +18,7 @@ package org.yupana.core.jit.codegen.expressions.aggregate
 
 import org.yupana.api.query.SumExpr
 import org.yupana.core.jit.ValueDeclaration
+import org.yupana.core.jit.codegen.expressions.regular.CodegenUtils.isCurrency
 
 import scala.reflect.runtime.universe._
 
@@ -27,10 +28,20 @@ class SumExprCodeGen(expr: SumExpr[_, _]) extends SimpleAggExprCodeGen[SumExpr[_
 
   override def zeroTree(innerExprValue: ValueDeclaration): Tree = q"${innerExprValue.valueName}"
 
-  override def foldTree(accValue: ValueDeclaration, innerExprValue: ValueDeclaration): Tree =
-    q"${accValue.valueName} + ${innerExprValue.valueName}"
+  override def foldTree(accValue: ValueDeclaration, innerExprValue: ValueDeclaration): Tree = {
+    sum(accValue.valueName, innerExprValue.valueName)
+  }
 
-  override def combineTree(accValueA: ValueDeclaration, accValueB: ValueDeclaration): Tree =
-    q"${accValueA.valueName} + ${accValueB.valueName}"
+  override def combineTree(accValueA: ValueDeclaration, accValueB: ValueDeclaration): Tree = {
+    sum(accValueA.valueName, accValueB.valueName)
+  }
+
+  private def sum(a: TermName, b: TermName): Tree = {
+    if (isCurrency(expr.expr)) {
+      q"Currency($a.value + $b.value)"
+    } else {
+      q"$a + $b"
+    }
+  }
 
 }

@@ -17,7 +17,7 @@
 package org.yupana.core.format
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.{ Blob, Time }
+import org.yupana.api.{ Blob, Currency, Time }
 import org.yupana.api.types.InternalReaderWriter
 import org.yupana.core.jit.codegen.CommonGen
 
@@ -597,4 +597,23 @@ object CompileReaderWriter extends InternalReaderWriter[Tree, TypedTree, Tree, T
     q"$evalRW.writePeriodDuration($b, $offset, $v)"
   }
 
+  override def sizeOfCurrency: Tree = q"$evalRW.sizeOfCurrency"
+
+  override def readCurrency(b: Tree): TypedTree[Currency] = q"$evalRW.readCurrency($b)"
+
+  override def readCurrency(b: Tree, offset: Tree): TypedTree[Currency] = q"$evalRW.readCurrency($b, $offset)"
+
+  override def writeCurrency(b: Tree, v: TypedTree[Currency]): Tree = q"$evalRW.writeCurrency($b, $v)"
+
+  override def writeCurrency(b: Tree, offset: Tree, v: TypedTree[Currency]): Tree =
+    q"$evalRW.writeCurrency($b, $offset, $v)"
+
+  override def readVCurrency(b: Tree): TypedTree[Currency] = q"$evalRW.readVCurrency($b)"
+
+  override def readVCurrency(b: Tree, offset: Tree): TypedTree[Currency] = q"$evalRW.readVCurrency($b, $offset)"
+
+  override def writeVCurrency(b: Tree, v: TypedTree[Currency]): Tree = q"$evalRW.writeVCurrency(b, v)"
+
+  override def writeVCurrency(b: Tree, offset: Tree, v: TypedTree[Currency]): Tree =
+    q"$evalRW.writeVCurrency($b, $offset, $v)"
 }

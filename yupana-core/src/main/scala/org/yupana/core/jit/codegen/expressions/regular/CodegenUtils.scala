@@ -14,22 +14,18 @@
  * limitations under the License.
  */
 
-package org.yupana.api.types
+package org.yupana.core.jit.codegen.expressions.regular
 
-trait Num[N] extends Serializable {
+import org.yupana.api.query.Expression
+import org.yupana.core.jit.codegen.CommonGen.Classes
 
-  def negate(a: N): N
-  def abs(a: N): N
+import java.sql.Types
 
-  def toDouble(a: N): Double
-}
+object CodegenUtils {
+  def isTime(e: Expression[_]): Boolean = e.dataType.meta.sqlType == Types.TIMESTAMP
 
-object Num {
-  implicit def fromNumeric[N](implicit n: Numeric[N]): Num[N] = new Num[N] {
-    override def negate(a: N): N = n.negate(a)
+  def isDecimal(e: Expression[_]): Boolean = e.dataType.classTag.runtimeClass == Classes.BigDecimalClass
 
-    override def abs(a: N): N = n.abs(a)
-
-    override def toDouble(a: N): Double = n.toDouble(a)
-  }
+  def isCurrency(e: Expression[_]): Boolean = e.dataType.classTag.runtimeClass == Classes.CurrencyClass
+  def isDouble(e: Expression[_]): Boolean = e.dataType.classTag.runtimeClass == Classes.DoubleClass
 }

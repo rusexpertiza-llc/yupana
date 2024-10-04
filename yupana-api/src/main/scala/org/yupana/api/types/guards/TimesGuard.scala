@@ -25,17 +25,29 @@ trait TimesGuard[N, M, R] extends Guard2[N, M, R] {
 
 object TimesGuard {
   private lazy val instances: Map[(DataType, DataType), TimesGuard[_, _, _]] = Map(
-    (DataType[Byte], DataType[Byte]) -> numGuard[Byte],
-    (DataType[Short], DataType[Short]) -> numGuard[Short],
-    (DataType[Int], DataType[Int]) -> numGuard[Int],
-    (DataType[Long], DataType[Long]) -> numGuard[Long],
-    (DataType[Double], DataType[Double]) -> numGuard[Double],
-    (DataType[BigDecimal], DataType[BigDecimal]) -> numGuard[BigDecimal],
-    (DataType[Currency], DataType[Int]) -> curIntGuard[Int],
-    (DataType[Currency], DataType[Long]) -> curIntGuard[Long],
-    (DataType[Currency], DataType[Double]) -> curDoubleGuard,
-    (DataType[Currency], DataType[BigDecimal]) -> curDecimalGuard
+    entry[Byte, Byte, Byte],
+    entry[Short, Short, Short],
+    entry[Int, Int, Int],
+    entry[Long, Long, Long],
+    entry[Double, Double, Double],
+    entry[BigDecimal, BigDecimal, BigDecimal],
+    entry[BigDecimal, Double, BigDecimal],
+    entry[Double, BigDecimal, BigDecimal],
+    entry[Currency, Int, Currency],
+    entry[Int, Currency, Currency],
+    entry[Currency, Long, Currency],
+    entry[Long, Currency, Currency],
+    entry[Currency, Double, Currency],
+    entry[Double, Currency, Currency],
+    entry[Currency, BigDecimal, Currency],
+    entry[BigDecimal, Currency, Currency]
   )
+
+  private def entry[A, B, R](
+      implicit a: DataType.Aux[A],
+      b: DataType.Aux[B],
+      g: TimesGuard[A, B, R]
+  ): ((DataType.Aux[A], DataType.Aux[B]), TimesGuard[A, B, R]) = (a, b) -> g
 
   def get(a: DataType, b: DataType): Option[TimesGuard[_, _, _]] =
     instances.get((a, b))
@@ -46,10 +58,23 @@ object TimesGuard {
   implicit def curIntGuard[N](implicit num: Integral[N]): TimesGuard[Currency, N, Currency] =
     create((c: Currency, x: N) => Currency(num.toLong(x) * c.value))
 
+  implicit def intCurGuard[N](implicit i: Integral[N]): TimesGuard[N, Currency, Currency] =
+    create((x: N, c: Currency) => Currency(i.toLong(x) * c.value))
+
+  implicit val decimalDoubleGuard: TimesGuard[BigDecimal, Double, BigDecimal] =
+    create((a: BigDecimal, b: Double) => a * b)
+  implicit val doubleDecimalGuard: TimesGuard[Double, BigDecimal, BigDecimal] =
+    create((a: Double, b: BigDecimal) => a * b)
+
   implicit val curDoubleGuard: TimesGuard[Currency, Double, Currency] =
     create((c: Currency, x: Double) => Currency((c.value * x).toLong))
+  implicit val doubleCurGuard: TimesGuard[Double, Currency, Currency] =
+    create((x: Double, c: Currency) => Currency((c.value * x).toLong))
+
   implicit val curDecimalGuard: TimesGuard[Currency, BigDecimal, Currency] =
     create((c: Currency, x: BigDecimal) => Currency((c.value * x).toLong))
+  implicit val decimalCurGuard: TimesGuard[BigDecimal, Currency, Currency] =
+    create((x: BigDecimal, c: Currency) => Currency((c.value * x).toLong))
 
   private def create[A, B, R](f: (A, B) => R)(implicit rdt: DataType.Aux[R]): TimesGuard[A, B, R] =
     new TimesGuard[A, B, R] {

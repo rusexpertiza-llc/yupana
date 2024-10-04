@@ -6,7 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query._
 import org.yupana.api.schema.{ Dimension, MetricValue }
 import org.yupana.api.utils.SortedSetIterator
@@ -24,7 +24,7 @@ import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ Duration, OffsetDateTime, LocalDateTime, ZoneOffset }
+import java.time.{ Duration, LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbTest
@@ -266,7 +266,7 @@ class TsdbTest
       Some(TestSchema.testTable),
       Seq(
         truncDay(time) as "day",
-        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        sum(metric(TestTableFields.TEST_CURRENCY_FIELD)) as "sum_testField",
         dimension(TestDims.DIM_A) as "A",
         link(TestLinks.TEST_LINK, "testField") as "link_field"
       ),
@@ -324,7 +324,12 @@ class TsdbTest
       .expects(
         InternalQuery(
           TestSchema.testTable,
-          Set(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B), metric(TestTableFields.TEST_FIELD)),
+          Set(
+            time,
+            dimension(TestDims.DIM_A),
+            dimension(TestDims.DIM_B),
+            metric(TestTableFields.TEST_CURRENCY_FIELD)
+          ),
           and(
             ge(time, const(from)),
             le(time, const(now)),
@@ -341,7 +346,7 @@ class TsdbTest
       .onCall { (_, _, dsSchema, _) =>
         val batch = new BatchDataset(dsSchema)
         batch.set(0, time, pointTime)
-        batch.set(0, metric(TestTableFields.TEST_FIELD), 3d)
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency(3))
         batch.set(0, dimension(TestDims.DIM_A), "X")
         batch.set(0, dimension(TestDims.DIM_B), 2.toShort)
         Iterator(batch)
@@ -350,7 +355,7 @@ class TsdbTest
     val res = tsdb.query(query, now)
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
-    res.get[Double]("sum_testField") shouldBe 3d
+    res.get[Currency]("sum_testField") shouldBe Currency(3)
     res.get[String]("link_field") shouldBe "testFieldValue"
 
     res.next() shouldBe false

@@ -17,7 +17,7 @@
 package org.yupana.benchmarks
 
 import org.openjdk.jmh.annotations.{ Benchmark, Scope, State }
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.{ Expression, Query }
 import org.yupana.api.query.syntax.All._
 import org.yupana.core.IteratorMapReducible
@@ -65,18 +65,18 @@ class TsdbBaseBenchmarkStateAgg extends TsdbBaseBenchmarkStateBase {
       dimension(Dimensions.ITEM) as "item",
       sum(metric(ItemTableMetrics.quantityField)) as "total_quantity",
       sum(metric(ItemTableMetrics.sumField)) as "total_sum",
-      divFrac(
-        sum(divFrac(double2bigDecimal(metric(ItemTableMetrics.quantityField)), metric(ItemTableMetrics.sumField))),
-        long2BigDecimal(count(dimension(Dimensions.ITEM)))
+      div(
+        sum(div(metric(ItemTableMetrics.sumField), metric(ItemTableMetrics.quantityField))),
+        count(dimension(Dimensions.ITEM))
       ) as "avg",
       min(
-        divFrac(metric(ItemTableMetrics.sumField), double2Currency(metric(ItemTableMetrics.quantityField)))
+        div(metric(ItemTableMetrics.sumField), metric(ItemTableMetrics.quantityField))
       ) as "min_price",
       sum(
         condition(
           gt(
-            divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField))),
-            const(BigDecimal(100))
+            div(metric(ItemTableMetrics.sumField), metric(ItemTableMetrics.quantityField)),
+            const(Currency(100))
           ),
           const(1L),
           const(0L)

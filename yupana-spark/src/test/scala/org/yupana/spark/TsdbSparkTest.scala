@@ -3,7 +3,7 @@ package org.yupana.spark
 import org.apache.hadoop.hbase.client.ConnectionFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.{ ExternalLink, MetricValue }
 import org.yupana.core.ExternalLinkService
@@ -60,7 +60,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
             Dimensions.OPERATION_TYPE -> 1.toByte,
             Dimensions.POSITION -> 1.toShort
           ),
-          Seq(MetricValue(ItemTableMetrics.sumField, BigDecimal(123)), MetricValue(ItemTableMetrics.quantityField, 10d))
+          Seq(MetricValue(ItemTableMetrics.sumField, Currency(12300)), MetricValue(ItemTableMetrics.quantityField, 10d))
         ),
         DataPoint(
           Tables.itemsKkmTable,
@@ -71,7 +71,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
             Dimensions.OPERATION_TYPE -> 1.toByte,
             Dimensions.POSITION -> 1.toShort
           ),
-          Seq(MetricValue(ItemTableMetrics.sumField, BigDecimal(240)), MetricValue(ItemTableMetrics.quantityField, 5d))
+          Seq(MetricValue(ItemTableMetrics.sumField, Currency(24000)), MetricValue(ItemTableMetrics.quantityField, 5d))
         ),
         DataPoint(
           Tables.itemsKkmTable,
@@ -82,7 +82,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
             Dimensions.OPERATION_TYPE -> 1.toByte,
             Dimensions.POSITION -> 1.toShort
           ),
-          Seq(MetricValue(ItemTableMetrics.sumField, BigDecimal(643)), MetricValue(ItemTableMetrics.quantityField, 1d))
+          Seq(MetricValue(ItemTableMetrics.sumField, Currency(64300)), MetricValue(ItemTableMetrics.quantityField, 1d))
         )
       )
     )
@@ -96,7 +96,7 @@ trait TsdbSparkTest extends AnyFlatSpecLike with Matchers with SharedSparkSessio
       Seq(
         truncDay(time) as "day",
         min(
-          divFrac(metric(ItemTableMetrics.sumField), double2bigDecimal(metric(ItemTableMetrics.quantityField)))
+          div(metric(ItemTableMetrics.sumField), metric(ItemTableMetrics.quantityField))
         ) as "min_price",
         dimension(Dimensions.KKM_ID).toField
       ),

@@ -116,7 +116,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       q"""
     import _root_.org.yupana.serialization.MemoryBuffer
     import _root_.org.yupana.api.{ Time, Blob, Currency }
-    import _root_.org.yupana.api.types.DataType
+    import _root_.org.yupana.api.types.{ DataType, Num }
     import _root_.org.yupana.api.utils.Tokenizer
     import _root_.org.yupana.api.schema.Table
     import _root_.org.yupana.core.model.{ BatchDataset, HashTableDataset }

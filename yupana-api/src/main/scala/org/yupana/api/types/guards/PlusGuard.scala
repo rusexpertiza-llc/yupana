@@ -20,10 +20,6 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.{ Currency, Time }
 import org.yupana.api.types.DataType
 
-trait Guard2[A, B, R] {
-  val dataType: DataType.Aux[R]
-}
-
 trait PlusGuard[A, B, R] extends Guard2[A, B, R] {
   def plus(a: A, b: B): R
 }

@@ -30,7 +30,7 @@ trait OrdExpressionCodeGen[E <: BinaryOperationExpr[_, _, Boolean]] extends Expr
   def ordFunctionName: String
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
-    if (expression.operandA.dataType.numeric.nonEmpty) {
+    if (expression.operandA.dataType.num.nonEmpty) {
       BinaryExpressionCodeGen(expression, tree).generateEvalCode(state, row)
     } else {
       val aType = CommonGen.mkType(expression.operandA)

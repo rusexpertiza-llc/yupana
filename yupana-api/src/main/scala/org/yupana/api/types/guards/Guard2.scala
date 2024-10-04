@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-package org.yupana.api.types
+package org.yupana.api.types.guards
 
-trait Num[N] extends Serializable {
+import org.yupana.api.types.DataType
 
-  def negate(a: N): N
-  def abs(a: N): N
-
-  def toDouble(a: N): Double
-}
-
-object Num {
-  implicit def fromNumeric[N](implicit n: Numeric[N]): Num[N] = new Num[N] {
-    override def negate(a: N): N = n.negate(a)
-
-    override def abs(a: N): N = n.abs(a)
-
-    override def toDouble(a: N): Double = n.toDouble(a)
-  }
+trait Guard2[A, B, R] extends Serializable {
+  val dataType: DataType.Aux[R]
 }

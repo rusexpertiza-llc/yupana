@@ -23,21 +23,41 @@ trait DivGuard[A, B, R] extends Guard2[A, B, R] {
   def div(a: A, b: B): R
 }
 
-object DivGuard {
+trait LowPriorityDivGuard {
+  implicit def nDoubleGuard[N](implicit n: Numeric[N]): DivGuard[N, Double, Double] =
+    create((x: N, d: Double) => n.toDouble(x) / d)
+  implicit def doubleNGuard[N](implicit n: Numeric[N]): DivGuard[Double, N, Double] =
+    create((d: Double, x: N) => d / n.toDouble(x))
+
+  protected def create[A, B, R](f: (A, B) => R)(implicit rdt: DataType.Aux[R]): DivGuard[A, B, R] =
+    new DivGuard[A, B, R] {
+      override def div(a: A, b: B): R = f(a, b)
+      override val dataType: DataType.Aux[R] = rdt
+    }
+}
+
+object DivGuard extends LowPriorityDivGuard {
   private lazy val instances: Map[(DataType, DataType), DivGuard[_, _, _]] = Map(
-    (DataType[Byte], DataType[Byte]) -> intGuard[Byte],
-    (DataType[Short], DataType[Short]) -> intGuard[Short],
-    (DataType[Int], DataType[Int]) -> intGuard[Int],
-    (DataType[Long], DataType[Long]) -> intGuard[Long],
-    (DataType[Double], DataType[Double]) -> fracGuard[Double],
-    (DataType[BigDecimal], DataType[BigDecimal]) -> fracGuard[BigDecimal],
-    (DataType[BigDecimal], DataType[Double]) -> decimalDouble,
-    (DataType[Double], DataType[BigDecimal]) -> doubleDecimal,
-    (DataType[Currency], DataType[Int]) -> curIntGuard[Int],
-    (DataType[Currency], DataType[Long]) -> curIntGuard[Long],
-    (DataType[Currency], DataType[Double]) -> curDoubleGuard,
-    (DataType[Currency], DataType[BigDecimal]) -> curDecimalGuard
+    entry[Byte, Byte, Byte],
+    entry[Short, Short, Short],
+    entry[Int, Int, Int],
+    entry[Long, Long, Long],
+    entry[Double, Double, Double],
+    entry[BigDecimal, BigDecimal, BigDecimal],
+    entry[BigDecimal, Double, BigDecimal],
+    entry[Double, BigDecimal, BigDecimal],
+    entry[Long, Double, Double],
+    entry[Double, Long, Double],
+    entry[Int, Double, Double],
+    entry[Double, Int, Double],
+    entry[Currency, Int, Currency],
+    entry[Currency, Long, Currency],
+    entry[Currency, Double, Currency],
+    entry[Currency, BigDecimal, Currency],
+    entry[Currency, Currency, Double]
   )
+
+  private def entry[A, B, R](implicit a: DataType.Aux[A], b: DataType.Aux[B], g: DivGuard[A, B, R]) = (a, b) -> g
 
   def get(a: DataType, b: DataType): Option[DivGuard[_, _, _]] =
     instances.get((a, b))
@@ -58,9 +78,6 @@ object DivGuard {
   implicit val curDecimalGuard: DivGuard[Currency, BigDecimal, Currency] =
     create((c: Currency, x: BigDecimal) => Currency((c.value / x).toLong))
 
-  private def create[A, B, R](f: (A, B) => R)(implicit rdt: DataType.Aux[R]): DivGuard[A, B, R] =
-    new DivGuard[A, B, R] {
-      override def div(a: A, b: B): R = f(a, b)
-      override val dataType: DataType.Aux[R] = rdt
-    }
+  implicit val curCurGuard: DivGuard[Currency, Currency, Double] =
+    create((a: Currency, b: Currency) => a.value.toDouble / b.value)
 }

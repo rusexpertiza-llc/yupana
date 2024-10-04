@@ -26,22 +26,33 @@ sealed trait MinusGuard[A, B, R] extends Guard2[A, B, R] {
 
 object MinusGuard {
   private lazy val instances: Map[(DataType, DataType), MinusGuard[_, _, _]] = Map(
-    (DataType[Byte], DataType[Byte]) -> numMinus[Byte],
-    (DataType[Short], DataType[Short]) -> numMinus[Short],
-    (DataType[Int], DataType[Int]) -> numMinus[Int],
-    (DataType[Long], DataType[Long]) -> numMinus[Long],
-    (DataType[Double], DataType[Double]) -> numMinus[Double],
-    (DataType[BigDecimal], DataType[BigDecimal]) -> numMinus[BigDecimal],
-    (DataType[Currency], DataType[Currency]) -> currency,
-    (DataType[Time], DataType[PeriodDuration]) -> timePeriod,
-    (DataType[Time], DataType[Time]) -> time
+    entry[Byte, Byte, Byte],
+    entry[Short, Short, Short],
+    entry[Int, Int, Int],
+    entry[Long, Long, Long],
+    entry[Double, Double, Double],
+    entry[BigDecimal, BigDecimal, BigDecimal],
+    entry[BigDecimal, Double, BigDecimal],
+    entry[Double, BigDecimal, BigDecimal],
+    entry[Currency, Currency, Currency],
+    entry[Time, PeriodDuration, Time],
+    entry[Time, Time, Long]
   )
+
+  private def entry[A, B, R](
+      implicit a: DataType.Aux[A],
+      b: DataType.Aux[B],
+      g: MinusGuard[A, B, R]
+  ): ((DataType.Aux[A], DataType.Aux[B]), MinusGuard[A, B, R]) = (a, b) -> g
 
   def get(a: DataType, b: DataType): Option[MinusGuard[_, _, _]] =
     instances.get((a, b))
 
   implicit def numMinus[N: Numeric: DataType.Aux]: MinusGuard[N, N, N] =
     create((a: N, b: N) => implicitly[Numeric[N]].minus(a, b))
+
+  implicit val decimalDouble: MinusGuard[BigDecimal, Double, BigDecimal] = create((a: BigDecimal, b: Double) => a - b)
+  implicit val doubleDecimal: MinusGuard[Double, BigDecimal, BigDecimal] = create((a: Double, b: BigDecimal) => a - b)
 
   implicit val currency: MinusGuard[Currency, Currency, Currency] =
     create((a: Currency, b: Currency) => Currency(a.value - b.value))

@@ -39,8 +39,8 @@ object ValueParser {
   private def trueConst[$: P]: P[Boolean] = P(IgnoreCase("TRUE")).map(_ => true)
   private def falseConst[$: P]: P[Boolean] = P(IgnoreCase("FALSE")).map(_ => false)
 
-  def placeholder[$: P]: P[Placeholder] = {
-    val p = P("?" | ("$" ~ intNumber))
+  private def placeholder[$: P]: P[Placeholder] = {
+    val p: P[AnyVal] = P("?" | ("$" ~ intNumber))
     val idx = p.misc.getOrElse(PLACEHOLDER_ID, 1).asInstanceOf[Int]
 
     if (p.isSuccess) {

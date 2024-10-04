@@ -30,36 +30,24 @@ trait MathUnaryExpressionCodeGen extends ExpressionCodeGen[UnaryOperationExpr[_,
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val aType = mkType(expression)
-    if (expression.dataType.integral.nonEmpty) {
+    if (expression.dataType.num.nonEmpty) {
 
-      val r = UnaryExpressionCodeGen(expression, x => q"${integralValName(expression.dataType)}.$mathFunction($x)")
+      val r = UnaryExpressionCodeGen(expression, x => q"${numValName(expression.dataType)}.$mathFunction($x)")
         .generateEvalCode(state, row)
 
       val newState = r.state.withNamedGlobal(
-        integralValName(expression.dataType),
-        tq"Integral[$aType]",
-        q"DataType.bySqlName(${expression.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].integral.get"
+        numValName(expression.dataType),
+        tq"Num[$aType]",
+        q"DataType.bySqlName(${expression.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].num.get"
       )
       r.copy(state = newState)
     } else {
-      val r = UnaryExpressionCodeGen(expression, x => q"${fractionalValName(expression.dataType)}.$mathFunction($x)")
-        .generateEvalCode(state, row)
-
-      val newState = r.state.withNamedGlobal(
-        fractionalValName(expression.dataType),
-        tq"Fractional[$aType]",
-        q"DataType.bySqlName(${expression.dataType.meta.sqlTypeName}).get.asInstanceOf[DataType.Aux[$aType]].fractional.get"
-      )
-      r.copy(state = newState)
+      throw new IllegalArgumentException(s"Cannot use math operations because $expression is not numeric")
     }
   }
 
-  private def integralValName(dt: DataType): TermName = {
+  private def numValName(dt: DataType): TermName = {
     TermName(s"int_${dt.toString}")
-  }
-
-  private def fractionalValName(dt: DataType): TermName = {
-    TermName(s"frac_${dt.toString}")
   }
 }
 

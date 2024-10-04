@@ -92,7 +92,7 @@ final case class MaxExpr[I](override val expr: Expression[I])(implicit val ord: 
 }
 
 final case class SumExpr[In, Out](override val expr: Expression[In])(
-    implicit val numeric: Numeric[Out],
+    implicit val plus: PlusGuard[Out, Out, Out],
     val dt: DataType.Aux[Out],
     @implicitNotFound("Unsupported sum expressions for types: ${In}, ${Out}")
     val guard: SumExpr.SumGuard[In, Out]
@@ -102,7 +102,7 @@ final case class SumExpr[In, Out](override val expr: Expression[In])(
 }
 
 object SumExpr {
-  final class SumGuard[In, Out]
+  final class SumGuard[In, Out] extends Serializable
 
   implicit val sumInt: SumGuard[Int, Int] = new SumGuard[Int, Int]
   implicit val sumLong: SumGuard[Long, Long] = new SumGuard[Long, Long]

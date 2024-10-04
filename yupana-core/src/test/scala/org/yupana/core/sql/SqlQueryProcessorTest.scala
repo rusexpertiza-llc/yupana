@@ -783,7 +783,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         sum(
           condition(
             gt(metric(TestTableFields.TEST_FIELD), const(0d)),
-            div(long2Double(metric(TestTableFields.TEST_LONG_FIELD)), metric(TestTableFields.TEST_FIELD)),
+            div(metric(TestTableFields.TEST_LONG_FIELD), metric(TestTableFields.TEST_FIELD)),
             NullExpr(DataType[Double])
           )
         ) as "d"
@@ -1053,7 +1053,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
       )
       val sub = minus(
         metric(TestTable2Fields.TEST_FIELD),
-        double2bigDecimal(mult)
+        mult
       )
       q.fields should contain theSameElementsAs Seq(
         max(sub) as "strange_result",
@@ -1118,7 +1118,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         "AND time <= TIMESTAMP '2018-10-16 17:44:51' AND b = 22322"
     ) { q =>
       q.fields should contain theSameElementsAs Seq(
-        plus(metric(TestTableFields.TEST_FIELD), long2Double(metric(TestTableFields.TEST_LONG_FIELD))) as "plus2"
+        plus(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)) as "plus2"
       )
     }
   }
@@ -1162,7 +1162,7 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
         |""".stripMargin) { q =>
       q.table.value shouldEqual TestSchema.testTable2
       q.fields should contain theSameElementsInOrderAs Seq(
-        div(int2Double(metric(TestTable2Fields.TEST_FIELD4)), metric(TestTable2Fields.TEST_FIELD2)) as "div"
+        div(metric(TestTable2Fields.TEST_FIELD4), metric(TestTable2Fields.TEST_FIELD2)) as "div"
       )
     }
   }

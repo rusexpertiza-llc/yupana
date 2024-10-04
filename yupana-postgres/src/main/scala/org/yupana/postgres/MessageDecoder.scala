@@ -36,10 +36,10 @@ class MessageDecoder(charset: Charset) extends ReplayingDecoder[Unit] {
       case 'X' => out.add(Quit)
       case 'P' => out.add(Parse.decode(slice, charset))
       case 'B' => out.add(Bind.decode(slice, charset))
-      case 'D' => Describe.decode(slice, charset).fold(err => ctx.write(ErrorResponse(err)), out.add)
+      case 'D' => Describe.decode(slice, charset).fold[Any](err => ctx.write(ErrorResponse(err)), out.add)
       case 'E' => out.add(Execute.decode(slice, charset))
       case 'S' => out.add(Sync)
-      case 'C' => Close.decode(slice, charset).fold(err => ctx.write(ErrorResponse(err)), out.add)
+      case 'C' => Close.decode(slice, charset).fold[Any](err => ctx.write(ErrorResponse(err)), out.add)
       case 'p' => out.add(PasswordMessage.decode(slice, charset))
     }
   }
