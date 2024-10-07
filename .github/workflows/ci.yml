@@ -73,6 +73,6 @@ jobs:
     - name: Run tests
       run: sbt ++${{ matrix.scala }} clean coverage test coverageReport
 
-    - uses: codecov/codecov-action@v3.1.4
+    - uses: codecov/codecov-action@v4.6.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
