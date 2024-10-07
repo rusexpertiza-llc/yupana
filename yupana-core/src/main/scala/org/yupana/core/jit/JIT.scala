@@ -339,6 +339,7 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
       .replaceAll("\\$plus", "+")
       .replaceAll("\\.\\$minus", " - ")
       .replaceAll("\\.\\$div", " / ")
+      .replaceAll("\\.\\$times", " * ")
       .replaceAll("\\.\\$greater\\$eq", " >= ")
       .replaceAll("\\.\\$greater", " > ")
       .replaceAll("\\.\\$less\\$eq", " <= ")

@@ -45,27 +45,23 @@ object FunctionRegistry {
       f: (ConstantCalculator, Expression[_], Expression[_]) => Either[String, Expression[_]]
   )
 
-  trait Bind[A[_], Z] {
+  private trait Bind[A[_], Z] {
     def apply[T](a: A[T]): Z
   }
 
-  trait BindT[A[_], Z[_]] {
-    def apply[T](a: A[T]): Z[T]
-  }
-
-  trait Bind2[A[_], B[_], Z] {
+  private trait Bind2[A[_], B[_], Z] {
     def apply[T](a: A[T], b: B[T]): Z
   }
 
-  trait Bind2R[A[_], B[_], Z[_]] {
+  private trait Bind2R[A[_], B[_], Z[_]] {
     def apply[T](a: A[T], b: B[T]): Z[T]
   }
 
-  trait Bind3[A[_], B[_], C[_], Z] {
+  private trait Bind3[A[_], B[_], C[_], Z] {
     def apply[T](a: A[T], b: B[T], c: C[T]): Z
   }
 
-  trait BindGuard2[G[_, _, _]] {
+  private trait BindGuard2[G[_, _, _]] {
     def apply[A, B, R](a: Expression[A], b: Expression[B], g: G[A, B, R]): Expression[R]
   }
 
@@ -211,7 +207,7 @@ object FunctionRegistry {
         override def apply[T](a: Expression[T], b: Expression[T]): Condition = NeqExpr(a, b)
       }
     ),
-    biGuard(
+    biGuardAligned(
       "+",
       PlusGuard.get,
       new BindGuard2[PlusGuard] {
@@ -219,7 +215,7 @@ object FunctionRegistry {
           PlusExpr(a, b)(g)
       }
     ),
-    biGuard(
+    biGuardAligned(
       "-",
       MinusGuard.get,
       new BindGuard2[MinusGuard] {
@@ -227,7 +223,7 @@ object FunctionRegistry {
           MinusExpr(a, b)(g)
       }
     ),
-    biGuard(
+    biGuardAligned(
       "*",
       TimesGuard.get,
       new BindGuard2[TimesGuard] {
@@ -235,7 +231,7 @@ object FunctionRegistry {
           TimesExpr(a, b)(g)
       }
     ),
-    biGuard(
+    biGuardAligned(
       "/",
       DivGuard.get,
       new BindGuard2[DivGuard] {
@@ -243,11 +239,6 @@ object FunctionRegistry {
           DivExpr(a, b)(g)
       }
     ),
-//    biTyped("+", ConcatExpr),
-//    biTyped("-", TimeMinusExpr),
-//    biTyped("-", TimeMinusPeriodExpr),
-//    biTyped("+", TimePlusPeriodExpr),
-//    biTyped("+", PeriodPlusPeriodExpr),
     biArrayAndElem(
       "contains",
       new Bind2[ArrayExpr, Expression, Expression[_]] {
@@ -435,10 +426,6 @@ object FunctionRegistry {
         }
     )
   }
-//
-//  private def biWithGuard[A, B, R, G[_, _, _]](fn: String, create: (a: Ex)): Function2Desc = {
-//    Function2Desc(fn, (calc, a, b) => {})
-//  }
 
 //  private def biNum(
 //      fn: String,
@@ -456,7 +443,37 @@ object FunctionRegistry {
 //    )
 //  }
 
-  private def biGuard[G[_, _, _] <: Guard2[_, _, _]](
+//  private def biGuard[G[_, _, _] <: Guard2[_, _, _]](
+//      fn: String,
+//      guard: (DataType, DataType) => Option[G[_, _, _]],
+//      create: BindGuard2[G]
+//  ): Function2Desc = {
+//    Function2Desc(
+//      fn,
+//      (_, a, b) => guardedExpr(fn, guard, create, a, b)
+//    )
+//  }
+
+  private def guardedExpr[G[_, _, _] <: Guard2[_, _, _]](
+      fn: String,
+      guard: (DataType, DataType) => Option[G[_, _, _]],
+      create: BindGuard2[G],
+      a: Expression[_],
+      b: Expression[_]
+  ): Either[String, Expression[_]] = {
+    guard(a.dataType, b.dataType) match {
+      case Some(g) =>
+        type A = a.dataType.T
+        type B = b.dataType.T
+        type R = g.dataType.T
+        Right(
+          create(a.asInstanceOf[Expression[A]], b.asInstanceOf[Expression[B]], g.asInstanceOf[G[A, B, R]])
+        )
+      case None => Left(s"$fn is not defined for ${a.dataType} and ${b.dataType}")
+    }
+  }
+
+  private def biGuardAligned[G[_, _, _] <: Guard2[_, _, _]](
       fn: String,
       guard: (DataType, DataType) => Option[G[_, _, _]],
       create: BindGuard2[G]
@@ -464,15 +481,19 @@ object FunctionRegistry {
     Function2Desc(
       fn,
       (c, a, b) =>
-        guard(a.dataType, b.dataType) match {
-          case Some(g) =>
-            type A = a.dataType.T
-            type B = b.dataType.T
-            type R = g.dataType.T
-            Right(
-              create(a.asInstanceOf[Expression[A]], b.asInstanceOf[Expression[B]], g.asInstanceOf[G[A, B, R]])
-            )
-          case None => Left(s"$fn is not defined for ${a.dataType} and ${b.dataType}")
+        (a, b) match {
+          case (_: ConstExpr[_], _: ConstExpr[_]) => guardedExpr(fn, guard, create, a, b)
+          case (_, bc: ConstExpr[_]) =>
+            DataTypeUtils
+              .alignConst(bc, a.dataType.aux, c)
+              .flatMap(e => guardedExpr(fn, guard, create, a, e))
+              .orElse(guardedExpr(fn, guard, create, a, b))
+          case (ac: ConstExpr[_], _) =>
+            DataTypeUtils
+              .alignConst(ac, b.dataType.aux, c)
+              .flatMap(e => guardedExpr(fn, guard, create, e, b))
+              .orElse(guardedExpr(fn, guard, create, a, b))
+          case (_, _) => guardedExpr(fn, guard, create, a, b)
         }
     )
   }
@@ -483,17 +504,6 @@ object FunctionRegistry {
       (calculator, a, b) => DataTypeUtils.alignTypes(a, b, calculator).map(pair => create(pair.a, pair.b))
     )
   }
-
-//  private def biTyped[T, U](fn: String, create: (Expression[T], Expression[U]) => Expression[_])(
-//      implicit dtt: DataType.Aux[T],
-//      dtu: DataType.Aux[U]
-//  ): Function2Desc = Function2Desc(
-//    fn,
-//    (_, a, b) =>
-//      if (a.dataType == dtt && b.dataType == dtu)
-//        Right(create(a.asInstanceOf[Expression[T]], b.asInstanceOf[Expression[U]]))
-//      else Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
-//  )
 
   private def biArray[T](fn: String, create: Bind2[ArrayExpr, ArrayExpr, Expression[_]]): Function2Desc = {
     Function2Desc(
