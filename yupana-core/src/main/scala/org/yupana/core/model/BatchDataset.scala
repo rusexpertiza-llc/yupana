@@ -73,7 +73,7 @@ final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int =
         val ref = src.getRef[AnyRef](srcRowNum, ordinal)
         setRef(rowNum, ordinal, ref)
       } else {
-        if (src.isDefined(srcRowNum, fieldIndex)) {
+        if (src.isValueDefined(srcRowNum, fieldIndex)) {
           setValid(rowNum, fieldIndex)
         }
       }
@@ -121,19 +121,28 @@ final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int =
   }
 
   def isNull(rowNum: Int, index: Int): Boolean = {
-    !isDefined(rowNum, index)
+    !isValueDefined(rowNum, index)
+  }
+
+  def isDefined(rowNum: Int, fieldName: String): Boolean = {
+    val fieldIndex = schema.fieldIndex(fieldName)
+    isDefined(rowNum, fieldIndex)
   }
 
   def isDefined(rowNum: Int, expr: Expression[_]): Boolean = {
     val fieldIndex = schema.fieldIndex(expr)
+    isDefined(rowNum, fieldIndex)
+  }
+
+  def isDefined(rowNum: Int, fieldIndex: Int): Boolean = {
     if (schema.isValue(fieldIndex)) {
-      isDefined(rowNum, fieldIndex)
+      isValueDefined(rowNum, fieldIndex)
     } else {
       !isNullRef(rowNum, schema.refFieldOrdinal(fieldIndex))
     }
   }
 
-  def isDefined(rowNum: Int, fieldIdx: Int): Boolean = {
+  def isValueDefined(rowNum: Int, fieldIdx: Int): Boolean = {
     BitSetOps.check(bitSet, fieldValidityBitNum(rowNum, fieldIdx))
   }
 
@@ -358,7 +367,7 @@ final class BatchDataset(private var _schema: DatasetSchema, val capacity: Int =
     val offset = getOffset(rowNumber, fieldIndex)
 
     fixedLengthFieldsArea.put(offset + 8, value, 0, 8)
-    val vOffset = if (isDefined(rowNumber, fieldIndex) && length <= fixedLengthFieldsArea.getInt(offset)) {
+    val vOffset = if (isValueDefined(rowNumber, fieldIndex) && length <= fixedLengthFieldsArea.getInt(offset)) {
       fixedLengthFieldsArea.getInt(offset + 4)
     } else {
       val newVOffset = variableLengthFieldsAreaSize
