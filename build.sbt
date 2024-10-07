@@ -462,7 +462,7 @@ lazy val versions = new {
 
   val spark = "3.5.3"
 
-  val threeTenExtra = "1.7.2"
+  val threeTenExtra = "1.8.0"
 
   val scalaLogging = "3.9.5"
   val fastparse = "3.1.1"
