@@ -15,7 +15,7 @@
     "@docusaurus/theme-mermaid": "^3.5.2",
     "@mdx-js/react": "^3.0.1",
     "clsx": "^2.1.1",
-    "prism-react-renderer": "^2.3.1",
+    "prism-react-renderer": "^2.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remark-smartypants": "^3.0.2"
@@ -24,7 +24,7 @@
     "@docusaurus/module-type-aliases": "^3.5.2",
     "@docusaurus/tsconfig": "^3.5.2",
     "@docusaurus/types": "^3.5.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.6.2"
   },
   "browserslist": {
     "production": [
@@ -41,5 +41,5 @@
   "engines": {
     "node": ">=18.0"
   },
-  "packageManager": "yarn@4.4.0"
+  "packageManager": "yarn@4.5.0"
 }
