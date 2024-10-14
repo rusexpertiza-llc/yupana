@@ -16,6 +16,7 @@
 
 package org.yupana.core.sql
 
+import org.yupana.api.Currency
 import org.yupana.api.query.Expression.Condition
 import org.yupana.api.query._
 import org.yupana.api.types.DataType.TypeKind
@@ -82,6 +83,7 @@ object FunctionRegistry {
           case "BIGINT"   => Right(SumExpr[Long, Long](e.asInstanceOf[Expression[Long]]))
           case "DOUBLE"   => Right(SumExpr[Double, Double](e.asInstanceOf[Expression[Double]]))
           case "DECIMAL"  => Right(SumExpr[BigDecimal, BigDecimal](e.asInstanceOf[Expression[BigDecimal]]))
+          case "CURRENCY" => Right(SumExpr[Currency, Currency](e.asInstanceOf[Expression[Currency]]))
           case x          => Left(s"$x type is not available for Sum expression")
         }
       }

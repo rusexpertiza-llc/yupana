@@ -918,6 +918,20 @@ class SqlQueryProcessorTest extends AnyFlatSpec with Matchers with Inside with O
     }
   }
 
+  it should "handle Currency" in {
+    testQuery("""
+        |SELECT
+        |  day(time) as d,
+        |  sum(testCurrencyField) as sum,
+        |  sum(CASE WHEN testCurrencyField > 100 THEN 1 ELSE 0) as big_count
+        |FROM test_table
+        |WHERE time >= TIMESTAMP '2024-10-08' AND time < TIMESTAMP '2024-11-01'
+        |GROUP BY d
+        |""".stripMargin) { q =>
+      q.table.value.name shouldEqual "test_table"
+    }
+  }
+
   it should "handle queries like this" in {
     testQuery("""SELECT
         |sum(CASE WHEN b = 2 THEN 1 ELSE 0) AS salesTicketsCount, day(time) AS d

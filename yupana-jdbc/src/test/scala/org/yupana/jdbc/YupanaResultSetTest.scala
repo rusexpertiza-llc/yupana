@@ -3,7 +3,7 @@ package org.yupana.jdbc
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.SimpleResult
 import org.yupana.api.types.{ DataType, DataTypeMeta }
 
@@ -263,7 +263,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     val time = LocalDateTime.now()
     val result = SimpleResult(
       "test",
-      Seq("time", "bool", "int", "string", "double", "long", "decimal"),
+      Seq("time", "bool", "int", "string", "double", "long", "decimal", "currency"),
       Seq(
         DataType[Time],
         DataType[Boolean],
@@ -271,7 +271,8 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
         DataType[String],
         DataType[Double],
         DataType[Long],
-        DataType[BigDecimal]
+        DataType[BigDecimal],
+        DataType[Currency]
       ),
       Iterator(
         Array[Any](
@@ -281,9 +282,10 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
           "foo",
           55.5d,
           10L,
-          BigDecimal(1234.321)
+          BigDecimal(1234.321),
+          Currency(123432)
         ),
-        Array[Any](null, null, null, null, null, null)
+        Array[Any](null, null, null, null, null, null, null)
       )
     )
 
@@ -355,6 +357,10 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     resultSet.getBigDecimal("decimal") shouldEqual jm.BigDecimal.valueOf(1234.321)
     resultSet.getBigDecimal(7, 6) shouldEqual jm.BigDecimal.valueOf(1234.321).setScale(6)
     an[ArithmeticException] should be thrownBy resultSet.getBigDecimal("decimal", 1)
+
+    resultSet.getBigDecimal(8) shouldEqual jm.BigDecimal.valueOf(1234.32)
+    resultSet.getBigDecimal("currency") shouldEqual jm.BigDecimal.valueOf(1234.32)
+    resultSet.getLong(8) shouldEqual 1234L
 
     resultSet.next
 

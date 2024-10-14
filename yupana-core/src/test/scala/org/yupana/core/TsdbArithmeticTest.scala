@@ -146,6 +146,63 @@ class TsdbArithmeticTest
     res.next() shouldBe false
   }
 
+  it should "handle currency constants in arithmetic" in withTsdbMock { (tsdb, tsdbDaoMock) =>
+    val sql =
+      s"""SELECT
+        |    day(time) as d,
+        |    sum(CASE WHEN testCurrencyField > 100 THEN 1 else 0) AS big_count,
+        |    sum(CASE WHEN testCurrencyField > 100 THEN testCurrencyField ELSE 0) AS big_sum
+        |  FROM test_table
+        |  WHERE testCurrencyField < 10000 ${timeBounds()}
+        |  GROUP BY d
+        |""".stripMargin
+
+    val query = createQuery(sql)
+    val now = Time(LocalDateTime.now())
+
+    (tsdbDaoMock.query _)
+      .expects(
+        InternalQuery(
+          TestSchema.testTable,
+          Set[Expression[_]](
+            time,
+            metric(TestTableFields.TEST_CURRENCY_FIELD)
+          ),
+          and(
+            ge(time, const(Time(from))),
+            lt(time, const(Time(to))),
+            lt(metric(TestTableFields.TEST_CURRENCY_FIELD), const(Currency.of(10000)))
+          ),
+          YupanaUser.ANONYMOUS,
+          now,
+          IndexedSeq.empty
+        ),
+        *,
+        *,
+        *
+      )
+      .onCall { (_, _, dsSchema, _) =>
+        val batch = new BatchDataset(dsSchema)
+
+        batch.set(0, Time(from.plusMinutes(5)))
+        batch.set(0, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(123))
+
+        batch.set(1, Time(from.plusMinutes(7)))
+        batch.set(1, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(1))
+
+        batch.set(2, Time(from.plusMinutes(10)))
+        batch.set(2, metric(TestTableFields.TEST_CURRENCY_FIELD), Currency.of(432))
+
+        Iterator(batch)
+      }
+
+    val res = tsdb.query(query, now)
+
+    res.next() shouldBe true
+    res.get[Double]("big_sum") shouldBe Currency.of(555)
+    res.get[BigDecimal]("big_count") shouldBe BigDecimal(2)
+  }
+
   it should "execute query with arithmetic inside CASE" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val testCatalogServiceMock = mock[ExternalLinkService[TestLinks.TestLink]]
     tsdb.registerExternalLink(TestLinks.TEST_LINK, testCatalogServiceMock)

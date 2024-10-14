@@ -18,10 +18,12 @@ package org.yupana.api
 
 import org.yupana.api.types.Num
 
-case class Currency(value: Long) extends AnyVal {
+case class Currency(value: Long) extends AnyVal with Ordered[Currency] {
   def toBigDecimal: BigDecimal = {
     BigDecimal.valueOf(value) / Currency.SUB
   }
+
+  override def compare(that: Currency): Int = this.value compare that.value
 }
 
 object Currency {

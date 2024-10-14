@@ -17,7 +17,7 @@
 package org.yupana.core.jit.codegen.expressions.regular
 
 import org.threeten.extra.PeriodDuration
-import org.yupana.api.Time
+import org.yupana.api.{ Currency, Time }
 import org.yupana.api.query.Expression
 import org.yupana.api.types.DataType.TypeKind
 import org.yupana.api.types.{ ArrayDataType, DataType, TupleDataType }
@@ -31,7 +31,8 @@ import scala.reflect.{ ClassTag, classTag }
 class ConstantExpressionCodeGen(override val expression: Expression[_], v: Any)
     extends ExpressionCodeGen[Expression[_]] {
 
-  private val byRefTypes: Set[ClassTag[_]] = Set(classTag[Time], classTag[BigDecimal], classTag[PeriodDuration])
+  private val byRefTypes: Set[ClassTag[_]] =
+    Set(classTag[Time], classTag[BigDecimal], classTag[PeriodDuration], classTag[Currency])
 
   override def generateEvalCode(state: State, row: TermName): CodeGenResult = {
     val (valueDeclaration, exprState) = state.withLocalValueDeclaration(expression)

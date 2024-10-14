@@ -20,7 +20,7 @@ import org.yupana.api.query.Result
 import org.yupana.api.types.ArrayDataType
 import org.yupana.api.types.DataType
 import org.yupana.api.types.DataType.TypeKind
-import org.yupana.api.{ Time => ApiTime }
+import org.yupana.api.{ Currency, Time => ApiTime }
 
 import java.io._
 import java.math.BigDecimal
@@ -291,40 +291,48 @@ class YupanaResultSet protected[jdbc] (
   }
 
   private def intCasts(dt: DataType, value: Any): Int = {
-    dt.meta.sqlType match {
-      case Types.TINYINT  => value.asInstanceOf[Byte]
-      case Types.SMALLINT => value.asInstanceOf[Short]
-      case Types.INTEGER  => value.asInstanceOf[Int]
-      case Types.BIGINT =>
+    dt.classTag.runtimeClass match {
+      case ByteClass  => value.asInstanceOf[Byte]
+      case ShortClass => value.asInstanceOf[Short]
+      case IntClass   => value.asInstanceOf[Int]
+      case LongClass =>
         val long = value.asInstanceOf[Long]
         checkBounds(long, Int.MinValue.toLong, Int.MaxValue.toLong, DataType[Int].meta.javaTypeName)
         long.toInt
-      case Types.DOUBLE =>
+      case DoubleClass =>
         val double = value.asInstanceOf[Double]
         checkBounds(double, Int.MinValue.toDouble, Int.MaxValue.toDouble, DataType[Int].meta.javaTypeName)
         double.toInt
-      case Types.DECIMAL =>
+      case DecimalClass =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
         checkBoundsForDecimal(dec, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
         dec.toInt
+      case CurrencyClass =>
+        val long = value.asInstanceOf[Currency].value / Currency.SUB
+        checkBounds(long, Int.MinValue, Int.MaxValue, DataType[Int].meta.javaTypeName)
+        long.toInt
+
       case _ => throw new YupanaException(s"Can not getInt from column with type=${dt.meta.sqlTypeName}")
     }
   }
 
   private def longCasts(dt: DataType, value: Any): Long = {
-    dt.meta.sqlType match {
-      case Types.TINYINT  => value.asInstanceOf[Byte]
-      case Types.SMALLINT => value.asInstanceOf[Short]
-      case Types.INTEGER  => value.asInstanceOf[Int]
-      case Types.BIGINT   => value.asInstanceOf[Long]
-      case Types.DOUBLE =>
+    dt.classTag.runtimeClass match {
+      case ByteClass  => value.asInstanceOf[Byte]
+      case ShortClass => value.asInstanceOf[Short]
+      case IntClass   => value.asInstanceOf[Int]
+      case LongClass  => value.asInstanceOf[Long]
+      case DoubleClass =>
         val double = value.asInstanceOf[Double]
         checkBounds(double, Long.MinValue.toDouble, Long.MaxValue.toDouble, DataType[Long].meta.javaTypeName)
         double.toLong
-      case Types.DECIMAL =>
+      case DecimalClass =>
         val dec = value.asInstanceOf[scala.math.BigDecimal]
         checkBoundsForDecimal(dec, Long.MinValue, Long.MaxValue, DataType[Long].meta.javaTypeName)
         dec.toLong
+      case CurrencyClass =>
+        value.asInstanceOf[Currency].value / Currency.SUB
+
       case _ => throw new YupanaException(s"Can not getLong from column with type=${dt.meta.sqlTypeName}")
     }
   }
@@ -410,14 +418,23 @@ class YupanaResultSet protected[jdbc] (
     getReference(columnNameIndex(name), f)
   }
 
-  private def toBigDecimal(dt: DataType)(a: AnyRef): BigDecimal = dt.meta.sqlType match {
-    case Types.TINYINT  => BigDecimal.valueOf(a.asInstanceOf[Byte])
-    case Types.SMALLINT => BigDecimal.valueOf(a.asInstanceOf[Short])
-    case Types.INTEGER  => BigDecimal.valueOf(a.asInstanceOf[Int])
-    case Types.BIGINT   => BigDecimal.valueOf(a.asInstanceOf[Long])
-    case Types.DOUBLE   => BigDecimal.valueOf(a.asInstanceOf[Double])
-    case Types.DECIMAL  => a.asInstanceOf[scala.math.BigDecimal].underlying()
-    case _              => throw new YupanaException(s"${dt.meta.sqlTypeName} can not be cast to BigDecimal")
+  private val ByteClass = classOf[Byte]
+  private val ShortClass = classOf[Short]
+  private val IntClass = classOf[Int]
+  private val LongClass = classOf[Long]
+  private val DoubleClass = classOf[Double]
+  private val DecimalClass = classOf[scala.math.BigDecimal]
+  private val CurrencyClass = classOf[Currency]
+
+  private def toBigDecimal(dt: DataType)(a: AnyRef): BigDecimal = dt.classTag.runtimeClass match {
+    case ByteClass     => BigDecimal.valueOf(a.asInstanceOf[Byte])
+    case ShortClass    => BigDecimal.valueOf(a.asInstanceOf[Short])
+    case IntClass      => BigDecimal.valueOf(a.asInstanceOf[Int])
+    case LongClass     => BigDecimal.valueOf(a.asInstanceOf[Long])
+    case DoubleClass   => BigDecimal.valueOf(a.asInstanceOf[Double])
+    case DecimalClass  => a.asInstanceOf[scala.math.BigDecimal].underlying()
+    case CurrencyClass => BigDecimal.valueOf(a.asInstanceOf[Currency].value, Currency.SCALE)
+    case _             => throw new YupanaException(s"${dt.meta.sqlTypeName} can not be cast to BigDecimal")
   }
 
   private def toSQLDate(a: AnyRef): Date = {

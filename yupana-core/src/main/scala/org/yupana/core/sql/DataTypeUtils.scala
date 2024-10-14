@@ -16,6 +16,7 @@
 
 package org.yupana.core.sql
 
+import org.yupana.api.Currency
 import org.yupana.api.query._
 import org.yupana.api.types.DataType
 import org.yupana.core.ConstantCalculator
@@ -190,6 +191,10 @@ object DataTypeUtils {
     pEntry[BigDecimal, Long](x => Option.when(x.isValidLong)(x.toLong)),
     pEntry[BigDecimal, Int](x => Option.when(x.isValidInt)(x.toInt)),
     pEntry[BigDecimal, Short](x => Option.when(x.isValidShort)(x.toShort)),
-    pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte))
+    pEntry[BigDecimal, Byte](x => Option.when(x.isValidByte)(x.toByte)),
+    pEntry[BigDecimal, Currency] { x =>
+      val bc = x * Currency.SUB
+      Option.when(bc.isValidLong)(Currency(bc.toLong))
+    }
   )
 }
