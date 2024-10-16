@@ -3,8 +3,8 @@ package org.yupana.khipu
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import TestUtils._
-import org.yupana.core.TestSchema
 import org.yupana.khipu.storage.{ Block, KTable }
+import org.yupana.testutils.TestSchema
 
 import scala.util.Random
 

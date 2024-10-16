@@ -5,7 +5,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.core.auth.YupanaUser
-import org.yupana.core.{ ConstantCalculator, TestDims, TestTableFields }
+import org.yupana.core.ConstantCalculator
+import org.yupana.testutils.{ TestDims, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime

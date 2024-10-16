@@ -20,6 +20,7 @@ import org.yupana.core.utils.metric._
 import org.yupana.core.utils.{ FlatAndCondition, SparseTable }
 import org.yupana.metrics.{ CombinedMetricReporter, QueryStates, Slf4jMetricReporter }
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestLinks, TestSchema, TestTableFields, TestTable2Fields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter

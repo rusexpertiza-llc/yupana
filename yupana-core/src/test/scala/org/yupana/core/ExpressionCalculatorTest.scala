@@ -11,6 +11,7 @@ import org.yupana.api.types.DataType
 import org.yupana.core.jit.JIT
 import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }

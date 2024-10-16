@@ -1,6 +1,6 @@
 package org.yupana.khipu
 
-import org.yupana.core.TestSchema
+import org.yupana.testutils.TestSchema
 import org.yupana.khipu.storage.{ Row, StorageFormat }
 
 import java.nio.charset.StandardCharsets

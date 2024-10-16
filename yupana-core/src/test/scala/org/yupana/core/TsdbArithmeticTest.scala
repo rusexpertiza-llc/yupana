@@ -12,6 +12,7 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.{ BatchDataset, InternalQuery }
 import org.yupana.core.utils.SparseTable
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestLinks, TestSchema, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter

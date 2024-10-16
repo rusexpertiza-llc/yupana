@@ -13,6 +13,7 @@ import org.yupana.core.model.UpdateInterval
 import org.yupana.core.providers.JdbcMetadataProvider
 import org.yupana.core.sql.{ FunctionRegistry, SqlQueryProcessor, TypedParameter }
 import org.yupana.settings.Settings
+import org.yupana.testutils.TestSchema
 
 import java.time.OffsetDateTime
 import java.util.Properties

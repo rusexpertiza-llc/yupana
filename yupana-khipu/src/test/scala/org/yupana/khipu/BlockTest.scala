@@ -2,7 +2,7 @@ package org.yupana.khipu
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.yupana.core.TestSchema
+import org.yupana.testutils.TestSchema
 import TestUtils._
 import org.yupana.khipu.storage.{ KTable, LeafBlock, Row }
 

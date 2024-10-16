@@ -127,7 +127,7 @@ trait StorableTestBase
   }
 
   def stringStorageTest(stringReaderWriter: StringReaderWriter): Unit = {
-    implicit val srw = stringReaderWriter
+    implicit val srw: StringReaderWriter = stringReaderWriter
 
     "StringSerialization" should "preserve Booleans on write read cycle" in readWriteTest[Boolean]
 

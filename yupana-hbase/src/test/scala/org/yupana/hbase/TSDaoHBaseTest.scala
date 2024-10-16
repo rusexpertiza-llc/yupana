@@ -19,8 +19,10 @@ import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.{ DictionaryDao, DictionaryProvider, DictionaryProviderImpl }
 import org.yupana.core.model._
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.hbasetestutils.HBaseTestUtils
 import org.yupana.serialization.{ MemoryBuffer, MemoryBufferEvalReaderWriter }
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.util.Properties
@@ -35,7 +37,7 @@ class TSDaoHBaseTest
     with OptionValues {
 
   import HBaseTestUtils._
-  import TestSchema._
+  import org.yupana.testutils.TestSchema._
   import org.yupana.api.query.syntax.All._
 
   type QueryRunner = MockFunction1[Seq[Scan], Iterator[HResult]]

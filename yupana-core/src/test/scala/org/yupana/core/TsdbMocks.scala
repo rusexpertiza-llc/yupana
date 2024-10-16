@@ -13,6 +13,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.sql.parser.{ Select, SqlParser }
 import org.yupana.core.utils.Table
 import org.yupana.core.utils.metric.{ MetricQueryCollector, NoMetricCollector }
+import org.yupana.testutils.{ TestLinks, TestSchema }
 
 trait TSTestDao extends TSDao[Iterator, Long]
 

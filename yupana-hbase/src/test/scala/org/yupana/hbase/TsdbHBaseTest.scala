@@ -5,8 +5,9 @@ import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
 import org.yupana.api.query.{ DataPoint, Query }
 import org.yupana.api.schema.MetricValue
-import org.yupana.core.{ SimpleTsdbConfig, TestDims, TestSchema, TestTableFields }
+import org.yupana.core.SimpleTsdbConfig
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 
 import java.time.{ LocalDateTime, ZoneOffset }
 import java.util.Properties

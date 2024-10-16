@@ -17,6 +17,7 @@ import org.yupana.core.sql.SqlQueryProcessor
 import org.yupana.core.utils.metric.NoMetricCollector
 import org.yupana.postgres.YupanaPostgresTest.TestAuthorizer
 import org.yupana.settings.Settings
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.sql.{ DriverManager, Timestamp, Types }

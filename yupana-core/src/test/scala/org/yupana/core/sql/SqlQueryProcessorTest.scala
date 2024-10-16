@@ -4,8 +4,8 @@ import org.scalatest.{ Inside, OptionValues }
 import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.MetricValue
-import org.yupana.core._
 import org.yupana.core.sql.parser.SqlParser
+import org.yupana.testutils.{ TestDims, TestLinks, TestSchema, TestTable2Fields, TestTableFields }
 import org.yupana.api.utils.ConditionMatchers.{ GeMatcher, LtMatcher }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

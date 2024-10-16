@@ -6,10 +6,12 @@ import org.yupana.core._
 import org.yupana.core.model.InternalQuery
 import org.yupana.api.query.syntax.All.{ and, const, dimension, ge, lt, metric, time }
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.hbasetestutils.HBaseTestUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.core.auth.YupanaUser
 import org.yupana.core.jit.JIT
+import org.yupana.testutils.{ TestDims, TestSchema, TestTableFields }
 import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime
