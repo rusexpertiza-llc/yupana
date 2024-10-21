@@ -436,7 +436,7 @@ lazy val versions = new {
   val hadoop = "3.0.3"
 
   val akka = "2.6.21"
-  val pekko = "1.0.1"
+  val pekko = "1.1.2"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
