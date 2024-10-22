@@ -469,6 +469,7 @@ val commonSettings = Seq(
     "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ),
+  javacOptions ++= Seq("-source", "1.8", "-target", "1.8"),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
