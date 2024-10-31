@@ -1,10 +1,11 @@
 package org.yupana.core
 
-import org.yupana.api.query.{ AndExpr, OrExpr }
-import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
-import org.yupana.utils.RussianTokenizer
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.yupana.api.Time
+import org.yupana.api.query.{ AndExpr, FalseExpr, OrExpr }
+import org.yupana.api.schema.{ DictionaryDimension, RawDimension }
+import org.yupana.utils.RussianTokenizer
 
 class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
@@ -160,6 +161,12 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
         lt(dimension(TestDims.DIM_Y), minus(const(100L), const(25L)))
       )
     ) shouldEqual and(gt(dimension(TestDims.DIM_Y), const(42L)), lt(dimension(TestDims.DIM_Y), const(75L)))
+  }
+
+  it should "optimize and false to false" in {
+    QueryOptimizer.optimizeCondition(calculator)(
+      and(gt(time, const(Time(1234567))), lt(time, const(Time(2345678))), equ(const(0), const(1)))
+    ) shouldEqual FalseExpr
   }
 
   it should "optimize constant conditions" in {

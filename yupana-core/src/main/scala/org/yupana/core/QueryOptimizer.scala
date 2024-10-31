@@ -92,13 +92,15 @@ object QueryOptimizer {
     if (conditions.exists(c => c == ConstantExpr(true) || c == TrueExpr)) {
       TrueExpr
     } else {
-      val nonEmpty = conditions.filterNot(c => c == ConstantExpr(false) || c == FalseExpr)
-      if (nonEmpty.size == 1) {
-        nonEmpty.head
-      } else if (nonEmpty.nonEmpty) {
-        OrExpr(nonEmpty)
-      } else {
+      val (falses, notFalses) = conditions.partition(c => c == ConstantExpr(false) || c == FalseExpr)
+      if (notFalses.size == 1) {
+        notFalses.head
+      } else if (notFalses.nonEmpty) {
+        OrExpr(notFalses)
+      } else if (falses.isEmpty) {
         TrueExpr
+      } else {
+        FalseExpr
       }
     }
   }
