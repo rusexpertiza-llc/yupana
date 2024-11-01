@@ -605,7 +605,12 @@ class SqlParserTest extends AnyFlatSpec with Matchers with Inside with ParsedVal
           SqlField(FieldName("two")),
           SqlField(FieldName("three"))
         )
-        condition shouldEqual Ne(FieldName("four"), Constant(NumericValue(4)))
+        condition shouldEqual And(
+          Seq(
+            Ne(FieldName("four"), Constant(NumericValue(4))),
+            Eq(Constant(NumericValue(1)), Constant(NumericValue(0)))
+          )
+        )
     }
   }
 
