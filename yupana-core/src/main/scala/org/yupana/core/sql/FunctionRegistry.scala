@@ -429,33 +429,6 @@ object FunctionRegistry {
     )
   }
 
-//  private def biNum(
-//      fn: String,
-//      create: Bind3[Expression, Expression, Num, Expression[_]]
-//  ): Function2Desc = {
-//    Function2Desc(
-//      fn,
-//      (calculator, a, b) =>
-//        DataTypeUtils.alignTypes(a, b, calculator) match {
-//          case Right(pair) if pair.dataType.num.isDefined =>
-//            Right(create(pair.a, pair.b, pair.dataType.num.get))
-//          case Right(_) => Left(s"Cannot apply $fn to ${a.dataType} and ${b.dataType}")
-//          case Left(_)  => Left(s"Function $fn cannot be applied to $a, $b of types ${a.dataType}, ${b.dataType}")
-//        }
-//    )
-//  }
-
-//  private def biGuard[G[_, _, _] <: Guard2[_, _, _]](
-//      fn: String,
-//      guard: (DataType, DataType) => Option[G[_, _, _]],
-//      create: BindGuard2[G]
-//  ): Function2Desc = {
-//    Function2Desc(
-//      fn,
-//      (_, a, b) => guardedExpr(fn, guard, create, a, b)
-//    )
-//  }
-
   private def guardedExpr[G[_, _, _] <: Guard2[_, _, _]](
       fn: String,
       guard: (DataType, DataType) => Option[G[_, _, _]],

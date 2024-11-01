@@ -84,8 +84,6 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case t @ TimesExpr(a, b) => evaluateBinary(a, b, startTime, params)(t.guard.times)
       case d @ DivExpr(a, b)   => evaluateBinary(a, b, startTime, params)(d.dg.div)
 
-//      case ConcatExpr(a, b) => evaluateBinary(a, b, startTime, params)(_ ++ _)
-
       case EqExpr(a, b)     => evaluateBinary(a, b, startTime, params)(_ == _)
       case NeqExpr(a, b)    => evaluateBinary(a, b, startTime, params)(_ != _)
       case e @ GtExpr(a, b) => evaluateBinary(a, b, startTime, params)(e.ordering.gt)
@@ -141,13 +139,6 @@ class ConstantCalculator(tokenizer: Tokenizer) extends Serializable {
       case u @ UnaryMinusExpr(e) => evaluateUnary(e, startTime, params)(u.num.negate)
 
       case NotExpr(e) => evaluateUnary(e, startTime, params)(x => !x)
-
-//      case TimeMinusExpr(a, b) => evaluateBinary(a, b, startTime, params)((x, y) => math.abs(x.millis - y.millis))
-//      case TimeMinusPeriodExpr(a, b) =>
-//        evaluateBinary(a, b, startTime, params)((t, p) => Time(t.toDateTime.minus(p).toInstant.toEpochMilli))
-//      case TimePlusPeriodExpr(a, b) =>
-//        evaluateBinary(a, b, startTime, params)((t, p) => Time(t.toDateTime.plus(p).toInstant.toEpochMilli))
-//      case PeriodPlusPeriodExpr(a, b) => evaluateBinary(a, b, startTime, params)((x, y) => x plus y)
 
       case ArrayTokensExpr(e) =>
         evaluateUnary(e, startTime, params)(a => a.flatMap(s => tokenizer.transliteratedTokens(s)))
