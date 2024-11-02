@@ -50,7 +50,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-18"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -451,8 +451,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.17"
-  val scalaTestCheck = "3.2.17.0"
+  val scalaTest = "3.2.19"
+  val scalaTestCheck = "3.2.19.0"
   val scalaMock = "5.2.0"
 }
 

@@ -275,6 +275,14 @@ object ExpressionCalculatorFactory extends ExpressionCalculatorFactory with Stri
         val (v, ns) = mapValue(state, e.dataType)(null)
         Some(q"$v.asInstanceOf[$tpe]" -> ns)
 
+      case TrueExpr =>
+        val (v, ns) = mapValue(state, e.dataType)(true)
+        Some(q"$v" -> ns)
+
+      case FalseExpr =>
+        val (v, ns) = mapValue(state, e.dataType)(false)
+        Some(q"$v" -> ns)
+
       case ae @ ArrayExpr(exprs) if e.kind == Const =>
         val (lits, newState) = exprs.foldLeft((Seq.empty[Tree], state)) {
           case ((ts, s), ConstantExpr(v, _)) =>
