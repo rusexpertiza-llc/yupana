@@ -419,11 +419,11 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.12"
+  val scala213 = "2.13.14"
 
   val spark = "3.5.3"
 
-  val threeTenExtra = "1.7.2"
+  val threeTenExtra = "1.8.0"
 
   val protobufJava = "2.6.1"
 
@@ -509,6 +509,7 @@ val publishSettings = Seq(
 
 val pbSettings = Seq(
   PB.protocVersion := "-v261",
+  scalacOptions += "-Xlint:-pattern-shadow,_",
   Compile / PB.targets := Seq(
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )

@@ -299,7 +299,7 @@ trait TsdbBase extends StrictLogging {
       val linkServices = tbc.conditions
         .flatMap(c =>
           c.flatten.collect {
-            case LinkExpr(c, _) => linkService(c)
+            case LinkExpr(link, _) => linkService(link)
           }
         )
         .distinct
