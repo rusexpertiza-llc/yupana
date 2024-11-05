@@ -85,7 +85,10 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
-  } satisfies Preset.ThemeConfig
+  } satisfies Preset.ThemeConfig,
+  future: {
+    experimental_faster: true
+  }
 };
 
 export default config;
