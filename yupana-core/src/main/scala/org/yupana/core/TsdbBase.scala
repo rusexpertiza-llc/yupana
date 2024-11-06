@@ -120,8 +120,7 @@ trait TsdbBase extends StrictLogging {
               metricCollector.createContext.measure(1)(
                 new QueryContext(optimizedQuery, optimizedQuery.filter, calculatorFactory)
               )
-            val rb = new InternalRowBuilder(qc)
-            mr.singleton(rb.buildAndReset()) -> qc
+            mr.empty[InternalRow] -> qc
 
           case Some(conditionAsIs) =>
             val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs)
