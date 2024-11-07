@@ -29,7 +29,7 @@ object ReceiptRollups {
     groupBy = Tables.receiptTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
     fields = baseRollupFields ++ shiftRollupFields ++ additionalRollupFieldsFromDetails,
     fromTable = Tables.receiptTable,
-    toTable = Tables.receiptByDayTable,
+    toTables = Seq(Tables.receiptByDayTable),
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
@@ -39,7 +39,7 @@ object ReceiptRollups {
     groupBy = Seq.empty,
     fields = summaryRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
-    toTable = Tables.receiptByDayAllKkmsTable,
+    toTables = Seq(Tables.receiptByDayAllKkmsTable),
     timeExpr = TruncDayExpr(TimeExpr)
   )
 
@@ -49,7 +49,7 @@ object ReceiptRollups {
     groupBy = Seq(dimension(Dimensions.KKM_ID), dimension(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
-    toTable = Tables.receiptByWeekTable,
+    toTables = Seq(Tables.receiptByWeekTable),
     timeExpr = TruncWeekExpr(TimeExpr)
   )
 
@@ -59,7 +59,7 @@ object ReceiptRollups {
     groupBy = Seq(dimension(Dimensions.KKM_ID), dimension(Dimensions.OPERATION_TYPE)),
     fields = baseRollupFields ++ additionalRollupFieldsFromRollups,
     fromTable = Tables.receiptByDayTable,
-    toTable = Tables.receiptByMonthTable,
+    toTables = Seq(Tables.receiptByMonthTable),
     timeExpr = TruncMonthExpr(TimeExpr)
   )
 

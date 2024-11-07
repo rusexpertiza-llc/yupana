@@ -30,7 +30,7 @@ object ItemRollups {
     groupBy = itemKkmsByMonthTable.dimensionSeq.map(d => DimensionExpr(d.aux)),
     fields = baseFields ++ Seq(kkmIdDim, countFromRawData),
     fromTable = itemsKkmTable,
-    toTable = itemKkmsByMonthTable,
+    toTables = Seq(itemKkmsByMonthTable),
     timeExpr = TruncMonthExpr(TimeExpr)
   )
 
