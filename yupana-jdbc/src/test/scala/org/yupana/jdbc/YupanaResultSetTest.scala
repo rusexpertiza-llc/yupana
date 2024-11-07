@@ -228,7 +228,7 @@ class YupanaResultSetTest extends AnyFlatSpec with Matchers with MockFactory {
     meta.getColumnType(3) shouldEqual Types.DECIMAL
     meta.getTableName(3) shouldEqual "test"
     meta.getSchemaName(3) shouldEqual "test"
-    meta.getPrecision(3) shouldEqual 0
+    meta.getPrecision(3) shouldEqual DataTypeMeta.MAX_PRECISION
     meta.getScale(3) shouldEqual DataTypeMeta.MONEY_SCALE
     meta.getColumnDisplaySize(3) shouldEqual 131089
     meta.isSearchable(3) shouldBe true
