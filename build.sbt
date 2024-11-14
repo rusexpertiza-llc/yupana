@@ -1,8 +1,6 @@
 import ReleaseTransformations._
 import sbt.Keys.excludeDependencies
 
-ThisBuild / useCoursier := false
-
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 lazy val javaVersion = Def.setting {
@@ -350,6 +348,7 @@ lazy val examples = (project in file("yupana-examples"))
     excludeDependencies ++= Seq(
       "javax.activation"  % "javax.activation-api",
       "javax.activation"  % "activation",
+      "javax.annotation"  % "javax.annotation-api",
       "com.sun.jersey"    % "jersey-json",
       "javax.inject"      % "javax.inject",
       "javax.servlet"     % "javax.servlet-api",
