@@ -50,7 +50,7 @@ lazy val api = (project in file("yupana-api"))
     libraryDependencies ++= Seq(
       "org.threeten"           %  "threeten-extra"       % versions.threeTenExtra,
       "org.scalatest"          %% "scalatest"            % versions.scalaTest         % Test,
-      "org.scalatestplus"      %% "scalacheck-1-17"      % versions.scalaTestCheck    % Test
+      "org.scalatestplus"      %% "scalacheck-1-18"      % versions.scalaTestCheck    % Test
     )
   )
   .disablePlugins(AssemblyPlugin)
@@ -419,11 +419,11 @@ def minMaj(v: String, default: String): String = {
 }
 
 lazy val versions = new {
-  val scala213 = "2.13.12"
+  val scala213 = "2.13.14"
 
-  val spark = "3.5.0"
+  val spark = "3.5.3"
 
-  val threeTenExtra = "1.7.2"
+  val threeTenExtra = "1.8.0"
 
   val protobufJava = "2.6.1"
 
@@ -436,14 +436,14 @@ lazy val versions = new {
   val hadoop = "3.0.3"
 
   val akka = "2.6.21"
-  val pekko = "1.0.1"
+  val pekko = "1.1.2"
 
   val lucene = "6.6.0"
   val ignite = "2.8.1"
   val ehcache = "3.9.7"
   val caffeine = "2.9.3"
 
-  val circe = "0.14.5" // To have same cats version wuth Spark
+  val circe = "0.14.10" // To have same cats version wuth Spark
 
   val flyway = "7.4.0"
   val hikariCP = "3.4.5"
@@ -451,8 +451,8 @@ lazy val versions = new {
   val h2Jdbc = "1.4.200"
   val postgresqlJdbc = "42.3.3"
 
-  val scalaTest = "3.2.17"
-  val scalaTestCheck = "3.2.17.0"
+  val scalaTest = "3.2.19"
+  val scalaTestCheck = "3.2.19.0"
   val scalaMock = "5.2.0"
 }
 
@@ -469,6 +469,7 @@ val commonSettings = Seq(
     "-Xfatal-warnings",
     "-Ywarn-dead-code"
   ),
+  javacOptions ++= Seq("-source", "1.8", "-target", "1.8"),
   Compile / console / scalacOptions --= Seq("-Ywarn-unused-import", "-Xfatal-warnings"),
   Test / testOptions += Tests.Argument("-l", "org.scalatest.tags.Slow"),
   Test / parallelExecution := false,
@@ -508,6 +509,7 @@ val publishSettings = Seq(
 
 val pbSettings = Seq(
   PB.protocVersion := "-v261",
+  scalacOptions += "-Xlint:-pattern-shadow,_",
   Compile / PB.targets := Seq(
     scalapb.gen(grpc = false) -> (Compile / sourceManaged).value
   )

@@ -30,7 +30,7 @@ abstract class CustomRollup(
     override val name: String,
     override val timeExpr: Expression[Time],
     override val fromTable: Table,
-    override val toTable: Table,
+    override val toTables: Seq[Table],
     override val filter: Option[Condition]
 ) extends Rollup
     with Serializable {
@@ -42,20 +42,20 @@ abstract class CustomRollup(
       recalcIntervals: Seq[Interval]
   ): RDD[DataPoint]
 
-  protected def toDataPoints(rdd: RDD[Row]): RDD[DataPoint] = {
+  protected def toDataPoints(table: Table, rdd: RDD[Row]): RDD[DataPoint] = {
     rdd.map { row =>
-      val dimensions = toTable.dimensionSeq.map { dimension =>
+      val dimensions = table.dimensionSeq.map { dimension =>
         val value = row.getAs[dimension.T](dimension.name)
         dimension -> value
       }.toMap
 
-      val metrics = toTable.metrics.flatMap { metric =>
+      val metrics = table.metrics.flatMap { metric =>
         val value = getOpt[metric.T](row, metric.name)
         value.map(v => MetricValue[metric.T](metric.asInstanceOf[Metric.Aux[metric.T]], v))
       }
 
       val timeMillis = row.getAs[Long](Table.TIME_FIELD_NAME)
-      DataPoint(toTable, timeMillis, dimensions, metrics)
+      DataPoint(table, timeMillis, dimensions, metrics)
     }
   }
 
