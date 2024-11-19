@@ -791,6 +791,26 @@ class TsdbTest
     res.get[Short]("B") shouldBe 2
   }
 
+  it should "return empty result if filter is false" in withTsdbMock { (tsdb, _) =>
+    val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
+
+    val query = Query(
+      TestSchema.testTable,
+      const(Time(qtime)),
+      const(Time(qtime.plusDays(1))),
+      Seq(
+        time as "time_time",
+        sum(metric(TestTableFields.TEST_FIELD)) as "sum_testField",
+        dimension(TestDims.DIM_A) as "A",
+        dimension(TestDims.DIM_B) as "B"
+      ),
+      Some(FalseExpr),
+      Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
+    )
+
+    tsdb.query(query) shouldBe empty
+  }
+
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
     val qtime = LocalDateTime.of(2017, 10, 15, 12, 57).atOffset(ZoneOffset.UTC)
     val from = qtime.toInstant.toEpochMilli

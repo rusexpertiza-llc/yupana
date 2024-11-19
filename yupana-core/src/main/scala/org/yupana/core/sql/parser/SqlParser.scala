@@ -260,7 +260,18 @@ object SqlParser {
     P(nestedSelectFrom(fields) | normalSelectFrom(fields))
   }
 
-  def select[$: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)))
+  def select[$: P]: P[Select] = P(selectFields.flatMap(selectFrom(_)) ~/ where.?) map {
+    case (sel, Some(cond)) => sel.copy(condition = Some(andConditions(sel.condition, cond)))
+    case (sel, None)       => sel
+  }
+
+  private def andConditions(filter: Option[SqlExpr], extra: SqlExpr): SqlExpr = {
+    filter match {
+      case Some(And(cs)) => And(cs :+ extra)
+      case Some(c)       => And(Seq(c, extra))
+      case None          => extra
+    }
+  }
 
   def substituteNested(expr: SqlExpr, nestedFields: Seq[SqlField]): SqlExpr = {
     expr match {

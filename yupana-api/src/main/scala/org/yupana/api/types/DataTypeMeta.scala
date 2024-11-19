@@ -45,6 +45,7 @@ case class DataTypeMeta[T](
 object DataTypeMeta {
 
   val MONEY_SCALE = 2
+  val MAX_PRECISION = 38 // Same as Spark
 
   private val SIGNED_TYPES =
     Set(Types.INTEGER, Types.BIGINT, Types.DOUBLE, Types.DECIMAL, Types.SMALLINT, Types.TINYINT)
@@ -85,7 +86,7 @@ object DataTypeMeta {
     DataTypeMeta(Types.BLOB, Int.MaxValue, "BLOB", classOf[java.sql.Blob], Int.MaxValue, 0)
 
   def scaledDecimalMeta(scale: Int): DataTypeMeta[BigDecimal] = {
-    DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], 0, scale)
+    DataTypeMeta(Types.DECIMAL, 131089, "DECIMAL", classOf[java.math.BigDecimal], MAX_PRECISION, scale)
   }
 
   def apply[T](t: Int, ds: Int, tn: String, jt: Class[_], p: Int, s: Int): DataTypeMeta[T] =

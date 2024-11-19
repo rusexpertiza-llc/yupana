@@ -24,11 +24,11 @@ trait Rollup {
   val name: String
   val timeExpr: Expression[Time]
   val fromTable: Table
-  val toTable: Table
+  val toTables: Seq[Table]
   val filter: Option[Condition]
 
   def withFromTable(table: Table): Rollup
-  def withToTable(table: Table): Rollup
+  def withToTables(tables: Seq[Table]): Rollup
   def withName(newName: String): Rollup
 }
 
@@ -36,9 +36,9 @@ trait Rollup {
   * Definition of persistent rollup
   * @param name name of this rollup to be displayed
   * @param timeExpr time expression to group values
-  * @param toTable table to write data
+  * @param toTables tables to write data
   * @param fromTable table to read data
-  * @param fields fields projections to be read from [[fromTable]] and written to [[toTable]]
+  * @param fields fields projections to be read from [[fromTable]] and written to [[toTables]]
   * @param filter condition to gather data
   * @param groupBy expressions to group by data
   */
@@ -46,7 +46,7 @@ case class TsdbRollup(
     override val name: String,
     override val timeExpr: Expression[Time],
     override val fromTable: Table,
-    override val toTable: Table,
+    override val toTables: Seq[Table],
     override val filter: Option[Condition],
     fields: Seq[QueryFieldProjection],
     groupBy: Seq[Expression[_]]
@@ -77,7 +77,7 @@ case class TsdbRollup(
 
   override def withFromTable(table: Table): TsdbRollup = copy(fromTable = table)
 
-  override def withToTable(table: Table): TsdbRollup = copy(toTable = table)
+  override def withToTables(tables: Seq[Table]): TsdbRollup = copy(toTables = tables)
 
   override def withName(newName: String): TsdbRollup = copy(name = newName)
 }

@@ -118,6 +118,21 @@ trait TsdbBase extends StrictLogging {
     val (rows, queryContext) = query.table match {
       case Some(table) =>
         optimizedQuery.filter match {
+          case Some(FalseExpr) =>
+            val qc =
+              metricCollector.createContext.measure(1)(
+                new QueryContext(
+                  optimizedQuery,
+                  startTime,
+                  optimizedQuery.filter,
+                  schema.tokenizer,
+                  calculatorFactory,
+                  metricCollector
+                )
+              )
+
+            mr.empty[BatchDataset] -> qc
+
           case Some(conditionAsIs) =>
             val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs, user, startTime, query.params)
 
