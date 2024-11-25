@@ -21,11 +21,15 @@ import org.yupana.api.query._
 
 object QueryOptimizer {
 
-  def optimize(query: Query): Query = {
+  def optimize(expressionCalculator: ConstantCalculator)(query: Query): Query = {
     query.copy(
-      filter = query.filter.map(simplifyCondition),
-      postFilter = query.postFilter.map(simplifyCondition)
+      filter = query.filter.map(optimizeCondition(expressionCalculator)),
+      postFilter = query.postFilter.map(optimizeCondition(expressionCalculator))
     )
+  }
+
+  def optimizeCondition(expressionCalculator: ConstantCalculator)(c: Condition): Condition = {
+    simplifyCondition(optimizeExpr(expressionCalculator)(c))
   }
 
   def simplifyCondition(condition: Condition): Condition = {
@@ -81,6 +85,18 @@ object QueryOptimizer {
       } else {
         FalseExpr
       }
+    }
+  }
+
+  private def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
+    expr.transform {
+      case e if e.kind == Const =>
+        val eval = expressionCalculator.evaluateConstant(e)
+        if (eval != null) {
+          ConstantExpr(eval)(
+            e.dataType
+          )
+        } else NullExpr[T](e.dataType)
     }
   }
 }

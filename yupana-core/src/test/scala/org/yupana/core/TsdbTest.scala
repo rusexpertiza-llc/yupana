@@ -808,7 +808,9 @@ class TsdbTest
       Seq(time, dimension(TestDims.DIM_A), dimension(TestDims.DIM_B))
     )
 
-    tsdb.query(query) shouldBe empty
+    val res = tsdb.query(query)
+    res.next() shouldBe false
+    res.isLast() shouldBe true
   }
 
   it should "execute query with downsampling" in withTsdbMock { (tsdb, tsdbDaoMock) =>
