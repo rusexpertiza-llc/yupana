@@ -157,12 +157,14 @@ object ValueParser {
     P(intervalWord ~/ wsp ~ (duration | singleFieldDuration)).map(PeriodValue)
   }
 
-  def tupleValue[$: P]: P[TupleValue] =
-    P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map(TupleValue.tupled)
+  def tuple[$: P]: P[TupleValue] =
+    P("(" ~ wsp ~ literal ~ wsp ~ "," ~/ wsp ~ literal ~/ wsp ~ ")").map(TupleValue.tupled)
 
   def literal[$: P]: P[Literal] = P(
-    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue | tupleValue
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue
   )
+
+  def literalOrTuple[$: P]: P[Literal] = P(literal | tuple)
 
   def value[$: P]: P[Value] = P(
     literal | placeholder

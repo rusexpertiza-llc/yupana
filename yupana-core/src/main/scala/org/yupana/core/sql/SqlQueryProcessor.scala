@@ -435,6 +435,17 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       tpe: Option[DataType] = None
   ): Either[String, Expression[_]] = {
     v match {
+      case parser.Placeholder(id) =>
+        tpe match {
+          case Some(t) => Right(PlaceholderExpr(id, t.aux))
+          case None    => Right(UntypedPlaceholderExpr(id))
+        }
+      case l: parser.Literal => convertLiteral(l, exprType)
+    }
+  }
+
+  private def convertLiteral(v: parser.Literal, exprType: ExprType): Either[String, ConstExpr[_]] = {
+    v match {
       case tv @ parser.TypedValue(s) if tv.dataType == DataType[String] =>
         val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]
         Right(ConstantExpr(const))
@@ -456,16 +467,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
       case parser.TupleValue(a, b) =>
         for {
-          ae <- convertValue(a, exprType, None)
-          be <- convertValue(b, exprType, None)
+          ae <- convertLiteral(a, exprType)
+          be <- convertLiteral(b, exprType)
           te <- createTupleValue(ae, be)
         } yield te
-
-      case parser.Placeholder(id) =>
-        tpe match {
-          case Some(t) => Right(PlaceholderExpr(id, t.aux))
-          case None    => Right(UntypedPlaceholderExpr(id))
-        }
     }
   }
 

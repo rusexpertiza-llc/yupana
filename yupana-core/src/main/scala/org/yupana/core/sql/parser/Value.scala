@@ -37,7 +37,7 @@ case class PeriodValue(value: PeriodDuration) extends Literal {
   override def asString: String = value.toString
 }
 
-case class TupleValue(a: Value, b: Value) extends Literal {
+case class TupleValue(a: Literal, b: Literal) extends Literal {
   override def asString: String = s"${a.asString}_${b.asString}"
 }
 

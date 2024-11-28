@@ -190,10 +190,10 @@ object SqlParser {
   }
 
   def in[$: P]: P[SqlExpr => SqlExpr] =
-    P(inWord ~/ "(" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
+    P(inWord ~/ "(" ~ (ValueParser.literalOrTuple).rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
   def notIn[$: P]: P[SqlExpr => SqlExpr] =
-    P(notWord ~ inWord ~/ "(" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
+    P(notWord ~ inWord ~/ "(" ~ (ValueParser.literalOrTuple).rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
   def isNull[$: P]: P[SqlExpr => SqlExpr] = P(isWord ~ nullWord).map(_ => IsNull)
 
