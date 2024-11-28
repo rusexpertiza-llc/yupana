@@ -160,8 +160,12 @@ object ValueParser {
   def tupleValue[$: P]: P[TupleValue] =
     P("(" ~ wsp ~ value ~ wsp ~ "," ~/ wsp ~ value ~/ wsp ~ ")").map(TupleValue.tupled)
 
+  def literal[$: P]: P[Literal] = P(
+    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue | tupleValue
+  )
+
   def value[$: P]: P[Value] = P(
-    numericValue | timestampValue | periodValue | stringValue | booleanValue | nullValue | placeholder | tupleValue
+    literal | placeholder
   )
 
   case class IntervalPart(name: String, parser: () => P[PeriodDuration], separator: () => P[Unit])

@@ -204,7 +204,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case parser.Constant(v) => convertValue(v, exprType)
 
       case parser.SqlArray(vs) =>
-        val consts = CollectionUtils.collectErrors(vs.map(v => convertValue(v, exprType)))
+        val consts = CollectionUtils.collectErrors(vs.map(v => convertLiteral(v, exprType)))
         consts.flatMap(createArrayExpr)
 
       case parser.Tuple(a, b) =>
@@ -259,7 +259,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertValue(v, ce.dataType)))
+              .collectErrors(vs.map(v => convertLiteral(v, ce.dataType)))
               .map(cvs => InExpr(ce, cvs.toSet))
         }
 
@@ -267,7 +267,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ce: Expression[t] =>
             CollectionUtils
-              .collectErrors(vs.map(v => convertValue(v, ce.dataType)))
+              .collectErrors(vs.map(v => convertLiteral(v, ce.dataType)))
               .map(cvs => NotInExpr(ce, cvs.toSet))
         }
       case parser.And(cs) =>
@@ -414,15 +414,26 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     )
   }
 
-  private def convertValue[T](v: parser.Value, dataType: DataType.Aux[T]): Either[String, T] = {
-    convertValue(v, ExprType.Cmp).flatMap(const => DataTypeUtils.constCast(const, dataType, calculator))
+  private def convertLiteral[T](v: parser.Literal, dataType: DataType.Aux[T]): Either[String, T] = {
+    convertValue(v, ExprType.Cmp).flatMap {
+      case const: ConstExpr[_] => DataTypeUtils.constCast(const, dataType, calculator)
+      case x                   => Left(s"Only literals allowed, but got $x")
+    }
   }
+
+//  private def convertLiteral(
+//      v: parser.Literal,
+//      exprType: ExprType,
+//      tpe: Option[DataType] = None
+//                            ): Either[String, Any] = {
+//
+//  }
 
   private def convertValue(
       v: parser.Value,
       exprType: ExprType,
       tpe: Option[DataType] = None
-  ): Either[String, ConstExpr[_]] = {
+  ): Either[String, Expression[_]] = {
     v match {
       case tv @ parser.TypedValue(s) if tv.dataType == DataType[String] =>
         val const = if (exprType == ExprType.Cmp) s.asInstanceOf[String].toLowerCase else s.asInstanceOf[String]

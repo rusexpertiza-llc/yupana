@@ -11,6 +11,8 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
 
   import org.yupana.api.query.syntax.All._
 
+  private val calculator = new ConstantCalculator(RussianTokenizer)
+
   "QueryOptimizer.simplifyCondition" should "keep simple condition as is" in {
     val c = equ[String](dimension(DictionaryDimension("foo")), const("bar"))
     QueryOptimizer.simplifyCondition(c) shouldEqual c
@@ -148,7 +150,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   "QueryOptimizer" should "optimize simple conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
+    QueryOptimizer.optimizeCondition(calculator)(
       gt(dimension(TestDims.DIM_Y), plus(const(6L), const(36L)))
     ) shouldEqual gt(dimension(TestDims.DIM_Y), const(42L))
   }
@@ -169,7 +171,7 @@ class QueryOptimizerTest extends AnyFlatSpec with Matchers {
   }
 
   it should "optimize constant conditions" in {
-    QueryOptimizer.optimizeExpr(calculator)(
+    QueryOptimizer.optimizeCondition(calculator)(
       and(gt(const(5), const(2)), equ(const(1), const(1)))
     ) shouldEqual const(true)
   }

@@ -88,15 +88,20 @@ object QueryOptimizer {
     }
   }
 
-  private def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
+  def optimizeExpr[T](expressionCalculator: ConstantCalculator)(expr: Expression[T]): Expression[T] = {
     expr.transform {
-      case e if e.kind == Const =>
-        val eval = expressionCalculator.evaluateConstant(e)
-        if (eval != null) {
-          ConstantExpr(eval)(
-            e.dataType
-          )
-        } else NullExpr[T](e.dataType)
+      new Expression.Transform {
+        override def apply[X](x: Expression[X]): Option[Expression[X]] = {
+          Option.when(x.kind == Const) {
+            val eval = expressionCalculator.evaluateConstant(x)
+            if (eval != null) {
+              ConstantExpr(eval)(
+                x.dataType
+              )
+            } else NullExpr[X](x.dataType)
+          }
+        }
+      }
     }
   }
 }

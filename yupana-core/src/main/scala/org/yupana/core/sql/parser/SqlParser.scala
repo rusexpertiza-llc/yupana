@@ -124,7 +124,7 @@ object SqlParser {
 
   def constExpr[$: P]: P[Constant] = P(ValueParser.value).map(Constant)
 
-  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.value.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
+  def arrayExpr[$: P]: P[SqlArray] = P("{" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ "}").map(SqlArray)
 
   def caseExpr[$: P]: P[Case] =
     P(
@@ -190,10 +190,10 @@ object SqlParser {
   }
 
   def in[$: P]: P[SqlExpr => SqlExpr] =
-    P(inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
+    P(inWord ~/ "(" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ ")").map(vs => e => In(e, vs))
 
   def notIn[$: P]: P[SqlExpr => SqlExpr] =
-    P(notWord ~ inWord ~/ "(" ~ ValueParser.value.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
+    P(notWord ~ inWord ~/ "(" ~ ValueParser.literal.rep(min = 1, sep = ",") ~ ")").map(vs => e => NotIn(e, vs))
 
   def isNull[$: P]: P[SqlExpr => SqlExpr] = P(isWord ~ nullWord).map(_ => IsNull)
 
