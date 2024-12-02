@@ -8,7 +8,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.{ Expression, LinkExpr }
 import org.yupana.api.schema.LinkField
 import org.yupana.cache.CacheFactory
-import org.yupana.core.auth.YupanaUser
 import org.yupana.core.model.{ BatchDataset, InternalQuery }
 import org.yupana.core.utils.SparseTable
 import org.yupana.settings.Settings
@@ -64,8 +63,6 @@ class TsdbArithmeticTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to)))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -115,8 +112,6 @@ class TsdbArithmeticTest
             lt(time, const(Time(to))),
             equ(lower(dimension(TestDims.DIM_A)), const("taga"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -185,8 +180,6 @@ class TsdbArithmeticTest
             lt(time, const(Time(to))),
             in(lower(dimension(TestDims.DIM_A)), Set("0000270761025003"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -231,8 +224,6 @@ class TsdbArithmeticTest
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -294,8 +285,6 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -385,8 +374,6 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -450,8 +437,6 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -515,8 +500,6 @@ class TsdbArithmeticTest
             TestSchema.testTable,
             Set[Expression[_]](metric(TestTableFields.TEST_LONG_FIELD), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -617,8 +600,6 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -696,8 +677,6 @@ class TsdbArithmeticTest
             TestSchema.testTable4,
             Set[Expression[_]](dimension(TestDims.DIM_B), dimension(TestDims.DIM_Y), time),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -742,7 +721,6 @@ class TsdbArithmeticTest
           "FROM test_table " + timeBounds(and = false) + " GROUP BY day(time)"
 
       val query = createQuery(sql)
-      val now = Time(LocalDateTime.now())
 
       val pointTime = from.toInstant.toEpochMilli + 10
 
@@ -757,8 +735,6 @@ class TsdbArithmeticTest
               time
             ),
             and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -804,8 +780,6 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](time, metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_LONG_FIELD)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -834,7 +808,6 @@ class TsdbArithmeticTest
       "FROM test_table " + timeBounds(and = false) +
       "HAVING (time - lag_time) >= INTERVAL '10' SECOND"
     val query = createQuery(sql)
-    val now = Time(LocalDateTime.now())
 
     val pointTime = from.toInstant.toEpochMilli + 10
     val pointTime2 = pointTime + 10 * 1000
@@ -845,8 +818,6 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](dimension(TestDims.DIM_A), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -888,8 +859,6 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_STRING_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -933,8 +902,6 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](metric(TestTableFields.TEST_FIELD), time),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -978,8 +945,6 @@ class TsdbArithmeticTest
           TestSchema.testTable,
           Set[Expression[_]](time, dimension(TestDims.DIM_B)),
           and(ge(time, const(Time(from))), lt(time, const(Time(to)))),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,

@@ -17,11 +17,13 @@
 package org.yupana.externallinks.items
 
 import com.typesafe.scalalogging.StrictLogging
+import org.yupana.api.Time
 import org.yupana.api.query._
 import org.yupana.api.schema.Schema
 import org.yupana.api.types.{ ID, ReaderWriter }
 import org.yupana.api.utils.SortedSetIterator
 import org.yupana.core.ExternalLinkService
+import org.yupana.core.auth.YupanaUser
 import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.model.BatchDataset
 import org.yupana.core.utils.FlatAndCondition
@@ -130,7 +132,11 @@ class ItemsInvertedIndexImpl(
       exprs: Set[LinkExpr[_]]
   ): Unit = {}
 
-  override def transformCondition(condition: FlatAndCondition): Seq[ConditionTransformation] = {
+  override def transformCondition(
+      condition: FlatAndCondition,
+      startTime: Time,
+      user: YupanaUser
+  ): Seq[ConditionTransformation] = {
     ExternalLinkUtils.transformConditionT[String](
       externalLink.linkName,
       condition,

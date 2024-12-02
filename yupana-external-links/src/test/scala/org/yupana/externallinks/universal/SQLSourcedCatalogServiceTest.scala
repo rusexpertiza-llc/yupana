@@ -98,11 +98,10 @@ class SQLSourcedCatalogServiceTest
           c1,
           lt(time, const(Time(t2))),
           c1_2
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
     inCondition should contain theSameElementsAs Seq(
       RemoveCondition(c1),
@@ -120,11 +119,10 @@ class SQLSourcedCatalogServiceTest
           le(time, const(Time(t2))),
           c2,
           c2_2
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
 
     notInCondition should contain theSameElementsAs Seq(
@@ -192,11 +190,10 @@ class SQLSourcedCatalogServiceTest
           lt(const(Time(t2)), time),
           c1,
           c1_2
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
 
     inCondition should contain theSameElementsAs Seq(
@@ -215,11 +212,10 @@ class SQLSourcedCatalogServiceTest
           gt(time, const(Time(t2))),
           c2,
           c2_2
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
 
     notInCondition should contain theSameElementsAs Seq(

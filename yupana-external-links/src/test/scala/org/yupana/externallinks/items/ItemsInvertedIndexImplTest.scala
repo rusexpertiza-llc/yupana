@@ -69,11 +69,10 @@ class ItemsInvertedIndexImplTest
           le(time, const(Time(t2))),
           c1,
           c2
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
 
     actual should have size 4
@@ -126,11 +125,10 @@ class ItemsInvertedIndexImplTest
           ge(time, const(Time(t1))),
           le(time, const(Time(t2))),
           in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("красное яблоко", "банан% желтый"))
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
 
     inside(res) {
@@ -157,11 +155,10 @@ class ItemsInvertedIndexImplTest
           ge(time, const(Time(t1))),
           le(time, const(Time(t2))),
           notIn(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("сигареты %"))
-        ),
-        YupanaUser.ANONYMOUS,
-        Time(System.currentTimeMillis()),
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      Time(System.currentTimeMillis()),
+      YupanaUser.ANONYMOUS
     )
 
     inside(res) {

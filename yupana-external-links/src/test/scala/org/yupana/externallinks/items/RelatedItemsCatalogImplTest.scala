@@ -108,11 +108,10 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           lt(time, const(Time(500L))),
           c1,
           c2
-        ),
-        YupanaUser.ANONYMOUS,
-        startTime,
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      startTime,
+      YupanaUser.ANONYMOUS
     )
 
     conditions should contain theSameElementsAs Seq(
@@ -171,11 +170,10 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
           ge(time, const(Time(100L))),
           lt(time, const(Time(500L))),
           c
-        ),
-        YupanaUser.ANONYMOUS,
-        startTime,
-        IndexedSeq.empty
-      ).head
+        )
+      ).head,
+      startTime,
+      YupanaUser.ANONYMOUS
     )
 
     conditions shouldEqual Seq(

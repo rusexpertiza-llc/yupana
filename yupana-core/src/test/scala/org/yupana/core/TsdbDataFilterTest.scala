@@ -70,8 +70,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             equ(metric(TestTableFields.TEST_FIELD), const(1012d))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -123,8 +121,6 @@ class TsdbDataFilterTest
             equ(metric(TestTableFields.TEST_FIELD), const(1012d)),
             equ(dimension(TestDims.DIM_B), const(31.toShort))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -176,8 +172,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             le(metric(TestTableFields.TEST_FIELD), const(1012d))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -231,8 +225,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             neq(metric(TestTableFields.TEST_FIELD), metric(TestTableFields.TEST_FIELD2))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -286,8 +278,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -347,8 +337,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             notIn(metric(TestTableFields.TEST_FIELD), Set(123d, 456d))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -407,11 +395,10 @@ class TsdbDataFilterTest
             in(metric(TestTableFields.TEST_FIELD), Set(1012d, 1014d)),
             neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
             equ(lower(link(TestLinks.TEST_LINK2, "testField2")), const("str@!ster"))
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -440,8 +427,6 @@ class TsdbDataFilterTest
             neq(lower(metric(TestTableFields.TEST_STRING_FIELD)), const("str@!")),
             in(dimension(TestDims.DIM_A), Set("test1"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -495,7 +480,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
+      .expects(FlatAndCondition.single(calculator, condition), now, YupanaUser.ANONYMOUS)
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -521,8 +506,6 @@ class TsdbDataFilterTest
             dimension(TestDims.DIM_B)
           ),
           condition,
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -568,7 +551,7 @@ class TsdbDataFilterTest
     )
 
     (testCatalogServiceMock.transformCondition _)
-      .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
+      .expects(FlatAndCondition.single(calculator, condition), now, YupanaUser.ANONYMOUS)
       .returning(Seq.empty)
 
     (testCatalogServiceMock.setLinkedValues _)
@@ -594,8 +577,6 @@ class TsdbDataFilterTest
             dimension(TestDims.DIM_B)
           ),
           condition,
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -651,11 +632,11 @@ class TsdbDataFilterTest
       val condition = and(cs: _*)
 
       (testCatalogServiceMock.transformCondition _)
-        .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
+        .expects(FlatAndCondition.single(calculator, condition), now, YupanaUser.ANONYMOUS)
         .returning(Seq.empty)
 
       (testCatalogServiceMock2.transformCondition _)
-        .expects(FlatAndCondition.single(calculator, condition, YupanaUser.ANONYMOUS, now, IndexedSeq.empty))
+        .expects(FlatAndCondition.single(calculator, condition), now, YupanaUser.ANONYMOUS)
         .returning(Seq.empty)
 
       (testCatalogServiceMock.setLinkedValues _)
@@ -691,8 +672,6 @@ class TsdbDataFilterTest
               dimension(TestDims.DIM_B)
             ),
             condition,
-            YupanaUser.ANONYMOUS,
-            now,
             IndexedSeq.empty
           ),
           *,
@@ -764,11 +743,10 @@ class TsdbDataFilterTest
             ge(time, const(Time(from))),
             lt(time, const(Time(to))),
             c
-          ),
-          YupanaUser.ANONYMOUS,
-          now,
-          IndexedSeq.empty
-        )
+          )
+        ),
+        now,
+        YupanaUser.ANONYMOUS
       )
       .returning(
         ConditionTransformation.replace(
@@ -790,8 +768,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             in(lower(dimension(TestDims.DIM_A)), Set("test1a", "test2a"))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -837,8 +813,6 @@ class TsdbDataFilterTest
             lt(time, const(Time(to))),
             neq(metric(TestTable2Fields.TEST_FIELD2), const(0d))
           ),
-          YupanaUser.ANONYMOUS,
-          now,
           IndexedSeq.empty
         ),
         *,
@@ -885,7 +859,7 @@ class TsdbDataFilterTest
         }
       }
 
-    (link5.transformCondition _).expects(*).onCall((_: FlatAndCondition) => Seq.empty)
+    (link5.transformCondition _).expects(*, *, *).returning(Seq.empty)
 
     val res = tsdb.query(query, now)
 

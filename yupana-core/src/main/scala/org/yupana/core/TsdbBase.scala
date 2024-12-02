@@ -134,9 +134,11 @@ trait TsdbBase extends StrictLogging {
             mr.empty[BatchDataset] -> qc
 
           case Some(conditionAsIs) =>
-            val flatAndCondition = FlatAndCondition(constantCalculator, conditionAsIs, user, startTime, query.params)
+            val withPlaceholders = fillPlaceholders(conditionAsIs, startTime, query.params)
 
-            val substitutedCondition = substituteLinks(flatAndCondition, metricCollector)
+            val flatAndCondition = FlatAndCondition(constantCalculator, withPlaceholders)
+
+            val substitutedCondition = substituteLinks(flatAndCondition, startTime, user, metricCollector)
             logger.debug(s"Substituted condition: $substitutedCondition")
 
             val postDaoConditions = substitutedCondition.map { tbc =>
@@ -287,6 +289,21 @@ trait TsdbBase extends StrictLogging {
     finalizeQuery(queryContext, stage5res, metricCollector)
   }
 
+  def fillPlaceholders(c: Condition, startTime: Time, params: IndexedSeq[Any]): Condition = {
+    c.transform(new Expression.Transform {
+      override def apply[T](x: Expression[T]): Option[Expression[T]] = {
+        x match {
+          case PlaceholderExpr(id, t) =>
+            if (id < params.length + 1) Some(ConstantExpr(params(id - 1).asInstanceOf[T])(t))
+            else throw new IllegalStateException(s"Parameter #$id value is not defined")
+
+          case NowExpr => Some(ConstantExpr(startTime))
+          case _       => None
+        }
+      }
+    })
+  }
+
   def readExternalLinks(
       queryContext: QueryContext,
       ds: BatchDataset
@@ -300,6 +317,8 @@ trait TsdbBase extends StrictLogging {
 
   def substituteLinks(
       flatAndConditions: Seq[FlatAndCondition],
+      startTime: Time,
+      user: YupanaUser,
       metricCollector: MetricQueryCollector
   ): Seq[FlatAndCondition] = {
 
@@ -315,7 +334,7 @@ trait TsdbBase extends StrictLogging {
 
       val transformations = linkServices.flatMap(service =>
         metricCollector.dynamicMetric(s"create_queries.link.${service.externalLink.linkName}").measure(1) {
-          service.transformCondition(tbc)
+          service.transformCondition(tbc, startTime, user)
         }
       )
 

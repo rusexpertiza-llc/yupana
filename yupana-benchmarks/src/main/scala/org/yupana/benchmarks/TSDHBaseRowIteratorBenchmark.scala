@@ -21,7 +21,6 @@ import org.yupana.api.Time
 import org.yupana.api.query.Query
 import org.yupana.api.query.syntax.All._
 import org.yupana.core._
-import org.yupana.core.auth.YupanaUser
 import org.yupana.core.jit.JIT
 import org.yupana.core.model.InternalQuery
 import org.yupana.core.utils.metric.NoMetricCollector
@@ -91,8 +90,6 @@ class TSDHBaseRowBencmarkState {
       TestSchema.testTable,
       exprs.map(_.expr).toSet,
       and(ge(time, const(Time(10))), lt(time, const(Time(20)))),
-      YupanaUser.ANONYMOUS,
-      now,
       IndexedSeq.empty
     )
   val internalQueryContext = InternalQueryContext(internalQuery, NoMetricCollector)
