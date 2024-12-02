@@ -201,13 +201,10 @@ sealed trait SimpleExpr[T] extends Expression[T] {
   override def transform(f: Transform): Expression[T] = f.applyOrDefault(this, this)
 }
 
-case object NowExpr extends Expression[Time] {
+case object NowExpr extends SimpleExpr[Time] {
   override val dataType: DataType.Aux[Time] = DataType[Time]
   override val isNullable: Boolean = false
   override def encode: String = "now()"
-  override val kind: ExprKind = Const
-  override def fold[O](z: O)(f: (O, Expression[_]) => O): O = f(z, this)
-  override def transform(f: Transform): Expression[Time] = f.applyOrDefault(this, this)
 }
 
 case object TimeExpr extends SimpleExpr[Time] {

@@ -121,7 +121,7 @@ object FlatAndCondition {
 
     def updateFrom(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
-        val const = expressionCalculator.evaluateConstant(e, Some(startTime), params)
+        val const = expressionCalculator.evaluateConstant(e)
         update(t =>
           t.copy(from = t.from.map(o => math.max(const.millis + offset, o)) orElse Some(const.millis + offset))
         )
@@ -132,14 +132,27 @@ object FlatAndCondition {
 
     def updateTo(c: SimpleCondition, e: Expression[Time], offset: Long): Seq[FlatAndConditionParts] = {
       if (e.kind == Const) {
-        val const = expressionCalculator.evaluateConstant(e, Some(startTime), params)
+        val const = expressionCalculator.evaluateConstant(e)
         update(t => t.copy(to = t.to.map(o => math.min(const.millis + offset, o)) orElse Some(const.millis + offset)))
       } else {
         update(t => t.copy(conditions = t.conditions :+ c))
       }
     }
 
-    condition match {
+    val withPlaceholders = condition.transform(new Expression.Transform {
+      override def apply[T](x: Expression[T]): Option[Expression[T]] = {
+        x match {
+          case PlaceholderExpr(id, t) =>
+            if (id < params.length + 1) Some(ConstantExpr(params(id - 1).asInstanceOf[T])(t))
+            else throw new IllegalStateException(s"Parameter #$id value is not defined")
+
+          case NowExpr => Some(ConstantExpr(startTime))
+          case _       => None
+        }
+      }
+    })
+
+    withPlaceholders match {
       case c @ GtTime(TimeExpr, e) => updateFrom(c, e, 1L)
       case c @ LtTime(e, TimeExpr) => updateFrom(c, e, 1L)
 

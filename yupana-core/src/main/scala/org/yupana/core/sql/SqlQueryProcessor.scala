@@ -280,10 +280,10 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
         createExpr(nameResolver, e, ExprType.Cmp).flatMap {
           case ex: Expression[t] =>
             for {
-              from <- convertValue(f, ex.dataType)
-              to <- convertValue(t, ex.dataType)
-              ge <- createBooleanExpr(ex, ConstantExpr(from)(ex.dataType), ">=")
-              le <- createBooleanExpr(ex, ConstantExpr(to)(ex.dataType), "<=")
+              from <- convertValue(f, exprType, Some(ex.dataType))
+              to <- convertValue(t, exprType, Some(ex.dataType))
+              ge <- createBooleanExpr(ex, from, ">=")
+              le <- createBooleanExpr(ex, to, "<=")
             } yield AndExpr(Seq(ge, le))
         }
 
@@ -420,14 +420,6 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
       case x                   => Left(s"Only literals allowed, but got $x")
     }
   }
-
-//  private def convertLiteral(
-//      v: parser.Literal,
-//      exprType: ExprType,
-//      tpe: Option[DataType] = None
-//                            ): Either[String, Any] = {
-//
-//  }
 
   private def convertValue(
       v: parser.Value,
