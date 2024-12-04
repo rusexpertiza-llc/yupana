@@ -58,7 +58,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
 
   def bindParameters(query: Query, parameters: Map[Int, Parameter])(
       implicit srw: StringReaderWriter
-  ): Either[String, Query] = {
+  ): Either[String, IndexedSeq[Any]] = {
     val allPh = query.fields.flatMap(f => getPlaceholders(f.expr)) ++
       query.filter.toSeq.flatMap(getPlaceholders) ++
       query.groupBy.flatMap(getPlaceholders) ++
@@ -79,8 +79,7 @@ class SqlQueryProcessor(schema: Schema) extends QueryValidator with Serializable
     }
 
     CollectionUtils.collectErrors(values).map { vs =>
-      val params = vs.sortBy(_._1).map(_._2).toIndexedSeq
-      query.copy(params = params)
+      vs.sortBy(_._1).map(_._2).toIndexedSeq
     }
   }
 

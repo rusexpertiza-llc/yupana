@@ -41,12 +41,13 @@ object JIT extends ExpressionCalculatorFactory with StrictLogging with Serializa
   def makeCalculator(
       query: Query,
       startTime: Time,
+      params: IndexedSeq[Any],
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema) = {
     val (tree, refs, schema) = generateCalculator(query, condition)
 
-    val res = compile(tree)(refs, query.params, startTime, tokenizer)
+    val res = compile(tree)(refs, params, startTime, tokenizer)
 
     (res, schema)
   }

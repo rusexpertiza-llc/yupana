@@ -40,7 +40,7 @@ class TsdHBaseRowIteratorTest extends AnyFlatSpec with Matchers {
     Seq.empty
   )
 
-  val queryContext = new QueryContext(query, now, None, RussianTokenizer, JIT, NoMetricCollector)
+  val queryContext = new QueryContext(query, now, IndexedSeq.empty, None, RussianTokenizer, JIT, NoMetricCollector)
 
   val datasetSchema = queryContext.datasetSchema
 

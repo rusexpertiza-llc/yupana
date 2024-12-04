@@ -112,7 +112,7 @@ class RelatedItemsCatalogImpl(tsdb: TsdbBase, override val externalLink: Related
       filter = filter
     )
 
-    val result = tsdb.query(q, startTime, user)
+    val result = tsdb.query(q, startTime, IndexedSeq.empty, user)
 
     val timeIdx = result.queryContext.datasetSchema.exprIndex(time)
     val kkmIdIdx = result.queryContext.datasetSchema.exprIndex(dimension(Dimensions.KKM_ID))

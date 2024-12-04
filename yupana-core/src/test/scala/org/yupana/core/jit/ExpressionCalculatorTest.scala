@@ -1,4 +1,4 @@
-package org.yupana.core
+package org.yupana.core.jit
 
 import com.twitter.algebird.HyperLogLogAggregator
 import org.scalatest.GivenWhenThen
@@ -8,9 +8,9 @@ import org.threeten.extra.PeriodDuration
 import org.yupana.api.Time
 import org.yupana.api.query.{ ConcatExpr, LengthExpr, NullExpr, Query }
 import org.yupana.api.types.DataType
-import org.yupana.core.jit.JIT
 import org.yupana.core.model.{ BatchDataset, HashTableDataset }
 import org.yupana.core.utils.metric.NoMetricCollector
+import org.yupana.core.{ QueryContext, TestDims, TestSchema, TestTableFields }
 
 import java.time.temporal.{ ChronoUnit, TemporalAdjusters }
 import java.time.{ Duration, OffsetDateTime, Period, ZoneOffset }
@@ -35,7 +35,15 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       cond
     )
 
-    val qc = new QueryContext(query, Time(System.currentTimeMillis()), Some(cond), tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(
+      query,
+      Time(System.currentTimeMillis()),
+      IndexedSeq.empty,
+      Some(cond),
+      tokenizer,
+      JIT,
+      NoMetricCollector
+    )
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -70,7 +78,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -125,7 +133,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(truncDay(time))
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     When("incoming dataset contains only one row")
@@ -322,7 +330,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
     val batch = BatchDataset(qc)
 
@@ -363,7 +371,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -418,7 +426,15 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(System.currentTimeMillis()), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(
+      query,
+      Time(System.currentTimeMillis()),
+      IndexedSeq.empty,
+      None,
+      tokenizer,
+      JIT,
+      NoMetricCollector
+    )
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -466,7 +482,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -500,7 +516,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -553,7 +569,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Some(lt(min(time), const(Time(now.minusMonths(1)))))
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -585,7 +601,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), Some(cond), tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, Some(cond), tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -610,7 +626,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       )
     )
 
-    val qc = new QueryContext(query, Time(now), Some(cond), tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, Some(cond), tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -638,7 +654,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -667,7 +683,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x")
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
     val calc = qc.calculator
 
     val batch = BatchDataset(qc)
@@ -709,7 +725,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
       Seq(x as "x", y as "y", z as "z")
     )
 
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
 
     val batch = BatchDataset(qc)
 
@@ -738,7 +754,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
 
     val batch = BatchDataset(qc)
 
@@ -772,7 +788,7 @@ class ExpressionCalculatorTest extends AnyFlatSpec with Matchers with GivenWhenT
     )
 
     val query = Query(TestSchema.testTable, const(Time(now.minusDays(5))), const(Time(now.minusDays(2))), Seq(a as "a"))
-    val qc = new QueryContext(query, Time(now), None, tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(query, Time(now), IndexedSeq.empty, None, tokenizer, JIT, NoMetricCollector)
 
     val batch = BatchDataset(qc)
 

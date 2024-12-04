@@ -205,8 +205,7 @@ class TsdbTest
           ge(time, param[Time](2)),
           lt(time, param[Time](3))
         )
-      ),
-      params = params
+      )
     )
 
     val pointTime = qtime.toInstant.toEpochMilli + 10
@@ -240,7 +239,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query, startTime)
+    val res = tsdb.query(query, startTime, params)
     res.next() shouldBe true
 
     res.get[Time]("time_time") shouldBe Time(pointTime)
@@ -277,8 +276,7 @@ class TsdbTest
         dimension(TestDims.DIM_A),
         dimension(TestDims.DIM_B),
         link(TestLinks.TEST_LINK, "testField")
-      ),
-      params = params
+      )
     )
 
     (() => testCatalogServiceMock.externalLink).expects().returning(TestLinks.TEST_LINK).anyNumberOfTimes()
@@ -339,7 +337,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query, now)
+    val res = tsdb.query(query, now, params)
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 3, 0, 0, 0))
     res.get[Double]("sum_testField") shouldBe 3d
@@ -364,8 +362,7 @@ class TsdbTest
           lt(time, NowExpr)
         )
       ),
-      Seq(truncDay(time)),
-      params = IndexedSeq(2d)
+      Seq(truncDay(time))
     )
 
     (tsdbDaoMock.query _)
@@ -393,7 +390,7 @@ class TsdbTest
         Iterator(batch)
       }
 
-    val res = tsdb.query(query, Time(now))
+    val res = tsdb.query(query, Time(now), IndexedSeq(2d))
     res.next() shouldBe true
     res.get[Time]("day") shouldBe Time(LocalDateTime.of(2024, 5, 22, 0, 0, 0))
     res.get[Double]("x") shouldBe 5d
@@ -3996,7 +3993,7 @@ class TsdbTest
       .expects(capture(capturedMetrics))
       .atLeastOnce()
 
-    val res = tsdb.query(query, now, testUser)
+    val res = tsdb.query(query, now, IndexedSeq.empty, testUser)
 
     res.next() shouldBe true
     res.next() shouldBe false

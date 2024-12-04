@@ -53,12 +53,20 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
     )
 
-    val qc1 = new QueryContext(expQuery1, startTime, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
+    val qc1 = new QueryContext(
+      expQuery1,
+      startTime,
+      IndexedSeq.empty,
+      None,
+      TestSchema.schema.tokenizer,
+      JIT,
+      NoMetricCollector
+    )
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
-      .expects(expQuery1, startTime, YupanaUser.ANONYMOUS)
+      .expects(expQuery1, startTime, IndexedSeq.empty, YupanaUser.ANONYMOUS)
       .returning({
         val batch = BatchDataset(qc1)
 
@@ -82,10 +90,18 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
     )
 
-    val qc2 = new QueryContext(expQuery2, startTime, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
+    val qc2 = new QueryContext(
+      expQuery2,
+      startTime,
+      IndexedSeq.empty,
+      None,
+      TestSchema.schema.tokenizer,
+      JIT,
+      NoMetricCollector
+    )
 
     (tsdb.query _)
-      .expects(expQuery2, startTime, YupanaUser.ANONYMOUS)
+      .expects(expQuery2, startTime, IndexedSeq.empty, YupanaUser.ANONYMOUS)
       .returning({
         val batch = BatchDataset(qc2)
         batch.set(0, dimension(Dimensions.KKM_ID), 123456)
@@ -145,12 +161,13 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
     )
 
-    val qc = new QueryContext(expQuery, startTime, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
+    val qc =
+      new QueryContext(expQuery, startTime, IndexedSeq.empty, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
     (tsdb.query _)
-      .expects(expQuery, startTime, YupanaUser.ANONYMOUS)
+      .expects(expQuery, startTime, IndexedSeq.empty, YupanaUser.ANONYMOUS)
       .returning({
         val batch = BatchDataset(qc)
         batch.set(0, dimension(Dimensions.KKM_ID), 123456)

@@ -191,7 +191,7 @@ class MessageHandler(context: PgContext, user: YupanaUser, charset: Charset)
     portals.get(name) match {
       case Some(p) =>
         p.prepared match {
-          case PreparedSelect(query) =>
+          case PreparedSelect(query, _) =>
             val desc = RowDescription(query.fields.map(f => fieldDesc(f.name, f.expr.dataType)).toList)
             ctx.write(desc)
           case PreparedCommand(_, _, names, types) =>

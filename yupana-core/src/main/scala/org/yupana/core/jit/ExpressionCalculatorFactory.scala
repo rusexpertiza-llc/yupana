@@ -26,6 +26,7 @@ trait ExpressionCalculatorFactory {
   def makeCalculator(
       query: Query,
       startTime: Time,
+      params: IndexedSeq[Any],
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema)

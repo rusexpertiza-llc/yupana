@@ -81,7 +81,7 @@ class TSDHBaseRowBencmarkState {
   )
   val now = Time(LocalDateTime.now())
 
-  val queryContext = new QueryContext(query, now, None, RussianTokenizer, JIT, NoMetricCollector)
+  val queryContext = new QueryContext(query, now, IndexedSeq.empty, None, RussianTokenizer, JIT, NoMetricCollector)
 
   implicit val calculator: ConstantCalculator = new ConstantCalculator(RussianTokenizer)
 

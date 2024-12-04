@@ -100,6 +100,7 @@ trait TsdbBase extends StrictLogging {
   def query(
       query: Query,
       startTime: Time = Time(System.currentTimeMillis()),
+      params: IndexedSeq[Any] = IndexedSeq.empty,
       user: YupanaUser = YupanaUser.ANONYMOUS
   ): Result = {
 
@@ -124,6 +125,7 @@ trait TsdbBase extends StrictLogging {
                 new QueryContext(
                   optimizedQuery,
                   startTime,
+                  params,
                   optimizedQuery.filter,
                   schema.tokenizer,
                   calculatorFactory,
@@ -134,7 +136,7 @@ trait TsdbBase extends StrictLogging {
             mr.empty[BatchDataset] -> qc
 
           case Some(conditionAsIs) =>
-            val withPlaceholders = fillPlaceholders(conditionAsIs, startTime, query.params)
+            val withPlaceholders = fillPlaceholders(conditionAsIs, startTime, params)
 
             val flatAndCondition = FlatAndCondition(constantCalculator, withPlaceholders)
 
@@ -163,6 +165,7 @@ trait TsdbBase extends StrictLogging {
                 new QueryContext(
                   optimizedQuery,
                   startTime,
+                  params,
                   finalPostDaoCondition,
                   schema.tokenizer,
                   calculatorFactory,
@@ -195,6 +198,7 @@ trait TsdbBase extends StrictLogging {
             new QueryContext(
               optimizedQuery,
               startTime,
+              params,
               query.filter,
               schema.tokenizer,
               calculatorFactory,

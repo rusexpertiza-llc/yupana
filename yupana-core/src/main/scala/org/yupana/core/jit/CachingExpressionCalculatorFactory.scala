@@ -25,24 +25,24 @@ import org.yupana.core.model.DatasetSchema
 
 object CachingExpressionCalculatorFactory extends ExpressionCalculatorFactory {
 
-  private val calculatorCache: Cache[String, (Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator] =
+  private val calculatorCache: Cache[Query, (Array[Any], IndexedSeq[Any], Time, Tokenizer) => ExpressionCalculator] =
     CacheFactory.initCache("calculator_cache")
 
   override def makeCalculator(
       query: Query,
       startTime: Time,
+      params: IndexedSeq[Any],
       condition: Option[Condition],
       tokenizer: Tokenizer
   ): (ExpressionCalculator, DatasetSchema) = {
 
     val (tree, refs, schema) = JIT.generateCalculator(query, condition)
 
-    val key = tree.toString()
-
-    val fun = calculatorCache.caching(key) {
+    val fun = calculatorCache.caching(query) {
+      println(s"CACHE MISS $query")
       JIT.compile(tree)
     }
 
-    (fun(refs, query.params, startTime, tokenizer), schema)
+    (fun(refs, params, startTime, tokenizer), schema)
   }
 }
