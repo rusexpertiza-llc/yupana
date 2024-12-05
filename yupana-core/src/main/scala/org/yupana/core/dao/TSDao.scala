@@ -31,9 +31,16 @@ trait TSDao[Collection[_], IdType] extends TSReadingDao[Collection, IdType] {
 
   def putDataset(
       mr: MapReducible[Collection],
-      table: Table,
+      tables: Seq[Table],
       dataset: Collection[BatchDataset],
       username: String
   ): Collection[UpdateInterval]
+
+  def putDataset(
+      mr: MapReducible[Collection],
+      table: Table,
+      dataset: Collection[BatchDataset],
+      username: String
+  ): Collection[UpdateInterval] = putDataset(mr, Seq(table), dataset, username)
 
 }

@@ -1532,7 +1532,7 @@ class TSDaoHBaseTest
 
     override def putDataset(
         mr: MapReducible[Iterator],
-        table: Table,
+        tables: Seq[Table],
         dataset: Iterator[BatchDataset],
         username: String
     ): Iterator[UpdateInterval] = ???
