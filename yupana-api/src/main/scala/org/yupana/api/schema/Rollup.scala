@@ -57,24 +57,6 @@ case class TsdbRollup(
   lazy val allFields: Seq[QueryFieldProjection] = QueryFieldToTime(timeField) +: fields
   lazy val allGroupBy: Seq[Expression[_]] = if (timeExpr != TimeExpr) timeExpr +: groupBy else groupBy
 
-  lazy val tagResultNameMap: Map[String, String] = allFields.collect {
-    case QueryFieldToDimension(queryField, dimension) =>
-      dimension.name -> queryField.name
-  }.toMap
-
-  lazy val fieldNamesMap: Map[String, String] = allFields.collect {
-    case QueryFieldToMetric(queryField, field) =>
-      field.name -> queryField.name
-  }.toMap
-
-  def getResultFieldForDimName(dimName: String): String = {
-    tagResultNameMap.getOrElse(dimName, throw new Exception(s"Can't find result field for tag name: $dimName"))
-  }
-
-  def getResultFieldForMeasureName(fieldName: String): String = {
-    fieldNamesMap.getOrElse(fieldName, throw new Exception(s"Can't find result field for field name: $fieldName"))
-  }
-
   override def withFromTable(table: Table): TsdbRollup = copy(fromTable = table)
 
   override def withToTables(tables: Seq[Table]): TsdbRollup = copy(toTables = tables)

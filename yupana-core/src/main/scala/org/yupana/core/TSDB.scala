@@ -63,12 +63,12 @@ class TSDB(
   }
 
   override def putDataset(
-      table: Table,
+      tables: Seq[Table],
       dataset: Collection[BatchDataset],
       user: YupanaUser
   ): Unit = {
     if (config.putEnabled) {
-      super.putDataset(table, dataset, user)
+      super.putDataset(tables, dataset, user)
     } else throw new IllegalAccessException("Put is disabled")
   }
 

@@ -370,7 +370,11 @@ trait TsdbBase extends StrictLogging {
     updateIntervals(updatedIntervals)
   }
 
-  def putDataset(table: Table, dataset: Collection[BatchDataset], user: YupanaUser = YupanaUser.ANONYMOUS): Unit = {
+  def putDataset(
+      tables: Seq[Table],
+      dataset: Collection[BatchDataset],
+      user: YupanaUser = YupanaUser.ANONYMOUS
+  ): Unit = {
     val mr = mapReduceEngine(NoMetricCollector)
 
     val updated = mr.map(dataset) { batch =>
@@ -378,10 +382,9 @@ trait TsdbBase extends StrictLogging {
       batch
     }
 
-    val updatedIntervals = dao.putDataset(mr, table, updated, user.name)
+    val updatedIntervals = dao.putDataset(mr, tables, updated, user.name)
 
     updateIntervals(updatedIntervals)
-
   }
 
   private def updateIntervals(updateIntervals: Collection[UpdateInterval]): Unit = {
