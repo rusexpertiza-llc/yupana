@@ -124,8 +124,6 @@ trait TsdbBase extends StrictLogging {
               metricCollector.createContext.measure(1)(
                 new QueryContext(
                   optimizedQuery,
-                  startTime,
-                  params,
                   optimizedQuery.filter,
                   schema.tokenizer,
                   calculatorFactory,
@@ -164,8 +162,6 @@ trait TsdbBase extends StrictLogging {
               metricCollector.createContext.measure(1)(
                 new QueryContext(
                   optimizedQuery,
-                  startTime,
-                  params,
                   finalPostDaoCondition,
                   schema.tokenizer,
                   calculatorFactory,
@@ -197,8 +193,6 @@ trait TsdbBase extends StrictLogging {
           metricCollector.createContext.measure(1)(
             new QueryContext(
               optimizedQuery,
-              startTime,
-              params,
               query.filter,
               schema.tokenizer,
               calculatorFactory,
@@ -212,14 +206,16 @@ trait TsdbBase extends StrictLogging {
         (rows, qc)
     }
 
-    processRows(queryContext, metricCollector, mr, rows)
+    processRows(queryContext, metricCollector, mr, rows, startTime, params)
   }
 
   def processRows(
       queryContext: QueryContext,
       metricCollector: MetricQueryCollector,
       mr: MapReducible[Collection],
-      rows: Collection[BatchDataset]
+      rows: Collection[BatchDataset],
+      startTime: Time,
+      params: IndexedSeq[Any]
   ): Result = {
 
     val hasWindowFunctions = queryContext.query.fields.exists(_.expr.kind == Window)
@@ -233,10 +229,10 @@ trait TsdbBase extends StrictLogging {
       }
 
       metricCollector.filter.measure(batch.size) {
-        queryContext.calculator.evaluateFilter(batch)
+        queryContext.calculator.evaluateFilter(batch, startTime, params)
       }
       metricCollector.evaluateExpressions.measure(batch.size) {
-        queryContext.calculator.evaluateExpressions(batch)
+        queryContext.calculator.evaluateExpressions(batch, startTime, params)
       }
       batch
     }
@@ -245,7 +241,7 @@ trait TsdbBase extends StrictLogging {
       val aggregated = mr.aggregateDatasets(stage1res, queryContext)(
         (acc: HashTableDataset, batch: BatchDataset) => {
           metricCollector.reduceOperation.measure(batch.size) {
-            queryContext.calculator.evaluateFold(acc, batch)
+            queryContext.calculator.evaluateFold(acc, batch, startTime, params)
           }
         },
         (acc: HashTableDataset, batch: BatchDataset) => {
@@ -277,7 +273,7 @@ trait TsdbBase extends StrictLogging {
     val stage4res = if (queryContext.query.postFilter.isDefined) {
       mr.map(stage3res) { batch =>
         metricCollector.postFilter.measure(batch.size) {
-          queryContext.calculator.evaluatePostFilter(batch)
+          queryContext.calculator.evaluatePostFilter(batch, startTime, params)
         }
         batch
       }

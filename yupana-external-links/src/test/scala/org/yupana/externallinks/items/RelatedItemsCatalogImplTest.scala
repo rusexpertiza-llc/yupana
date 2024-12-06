@@ -53,15 +53,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("хлеб ржаной"))
     )
 
-    val qc1 = new QueryContext(
-      expQuery1,
-      startTime,
-      IndexedSeq.empty,
-      None,
-      TestSchema.schema.tokenizer,
-      JIT,
-      NoMetricCollector
-    )
+    val qc1 = new QueryContext(expQuery1, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
@@ -90,15 +82,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(link(ItemsInvertedIndex, ItemsInvertedIndex.PHRASE_FIELD)), Set("бородинский"))
     )
 
-    val qc2 = new QueryContext(
-      expQuery2,
-      startTime,
-      IndexedSeq.empty,
-      None,
-      TestSchema.schema.tokenizer,
-      JIT,
-      NoMetricCollector
-    )
+    val qc2 = new QueryContext(expQuery2, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.query _)
       .expects(expQuery2, startTime, IndexedSeq.empty, YupanaUser.ANONYMOUS)
@@ -161,8 +145,7 @@ class RelatedItemsCatalogImplTest extends AnyFlatSpec with Matchers with MockFac
       in(lower(dimension(Dimensions.ITEM)), Set("яйцо молодильное 1к"))
     )
 
-    val qc =
-      new QueryContext(expQuery, startTime, IndexedSeq.empty, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
+    val qc = new QueryContext(expQuery, None, TestSchema.schema.tokenizer, JIT, NoMetricCollector)
 
     (tsdb.mapReduceEngine _).expects(*).returning(IteratorMapReducible.iteratorMR).anyNumberOfTimes()
 
