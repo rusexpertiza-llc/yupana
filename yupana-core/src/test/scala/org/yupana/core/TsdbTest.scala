@@ -24,7 +24,7 @@ import org.yupana.utils.RussianTokenizer
 
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
-import java.time.{ Duration, OffsetDateTime, LocalDateTime, ZoneOffset }
+import java.time.{ Duration, LocalDateTime, OffsetDateTime, ZoneOffset }
 import java.util.Properties
 
 class TsdbTest
@@ -52,6 +52,8 @@ class TsdbTest
   import org.yupana.api.query.syntax.All._
 
   "TSDB" should "put datapoint to database" in {
+
+    val writer = YupanaUser("famous writer", None, TsdbRole.ReadWrite)
 
     val tsdbDaoMock = mock[TSTestDao]
     val changelogDaoMock = mock[ChangelogDao]
@@ -83,7 +85,7 @@ class TsdbTest
 
     (tsdbDaoMock.put _)
       .expects(where { (_, dps, user) =>
-        dps.toSeq == Seq(dp1, dp2, dp3) && user == YupanaUser.ANONYMOUS.name
+        dps.toSeq == Seq(dp1, dp2, dp3) && user == writer.name
       })
       .returning(Iterator(interval1, interval2, interval1))
 
@@ -95,7 +97,7 @@ class TsdbTest
     (externalLinkServiceMock.put(_: Seq[DataPoint])).expects(Seq(dp1, dp2))
     (externalLinkServiceMock.put(_: Seq[DataPoint])).expects(Seq(dp3))
 
-    tsdb.put(Iterator(dp1, dp2, dp3))
+    tsdb.put(Iterator(dp1, dp2, dp3), writer)
   }
 
   it should "not allow put if disabled" in {
