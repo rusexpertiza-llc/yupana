@@ -1,25 +1,25 @@
 package org.yupana.externallinks.items
 
-import java.util.Properties
 import org.scalamock.scalatest.MockFactory
 import org.scalatest._
-import org.yupana.api.query.{ AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition }
-import org.yupana.api.utils.SortedSetIterator
-import org.yupana.core.dao.InvertedIndexDao
-import org.yupana.core.{ ConstantCalculator, TSDB }
-import org.yupana.externallinks.TestSchema
-import org.yupana.schema.externallinks.ItemsInvertedIndex
-import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.yupana.api.Time
+import org.yupana.api.query.{ AddCondition, DimIdInExpr, DimIdNotInExpr, RemoveCondition }
+import org.yupana.api.utils.SortedSetIterator
 import org.yupana.cache.CacheFactory
+import org.yupana.core.ConstantCalculator
 import org.yupana.core.auth.YupanaUser
+import org.yupana.core.dao.InvertedIndexDao
 import org.yupana.core.utils.FlatAndCondition
+import org.yupana.externallinks.TestSchema
+import org.yupana.schema.externallinks.ItemsInvertedIndex
+import org.yupana.schema.{ Dimensions, ItemDimension }
 import org.yupana.settings.Settings
 import org.yupana.utils.RussianTokenizer
 
 import java.time.LocalDateTime
+import java.util.Properties
 
 class ItemsInvertedIndexImplTest
     extends AnyFlatSpec
@@ -41,7 +41,7 @@ class ItemsInvertedIndexImplTest
     CacheFactory.flushCaches()
   }
 
-  "ItemsInvertedIndex" should "substitute in condition" in withMocks { (index, dao, _) =>
+  "ItemsInvertedIndex" should "substitute in condition" in withMocks { (index, dao) =>
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("kolbas").returning(si("колбаса копчения", "колбаса вареная", "колбаса вареная молочная"))
@@ -100,7 +100,7 @@ class ItemsInvertedIndexImplTest
     ).toSeq
   }
 
-  it should "put values storage" in withMocks { (index, dao, _) =>
+  it should "put values storage" in withMocks { (index, dao) =>
 
     (dao.batchPut _).expects(where { vs: Map[String, Set[ItemDimension.KeyType]] =>
       vs.keySet == Set("sigaret", "legk", "molok", "papiros")
@@ -109,7 +109,7 @@ class ItemsInvertedIndexImplTest
     index.putItemNames(Set("сигареты легкие", "ПаПиросы", "молоко"))
   }
 
-  it should "ignore handle prefixes" in withMocks { (index, dao, _) =>
+  it should "ignore handle prefixes" in withMocks { (index, dao) =>
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("krasn").returning(si("красный болт", "красное яблоко", "еще красное яблоко"))
@@ -142,7 +142,7 @@ class ItemsInvertedIndexImplTest
     }
   }
 
-  it should "ignore empty prefixes" in withMocks { (index, dao, _) =>
+  it should "ignore empty prefixes" in withMocks { (index, dao) =>
     import org.yupana.api.query.syntax.All._
 
     (dao.values _).expects("sigaret").returning(si("сигареты винстон", "сигареты бонд"))
@@ -173,10 +173,9 @@ class ItemsInvertedIndexImplTest
     SortedSetIterator(s.iterator)
   }
 
-  def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, ItemDimension.KeyType], TSDB) => Unit): Unit = {
+  def withMocks(body: (ItemsInvertedIndexImpl, InvertedIndexDao[String, ItemDimension.KeyType]) => Unit): Unit = {
 
     val dao = mock[InvertedIndexDao[String, ItemDimension.KeyType]]
-    val tsdb = mock[TSDB]
     val index = new ItemsInvertedIndexImpl(
       TestSchema.schema,
       dao,
@@ -184,6 +183,6 @@ class ItemsInvertedIndexImplTest
       externalLink = ItemsInvertedIndex
     )
 
-    body(index, dao, tsdb)
+    body(index, dao)
   }
 }
